@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 2
+  revision: 3
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-11T12:00:00Z"
+  updatedAt: "2026-09-14T04:30:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -67,11 +67,13 @@ has no review behind it at all and carries the same proof clause.
 ### 3. The slots
 
 Write the slots in this order. The first slot is the condition the evaluator
-reads as its directive; the rest are instructions to the working agent.
+reads as its directive; the rest are instructions to the working agent. Make
+the first slot unmistakably a directive toward a future target. A completion
+predicate is not a report of current state.
 
 | Slot | Content | Rule |
 |---|---|---|
-| **destination** | One end state in the present tense. | An outcome that splits is a separate goal. No feeling-words ("clean", "production-ready"). |
+| **destination** | One future end state in the present tense, introduced as an instruction. | Start with “Work until this verified end state is true:” or “Bring `<target>` to this state:”. Do not open with an unmarked assertion such as “The work is complete,” which can sound like current-state context. An outcome that splits is a separate goal. No feeling-words ("clean", "production-ready"). |
 | **proof** | The commands or artifacts whose output must appear in the transcript, and what counts as passing. | Name the check. "Validated" without a command is not a proof clause. |
 | **sources** | What to read first, by name: skills, the plan, the scenario docs. | Point; do not paste. Docs first, then code. |
 | **boundary** | Allowed paths and effects. Scope policy: `fixed` or `extend-with-record`. | Use the plan's `acceptance_allow` when a plan exists. |
@@ -81,9 +83,11 @@ reads as its directive; the rest are instructions to the working agent.
 | **handoff** | Where to checkpoint (Plan Manager log, a progress file) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
 | **non-goals** | What not to do: widen scope, loosen or delete tests, rerun unchanged validation for a greener result. | Cite `improvement-do-and-dont` for the anti-gaming rules. |
 
-Test the whole message with one question: could a reviewer who wanted to
+Test the whole message with two questions: is the first sentence clearly an
+instruction to reach a future state rather than a claim that the state already
+holds, and could a reviewer who wanted to
 disprove "this goal was met" do so from the transcript alone? If not, the
-destination is a feeling or the proof is unnamed.
+destination needs an explicit directive or the proof is unnamed.
 
 ### 4. What goes where
 
@@ -149,7 +153,7 @@ product features, including plan authoring and docs-first authoring, take this
 shape.
 
 ```text
-/goal <end state, present tense>, proven by <command> exiting 0 and <observable result>, both shown in the transcript.
+/goal Work until this verified end state is true: <end state in present tense>, proven by <command> exiting 0 and <observable result>, both shown in the transcript.
 
 Context: read <doc paths> first. Touch only <paths>.
 Validation: <targeted command>. No full suite.

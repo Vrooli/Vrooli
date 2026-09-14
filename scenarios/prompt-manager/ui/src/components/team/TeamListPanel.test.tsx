@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@/test-utils/renderWithProviders'
 import { buildDefaultCreateTeamRequest } from '@/lib/schemas'
-import type { Team, TeamDetails } from '@/types/team'
+import type { TeamDetails } from '@/types/team'
 import * as teamService from '@/services/teamService'
 import { TeamListPanel } from './TeamListPanel'
 
@@ -9,15 +9,6 @@ vi.mock('@/services/teamService', () => ({ getTeams: vi.fn(), createTeam: vi.fn(
 vi.mock('@/stores/graphStore', () => ({ useGraphStore: { getState: () => ({ fetchHealthScores: vi.fn() }) } }))
 vi.mock('@/components/markdown/MarkdownRenderer', () => ({ MarkdownRenderer: () => null }))
 vi.mock('./CCTeamImportModal', () => ({ CCTeamImportModal: () => null }))
-vi.mock('./TeamEffortsPanel', () => ({
-  TeamEffortsPanel: ({ teams, teamRegistryComplete, onOpenTeam }: {
-    teams: Team[]; teamRegistryComplete: boolean; onOpenTeam: (id: string) => void
-  }) => <section aria-label="Observed efforts">
-    <p>{teams.length} registered teams · registry {teamRegistryComplete ? 'available' : 'unavailable'}</p>
-    <button onClick={() => onOpenTeam('launch')}>Open linked delivery team</button>
-  </section>,
-}))
-
 function makeTeam(id: string, displayName: string, overrides: Partial<TeamDetails> = {}): TeamDetails {
   return {
     ...buildDefaultCreateTeamRequest(displayName),
@@ -109,17 +100,4 @@ describe('TeamListPanel purpose and lifetime controls', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('opens all observed efforts using the full registry even while filtering, then opens a linked team', async () => {
-    const onSelectTeam = vi.fn()
-    render(<TeamListPanel selectedTeamId={null} onSelectTeam={onSelectTeam} />)
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Filter teams by purpose' }), { target: { value: 'supervision' } })
-    expect(screen.queryByRole('region', { name: 'Observed efforts' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Efforts and orchestration' }))
-    const dialog = screen.getByRole('dialog', { name: 'Efforts and orchestration' })
-    expect(within(dialog).getByText('5 registered teams · registry available')).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Open linked delivery team' }))
-    expect(onSelectTeam).toHaveBeenCalledWith('launch')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(teamService.createTeam).not.toHaveBeenCalled()
-  })
 })

@@ -3,7 +3,7 @@
  */
 
 import { useState, useMemo } from 'react'
-import { Download, Plus, Power, Trash2, Upload, Users, Network } from 'lucide-react'
+import { Download, Plus, Power, Trash2, Upload, Users } from 'lucide-react'
 import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
@@ -14,9 +14,7 @@ import * as teamService from '@/services/teamService'
 import { CCTeamImportModal } from './CCTeamImportModal'
 import type { HeartbeatControlStatus } from '@/services/heartbeatService'
 import type { Team } from '@/types/team'
-import { Dialog } from '@/components/shared/Dialog'
 import { TeamModelHelp, TeamPurposeBadges, teamPresets, teamPurposeLabels, teamLifetimeLabels } from './TeamPurposePanel'
-import { TeamEffortsPanel } from './TeamEffortsPanel'
 
 function teamActions(
   onToggleEnabled: (id: string) => void,
@@ -80,7 +78,6 @@ export function TeamListPanel({
   const [purposeFilter, setPurposeFilter] = useState('')
   const [lifetimeFilter, setLifetimeFilter] = useState('')
   const [preset, setPreset] = useState<keyof typeof teamPresets>('custom')
-  const [effortsOpen, setEffortsOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -206,8 +203,6 @@ export function TeamListPanel({
             <option value="unspecified">Unspecified</option>
           </select>
         </div>
-        <button type="button" onClick={() => setEffortsOpen(true)} className="flex items-center gap-2 text-xs text-primary hover:underline"><Network className="h-3.5 w-3.5" />Efforts and orchestration</button>
-        <p className="text-[11px] text-muted-foreground">Includes observed efforts without a registered team.</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         <CollectionList
@@ -277,10 +272,6 @@ export function TeamListPanel({
           </button>
         </div>
       )}
-
-      <Dialog isOpen={effortsOpen} onClose={() => setEffortsOpen(false)} title="Efforts and orchestration" maxWidth="max-w-5xl" appearance="theme">
-        {effortsOpen ? <TeamEffortsPanel teams={teams} teamRegistryComplete onOpenTeam={id => { onSelectTeam(id); setEffortsOpen(false) }} /> : null}
-      </Dialog>
 
       {/* Import modal */}
       <CCTeamImportModal

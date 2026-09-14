@@ -66,3 +66,9 @@ Usage-weighted priority audit of the skill library. Maintained by `skill-optimiz
 ## 2026-09-12 Rotation Addendum
 
 | documentation-health | 9 unique inbound | 0.20 | drift | 2026-09-12 | cli-backlog | Manual fallback selected it from usage evidence: 58 returned / 1 read in 7d, highest returned demand observed. Graph still reports one critical invalid-command finding for the `plan-manager author start/continue/finalize` shorthand, while live `plan-manager author --help` confirms the current subcommand surface. Existing owner item `documentation-health-command-drift` covers repair and stable audit-operation promotion; no duplicate Action or skill edit. Baseline: health 0.20, command-reference 0.00, 58 returns / 1 read. Expected delta: zero critical command-reference findings, valid current syntax, and lower repeated manual setup. Measure graph node, skill usage, discovery, and Action validation/dry-run after owner acceptance. |
+
+## 2026-09-13 Rotation Addendum
+
+| Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
+|-------|---------|--------|--------|--------------|-------------|-------|
+| sandbox | 0 | 0.20 | capability-work-item (reconfirmed) | 2026-09-13 | no-action | Board focus exposed Act A25 (canonical in-place file edit outside a sandbox) as the only missing Act cell. `coverage explain-cell act/A25` confirms no declared runtime owner/provider. `prompt-manager discover "edit a file in place outside a sandbox" --type all` returns only sandbox/related skills, and the existing owner-routed fix `capability-act-a25-canonical-file-edit-owner-20260910` remains the correct route. No skill edit, Action candidate, or duplicate work item. |

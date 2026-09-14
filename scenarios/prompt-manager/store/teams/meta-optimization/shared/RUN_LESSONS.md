@@ -10,6 +10,22 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-13 · `5f6becc7-b312-4756-bb39-6ea394a1f600` · `swarm-execution` · errored
+
+**Lesson.** This run failed before agent work because the runner-control translator rejected the requested OpenCode configuration: model `opencode-go/deepseek-v4.1-flash` has no documented variant for effort `medium`. The bounded report shows 30ms duration, 0 turns, 0 tokens, no tool calls, no diff, and no receipts. This is launch/configuration integrity evidence, not evidence about the dispatched agent or its skill.
+
+**Implicated.** Primary: `agent-manager` runner-control model/effort compatibility preflight and terminal-result reporting; existing backlog `agent-manager-launch-prerequisite-integrity` is the owner handoff. The run should be excluded from agent-behavior scoring. No deterministic manual CLI sequence or Action would repair the incompatible runner configuration, so this is not an Action candidate and does not justify a duplicate work item.
+
+**Action decision.** `capability-work-item` via the existing `agent-manager-launch-prerequisite-integrity` handoff; no duplicate filing. The owner should validate documented model variants before dispatch and emit one typed prerequisite failure with no ambiguous candidate state.
+
+**Measurement plan.** Baseline: 1 pre-dispatch failure, 30ms, 0 turns/tokens/tools, no diff, and no receipts. Over the next 7 heartbeats, count model/effort compatibility failures and verify they are rejected before dispatch with a typed cause, zero ambiguous result candidates, and zero attribution to agent behavior.
+
+**Program-runtime ratchet.** Governed share was `1654/1660 = 0.9963855421686747` over `604800s` (`2026-09-06T22:45:15.998844654Z`–`2026-09-13T22:45:15.998844654Z`); the exact numerator/denominator are preserved because the share is below 1.0. Repeated unresolved names were `inputs` (20), `test_geni` (6), `vrooli_memory` (3), and `bindings` (2); existing backlog items cover them, so no new item was filed. The most-used recurring governed library intent surfaced by discovery was `agent-manager.investigate` (1 recorded usage), with no repeated unresolved program name meeting a new-item threshold beyond already-covered items.
+
+**Discovery gaps.** `prompt-manager discovery-gaps --since 7d` returned one cluster: `bindings` (4). `prompt-manager discover "bindings" --type all` returned no results, but the existing `program-runtime-unresolved-bindings-20260907` backlog item already routes this repeated gap to the owning program-runtime surface; no duplicate was filed.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
 ### 2026-09-12 · `d722a125-70e5-4df6-bb19-c17c3386c840` · `heartbeat-marketing-crew/marketing-contrarian` · errored
 
 **Lesson.** This run is runner-availability contamination, not evidence about marketing-contrarian behavior. Agent-manager reported `Runner codex is temporarily unavailable. Please try again.` after the configured 600s timeout. The trace still contains 185 Bash calls (155 successful, 15 failed, 15 unresolved), 184 repeated calls, a 153,336ms event gap, eight messages with substantive intermediate findings, one verified search-hub receipt, and no final candidate, turns, tokens, or diff. The runner became unavailable after the agent had made useful progress, so the current result surface loses the work product and provides no typed partial-completion state.

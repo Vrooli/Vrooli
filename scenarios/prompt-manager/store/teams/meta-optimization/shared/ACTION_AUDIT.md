@@ -57,3 +57,9 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 ## 2026-09-12 Rotation Addendum
 
 | documentation-health audit | no exact Action | blocked | `prompt-manager discover "documentation health audit and manifest/reference validation" --type all` found the skill and unrelated `agent-system.framework-health`; no docs-health Action. Existing `agent-system.framework-health` validates and dry-runs successfully, but measures framework health rather than documentation health. | cli-backlog | Keep the existing `documentation-health-command-drift` owner route. The workflow spans `knowledge-observatory docs audit/health` plus Plan Manager context, so an Action candidate is premature until one governed owner exposes a stable input/output contract and permissions. Baseline: 58 returns / 1 read in 7d; graph health 0.20. Expected delta: repaired commands first, then lower manual setup if a stable Action is accepted. |
+
+## 2026-09-13 Rotation Addendum
+
+| Operation | Status | Validation | Discoverability | Disposition | Notes |
+|-----------|--------|------------|-----------------|-------------|-------|
+| canonical in-place file edit outside a sandbox (Act A25) | no exact Action; owner gap unchanged | `coverage explain-cell act/A25` reports missing with no declared runtime owner/provider; no Action validation possible | Discovery again found only `sandbox`, `git-control-tower-draft-commit`, and `git-control-tower-provenance`; no executable Action | no-action (existing capability-work-item) | Preserve `capability-act-a25-canonical-file-edit-owner-20260910`. Baseline remains Act 25/28 NOW with A25 missing; manual cost/auditability unmeasured. Expected delta remains A25 NOW only after a governed owner, exact target+patch/actor input, changed-path+receipt output, permissions, and refusal tests. No duplicate proposal. |

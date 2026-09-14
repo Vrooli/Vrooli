@@ -1,10 +1,41 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "marketing-crew",
+  "attributionValidFrom": "2026-05-04",
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-02-09T12:00:00Z",
   "displayName": "Marketing Crew",
+  "effortRefs": [
+    "workspace:/home/matthalloran8/Vrooli#aquila-launch-2026-09-17"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "id": "marketing-crew",
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "content-desk",
+      "asset-studio",
+      "channel-manager"
+    ],
+    "gapMarker": "2026-09-12 — content-desk and asset-studio remain the two real production owners; channel-manager is added to coversScenarios (judgment recorded this date) because content-desk's board is the single aggregate address and projects channel-manager's distribution connectivity (RehydrateDistributionConnectivity), and channel-manager is the producing owner of the organic-distribution and paid-acquisition catalog rows. It is a covered source, not a second address, so the one-address invariant holds. Corrected: the capability the 2026-08-13 marker called unowned under a `social-media-scheduler` scenario is owned by Channel Manager (platform identities, warming programs, account health, and the approved-content release queue), so no new scheduler scenario is needed. The single aggregate address is content-desk's capability/readiness/production board (data plan 9c7302aa Phase 2): it reports the 19-category capability catalog, per-dimension readiness and the distribution projection, but remains active/unqualified and not yet approved, and its distribution reads degrade while channel-manager is stopped. Status stays partial until the board is qualified and approved as the team's declared aggregate."
+  },
+  "kind": "team",
+  "lifetime": "standing",
   "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning work items the operator reviews each heartbeat.",
   "objectivesServed": [
     {
@@ -19,37 +50,6 @@
       "acknowledgedRevision": "6f1333c6dc55"
     }
   ],
-  "instrument": {
-    "status": "partial",
-    "archetype": "production-ledger",
-    "coversScenarios": [
-      "content-desk",
-      "asset-studio",
-      "channel-manager"
-    ],
-    "gapMarker": "2026-09-12 — content-desk and asset-studio remain the two real production owners; channel-manager is added to coversScenarios (judgment recorded this date) because content-desk's board is the single aggregate address and projects channel-manager's distribution connectivity (RehydrateDistributionConnectivity), and channel-manager is the producing owner of the organic-distribution and paid-acquisition catalog rows. It is a covered source, not a second address, so the one-address invariant holds. Corrected: the capability the 2026-08-13 marker called unowned under a `social-media-scheduler` scenario is owned by Channel Manager (platform identities, warming programs, account health, and the approved-content release queue), so no new scheduler scenario is needed. The single aggregate address is content-desk's capability/readiness/production board (data plan 9c7302aa Phase 2): it reports the 19-category capability catalog, per-dimension readiness and the distribution projection, but remains active/unqualified and not yet approved, and its distribution reads degrade while channel-manager is stopped. Status stays partial until the board is qualified and approved as the team's declared aggregate."
-  },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
-  "coordination": {
-    "pattern": "independent",
-    "reportingMode": "none",
-    "messagingMode": "disabled",
-    "capabilities": {
-      "showOrgContext": false,
-      "injectInbox": false,
-      "allowPeerTriggers": false,
-      "showTaskBoardGuidance": false,
-      "showKnowledgeLogGuidance": true,
-      "requireHandoff": true
-    }
-  },
-  "execution": {
-    "queuePolicy": "bounded-parallel",
-    "maxConcurrentRuns": 3
-  },
   "operatingContract": {
     "schemaVersion": 1,
     "documents": {
@@ -287,42 +287,42 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "channel-scan/<slug>": {
+      "channel-scan/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "competitor-record/<slug>": {
+      "competitor-record/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "format-scan/<slug>": {
+      "format-scan/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "hook-record/<slug>": {
+      "hook-record/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "marketing-craft-observation/<post-type>/<slug>": {
+      "marketing-craft-observation/\u003cpost-type\u003e/\u003cslug\u003e": {
         "ownerMemberId": "brand-manager",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "monetization-benchmark-adjacent-record/<topic>": {
+      "monetization-benchmark-adjacent-record/\u003ctopic\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "skill-scan/<slug>": {
+      "skill-scan/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "workflow-scan/<slug>": {
+      "workflow-scan/\u003cslug\u003e": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -361,7 +361,7 @@
           "narrativeCanonTriggers": [
             "approved work item changes positioning",
             "new SKU ships or launch window opens",
-            "systematic drift across >=3 recent drafts",
+            "systematic drift across \u003e=3 recent drafts",
             "typed marketing-craft observation reaches promotion threshold",
             "operator-flagged drift"
           ]
@@ -440,14 +440,16 @@
       }
     }
   },
+  "purpose": "domain-stewardship",
+  "revision": 10,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "attributionValidFrom": "2026-05-04",
-  "revision": 9,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-07-28T00:00:00Z",
   "topicCatalog": [
     {
       "prefix": "audience-scan/*",
@@ -499,5 +501,6 @@
       "status": "live",
       "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
     }
-  ]
+  ],
+  "updatedAt": "2026-09-13T22:02:55Z"
 }
