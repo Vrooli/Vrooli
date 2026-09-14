@@ -119,6 +119,9 @@ message MetricTimelineSample {
 	MetricValue cpu_core_imbalance_index = 23;
 	MetricValue cpu_mode_iowait = 24;
 	MetricValue cpu_mode_steal = 25;
+	MetricValue network_established_rate = 26;
+	MetricValue network_time_wait_rate = 27;
+	MetricValue network_close_wait_rate = 28;
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -228,6 +231,82 @@ message NetworkMetrics {
 
   // Connection pool statuses.
   repeated ConnectionPool connection_pools = 4;
+
+  // Native lifecycle rates. A rate is not measured until two valid samples
+  // have been observed; the MetricValue state carries that distinction.
+  MetricValue established_rate = 5;
+  MetricValue time_wait_rate = 6;
+  MetricValue close_wait_rate = 7;
+  MetricValue connections_opened_rate = 8;
+  MetricValue connections_closed_rate = 9;
+
+  // Bounded interface and transport evidence from the steady collector.
+  repeated NetworkInterface interfaces = 10;
+  NetworkOwnership ownership = 11;
+  repeated NetworkEndpoint endpoints = 12;
+  NetworkCapabilities capabilities = 13;
+  NetworkVerdict verdict = 14;
+}
+
+// NetworkInterface is one native interface row. Byte and packet totals are
+// cumulative counters; the corresponding rate fields are derived values.
+message NetworkInterface {
+  string name = 1;
+  string hardware_address = 2;
+  bool up = 3;
+  MetricValue received_bytes = 4;
+  MetricValue transmitted_bytes = 5;
+  MetricValue received_packets = 6;
+  MetricValue transmitted_packets = 7;
+  MetricValue receive_errors = 8;
+  MetricValue transmit_errors = 9;
+  MetricValue receive_drops = 10;
+  MetricValue transmit_drops = 11;
+  MetricValue receive_bytes_per_second = 12;
+  MetricValue transmit_bytes_per_second = 13;
+}
+
+// NetworkOwnership is a bounded top-N process/service attribution result.
+message NetworkOwnership {
+  repeated NetworkOwner owners = 1;
+  int32 total_connections = 2;
+  int32 attributed_connections = 3;
+  double attribution_coverage_percent = 4;
+  bool truncated = 5;
+  string reason = 6;
+  string provenance = 7;
+}
+
+message NetworkOwner {
+  int32 pid = 1;
+  string process_name = 2;
+  string service_name = 3;
+  int32 connections = 4;
+}
+
+// NetworkEndpoint is a bounded, redacted endpoint summary. Raw addresses are
+// never required by the common operator contract.
+message NetworkEndpoint {
+  string scope = 1; // local, lan, or external
+  string direction = 2; // inbound or outbound
+  int32 port = 3;
+  int32 connections = 4;
+  MetricValue age_seconds = 5;
+  string redacted_address = 6;
+}
+
+message NetworkCapabilities {
+  MetricValue tcp_states = 1;
+  MetricValue interface_counters = 2;
+  MetricValue transport_counters = 3;
+  MetricValue ownership = 4;
+  MetricValue endpoints = 5;
+}
+
+message NetworkVerdict {
+  string state = 1; // healthy, warning, critical, unavailable
+  string summary = 2;
+  repeated string reasons = 3;
 }
 
 // SystemHealth contains overall system health information.
@@ -741,6 +820,26 @@ message GetDetailedMetricsResponse {
   DetailedMetrics metrics = 1;
 }
 
+// GetNetworkDiagnosticRequest requests one bounded, on-demand inventory.
+message GetNetworkDiagnosticRequest {
+  int32 top_n = 1;
+  int32 max_duration_ms = 2;
+  bool include_addresses = 3;
+}
+
+message GetNetworkDiagnosticResponse {
+  NetworkDiagnosticSnapshot snapshot = 1;
+}
+
+message NetworkDiagnosticSnapshot {
+  NetworkOwnership ownership = 1;
+  repeated NetworkEndpoint endpoints = 2;
+  int32 inventory_connections = 3;
+  bool truncated = 4;
+  int64 duration_ms = 5;
+  string failure_reason = 6;
+}
+
 // GetProcessMonitorRequest is empty - no parameters needed.
 message GetProcessMonitorRequest {}
 
@@ -814,6 +913,10 @@ service MetricsService {
   // GetDetailedMetrics returns comprehensive system metrics.
   rpc GetDetailedMetrics(GetDetailedMetricsRequest) returns (GetDetailedMetricsResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/detailed"};
+  }
+
+  rpc GetNetworkDiagnostic(GetNetworkDiagnosticRequest) returns (GetNetworkDiagnosticResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/network/diagnostic"};
   }
 
   // GetProcessMonitor returns process monitoring data.

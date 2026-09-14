@@ -102,7 +102,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		StartedBy:            startedBy,
 		Operation:            operation,
 		Force:                force,
-		ExecutionMode:       params.strategy,
+		ExecutionMode:        params.strategy,
+		OperatorNote:         params.operatorNote,
 		MaxSlices:            params.maxSlices,
 		ExecutionPreferences: params.preferences,
 	})
@@ -141,14 +142,15 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 // queueRequestParams holds the normalized inputs parsed from a queue request.
 type queueRequestParams struct {
-	operation   string
-	confirm     bool
-	force       bool
-	mode        execution.Mode
-	startedBy   string
-	strategy    string
-	maxSlices   int
-	preferences *execution.ExecutionPreferences
+	operation    string
+	confirm      bool
+	force        bool
+	mode         execution.Mode
+	startedBy    string
+	strategy     string
+	operatorNote string
+	maxSlices    int
+	preferences  *execution.ExecutionPreferences
 }
 
 // parseQueueRequest decodes and normalizes the queue request body, applying
@@ -170,13 +172,14 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 	}
 
 	params := queueRequestParams{
-		operation: "generator",
-		confirm:   pbReq.GetConfirm(),
-		force:     pbReq.GetForce(),
-		mode:      execution.ModeYOLO,
-		startedBy: strings.TrimSpace(pbReq.GetStartedBy()),
-		strategy:  strings.TrimSpace(pbReq.GetExecutionMode()),
-		maxSlices: int(pbReq.GetMaxSlices()),
+		operation:    "generator",
+		confirm:      pbReq.GetConfirm(),
+		force:        pbReq.GetForce(),
+		mode:         execution.ModeYOLO,
+		startedBy:    strings.TrimSpace(pbReq.GetStartedBy()),
+		strategy:     strings.TrimSpace(pbReq.GetExecutionMode()),
+		operatorNote: strings.TrimSpace(pbReq.GetOperatorNote()),
+		maxSlices:    int(pbReq.GetMaxSlices()),
 	}
 	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
 		params.preferences = &execution.ExecutionPreferences{

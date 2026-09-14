@@ -35,8 +35,8 @@ def fail(detail):
 def step_validate():
     if preset not in {"6h", "12h", "24h", "7d", "30d"}:
         return fail("preset must be one of 6h, 12h, 24h, 7d, 30d")
-    if group_by not in {"runner", "model", "profile", "workload", "workload_kind"}:
-        return fail("group_by is unsupported")
+    if group_by not in {"runner", "model", "profile"}:
+        return fail("group_by must be one of runner, model, or profile")
     if limit < 1 or limit > 100:
         return fail("limit must be between 1 and 100")
     if compare not in {"", "previous"}:
@@ -88,9 +88,14 @@ def step_collect():
         ]
         values = {}
         errors = []
-        for name, call in calls:
+        results = gather(*[call for _, call in calls])
+        for (name, _), result in zip(calls, results):
+            if isinstance(result, Exception):
+                values[name] = None
+                errors.append(name + ":" + str(result)[:120])
+                continue
             try:
-                rows = call().head(limit)
+                rows = result.head(limit)
                 values[name] = rows
                 if not rows:
                     errors.append(name + ":empty")

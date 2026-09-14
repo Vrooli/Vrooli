@@ -39,6 +39,9 @@ const (
 	// MetricsServiceGetDetailedMetricsProcedure is the fully-qualified name of the MetricsService's
 	// GetDetailedMetrics RPC.
 	MetricsServiceGetDetailedMetricsProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetDetailedMetrics"
+	// MetricsServiceGetNetworkDiagnosticProcedure is the fully-qualified name of the MetricsService's
+	// GetNetworkDiagnostic RPC.
+	MetricsServiceGetNetworkDiagnosticProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetNetworkDiagnostic"
 	// MetricsServiceGetProcessMonitorProcedure is the fully-qualified name of the MetricsService's
 	// GetProcessMonitor RPC.
 	MetricsServiceGetProcessMonitorProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetProcessMonitor"
@@ -62,6 +65,7 @@ type MetricsServiceClient interface {
 	GetCurrentMetrics(context.Context, *connect.Request[metrics.GetCurrentMetricsRequest]) (*connect.Response[metrics.GetCurrentMetricsResponse], error)
 	// GetDetailedMetrics returns comprehensive system metrics.
 	GetDetailedMetrics(context.Context, *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error)
+	GetNetworkDiagnostic(context.Context, *connect.Request[metrics.GetNetworkDiagnosticRequest]) (*connect.Response[metrics.GetNetworkDiagnosticResponse], error)
 	// GetProcessMonitor returns process monitoring data.
 	GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error)
 	// GetProcessTimeline returns ranked process consumers over a window.
@@ -96,6 +100,12 @@ func NewMetricsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+MetricsServiceGetDetailedMetricsProcedure,
 			connect.WithSchema(metricsServiceMethods.ByName("GetDetailedMetrics")),
+			connect.WithClientOptions(opts...),
+		),
+		getNetworkDiagnostic: connect.NewClient[metrics.GetNetworkDiagnosticRequest, metrics.GetNetworkDiagnosticResponse](
+			httpClient,
+			baseURL+MetricsServiceGetNetworkDiagnosticProcedure,
+			connect.WithSchema(metricsServiceMethods.ByName("GetNetworkDiagnostic")),
 			connect.WithClientOptions(opts...),
 		),
 		getProcessMonitor: connect.NewClient[metrics.GetProcessMonitorRequest, metrics.GetProcessMonitorResponse](
@@ -135,6 +145,7 @@ func NewMetricsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type metricsServiceClient struct {
 	getCurrentMetrics        *connect.Client[metrics.GetCurrentMetricsRequest, metrics.GetCurrentMetricsResponse]
 	getDetailedMetrics       *connect.Client[metrics.GetDetailedMetricsRequest, metrics.GetDetailedMetricsResponse]
+	getNetworkDiagnostic     *connect.Client[metrics.GetNetworkDiagnosticRequest, metrics.GetNetworkDiagnosticResponse]
 	getProcessMonitor        *connect.Client[metrics.GetProcessMonitorRequest, metrics.GetProcessMonitorResponse]
 	getProcessTimeline       *connect.Client[metrics.GetProcessTimelineRequest, metrics.GetProcessTimelineResponse]
 	getInfrastructureMonitor *connect.Client[metrics.GetInfrastructureMonitorRequest, metrics.GetInfrastructureMonitorResponse]
@@ -150,6 +161,11 @@ func (c *metricsServiceClient) GetCurrentMetrics(ctx context.Context, req *conne
 // GetDetailedMetrics calls vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics.
 func (c *metricsServiceClient) GetDetailedMetrics(ctx context.Context, req *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error) {
 	return c.getDetailedMetrics.CallUnary(ctx, req)
+}
+
+// GetNetworkDiagnostic calls vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic.
+func (c *metricsServiceClient) GetNetworkDiagnostic(ctx context.Context, req *connect.Request[metrics.GetNetworkDiagnosticRequest]) (*connect.Response[metrics.GetNetworkDiagnosticResponse], error) {
+	return c.getNetworkDiagnostic.CallUnary(ctx, req)
 }
 
 // GetProcessMonitor calls vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor.
@@ -185,6 +201,7 @@ type MetricsServiceHandler interface {
 	GetCurrentMetrics(context.Context, *connect.Request[metrics.GetCurrentMetricsRequest]) (*connect.Response[metrics.GetCurrentMetricsResponse], error)
 	// GetDetailedMetrics returns comprehensive system metrics.
 	GetDetailedMetrics(context.Context, *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error)
+	GetNetworkDiagnostic(context.Context, *connect.Request[metrics.GetNetworkDiagnosticRequest]) (*connect.Response[metrics.GetNetworkDiagnosticResponse], error)
 	// GetProcessMonitor returns process monitoring data.
 	GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error)
 	// GetProcessTimeline returns ranked process consumers over a window.
@@ -214,6 +231,12 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 		MetricsServiceGetDetailedMetricsProcedure,
 		svc.GetDetailedMetrics,
 		connect.WithSchema(metricsServiceMethods.ByName("GetDetailedMetrics")),
+		connect.WithHandlerOptions(opts...),
+	)
+	metricsServiceGetNetworkDiagnosticHandler := connect.NewUnaryHandler(
+		MetricsServiceGetNetworkDiagnosticProcedure,
+		svc.GetNetworkDiagnostic,
+		connect.WithSchema(metricsServiceMethods.ByName("GetNetworkDiagnostic")),
 		connect.WithHandlerOptions(opts...),
 	)
 	metricsServiceGetProcessMonitorHandler := connect.NewUnaryHandler(
@@ -252,6 +275,8 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 			metricsServiceGetCurrentMetricsHandler.ServeHTTP(w, r)
 		case MetricsServiceGetDetailedMetricsProcedure:
 			metricsServiceGetDetailedMetricsHandler.ServeHTTP(w, r)
+		case MetricsServiceGetNetworkDiagnosticProcedure:
+			metricsServiceGetNetworkDiagnosticHandler.ServeHTTP(w, r)
 		case MetricsServiceGetProcessMonitorProcedure:
 			metricsServiceGetProcessMonitorHandler.ServeHTTP(w, r)
 		case MetricsServiceGetProcessTimelineProcedure:
@@ -277,6 +302,10 @@ func (UnimplementedMetricsServiceHandler) GetCurrentMetrics(context.Context, *co
 
 func (UnimplementedMetricsServiceHandler) GetDetailedMetrics(context.Context, *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics is not implemented"))
+}
+
+func (UnimplementedMetricsServiceHandler) GetNetworkDiagnostic(context.Context, *connect.Request[metrics.GetNetworkDiagnosticRequest]) (*connect.Response[metrics.GetNetworkDiagnosticResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic is not implemented"))
 }
 
 func (UnimplementedMetricsServiceHandler) GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error) {

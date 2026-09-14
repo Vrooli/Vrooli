@@ -35,19 +35,19 @@ describe("HealthCard rendering (cimode — copy-independent)", () => {
 
   it("renders the health title via the strings registry", () => {
     renderWithProviders(<HealthCard />);
-    expect(screen.getByText(strings.health.title)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: strings.health.title, level: 2 })).toBeInTheDocument();
   });
 
   it("exposes the refresh button regardless of label copy", () => {
     renderWithProviders(<HealthCard />);
-    expect(screen.getByTestId(selectors.health.refreshButton)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.health.refresh })).toBeInTheDocument();
   });
 
   it("shows the refresh count element only after a click", async () => {
     const user = userEvent.setup();
     renderWithProviders(<HealthCard />);
 
-    const refreshButton = await screen.findByTestId(selectors.health.refreshButton);
+    const refreshButton = screen.getByRole("button", { name: strings.health.refresh });
     expect(screen.queryByTestId(selectors.health.refreshCount)).not.toBeInTheDocument();
 
     await user.click(refreshButton);

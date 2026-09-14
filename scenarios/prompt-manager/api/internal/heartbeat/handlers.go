@@ -315,6 +315,13 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Heartbeat config not found", http.StatusNotFound)
 		return
 	}
+	if config.FiniteLeader != nil && h.executor != nil && h.executor.FiniteLeader != nil {
+		// Refresh the response after reconciliation so the GET does not return
+		// the pre-reconciliation heartbeat projection. Reconciliation only
+		// observes the exact retained owner run; it never starts a new one.
+		_, _ = h.executor.FiniteLeader.ReconcileKnownRun(ctx, teamID, agentID)
+		config, _ = h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))

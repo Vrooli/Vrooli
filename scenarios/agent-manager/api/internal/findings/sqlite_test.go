@@ -81,6 +81,20 @@ func TestSQLiteRepositoryPersistsEvidenceQualitySignals(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepositoryPersistsCandidateWorkaroundMetadata(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "workaround.db"))
+	if err != nil { t.Fatal(err) }
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(Schema()); err != nil { t.Fatal(err) }
+	repo := NewSQLiteRepository(db)
+	finding := &Finding{RunID: uuid.New(), InvestigationRunID: uuid.New(), Category: "run-execution", Severity: "recurring", Recommendation: "Review the repeated owner failure", ProposedWorkaround: "Continue technical work with focused evidence", AcceptanceImpact: "Release acceptance remains unverified", OwnerHint: "git-control-tower"}
+	if err := repo.Create(context.Background(), finding); err != nil { t.Fatal(err) }
+	items, err := repo.List(context.Background(), Filter{})
+	if err != nil || len(items) != 1 { t.Fatalf("items=%+v err=%v", items, err) }
+	got := items[0]
+	if got.ProposedWorkaround != finding.ProposedWorkaround || got.AcceptanceImpact != finding.AcceptanceImpact || got.OwnerHint != finding.OwnerHint { t.Fatalf("candidate metadata was not retained: %+v", got) }
+}
+
 func TestSQLiteRepositoryStoresSubjectEdgesIdempotently(t *testing.T) {
 	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "edges.db"))
 	if err != nil {

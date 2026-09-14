@@ -158,13 +158,15 @@ func state(value string) readinessv1.ReadinessState {
 // richer states such as unsupported and deferred; collapsing those states here
 // preserves compatibility without making the new readiness state misleading.
 func legacyCredentialStatus(value string) string {
+	// Legacy consumers (TypeScript readiness.ts line 95) use
+	// `legacyStatus || stateName(item.status)`. Returning non-empty
+	// hijacks the typed status. Only "configured" needs legacy bridging;
+	// all other states are handled correctly by stateName(), which maps
+	// the typed ReadinessState enum to the UI's expected vocabulary.
 	if strings.EqualFold(strings.TrimSpace(value), "ready") || strings.EqualFold(strings.TrimSpace(value), "configured") {
 		return "configured"
 	}
-	if strings.TrimSpace(value) == "" {
-		return ""
-	}
-	return "unconfigured"
+	return ""
 }
 
 func checkedAt(value string) *timestamppb.Timestamp {

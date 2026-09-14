@@ -6,6 +6,50 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class GetBudgetConfigRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class UpdateBudgetConfigRequest(_message.Message):
+    __slots__ = ("config",)
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    config: BudgetConfig
+    def __init__(self, config: _Optional[_Union[BudgetConfig, _Mapping]] = ...) -> None: ...
+
+class BudgetConfig(_message.Message):
+    __slots__ = ("minor", "moderate", "major", "architectural")
+    MINOR_FIELD_NUMBER: _ClassVar[int]
+    MODERATE_FIELD_NUMBER: _ClassVar[int]
+    MAJOR_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURAL_FIELD_NUMBER: _ClassVar[int]
+    minor: int
+    moderate: int
+    major: int
+    architectural: int
+    def __init__(self, minor: _Optional[int] = ..., moderate: _Optional[int] = ..., major: _Optional[int] = ..., architectural: _Optional[int] = ...) -> None: ...
+
+class GetDiscoverFilterConfigRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class UpdateDiscoverFilterConfigRequest(_message.Message):
+    __slots__ = ("config",)
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    config: DiscoverFilterConfig
+    def __init__(self, config: _Optional[_Union[DiscoverFilterConfig, _Mapping]] = ...) -> None: ...
+
+class DiscoverFilterConfig(_message.Message):
+    __slots__ = ("include_drafts", "exclude_modes", "exclude_ids", "exclude_tags")
+    INCLUDE_DRAFTS_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_MODES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_IDS_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_TAGS_FIELD_NUMBER: _ClassVar[int]
+    include_drafts: bool
+    exclude_modes: _containers.RepeatedScalarFieldContainer[str]
+    exclude_ids: _containers.RepeatedScalarFieldContainer[str]
+    exclude_tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, include_drafts: _Optional[bool] = ..., exclude_modes: _Optional[_Iterable[str]] = ..., exclude_ids: _Optional[_Iterable[str]] = ..., exclude_tags: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SearchSkillsRequest(_message.Message):
     __slots__ = ("query", "queries", "limit", "output", "format", "render_limit")
     QUERY_FIELD_NUMBER: _ClassVar[int]

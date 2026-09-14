@@ -30,6 +30,7 @@ import * as orgChartService from '@/services/orgChartService'
 
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { OrgChartPanel } from './OrgChartPanel'
+import { ManagedTeamsPanel } from './ManagedTeamsPanel'
 import { TopicsGraphPanel } from './TopicsGraphPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
@@ -668,6 +669,13 @@ export function TeamEditorPanel({
               </p>
             )}
           </div>
+          {(team.managedTeamIds?.length ?? 0) > 0 || (team.managedByTeamIds?.length ?? 0) > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" data-testid="team-management-summary">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Team management</span>
+              {(team.managedTeamIds?.length ?? 0) > 0 && <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Manages {team.managedTeamIds?.length} team{team.managedTeamIds?.length === 1 ? '' : 's'}</span>}
+              {(team.managedByTeamIds?.length ?? 0) > 0 && <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-300">Managed by {team.managedByTeamIds?.length} team{team.managedByTeamIds?.length === 1 ? '' : 's'}</span>}
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -705,6 +713,7 @@ export function TeamEditorPanel({
           >
             {/* Content area */}
             <div className="flex-1 min-h-0 flex flex-col">
+              <ManagedTeamsPanel team={team} />
               {membersViewMode === 'code' && contractors.length > 0 && (
                 <div className="flex-shrink-0 border-b border-border bg-muted/20 px-3 py-2" data-testid="contractor-roster">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contractors · {contractors.length} runtime worker{contractors.length === 1 ? '' : 's'}</p>

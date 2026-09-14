@@ -91,6 +91,36 @@ func TestNewHealthResponse_WithDependency_LazyMapInit(t *testing.T) {
 	if len(r.Dependencies) != 2 {
 		t.Fatalf("expected 2 dependencies, got %d (%v)", len(r.Dependencies), r.Dependencies)
 	}
+	if a, ok := r.Dependencies["a"]; !ok || a == nil || !a.Connected {
+		t.Fatalf("missing connected dependency a: %v", r.Dependencies)
+	}
+	if b, ok := r.Dependencies["b"]; !ok || b == nil || b.Connected {
+		t.Fatalf("missing disconnected dependency b: %v", r.Dependencies)
+	}
+}
+
+func TestNewHealthResponse_ReusedOptionOwnsMutableValues(t *testing.T) {
+	source := &healthv1.DependencyStatus{Connected: true, Database: "original"}
+	option := WithHealthDependency("database", source)
+	a, b := NewHealthResponse(option), NewHealthResponse(option)
+	a.Dependencies["database"].Database = "changed"
+	a.Dependencies["extra"] = &healthv1.DependencyStatus{}
+	if b.Dependencies["database"].Database != "original" || source.Database != "original" {
+		t.Fatal("mutating one fixture changed another fixture or the source")
+	}
+	if _, ok := b.Dependencies["extra"]; ok {
+		t.Fatal("fixtures share their dependency map")
+	}
+}
+
+func TestNewHealthResponse_PreservesExplicitInvalidOverrides(t *testing.T) {
+	r := NewHealthResponse(WithHealthStatus(""), WithHealthTimestamp("not-a-date"), WithHealthDependency("database", nil))
+	if r.Status != "" || r.Timestamp != "not-a-date" {
+		t.Fatal("factory repaired intentionally invalid input")
+	}
+	if dependency, ok := r.Dependencies["database"]; !ok || dependency != nil {
+		t.Fatal("factory must preserve an explicit nil dependency")
+	}
 }
 
 // TestNewHealthResponse_OptOrderIndependent guards against opt

@@ -198,7 +198,7 @@ func (h *scenarioControlPlaneHandler) RestartScenario(_ context.Context, req *co
 	if req.Msg.GetTimeoutSeconds() < 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("timeout_seconds must be nonnegative"))
 	}
-	items, err := h.lifecycleService().Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName(), TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
+	items, err := h.lifecycleService().Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName(), TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), ForceLifecycle: req.Msg.GetForceLifecycle(), LifecycleOverrideReason: req.Msg.GetLifecycleOverrideReason(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
 	if err != nil {
 		return nil, controlPlaneLifecycleError("restart scenario", err)
 	}

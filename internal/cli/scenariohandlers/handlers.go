@@ -743,6 +743,9 @@ func remoteStartArgs(options lifecycle.StartOptions, openAfter bool, timeoutSeco
 	if options.DemandManaged {
 		args = append(args, "--demand-managed")
 	}
+	if options.ForceLifecycle {
+		args = append(args, "--force-lifecycle", "--lifecycle-override-reason", options.LifecycleOverrideReason)
+	}
 	if openAfter {
 		args = append(args, "--open")
 	}

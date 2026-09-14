@@ -53,6 +53,12 @@ message EffortEnrollment {
   string supervisor_scope = 21;
   // Server-owned authorization. Ordinary enrollment/discovery cannot supply it.
   SupervisorDispatchAuthorization dispatch_authorization = 23;
+  // Trusted supervisors have freedom of operational means within the accepted
+  // effort. Owner boundaries remain enforced at every operation boundary.
+  bool autonomous_supervision = 24;
+  // Owner-supplied relative consequence for supervisor admission. Zero means
+  // unspecified; it never overrides fairness or owner eligibility.
+  uint32 supervision_priority = 25;
 }
 
 // Metadata only; the bearer lives solely in the canonical credential authority.

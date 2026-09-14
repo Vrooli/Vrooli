@@ -69,6 +69,7 @@ describe("NotesCard", () => {
 
   it("reports loading and request failure through the semantic surface", async () => {
     const { notesClient } = await import("../../api/notes");
+    vi.mocked(notesClient.createNote).mockClear();
     let reject!: (reason?: unknown) => void;
     vi.mocked(notesClient.listNotes).mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
 
@@ -79,6 +80,8 @@ describe("NotesCard", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.notes.surface)).toHaveAttribute("data-experience-state", "error");
     });
+    expect(screen.queryByTestId(selectors.notes.list)).not.toBeInTheDocument();
+    expect(notesClient.createNote).not.toHaveBeenCalled();
   });
 
   it("invokes createNote when the create button is clicked", async () => {

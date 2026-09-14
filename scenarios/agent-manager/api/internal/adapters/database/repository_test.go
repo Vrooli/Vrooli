@@ -137,7 +137,7 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, column := range []string{"target_measure", "before_value", "after_value", "effectiveness", "friction_topic"} {
+	for _, column := range []string{"proposed_workaround", "acceptance_impact", "owner_hint", "target_measure", "before_value", "after_value", "effectiveness", "friction_topic"} {
 		if _, ok := columns[column]; !ok {
 			t.Fatalf("migration did not add %s; columns=%v", column, columns)
 		}

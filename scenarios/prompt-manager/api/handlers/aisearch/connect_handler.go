@@ -2,6 +2,7 @@ package aisearch
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -16,13 +17,80 @@ import (
 
 type connectHandler struct {
 	aisearchconnect.UnimplementedAISearchServiceHandler
-	legacy *domain.Handlers
+	legacy              *domain.Handlers
+	budgetConfigStore   *domain.BudgetConfigStore
+	discoverFilterStore *domain.DiscoverFilterConfigStore
 }
 
 // NewConnectMount exposes semantic search and index reconciliation through the
 // generated contract while reusing the established domain behavior.
-func NewConnectMount(legacy *domain.Handlers) (string, http.Handler) {
-	return aisearchconnect.NewAISearchServiceHandler(&connectHandler{legacy: legacy})
+func NewConnectMount(legacy *domain.Handlers, stores ...any) (string, http.Handler) {
+	h := &connectHandler{legacy: legacy}
+	for _, item := range stores {
+		switch value := item.(type) {
+		case *domain.BudgetConfigStore:
+			h.budgetConfigStore = value
+		case *domain.DiscoverFilterConfigStore:
+			h.discoverFilterStore = value
+		}
+	}
+	return aisearchconnect.NewAISearchServiceHandler(h)
+}
+
+func (h *connectHandler) GetBudgetConfig(ctx context.Context, _ *connect.Request[aisearchv1.GetBudgetConfigRequest]) (*connect.Response[aisearchv1.BudgetConfig], error) {
+	if h.budgetConfigStore == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("budget config store not configured"))
+	}
+	cfg, err := h.budgetConfigStore.Get(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&aisearchv1.BudgetConfig{Minor: int32(cfg.Minor), Moderate: int32(cfg.Moderate), Major: int32(cfg.Major), Architectural: int32(cfg.Architectural)}), nil
+}
+
+func (h *connectHandler) UpdateBudgetConfig(ctx context.Context, req *connect.Request[aisearchv1.UpdateBudgetConfigRequest]) (*connect.Response[aisearchv1.BudgetConfig], error) {
+	if h.budgetConfigStore == nil || req.Msg.GetConfig() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("budget config is required"))
+	}
+	wire := req.Msg.GetConfig()
+	cfg := domain.BudgetConfig{Minor: int(wire.GetMinor()), Moderate: int(wire.GetModerate()), Major: int(wire.GetMajor()), Architectural: int(wire.GetArchitectural())}
+	if err := domain.ValidateBudgetConfig(cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := h.budgetConfigStore.Put(ctx, cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(wire), nil
+}
+
+func (h *connectHandler) GetDiscoverFilterConfig(ctx context.Context, _ *connect.Request[aisearchv1.GetDiscoverFilterConfigRequest]) (*connect.Response[aisearchv1.DiscoverFilterConfig], error) {
+	if h.discoverFilterStore == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("discover filter config store not configured"))
+	}
+	cfg, err := h.discoverFilterStore.Get(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(discoverFilterConfigMessage(cfg)), nil
+}
+
+func (h *connectHandler) UpdateDiscoverFilterConfig(ctx context.Context, req *connect.Request[aisearchv1.UpdateDiscoverFilterConfigRequest]) (*connect.Response[aisearchv1.DiscoverFilterConfig], error) {
+	if h.discoverFilterStore == nil || req.Msg.GetConfig() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("discover filter config is required"))
+	}
+	wire := req.Msg.GetConfig()
+	cfg := domain.DiscoverFilterConfig{IncludeDrafts: wire.GetIncludeDrafts(), ExcludeModes: wire.GetExcludeModes(), ExcludeIDs: wire.GetExcludeIds(), ExcludeTags: wire.GetExcludeTags()}
+	if err := domain.ValidateDiscoverFilterConfig(cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := h.discoverFilterStore.Put(ctx, cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(wire), nil
+}
+
+func discoverFilterConfigMessage(cfg domain.DiscoverFilterConfig) *aisearchv1.DiscoverFilterConfig {
+	return &aisearchv1.DiscoverFilterConfig{IncludeDrafts: cfg.IncludeDrafts, ExcludeModes: cfg.ExcludeModes, ExcludeIds: cfg.ExcludeIDs, ExcludeTags: cfg.ExcludeTags}
 }
 
 func (h *connectHandler) SearchSkills(ctx context.Context, req *connect.Request[aisearchv1.SearchSkillsRequest]) (*connect.Response[aisearchv1.SearchSkillsResponse], error) {

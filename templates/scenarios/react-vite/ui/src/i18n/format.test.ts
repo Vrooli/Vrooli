@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { i18n } from "./index";
+import { strings } from "../consts/strings";
 import {
   formatCurrency,
   formatDate,
@@ -9,6 +10,28 @@ import {
 } from "./format";
 
 describe("locale-aware Intl formatters", () => {
+  it("uses English fallback for an unavailable locale", async () => {
+    await i18n.changeLanguage("zz");
+    expect(i18n.t(strings.health.refresh)).toBe("Refresh");
+  });
+
+  it("interpolates and selects distinct real English plural forms", async () => {
+    await i18n.changeLanguage("en");
+    // Literal expectations intentionally pin this small editorial contract.
+    // Component tests which read the catalog prove wiring, not these words.
+    expect(i18n.t(strings.notifications.summary, { count: 0 })).toBe("No notifications");
+    expect(i18n.t(strings.notifications.summary, { count: 1 })).toBe("1 notification");
+    expect(i18n.t(strings.notifications.summary, { count: 3 })).toBe("3 notifications");
+  });
+
+  it("returns a missing key rather than silently rendering an empty label", async () => {
+    await i18n.changeLanguage("en");
+    // Deliberately bypass typed valid-key input to exercise missing-key policy.
+    const missing = "testing.intentionallyMissing" as typeof strings.health.refresh;
+    expect(i18n.exists(missing)).toBe(false);
+    expect(i18n.t(missing)).toBe("testing.intentionallyMissing");
+  });
+
   afterEach(async () => {
     // The setup file resets to cimode before each test; nothing to do here,
     // but be defensive about leaking locale state into following suites.

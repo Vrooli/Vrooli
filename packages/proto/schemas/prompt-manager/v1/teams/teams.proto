@@ -67,6 +67,9 @@ message Team {
   string lifetime = 14;
   repeated string effort_refs = 15;
   repeated ObjectiveDeclaration objectives_served = 16;
+  bool archived = 17;
+  repeated string managed_team_ids = 18;
+  repeated string managed_by_team_ids = 19;
 }
 message Role { string id = 1; string name = 2; string description = 3; }
 message Member { string agent_id = 1; string display_name = 2; repeated string roles = 3; string status = 4; }
@@ -89,6 +92,9 @@ message TeamDetails {
   string lifetime = 16;
   repeated string effort_refs = 17;
   repeated ObjectiveDeclaration objectives_served = 18;
+  bool archived = 19;
+  repeated string managed_team_ids = 20;
+  repeated string managed_by_team_ids = 21;
 }
 message TeamInput {
   string id = 1;
@@ -102,6 +108,7 @@ message TeamInput {
   string purpose = 9;
   string lifetime = 10;
   repeated string effort_refs = 11;
+  bool archived = 12;
 }
 message ListTeamsRequest {}
 message ListTeamsResponse { repeated Team teams = 1; }
@@ -131,9 +138,16 @@ message RenameSharedFileRequest { string team_id = 1; string from = 2; string to
 message DeleteSharedFileRequest { string team_id = 1; string path = 2; }
 message DeleteSharedFileResponse {}
 message OrgEdge { string manager_agent_id = 1; string report_agent_id = 2; }
-message OrgChart { string team_id = 1; repeated OrgEdge edges = 2; }
+message ManagedTeamEdge {
+  string manager_team_id = 1;
+  string managed_team_id = 2;
+  string relationship = 3;
+  string authority_ref = 4;
+  string status = 5;
+}
+message OrgChart { string team_id = 1; repeated OrgEdge edges = 2; repeated ManagedTeamEdge managed_team_edges = 3; }
 message GetOrgChartRequest { string team_id = 1; }
-message SetOrgChartRequest { string team_id = 1; repeated OrgEdge edges = 2; }
+message SetOrgChartRequest { string team_id = 1; repeated OrgEdge edges = 2; repeated ManagedTeamEdge managed_team_edges = 3; }
 message UpdateOrgChartEdgeRequest { string team_id = 1; string report_agent_id = 2; string manager_agent_id = 3; }
 message DeleteOrgChartEdgeRequest { string team_id = 1; string report_agent_id = 2; }
 message Message { string id = 1; string team_id = 2; string from_agent_id = 3; string to_agent_id = 4; string content = 5; string created_at = 6; }

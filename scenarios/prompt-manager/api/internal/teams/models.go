@@ -39,6 +39,8 @@ type Response struct {
 	MemberCount        int                             `json:"memberCount"`
 	CreatedAt          string                          `json:"createdAt"`
 	UpdatedAt          string                          `json:"updatedAt"`
+	ManagedTeamIDs     []string                        `json:"managedTeamIds,omitempty"`
+	ManagedByTeamIDs   []string                        `json:"managedByTeamIds,omitempty"`
 }
 
 // TeamDetailsResponse includes full team details.
@@ -143,13 +145,23 @@ type OrgEdgeDTO struct {
 
 // OrgChartResponse is the API response for a team's org chart.
 type OrgChartResponse struct {
-	TeamID string       `json:"teamId"`
-	Edges  []OrgEdgeDTO `json:"edges"`
+	TeamID           string               `json:"teamId"`
+	Edges            []OrgEdgeDTO         `json:"edges"`
+	ManagedTeamEdges []ManagedTeamEdgeDTO `json:"managedTeamEdges,omitempty"`
+}
+
+type ManagedTeamEdgeDTO struct {
+	ManagerTeamID string `json:"managerTeamId"`
+	ManagedTeamID string `json:"managedTeamId"`
+	Relationship  string `json:"relationship,omitempty"`
+	AuthorityRef  string `json:"authorityRef,omitempty"`
+	Status        string `json:"status,omitempty"`
 }
 
 // SetOrgChartRequest is the request body for setting a team's org chart.
 type SetOrgChartRequest struct {
-	Edges []OrgEdgeDTO `json:"edges"`
+	Edges            []OrgEdgeDTO         `json:"edges"`
+	ManagedTeamEdges []ManagedTeamEdgeDTO `json:"managedTeamEdges,omitempty"`
 }
 
 // UpdateOrgEdgeRequest is the request body for updating a single org chart edge.

@@ -16,6 +16,9 @@ type Finding struct {
 	Category              string    `db:"category" json:"category"`
 	Severity              string    `db:"severity" json:"severity"`
 	Recommendation        string    `db:"recommendation_text" json:"recommendation"`
+	ProposedWorkaround    string    `db:"proposed_workaround" json:"proposedWorkaround,omitempty"`
+	AcceptanceImpact      string    `db:"acceptance_impact" json:"acceptanceImpact,omitempty"`
+	OwnerHint             string    `db:"owner_hint" json:"ownerHint,omitempty"`
 	Evidence              string    `db:"evidence" json:"evidence,omitempty"`
 	TargetPath            string    `db:"target_path" json:"targetPath,omitempty"`
 	Fingerprint           string    `db:"fingerprint" json:"fingerprint"`

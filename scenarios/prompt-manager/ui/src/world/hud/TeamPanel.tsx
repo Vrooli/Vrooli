@@ -73,6 +73,7 @@ export function TeamPanel({ teams, highlightedTeamId, onFocusTeam, onHighlightTe
               <span className="truncate font-medium">{team.label}</span>
               <span className="flex shrink-0 gap-2 tabular-nums text-muted-foreground">
                 <span title="members">{team.memberIds.length}</span>
+                {(team.managedTeamIds?.length ?? 0) > 0 && <span className="text-violet-600 dark:text-violet-400" title="managed teams">{team.managedTeamIds?.length}⇢</span>}
                 {running > 0 && <span className="text-sky-600 dark:text-sky-400" title="running">{running}▶</span>}
                 {gathered > 0 && <span className="text-amber-600 dark:text-amber-400" title="gathering">{gathered}◆</span>}
                 {team.states.failed > 0 && <span className="text-red-600 dark:text-red-400" title="failed">{team.states.failed}!</span>}

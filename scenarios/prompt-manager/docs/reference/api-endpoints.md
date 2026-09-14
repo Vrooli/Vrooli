@@ -57,10 +57,11 @@ or telemetry service.
 
 ## Remaining HTTP compatibility routes
 
-Only six hand-written registrations remain: `/health`, `/api/v1/health`, and
-the GET/PUT budget and discovery-filter configuration pairs. They are explicit
-compatibility/configuration seams. All former domain REST registrations were
-retired after generated-client consumers migrated.
+Only four hand-written registrations remain: `/health`, `/api/v1/health`, and
+the two effort-workspace read routes. They are explicit compatibility seams.
+Budget and discovery-filter configuration now use `AISearchService` Connect
+RPCs. All former domain REST registrations were retired after generated-client
+consumers migrated.
 
 ## Historical REST reference
 

@@ -211,6 +211,10 @@
             "type": "array",
             "items": { "type": "string", "minLength": 1 },
             "uniqueItems": true
+          },
+          "artifact_selection": {
+            "type": "string",
+            "pattern": "^@[a-z0-9-]+/[a-z0-9-]+$"
           }
         },
         "additionalProperties": false

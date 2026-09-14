@@ -589,20 +589,30 @@ func (r *invocationReadModelRepository) ChargeByBasis(ctx context.Context, filte
 
 func (r *invocationReadModelRepository) RunDurationStatistics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
 	where, args := invocationReadModelRunWhere(filter)
-	query := `SELECT
-		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0),
-		COALESCE(MIN(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0),
-		COALESCE(MAX(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0),
-		COUNT(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN 1 END)
-		FROM invocation_read_model_runs` + where
-	var average sql.NullFloat64
-	var min, max, count sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&average, &min, &max, &count); err != nil {
+	query := `SELECT duration_ms
+		FROM invocation_read_model_runs` + where + `
+		 AND started_at IS NOT NULL AND ended_at IS NOT NULL
+		ORDER BY duration_ms`
+	var durations []int64
+	if err := r.db.SelectContext(ctx, &durations, query, args...); err != nil {
 		return invocationreadmodel.RunDurationStatistics{}, err
 	}
-	// The old SQLite endpoint used AVG for every percentile; preserve that
-	// documented behavior exactly while reading from the durable projection.
-	return invocationreadmodel.RunDurationStatistics{AverageDurationMS: average.Float64, P50DurationMS: average.Float64, P95DurationMS: average.Float64, P99DurationMS: average.Float64, MinDurationMS: min.Int64, MaxDurationMS: max.Int64, Count: count.Int64}, nil
+	if len(durations) == 0 {
+		return invocationreadmodel.RunDurationStatistics{}, nil
+	}
+	var total int64
+	for _, duration := range durations {
+		total += duration
+	}
+	return invocationreadmodel.RunDurationStatistics{
+		AverageDurationMS: float64(total) / float64(len(durations)),
+		P50DurationMS:     float64(nearestRank(durations, 0.50)),
+		P95DurationMS:     float64(nearestRank(durations, 0.95)),
+		P99DurationMS:     float64(nearestRank(durations, 0.99)),
+		MinDurationMS:     durations[0],
+		MaxDurationMS:     durations[len(durations)-1],
+		Count:             int64(len(durations)),
+	}, nil
 }
 
 // runTokenBucketBounds defines the fixed per-run token histogram. Ranges are

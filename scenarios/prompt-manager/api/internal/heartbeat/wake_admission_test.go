@@ -90,6 +90,9 @@ func TestRunOrdinaryWakeSkipsUnchangedSignalAndAdmitsChange(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("unchanged signal caused %d executions, want 1", calls)
 	}
+	if state.state == nil || state.state.AdmittedCount != 1 || state.state.QuietCount != 1 {
+		t.Fatalf("admission counters = %+v, want one admit and one quiet", state.state)
+	}
 
 	scheduler.wakeSignals = fakeWakeSignals{signal: WakeSignal{Key: "signal-b"}}
 	scheduler.runOrdinaryWake(context.Background(), "team", "agent", config, execute)
@@ -136,5 +139,8 @@ func TestRunOrdinaryWakeFailsOpenWhenEvidenceUnavailable(t *testing.T) {
 	})
 	if calls != 1 {
 		t.Fatalf("evidence failure caused %d executions, want 1", calls)
+	}
+	if state := scheduler.admissionState.(*fakeAdmissionState).state; state == nil || state.FailOpenCount != 1 || state.LastReason != "fail-open:signal-read" {
+		t.Fatalf("fail-open telemetry = %+v", state)
 	}
 }

@@ -132,7 +132,7 @@
         "string",
         "null"
       ],
-      "description": "Optional named profile this state was derived from (e.g. 'engineering', 'marketing'). Reserved for future use; null today. Profiles themselves are deferred \u2014 see docs/configuration/profiles.md."
+      "description": "Optional named onboarding profile this state was derived from. The profile is a recommendation provenance marker; explicit scenario and resource choices remain authoritative."
     },
     "capacity": {
       "type": "object",
@@ -309,8 +309,110 @@
         "step_id": {
           "type": "string",
           "minLength": 1
+        },
+        "profile": {
+          "type": "object",
+          "description": "Target- and actor-scoped non-secret purpose selection context. Credential values never belong here.",
+          "additionalProperties": false,
+          "required": ["target", "actor", "mode", "base_revision", "updated_at"],
+          "properties": {
+            "target": {"type": "string", "minLength": 1, "maxLength": 256},
+            "actor": {"type": "string", "minLength": 1, "maxLength": 512},
+            "mode": {"type": "string", "enum": ["guided", "manual"]},
+            "profile_id": {"type": "string", "maxLength": 128},
+            "profile_version": {"type": "string", "maxLength": 64},
+            "catalog_revision": {"type": "string", "maxLength": 256},
+            "consequence_digest": {"type": "string", "maxLength": 256},
+            "base_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+            "answers": {
+              "type": "object",
+              "maxProperties": 250,
+              "additionalProperties": {
+                "type": ["string", "number", "boolean", "null", "array"],
+                "items": {"type": ["string", "number", "boolean", "null"]}
+              }
+            },
+            "manual_decisions": {
+              "type": "object",
+              "maxProperties": 256,
+              "additionalProperties": {"type": "boolean"}
+            },
+            "target_context": {
+              "type": "object",
+              "maxProperties": 64,
+              "additionalProperties": {"type": "string", "maxLength": 512}
+            },
+            "updated_at": {"type": "string", "format": "date-time"}
+          }
         }
       }
+    },
+    "drafts": {
+      "type": "object",
+      "description": "Target- and actor-scoped non-secret onboarding drafts. Drafts never represent effective host state.",
+      "patternProperties": {
+        "^.{1,256}$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "actor", "base_revision", "revision", "updated_at"],
+          "properties": {
+            "target": {"type": "string", "minLength": 1},
+            "actor": {"type": "string", "minLength": 1},
+            "base_revision": {"type": "string", "minLength": 1},
+            "revision": {"type": "string", "minLength": 1},
+            "step_id": {"type": "string", "maxLength": 128},
+            "updated_at": {"type": "string", "format": "date-time"},
+            "choices": {
+              "type": "object",
+              "maxProperties": 256,
+              "additionalProperties": {"type": "string", "maxLength": 4096}
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "handoffs": {
+      "type": "object",
+      "description": "Owner-issued, target-bound non-secret onboarding continuations.",
+      "patternProperties": {
+        "^.{1,128}$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "deployment_id", "target", "machine_id", "node_id", "enrollment_generation", "desired_revision", "actor_scope", "selection_digest", "selection", "state", "created_at", "updated_at"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "request_key": {"type": "string", "maxLength": 256},
+            "deployment_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "target": {"type": "string", "minLength": 1, "maxLength": 256},
+            "machine_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "node_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "node_kind": {"type": "string", "maxLength": 128},
+            "enrollment_generation": {"type": "integer", "minimum": 1},
+            "desired_revision": {"type": "integer", "minimum": 1},
+            "actor_scope": {"type": "string", "minLength": 1, "maxLength": 512},
+            "selection_digest": {"type": "string", "minLength": 1, "maxLength": 256},
+            "missing": {"type": "array", "maxItems": 256, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+            "selection": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version"],
+              "properties": {
+                "schema_version": {"type": "string", "const": "v1"},
+                "scenarios": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+                "optional_resources": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+                "host_tools": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+                "host_safeguards": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+                "operating_mode": {"type": "object", "additionalProperties": {"type": "string", "maxLength": 128}}
+              }
+            },
+            "state": {"type": "string", "enum": ["pending", "consumed", "stale"]},
+            "created_at": {"type": "string", "format": "date-time"},
+            "updated_at": {"type": "string", "format": "date-time"}
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "notifications": {
       "type": "object",

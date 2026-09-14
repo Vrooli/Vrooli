@@ -13,6 +13,28 @@ service AISearchService {
   rpc Reconcile(ReconcileRequest) returns (ReconcileResponse);
   rpc GetReconcileStatus(GetReconcileStatusRequest) returns (ReconcileStatus);
   rpc CancelReconcile(CancelReconcileRequest) returns (ReconcileStatus);
+  rpc GetBudgetConfig(GetBudgetConfigRequest) returns (BudgetConfig);
+  rpc UpdateBudgetConfig(UpdateBudgetConfigRequest) returns (BudgetConfig);
+  rpc GetDiscoverFilterConfig(GetDiscoverFilterConfigRequest) returns (DiscoverFilterConfig);
+  rpc UpdateDiscoverFilterConfig(UpdateDiscoverFilterConfigRequest) returns (DiscoverFilterConfig);
+}
+
+message GetBudgetConfigRequest {}
+message UpdateBudgetConfigRequest { BudgetConfig config = 1; }
+message BudgetConfig {
+  int32 minor = 1;
+  int32 moderate = 2;
+  int32 major = 3;
+  int32 architectural = 4;
+}
+
+message GetDiscoverFilterConfigRequest {}
+message UpdateDiscoverFilterConfigRequest { DiscoverFilterConfig config = 1; }
+message DiscoverFilterConfig {
+  bool include_drafts = 1;
+  repeated string exclude_modes = 2;
+  repeated string exclude_ids = 3;
+  repeated string exclude_tags = 4;
 }
 
 message SearchSkillsRequest {

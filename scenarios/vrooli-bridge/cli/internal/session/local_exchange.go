@@ -3,20 +3,14 @@ package session
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"connectrpc.com/connect"
-	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
-	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
+	"github.com/vrooli/api-core/authn"
 )
 
 const (
-	authSocketEnv          = "VROOLI_" + "AUTH_" + "SOCKET"
 	bridgeTokenFileEnv     = "VROOLI_" + "BRIDGE_" + "TOKEN_FILE"
 	authTokenFileEnv       = "VROOLI_" + "AUTH_" + "TOKEN_FILE"
 	breakGlassTokenFileEnv = "VROOLI_" + "BREAK_GLASS_" + "TOKEN_FILE"
@@ -27,30 +21,11 @@ const (
 // session. The listener is deliberately a separate Unix socket: TCP callers
 // cannot manufacture a local peer principal.
 func ExchangeLocal(ctx context.Context) (token, refresh string, err error) {
-	socketPath := strings.TrimSpace(os.Getenv(authSocketEnv))
-	if socketPath == "" {
-		socketPath = defaultAuthSocket()
-	}
-	machineID, err := os.Hostname()
-	if err != nil || strings.TrimSpace(machineID) == "" {
-		return "", "", fmt.Errorf("resolve machine id: %w", err)
-	}
-
-	transport := &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
-		},
-	}
-	defer transport.CloseIdleConnections()
-	client := accountsconnect.NewAccountsServiceClient(&http.Client{Transport: transport, Timeout: 5 * time.Second}, "http://local-authenticator")
-	resp, err := client.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))
+	resp, err := authn.ExchangeLocalMachinePrincipal(ctx)
 	if err != nil {
 		return "", "", err
 	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Tokens == nil || strings.TrimSpace(resp.Msg.Tokens.AccessToken) == "" {
-		return "", "", fmt.Errorf("local exchange returned no access token")
-	}
-	return resp.Msg.Tokens.AccessToken, resp.Msg.Tokens.RefreshToken, nil
+	return resp.Tokens.AccessToken, resp.Tokens.RefreshToken, nil
 }
 
 // TokenFile reads the platform-agnostic owner-token fallback. The file must
@@ -97,11 +72,5 @@ func readTokenFile(path string) (string, error) {
 }
 
 func defaultAuthSocket() string {
-	// VROOLI_STORAGE_NAMESPACE is ambient process state belonging to whatever
-	// scenario launched this CLI (often web-console), not to the authenticator
-	// whose socket this client is acquiring. Using it here made an owner CLI
-	// silently look for a web-console-namespaced socket. The live authenticator
-	// listener has the canonical scenario-authenticator namespace; shadow or
-	// custom instances must opt in explicitly with VROOLI_AUTH_SOCKET.
-	return filepath.Join(os.TempDir(), "vrooli-scenario-authenticator-scenario-authenticator.sock")
+	return authn.DefaultLocalAuthenticatorSocket()
 }

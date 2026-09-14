@@ -69,6 +69,12 @@ import {
   SearchTeamsResponseSchema as AISearchTeamsResponseProtoSchema,
   GetStatusRequestSchema as GetAISearchStatusRequestProtoSchema,
   GetStatusResponseSchema as GetAISearchStatusResponseProtoSchema,
+  BudgetConfigSchema as BudgetConfigProtoSchema,
+  DiscoverFilterConfigSchema as DiscoverFilterConfigProtoSchema,
+  GetBudgetConfigRequestSchema,
+  UpdateBudgetConfigRequestSchema,
+  GetDiscoverFilterConfigRequestSchema,
+  UpdateDiscoverFilterConfigRequestSchema,
   ReconcileRequestSchema as ReconcileRequestProtoSchema,
   ReconcileStatusSchema as ReconcileStatusProtoSchema,
   GetReconcileStatusRequestSchema as GetReconcileStatusRequestProtoSchema,
@@ -1029,38 +1035,28 @@ class ApiClient {
 
   // Budget configuration
   async getBudgetConfig(): Promise<BudgetConfig> {
-    return this.request<BudgetConfig>('/config/budgets', undefined, BudgetConfigSchema)
+    const response = await aiSearchClient.getBudgetConfig(create(GetBudgetConfigRequestSchema))
+    return parseOrThrow(BudgetConfigSchema, toJson(BudgetConfigProtoSchema, response), 'AISearchService.GetBudgetConfig')
   }
 
   async setBudgetConfig(config: BudgetConfig): Promise<BudgetConfig> {
-    return this.request<BudgetConfig>(
-      '/config/budgets',
-      {
-        method: 'PUT',
-        body: JSON.stringify(config),
-      },
-      BudgetConfigSchema
-    )
+    const response = await aiSearchClient.updateBudgetConfig(create(UpdateBudgetConfigRequestSchema, {
+      config: create(BudgetConfigProtoSchema, config),
+    }))
+    return parseOrThrow(BudgetConfigSchema, toJson(BudgetConfigProtoSchema, response), 'AISearchService.UpdateBudgetConfig')
   }
 
   // Discover filter configuration
   async getDiscoverFilterConfig(): Promise<DiscoverFilterConfig> {
-    return this.request<DiscoverFilterConfig>(
-      '/config/discover-filters',
-      undefined,
-      DiscoverFilterConfigSchema
-    )
+    const response = await aiSearchClient.getDiscoverFilterConfig(create(GetDiscoverFilterConfigRequestSchema))
+    return parseOrThrow(DiscoverFilterConfigSchema, toJson(DiscoverFilterConfigProtoSchema, response), 'AISearchService.GetDiscoverFilterConfig')
   }
 
   async setDiscoverFilterConfig(config: DiscoverFilterConfig): Promise<DiscoverFilterConfig> {
-    return this.request<DiscoverFilterConfig>(
-      '/config/discover-filters',
-      {
-        method: 'PUT',
-        body: JSON.stringify(config),
-      },
-      DiscoverFilterConfigSchema
-    )
+    const response = await aiSearchClient.updateDiscoverFilterConfig(create(UpdateDiscoverFilterConfigRequestSchema, {
+      config: create(DiscoverFilterConfigProtoSchema, config),
+    }))
+    return parseOrThrow(DiscoverFilterConfigSchema, toJson(DiscoverFilterConfigProtoSchema, response), 'AISearchService.UpdateDiscoverFilterConfig')
   }
 
   // Agent methods

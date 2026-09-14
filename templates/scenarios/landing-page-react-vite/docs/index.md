@@ -23,6 +23,20 @@ Welcome to the documentation for your landing page. This guide will help you und
 
 ## Documentation Overview
 
+### Testing
+
+Use `path:docs/testing/UNIT-TEST-AUTHORING.md` at the Vrooli repository root
+for authoring principles and `path:docs/TESTING.md` for scoped Test Genie
+execution. Select the test boundary before choosing a fake: service tests may
+substitute repositories; repository tests use their production schema and engine.
+Use semantic role/name queries for user-facing interactions and registry test
+IDs when semantic queries cannot express the target. Real-locale tests cover
+translation behavior; cimode covers key wiring.
+
+This template has its own native runner configuration. Check its declared
+profile against installed support before copying React Vite harness settings;
+unsupported profiles are explicit limitations, not inferred conformance.
+
 ### Getting Started
 
 | Document | Description | Audience |

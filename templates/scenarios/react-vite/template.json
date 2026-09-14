@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "3.0.0",
+  "version": "4.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -357,6 +357,8 @@
     "templateGuide": "templates/scenarios/react-vite/README.md"
   },
   "copyExcludes": [
+    "api/internal/testutil/fixtures/health.go",
+    "api/internal/testutil/fixtures/health_test.go",
     "CHANGELOG.md"
   ],
   "postHooks": [

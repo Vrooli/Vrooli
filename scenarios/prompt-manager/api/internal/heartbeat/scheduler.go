@@ -439,6 +439,13 @@ func (s *Scheduler) runOrdinaryWake(ctx context.Context, teamID, agentID string,
 	signal, err := s.wakeSignals.Snapshot(ctx, teamID, agentID, policy.ChangeSources)
 	if err != nil {
 		log.Printf("Heartbeat wake admission unavailable for %s/%s; admitting work: signal read failed: %v", teamID, agentID, err)
+		if previous == nil {
+			previous = &store.HeartbeatAdmissionState{Version: 1}
+		}
+		recordWakeAdmissionFailOpen(previous, "signal-read", time.Now())
+		if persistErr := s.admissionState.SetHeartbeatAdmissionState(ctx, teamID, agentID, previous); persistErr != nil {
+			log.Printf("Heartbeat wake admission fail-open telemetry persistence failed for %s/%s: %v", teamID, agentID, persistErr)
+		}
 		_ = execute()
 		return
 	}

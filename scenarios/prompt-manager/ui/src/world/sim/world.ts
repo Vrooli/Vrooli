@@ -272,6 +272,7 @@ export function createLiveWorld(generated: GeneratedWorld, input: CreateWorldInp
     decor: generated.decor,
     actors,
     actorOrder,
+    managedTeamIds: Object.fromEntries(input.teams.map((team) => [team.id, [...(team.managedTeamIds ?? [])]])),
     gatherings: {},
     events: [],
     nextSeq: 1,

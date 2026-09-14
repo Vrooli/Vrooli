@@ -38,6 +38,34 @@ func NewMockTeamStore() *MockTeamStore {
 	}
 }
 
+func TestValidateManagedTeamEdgesRejectsCyclesAndUnknownTeams(t *testing.T) {
+	storeMock := NewMockTeamStore()
+	storeMock.teams["supervisor"] = &store.Team{ID: "supervisor"}
+	storeMock.teams["delivery"] = &store.Team{ID: "delivery"}
+	storeMock.teams["worker"] = &store.Team{ID: "worker"}
+	storeMock.orgChart["delivery"] = &store.OrgChart{TeamID: "delivery", ManagedTeamEdges: []store.ManagedTeamEdge{{ManagerTeamID: "delivery", ManagedTeamID: "supervisor"}}}
+	h := &Handlers{teamStore: storeMock}
+	if err := h.validateManagedTeamEdges(context.Background(), "supervisor", []ManagedTeamEdgeDTO{{ManagedTeamID: "missing"}}); err == nil {
+		t.Fatal("expected unknown managed team to be rejected")
+	}
+	if err := h.validateManagedTeamEdges(context.Background(), "supervisor", []ManagedTeamEdgeDTO{{ManagedTeamID: "delivery"}}); err == nil {
+		t.Fatal("expected managed team cycle to be rejected")
+	}
+}
+
+func TestEffectiveManagedTeamEdgesProjectsActiveDeliveryTeams(t *testing.T) {
+	storeMock := NewMockTeamStore()
+	storeMock.teams["effort-supervision"] = &store.Team{ID: "effort-supervision", Purpose: "supervision"}
+	storeMock.teams["delivery"] = &store.Team{ID: "delivery", Purpose: "delivery", EffortRefs: []string{"effort:one"}}
+	storeMock.teams["empty"] = &store.Team{ID: "empty", Purpose: "delivery"}
+	storeMock.teams["archived"] = &store.Team{ID: "archived", Purpose: "delivery", EffortRefs: []string{"effort:old"}, Archived: true}
+	h := &Handlers{teamStore: storeMock}
+	edges := h.effectiveManagedTeamEdges(context.Background(), "effort-supervision")
+	if len(edges) != 1 || edges[0].ManagedTeamID != "delivery" || edges[0].AuthorityRef != "agent-manager:effort-board" {
+		t.Fatalf("unexpected projected edges: %#v", edges)
+	}
+}
+
 // GetResponsibilities implements teamDocReader.
 func (m *MockTeamStore) GetResponsibilities(_ context.Context, teamID, agentID string) (string, error) {
 	if agents, ok := m.responsibilities[teamID]; ok {

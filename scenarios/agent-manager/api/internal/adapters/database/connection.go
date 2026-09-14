@@ -709,6 +709,9 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 }
 
 var runFindingColumnMigrations = []columnMigration{
+	{column: "proposed_workaround", ddl: "ALTER TABLE run_findings ADD COLUMN proposed_workaround TEXT NOT NULL DEFAULT ''"},
+	{column: "acceptance_impact", ddl: "ALTER TABLE run_findings ADD COLUMN acceptance_impact TEXT NOT NULL DEFAULT ''"},
+	{column: "owner_hint", ddl: "ALTER TABLE run_findings ADD COLUMN owner_hint TEXT NOT NULL DEFAULT ''"},
 	{column: "target_measure", ddl: "ALTER TABLE run_findings ADD COLUMN target_measure TEXT NOT NULL DEFAULT 'finding-recurrence-rate'"},
 	{column: "before_value", ddl: "ALTER TABLE run_findings ADD COLUMN before_value REAL"},
 	{column: "after_value", ddl: "ALTER TABLE run_findings ADD COLUMN after_value REAL"},

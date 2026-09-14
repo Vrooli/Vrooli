@@ -1,6 +1,7 @@
 {
   "schema_version": "v1",
   "runner": "opencode",
+  "excluded_models": ["gpt-6-astra", "gpt-5.6-sol"],
   "provenance": {"source": "OpenCode models listing and OpenRouter model catalog; refreshed 2026-09-11; added multi-source models", "observed_at": "2026-09-11"},
   "billing": {
     "mode": "unknown",
@@ -28,6 +29,16 @@
     "opencode-go/kimi-k2.7-code": {"canonical_model": "opencode-go/kimi-k2.7-code", "provider": "opencode-go"}
   },
   "roles": {
+    "code.flatrate": {
+      "models": [
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null}
+      ],
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "canonical_model": "opencode-go/deepseek-v4.1-flash",
+      "fallbacks": [],
+      "description": "Flat-rate OpenCode Go coding work (DeepSeek V4.1 Flash). No metered fallback: if OpenCode Go is unavailable the run fails instead of spending OpenRouter credit.",
+      "capabilities": ["code", "tools"]
+    },
     "code.default": {
       "models": [
         {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},

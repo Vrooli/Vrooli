@@ -28,14 +28,19 @@ durable infrastructure below. In particular:
   example throughout the docs). Build one real domain beside it, prove
   that domain is green, then remove the example with one command:
   `template-manager detemplate <scenario>`.
-- **The shell is not this scenario's code.** `ui/src/layout/AppShell.tsx`
-  mounts `AppShell` from the component library and configures it: which
-  destinations, sidebar or rail, tabs or drawer on a phone, whether the main
-  pane scrolls or fills. Change that configuration freely in Gate 5; it is
-  three constants. Do not redraw the shell. If it cannot do what your primary
-  surface needs, record the gap in `docs/reference/component-library-gaps.md`
-  and eject with `react-component-library adoptions eject --reason`, so the
-  library owes you the fix rather than every scenario re-inventing one.
+- **Chrome belongs to a library archetype.** Navigated consoles configure
+  `AppShell/2` in `ui/src/layout/AppShell.tsx`: destinations, sidebar or rail,
+  tabs or drawer, and a scrolling or filled main pane. Ambient boards and
+  other surfaces choose the library archetype that fits their product. Do not
+  redraw top-level chrome or force a console shell onto another archetype.
+  Declare `shell.archetype`, `shell.asset`, `shell.entry`, and `shell.export`
+  in `ui/manifest.json`. The ordinary ui-health
+  `standard_shell_ownership` check reads the declaration and all of `ui/src`.
+  If the available archetype cannot carry the product, record a `shell-ejection`
+  JSON block in `docs/reference/component-library-gaps.md` with the archetype,
+  a concrete reason, and the exact scenario-relative `ui/src/` files that own
+  the exception. Pre-1.0 availability alone does not justify forced adoption.
+  The check reports the reason and limits the exception to those files.
 - The home page is a placeholder that the "Design decision" orientation gate
   (step id `design-language`) fails until you replace it. It is marked `PLACEHOLDER:home-surface` in
   `ui/src/pages/DashboardPage.tsx`. The health card beside it is real and is
@@ -50,7 +55,7 @@ durable infrastructure below. In particular:
   you delete illustrative page content.
 
 Binding contract vs. illustrative example: every reference doc this
-scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
+scenario ships with — `DESIGN.md`, `PRD.md`, the initial shell configuration,
 and the fenced example domain — mixes two kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
@@ -297,9 +302,11 @@ surface and the page templates is `docs/guides/choosing-ui.md`.
       one surface that matters most. Write both, with the layout you want at
       phone and desktop widths and the states that surface has (loading,
       empty, partial, error), in `docs/concepts/EXPERIENCE.md`. If
-      `vrooli-default` and the sidebar shell are the right answer, say so; the
-      gate checks that the question was asked, not that the answer changed.
-- [ ] **Configure.** Set the three shell constants in
+      a sidebar console is the right answer, say so. Choose the kit expression
+      deliberately: the source gate rejects unchanged stock color/font values.
+- [ ] **Declare.** Choose the library archetype in `ui/manifest.json`. If it
+      cannot carry the product, record the scoped `shell-ejection` above.
+- [ ] **Configure.** For a navigated console, set the three shell constants in
       `ui/src/layout/AppShell.tsx` (`density`, `mobileNav`, `mainMode`) and
       the destinations in `ui/src/layout/navItems.tsx`. Replace the mark in
       `ui/src/layout/BrandMark.tsx` when branding exists.
@@ -325,9 +332,10 @@ react-component-library adoptions obligations {{SCENARIO_ID}} --json
       intentionally update `DESIGN.md` before UI implementation.
 - [ ] Replace the home placeholder. Delete the `PLACEHOLDER:home-surface`
       block in `ui/src/pages/DashboardPage.tsx` together with the surface you
-      decided on. The gate reads that marker.
-- [ ] Audit settings. Settings owns every preference; the shell duplicates
-      none. Inventory what your scenario needs (theme, font scale, locale,
+      decided on. The gate also reads the shell configuration and kit values;
+      removing the marker alone cannot satisfy it.
+- [ ] Audit settings. Settings owns every preference. Put quick access to
+      theme or session controls in the library shell’s `utility` slot. Inventory what your scenario needs (theme, font scale, locale,
       a11y, account, notifications, scenario-specific toggles) and add each as
       a `SettingsList.Row`.
 - [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the

@@ -12,29 +12,9 @@
           "description": "Launch an allowlisted coding-agent CLI with inherited terminal input and output.",
           "flags": [
             {
-              "name": "runner",
-              "default": "claude",
-              "values": [
-                "claude",
-                "claude-code",
-                "codex",
-                "opencode",
-                "grok"
-              ],
-              "description": "Coding-agent runner to launch."
-            },
-            {
-              "name": "prompt",
-              "description": "Optional non-interactive prompt passed to the runner."
-            },
-            {
-              "name": "cwd",
-              "description": "Optional working directory for the runner."
-            },
-            {
-              "name": "arg",
+              "name": "claim",
               "repeatable": true,
-              "description": "Additional argv token passed to the runner."
+              "description": "Path this session will edit; a live holder of an overlapping claim is named and the launch continues (advisory)."
             }
           ],
           "binding": {
@@ -54,19 +34,12 @@
               "class": "external_delegation",
               "reason": "The governed command delegates to one explicitly allowlisted coding-agent executable while preserving argv boundaries and the caller's terminal streams."
             }
-          },
-          "options": [
-            {
-              "name": "claim",
-              "repeatable": true,
-              "description": "Path this session will edit; a live holder of an overlapping claim is named and the launch continues (advisory)."
-            }
-          ]
+          }
         },
         {
           "name": "list",
           "description": "List live coding-agent sessions from the runtime registry: session, agent, tree, scope, pid, age, claims, frozen.",
-          "options": [
+          "flags": [
             {
               "name": "json",
               "description": "Emit JSON output."
@@ -148,10 +121,14 @@
           ],
           "flags": [
             {
-              "name": "instance"
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             },
             {
-              "name": "node"
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             }
           ],
           "binding": {
@@ -195,12 +172,14 @@
                 "f"
               ],
               "bool": true,
-              "description": "Follow log output in real time"
+              "description": "Follow log output in real time",
+              "local_only": true
             },
             {
               "name": "force-follow",
               "bool": true,
-              "description": "Stream even in non-interactive environments"
+              "description": "Stream even in non-interactive environments",
+              "local_only": true
             },
             {
               "name": "step",
@@ -223,12 +202,16 @@
             },
             {
               "name": "tail",
-              "description": "Show the last N lines"
+              "description": "Show the last N lines",
+              "bind": {
+                "field": "tail_lines"
+              }
             },
             {
               "name": "clean",
               "bool": true,
-              "description": "Remove orphaned background logs"
+              "description": "Remove orphaned background logs",
+              "local_only": true
             }
           ],
           "binding": {
@@ -282,17 +265,31 @@
             },
             {
               "name": "open",
-              "bool": true
+              "bool": true,
+              "local_only": true,
+              "description": "Open the caller's browser after lifecycle completion"
             },
             {
               "name": "timeout",
-              "description": "Ceiling for the whole start in seconds"
+              "description": "Ceiling for the whole start in seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              }
             },
             {
-              "name": "instance"
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             },
             {
-              "name": "node"
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "demand-managed",
+              "bool": true,
+              "description": "Tie this instance to caller-owned renewable demand leases"
             }
           ],
           "binding": {
@@ -324,10 +321,14 @@
           ],
           "flags": [
             {
-              "name": "instance"
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             },
             {
-              "name": "node"
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             }
           ],
           "binding": {
@@ -381,17 +382,31 @@
             },
             {
               "name": "open",
-              "bool": true
+              "bool": true,
+              "local_only": true,
+              "description": "Open the caller's browser after lifecycle completion"
             },
             {
               "name": "timeout",
-              "description": "Ceiling for the whole restart in seconds"
+              "description": "Ceiling for the whole restart in seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              }
             },
             {
-              "name": "instance"
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
             },
             {
-              "name": "node"
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "demand-managed",
+              "bool": true,
+              "description": "Tie this instance to caller-owned renewable demand leases"
             }
           ],
           "binding": {
@@ -450,6 +465,64 @@
           "description": "Scenario management commands retained under the scenario invocation path.",
           "flat": true,
           "commands": [
+            {
+              "name": "demand",
+              "description": "Acquire, renew, release, or inspect history of bounded scenario demand leases.",
+              "positionals": [
+                {
+                  "name": "operation",
+                  "required": true,
+                  "description": "acquire, renew, release, or history"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "scenario"
+                },
+                {
+                  "name": "variant"
+                },
+                {
+                  "name": "consumer"
+                },
+                {
+                  "name": "kind"
+                },
+                {
+                  "name": "request-id"
+                },
+                {
+                  "name": "lease-id"
+                },
+                {
+                  "name": "ttl"
+                },
+                {
+                  "name": "reason"
+                },
+                {
+                  "name": "metadata"
+                },
+                {
+                  "name": "limit"
+                },
+                {
+                  "name": "json",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
             {
               "name": "info",
               "description": "Scenario management command: info.",
@@ -1001,6 +1074,20 @@
               "filesystem:write"
             ],
             "requires_confirmation": true
+          }
+        },
+        {
+          "name": "cloud-target",
+          "description": "Target-local cloud deployment owner: receipts, releases, data inventory, host repair, credential versions.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
           }
         }
       ],
@@ -2024,6 +2111,15 @@
     {
       "name": "runtime",
       "description": "Runtime management command",
+      "commands": [
+        {
+          "name": "executor-scope",
+          "description": "Read bounded physical executor exclusion evidence from JSON stdin; never signal processes.",
+          "flags": [{"name": "json", "description": "Emit executor-scope-v1 JSON.", "bool": true}],
+          "binding": {"kind": "local", "handler": "executor-scope"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        }
+      ],
       "groups": [
         {
           "name": "supervisor",
@@ -2032,6 +2128,13 @@
             {
               "name": "run",
               "description": "Runtime supervisor command: run.",
+              "flags": [
+                {
+                  "name": "takeover",
+                  "description": "Take over an existing supervisor lease.",
+                  "bool": true
+                }
+              ],
               "binding": {
                 "kind": "local",
                 "handler": "run"
@@ -2443,6 +2546,29 @@
       "flat": true
     },
     {
+      "name": "host-watchdog",
+      "description": "Run the disk-floor watchdog and report pressure to storage-manager.",
+      "commands": [
+        {
+          "name": "host-watchdog",
+          "description": "Run the disk-floor watchdog and report pressure to storage-manager.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ],
+      "flat": true
+    },
+    {
       "name": "lifecycle",
       "description": "Lifecycle plumbing command",
       "commands": [
@@ -2701,6 +2827,31 @@
           }
         },
         {
+          "name": "desktop-session",
+          "description": "Inspect live Linux desktop session and X-server peer association.",
+          "flags": [
+            {
+              "name": "session-id",
+              "description": "Exact logind session ID."
+            },
+            {
+              "name": "peer-pid",
+              "description": "Kernel-authenticated X-server peer PID."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "desktop-session"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
           "name": "install",
           "description": "Host inventory command: install.",
           "positionals": [
@@ -2774,6 +2925,52 @@
         {
           "name": "volume",
           "description": "Inspect and manage host volume state.",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "capabilities, inspect, check, repair, unmount, or mount-rw"
+            }
+          ],
+          "flags": [
+            {
+              "name": "device",
+              "description": "Device path.",
+              "local_only": true
+            },
+            {
+              "name": "filesystem",
+              "description": "Expected filesystem.",
+              "local_only": true
+            },
+            {
+              "name": "uuid",
+              "description": "Expected filesystem UUID.",
+              "local_only": true
+            },
+            {
+              "name": "serial",
+              "description": "Expected device serial.",
+              "local_only": true
+            },
+            {
+              "name": "mountpoint",
+              "description": "Mountpoint for mount-rw.",
+              "local_only": true
+            },
+            {
+              "name": "acknowledge-data-loss",
+              "description": "Acknowledge repair risk.",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "dry-run",
+              "description": "Validate without changing host state.",
+              "bool": true,
+              "local_only": true
+            }
+          ],
           "binding": {
             "kind": "local",
             "handler": "volume"
@@ -2978,6 +3175,35 @@
         {
           "name": "gc",
           "description": "Host capacity command: gc.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "fit",
+          "description": "Evaluate enabled accelerator resources against measured or simulated host capacity.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "footprint",
+          "description": "List or reset durable capacity footprint high-water marks.",
           "binding": {
             "kind": "local"
           },
@@ -3560,6 +3786,161 @@
               }
             }
           ]
+        },
+        {
+          "name": "extensions",
+          "description": "Secrets Manager browser extension registration command.",
+          "commands": [
+            {
+              "name": "install",
+              "description": "Install the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to register.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "install"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "uninstall",
+              "description": "Remove the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to unregister.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "yes",
+                  "description": "Confirm removal of the browser registration.",
+                  "bool": true
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "uninstall"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "status",
+              "description": "Inspect the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to inspect.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -3659,6 +4040,971 @@
             ],
             "requires_confirmation": true
           }
+        }
+      ]
+    },
+    {
+      "name": "cloud-target",
+      "description": "Target-local owner of cloud deployment releases, receipts, host repairs and credential versions",
+      "groups": [
+        {
+          "name": "receipt",
+          "description": "Durable target receipts",
+          "commands": [
+            {
+              "name": "get",
+              "description": "Read one (operation, step) receipt.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "get"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "release",
+          "description": "Immutable release verification, staging and activation",
+          "commands": [
+            {
+              "name": "verify",
+              "description": "Verify a release manifest and bundle against this binary without writing.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "release-manifest",
+                  "description": "Path to the release manifest JSON.",
+                  "required": true
+                },
+                {
+                  "name": "archive",
+                  "description": "Path to the release bundle (tar.gz).",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "stage",
+              "description": "Verify then extract a release into an owned inactive staging directory.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "release-manifest",
+                  "description": "Path to the release manifest JSON.",
+                  "required": true
+                },
+                {
+                  "name": "archive",
+                  "description": "Path to the release bundle (tar.gz).",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "stage"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "activate",
+              "description": "Switch the deployment to a complete staged release through the lifecycle owner.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "release",
+                  "description": "Release digest to activate.",
+                  "required": true
+                },
+                {
+                  "name": "strategy",
+                  "description": "Activation strategy.",
+                  "values": [
+                    "side_by_side",
+                    "maintenance"
+                  ]
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario to restart; repeat for several. Defaults to every scenario in the release.",
+                  "repeatable": true
+                },
+                {
+                  "name": "port",
+                  "description": "Listener port to pin as <name>=<number>; repeat per port. Reaches the lifecycle owner as <NAME>_PORT.",
+                  "repeatable": true
+                },
+                {
+                  "name": "data-binding",
+                  "description": "Declared persistent-data binding as <id>=<scenario>/<path>; the release path is bound to persistent-data/<id>.",
+                  "repeatable": true
+                },
+                {
+                  "name": "legacy-carry",
+                  "description": "Heuristic-preserved directory <scenario>/<path> to carry forward under persistent-data/legacy without a declared binding.",
+                  "repeatable": true
+                },
+                {
+                  "name": "legacy-root",
+                  "description": "In-place workdir a converted deployment adopts legacy data from on its first release activation."
+                },
+                {
+                  "name": "restart",
+                  "description": "Run the activator even when the release is already active (start/resume of the recorded release).",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "activate"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "rollback",
+              "description": "Switch back to the retained predecessor release.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "to",
+                  "description": "Predecessor release digest.",
+                  "required": true
+                },
+                {
+                  "name": "strategy",
+                  "description": "Activation strategy.",
+                  "values": [
+                    "side_by_side",
+                    "maintenance"
+                  ]
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario to restart; repeat for several.",
+                  "repeatable": true
+                },
+                {
+                  "name": "port",
+                  "description": "Listener port to pin as <name>=<number>; repeat per port. Reaches the lifecycle owner as <NAME>_PORT.",
+                  "repeatable": true
+                },
+                {
+                  "name": "data-binding",
+                  "description": "Declared persistent-data binding as <id>=<scenario>/<path>; the release path is bound to persistent-data/<id>.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "rollback"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "list",
+              "description": "List staged, active and previous releases and any interrupted activation.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "list"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "prune",
+              "description": "Remove named complete releases that are neither active, previous nor part of an interrupted activation; the owner refuses those whatever the request says.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "release",
+                  "description": "Release digest to remove; repeat for several.",
+                  "required": true,
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "prune"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "data",
+          "description": "Persistent data inventory, recovery points, restore and verification",
+          "commands": [
+            {
+              "name": "inventory",
+              "description": "List heuristic mutable directories under a scenario and their binding coverage.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "workdir",
+                  "description": "Deployment workdir on this target.",
+                  "required": true
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id.",
+                  "required": true
+                },
+                {
+                  "name": "bindings",
+                  "description": "JSON array of declared data bindings [{\"id\",\"path\"}]. Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "inventory"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "backup",
+              "description": "Capture a consistent, encrypted, checksummed recovery point of the declared data bindings through their providers (pg_dump custom format for PostgreSQL, inventory archive for object stores). Fenced and receipted per (operation, step).",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "JSON binding {id, kind, provider, locator, migration_owner?, quiesce?, release?} or a JSON array; repeat for several. Accepts raw JSON or b64:<base64url JSON> for argv-only transports.",
+                  "required": true,
+                  "repeatable": true
+                },
+                {
+                  "name": "key-ref",
+                  "description": "Recovery key reference (logical_id:field) resolved through the credential authority; key material never appears in argv or receipts.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id. Defaults to <operation>-<step>."
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory for the recovery point. Defaults to the deployment's recovery-points directory."
+                },
+                {
+                  "name": "schema-version",
+                  "description": "Persistent-data schema version the recovery point binds to."
+                },
+                {
+                  "name": "configuration-digest",
+                  "description": "Configuration digest the recovery point binds to."
+                },
+                {
+                  "name": "credential-version-ref",
+                  "description": "Credential version reference (never a value); repeat for several.",
+                  "repeatable": true
+                },
+                {
+                  "name": "provider",
+                  "description": "Backup provider owner recorded on the manifest (e.g. data-backup-manager)."
+                },
+                {
+                  "name": "provider-ref",
+                  "description": "Provider-side reference of the registered target."
+                },
+                {
+                  "name": "retention-policy",
+                  "description": "Retention policy name recorded on the manifest."
+                },
+                {
+                  "name": "migration-posture",
+                  "description": "Storage migration posture selected for this capture.",
+                  "values": [
+                    "greenfield",
+                    "greenfield_with_data",
+                    "production_evolution"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "backup"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "process:spawn"
+                ]
+              }
+            },
+            {
+              "name": "restore",
+              "description": "Restore a recovery point into clean bindings on this target. Refuses recovery_point_corrupt, recovery_key_unavailable and restore_target_not_clean before any write; never overwrites operator-owned data. Fenced and receipted.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory of the recovery point (defaults to the deployment's recovery-points directory)."
+                },
+                {
+                  "name": "into",
+                  "description": "Restore target as <binding>=<locator> or a JSON object; repeat for several.",
+                  "required": true,
+                  "repeatable": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Restrict the restore to this binding id; repeat for several.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "restore"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "process:spawn"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "verify",
+              "description": "Verify a recovery point without restoring it: manifest digest, sealed artifact checksums, optional key resolution and decryption, and expected inventory invariants.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory of the recovery point (defaults to the deployment's recovery-points directory)."
+                },
+                {
+                  "name": "open",
+                  "description": "Also resolve the recovery key and decrypt every artifact.",
+                  "bool": true
+                },
+                {
+                  "name": "expect",
+                  "description": "JSON {binding: {count, checksum}} of the expected inventory (e.g. fixture-oracle/v1)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "host",
+          "description": "Target-owned bounded host observations and repairs",
+          "commands": [
+            {
+              "name": "observe",
+              "description": "Run one bounded typed target observation; executable selection and paths remain owner-controlled.",
+              "flags": [
+                {
+                  "name": "kind",
+                  "description": "Typed observation kind.",
+                  "required": true
+                },
+                {
+                  "name": "arg",
+                  "description": "Semantic observation argument; repeat for the operation's bounded arguments.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "observe"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "repair",
+              "description": "Run one privilege-broker action with a typed subject; no generic shell.",
+              "flags": [
+                {
+                  "name": "action",
+                  "description": "Privilege broker action name.",
+                  "required": true
+                },
+                {
+                  "name": "subject",
+                  "description": "JSON subject fields for the action. Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                },
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (receipted when --operation is set)."
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id."
+                },
+                {
+                  "name": "step",
+                  "description": "Step id."
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "repair"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "credential",
+          "description": "Versioned credential ingestion, acknowledgement and revocation through the node credential authority",
+          "commands": [
+            {
+              "name": "ingest",
+              "description": "Store one credential version from the sealed payload on standard input (or the Bridge-injected environment variable); values never appear in arguments.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "grant",
+                  "description": "Bridge grant id the value was delivered under."
+                },
+                {
+                  "name": "from-env",
+                  "description": "Environment variable holding the Bridge-injected value; the payload is not read from stdin."
+                },
+                {
+                  "name": "logical-id",
+                  "description": "Credential logical id (required with --from-env)."
+                },
+                {
+                  "name": "field",
+                  "description": "Credential field (required with --from-env)."
+                },
+                {
+                  "name": "content-ref",
+                  "description": "Opaque content reference of the version."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "ingest"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "acknowledge",
+              "description": "Record that a consumer verified use of a held credential version.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "consumer",
+                  "description": "Consumer ref (scenario:<id> or resource:<id>) acknowledging the version.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "acknowledge"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "revoke",
+              "description": "Purge a credential version from the node authority; the receipt states what revocation cannot prove.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "revoke"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": false
+              }
+            }
+          ]
+        },
+        {
+          "name": "edge",
+          "description": "Owner-scoped edge routing (per-deployment Caddy snippet, transactional apply and rollback)",
+          "commands": [
+            {
+              "name": "route-apply",
+              "description": "Write this deployment's Caddy snippet from a route spec, validate the whole proxy configuration and reload; a failure restores the previous snippet. Also reachable as `edge route apply`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt and the snippet.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "spec",
+                  "description": "Edge route spec JSON (schema_version, deployment_id, domain, routes[], snippet, acme_environment). Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                },
+                {
+                  "name": "spec-file",
+                  "description": "Path to the edge route spec JSON; alternative to --spec."
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-apply"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ]
+              }
+            },
+            {
+              "name": "route-rollback",
+              "description": "Restore the snippet displaced by the last successful apply, validate and reload. Also reachable as `edge route rollback`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt and the snippet.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-rollback"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ]
+              }
+            },
+            {
+              "name": "route-status",
+              "description": "Report active routes, certificate expiry per host and the unrelated-configuration hash without mutating anything. Also reachable as `edge route status`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

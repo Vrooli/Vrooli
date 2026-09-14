@@ -131,7 +131,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -146,7 +146,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -334,15 +334,20 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 	}
 	out := ScenarioStartArgs{
 		Options: lifecycle.StartOptions{
-			BestEffort:           parsed.HasFlag("--best-effort"),
-			CleanStale:           parsed.HasFlag("--clean-stale"),
-			ForceSetup:           parsed.HasFlag("--force"),
-			AcceptCredentialLoss: parsed.HasFlag("--accept-credential-loss"),
-			DemandManaged:        parsed.HasFlag("--demand-managed"),
-			CustomPath:           parsed.FlagValue("--path"),
+			BestEffort:              parsed.HasFlag("--best-effort"),
+			CleanStale:              parsed.HasFlag("--clean-stale"),
+			ForceSetup:              parsed.HasFlag("--force"),
+			ForceLifecycle:          parsed.HasFlag("--force-lifecycle"),
+			LifecycleOverrideReason: parsed.FlagValue("--lifecycle-override-reason"),
+			AcceptCredentialLoss:    parsed.HasFlag("--accept-credential-loss"),
+			DemandManaged:           parsed.HasFlag("--demand-managed"),
+			CustomPath:              parsed.FlagValue("--path"),
 		},
 		JSON:      defaultJSON || parsed.HasFlag("--json"),
 		OpenAfter: parsed.HasFlag("--open"),
+	}
+	if out.Options.ForceLifecycle && strings.TrimSpace(out.Options.LifecycleOverrideReason) == "" {
+		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario start", "--lifecycle-override-reason is required with --force-lifecycle")
 	}
 	if raw := strings.TrimSpace(parsed.FlagValue("--timeout")); raw != "" {
 		out.TimeoutSeconds, err = strconv.Atoi(raw)
@@ -368,6 +373,9 @@ func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 	if err != nil {
 		return ScenarioStartArgs{}, err
 	}
+	if command != "restart" && parsed.Options.ForceLifecycle {
+		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "--force-lifecycle is only valid for restart")
+	}
 	if len(parsed.Names) == 0 {
 		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
@@ -386,6 +394,9 @@ func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 	parsed, err := ParseScenarioStartArgs(globalsJSON, args)
 	if err != nil {
 		return StartRequest{}, err
+	}
+	if parsed.Options.ForceLifecycle {
+		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "--force-lifecycle is only valid for restart")
 	}
 	if len(parsed.Names) == 0 {
 		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "scenario start requires at least one scenario name")

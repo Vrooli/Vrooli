@@ -129,7 +129,23 @@ func recordWakeAdmission(state *store.HeartbeatAdmissionState, signal WakeSignal
 	state.LastReason = decision.Reason
 	state.LastCheckedAt = now.UTC().Format(time.RFC3339Nano)
 	if decision.Decision == wakeDecisionAdmit {
+		state.AdmittedCount++
 		state.LastAdmittedAt = state.LastCheckedAt
 		state.LastAdmissionKey = signal.Key
+	} else if decision.Decision == wakeDecisionQuiet {
+		state.QuietCount++
 	}
+}
+
+// recordWakeAdmissionFailOpen preserves the safety invariant that evidence
+// failures admit work while making the failure visible to operators. It is
+// best-effort telemetry; the caller must already have a usable state object.
+func recordWakeAdmissionFailOpen(state *store.HeartbeatAdmissionState, reason string, now time.Time) {
+	if state.Version == 0 {
+		state.Version = 1
+	}
+	state.FailOpenCount++
+	state.LastDecision = wakeDecisionAdmit
+	state.LastReason = "fail-open:" + reason
+	state.LastCheckedAt = now.UTC().Format(time.RFC3339Nano)
 }

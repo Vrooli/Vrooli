@@ -45,7 +45,7 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
 
 ### Trust posture and execution scopes
 
-The installation declares its trust stance in `.vrooli/operator-state.json` as
+The installation declares its trust stance in `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` as
 `trust_posture`. The typed reader defaults a missing field to `personal` and
 rejects every other value. Posture is readable by scenario agents but there is
 no agent write path; changing it is an operator action and must be recorded as

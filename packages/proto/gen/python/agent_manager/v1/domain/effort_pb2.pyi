@@ -68,7 +68,7 @@ class EffortSubject(_message.Message):
     def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., run_id: _Optional[str] = ..., role: _Optional[str] = ..., assignment: _Optional[str] = ...) -> None: ...
 
 class EffortEnrollment(_message.Message):
-    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "permitted_actions", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "authority_expires_at", "maximum_directives", "cooldown_seconds", "withdrawal_reason", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization")
+    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "permitted_actions", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "authority_expires_at", "maximum_directives", "cooldown_seconds", "withdrawal_reason", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization", "autonomous_supervision", "supervision_priority")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_REF_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +91,8 @@ class EffortEnrollment(_message.Message):
     SUPERVISOR_OWNER_SUBJECT_FIELD_NUMBER: _ClassVar[int]
     SUPERVISOR_SCOPE_FIELD_NUMBER: _ClassVar[int]
     DISPATCH_AUTHORIZATION_FIELD_NUMBER: _ClassVar[int]
+    AUTONOMOUS_SUPERVISION_FIELD_NUMBER: _ClassVar[int]
+    SUPERVISION_PRIORITY_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     display_name: str
     destination_ref: str
@@ -113,7 +115,9 @@ class EffortEnrollment(_message.Message):
     supervisor_owner_subject: str
     supervisor_scope: str
     dispatch_authorization: SupervisorDispatchAuthorization
-    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., permitted_actions: _Optional[_Iterable[_Union[_watch_pb2.WatchActionKind, str]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., authority_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_directives: _Optional[int] = ..., cooldown_seconds: _Optional[int] = ..., withdrawal_reason: _Optional[str] = ..., supervisor_owner_subject: _Optional[str] = ..., supervisor_scope: _Optional[str] = ..., dispatch_authorization: _Optional[_Union[SupervisorDispatchAuthorization, _Mapping]] = ...) -> None: ...
+    autonomous_supervision: bool
+    supervision_priority: int
+    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., permitted_actions: _Optional[_Iterable[_Union[_watch_pb2.WatchActionKind, str]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., authority_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_directives: _Optional[int] = ..., cooldown_seconds: _Optional[int] = ..., withdrawal_reason: _Optional[str] = ..., supervisor_owner_subject: _Optional[str] = ..., supervisor_scope: _Optional[str] = ..., dispatch_authorization: _Optional[_Union[SupervisorDispatchAuthorization, _Mapping]] = ..., autonomous_supervision: _Optional[bool] = ..., supervision_priority: _Optional[int] = ...) -> None: ...
 
 class SupervisorDispatchAuthorization(_message.Message):
     __slots__ = ("authorization_id", "owner_subject", "team_id", "member_id", "profile_key", "scopes", "issued_at", "expires_at", "revoked_at", "credential_hash", "target_revision", "issuance_key", "maximum_runs", "dispatched_runs", "minimum_interval_seconds", "last_dispatched_at")

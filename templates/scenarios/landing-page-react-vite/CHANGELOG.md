@@ -4,6 +4,24 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-07
+
+### Added
+
+- Shared `SpatialNavProvider` exposes the application's built-in gamepad
+  controller to React controls without creating another polling loop.
+
+### Changed
+
+- The entry point retains and disposes its controller on hot replacement.
+
+### Migration
+
+- [ ] Refresh `iframe-bridge` through the governed package lifecycle.
+- [ ] Pass the result of `initSpatialNav()` to `SpatialNavProvider` from
+      `@vrooli/iframe-bridge/react` and dispose it on hot replacement.
+- [ ] Use shared focused handlers and modal scopes for custom input.
+
 ## [2.0.0] - 2026-08-19
 
 ### Breaking

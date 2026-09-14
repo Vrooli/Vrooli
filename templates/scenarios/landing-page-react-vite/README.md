@@ -2,6 +2,23 @@
 
 A production-ready landing page template with A/B testing, Stripe payments, analytics, and an admin portal. Used by `template-manager` to generate monetizable landing pages for Vrooli scenarios.
 
+## Supported generation path
+
+This family currently consumes the canonical shared proto package
+`landing-page-react-vite`. Generate it with the canonical scenario id:
+
+```bash
+template-manager lifecycle generate landing-page-react-vite \
+  --id landing-page-react-vite \
+  --display-name "Landing Page" \
+  --description "Conversion landing page"
+```
+
+Template Manager refuses other ids with an actionable message instead of
+copying a scaffold whose hard-coded proto package would not compile. Use the
+`react-vite` family when the scenario needs an arbitrary id; schema relocation
+is the prerequisite for broadening this family.
+
 Generated scenarios receive root-level `DESIGN.md` from the `vrooli-conversion-landing` design kit. Treat that file as the canonical landing-page design contract. `.vrooli/styling.json` and `.vrooli/style-packs/` are runtime/configuration layers that instantiate the contract for variants and admin customization.
 
 ## Features

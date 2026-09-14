@@ -42,6 +42,13 @@ type startOperationRecorder struct {
 	cancelled    chan struct{}
 }
 
+func (rec *startOperationRecorder) operationID() string {
+	if rec == nil {
+		return ""
+	}
+	return rec.op.OperationID
+}
+
 func (rec *startOperationRecorder) context() context.Context {
 	if rec == nil || rec.ctx == nil {
 		return context.Background()

@@ -467,6 +467,17 @@
     "credentials": {
       "$ref": "common.schema.json#/definitions/credentials"
     },
+    "deployment": {
+      "$ref": "common.schema.json#/definitions/deploymentDeclaration",
+      "description": "Deployment declarations for this scenario: supported targets, persistent data with owners and recovery contracts, listener visibility/readiness, and the code/schema recovery strategy. Read by scenario-to-cloud's closure resolver."
+    },
+    "operator_capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/definitions/operatorCapabilityReference"
+      },
+      "description": "Operator capability references this scenario satisfies. The provider is registered only through the trusted control-plane composition root."
+    },
     "authentication": {
       "$ref": "#/definitions/authenticationProfile",
       "description": "Non-secret, manifest-backed identity-provider profile for an externally gated UI. Credentials remain outside scenario configuration."

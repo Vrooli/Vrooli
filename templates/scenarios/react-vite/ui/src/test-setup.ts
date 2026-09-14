@@ -48,33 +48,18 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
 }
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
+import { installConsoleGuard } from "./test-utils/console";
 
-let consoleError: ReturnType<typeof vi.spyOn>;
-let consoleWarn: ReturnType<typeof vi.spyOn>;
+let finishConsoleGuard: () => void;
 
 beforeEach(async () => {
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
-  consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-  consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  finishConsoleGuard = installConsoleGuard();
 });
 
 afterEach(() => {
-  // jsdom's CSSOM cannot parse some modern CSS the component library injects
-  // (`translate`, `inset-inline`, `color-mix`). That is a jsdom limitation, not
-  // an application error, so it is the one message this gate lets through.
-  const errorCalls = consoleError.mock.calls.filter((args) => !String(args[0]).includes("Could not parse CSS stylesheet"));
-  const warnCalls = consoleWarn.mock.calls;
-  consoleError.mockRestore();
-  consoleWarn.mockRestore();
-
-  if (errorCalls.length > 0 || warnCalls.length > 0) {
-    const formatted = [
-      ...errorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
-      ...warnCalls.map((args) => `console.warn: ${args.map(String).join(" ")}`),
-    ].join("\n");
-    throw new Error(`Unexpected console output during test:\n${formatted}`);
-  }
+  finishConsoleGuard();
 });
 
 // Process-wide spy by intent — axe-core probes canvas during every a11y

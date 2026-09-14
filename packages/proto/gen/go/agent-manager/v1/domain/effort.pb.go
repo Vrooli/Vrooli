@@ -308,8 +308,14 @@ type EffortEnrollment struct {
 	SupervisorScope        string `protobuf:"bytes,21,opt,name=supervisor_scope,json=supervisorScope,proto3" json:"supervisor_scope,omitempty"`
 	// Server-owned authorization. Ordinary enrollment/discovery cannot supply it.
 	DispatchAuthorization *SupervisorDispatchAuthorization `protobuf:"bytes,23,opt,name=dispatch_authorization,json=dispatchAuthorization,proto3" json:"dispatch_authorization,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Trusted supervisors have freedom of operational means within the accepted
+	// effort. Owner boundaries remain enforced at every operation boundary.
+	AutonomousSupervision bool `protobuf:"varint,24,opt,name=autonomous_supervision,json=autonomousSupervision,proto3" json:"autonomous_supervision,omitempty"`
+	// Owner-supplied relative consequence for supervisor admission. Zero means
+	// unspecified; it never overrides fairness or owner eligibility.
+	SupervisionPriority uint32 `protobuf:"varint,25,opt,name=supervision_priority,json=supervisionPriority,proto3" json:"supervision_priority,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *EffortEnrollment) Reset() {
@@ -494,6 +500,20 @@ func (x *EffortEnrollment) GetDispatchAuthorization() *SupervisorDispatchAuthori
 		return x.DispatchAuthorization
 	}
 	return nil
+}
+
+func (x *EffortEnrollment) GetAutonomousSupervision() bool {
+	if x != nil {
+		return x.AutonomousSupervision
+	}
+	return false
+}
+
+func (x *EffortEnrollment) GetSupervisionPriority() uint32 {
+	if x != nil {
+		return x.SupervisionPriority
+	}
+	return 0
 }
 
 // Metadata only; the bearer lives solely in the canonical credential authority.
@@ -3181,7 +3201,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x04role\x18\x05 \x01(\tR\x04role\x12\x1e\n" +
 	"\n" +
 	"assignment\x18\x06 \x01(\tR\n" +
-	"assignment\"\xb4\b\n" +
+	"assignment\"\x9e\t\n" +
 	"\x10EffortEnrollment\x12)\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tB\n" +
@@ -3209,7 +3229,9 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x11withdrawal_reason\x18\x13 \x01(\tR\x10withdrawalReason\x128\n" +
 	"\x18supervisor_owner_subject\x18\x14 \x01(\tR\x16supervisorOwnerSubject\x12)\n" +
 	"\x10supervisor_scope\x18\x15 \x01(\tR\x0fsupervisorScope\x12h\n" +
-	"\x16dispatch_authorization\x18\x17 \x01(\v21.agent_manager.v1.SupervisorDispatchAuthorizationR\x15dispatchAuthorization\"\xd4\x05\n" +
+	"\x16dispatch_authorization\x18\x17 \x01(\v21.agent_manager.v1.SupervisorDispatchAuthorizationR\x15dispatchAuthorization\x125\n" +
+	"\x16autonomous_supervision\x18\x18 \x01(\bR\x15autonomousSupervision\x121\n" +
+	"\x14supervision_priority\x18\x19 \x01(\rR\x13supervisionPriority\"\xd4\x05\n" +
 	"\x1fSupervisorDispatchAuthorization\x12)\n" +
 	"\x10authorization_id\x18\x01 \x01(\tR\x0fauthorizationId\x12#\n" +
 	"\rowner_subject\x18\x02 \x01(\tR\fownerSubject\x12\x17\n" +

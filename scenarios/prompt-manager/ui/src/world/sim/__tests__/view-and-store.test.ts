@@ -35,6 +35,18 @@ describe('view', () => {
     expect(v.events[0]?.kind).toBe('actor.state')
   })
 
+  it('retains team supervision edges in the live world view', () => {
+    const s = makeWorld({
+      teams: [
+        { id: 'supervisor', name: 'Supervisor', memberIds: ['a'], managedTeamIds: ['delivery'] },
+        { id: 'delivery', name: 'Delivery', memberIds: ['b'] },
+      ],
+      agents: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
+    })
+    const supervisor = buildView(s, tuning.actor).teams.find((team) => team.id === 'supervisor')
+    expect(supervisor?.managedTeamIds).toEqual(['delivery'])
+  })
+
   it('reports the next heartbeat and equipment tiers', () => {
     const s = run(makeWorld({ teams: 1, agents: 1, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 500, at: NOW }] })
     expect(buildView(s, tuning.actor).summary.nextHeartbeat).toEqual({ teamId: 'team-0', scheduledAt: NOW + 500 })

@@ -9,12 +9,9 @@
 //     struct-field mutation, not method calls. Per-method error
 //     knobs (`PingErr`, future `CreateErr`) are the standard
 //     failure-injection idiom.
-//   - fixtures/ domain factories using the functional-options pattern
-//     (NewHealthResponse(WithHealthStatus(...))). Default values
-//     are picked so the most common test path is `fixtures.NewX()`
-//     with no opts. Factories take *testing.T only when they
-//     validate inputs — current factories are plain-data
-//     builders, so they don't.
+//   - fixtures/ add domain factories when tests need reusable inputs.
+//     The template health factory is a teaching example excluded from
+//     generated scenarios; handler tests decode actual responses.
 //   - db/       per-test SQLite handles (modernc.org/sqlite, pure-Go,
 //     CGO-clean) for repository-integration tests. Schema is
 //     applied per handle so each test starts from a fresh,

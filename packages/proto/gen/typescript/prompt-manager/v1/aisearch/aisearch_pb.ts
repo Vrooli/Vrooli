@@ -10,7 +10,131 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file prompt-manager/v1/aisearch/aisearch.proto.
  */
 export const file_prompt_manager_v1_aisearch_aisearch: GenFile = /*@__PURE__*/
-  fileDesc("Cilwcm9tcHQtbWFuYWdlci92MS9haXNlYXJjaC9haXNlYXJjaC5wcm90bxIhdnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoInoKE1NlYXJjaFNraWxsc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDwoHcXVlcmllcxgCIAMoCRINCgVsaW1pdBgDIAEoBRIOCgZvdXRwdXQYBCABKAkSDgoGZm9ybWF0GAUgASgJEhQKDHJlbmRlcl9saW1pdBgGIAEoBSKPAQoLU2tpbGxSZXN1bHQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZmb2xkZXIYBCABKAkSDAoEdGFncxgFIAMoCRINCgVtb2RlcxgGIAMoCRINCgVzY29yZRgHIAEoARIVCg1zY29yZV9wZXJjZW50GAggASgFIuIBChRTZWFyY2hTa2lsbHNSZXNwb25zZRI/CgdyZXN1bHRzGAEgAygLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNraWxsUmVzdWx0EhAKCGNvbWJpbmVkGAIgASgJEhMKC3NraWxsX2NvdW50GAMgASgFEhQKDHRvdGFsX3Rva2VucxgEIAEoBRIOCgZmb3JtYXQYBSABKAkSDQoFdG90YWwYBiABKAUSDQoFcXVlcnkYByABKAkSDgoGbWV0aG9kGAggASgJEg4KBm91dHB1dBgJIAEoCSIzChNTZWFyY2hBZ2VudHNSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFIogBCgtBZ2VudFJlc3VsdBIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJEgwKBHRhZ3MYBSADKAkSDQoFc2NvcmUYBiABKAESFQoNc2NvcmVfcGVyY2VudBgHIAEoBSKFAQoUU2VhcmNoQWdlbnRzUmVzcG9uc2USPwoHcmVzdWx0cxgBIAMoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5BZ2VudFJlc3VsdBINCgV0b3RhbBgCIAEoBRINCgVxdWVyeRgDIAEoCRIOCgZtZXRob2QYBCABKAkiNAoUU2VhcmNoQWN0aW9uc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUioQEKDEFjdGlvblJlc3VsdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBnN0YXR1cxgEIAEoCRINCgVvd25lchgFIAEoCRIPCgdjb21tYW5kGAYgASgJEgwKBHRhZ3MYByADKAkSDQoFc2NvcmUYCCABKAESFQoNc2NvcmVfcGVyY2VudBgJIAEoBSKHAQoVU2VhcmNoQWN0aW9uc1Jlc3BvbnNlEkAKB3Jlc3VsdHMYASADKAsyLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQWN0aW9uUmVzdWx0Eg0KBXRvdGFsGAIgASgFEg0KBXF1ZXJ5GAMgASgJEg4KBm1ldGhvZBgEIAEoCSIyChJTZWFyY2hUZWFtc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUijAEKClRlYW1SZXN1bHQSCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEg8KB21pc3Npb24YAyABKAkSDwoHZW5hYmxlZBgEIAEoCBIUCgxtZW1iZXJfY291bnQYBSABKAUSDQoFc2NvcmUYBiABKAESFQoNc2NvcmVfcGVyY2VudBgHIAEoBSKDAQoTU2VhcmNoVGVhbXNSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlRlYW1SZXN1bHQSDQoFdG90YWwYAiABKAUSDQoFcXVlcnkYAyABKAkSDgoGbWV0aG9kGAQgASgJIhIKEEdldFN0YXR1c1JlcXVlc3QibgoRR2V0U3RhdHVzUmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIEg4KBm9sbGFtYRgCIAEoCBIOCgZxZHJhbnQYAyABKAgSFQoNaW5kZXhlZF9jb3VudBgEIAEoBRIPCgdtZXNzYWdlGAUgASgJIk0KB0l0ZW1SZWYSDAoEa2luZBgBIAEoCRIQCghwb2ludF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhQKDHBheWxvYWRfaGFzaBgEIAEoCSKmAQoVQ29sbGVjdGlvbkRyaWZ0UmVwb3J0EgwKBGtpbmQYASABKAkSPQoJdG9fdXBzZXJ0GAIgAygLMioudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkl0ZW1SZWYSEQoJdG9fZGVsZXRlGAMgAygJEhcKD3VuY2hhbmdlZF9jb3VudBgEIAEoBRIUCgxsZWdhY3lfY291bnQYBSABKAUicAoLRHJpZnRSZXBvcnQSEgoKcGxhbm5lZF9hdBgBIAEoCRJNCgtjb2xsZWN0aW9ucxgCIAMoCzI4LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5Db2xsZWN0aW9uRHJpZnRSZXBvcnQiSAoVQ29sbGVjdGlvbkFwcGx5UmVzdWx0EgwKBGtpbmQYASABKAkSEAoIdXBzZXJ0ZWQYAiABKAUSDwoHZGVsZXRlZBgDIAEoBSJXCg5SZWNvbmNpbGVFcnJvchIMCgRraW5kGAEgASgJEhAKCHBvaW50X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSCgoCb3AYBCABKAkSCwoDZXJyGAUgASgJIsgBCgtBcHBseVJlc3VsdBISCgpzdGFydGVkX2F0GAEgASgJEhMKC2ZpbmlzaGVkX2F0GAIgASgJEk0KC2NvbGxlY3Rpb25zGAMgAygLMjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkNvbGxlY3Rpb25BcHBseVJlc3VsdBJBCgZlcnJvcnMYBCADKAsyMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlRXJyb3Ii+QEKD1JlY29uY2lsZVN0YXR1cxIPCgdydW5uaW5nGAEgASgIEhIKCnN0YXJ0ZWRfYXQYAiABKAkSEwoLZmluaXNoZWRfYXQYAyABKAkSQQoJbGFzdF9wbGFuGAQgASgLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkRyaWZ0UmVwb3J0EkMKC2xhc3RfcmVzdWx0GAUgASgLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkFwcGx5UmVzdWx0EhIKCmxhc3RfZXJyb3IYBiABKAkSEAoIY2FuY2VsZWQYByABKAgiNwoQUmVjb25jaWxlUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJEg8KB2RyeV9ydW4YAiABKAgipgEKEVJlY29uY2lsZVJlc3BvbnNlEg8KB2RyeV9ydW4YASABKAgSPAoEcGxhbhgCIAEoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5EcmlmdFJlcG9ydBJCCgZzdGF0dXMYAyABKAsyMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlU3RhdHVzIhsKGUdldFJlY29uY2lsZVN0YXR1c1JlcXVlc3QiGAoWQ2FuY2VsUmVjb25jaWxlUmVxdWVzdDKSCAoPQUlTZWFyY2hTZXJ2aWNlEn8KDFNlYXJjaFNraWxscxI2LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hTa2lsbHNSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaFNraWxsc1Jlc3BvbnNlEn8KDFNlYXJjaEFnZW50cxI2LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hBZ2VudHNSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFnZW50c1Jlc3BvbnNlEoIBCg1TZWFyY2hBY3Rpb25zEjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFjdGlvbnNSZXF1ZXN0GjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFjdGlvbnNSZXNwb25zZRJ8CgtTZWFyY2hUZWFtcxI1LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hUZWFtc1JlcXVlc3QaNi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guU2VhcmNoVGVhbXNSZXNwb25zZRJ2CglHZXRTdGF0dXMSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guR2V0U3RhdHVzUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5HZXRTdGF0dXNSZXNwb25zZRJ2CglSZWNvbmNpbGUSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5SZWNvbmNpbGVSZXNwb25zZRKGAQoSR2V0UmVjb25jaWxlU3RhdHVzEjwudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkdldFJlY29uY2lsZVN0YXR1c1JlcXVlc3QaMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlU3RhdHVzEoABCg9DYW5jZWxSZWNvbmNpbGUSOS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQ2FuY2VsUmVjb25jaWxlUmVxdWVzdBoyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5SZWNvbmNpbGVTdGF0dXNCV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wcm9tcHQtbWFuYWdlci92MS9haXNlYXJjaDthaXNlYXJjaF92MWIGcHJvdG8z");
+  fileDesc("Cilwcm9tcHQtbWFuYWdlci92MS9haXNlYXJjaC9haXNlYXJjaC5wcm90bxIhdnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoIhgKFkdldEJ1ZGdldENvbmZpZ1JlcXVlc3QiXAoZVXBkYXRlQnVkZ2V0Q29uZmlnUmVxdWVzdBI/CgZjb25maWcYASABKAsyLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQnVkZ2V0Q29uZmlnIlUKDEJ1ZGdldENvbmZpZxINCgVtaW5vchgBIAEoBRIQCghtb2RlcmF0ZRgCIAEoBRINCgVtYWpvchgDIAEoBRIVCg1hcmNoaXRlY3R1cmFsGAQgASgFIiAKHkdldERpc2NvdmVyRmlsdGVyQ29uZmlnUmVxdWVzdCJsCiFVcGRhdGVEaXNjb3ZlckZpbHRlckNvbmZpZ1JlcXVlc3QSRwoGY29uZmlnGAEgASgLMjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkRpc2NvdmVyRmlsdGVyQ29uZmlnInAKFERpc2NvdmVyRmlsdGVyQ29uZmlnEhYKDmluY2x1ZGVfZHJhZnRzGAEgASgIEhUKDWV4Y2x1ZGVfbW9kZXMYAiADKAkSEwoLZXhjbHVkZV9pZHMYAyADKAkSFAoMZXhjbHVkZV90YWdzGAQgAygJInoKE1NlYXJjaFNraWxsc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDwoHcXVlcmllcxgCIAMoCRINCgVsaW1pdBgDIAEoBRIOCgZvdXRwdXQYBCABKAkSDgoGZm9ybWF0GAUgASgJEhQKDHJlbmRlcl9saW1pdBgGIAEoBSKPAQoLU2tpbGxSZXN1bHQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZmb2xkZXIYBCABKAkSDAoEdGFncxgFIAMoCRINCgVtb2RlcxgGIAMoCRINCgVzY29yZRgHIAEoARIVCg1zY29yZV9wZXJjZW50GAggASgFIuIBChRTZWFyY2hTa2lsbHNSZXNwb25zZRI/CgdyZXN1bHRzGAEgAygLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNraWxsUmVzdWx0EhAKCGNvbWJpbmVkGAIgASgJEhMKC3NraWxsX2NvdW50GAMgASgFEhQKDHRvdGFsX3Rva2VucxgEIAEoBRIOCgZmb3JtYXQYBSABKAkSDQoFdG90YWwYBiABKAUSDQoFcXVlcnkYByABKAkSDgoGbWV0aG9kGAggASgJEg4KBm91dHB1dBgJIAEoCSIzChNTZWFyY2hBZ2VudHNSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFIogBCgtBZ2VudFJlc3VsdBIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJEgwKBHRhZ3MYBSADKAkSDQoFc2NvcmUYBiABKAESFQoNc2NvcmVfcGVyY2VudBgHIAEoBSKFAQoUU2VhcmNoQWdlbnRzUmVzcG9uc2USPwoHcmVzdWx0cxgBIAMoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5BZ2VudFJlc3VsdBINCgV0b3RhbBgCIAEoBRINCgVxdWVyeRgDIAEoCRIOCgZtZXRob2QYBCABKAkiNAoUU2VhcmNoQWN0aW9uc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUioQEKDEFjdGlvblJlc3VsdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBnN0YXR1cxgEIAEoCRINCgVvd25lchgFIAEoCRIPCgdjb21tYW5kGAYgASgJEgwKBHRhZ3MYByADKAkSDQoFc2NvcmUYCCABKAESFQoNc2NvcmVfcGVyY2VudBgJIAEoBSKHAQoVU2VhcmNoQWN0aW9uc1Jlc3BvbnNlEkAKB3Jlc3VsdHMYASADKAsyLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQWN0aW9uUmVzdWx0Eg0KBXRvdGFsGAIgASgFEg0KBXF1ZXJ5GAMgASgJEg4KBm1ldGhvZBgEIAEoCSIyChJTZWFyY2hUZWFtc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUijAEKClRlYW1SZXN1bHQSCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEg8KB21pc3Npb24YAyABKAkSDwoHZW5hYmxlZBgEIAEoCBIUCgxtZW1iZXJfY291bnQYBSABKAUSDQoFc2NvcmUYBiABKAESFQoNc2NvcmVfcGVyY2VudBgHIAEoBSKDAQoTU2VhcmNoVGVhbXNSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlRlYW1SZXN1bHQSDQoFdG90YWwYAiABKAUSDQoFcXVlcnkYAyABKAkSDgoGbWV0aG9kGAQgASgJIhIKEEdldFN0YXR1c1JlcXVlc3QibgoRR2V0U3RhdHVzUmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIEg4KBm9sbGFtYRgCIAEoCBIOCgZxZHJhbnQYAyABKAgSFQoNaW5kZXhlZF9jb3VudBgEIAEoBRIPCgdtZXNzYWdlGAUgASgJIk0KB0l0ZW1SZWYSDAoEa2luZBgBIAEoCRIQCghwb2ludF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhQKDHBheWxvYWRfaGFzaBgEIAEoCSKmAQoVQ29sbGVjdGlvbkRyaWZ0UmVwb3J0EgwKBGtpbmQYASABKAkSPQoJdG9fdXBzZXJ0GAIgAygLMioudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkl0ZW1SZWYSEQoJdG9fZGVsZXRlGAMgAygJEhcKD3VuY2hhbmdlZF9jb3VudBgEIAEoBRIUCgxsZWdhY3lfY291bnQYBSABKAUicAoLRHJpZnRSZXBvcnQSEgoKcGxhbm5lZF9hdBgBIAEoCRJNCgtjb2xsZWN0aW9ucxgCIAMoCzI4LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5Db2xsZWN0aW9uRHJpZnRSZXBvcnQiSAoVQ29sbGVjdGlvbkFwcGx5UmVzdWx0EgwKBGtpbmQYASABKAkSEAoIdXBzZXJ0ZWQYAiABKAUSDwoHZGVsZXRlZBgDIAEoBSJXCg5SZWNvbmNpbGVFcnJvchIMCgRraW5kGAEgASgJEhAKCHBvaW50X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSCgoCb3AYBCABKAkSCwoDZXJyGAUgASgJIsgBCgtBcHBseVJlc3VsdBISCgpzdGFydGVkX2F0GAEgASgJEhMKC2ZpbmlzaGVkX2F0GAIgASgJEk0KC2NvbGxlY3Rpb25zGAMgAygLMjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkNvbGxlY3Rpb25BcHBseVJlc3VsdBJBCgZlcnJvcnMYBCADKAsyMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlRXJyb3Ii+QEKD1JlY29uY2lsZVN0YXR1cxIPCgdydW5uaW5nGAEgASgIEhIKCnN0YXJ0ZWRfYXQYAiABKAkSEwoLZmluaXNoZWRfYXQYAyABKAkSQQoJbGFzdF9wbGFuGAQgASgLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkRyaWZ0UmVwb3J0EkMKC2xhc3RfcmVzdWx0GAUgASgLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkFwcGx5UmVzdWx0EhIKCmxhc3RfZXJyb3IYBiABKAkSEAoIY2FuY2VsZWQYByABKAgiNwoQUmVjb25jaWxlUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJEg8KB2RyeV9ydW4YAiABKAgipgEKEVJlY29uY2lsZVJlc3BvbnNlEg8KB2RyeV9ydW4YASABKAgSPAoEcGxhbhgCIAEoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5EcmlmdFJlcG9ydBJCCgZzdGF0dXMYAyABKAsyMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlU3RhdHVzIhsKGUdldFJlY29uY2lsZVN0YXR1c1JlcXVlc3QiGAoWQ2FuY2VsUmVjb25jaWxlUmVxdWVzdDLNDAoPQUlTZWFyY2hTZXJ2aWNlEn8KDFNlYXJjaFNraWxscxI2LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hTa2lsbHNSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaFNraWxsc1Jlc3BvbnNlEn8KDFNlYXJjaEFnZW50cxI2LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hBZ2VudHNSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFnZW50c1Jlc3BvbnNlEoIBCg1TZWFyY2hBY3Rpb25zEjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFjdGlvbnNSZXF1ZXN0GjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLlNlYXJjaEFjdGlvbnNSZXNwb25zZRJ8CgtTZWFyY2hUZWFtcxI1LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5TZWFyY2hUZWFtc1JlcXVlc3QaNi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guU2VhcmNoVGVhbXNSZXNwb25zZRJ2CglHZXRTdGF0dXMSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guR2V0U3RhdHVzUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5HZXRTdGF0dXNSZXNwb25zZRJ2CglSZWNvbmNpbGUSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5SZWNvbmNpbGVSZXNwb25zZRKGAQoSR2V0UmVjb25jaWxlU3RhdHVzEjwudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkdldFJlY29uY2lsZVN0YXR1c1JlcXVlc3QaMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guUmVjb25jaWxlU3RhdHVzEoABCg9DYW5jZWxSZWNvbmNpbGUSOS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQ2FuY2VsUmVjb25jaWxlUmVxdWVzdBoyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5SZWNvbmNpbGVTdGF0dXMSfQoPR2V0QnVkZ2V0Q29uZmlnEjkudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkdldEJ1ZGdldENvbmZpZ1JlcXVlc3QaLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guQnVkZ2V0Q29uZmlnEoMBChJVcGRhdGVCdWRnZXRDb25maWcSPC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guVXBkYXRlQnVkZ2V0Q29uZmlnUmVxdWVzdBovLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5CdWRnZXRDb25maWcSlQEKF0dldERpc2NvdmVyRmlsdGVyQ29uZmlnEkEudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkdldERpc2NvdmVyRmlsdGVyQ29uZmlnUmVxdWVzdBo3LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5haXNlYXJjaC5EaXNjb3ZlckZpbHRlckNvbmZpZxKbAQoaVXBkYXRlRGlzY292ZXJGaWx0ZXJDb25maWcSRC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuYWlzZWFyY2guVXBkYXRlRGlzY292ZXJGaWx0ZXJDb25maWdSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmFpc2VhcmNoLkRpc2NvdmVyRmlsdGVyQ29uZmlnQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvbXB0LW1hbmFnZXIvdjEvYWlzZWFyY2g7YWlzZWFyY2hfdjFiBnByb3RvMw");
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest
+ */
+export type GetBudgetConfigRequest = Message<"vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest.
+ * Use `create(GetBudgetConfigRequestSchema)` to create a new message.
+ */
+export const GetBudgetConfigRequestSchema: GenMessage<GetBudgetConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 0);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest
+ */
+export type UpdateBudgetConfigRequest = Message<"vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest"> & {
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.aisearch.BudgetConfig config = 1;
+   */
+  config?: BudgetConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest.
+ * Use `create(UpdateBudgetConfigRequestSchema)` to create a new message.
+ */
+export const UpdateBudgetConfigRequestSchema: GenMessage<UpdateBudgetConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 1);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.BudgetConfig
+ */
+export type BudgetConfig = Message<"vrooli.prompt_manager.v1.aisearch.BudgetConfig"> & {
+  /**
+   * @generated from field: int32 minor = 1;
+   */
+  minor: number;
+
+  /**
+   * @generated from field: int32 moderate = 2;
+   */
+  moderate: number;
+
+  /**
+   * @generated from field: int32 major = 3;
+   */
+  major: number;
+
+  /**
+   * @generated from field: int32 architectural = 4;
+   */
+  architectural: number;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.BudgetConfig.
+ * Use `create(BudgetConfigSchema)` to create a new message.
+ */
+export const BudgetConfigSchema: GenMessage<BudgetConfig> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 2);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest
+ */
+export type GetDiscoverFilterConfigRequest = Message<"vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest.
+ * Use `create(GetDiscoverFilterConfigRequestSchema)` to create a new message.
+ */
+export const GetDiscoverFilterConfigRequestSchema: GenMessage<GetDiscoverFilterConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 3);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest
+ */
+export type UpdateDiscoverFilterConfigRequest = Message<"vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest"> & {
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig config = 1;
+   */
+  config?: DiscoverFilterConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest.
+ * Use `create(UpdateDiscoverFilterConfigRequestSchema)` to create a new message.
+ */
+export const UpdateDiscoverFilterConfigRequestSchema: GenMessage<UpdateDiscoverFilterConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 4);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig
+ */
+export type DiscoverFilterConfig = Message<"vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig"> & {
+  /**
+   * @generated from field: bool include_drafts = 1;
+   */
+  includeDrafts: boolean;
+
+  /**
+   * @generated from field: repeated string exclude_modes = 2;
+   */
+  excludeModes: string[];
+
+  /**
+   * @generated from field: repeated string exclude_ids = 3;
+   */
+  excludeIds: string[];
+
+  /**
+   * @generated from field: repeated string exclude_tags = 4;
+   */
+  excludeTags: string[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig.
+ * Use `create(DiscoverFilterConfigSchema)` to create a new message.
+ */
+export const DiscoverFilterConfigSchema: GenMessage<DiscoverFilterConfig> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 5);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest
@@ -52,7 +176,7 @@ export type SearchSkillsRequest = Message<"vrooli.prompt_manager.v1.aisearch.Sea
  * Use `create(SearchSkillsRequestSchema)` to create a new message.
  */
 export const SearchSkillsRequestSchema: GenMessage<SearchSkillsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 0);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 6);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SkillResult
@@ -104,7 +228,7 @@ export type SkillResult = Message<"vrooli.prompt_manager.v1.aisearch.SkillResult
  * Use `create(SkillResultSchema)` to create a new message.
  */
 export const SkillResultSchema: GenMessage<SkillResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 1);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 7);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse
@@ -161,7 +285,7 @@ export type SearchSkillsResponse = Message<"vrooli.prompt_manager.v1.aisearch.Se
  * Use `create(SearchSkillsResponseSchema)` to create a new message.
  */
 export const SearchSkillsResponseSchema: GenMessage<SearchSkillsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 2);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 8);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest
@@ -183,7 +307,7 @@ export type SearchAgentsRequest = Message<"vrooli.prompt_manager.v1.aisearch.Sea
  * Use `create(SearchAgentsRequestSchema)` to create a new message.
  */
 export const SearchAgentsRequestSchema: GenMessage<SearchAgentsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 3);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 9);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.AgentResult
@@ -230,7 +354,7 @@ export type AgentResult = Message<"vrooli.prompt_manager.v1.aisearch.AgentResult
  * Use `create(AgentResultSchema)` to create a new message.
  */
 export const AgentResultSchema: GenMessage<AgentResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 4);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 10);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse
@@ -262,7 +386,7 @@ export type SearchAgentsResponse = Message<"vrooli.prompt_manager.v1.aisearch.Se
  * Use `create(SearchAgentsResponseSchema)` to create a new message.
  */
 export const SearchAgentsResponseSchema: GenMessage<SearchAgentsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 5);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 11);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchActionsRequest
@@ -284,7 +408,7 @@ export type SearchActionsRequest = Message<"vrooli.prompt_manager.v1.aisearch.Se
  * Use `create(SearchActionsRequestSchema)` to create a new message.
  */
 export const SearchActionsRequestSchema: GenMessage<SearchActionsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 6);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 12);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ActionResult
@@ -341,7 +465,7 @@ export type ActionResult = Message<"vrooli.prompt_manager.v1.aisearch.ActionResu
  * Use `create(ActionResultSchema)` to create a new message.
  */
 export const ActionResultSchema: GenMessage<ActionResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 7);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 13);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchActionsResponse
@@ -373,7 +497,7 @@ export type SearchActionsResponse = Message<"vrooli.prompt_manager.v1.aisearch.S
  * Use `create(SearchActionsResponseSchema)` to create a new message.
  */
 export const SearchActionsResponseSchema: GenMessage<SearchActionsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 8);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 14);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchTeamsRequest
@@ -395,7 +519,7 @@ export type SearchTeamsRequest = Message<"vrooli.prompt_manager.v1.aisearch.Sear
  * Use `create(SearchTeamsRequestSchema)` to create a new message.
  */
 export const SearchTeamsRequestSchema: GenMessage<SearchTeamsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 9);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 15);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.TeamResult
@@ -442,7 +566,7 @@ export type TeamResult = Message<"vrooli.prompt_manager.v1.aisearch.TeamResult">
  * Use `create(TeamResultSchema)` to create a new message.
  */
 export const TeamResultSchema: GenMessage<TeamResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 10);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 16);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse
@@ -474,7 +598,7 @@ export type SearchTeamsResponse = Message<"vrooli.prompt_manager.v1.aisearch.Sea
  * Use `create(SearchTeamsResponseSchema)` to create a new message.
  */
 export const SearchTeamsResponseSchema: GenMessage<SearchTeamsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 11);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 17);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.GetStatusRequest
@@ -487,7 +611,7 @@ export type GetStatusRequest = Message<"vrooli.prompt_manager.v1.aisearch.GetSta
  * Use `create(GetStatusRequestSchema)` to create a new message.
  */
 export const GetStatusRequestSchema: GenMessage<GetStatusRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 12);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 18);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.GetStatusResponse
@@ -524,7 +648,7 @@ export type GetStatusResponse = Message<"vrooli.prompt_manager.v1.aisearch.GetSt
  * Use `create(GetStatusResponseSchema)` to create a new message.
  */
 export const GetStatusResponseSchema: GenMessage<GetStatusResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 13);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 19);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ItemRef
@@ -556,7 +680,7 @@ export type ItemRef = Message<"vrooli.prompt_manager.v1.aisearch.ItemRef"> & {
  * Use `create(ItemRefSchema)` to create a new message.
  */
 export const ItemRefSchema: GenMessage<ItemRef> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 14);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 20);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.CollectionDriftReport
@@ -593,7 +717,7 @@ export type CollectionDriftReport = Message<"vrooli.prompt_manager.v1.aisearch.C
  * Use `create(CollectionDriftReportSchema)` to create a new message.
  */
 export const CollectionDriftReportSchema: GenMessage<CollectionDriftReport> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 15);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 21);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.DriftReport
@@ -615,7 +739,7 @@ export type DriftReport = Message<"vrooli.prompt_manager.v1.aisearch.DriftReport
  * Use `create(DriftReportSchema)` to create a new message.
  */
 export const DriftReportSchema: GenMessage<DriftReport> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 16);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 22);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.CollectionApplyResult
@@ -642,7 +766,7 @@ export type CollectionApplyResult = Message<"vrooli.prompt_manager.v1.aisearch.C
  * Use `create(CollectionApplyResultSchema)` to create a new message.
  */
 export const CollectionApplyResultSchema: GenMessage<CollectionApplyResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 17);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 23);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ReconcileError
@@ -679,7 +803,7 @@ export type ReconcileError = Message<"vrooli.prompt_manager.v1.aisearch.Reconcil
  * Use `create(ReconcileErrorSchema)` to create a new message.
  */
 export const ReconcileErrorSchema: GenMessage<ReconcileError> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 18);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 24);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ApplyResult
@@ -711,7 +835,7 @@ export type ApplyResult = Message<"vrooli.prompt_manager.v1.aisearch.ApplyResult
  * Use `create(ApplyResultSchema)` to create a new message.
  */
 export const ApplyResultSchema: GenMessage<ApplyResult> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 19);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 25);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ReconcileStatus
@@ -758,7 +882,7 @@ export type ReconcileStatus = Message<"vrooli.prompt_manager.v1.aisearch.Reconci
  * Use `create(ReconcileStatusSchema)` to create a new message.
  */
 export const ReconcileStatusSchema: GenMessage<ReconcileStatus> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 20);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 26);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ReconcileRequest
@@ -780,7 +904,7 @@ export type ReconcileRequest = Message<"vrooli.prompt_manager.v1.aisearch.Reconc
  * Use `create(ReconcileRequestSchema)` to create a new message.
  */
 export const ReconcileRequestSchema: GenMessage<ReconcileRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 21);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 27);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.ReconcileResponse
@@ -807,7 +931,7 @@ export type ReconcileResponse = Message<"vrooli.prompt_manager.v1.aisearch.Recon
  * Use `create(ReconcileResponseSchema)` to create a new message.
  */
 export const ReconcileResponseSchema: GenMessage<ReconcileResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 22);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 28);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest
@@ -820,7 +944,7 @@ export type GetReconcileStatusRequest = Message<"vrooli.prompt_manager.v1.aisear
  * Use `create(GetReconcileStatusRequestSchema)` to create a new message.
  */
 export const GetReconcileStatusRequestSchema: GenMessage<GetReconcileStatusRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 23);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 29);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest
@@ -833,7 +957,7 @@ export type CancelReconcileRequest = Message<"vrooli.prompt_manager.v1.aisearch.
  * Use `create(CancelReconcileRequestSchema)` to create a new message.
  */
 export const CancelReconcileRequestSchema: GenMessage<CancelReconcileRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 24);
+  messageDesc(file_prompt_manager_v1_aisearch_aisearch, 30);
 
 /**
  * @generated from service vrooli.prompt_manager.v1.aisearch.AISearchService
@@ -902,6 +1026,38 @@ export const AISearchService: GenService<{
     methodKind: "unary";
     input: typeof CancelReconcileRequestSchema;
     output: typeof ReconcileStatusSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.aisearch.AISearchService.GetBudgetConfig
+   */
+  getBudgetConfig: {
+    methodKind: "unary";
+    input: typeof GetBudgetConfigRequestSchema;
+    output: typeof BudgetConfigSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateBudgetConfig
+   */
+  updateBudgetConfig: {
+    methodKind: "unary";
+    input: typeof UpdateBudgetConfigRequestSchema;
+    output: typeof BudgetConfigSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.aisearch.AISearchService.GetDiscoverFilterConfig
+   */
+  getDiscoverFilterConfig: {
+    methodKind: "unary";
+    input: typeof GetDiscoverFilterConfigRequestSchema;
+    output: typeof DiscoverFilterConfigSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateDiscoverFilterConfig
+   */
+  updateDiscoverFilterConfig: {
+    methodKind: "unary";
+    input: typeof UpdateDiscoverFilterConfigRequestSchema;
+    output: typeof DiscoverFilterConfigSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_prompt_manager_v1_aisearch_aisearch, 0);

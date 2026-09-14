@@ -692,7 +692,78 @@ func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.
 	section += fmt.Sprintf("- Reporting mode: %s\n", contract.Coordination.ReportingMode)
 	section += fmt.Sprintf("- Reports to: %s\n", managerLabel)
 	section += fmt.Sprintf("- Direct reports: %s\n", reportsLabel)
+	managed, managedBy := b.teamManagementLabels(ctx, team.ID)
+	if len(managed) > 0 || len(managedBy) > 0 {
+		section += "\nTeam-level management relationships (these are teams, not runtime workers):\n"
+		section += fmt.Sprintf("- Manages: %s\n", strings.Join(managed, ", "))
+		section += fmt.Sprintf("- Managed by: %s\n", strings.Join(managedBy, ", "))
+	}
 	return section
+}
+
+func (b *PromptBuilder) teamManagementLabels(ctx context.Context, teamID string) ([]string, []string) {
+	managed, managedBy := []string{}, []string{}
+	teams, err := b.teamStore.List(ctx)
+	if err != nil {
+		return managed, managedBy
+	}
+	labels := make(map[string]string, len(teams))
+	archived := make(map[string]bool, len(teams))
+	for _, candidate := range teams {
+		labels[candidate.ID] = candidate.DisplayName
+		archived[candidate.ID] = candidate.Archived
+	}
+	for _, candidate := range teams {
+		for _, edge := range b.teamManagementEdges(ctx, candidate.ID) {
+			if edge.Status == "archived" || archived[edge.ManagerTeamID] || archived[edge.ManagedTeamID] {
+				continue
+			}
+			name := labels[edge.ManagedTeamID]
+			if name == "" {
+				name = edge.ManagedTeamID
+			}
+			if edge.ManagerTeamID == teamID {
+				managed = append(managed, fmt.Sprintf("%s (%s)", name, edge.ManagedTeamID))
+			}
+			if edge.ManagedTeamID == teamID {
+				name = labels[edge.ManagerTeamID]
+				if name == "" {
+					name = edge.ManagerTeamID
+				}
+				managedBy = append(managedBy, fmt.Sprintf("%s (%s)", name, edge.ManagerTeamID))
+			}
+		}
+	}
+	sort.Strings(managed)
+	sort.Strings(managedBy)
+	return managed, managedBy
+}
+
+func (b *PromptBuilder) teamManagementEdges(ctx context.Context, teamID string) []store.ManagedTeamEdge {
+	org, err := b.teamStore.GetOrgChart(ctx, teamID)
+	if err != nil || org == nil {
+		return nil
+	}
+	edges := append([]store.ManagedTeamEdge(nil), org.ManagedTeamEdges...)
+	team, err := b.teamStore.Get(ctx, teamID)
+	if err != nil || team.Archived || team.Purpose != "supervision" {
+		return edges
+	}
+	known := make(map[string]bool, len(edges))
+	for _, edge := range edges {
+		known[edge.ManagedTeamID] = true
+	}
+	all, err := b.teamStore.List(ctx)
+	if err != nil {
+		return edges
+	}
+	for _, candidate := range all {
+		if candidate.ID == teamID || candidate.Archived || candidate.Purpose != "delivery" || len(candidate.EffortRefs) == 0 || known[candidate.ID] {
+			continue
+		}
+		edges = append(edges, store.ManagedTeamEdge{ManagerTeamID: teamID, ManagedTeamID: candidate.ID, Relationship: "supervises", AuthorityRef: "agent-manager:effort-board", Status: "active"})
+	}
+	return edges
 }
 
 func (b *PromptBuilder) buildStorageMapSection(team *store.Team, agentID string) (string, error) {

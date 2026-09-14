@@ -391,8 +391,13 @@ type MeasureProvenance struct {
 	RowCount       int64                  `protobuf:"varint,4,opt,name=row_count,json=rowCount,proto3" json:"row_count,omitempty"`
 	AppliedFilters []*MeasureFilter       `protobuf:"bytes,5,rep,name=applied_filters,json=appliedFilters,proto3" json:"applied_filters,omitempty"`
 	ExecutedQuery  string                 `protobuf:"bytes,6,opt,name=executed_query,json=executedQuery,proto3" json:"executed_query,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Projection freshness is evidence metadata, not an inferred quality score.
+	ProjectionAt          string `protobuf:"bytes,7,opt,name=projection_at,json=projectionAt,proto3" json:"projection_at,omitempty"`
+	ProjectionAgeMs       int64  `protobuf:"varint,8,opt,name=projection_age_ms,json=projectionAgeMs,proto3" json:"projection_age_ms,omitempty"`
+	ProjectionStale       bool   `protobuf:"varint,9,opt,name=projection_stale,json=projectionStale,proto3" json:"projection_stale,omitempty"`
+	ProjectionStaleReason string `protobuf:"bytes,10,opt,name=projection_stale_reason,json=projectionStaleReason,proto3" json:"projection_stale_reason,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *MeasureProvenance) Reset() {
@@ -463,6 +468,34 @@ func (x *MeasureProvenance) GetAppliedFilters() []*MeasureFilter {
 func (x *MeasureProvenance) GetExecutedQuery() string {
 	if x != nil {
 		return x.ExecutedQuery
+	}
+	return ""
+}
+
+func (x *MeasureProvenance) GetProjectionAt() string {
+	if x != nil {
+		return x.ProjectionAt
+	}
+	return ""
+}
+
+func (x *MeasureProvenance) GetProjectionAgeMs() int64 {
+	if x != nil {
+		return x.ProjectionAgeMs
+	}
+	return 0
+}
+
+func (x *MeasureProvenance) GetProjectionStale() bool {
+	if x != nil {
+		return x.ProjectionStale
+	}
+	return false
+}
+
+func (x *MeasureProvenance) GetProjectionStaleReason() string {
+	if x != nil {
+		return x.ProjectionStaleReason
 	}
 	return ""
 }
@@ -6346,7 +6379,7 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x18minimum_classified_share\x18\t \x01(\x01R\x16minimumClassifiedShare\";\n" +
 	"\rMeasureFilter\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\x8f\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xc3\x03\n" +
 	"\x11MeasureProvenance\x12!\n" +
 	"\fsource_table\x18\x01 \x01(\tR\vsourceTable\x12!\n" +
 	"\fwindow_start\x18\x02 \x01(\tR\vwindowStart\x12\x1d\n" +
@@ -6354,7 +6387,12 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"window_end\x18\x03 \x01(\tR\twindowEnd\x12\x1b\n" +
 	"\trow_count\x18\x04 \x01(\x03R\browCount\x12Q\n" +
 	"\x0fapplied_filters\x18\x05 \x03(\v2(.agent_manager.v1.measures.MeasureFilterR\x0eappliedFilters\x12%\n" +
-	"\x0eexecuted_query\x18\x06 \x01(\tR\rexecutedQuery\"\xbe\x01\n" +
+	"\x0eexecuted_query\x18\x06 \x01(\tR\rexecutedQuery\x12#\n" +
+	"\rprojection_at\x18\a \x01(\tR\fprojectionAt\x12*\n" +
+	"\x11projection_age_ms\x18\b \x01(\x03R\x0fprojectionAgeMs\x12)\n" +
+	"\x10projection_stale\x18\t \x01(\bR\x0fprojectionStale\x126\n" +
+	"\x17projection_stale_reason\x18\n" +
+	" \x01(\tR\x15projectionStaleReason\"\xbe\x01\n" +
 	"\x11MeasureDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06counts\x18\x02 \x01(\tR\x06counts\x12\x1c\n" +

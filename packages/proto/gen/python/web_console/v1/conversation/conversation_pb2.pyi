@@ -146,7 +146,7 @@ class GetRangeRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., from_sequence: _Optional[int] = ..., to_sequence: _Optional[int] = ...) -> None: ...
 
 class ConversationEvent(_message.Message):
-    __slots__ = ("id", "session_id", "source", "role", "text", "speech_paragraphs", "original_speech_paragraphs", "summarized", "created_at", "sequence", "delivery_state", "tts_state", "consumption_state")
+    __slots__ = ("id", "session_id", "source", "role", "text", "speech_paragraphs", "original_speech_paragraphs", "summarized", "created_at", "sequence", "delivery_state", "tts_state", "consumption_state", "native_provenance")
     ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -160,6 +160,7 @@ class ConversationEvent(_message.Message):
     DELIVERY_STATE_FIELD_NUMBER: _ClassVar[int]
     TTS_STATE_FIELD_NUMBER: _ClassVar[int]
     CONSUMPTION_STATE_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     source: str
@@ -173,7 +174,24 @@ class ConversationEvent(_message.Message):
     delivery_state: str
     tts_state: str
     consumption_state: str
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., role: _Optional[str] = ..., text: _Optional[str] = ..., speech_paragraphs: _Optional[_Iterable[str]] = ..., original_speech_paragraphs: _Optional[_Iterable[str]] = ..., summarized: _Optional[bool] = ..., created_at: _Optional[str] = ..., sequence: _Optional[int] = ..., delivery_state: _Optional[str] = ..., tts_state: _Optional[str] = ..., consumption_state: _Optional[str] = ...) -> None: ...
+    native_provenance: NativeProvenance
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., role: _Optional[str] = ..., text: _Optional[str] = ..., speech_paragraphs: _Optional[_Iterable[str]] = ..., original_speech_paragraphs: _Optional[_Iterable[str]] = ..., summarized: _Optional[bool] = ..., created_at: _Optional[str] = ..., sequence: _Optional[int] = ..., delivery_state: _Optional[str] = ..., tts_state: _Optional[str] = ..., consumption_state: _Optional[str] = ..., native_provenance: _Optional[_Union[NativeProvenance, _Mapping]] = ...) -> None: ...
+
+class NativeProvenance(_message.Message):
+    __slots__ = ("provider", "session_id", "turn_id", "message_id", "boundary_id", "compaction_lineage")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    BOUNDARY_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_LINEAGE_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    session_id: str
+    turn_id: str
+    message_id: str
+    boundary_id: str
+    compaction_lineage: str
+    def __init__(self, provider: _Optional[str] = ..., session_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., message_id: _Optional[str] = ..., boundary_id: _Optional[str] = ..., compaction_lineage: _Optional[str] = ...) -> None: ...
 
 class ConversationCursor(_message.Message):
     __slots__ = ("last_seen_sequence", "last_listened_sequence")

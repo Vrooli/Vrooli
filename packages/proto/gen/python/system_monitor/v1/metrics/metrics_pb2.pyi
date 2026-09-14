@@ -67,7 +67,7 @@ class MetricValue(_message.Message):
     def __init__(self, measured: _Optional[float] = ..., unsupported_reason: _Optional[str] = ..., failed_error: _Optional[str] = ..., stale_reason: _Optional[str] = ..., not_yet_sampled_reason: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cycle_id: _Optional[str] = ..., freshness_seconds: _Optional[float] = ..., units: _Optional[str] = ...) -> None: ...
 
 class MetricTimelineSample(_message.Message):
-    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "swap_usage", "cpu", "memory", "connections", "gpu", "swap", "swap_traffic", "major_faults", "fragmentation_index", "cpu_context_switches_per_second", "cpu_interrupts_per_second", "cpu_normalized_load_1", "cpu_normalized_load_5", "cpu_run_queue_depth", "cpu_stall_some_avg10", "cpu_stall_full_avg10", "cpu_core_imbalance_index", "cpu_mode_iowait", "cpu_mode_steal")
+    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "swap_usage", "cpu", "memory", "connections", "gpu", "swap", "swap_traffic", "major_faults", "fragmentation_index", "cpu_context_switches_per_second", "cpu_interrupts_per_second", "cpu_normalized_load_1", "cpu_normalized_load_5", "cpu_run_queue_depth", "cpu_stall_some_avg10", "cpu_stall_full_avg10", "cpu_core_imbalance_index", "cpu_mode_iowait", "cpu_mode_steal", "network_established_rate", "network_time_wait_rate", "network_close_wait_rate")
     CYCLE_ID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
@@ -93,6 +93,9 @@ class MetricTimelineSample(_message.Message):
     CPU_CORE_IMBALANCE_INDEX_FIELD_NUMBER: _ClassVar[int]
     CPU_MODE_IOWAIT_FIELD_NUMBER: _ClassVar[int]
     CPU_MODE_STEAL_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_ESTABLISHED_RATE_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_TIME_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_CLOSE_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
     cycle_id: str
     timestamp: _timestamp_pb2.Timestamp
     cpu_usage: float
@@ -118,7 +121,10 @@ class MetricTimelineSample(_message.Message):
     cpu_core_imbalance_index: MetricValue
     cpu_mode_iowait: MetricValue
     cpu_mode_steal: MetricValue
-    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., swap_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., swap: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_iowait: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_steal: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    network_established_rate: MetricValue
+    network_time_wait_rate: MetricValue
+    network_close_wait_rate: MetricValue
+    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., swap_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., swap: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_iowait: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_steal: _Optional[_Union[MetricValue, _Mapping]] = ..., network_established_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_time_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_close_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
 
 class MetricsTimelineResponse(_message.Message):
     __slots__ = ("window_seconds", "sample_interval_seconds", "samples")
@@ -227,16 +233,136 @@ class MemoryMetrics(_message.Message):
     def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., swap_usage: _Optional[_Union[SwapInfo, _Mapping]] = ..., disk_usage: _Optional[_Union[DiskInfo, _Mapping]] = ..., paging: _Optional[_Union[PagingMetrics, _Mapping]] = ..., fragmentation: _Optional[_Union[FragmentationMetrics, _Mapping]] = ..., top_paging_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ...) -> None: ...
 
 class NetworkMetrics(_message.Message):
-    __slots__ = ("tcp_states", "port_usage", "network_stats", "connection_pools")
+    __slots__ = ("tcp_states", "port_usage", "network_stats", "connection_pools", "established_rate", "time_wait_rate", "close_wait_rate", "connections_opened_rate", "connections_closed_rate", "interfaces", "ownership", "endpoints", "capabilities", "verdict")
     TCP_STATES_FIELD_NUMBER: _ClassVar[int]
     PORT_USAGE_FIELD_NUMBER: _ClassVar[int]
     NETWORK_STATS_FIELD_NUMBER: _ClassVar[int]
     CONNECTION_POOLS_FIELD_NUMBER: _ClassVar[int]
+    ESTABLISHED_RATE_FIELD_NUMBER: _ClassVar[int]
+    TIME_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
+    CLOSE_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_OPENED_RATE_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_CLOSED_RATE_FIELD_NUMBER: _ClassVar[int]
+    INTERFACES_FIELD_NUMBER: _ClassVar[int]
+    OWNERSHIP_FIELD_NUMBER: _ClassVar[int]
+    ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
     tcp_states: TCPConnectionStates
     port_usage: PortUsageInfo
     network_stats: NetworkStatistics
     connection_pools: _containers.RepeatedCompositeFieldContainer[ConnectionPool]
-    def __init__(self, tcp_states: _Optional[_Union[TCPConnectionStates, _Mapping]] = ..., port_usage: _Optional[_Union[PortUsageInfo, _Mapping]] = ..., network_stats: _Optional[_Union[NetworkStatistics, _Mapping]] = ..., connection_pools: _Optional[_Iterable[_Union[ConnectionPool, _Mapping]]] = ...) -> None: ...
+    established_rate: MetricValue
+    time_wait_rate: MetricValue
+    close_wait_rate: MetricValue
+    connections_opened_rate: MetricValue
+    connections_closed_rate: MetricValue
+    interfaces: _containers.RepeatedCompositeFieldContainer[NetworkInterface]
+    ownership: NetworkOwnership
+    endpoints: _containers.RepeatedCompositeFieldContainer[NetworkEndpoint]
+    capabilities: NetworkCapabilities
+    verdict: NetworkVerdict
+    def __init__(self, tcp_states: _Optional[_Union[TCPConnectionStates, _Mapping]] = ..., port_usage: _Optional[_Union[PortUsageInfo, _Mapping]] = ..., network_stats: _Optional[_Union[NetworkStatistics, _Mapping]] = ..., connection_pools: _Optional[_Iterable[_Union[ConnectionPool, _Mapping]]] = ..., established_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., time_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., close_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., connections_opened_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., connections_closed_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., interfaces: _Optional[_Iterable[_Union[NetworkInterface, _Mapping]]] = ..., ownership: _Optional[_Union[NetworkOwnership, _Mapping]] = ..., endpoints: _Optional[_Iterable[_Union[NetworkEndpoint, _Mapping]]] = ..., capabilities: _Optional[_Union[NetworkCapabilities, _Mapping]] = ..., verdict: _Optional[_Union[NetworkVerdict, _Mapping]] = ...) -> None: ...
+
+class NetworkInterface(_message.Message):
+    __slots__ = ("name", "hardware_address", "up", "received_bytes", "transmitted_bytes", "received_packets", "transmitted_packets", "receive_errors", "transmit_errors", "receive_drops", "transmit_drops", "receive_bytes_per_second", "transmit_bytes_per_second")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    HARDWARE_ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    UP_FIELD_NUMBER: _ClassVar[int]
+    RECEIVED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    TRANSMITTED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RECEIVED_PACKETS_FIELD_NUMBER: _ClassVar[int]
+    TRANSMITTED_PACKETS_FIELD_NUMBER: _ClassVar[int]
+    RECEIVE_ERRORS_FIELD_NUMBER: _ClassVar[int]
+    TRANSMIT_ERRORS_FIELD_NUMBER: _ClassVar[int]
+    RECEIVE_DROPS_FIELD_NUMBER: _ClassVar[int]
+    TRANSMIT_DROPS_FIELD_NUMBER: _ClassVar[int]
+    RECEIVE_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    TRANSMIT_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    hardware_address: str
+    up: bool
+    received_bytes: MetricValue
+    transmitted_bytes: MetricValue
+    received_packets: MetricValue
+    transmitted_packets: MetricValue
+    receive_errors: MetricValue
+    transmit_errors: MetricValue
+    receive_drops: MetricValue
+    transmit_drops: MetricValue
+    receive_bytes_per_second: MetricValue
+    transmit_bytes_per_second: MetricValue
+    def __init__(self, name: _Optional[str] = ..., hardware_address: _Optional[str] = ..., up: _Optional[bool] = ..., received_bytes: _Optional[_Union[MetricValue, _Mapping]] = ..., transmitted_bytes: _Optional[_Union[MetricValue, _Mapping]] = ..., received_packets: _Optional[_Union[MetricValue, _Mapping]] = ..., transmitted_packets: _Optional[_Union[MetricValue, _Mapping]] = ..., receive_errors: _Optional[_Union[MetricValue, _Mapping]] = ..., transmit_errors: _Optional[_Union[MetricValue, _Mapping]] = ..., receive_drops: _Optional[_Union[MetricValue, _Mapping]] = ..., transmit_drops: _Optional[_Union[MetricValue, _Mapping]] = ..., receive_bytes_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., transmit_bytes_per_second: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+
+class NetworkOwnership(_message.Message):
+    __slots__ = ("owners", "total_connections", "attributed_connections", "attribution_coverage_percent", "truncated", "reason", "provenance")
+    OWNERS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTED_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTION_COVERAGE_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    owners: _containers.RepeatedCompositeFieldContainer[NetworkOwner]
+    total_connections: int
+    attributed_connections: int
+    attribution_coverage_percent: float
+    truncated: bool
+    reason: str
+    provenance: str
+    def __init__(self, owners: _Optional[_Iterable[_Union[NetworkOwner, _Mapping]]] = ..., total_connections: _Optional[int] = ..., attributed_connections: _Optional[int] = ..., attribution_coverage_percent: _Optional[float] = ..., truncated: _Optional[bool] = ..., reason: _Optional[str] = ..., provenance: _Optional[str] = ...) -> None: ...
+
+class NetworkOwner(_message.Message):
+    __slots__ = ("pid", "process_name", "service_name", "connections")
+    PID_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_NAME_FIELD_NUMBER: _ClassVar[int]
+    SERVICE_NAME_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    pid: int
+    process_name: str
+    service_name: str
+    connections: int
+    def __init__(self, pid: _Optional[int] = ..., process_name: _Optional[str] = ..., service_name: _Optional[str] = ..., connections: _Optional[int] = ...) -> None: ...
+
+class NetworkEndpoint(_message.Message):
+    __slots__ = ("scope", "direction", "port", "connections", "age_seconds", "redacted_address")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    REDACTED_ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    direction: str
+    port: int
+    connections: int
+    age_seconds: MetricValue
+    redacted_address: str
+    def __init__(self, scope: _Optional[str] = ..., direction: _Optional[str] = ..., port: _Optional[int] = ..., connections: _Optional[int] = ..., age_seconds: _Optional[_Union[MetricValue, _Mapping]] = ..., redacted_address: _Optional[str] = ...) -> None: ...
+
+class NetworkCapabilities(_message.Message):
+    __slots__ = ("tcp_states", "interface_counters", "transport_counters", "ownership", "endpoints")
+    TCP_STATES_FIELD_NUMBER: _ClassVar[int]
+    INTERFACE_COUNTERS_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_COUNTERS_FIELD_NUMBER: _ClassVar[int]
+    OWNERSHIP_FIELD_NUMBER: _ClassVar[int]
+    ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
+    tcp_states: MetricValue
+    interface_counters: MetricValue
+    transport_counters: MetricValue
+    ownership: MetricValue
+    endpoints: MetricValue
+    def __init__(self, tcp_states: _Optional[_Union[MetricValue, _Mapping]] = ..., interface_counters: _Optional[_Union[MetricValue, _Mapping]] = ..., transport_counters: _Optional[_Union[MetricValue, _Mapping]] = ..., ownership: _Optional[_Union[MetricValue, _Mapping]] = ..., endpoints: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+
+class NetworkVerdict(_message.Message):
+    __slots__ = ("state", "summary", "reasons")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    summary: str
+    reasons: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, state: _Optional[str] = ..., summary: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SystemHealth(_message.Message):
     __slots__ = ("file_descriptors", "service_dependencies", "certificates", "inotify_watchers", "api_process_goroutines")
@@ -729,6 +855,38 @@ class GetDetailedMetricsResponse(_message.Message):
     METRICS_FIELD_NUMBER: _ClassVar[int]
     metrics: DetailedMetrics
     def __init__(self, metrics: _Optional[_Union[DetailedMetrics, _Mapping]] = ...) -> None: ...
+
+class GetNetworkDiagnosticRequest(_message.Message):
+    __slots__ = ("top_n", "max_duration_ms", "include_addresses")
+    TOP_N_FIELD_NUMBER: _ClassVar[int]
+    MAX_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_ADDRESSES_FIELD_NUMBER: _ClassVar[int]
+    top_n: int
+    max_duration_ms: int
+    include_addresses: bool
+    def __init__(self, top_n: _Optional[int] = ..., max_duration_ms: _Optional[int] = ..., include_addresses: _Optional[bool] = ...) -> None: ...
+
+class GetNetworkDiagnosticResponse(_message.Message):
+    __slots__ = ("snapshot",)
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    snapshot: NetworkDiagnosticSnapshot
+    def __init__(self, snapshot: _Optional[_Union[NetworkDiagnosticSnapshot, _Mapping]] = ...) -> None: ...
+
+class NetworkDiagnosticSnapshot(_message.Message):
+    __slots__ = ("ownership", "endpoints", "inventory_connections", "truncated", "duration_ms", "failure_reason")
+    OWNERSHIP_FIELD_NUMBER: _ClassVar[int]
+    ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
+    INVENTORY_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    ownership: NetworkOwnership
+    endpoints: _containers.RepeatedCompositeFieldContainer[NetworkEndpoint]
+    inventory_connections: int
+    truncated: bool
+    duration_ms: int
+    failure_reason: str
+    def __init__(self, ownership: _Optional[_Union[NetworkOwnership, _Mapping]] = ..., endpoints: _Optional[_Iterable[_Union[NetworkEndpoint, _Mapping]]] = ..., inventory_connections: _Optional[int] = ..., truncated: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., failure_reason: _Optional[str] = ...) -> None: ...
 
 class GetProcessMonitorRequest(_message.Message):
     __slots__ = ()

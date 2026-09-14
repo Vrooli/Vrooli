@@ -235,7 +235,7 @@ func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, 
 	if s.goalRunCreator == nil {
 		return Record{}, apierr.Unavailable("goal run creator is not configured")
 	}
-	input := goalMessageInputForItem(item, record.PlanManagerExecutionID)
+	input := s.goalMessageInput(ctx, item, record.PlanManagerExecutionID)
 	if note := strings.TrimSpace(record.OperatorNote); note != "" {
 		input.OperatorNote = note
 	}

@@ -33,6 +33,12 @@ not consume the observed change, allowing a later tick to retry it. Use
 `mode: "always"` (or omit the block) for proactive members whose cadence is
 itself the work, such as recurring scans.
 
+Runtime admission state also retains `admittedCount`, `quietCount` and
+`failOpenCount`. These counters are diagnostic evidence for tuning the gate;
+they are not a billing or token budget. A fail-open caused by an unreadable
+state store cannot be persisted, so a missing or stale state file is unknown,
+not evidence of zero failures.
+
 ## Standing effort supervision
 
 For the organizational model, read

@@ -141,6 +141,19 @@ message ConversationEvent {
   string delivery_state = 11; // "pending" | "received" | "seen"
   string tts_state = 12; // "idle" | "playing" | "played" | "rejected" | "failed"
   string consumption_state = 13; // "unseen" | "seen" | "listening" | "listened"
+  // Optional harness-owned identity. Display ids and projection sequences
+  // remain authoritative for rendering; control operations require these
+  // fields and must refuse display-only events.
+  NativeProvenance native_provenance = 14;
+}
+
+message NativeProvenance {
+  string provider = 1;
+  string session_id = 2;
+  string turn_id = 3;
+  string message_id = 4;
+  string boundary_id = 5;
+  string compaction_lineage = 6;
 }
 
 message ConversationCursor {

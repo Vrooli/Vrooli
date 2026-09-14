@@ -245,6 +245,8 @@ export interface WorldState {
   decor: DecorSpot[]
   actors: Record<string, Actor>
   actorOrder: string[]
+  /** Configured outgoing team supervision edges, keyed by manager team ID. */
+  managedTeamIds: Record<string, string[]>
   gatherings: Record<string, Gathering>
   events: WorldEvent[]
   nextSeq: number
@@ -257,6 +259,7 @@ export interface TeamInput {
   id: string
   name: string
   memberIds: string[]
+  managedTeamIds?: string[]
 }
 
 export interface AgentInput {

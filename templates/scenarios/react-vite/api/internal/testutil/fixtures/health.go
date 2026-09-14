@@ -20,6 +20,7 @@ package fixtures
 
 import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared"
+	"google.golang.org/protobuf/proto"
 )
 
 // HealthResponse is the canonical wire-shape type for /health responses.
@@ -86,12 +87,18 @@ func WithHealthTimestamp(rfc3339 string) HealthOpt {
 
 // WithHealthDependency adds (or overrides) a named dependency entry on
 // the response. The Dependencies map is lazily initialised so callers
-// passing a single dependency don't have to construct the map first.
+// passing a single dependency don't have to construct the map first. Each
+// application copies the message, so reusing an option does not share mutable
+// fixture state. An explicit nil remains nil for invalid-input tests.
 func WithHealthDependency(name string, ds *healthv1.DependencyStatus) HealthOpt {
 	return func(r *healthv1.Response) {
 		if r.Dependencies == nil {
 			r.Dependencies = make(map[string]*healthv1.DependencyStatus)
 		}
-		r.Dependencies[name] = ds
+		if ds == nil {
+			r.Dependencies[name] = nil
+			return
+		}
+		r.Dependencies[name] = proto.Clone(ds).(*healthv1.DependencyStatus)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostsession"
@@ -199,10 +200,11 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 	}
 
 	scenarioVars := map[string]string{
-		"SCENARIO_NAME":       item.Slug,
-		"SCENARIO_MODE":       "true",
-		"SCENARIO_PATH":       item.Path,
-		"SCENARIO_DATA_DIR":   filepath.Join(item.Path, "data"),
+		"SCENARIO_NAME": item.Slug,
+		"SCENARIO_MODE": "true",
+		"SCENARIO_PATH": item.Path,
+		// One rule with storage measurement, so budgets see the live database.
+		"SCENARIO_DATA_DIR":   storage.LifecycleDataDir(item.Path),
 		"VROOLI_SCENARIO":     item.Slug,
 		"VROOLI_SCENARIO_DIR": item.Path,
 	}

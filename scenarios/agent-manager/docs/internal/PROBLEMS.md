@@ -661,3 +661,16 @@ completion benefit. Keep coverage, unassessed labels, and absent baselines null.
 - Owner-suite evidence (2026-09-06): run `20260906-054134-20a28539` failed broad inherited/shared checks, including manifest/schema, UI, dependency, documentation, performance, unit-placement, storage, security, measures, proto, template, and event-declaration checks. It is retained as a certification limitation, not collapsed into the targeted result.
 - Blocker: The approved plan's PRD/requirements extension and full owner certification are not yet complete. The execution baseline receipt is partial because source identity changed before producer work began.
 - Measured: 2026-09-06
+
+## 2026-09-14 — Supervisor friction findings preserve mitigation boundaries
+
+Recurring friction is detected from durable invocation episodes and routed through
+the existing `report-friction` / meta-optimization intake. Findings now retain a
+candidate workaround, its acceptance impact, and a suspected owner as structured
+metadata. The recurring publisher explicitly records that its candidate is not an
+approved workaround; owner review remains required before reuse or promotion.
+
+Focused evidence: findings, Prompt Manager client, orchestration, and legacy
+finding-column migration tests pass. The broader package run passes the changed
+findings/database/orchestration/supervision/prompt-manager packages; an unrelated
+retained-run configuration fixture still fails in the broader handlers package.

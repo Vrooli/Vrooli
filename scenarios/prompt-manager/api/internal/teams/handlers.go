@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"prompt-manager/internal/store"
@@ -638,11 +639,15 @@ func (h *Handlers) GetOrgChart(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to DTO response
 	resp := OrgChartResponse{
-		TeamID: id,
-		Edges:  make([]OrgEdgeDTO, 0, len(org.Edges)),
+		TeamID:           id,
+		Edges:            make([]OrgEdgeDTO, 0, len(org.Edges)),
+		ManagedTeamEdges: make([]ManagedTeamEdgeDTO, 0),
 	}
 	for _, edge := range org.Edges {
 		resp.Edges = append(resp.Edges, orgEdgeToDTO(edge))
+	}
+	for _, edge := range h.effectiveManagedTeamEdges(ctx, id) {
+		resp.ManagedTeamEdges = append(resp.ManagedTeamEdges, managedTeamEdgeToDTO(edge))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -674,13 +679,31 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	org := &store.OrgChart{
-		TeamID: id,
-		Edges:  make([]store.OrgEdge, 0, len(req.Edges)),
+	if err := h.validateManagedTeamEdges(ctx, id, req.ManagedTeamEdges); err != nil {
+		if isValidationError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	org, err := h.teamStore.GetOrgChart(ctx, id)
+	if err != nil {
+		org = &store.OrgChart{TeamID: id}
+	}
+	org.TeamID = id
+	org.Edges = make([]store.OrgEdge, 0, len(req.Edges))
 	for _, e := range req.Edges {
 		org.Edges = append(org.Edges, orgEdgeFromDTO(e))
+	}
+	// Member-level edits use the same endpoint. Preserve team-level edges when
+	// older clients omit the new field; an explicit empty array clears them.
+	if req.ManagedTeamEdges != nil {
+		org.ManagedTeamEdges = make([]store.ManagedTeamEdge, 0, len(req.ManagedTeamEdges))
+		for _, edge := range req.ManagedTeamEdges {
+			org.ManagedTeamEdges = append(org.ManagedTeamEdges, managedTeamEdgeFromDTO(edge, id))
+		}
 	}
 
 	if err := h.teamStore.SetOrgChart(ctx, id, org); err != nil {
@@ -694,8 +717,9 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 
 	// Return the updated org chart
 	resp := OrgChartResponse{
-		TeamID: id,
-		Edges:  req.Edges,
+		TeamID:           id,
+		Edges:            req.Edges,
+		ManagedTeamEdges: req.ManagedTeamEdges,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1068,6 +1092,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		}
 	}
 
+	managed, managedBy := h.teamRelationshipIDs(ctx, t.ID)
 	return Response{
 		Purpose: t.Purpose, Lifetime: t.Lifetime, EffortRefs: t.EffortRefs, ObjectivesServed: t.ObjectivesServed,
 		ID:                 t.ID,
@@ -1083,7 +1108,38 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		MemberCount:        memberCount,
 		CreatedAt:          t.CreatedAt,
 		UpdatedAt:          t.UpdatedAt,
+		ManagedTeamIDs:     managed,
+		ManagedByTeamIDs:   managedBy,
 	}
+}
+
+func (h *Handlers) teamRelationshipIDs(ctx context.Context, teamID string) ([]string, []string) {
+	managed := []string{}
+	managedBy := []string{}
+	teams, err := h.teamStore.List(ctx)
+	if err != nil {
+		return managed, managedBy
+	}
+	archived := make(map[string]bool, len(teams))
+	for _, team := range teams {
+		archived[team.ID] = team.Archived
+	}
+	for _, team := range teams {
+		if archived[team.ID] {
+			continue
+		}
+		for _, edge := range h.effectiveManagedTeamEdges(ctx, team.ID) {
+			if edge.ManagerTeamID == teamID && edge.Status != "archived" && !archived[edge.ManagedTeamID] {
+				managed = append(managed, edge.ManagedTeamID)
+			}
+			if edge.ManagedTeamID == teamID && edge.Status != "archived" && !archived[edge.ManagerTeamID] {
+				managedBy = append(managedBy, edge.ManagerTeamID)
+			}
+		}
+	}
+	sort.Strings(managed)
+	sort.Strings(managedBy)
+	return managed, managedBy
 }
 
 func (h *Handlers) toDetailsResponse(ctx context.Context, t *store.Team) TeamDetailsResponse {

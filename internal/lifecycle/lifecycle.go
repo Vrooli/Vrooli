@@ -327,6 +327,15 @@ type StartOptions struct {
 	BestEffort         bool
 	ForceSetup         bool
 	ForceSetupScenario string
+	// ForceLifecycle is an explicit emergency replacement request. It bypasses
+	// drain-only blockers, but never bypasses unavailable provider identity or
+	// an unmatched maintenance fence.
+	ForceLifecycle bool
+	// LifecycleOverrideReason is required when ForceLifecycle is set. It is
+	// retained in the provider request and operation audit trail.
+	LifecycleOverrideReason string
+	providerFence           *providerFence
+	lifecycleOperationID    string
 	// AcceptCredentialLoss explicitly permits a generated credential to be
 	// replaced after its data-owned mint witness reports that the original was
 	// lost. The lifecycle passes this as a process-scoped environment marker;
@@ -601,8 +610,18 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	}
 	item.Variant = opts.Variant
 	var maintenanceRevision int64
+	// Create the durable operation before negotiating a provider fence so the
+	// provider and registry describe one operation, not two unrelated UUIDs.
+	var recorder *startOperationRecorder
+	if candidate := r.beginStartOperationRecord(name, opts); candidate != nil {
+		recorder = candidate
+		opts.lifecycleOperationID = candidate.operationID()
+		detach := r.attachSink(candidate)
+		defer detach()
+		defer candidate.close()
+	}
 	if opts.stopFirst {
-		maintenanceRevision, err = r.requireOwnerMaintenance(opts.Context, item, 0)
+		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
 		if err != nil {
 			return Result{}, err
 		}
@@ -619,15 +638,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		opts.hostRequirementsPreflighted[path] = struct{}{}
 	}
 
-	// Durable start-operation record: every top-level start/restart is
-	// introspectable by other processes for the duration of the run and
-	// after. Nil recorder (registry unavailable) degrades to an unrecorded
-	// start — the record is progress, never authority.
-	if recorder := r.beginStartOperationRecord(name, opts); recorder != nil {
-		detach := r.attachSink(recorder)
-		defer detach()
-		defer recorder.close()
-	}
+	_ = recorder // the deferred recorder remains attached for the full transaction
 	if opts.stopFirst {
 		// Restart semantics: unconditional teardown before the start body,
 		// announced (and rendered) before "starting …" like the historical
@@ -651,6 +662,8 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		"best_effort", opts.BestEffort,
 		"clean_stale", opts.CleanStale,
 		"force_setup", opts.ForceSetup,
+		"force_lifecycle", opts.ForceLifecycle,
+		"lifecycle_override_reason", opts.LifecycleOverrideReason,
 	)
 	result, err := r.startWithState(name, opts, session)
 	if err != nil {
@@ -660,6 +673,9 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
+	}
+	if err := opts.providerFence.resume(opts.Context); err != nil {
+		return Result{}, fmt.Errorf("resume lifecycle fence for %q: %w", name, err)
 	}
 	if !result.AlreadyRunning {
 		// The reuse fast-path publishes its own AlreadyRunning completion

@@ -8,7 +8,7 @@
   "schemaVersion": 1,
   "id": "aquila-commercial-release",
   "displayName": "Aquila Commercial Release",
-  "mission": "Prepare Web Console for validated desktop deployment and Landing Page Business Suite monetization.",
+  "mission": "Deliver the finite Aquila/Web Console commercial release through validated desktop deployment, Landing Page Business Suite monetization, paid-journey evidence, operational support and independent go/no-go acceptance.",
   "enabled": false,
   "archived": false,
   "runtime": {
@@ -48,7 +48,7 @@
     },
     "members": {
       "aquila-launch-coordinator": {
-        "lane": "Coordinate the finite commercial release from its protected workspace; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure.",
+        "lane": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure.",
         "allowedWrites": [{"kind":"knowledge"},{"kind":"handoff"}],
         "safetyCriticalRules": [
           "The effort reference is attribution, not execution authority.",

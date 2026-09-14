@@ -202,6 +202,7 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		Operation:            normalizeOperation(req.Operation),
 		Force:                req.Force,
 		ExecutionMode:        req.ExecutionMode,
+		OperatorNote:         firstNonEmpty(strings.TrimSpace(req.OperatorNote), strings.TrimSpace(item.OperatorNote)),
 		MaxSlices:            req.MaxSlices,
 		ExecutionLimits:      item.ExecutionLimits.Clone(),
 		ExecutionPreferences: cloneExecutionPreferences(req.ExecutionPreferences),

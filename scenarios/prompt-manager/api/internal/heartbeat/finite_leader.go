@@ -195,6 +195,45 @@ func (f *FiniteLeaderRuntime) observe(ctx context.Context, state *store.FiniteLe
 	return run, nil
 }
 
+// ReconcileKnownRun refreshes PM's projection for a finite leader whose exact
+// Agent Manager run is already known. Reads must not create a run or replay an
+// uncertain admission; they may, however, settle a persisted owner identity
+// that has reached a newer lifecycle state since the last heartbeat tick.
+func (f *FiniteLeaderRuntime) ReconcileKnownRun(ctx context.Context, teamID, agentID string) (*store.FiniteLeaderState, error) {
+	state, err := f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
+	if err != nil || state == nil || !state.DispatchStarted || state.RunID == "" {
+		return state, err
+	}
+	if f.Executor.agentClient == nil {
+		return state, fmt.Errorf("finite leader agent owner unavailable")
+	}
+	run, err := f.Executor.agentClient.GetRun(ctx, state.RunID)
+	if err != nil {
+		return state, err
+	}
+	if run == nil || run.ID != state.RunID || run.TaskID != state.TaskID {
+		return state, fmt.Errorf("finite leader owner response does not match retained task and run")
+	}
+	config, err := f.Executor.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		return state, err
+	}
+	if config != nil && config.LastExecution != nil &&
+		config.LastExecution.RunID == run.ID &&
+		config.LastExecution.StartedAt == run.StartedAt &&
+		config.LastExecution.EndedAt == run.EndedAt &&
+		config.LastExecution.Error == run.Error {
+		return state, nil
+	}
+	if config == nil || config.LastExecution == nil || run.Status != state.Status || run.EndedAt != "" {
+		if err := f.record(ctx, state, run); err != nil {
+			return state, err
+		}
+		return f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
+	}
+	return state, nil
+}
+
 // Dispatch is also the final guard for manual/team triggers and recovered queue
 // entries. The normal assembled prompt is used; source refs are never executed.
 func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID string) (*ExecutionResult, error) {

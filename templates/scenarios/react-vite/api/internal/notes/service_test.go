@@ -138,6 +138,38 @@ func TestService_List_AppliesDefaultLimit(t *testing.T) {
 		"limit <= 0 must be substituted with defaultListLimit (100)")
 }
 
+func TestService_List_AppliesInjectedPolicyAtRequestBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		input, want int
+	}{
+		{"below", -1, 7},
+		{"at", 0, 7},
+		{"above", 1, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
+			svc := notes.NewService(spy, notes.WithDefaultListLimit(7))
+			_, err := svc.List(context.Background(), tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, spy.gotLimit)
+		})
+	}
+}
+
+func TestService_DefaultListPolicyRejectsNonPositiveConfiguration(t *testing.T) {
+	for _, limit := range []int{-1, 0} {
+		require.PanicsWithValue(t, "notes: default list limit must be positive", func() {
+			notes.WithDefaultListLimit(limit)
+		})
+	}
+	spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
+	svc := notes.NewService(spy, notes.WithDefaultListLimit(1))
+	_, err := svc.List(context.Background(), 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, spy.gotLimit)
+}
+
 func TestService_List_AppliesDefaultOnNegative(t *testing.T) {
 	spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
 	svc := notes.NewService(spy)

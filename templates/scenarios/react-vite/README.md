@@ -72,6 +72,35 @@ visual layout:
 - The feature-folder pattern under `ui/src/features/<name>/`.
 - The proto → API → CLI → UI vertical-slice shape.
 
+## Optional externally gated UI
+
+The generated API already uses the passive shared authentication seam. To
+adopt Cloudflare Access, declare an `authentication` profile in the generated
+`.vrooli/service.json` and bind the non-secret application identifiers at
+runtime:
+
+```json
+{
+  "authentication": {
+    "profile": "cloudflare_access",
+    "team_domain": "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+    "audience": "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+    "policy_mode": "operator_managed",
+    "owner": "tunnel-manager"
+  }
+}
+```
+
+The lifecycle derives `VROOLI_AUTH_PROVIDERS=cloudflare_access` and asks
+tunnel-manager to resolve the team-domain and application-audience values from
+the scenario's managed route. Do not copy an audience tag into each scenario;
+the route and Access application are the centralized source of truth. The API
+verifies the origin assertion; it never parses a browser cookie or stores a
+token. A custom server must install
+`authn.Middleware` explicitly because only the standard `server.Run` handler
+path is wrapped automatically. The `/public` asset exception is owned by
+tunnel-manager and is not an authentication mechanism.
+
 **Connect-RPC is the default transport.** Every domain endpoint goes
 through a proto service and generated Connect handlers/clients. If
 you find yourself writing `Path: "/api/v1/..."` as a literal string in

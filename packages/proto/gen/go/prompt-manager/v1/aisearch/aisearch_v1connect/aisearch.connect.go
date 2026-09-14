@@ -57,6 +57,18 @@ const (
 	// AISearchServiceCancelReconcileProcedure is the fully-qualified name of the AISearchService's
 	// CancelReconcile RPC.
 	AISearchServiceCancelReconcileProcedure = "/vrooli.prompt_manager.v1.aisearch.AISearchService/CancelReconcile"
+	// AISearchServiceGetBudgetConfigProcedure is the fully-qualified name of the AISearchService's
+	// GetBudgetConfig RPC.
+	AISearchServiceGetBudgetConfigProcedure = "/vrooli.prompt_manager.v1.aisearch.AISearchService/GetBudgetConfig"
+	// AISearchServiceUpdateBudgetConfigProcedure is the fully-qualified name of the AISearchService's
+	// UpdateBudgetConfig RPC.
+	AISearchServiceUpdateBudgetConfigProcedure = "/vrooli.prompt_manager.v1.aisearch.AISearchService/UpdateBudgetConfig"
+	// AISearchServiceGetDiscoverFilterConfigProcedure is the fully-qualified name of the
+	// AISearchService's GetDiscoverFilterConfig RPC.
+	AISearchServiceGetDiscoverFilterConfigProcedure = "/vrooli.prompt_manager.v1.aisearch.AISearchService/GetDiscoverFilterConfig"
+	// AISearchServiceUpdateDiscoverFilterConfigProcedure is the fully-qualified name of the
+	// AISearchService's UpdateDiscoverFilterConfig RPC.
+	AISearchServiceUpdateDiscoverFilterConfigProcedure = "/vrooli.prompt_manager.v1.aisearch.AISearchService/UpdateDiscoverFilterConfig"
 )
 
 // AISearchServiceClient is a client for the vrooli.prompt_manager.v1.aisearch.AISearchService
@@ -70,6 +82,10 @@ type AISearchServiceClient interface {
 	Reconcile(context.Context, *connect.Request[aisearch.ReconcileRequest]) (*connect.Response[aisearch.ReconcileResponse], error)
 	GetReconcileStatus(context.Context, *connect.Request[aisearch.GetReconcileStatusRequest]) (*connect.Response[aisearch.ReconcileStatus], error)
 	CancelReconcile(context.Context, *connect.Request[aisearch.CancelReconcileRequest]) (*connect.Response[aisearch.ReconcileStatus], error)
+	GetBudgetConfig(context.Context, *connect.Request[aisearch.GetBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error)
+	UpdateBudgetConfig(context.Context, *connect.Request[aisearch.UpdateBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error)
+	GetDiscoverFilterConfig(context.Context, *connect.Request[aisearch.GetDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error)
+	UpdateDiscoverFilterConfig(context.Context, *connect.Request[aisearch.UpdateDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error)
 }
 
 // NewAISearchServiceClient constructs a client for the
@@ -132,19 +148,47 @@ func NewAISearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(aISearchServiceMethods.ByName("CancelReconcile")),
 			connect.WithClientOptions(opts...),
 		),
+		getBudgetConfig: connect.NewClient[aisearch.GetBudgetConfigRequest, aisearch.BudgetConfig](
+			httpClient,
+			baseURL+AISearchServiceGetBudgetConfigProcedure,
+			connect.WithSchema(aISearchServiceMethods.ByName("GetBudgetConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		updateBudgetConfig: connect.NewClient[aisearch.UpdateBudgetConfigRequest, aisearch.BudgetConfig](
+			httpClient,
+			baseURL+AISearchServiceUpdateBudgetConfigProcedure,
+			connect.WithSchema(aISearchServiceMethods.ByName("UpdateBudgetConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		getDiscoverFilterConfig: connect.NewClient[aisearch.GetDiscoverFilterConfigRequest, aisearch.DiscoverFilterConfig](
+			httpClient,
+			baseURL+AISearchServiceGetDiscoverFilterConfigProcedure,
+			connect.WithSchema(aISearchServiceMethods.ByName("GetDiscoverFilterConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		updateDiscoverFilterConfig: connect.NewClient[aisearch.UpdateDiscoverFilterConfigRequest, aisearch.DiscoverFilterConfig](
+			httpClient,
+			baseURL+AISearchServiceUpdateDiscoverFilterConfigProcedure,
+			connect.WithSchema(aISearchServiceMethods.ByName("UpdateDiscoverFilterConfig")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // aISearchServiceClient implements AISearchServiceClient.
 type aISearchServiceClient struct {
-	searchSkills       *connect.Client[aisearch.SearchSkillsRequest, aisearch.SearchSkillsResponse]
-	searchAgents       *connect.Client[aisearch.SearchAgentsRequest, aisearch.SearchAgentsResponse]
-	searchActions      *connect.Client[aisearch.SearchActionsRequest, aisearch.SearchActionsResponse]
-	searchTeams        *connect.Client[aisearch.SearchTeamsRequest, aisearch.SearchTeamsResponse]
-	getStatus          *connect.Client[aisearch.GetStatusRequest, aisearch.GetStatusResponse]
-	reconcile          *connect.Client[aisearch.ReconcileRequest, aisearch.ReconcileResponse]
-	getReconcileStatus *connect.Client[aisearch.GetReconcileStatusRequest, aisearch.ReconcileStatus]
-	cancelReconcile    *connect.Client[aisearch.CancelReconcileRequest, aisearch.ReconcileStatus]
+	searchSkills               *connect.Client[aisearch.SearchSkillsRequest, aisearch.SearchSkillsResponse]
+	searchAgents               *connect.Client[aisearch.SearchAgentsRequest, aisearch.SearchAgentsResponse]
+	searchActions              *connect.Client[aisearch.SearchActionsRequest, aisearch.SearchActionsResponse]
+	searchTeams                *connect.Client[aisearch.SearchTeamsRequest, aisearch.SearchTeamsResponse]
+	getStatus                  *connect.Client[aisearch.GetStatusRequest, aisearch.GetStatusResponse]
+	reconcile                  *connect.Client[aisearch.ReconcileRequest, aisearch.ReconcileResponse]
+	getReconcileStatus         *connect.Client[aisearch.GetReconcileStatusRequest, aisearch.ReconcileStatus]
+	cancelReconcile            *connect.Client[aisearch.CancelReconcileRequest, aisearch.ReconcileStatus]
+	getBudgetConfig            *connect.Client[aisearch.GetBudgetConfigRequest, aisearch.BudgetConfig]
+	updateBudgetConfig         *connect.Client[aisearch.UpdateBudgetConfigRequest, aisearch.BudgetConfig]
+	getDiscoverFilterConfig    *connect.Client[aisearch.GetDiscoverFilterConfigRequest, aisearch.DiscoverFilterConfig]
+	updateDiscoverFilterConfig *connect.Client[aisearch.UpdateDiscoverFilterConfigRequest, aisearch.DiscoverFilterConfig]
 }
 
 // SearchSkills calls vrooli.prompt_manager.v1.aisearch.AISearchService.SearchSkills.
@@ -187,6 +231,28 @@ func (c *aISearchServiceClient) CancelReconcile(ctx context.Context, req *connec
 	return c.cancelReconcile.CallUnary(ctx, req)
 }
 
+// GetBudgetConfig calls vrooli.prompt_manager.v1.aisearch.AISearchService.GetBudgetConfig.
+func (c *aISearchServiceClient) GetBudgetConfig(ctx context.Context, req *connect.Request[aisearch.GetBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error) {
+	return c.getBudgetConfig.CallUnary(ctx, req)
+}
+
+// UpdateBudgetConfig calls vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateBudgetConfig.
+func (c *aISearchServiceClient) UpdateBudgetConfig(ctx context.Context, req *connect.Request[aisearch.UpdateBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error) {
+	return c.updateBudgetConfig.CallUnary(ctx, req)
+}
+
+// GetDiscoverFilterConfig calls
+// vrooli.prompt_manager.v1.aisearch.AISearchService.GetDiscoverFilterConfig.
+func (c *aISearchServiceClient) GetDiscoverFilterConfig(ctx context.Context, req *connect.Request[aisearch.GetDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error) {
+	return c.getDiscoverFilterConfig.CallUnary(ctx, req)
+}
+
+// UpdateDiscoverFilterConfig calls
+// vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateDiscoverFilterConfig.
+func (c *aISearchServiceClient) UpdateDiscoverFilterConfig(ctx context.Context, req *connect.Request[aisearch.UpdateDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error) {
+	return c.updateDiscoverFilterConfig.CallUnary(ctx, req)
+}
+
 // AISearchServiceHandler is an implementation of the
 // vrooli.prompt_manager.v1.aisearch.AISearchService service.
 type AISearchServiceHandler interface {
@@ -198,6 +264,10 @@ type AISearchServiceHandler interface {
 	Reconcile(context.Context, *connect.Request[aisearch.ReconcileRequest]) (*connect.Response[aisearch.ReconcileResponse], error)
 	GetReconcileStatus(context.Context, *connect.Request[aisearch.GetReconcileStatusRequest]) (*connect.Response[aisearch.ReconcileStatus], error)
 	CancelReconcile(context.Context, *connect.Request[aisearch.CancelReconcileRequest]) (*connect.Response[aisearch.ReconcileStatus], error)
+	GetBudgetConfig(context.Context, *connect.Request[aisearch.GetBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error)
+	UpdateBudgetConfig(context.Context, *connect.Request[aisearch.UpdateBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error)
+	GetDiscoverFilterConfig(context.Context, *connect.Request[aisearch.GetDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error)
+	UpdateDiscoverFilterConfig(context.Context, *connect.Request[aisearch.UpdateDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error)
 }
 
 // NewAISearchServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -255,6 +325,30 @@ func NewAISearchServiceHandler(svc AISearchServiceHandler, opts ...connect.Handl
 		connect.WithSchema(aISearchServiceMethods.ByName("CancelReconcile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	aISearchServiceGetBudgetConfigHandler := connect.NewUnaryHandler(
+		AISearchServiceGetBudgetConfigProcedure,
+		svc.GetBudgetConfig,
+		connect.WithSchema(aISearchServiceMethods.ByName("GetBudgetConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	aISearchServiceUpdateBudgetConfigHandler := connect.NewUnaryHandler(
+		AISearchServiceUpdateBudgetConfigProcedure,
+		svc.UpdateBudgetConfig,
+		connect.WithSchema(aISearchServiceMethods.ByName("UpdateBudgetConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	aISearchServiceGetDiscoverFilterConfigHandler := connect.NewUnaryHandler(
+		AISearchServiceGetDiscoverFilterConfigProcedure,
+		svc.GetDiscoverFilterConfig,
+		connect.WithSchema(aISearchServiceMethods.ByName("GetDiscoverFilterConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	aISearchServiceUpdateDiscoverFilterConfigHandler := connect.NewUnaryHandler(
+		AISearchServiceUpdateDiscoverFilterConfigProcedure,
+		svc.UpdateDiscoverFilterConfig,
+		connect.WithSchema(aISearchServiceMethods.ByName("UpdateDiscoverFilterConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.prompt_manager.v1.aisearch.AISearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AISearchServiceSearchSkillsProcedure:
@@ -273,6 +367,14 @@ func NewAISearchServiceHandler(svc AISearchServiceHandler, opts ...connect.Handl
 			aISearchServiceGetReconcileStatusHandler.ServeHTTP(w, r)
 		case AISearchServiceCancelReconcileProcedure:
 			aISearchServiceCancelReconcileHandler.ServeHTTP(w, r)
+		case AISearchServiceGetBudgetConfigProcedure:
+			aISearchServiceGetBudgetConfigHandler.ServeHTTP(w, r)
+		case AISearchServiceUpdateBudgetConfigProcedure:
+			aISearchServiceUpdateBudgetConfigHandler.ServeHTTP(w, r)
+		case AISearchServiceGetDiscoverFilterConfigProcedure:
+			aISearchServiceGetDiscoverFilterConfigHandler.ServeHTTP(w, r)
+		case AISearchServiceUpdateDiscoverFilterConfigProcedure:
+			aISearchServiceUpdateDiscoverFilterConfigHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -312,4 +414,20 @@ func (UnimplementedAISearchServiceHandler) GetReconcileStatus(context.Context, *
 
 func (UnimplementedAISearchServiceHandler) CancelReconcile(context.Context, *connect.Request[aisearch.CancelReconcileRequest]) (*connect.Response[aisearch.ReconcileStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.aisearch.AISearchService.CancelReconcile is not implemented"))
+}
+
+func (UnimplementedAISearchServiceHandler) GetBudgetConfig(context.Context, *connect.Request[aisearch.GetBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.aisearch.AISearchService.GetBudgetConfig is not implemented"))
+}
+
+func (UnimplementedAISearchServiceHandler) UpdateBudgetConfig(context.Context, *connect.Request[aisearch.UpdateBudgetConfigRequest]) (*connect.Response[aisearch.BudgetConfig], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateBudgetConfig is not implemented"))
+}
+
+func (UnimplementedAISearchServiceHandler) GetDiscoverFilterConfig(context.Context, *connect.Request[aisearch.GetDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.aisearch.AISearchService.GetDiscoverFilterConfig is not implemented"))
+}
+
+func (UnimplementedAISearchServiceHandler) UpdateDiscoverFilterConfig(context.Context, *connect.Request[aisearch.UpdateDiscoverFilterConfigRequest]) (*connect.Response[aisearch.DiscoverFilterConfig], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateDiscoverFilterConfig is not implemented"))
 }

@@ -41,6 +41,7 @@ export interface TeamView {
   label: string
   memberIds: string[]
   states: Record<ActorState, number>
+  managedTeamIds?: string[]
 }
 
 export interface WorldView {
@@ -82,7 +83,8 @@ export function buildView(state: WorldState, actor: Pick<ActorTuning, 'equipment
   for (const id of state.placeOrder) {
     const place = state.places[id]
     if (place && place.kind === 'room' && place.teamId) {
-      teamMap.set(place.teamId, { id: place.teamId, roomId: place.id, label: place.label, memberIds: [], states: emptyStates() })
+      const managedTeamIds = state.managedTeamIds[place.teamId] ?? []
+      teamMap.set(place.teamId, { id: place.teamId, roomId: place.id, label: place.label, memberIds: [], states: emptyStates(), ...(managedTeamIds.length > 0 ? { managedTeamIds } : {}) })
     }
   }
   for (const id of state.actorOrder) {

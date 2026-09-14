@@ -162,7 +162,11 @@ func (h *connectHandler) SetOrgChart(ctx context.Context, req *connect.Request[t
 	for _, edge := range req.Msg.GetEdges() {
 		edges = append(edges, map[string]string{"managerAgentId": edge.GetManagerAgentId(), "reportAgentId": edge.GetReportAgentId()})
 	}
-	return teamCall(ctx, req.Header(), h.legacy.SetOrgChart, http.MethodPut, req.Msg.GetTeamId(), "/org", map[string]any{"edges": edges}, nil, &teamsv1.OrgChart{})
+	managed := make([]map[string]string, 0, len(req.Msg.GetManagedTeamEdges()))
+	for _, edge := range req.Msg.GetManagedTeamEdges() {
+		managed = append(managed, map[string]string{"managerTeamId": edge.GetManagerTeamId(), "managedTeamId": edge.GetManagedTeamId(), "relationship": edge.GetRelationship(), "authorityRef": edge.GetAuthorityRef(), "status": edge.GetStatus()})
+	}
+	return teamCall(ctx, req.Header(), h.legacy.SetOrgChart, http.MethodPut, req.Msg.GetTeamId(), "/org", map[string]any{"edges": edges, "managedTeamEdges": managed}, nil, &teamsv1.OrgChart{})
 }
 
 func (h *connectHandler) UpdateOrgChartEdge(ctx context.Context, req *connect.Request[teamsv1.UpdateOrgChartEdgeRequest]) (*connect.Response[teamsv1.OrgChart], error) {

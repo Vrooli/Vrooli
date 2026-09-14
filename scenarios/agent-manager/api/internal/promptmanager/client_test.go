@@ -175,6 +175,11 @@ func TestHTTPClient_PublishFrictionUsesCanonicalIntakeAndAttribution(t *testing.
 			if !strings.Contains(body.Content, "honesty_flags: [auto-generated]") {
 				t.Fatalf("content lacks required honesty flag: %q", body.Content)
 			}
+			for _, expected := range []string{"Candidate workaround", "Use the bounded read-only command", "Acceptance impact", "Release gate remains unverified", "Suspected owner", "git-control-tower"} {
+				if !strings.Contains(body.Content, expected) {
+					t.Fatalf("content lacks %q: %q", expected, body.Content)
+				}
+			}
 			raw, err := base64.StdEncoding.DecodeString(req.Header.Get("X-Vrooli-Attribution"))
 			if err != nil {
 				t.Fatal(err)
@@ -189,7 +194,7 @@ func TestHTTPClient_PublishFrictionUsesCanonicalIntakeAndAttribution(t *testing.
 			return httpx.Response(http.StatusCreated, `{}`), nil
 		}),
 	)
-	topic, err := client.PublishFriction(context.Background(), FrictionReport{InvestigationRunID: "run-123", Fingerprint: "abcdef0123456789", Category: "Tooling", Recommendation: "Fix the command", Evidence: "The command rejected valid input."})
+	topic, err := client.PublishFriction(context.Background(), FrictionReport{InvestigationRunID: "run-123", Fingerprint: "abcdef0123456789", Category: "Tooling", Recommendation: "Fix the command", ProposedWorkaround: "Use the bounded read-only command", AcceptanceImpact: "Release gate remains unverified", OwnerHint: "git-control-tower", Evidence: "The command rejected valid input."})
 	if err != nil {
 		t.Fatal(err)
 	}

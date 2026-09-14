@@ -21,6 +21,302 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetBudgetConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBudgetConfigRequest) Reset() {
+	*x = GetBudgetConfigRequest{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBudgetConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBudgetConfigRequest) ProtoMessage() {}
+
+func (x *GetBudgetConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBudgetConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetBudgetConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{0}
+}
+
+type UpdateBudgetConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *BudgetConfig          `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBudgetConfigRequest) Reset() {
+	*x = UpdateBudgetConfigRequest{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBudgetConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBudgetConfigRequest) ProtoMessage() {}
+
+func (x *UpdateBudgetConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBudgetConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBudgetConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *UpdateBudgetConfigRequest) GetConfig() *BudgetConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type BudgetConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Minor         int32                  `protobuf:"varint,1,opt,name=minor,proto3" json:"minor,omitempty"`
+	Moderate      int32                  `protobuf:"varint,2,opt,name=moderate,proto3" json:"moderate,omitempty"`
+	Major         int32                  `protobuf:"varint,3,opt,name=major,proto3" json:"major,omitempty"`
+	Architectural int32                  `protobuf:"varint,4,opt,name=architectural,proto3" json:"architectural,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BudgetConfig) Reset() {
+	*x = BudgetConfig{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BudgetConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BudgetConfig) ProtoMessage() {}
+
+func (x *BudgetConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BudgetConfig.ProtoReflect.Descriptor instead.
+func (*BudgetConfig) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BudgetConfig) GetMinor() int32 {
+	if x != nil {
+		return x.Minor
+	}
+	return 0
+}
+
+func (x *BudgetConfig) GetModerate() int32 {
+	if x != nil {
+		return x.Moderate
+	}
+	return 0
+}
+
+func (x *BudgetConfig) GetMajor() int32 {
+	if x != nil {
+		return x.Major
+	}
+	return 0
+}
+
+func (x *BudgetConfig) GetArchitectural() int32 {
+	if x != nil {
+		return x.Architectural
+	}
+	return 0
+}
+
+type GetDiscoverFilterConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDiscoverFilterConfigRequest) Reset() {
+	*x = GetDiscoverFilterConfigRequest{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDiscoverFilterConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDiscoverFilterConfigRequest) ProtoMessage() {}
+
+func (x *GetDiscoverFilterConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDiscoverFilterConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetDiscoverFilterConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{3}
+}
+
+type UpdateDiscoverFilterConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *DiscoverFilterConfig  `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateDiscoverFilterConfigRequest) Reset() {
+	*x = UpdateDiscoverFilterConfigRequest{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateDiscoverFilterConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateDiscoverFilterConfigRequest) ProtoMessage() {}
+
+func (x *UpdateDiscoverFilterConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateDiscoverFilterConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateDiscoverFilterConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *UpdateDiscoverFilterConfigRequest) GetConfig() *DiscoverFilterConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type DiscoverFilterConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IncludeDrafts bool                   `protobuf:"varint,1,opt,name=include_drafts,json=includeDrafts,proto3" json:"include_drafts,omitempty"`
+	ExcludeModes  []string               `protobuf:"bytes,2,rep,name=exclude_modes,json=excludeModes,proto3" json:"exclude_modes,omitempty"`
+	ExcludeIds    []string               `protobuf:"bytes,3,rep,name=exclude_ids,json=excludeIds,proto3" json:"exclude_ids,omitempty"`
+	ExcludeTags   []string               `protobuf:"bytes,4,rep,name=exclude_tags,json=excludeTags,proto3" json:"exclude_tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverFilterConfig) Reset() {
+	*x = DiscoverFilterConfig{}
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverFilterConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverFilterConfig) ProtoMessage() {}
+
+func (x *DiscoverFilterConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverFilterConfig.ProtoReflect.Descriptor instead.
+func (*DiscoverFilterConfig) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DiscoverFilterConfig) GetIncludeDrafts() bool {
+	if x != nil {
+		return x.IncludeDrafts
+	}
+	return false
+}
+
+func (x *DiscoverFilterConfig) GetExcludeModes() []string {
+	if x != nil {
+		return x.ExcludeModes
+	}
+	return nil
+}
+
+func (x *DiscoverFilterConfig) GetExcludeIds() []string {
+	if x != nil {
+		return x.ExcludeIds
+	}
+	return nil
+}
+
+func (x *DiscoverFilterConfig) GetExcludeTags() []string {
+	if x != nil {
+		return x.ExcludeTags
+	}
+	return nil
+}
+
 type SearchSkillsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -35,7 +331,7 @@ type SearchSkillsRequest struct {
 
 func (x *SearchSkillsRequest) Reset() {
 	*x = SearchSkillsRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[0]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +343,7 @@ func (x *SearchSkillsRequest) String() string {
 func (*SearchSkillsRequest) ProtoMessage() {}
 
 func (x *SearchSkillsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[0]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +356,7 @@ func (x *SearchSkillsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchSkillsRequest.ProtoReflect.Descriptor instead.
 func (*SearchSkillsRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{0}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SearchSkillsRequest) GetQuery() string {
@@ -121,7 +417,7 @@ type SkillResult struct {
 
 func (x *SkillResult) Reset() {
 	*x = SkillResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[1]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +429,7 @@ func (x *SkillResult) String() string {
 func (*SkillResult) ProtoMessage() {}
 
 func (x *SkillResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[1]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +442,7 @@ func (x *SkillResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkillResult.ProtoReflect.Descriptor instead.
 func (*SkillResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{1}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SkillResult) GetId() string {
@@ -222,7 +518,7 @@ type SearchSkillsResponse struct {
 
 func (x *SearchSkillsResponse) Reset() {
 	*x = SearchSkillsResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[2]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +530,7 @@ func (x *SearchSkillsResponse) String() string {
 func (*SearchSkillsResponse) ProtoMessage() {}
 
 func (x *SearchSkillsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[2]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +543,7 @@ func (x *SearchSkillsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchSkillsResponse.ProtoReflect.Descriptor instead.
 func (*SearchSkillsResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{2}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SearchSkillsResponse) GetResults() []*SkillResult {
@@ -323,7 +619,7 @@ type SearchAgentsRequest struct {
 
 func (x *SearchAgentsRequest) Reset() {
 	*x = SearchAgentsRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[3]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +631,7 @@ func (x *SearchAgentsRequest) String() string {
 func (*SearchAgentsRequest) ProtoMessage() {}
 
 func (x *SearchAgentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[3]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +644,7 @@ func (x *SearchAgentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentsRequest.ProtoReflect.Descriptor instead.
 func (*SearchAgentsRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{3}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SearchAgentsRequest) GetQuery() string {
@@ -380,7 +676,7 @@ type AgentResult struct {
 
 func (x *AgentResult) Reset() {
 	*x = AgentResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[4]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +688,7 @@ func (x *AgentResult) String() string {
 func (*AgentResult) ProtoMessage() {}
 
 func (x *AgentResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[4]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +701,7 @@ func (x *AgentResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentResult.ProtoReflect.Descriptor instead.
 func (*AgentResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{4}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AgentResult) GetId() string {
@@ -469,7 +765,7 @@ type SearchAgentsResponse struct {
 
 func (x *SearchAgentsResponse) Reset() {
 	*x = SearchAgentsResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[5]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +777,7 @@ func (x *SearchAgentsResponse) String() string {
 func (*SearchAgentsResponse) ProtoMessage() {}
 
 func (x *SearchAgentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[5]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +790,7 @@ func (x *SearchAgentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentsResponse.ProtoReflect.Descriptor instead.
 func (*SearchAgentsResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{5}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SearchAgentsResponse) GetResults() []*AgentResult {
@@ -535,7 +831,7 @@ type SearchActionsRequest struct {
 
 func (x *SearchActionsRequest) Reset() {
 	*x = SearchActionsRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[6]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +843,7 @@ func (x *SearchActionsRequest) String() string {
 func (*SearchActionsRequest) ProtoMessage() {}
 
 func (x *SearchActionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[6]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +856,7 @@ func (x *SearchActionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchActionsRequest.ProtoReflect.Descriptor instead.
 func (*SearchActionsRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{6}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SearchActionsRequest) GetQuery() string {
@@ -594,7 +890,7 @@ type ActionResult struct {
 
 func (x *ActionResult) Reset() {
 	*x = ActionResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[7]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -606,7 +902,7 @@ func (x *ActionResult) String() string {
 func (*ActionResult) ProtoMessage() {}
 
 func (x *ActionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[7]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -619,7 +915,7 @@ func (x *ActionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionResult.ProtoReflect.Descriptor instead.
 func (*ActionResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{7}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ActionResult) GetId() string {
@@ -697,7 +993,7 @@ type SearchActionsResponse struct {
 
 func (x *SearchActionsResponse) Reset() {
 	*x = SearchActionsResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[8]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +1005,7 @@ func (x *SearchActionsResponse) String() string {
 func (*SearchActionsResponse) ProtoMessage() {}
 
 func (x *SearchActionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[8]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +1018,7 @@ func (x *SearchActionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchActionsResponse.ProtoReflect.Descriptor instead.
 func (*SearchActionsResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{8}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SearchActionsResponse) GetResults() []*ActionResult {
@@ -763,7 +1059,7 @@ type SearchTeamsRequest struct {
 
 func (x *SearchTeamsRequest) Reset() {
 	*x = SearchTeamsRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[9]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -775,7 +1071,7 @@ func (x *SearchTeamsRequest) String() string {
 func (*SearchTeamsRequest) ProtoMessage() {}
 
 func (x *SearchTeamsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[9]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -788,7 +1084,7 @@ func (x *SearchTeamsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTeamsRequest.ProtoReflect.Descriptor instead.
 func (*SearchTeamsRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{9}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SearchTeamsRequest) GetQuery() string {
@@ -820,7 +1116,7 @@ type TeamResult struct {
 
 func (x *TeamResult) Reset() {
 	*x = TeamResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[10]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +1128,7 @@ func (x *TeamResult) String() string {
 func (*TeamResult) ProtoMessage() {}
 
 func (x *TeamResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[10]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +1141,7 @@ func (x *TeamResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TeamResult.ProtoReflect.Descriptor instead.
 func (*TeamResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{10}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TeamResult) GetId() string {
@@ -909,7 +1205,7 @@ type SearchTeamsResponse struct {
 
 func (x *SearchTeamsResponse) Reset() {
 	*x = SearchTeamsResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[11]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -921,7 +1217,7 @@ func (x *SearchTeamsResponse) String() string {
 func (*SearchTeamsResponse) ProtoMessage() {}
 
 func (x *SearchTeamsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[11]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -934,7 +1230,7 @@ func (x *SearchTeamsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTeamsResponse.ProtoReflect.Descriptor instead.
 func (*SearchTeamsResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{11}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SearchTeamsResponse) GetResults() []*TeamResult {
@@ -973,7 +1269,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[12]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1281,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[12]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1294,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{12}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{18}
 }
 
 type GetStatusResponse struct {
@@ -1014,7 +1310,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[13]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +1322,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[13]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +1335,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{13}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetStatusResponse) GetAvailable() bool {
@@ -1089,7 +1385,7 @@ type ItemRef struct {
 
 func (x *ItemRef) Reset() {
 	*x = ItemRef{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[14]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1397,7 @@ func (x *ItemRef) String() string {
 func (*ItemRef) ProtoMessage() {}
 
 func (x *ItemRef) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[14]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1410,7 @@ func (x *ItemRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemRef.ProtoReflect.Descriptor instead.
 func (*ItemRef) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{14}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ItemRef) GetKind() string {
@@ -1158,7 +1454,7 @@ type CollectionDriftReport struct {
 
 func (x *CollectionDriftReport) Reset() {
 	*x = CollectionDriftReport{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[15]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1170,7 +1466,7 @@ func (x *CollectionDriftReport) String() string {
 func (*CollectionDriftReport) ProtoMessage() {}
 
 func (x *CollectionDriftReport) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[15]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1183,7 +1479,7 @@ func (x *CollectionDriftReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionDriftReport.ProtoReflect.Descriptor instead.
 func (*CollectionDriftReport) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{15}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CollectionDriftReport) GetKind() string {
@@ -1231,7 +1527,7 @@ type DriftReport struct {
 
 func (x *DriftReport) Reset() {
 	*x = DriftReport{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[16]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1243,7 +1539,7 @@ func (x *DriftReport) String() string {
 func (*DriftReport) ProtoMessage() {}
 
 func (x *DriftReport) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[16]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1256,7 +1552,7 @@ func (x *DriftReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DriftReport.ProtoReflect.Descriptor instead.
 func (*DriftReport) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{16}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DriftReport) GetPlannedAt() string {
@@ -1284,7 +1580,7 @@ type CollectionApplyResult struct {
 
 func (x *CollectionApplyResult) Reset() {
 	*x = CollectionApplyResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[17]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1296,7 +1592,7 @@ func (x *CollectionApplyResult) String() string {
 func (*CollectionApplyResult) ProtoMessage() {}
 
 func (x *CollectionApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[17]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1309,7 +1605,7 @@ func (x *CollectionApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionApplyResult.ProtoReflect.Descriptor instead.
 func (*CollectionApplyResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{17}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CollectionApplyResult) GetKind() string {
@@ -1346,7 +1642,7 @@ type ReconcileError struct {
 
 func (x *ReconcileError) Reset() {
 	*x = ReconcileError{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[18]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1358,7 +1654,7 @@ func (x *ReconcileError) String() string {
 func (*ReconcileError) ProtoMessage() {}
 
 func (x *ReconcileError) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[18]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1371,7 +1667,7 @@ func (x *ReconcileError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileError.ProtoReflect.Descriptor instead.
 func (*ReconcileError) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{18}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReconcileError) GetKind() string {
@@ -1421,7 +1717,7 @@ type ApplyResult struct {
 
 func (x *ApplyResult) Reset() {
 	*x = ApplyResult{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[19]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1433,7 +1729,7 @@ func (x *ApplyResult) String() string {
 func (*ApplyResult) ProtoMessage() {}
 
 func (x *ApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[19]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1446,7 +1742,7 @@ func (x *ApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyResult.ProtoReflect.Descriptor instead.
 func (*ApplyResult) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{19}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ApplyResult) GetStartedAt() string {
@@ -1492,7 +1788,7 @@ type ReconcileStatus struct {
 
 func (x *ReconcileStatus) Reset() {
 	*x = ReconcileStatus{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[20]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1504,7 +1800,7 @@ func (x *ReconcileStatus) String() string {
 func (*ReconcileStatus) ProtoMessage() {}
 
 func (x *ReconcileStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[20]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1517,7 +1813,7 @@ func (x *ReconcileStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileStatus.ProtoReflect.Descriptor instead.
 func (*ReconcileStatus) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{20}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ReconcileStatus) GetRunning() bool {
@@ -1579,7 +1875,7 @@ type ReconcileRequest struct {
 
 func (x *ReconcileRequest) Reset() {
 	*x = ReconcileRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[21]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1591,7 +1887,7 @@ func (x *ReconcileRequest) String() string {
 func (*ReconcileRequest) ProtoMessage() {}
 
 func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[21]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1604,7 +1900,7 @@ func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{21}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ReconcileRequest) GetCollection() string {
@@ -1632,7 +1928,7 @@ type ReconcileResponse struct {
 
 func (x *ReconcileResponse) Reset() {
 	*x = ReconcileResponse{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[22]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1644,7 +1940,7 @@ func (x *ReconcileResponse) String() string {
 func (*ReconcileResponse) ProtoMessage() {}
 
 func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[22]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +1953,7 @@ func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileResponse.ProtoReflect.Descriptor instead.
 func (*ReconcileResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{22}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReconcileResponse) GetDryRun() bool {
@@ -1689,7 +1985,7 @@ type GetReconcileStatusRequest struct {
 
 func (x *GetReconcileStatusRequest) Reset() {
 	*x = GetReconcileStatusRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[23]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1701,7 +1997,7 @@ func (x *GetReconcileStatusRequest) String() string {
 func (*GetReconcileStatusRequest) ProtoMessage() {}
 
 func (x *GetReconcileStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[23]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1714,7 +2010,7 @@ func (x *GetReconcileStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReconcileStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetReconcileStatusRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{23}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{29}
 }
 
 type CancelReconcileRequest struct {
@@ -1725,7 +2021,7 @@ type CancelReconcileRequest struct {
 
 func (x *CancelReconcileRequest) Reset() {
 	*x = CancelReconcileRequest{}
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[24]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1737,7 +2033,7 @@ func (x *CancelReconcileRequest) String() string {
 func (*CancelReconcileRequest) ProtoMessage() {}
 
 func (x *CancelReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[24]
+	mi := &file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1750,14 +2046,31 @@ func (x *CancelReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelReconcileRequest.ProtoReflect.Descriptor instead.
 func (*CancelReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{24}
+	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP(), []int{30}
 }
 
 var File_prompt_manager_v1_aisearch_aisearch_proto protoreflect.FileDescriptor
 
 const file_prompt_manager_v1_aisearch_aisearch_proto_rawDesc = "" +
 	"\n" +
-	")prompt-manager/v1/aisearch/aisearch.proto\x12!vrooli.prompt_manager.v1.aisearch\"\xae\x01\n" +
+	")prompt-manager/v1/aisearch/aisearch.proto\x12!vrooli.prompt_manager.v1.aisearch\"\x18\n" +
+	"\x16GetBudgetConfigRequest\"d\n" +
+	"\x19UpdateBudgetConfigRequest\x12G\n" +
+	"\x06config\x18\x01 \x01(\v2/.vrooli.prompt_manager.v1.aisearch.BudgetConfigR\x06config\"|\n" +
+	"\fBudgetConfig\x12\x14\n" +
+	"\x05minor\x18\x01 \x01(\x05R\x05minor\x12\x1a\n" +
+	"\bmoderate\x18\x02 \x01(\x05R\bmoderate\x12\x14\n" +
+	"\x05major\x18\x03 \x01(\x05R\x05major\x12$\n" +
+	"\rarchitectural\x18\x04 \x01(\x05R\rarchitectural\" \n" +
+	"\x1eGetDiscoverFilterConfigRequest\"t\n" +
+	"!UpdateDiscoverFilterConfigRequest\x12O\n" +
+	"\x06config\x18\x01 \x01(\v27.vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfigR\x06config\"\xa6\x01\n" +
+	"\x14DiscoverFilterConfig\x12%\n" +
+	"\x0einclude_drafts\x18\x01 \x01(\bR\rincludeDrafts\x12#\n" +
+	"\rexclude_modes\x18\x02 \x03(\tR\fexcludeModes\x12\x1f\n" +
+	"\vexclude_ids\x18\x03 \x03(\tR\n" +
+	"excludeIds\x12!\n" +
+	"\fexclude_tags\x18\x04 \x03(\tR\vexcludeTags\"\xae\x01\n" +
 	"\x13SearchSkillsRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x18\n" +
 	"\aqueries\x18\x02 \x03(\tR\aqueries\x12\x14\n" +
@@ -1897,7 +2210,7 @@ const file_prompt_manager_v1_aisearch_aisearch_proto_rawDesc = "" +
 	"\x04plan\x18\x02 \x01(\v2..vrooli.prompt_manager.v1.aisearch.DriftReportR\x04plan\x12J\n" +
 	"\x06status\x18\x03 \x01(\v22.vrooli.prompt_manager.v1.aisearch.ReconcileStatusR\x06status\"\x1b\n" +
 	"\x19GetReconcileStatusRequest\"\x18\n" +
-	"\x16CancelReconcileRequest2\x92\b\n" +
+	"\x16CancelReconcileRequest2\xcd\f\n" +
 	"\x0fAISearchService\x12\x7f\n" +
 	"\fSearchSkills\x126.vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest\x1a7.vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse\x12\x7f\n" +
 	"\fSearchAgents\x126.vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest\x1a7.vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse\x12\x82\x01\n" +
@@ -1906,7 +2219,11 @@ const file_prompt_manager_v1_aisearch_aisearch_proto_rawDesc = "" +
 	"\tGetStatus\x123.vrooli.prompt_manager.v1.aisearch.GetStatusRequest\x1a4.vrooli.prompt_manager.v1.aisearch.GetStatusResponse\x12v\n" +
 	"\tReconcile\x123.vrooli.prompt_manager.v1.aisearch.ReconcileRequest\x1a4.vrooli.prompt_manager.v1.aisearch.ReconcileResponse\x12\x86\x01\n" +
 	"\x12GetReconcileStatus\x12<.vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest\x1a2.vrooli.prompt_manager.v1.aisearch.ReconcileStatus\x12\x80\x01\n" +
-	"\x0fCancelReconcile\x129.vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest\x1a2.vrooli.prompt_manager.v1.aisearch.ReconcileStatusBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch;aisearch_v1b\x06proto3"
+	"\x0fCancelReconcile\x129.vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest\x1a2.vrooli.prompt_manager.v1.aisearch.ReconcileStatus\x12}\n" +
+	"\x0fGetBudgetConfig\x129.vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest\x1a/.vrooli.prompt_manager.v1.aisearch.BudgetConfig\x12\x83\x01\n" +
+	"\x12UpdateBudgetConfig\x12<.vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest\x1a/.vrooli.prompt_manager.v1.aisearch.BudgetConfig\x12\x95\x01\n" +
+	"\x17GetDiscoverFilterConfig\x12A.vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest\x1a7.vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig\x12\x9b\x01\n" +
+	"\x1aUpdateDiscoverFilterConfig\x12D.vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest\x1a7.vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfigBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch;aisearch_v1b\x06proto3"
 
 var (
 	file_prompt_manager_v1_aisearch_aisearch_proto_rawDescOnce sync.Once
@@ -1920,68 +2237,84 @@ func file_prompt_manager_v1_aisearch_aisearch_proto_rawDescGZIP() []byte {
 	return file_prompt_manager_v1_aisearch_aisearch_proto_rawDescData
 }
 
-var file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_prompt_manager_v1_aisearch_aisearch_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_prompt_manager_v1_aisearch_aisearch_proto_goTypes = []any{
-	(*SearchSkillsRequest)(nil),       // 0: vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest
-	(*SkillResult)(nil),               // 1: vrooli.prompt_manager.v1.aisearch.SkillResult
-	(*SearchSkillsResponse)(nil),      // 2: vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse
-	(*SearchAgentsRequest)(nil),       // 3: vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest
-	(*AgentResult)(nil),               // 4: vrooli.prompt_manager.v1.aisearch.AgentResult
-	(*SearchAgentsResponse)(nil),      // 5: vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse
-	(*SearchActionsRequest)(nil),      // 6: vrooli.prompt_manager.v1.aisearch.SearchActionsRequest
-	(*ActionResult)(nil),              // 7: vrooli.prompt_manager.v1.aisearch.ActionResult
-	(*SearchActionsResponse)(nil),     // 8: vrooli.prompt_manager.v1.aisearch.SearchActionsResponse
-	(*SearchTeamsRequest)(nil),        // 9: vrooli.prompt_manager.v1.aisearch.SearchTeamsRequest
-	(*TeamResult)(nil),                // 10: vrooli.prompt_manager.v1.aisearch.TeamResult
-	(*SearchTeamsResponse)(nil),       // 11: vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse
-	(*GetStatusRequest)(nil),          // 12: vrooli.prompt_manager.v1.aisearch.GetStatusRequest
-	(*GetStatusResponse)(nil),         // 13: vrooli.prompt_manager.v1.aisearch.GetStatusResponse
-	(*ItemRef)(nil),                   // 14: vrooli.prompt_manager.v1.aisearch.ItemRef
-	(*CollectionDriftReport)(nil),     // 15: vrooli.prompt_manager.v1.aisearch.CollectionDriftReport
-	(*DriftReport)(nil),               // 16: vrooli.prompt_manager.v1.aisearch.DriftReport
-	(*CollectionApplyResult)(nil),     // 17: vrooli.prompt_manager.v1.aisearch.CollectionApplyResult
-	(*ReconcileError)(nil),            // 18: vrooli.prompt_manager.v1.aisearch.ReconcileError
-	(*ApplyResult)(nil),               // 19: vrooli.prompt_manager.v1.aisearch.ApplyResult
-	(*ReconcileStatus)(nil),           // 20: vrooli.prompt_manager.v1.aisearch.ReconcileStatus
-	(*ReconcileRequest)(nil),          // 21: vrooli.prompt_manager.v1.aisearch.ReconcileRequest
-	(*ReconcileResponse)(nil),         // 22: vrooli.prompt_manager.v1.aisearch.ReconcileResponse
-	(*GetReconcileStatusRequest)(nil), // 23: vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest
-	(*CancelReconcileRequest)(nil),    // 24: vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest
+	(*GetBudgetConfigRequest)(nil),            // 0: vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest
+	(*UpdateBudgetConfigRequest)(nil),         // 1: vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest
+	(*BudgetConfig)(nil),                      // 2: vrooli.prompt_manager.v1.aisearch.BudgetConfig
+	(*GetDiscoverFilterConfigRequest)(nil),    // 3: vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest
+	(*UpdateDiscoverFilterConfigRequest)(nil), // 4: vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest
+	(*DiscoverFilterConfig)(nil),              // 5: vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig
+	(*SearchSkillsRequest)(nil),               // 6: vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest
+	(*SkillResult)(nil),                       // 7: vrooli.prompt_manager.v1.aisearch.SkillResult
+	(*SearchSkillsResponse)(nil),              // 8: vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse
+	(*SearchAgentsRequest)(nil),               // 9: vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest
+	(*AgentResult)(nil),                       // 10: vrooli.prompt_manager.v1.aisearch.AgentResult
+	(*SearchAgentsResponse)(nil),              // 11: vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse
+	(*SearchActionsRequest)(nil),              // 12: vrooli.prompt_manager.v1.aisearch.SearchActionsRequest
+	(*ActionResult)(nil),                      // 13: vrooli.prompt_manager.v1.aisearch.ActionResult
+	(*SearchActionsResponse)(nil),             // 14: vrooli.prompt_manager.v1.aisearch.SearchActionsResponse
+	(*SearchTeamsRequest)(nil),                // 15: vrooli.prompt_manager.v1.aisearch.SearchTeamsRequest
+	(*TeamResult)(nil),                        // 16: vrooli.prompt_manager.v1.aisearch.TeamResult
+	(*SearchTeamsResponse)(nil),               // 17: vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse
+	(*GetStatusRequest)(nil),                  // 18: vrooli.prompt_manager.v1.aisearch.GetStatusRequest
+	(*GetStatusResponse)(nil),                 // 19: vrooli.prompt_manager.v1.aisearch.GetStatusResponse
+	(*ItemRef)(nil),                           // 20: vrooli.prompt_manager.v1.aisearch.ItemRef
+	(*CollectionDriftReport)(nil),             // 21: vrooli.prompt_manager.v1.aisearch.CollectionDriftReport
+	(*DriftReport)(nil),                       // 22: vrooli.prompt_manager.v1.aisearch.DriftReport
+	(*CollectionApplyResult)(nil),             // 23: vrooli.prompt_manager.v1.aisearch.CollectionApplyResult
+	(*ReconcileError)(nil),                    // 24: vrooli.prompt_manager.v1.aisearch.ReconcileError
+	(*ApplyResult)(nil),                       // 25: vrooli.prompt_manager.v1.aisearch.ApplyResult
+	(*ReconcileStatus)(nil),                   // 26: vrooli.prompt_manager.v1.aisearch.ReconcileStatus
+	(*ReconcileRequest)(nil),                  // 27: vrooli.prompt_manager.v1.aisearch.ReconcileRequest
+	(*ReconcileResponse)(nil),                 // 28: vrooli.prompt_manager.v1.aisearch.ReconcileResponse
+	(*GetReconcileStatusRequest)(nil),         // 29: vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest
+	(*CancelReconcileRequest)(nil),            // 30: vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest
 }
 var file_prompt_manager_v1_aisearch_aisearch_proto_depIdxs = []int32{
-	1,  // 0: vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.SkillResult
-	4,  // 1: vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.AgentResult
-	7,  // 2: vrooli.prompt_manager.v1.aisearch.SearchActionsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.ActionResult
-	10, // 3: vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.TeamResult
-	14, // 4: vrooli.prompt_manager.v1.aisearch.CollectionDriftReport.to_upsert:type_name -> vrooli.prompt_manager.v1.aisearch.ItemRef
-	15, // 5: vrooli.prompt_manager.v1.aisearch.DriftReport.collections:type_name -> vrooli.prompt_manager.v1.aisearch.CollectionDriftReport
-	17, // 6: vrooli.prompt_manager.v1.aisearch.ApplyResult.collections:type_name -> vrooli.prompt_manager.v1.aisearch.CollectionApplyResult
-	18, // 7: vrooli.prompt_manager.v1.aisearch.ApplyResult.errors:type_name -> vrooli.prompt_manager.v1.aisearch.ReconcileError
-	16, // 8: vrooli.prompt_manager.v1.aisearch.ReconcileStatus.last_plan:type_name -> vrooli.prompt_manager.v1.aisearch.DriftReport
-	19, // 9: vrooli.prompt_manager.v1.aisearch.ReconcileStatus.last_result:type_name -> vrooli.prompt_manager.v1.aisearch.ApplyResult
-	16, // 10: vrooli.prompt_manager.v1.aisearch.ReconcileResponse.plan:type_name -> vrooli.prompt_manager.v1.aisearch.DriftReport
-	20, // 11: vrooli.prompt_manager.v1.aisearch.ReconcileResponse.status:type_name -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
-	0,  // 12: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchSkills:input_type -> vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest
-	3,  // 13: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchAgents:input_type -> vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest
-	6,  // 14: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchActions:input_type -> vrooli.prompt_manager.v1.aisearch.SearchActionsRequest
-	9,  // 15: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchTeams:input_type -> vrooli.prompt_manager.v1.aisearch.SearchTeamsRequest
-	12, // 16: vrooli.prompt_manager.v1.aisearch.AISearchService.GetStatus:input_type -> vrooli.prompt_manager.v1.aisearch.GetStatusRequest
-	21, // 17: vrooli.prompt_manager.v1.aisearch.AISearchService.Reconcile:input_type -> vrooli.prompt_manager.v1.aisearch.ReconcileRequest
-	23, // 18: vrooli.prompt_manager.v1.aisearch.AISearchService.GetReconcileStatus:input_type -> vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest
-	24, // 19: vrooli.prompt_manager.v1.aisearch.AISearchService.CancelReconcile:input_type -> vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest
-	2,  // 20: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchSkills:output_type -> vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse
-	5,  // 21: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchAgents:output_type -> vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse
-	8,  // 22: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchActions:output_type -> vrooli.prompt_manager.v1.aisearch.SearchActionsResponse
-	11, // 23: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchTeams:output_type -> vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse
-	13, // 24: vrooli.prompt_manager.v1.aisearch.AISearchService.GetStatus:output_type -> vrooli.prompt_manager.v1.aisearch.GetStatusResponse
-	22, // 25: vrooli.prompt_manager.v1.aisearch.AISearchService.Reconcile:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileResponse
-	20, // 26: vrooli.prompt_manager.v1.aisearch.AISearchService.GetReconcileStatus:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
-	20, // 27: vrooli.prompt_manager.v1.aisearch.AISearchService.CancelReconcile:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	2,  // 0: vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest.config:type_name -> vrooli.prompt_manager.v1.aisearch.BudgetConfig
+	5,  // 1: vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest.config:type_name -> vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig
+	7,  // 2: vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.SkillResult
+	10, // 3: vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.AgentResult
+	13, // 4: vrooli.prompt_manager.v1.aisearch.SearchActionsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.ActionResult
+	16, // 5: vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse.results:type_name -> vrooli.prompt_manager.v1.aisearch.TeamResult
+	20, // 6: vrooli.prompt_manager.v1.aisearch.CollectionDriftReport.to_upsert:type_name -> vrooli.prompt_manager.v1.aisearch.ItemRef
+	21, // 7: vrooli.prompt_manager.v1.aisearch.DriftReport.collections:type_name -> vrooli.prompt_manager.v1.aisearch.CollectionDriftReport
+	23, // 8: vrooli.prompt_manager.v1.aisearch.ApplyResult.collections:type_name -> vrooli.prompt_manager.v1.aisearch.CollectionApplyResult
+	24, // 9: vrooli.prompt_manager.v1.aisearch.ApplyResult.errors:type_name -> vrooli.prompt_manager.v1.aisearch.ReconcileError
+	22, // 10: vrooli.prompt_manager.v1.aisearch.ReconcileStatus.last_plan:type_name -> vrooli.prompt_manager.v1.aisearch.DriftReport
+	25, // 11: vrooli.prompt_manager.v1.aisearch.ReconcileStatus.last_result:type_name -> vrooli.prompt_manager.v1.aisearch.ApplyResult
+	22, // 12: vrooli.prompt_manager.v1.aisearch.ReconcileResponse.plan:type_name -> vrooli.prompt_manager.v1.aisearch.DriftReport
+	26, // 13: vrooli.prompt_manager.v1.aisearch.ReconcileResponse.status:type_name -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
+	6,  // 14: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchSkills:input_type -> vrooli.prompt_manager.v1.aisearch.SearchSkillsRequest
+	9,  // 15: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchAgents:input_type -> vrooli.prompt_manager.v1.aisearch.SearchAgentsRequest
+	12, // 16: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchActions:input_type -> vrooli.prompt_manager.v1.aisearch.SearchActionsRequest
+	15, // 17: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchTeams:input_type -> vrooli.prompt_manager.v1.aisearch.SearchTeamsRequest
+	18, // 18: vrooli.prompt_manager.v1.aisearch.AISearchService.GetStatus:input_type -> vrooli.prompt_manager.v1.aisearch.GetStatusRequest
+	27, // 19: vrooli.prompt_manager.v1.aisearch.AISearchService.Reconcile:input_type -> vrooli.prompt_manager.v1.aisearch.ReconcileRequest
+	29, // 20: vrooli.prompt_manager.v1.aisearch.AISearchService.GetReconcileStatus:input_type -> vrooli.prompt_manager.v1.aisearch.GetReconcileStatusRequest
+	30, // 21: vrooli.prompt_manager.v1.aisearch.AISearchService.CancelReconcile:input_type -> vrooli.prompt_manager.v1.aisearch.CancelReconcileRequest
+	0,  // 22: vrooli.prompt_manager.v1.aisearch.AISearchService.GetBudgetConfig:input_type -> vrooli.prompt_manager.v1.aisearch.GetBudgetConfigRequest
+	1,  // 23: vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateBudgetConfig:input_type -> vrooli.prompt_manager.v1.aisearch.UpdateBudgetConfigRequest
+	3,  // 24: vrooli.prompt_manager.v1.aisearch.AISearchService.GetDiscoverFilterConfig:input_type -> vrooli.prompt_manager.v1.aisearch.GetDiscoverFilterConfigRequest
+	4,  // 25: vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateDiscoverFilterConfig:input_type -> vrooli.prompt_manager.v1.aisearch.UpdateDiscoverFilterConfigRequest
+	8,  // 26: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchSkills:output_type -> vrooli.prompt_manager.v1.aisearch.SearchSkillsResponse
+	11, // 27: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchAgents:output_type -> vrooli.prompt_manager.v1.aisearch.SearchAgentsResponse
+	14, // 28: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchActions:output_type -> vrooli.prompt_manager.v1.aisearch.SearchActionsResponse
+	17, // 29: vrooli.prompt_manager.v1.aisearch.AISearchService.SearchTeams:output_type -> vrooli.prompt_manager.v1.aisearch.SearchTeamsResponse
+	19, // 30: vrooli.prompt_manager.v1.aisearch.AISearchService.GetStatus:output_type -> vrooli.prompt_manager.v1.aisearch.GetStatusResponse
+	28, // 31: vrooli.prompt_manager.v1.aisearch.AISearchService.Reconcile:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileResponse
+	26, // 32: vrooli.prompt_manager.v1.aisearch.AISearchService.GetReconcileStatus:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
+	26, // 33: vrooli.prompt_manager.v1.aisearch.AISearchService.CancelReconcile:output_type -> vrooli.prompt_manager.v1.aisearch.ReconcileStatus
+	2,  // 34: vrooli.prompt_manager.v1.aisearch.AISearchService.GetBudgetConfig:output_type -> vrooli.prompt_manager.v1.aisearch.BudgetConfig
+	2,  // 35: vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateBudgetConfig:output_type -> vrooli.prompt_manager.v1.aisearch.BudgetConfig
+	5,  // 36: vrooli.prompt_manager.v1.aisearch.AISearchService.GetDiscoverFilterConfig:output_type -> vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig
+	5,  // 37: vrooli.prompt_manager.v1.aisearch.AISearchService.UpdateDiscoverFilterConfig:output_type -> vrooli.prompt_manager.v1.aisearch.DiscoverFilterConfig
+	26, // [26:38] is the sub-list for method output_type
+	14, // [14:26] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_prompt_manager_v1_aisearch_aisearch_proto_init() }
@@ -1995,7 +2328,7 @@ func file_prompt_manager_v1_aisearch_aisearch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prompt_manager_v1_aisearch_aisearch_proto_rawDesc), len(file_prompt_manager_v1_aisearch_aisearch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

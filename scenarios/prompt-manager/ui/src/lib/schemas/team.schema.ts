@@ -165,6 +165,8 @@ export const TeamSchema = z.object({
   enabled: z.boolean().optional().default(false),
   // Optional for compatibility with team records written before archive state existed.
   archived: z.boolean().optional(),
+  managedTeamIds: z.array(z.string()).nullable().optional(),
+  managedByTeamIds: z.array(z.string()).nullable().optional(),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,

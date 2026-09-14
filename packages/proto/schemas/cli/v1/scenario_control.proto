@@ -53,6 +53,8 @@ message RestartScenarioRequest {
   bool accept_credential_loss = 7;
   // Caller must retain renewable demand while using this instance.
   bool demand_managed = 8;
+  bool force_lifecycle = 9;
+  string lifecycle_override_reason = 10;
 }
 
 message SetupScenarioRequest {

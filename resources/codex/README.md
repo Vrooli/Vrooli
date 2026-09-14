@@ -91,6 +91,19 @@ Upstream docs: <https://developers.openai.com/codex/permissions>.
 
 ## Model catalog operations
 
+The operator's 2026-09-12 quota policy excludes Astra and Sol from all configured
+role selections and fallback candidates. Codex work uses Luna; routine judgment
+heartbeats use medium effort. Keep legacy `model`/`fallbacks` and structured
+`models` candidates consistent. Pricing aliases for historical runs are not launch
+permissions. Validate the resource policy and reload Agent Manager's role policy
+after edits; inspect profile resolution to verify adoption without buying inference.
+Existing run snapshots and manually selected native sessions retain their original
+models. Stop an affected managed run through its owner before any replacement.
+Hard deny rules are declared in the catalog's root `excluded_models` list and are
+included in every `policy resolve --json` response for Agent Manager admission.
+Provider prices and subscription quota are separate measurements: do not invent
+token prices or treat an estimated zero-dollar charge as unused weekly allowance.
+
 `resource-codex models list --json` reads the Codex model cache without invoking a model. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
 
 ## Notes

@@ -24,7 +24,7 @@
  * defaults match proto3 semantics, and adding a field to the proto
  * schema makes it instantly available without editing this file.
  */
-import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { clone, create, type MessageInitShape } from "@bufbuild/protobuf";
 import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
 import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
 
@@ -38,11 +38,13 @@ export type { HealthResponse };
 export const makeHealthResponse = (
   overrides: MessageInitShape<typeof ResponseSchema> = {},
 ): HealthResponse =>
-  create(ResponseSchema, {
+  // create() may retain already-typed nested messages. Clone the result so
+  // every factory call owns its complete mutable graph, including overrides.
+  clone(ResponseSchema, create(ResponseSchema, {
     status: "healthy",
     service: "react-vite-test",
     timestamp: "2026-01-01T00:00:00.000Z",
     readiness: true,
     version: "1.0.0",
     ...overrides,
-  });
+  }));

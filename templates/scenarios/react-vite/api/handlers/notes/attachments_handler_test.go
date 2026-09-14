@@ -66,6 +66,20 @@ func TestAttachmentsHandlerMissingFile(t *testing.T) {
 	require.Contains(t, rw.Body.String(), "file field is required")
 }
 
+func TestAttachmentsHandlerMalformedWireDoesNotCreateMetadata(t *testing.T) {
+	service := &recordingAttachmentsService{}
+	router := newAttachmentsRouterWithDeps(service, newTrackingBlobStore())
+	// Deliberately bypass multipartBody: a valid-object factory cannot express
+	// a malformed MIME header. These bytes are the parser's input contract.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes/n/attachments", bytes.NewBufferString("--broken\r\nnot-a-header\r\n\r\npayload\r\n--broken--\r\n"))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
+	rw := httptest.NewRecorder()
+	router.ServeHTTP(rw, req)
+	require.Equal(t, http.StatusBadRequest, rw.Code)
+	require.Contains(t, rw.Body.String(), "invalid multipart upload")
+	require.False(t, service.called, "malformed wire input must not reach the domain operation")
+}
+
 func TestAttachmentsHandlerUnknownNote(t *testing.T) {
 	router, store, _ := newAttachmentsRouter(t)
 	body, contentType := multipartBody(t, "file", "hello")

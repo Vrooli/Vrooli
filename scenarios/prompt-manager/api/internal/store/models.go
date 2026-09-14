@@ -384,14 +384,26 @@ type Role struct {
 // OrgChart represents organizational hierarchy for a team
 type OrgChart struct {
 	BaseEntity
-	TeamID string    `json:"teamId"`
-	Edges  []OrgEdge `json:"edges"`
+	TeamID           string            `json:"teamId"`
+	Edges            []OrgEdge         `json:"edges"`
+	ManagedTeamEdges []ManagedTeamEdge `json:"managedTeamEdges,omitempty"`
 }
 
 // OrgEdge represents a manager-report relationship
 type OrgEdge struct {
 	ManagerAgentID string `json:"managerAgentId"`
 	ReportAgentID  string `json:"reportAgentId"`
+}
+
+// ManagedTeamEdge represents a team-level supervision relationship. It is
+// stored on the manager team's org chart; incoming edges are derived by the
+// API from all team charts.
+type ManagedTeamEdge struct {
+	ManagerTeamID string `json:"managerTeamId"`
+	ManagedTeamID string `json:"managedTeamId"`
+	Relationship  string `json:"relationship,omitempty"`
+	AuthorityRef  string `json:"authorityRef,omitempty"`
+	Status        string `json:"status,omitempty"`
 }
 
 // TeamInbox stores inbound messages for a team member.
@@ -695,6 +707,9 @@ type HeartbeatAdmissionState struct {
 	LastCheckedAt    string `json:"lastCheckedAt,omitempty"`
 	LastAdmittedAt   string `json:"lastAdmittedAt,omitempty"`
 	LastAdmissionKey string `json:"lastAdmissionKey,omitempty"`
+	AdmittedCount    int64  `json:"admittedCount"`
+	QuietCount       int64  `json:"quietCount"`
+	FailOpenCount    int64  `json:"failOpenCount"`
 }
 
 // HeartbeatExecResult represents the result of a heartbeat execution

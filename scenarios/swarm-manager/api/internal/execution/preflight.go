@@ -137,7 +137,7 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 			}
 			// The composed message must fit Agent Manager's until cap. Compose
 			// here so an oversized item is blocked at queue time, not at launch.
-			if _, composeErr := ComposeGoalMessage(goalMessageInputForItem(item, "")); composeErr != nil {
+			if _, composeErr := ComposeGoalMessage(s.goalMessageInput(ctx, item, "")); composeErr != nil {
 				if tooLong, ok := composeErr.(*GoalMessageTooLongError); ok {
 					appendPreflightBlocker(&preflight, "goal_message_too_long", tooLong.Error(), false)
 				}

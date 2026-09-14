@@ -84,7 +84,7 @@ func TestAttachmentsService_Create_TrimsKeyWhitespace(t *testing.T) {
 }
 
 func TestAttachmentsService_Create_RejectsZeroSize(t *testing.T) {
-	svc, _, _ := newAttachmentsServiceWithNote(t, "n")
+	svc, _, attachmentsRepo := newAttachmentsServiceWithNote(t, "n")
 
 	_, err := svc.Create(context.Background(), notes.CreateAttachmentInput{
 		NoteID:    "n",
@@ -95,6 +95,21 @@ func TestAttachmentsService_Create_RejectsZeroSize(t *testing.T) {
 	var inv notes.ErrInvalidNote
 	require.True(t, errors.As(err, &inv))
 	require.Equal(t, "file", inv.Field)
+	require.Equal(t, int64(0), attachmentsRepo.CreateCalls.Load())
+	require.Empty(t, attachmentsRepo.Attachments)
+}
+
+func TestAttachmentsService_Create_AcceptsSmallestNonEmptyFile(t *testing.T) {
+	svc, _, attachmentsRepo := newAttachmentsServiceWithNote(t, "n")
+	got, err := svc.Create(context.Background(), notes.CreateAttachmentInput{
+		NoteID: "n", Key: "notes/n/one-byte.txt", SizeBytes: 1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "notes/n/one-byte.txt", got.Key)
+	require.Equal(t, int64(1), got.SizeBytes)
+	// This cardinality is the side-effect contract: one call writes one row.
+	require.Equal(t, int64(1), attachmentsRepo.CreateCalls.Load())
+	require.Len(t, attachmentsRepo.Attachments, 1)
 }
 
 func TestAttachmentsService_Create_RejectsNegativeSize(t *testing.T) {

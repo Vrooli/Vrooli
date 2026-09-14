@@ -76,6 +76,47 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 4.0.0 — 2026-09-07
+
+Shared testing recipes and CLI-domain guidance now have one maintained owner.
+
+### Changed
+
+- Generated testing guides contain local strategy and links to Template Manager's
+  shared cookbook. The template no longer copies `TESTING-RECIPES.md`.
+- Testing manifests require the local guide's two headings instead of a copied
+  manual's section list. CLI-domain entry pages link to CLI Core.
+
+### Migration
+
+1. Use `knowledge-observatory-maintenance` to compare the old testing guide with
+   the shared cookbook. Preserve local obligations, fixtures, and exceptions.
+2. Update the testing manifest to require `Shared guidance` and
+   `Scenario-specific testing`; redirect incoming links to moved recipe sections.
+3. Replace duplicated CLI-domain instructions with the CLI Core link while
+   retaining local domain maps. Keep test execution policy in `docs/TESTING.md`.
+
+## 3.1.0 — 2026-09-07
+
+Shared gamepad input ownership and React adapters.
+
+### Added
+- `SpatialNavProvider` makes the application controller available to custom
+  controls and modal scopes through `@vrooli/iframe-bridge/react`.
+
+### Changed
+- The entry point retains the controller and disposes it on hot replacement.
+  Built-in gamepad navigation remains enabled in embedded and standalone apps.
+
+### Migration (for agents updating older scenarios)
+- [ ] Refresh `iframe-bridge` through the package lifecycle.
+- [ ] Retain the result of `initSpatialNav()` and pass it to `SpatialNavProvider`.
+- [ ] Import React adapters from `@vrooli/iframe-bridge/react`; custom handlers
+  use a focused element ref and return `true` when they consume an action.
+- [ ] Replace local gamepad/spatial hooks and their implementation tests with
+  shared adapters and scenario-level navigation checks. Preserve custom behavior.
+- [ ] Use `useSpatialScope` for modal cleanup and `useGamepad` for Back dismissal.
+
 ## 3.0.0 — 2026-09-01
 
 The shell is the component library's; the template configures it and draws no

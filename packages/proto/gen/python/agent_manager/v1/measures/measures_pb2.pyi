@@ -82,20 +82,28 @@ class MeasureFilter(_message.Message):
     def __init__(self, field: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
 
 class MeasureProvenance(_message.Message):
-    __slots__ = ("source_table", "window_start", "window_end", "row_count", "applied_filters", "executed_query")
+    __slots__ = ("source_table", "window_start", "window_end", "row_count", "applied_filters", "executed_query", "projection_at", "projection_age_ms", "projection_stale", "projection_stale_reason")
     SOURCE_TABLE_FIELD_NUMBER: _ClassVar[int]
     WINDOW_START_FIELD_NUMBER: _ClassVar[int]
     WINDOW_END_FIELD_NUMBER: _ClassVar[int]
     ROW_COUNT_FIELD_NUMBER: _ClassVar[int]
     APPLIED_FILTERS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_AT_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_AGE_MS_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_STALE_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_STALE_REASON_FIELD_NUMBER: _ClassVar[int]
     source_table: str
     window_start: str
     window_end: str
     row_count: int
     applied_filters: _containers.RepeatedCompositeFieldContainer[MeasureFilter]
     executed_query: str
-    def __init__(self, source_table: _Optional[str] = ..., window_start: _Optional[str] = ..., window_end: _Optional[str] = ..., row_count: _Optional[int] = ..., applied_filters: _Optional[_Iterable[_Union[MeasureFilter, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    projection_at: str
+    projection_age_ms: int
+    projection_stale: bool
+    projection_stale_reason: str
+    def __init__(self, source_table: _Optional[str] = ..., window_start: _Optional[str] = ..., window_end: _Optional[str] = ..., row_count: _Optional[int] = ..., applied_filters: _Optional[_Iterable[_Union[MeasureFilter, _Mapping]]] = ..., executed_query: _Optional[str] = ..., projection_at: _Optional[str] = ..., projection_age_ms: _Optional[int] = ..., projection_stale: _Optional[bool] = ..., projection_stale_reason: _Optional[str] = ...) -> None: ...
 
 class MeasureDefinition(_message.Message):
     __slots__ = ("id", "counts", "numerator", "denominator", "source_table", "limitation")

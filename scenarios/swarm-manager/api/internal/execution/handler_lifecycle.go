@@ -34,6 +34,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		StartedBy:     pbReq.GetStartedBy(),
 		Operation:     pbReq.GetOperation(),
 		ExecutionMode: pbReq.GetExecutionMode(),
+		OperatorNote:  pbReq.GetOperatorNote(),
 		MaxSlices:     int(pbReq.GetMaxSlices()),
 	}
 	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {

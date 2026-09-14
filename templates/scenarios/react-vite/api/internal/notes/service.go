@@ -9,8 +9,7 @@ import (
 // defaultListLimit caps the rows returned by Service.List when the
 // caller passes 0. Lives here (next to the only code that interprets
 // it) rather than in the transport layer — this is business policy,
-// not transport policy. Future scenarios that need configurable limits
-// add a WithDefaultLimit option to NewService.
+// not transport policy. WithDefaultListLimit can override this policy.
 const defaultListLimit = 100
 
 // Service is the application-layer surface the notes handlers depend
@@ -28,7 +27,7 @@ type Service interface {
 	// propagates verbatim — the handler does the errors.As translation.
 	Get(ctx context.Context, id string) (Note, error)
 
-	// List substitutes defaultListLimit when limit <= 0; otherwise
+	// List substitutes the configured default when limit <= 0; otherwise
 	// passes the caller's limit through unchanged.
 	List(ctx context.Context, limit int) ([]Note, error)
 
@@ -41,14 +40,30 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo         Repository
+	defaultLimit int
 }
 
-// NewService constructs the production Service. Repository is the only
-// dependency today; future seams (audit log, cache, webhook) join here
-// as additional Deps fields without changing the Service interface.
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+// ServiceOption configures application policy at construction time.
+type ServiceOption func(*service)
+
+// WithDefaultListLimit sets the fallback for non-positive List requests.
+// It panics for an invalid construction-time policy; request values are
+// handled separately by List and never cause this panic.
+func WithDefaultListLimit(limit int) ServiceOption {
+	if limit <= 0 {
+		panic("notes: default list limit must be positive")
+	}
+	return func(s *service) { s.defaultLimit = limit }
+}
+
+// NewService constructs the production Service with a default list limit of 100.
+func NewService(repo Repository, opts ...ServiceOption) Service {
+	s := &service{repo: repo, defaultLimit: defaultListLimit}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Compile-time guarantee.
@@ -68,7 +83,7 @@ func (s *service) Get(ctx context.Context, id string) (Note, error) {
 
 func (s *service) List(ctx context.Context, limit int) ([]Note, error) {
 	if limit <= 0 {
-		limit = defaultListLimit
+		limit = s.defaultLimit
 	}
 	return s.repo.List(ctx, limit)
 }

@@ -26,6 +26,32 @@ import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/he
 import { makeHealthResponse } from "./factories";
 
 describe("makeHealthResponse", () => {
+  it("preserves deliberately invalid field overrides", () => {
+    const value = makeHealthResponse({ status: "", timestamp: "not-a-date", readiness: false });
+    expect(value.status).toBe("");
+    expect(value.timestamp).toBe("not-a-date");
+    expect(value.readiness).toBe(false);
+  });
+
+  it("allocates independent nested dependency maps and values", () => {
+    const overrides = { dependencies: { database: { connected: true, database: "original" } } };
+    const first = makeHealthResponse(overrides);
+    const second = makeHealthResponse(overrides);
+    expect(first.dependencies.database).toBeDefined();
+    first.dependencies.database!.database = "changed";
+    delete first.dependencies.database;
+    expect(second.dependencies.database?.database).toBe("original");
+    expect(overrides.dependencies.database.database).toBe("original");
+  });
+
+  it("copies already-created protobuf dependencies rather than sharing messages", () => {
+    const source = makeHealthResponse({ dependencies: { database: { database: "source" } } });
+    const copied = makeHealthResponse({ dependencies: source.dependencies });
+    expect(copied.dependencies.database).toBeDefined();
+    copied.dependencies.database!.database = "changed";
+    expect(source.dependencies.database?.database).toBe("source");
+  });
+
   it("returns a healthy default with non-empty service/version/timestamp", () => {
     const r = makeHealthResponse();
     expect(r.status).toBe("healthy");

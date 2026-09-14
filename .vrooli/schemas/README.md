@@ -21,7 +21,7 @@ The most important source-of-truth rule is:
   The current top-level properties include `service`, `dependencies`, `authentication`, `tier_feasibility`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`. `authentication` is a non-secret gated-UI profile: Cloudflare profiles require an owner, HTTPS team domain, and application audience. Runtime verification belongs to `packages/api-core/cloudflareaccess`; tunnel-manager's `/public` asset exception never grants human authority.
 
 - `operator-state.schema.json`
-  Defines the per-install operator-state document at `.vrooli/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.
+  Defines the per-install operator-state document at `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.
 
 - `resource.schema.json`
   Defines `resources/<name>/resource.json` manifests for active resources and resource templates.
@@ -38,6 +38,14 @@ The most important source-of-truth rule is:
 
 - `package.schema.json`
   Defines the schema for package-governance manifests.
+
+- `react-component-library-artifact.schema.json`
+  Defines the immutable RCL package snapshot manifest, including provenance,
+  dependency closure, selected versions, export/output identity, and digests.
+
+- `react-component-library-runtime-status.schema.json`
+  Defines the machine-readable RCL runtime outcome record used by operators and
+  lifecycle logs for verified, degraded, and fail-closed startup decisions.
 
 - `resource-blueprint.schema.json`
   Defines the schema for `.vrooli/resource-blueprints/*.json`.

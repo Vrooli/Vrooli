@@ -94,6 +94,11 @@ message MeasureProvenance {
   int64 row_count = 4;
   repeated MeasureFilter applied_filters = 5;
   string executed_query = 6;
+  // Projection freshness is evidence metadata, not an inferred quality score.
+  string projection_at = 7;
+  int64 projection_age_ms = 8;
+  bool projection_stale = 9;
+  string projection_stale_reason = 10;
 }
 
 message MeasureDefinition {

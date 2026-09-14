@@ -800,7 +800,7 @@ func main() {
 
 	// Setup routes
 	searchConnectPath, searchConnectHandler := search.NewConnectMount(searchHandlers)
-	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers)
+	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers, budgetConfigStore, discoverFilterConfigStore)
 	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers, roots.RepoRoot)
 	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot)
 	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
@@ -875,14 +875,6 @@ func main() {
 	// See docs/internal/SEAMS.md#graph-connect-handler.
 	graphConnectPath, graphConnectHandler := graph.NewConnectMount(graphIndex, graphHealthConfigStore)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: graphConnectPath, Handler: graphConnectHandler})
-
-	// Budget config routes
-	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
-	v1.HandleFunc("/config/budgets", aiSearchHandlers.PutBudgetConfig).Methods("PUT")
-
-	// Discover filter config routes
-	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.GetDiscoverFilterConfig).Methods("GET")
-	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.PutDiscoverFilterConfig).Methods("PUT")
 
 	// Team services
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)

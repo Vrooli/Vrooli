@@ -23,7 +23,7 @@ class ObjectiveDeclaration(_message.Message):
     def __init__(self, id: _Optional[str] = ..., role: _Optional[str] = ..., coverage: _Optional[str] = ..., note: _Optional[str] = ..., acknowledged_revision: _Optional[str] = ...) -> None: ...
 
 class Team(_message.Message):
-    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "validation_findings", "member_count", "created_at", "updated_at", "purpose", "lifetime", "effort_refs", "objectives_served")
+    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "validation_findings", "member_count", "created_at", "updated_at", "purpose", "lifetime", "effort_refs", "objectives_served", "archived", "managed_team_ids", "managed_by_team_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     MISSION_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,9 @@ class Team(_message.Message):
     LIFETIME_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REFS_FIELD_NUMBER: _ClassVar[int]
     OBJECTIVES_SERVED_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_TEAM_IDS_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_BY_TEAM_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
     mission: str
@@ -56,7 +59,10 @@ class Team(_message.Message):
     lifetime: str
     effort_refs: _containers.RepeatedScalarFieldContainer[str]
     objectives_served: _containers.RepeatedCompositeFieldContainer[ObjectiveDeclaration]
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., validation_findings: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., member_count: _Optional[int] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., objectives_served: _Optional[_Iterable[_Union[ObjectiveDeclaration, _Mapping]]] = ...) -> None: ...
+    archived: bool
+    managed_team_ids: _containers.RepeatedScalarFieldContainer[str]
+    managed_by_team_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., validation_findings: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., member_count: _Optional[int] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., objectives_served: _Optional[_Iterable[_Union[ObjectiveDeclaration, _Mapping]]] = ..., archived: _Optional[bool] = ..., managed_team_ids: _Optional[_Iterable[str]] = ..., managed_by_team_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Role(_message.Message):
     __slots__ = ("id", "name", "description")
@@ -81,7 +87,7 @@ class Member(_message.Message):
     def __init__(self, agent_id: _Optional[str] = ..., display_name: _Optional[str] = ..., roles: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ...) -> None: ...
 
 class TeamDetails(_message.Message):
-    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "validation_findings", "member_count", "created_at", "updated_at", "roles", "members", "purpose", "lifetime", "effort_refs", "objectives_served")
+    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "validation_findings", "member_count", "created_at", "updated_at", "roles", "members", "purpose", "lifetime", "effort_refs", "objectives_served", "archived", "managed_team_ids", "managed_by_team_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     MISSION_FIELD_NUMBER: _ClassVar[int]
@@ -100,6 +106,9 @@ class TeamDetails(_message.Message):
     LIFETIME_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REFS_FIELD_NUMBER: _ClassVar[int]
     OBJECTIVES_SERVED_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_TEAM_IDS_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_BY_TEAM_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
     mission: str
@@ -118,10 +127,13 @@ class TeamDetails(_message.Message):
     lifetime: str
     effort_refs: _containers.RepeatedScalarFieldContainer[str]
     objectives_served: _containers.RepeatedCompositeFieldContainer[ObjectiveDeclaration]
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., validation_findings: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., member_count: _Optional[int] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[Role, _Mapping]]] = ..., members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., objectives_served: _Optional[_Iterable[_Union[ObjectiveDeclaration, _Mapping]]] = ...) -> None: ...
+    archived: bool
+    managed_team_ids: _containers.RepeatedScalarFieldContainer[str]
+    managed_by_team_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., validation_findings: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., member_count: _Optional[int] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[Role, _Mapping]]] = ..., members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., objectives_served: _Optional[_Iterable[_Union[ObjectiveDeclaration, _Mapping]]] = ..., archived: _Optional[bool] = ..., managed_team_ids: _Optional[_Iterable[str]] = ..., managed_by_team_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class TeamInput(_message.Message):
-    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "purpose", "lifetime", "effort_refs")
+    __slots__ = ("id", "display_name", "mission", "enabled", "runtime", "coordination", "execution", "operating_contract", "purpose", "lifetime", "effort_refs", "archived")
     ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     MISSION_FIELD_NUMBER: _ClassVar[int]
@@ -133,6 +145,7 @@ class TeamInput(_message.Message):
     PURPOSE_FIELD_NUMBER: _ClassVar[int]
     LIFETIME_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REFS_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
     mission: str
@@ -144,7 +157,8 @@ class TeamInput(_message.Message):
     purpose: str
     lifetime: str
     effort_refs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ...) -> None: ...
+    archived: bool
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., mission: _Optional[str] = ..., enabled: _Optional[bool] = ..., runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., coordination: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., operating_contract: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., purpose: _Optional[str] = ..., lifetime: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., archived: _Optional[bool] = ...) -> None: ...
 
 class ListTeamsRequest(_message.Message):
     __slots__ = ()
@@ -357,13 +371,29 @@ class OrgEdge(_message.Message):
     report_agent_id: str
     def __init__(self, manager_agent_id: _Optional[str] = ..., report_agent_id: _Optional[str] = ...) -> None: ...
 
+class ManagedTeamEdge(_message.Message):
+    __slots__ = ("manager_team_id", "managed_team_id", "relationship", "authority_ref", "status")
+    MANAGER_TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    RELATIONSHIP_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_REF_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    manager_team_id: str
+    managed_team_id: str
+    relationship: str
+    authority_ref: str
+    status: str
+    def __init__(self, manager_team_id: _Optional[str] = ..., managed_team_id: _Optional[str] = ..., relationship: _Optional[str] = ..., authority_ref: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+
 class OrgChart(_message.Message):
-    __slots__ = ("team_id", "edges")
+    __slots__ = ("team_id", "edges", "managed_team_edges")
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_TEAM_EDGES_FIELD_NUMBER: _ClassVar[int]
     team_id: str
     edges: _containers.RepeatedCompositeFieldContainer[OrgEdge]
-    def __init__(self, team_id: _Optional[str] = ..., edges: _Optional[_Iterable[_Union[OrgEdge, _Mapping]]] = ...) -> None: ...
+    managed_team_edges: _containers.RepeatedCompositeFieldContainer[ManagedTeamEdge]
+    def __init__(self, team_id: _Optional[str] = ..., edges: _Optional[_Iterable[_Union[OrgEdge, _Mapping]]] = ..., managed_team_edges: _Optional[_Iterable[_Union[ManagedTeamEdge, _Mapping]]] = ...) -> None: ...
 
 class GetOrgChartRequest(_message.Message):
     __slots__ = ("team_id",)
@@ -372,12 +402,14 @@ class GetOrgChartRequest(_message.Message):
     def __init__(self, team_id: _Optional[str] = ...) -> None: ...
 
 class SetOrgChartRequest(_message.Message):
-    __slots__ = ("team_id", "edges")
+    __slots__ = ("team_id", "edges", "managed_team_edges")
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_TEAM_EDGES_FIELD_NUMBER: _ClassVar[int]
     team_id: str
     edges: _containers.RepeatedCompositeFieldContainer[OrgEdge]
-    def __init__(self, team_id: _Optional[str] = ..., edges: _Optional[_Iterable[_Union[OrgEdge, _Mapping]]] = ...) -> None: ...
+    managed_team_edges: _containers.RepeatedCompositeFieldContainer[ManagedTeamEdge]
+    def __init__(self, team_id: _Optional[str] = ..., edges: _Optional[_Iterable[_Union[OrgEdge, _Mapping]]] = ..., managed_team_edges: _Optional[_Iterable[_Union[ManagedTeamEdge, _Mapping]]] = ...) -> None: ...
 
 class UpdateOrgChartEdgeRequest(_message.Message):
     __slots__ = ("team_id", "report_agent_id", "manager_agent_id")

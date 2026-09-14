@@ -96,11 +96,11 @@ func (o *Orchestrator) PublishRecurringFriction(ctx context.Context, filter invo
 		}
 		investigationID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/recurring/"+fingerprint))
 		evidence := fmt.Sprintf("Fingerprint %s appeared %d times across %d distinct runs and cost %d ms.", fingerprint, group.count, len(group.runs), group.cost)
-		finding := &findings.Finding{RunID: runID, InvestigationRunID: investigationID, Category: group.episode.CauseScope, Severity: "recurring", Recommendation: "Review the recurring deterministic friction fingerprint and its suspected owner.", Evidence: evidence, TargetPath: group.episode.SuspectedOwnerCommand, Fingerprint: fingerprint}
+		finding := &findings.Finding{RunID: runID, InvestigationRunID: investigationID, Category: group.episode.CauseScope, Severity: "recurring", Recommendation: "Review the recurring deterministic friction fingerprint and its suspected owner.", ProposedWorkaround: "No workaround is approved by the recurring publisher; qualify a bounded mitigation before reuse.", AcceptanceImpact: "Unknown; the affected acceptance gate remains unverified until the owner reviews the finding.", OwnerHint: group.episode.SuspectedOwnerScenario, Evidence: evidence, TargetPath: group.episode.SuspectedOwnerCommand, Fingerprint: fingerprint}
 		if err := o.findings.Create(ctx, finding); err != nil {
 			return result, err
 		}
-		topic, publishErr := publisher.PublishFriction(ctx, promptmanager.FrictionReport{InvestigationRunID: investigationID.String(), Fingerprint: fingerprint, Category: group.episode.CauseScope, Severity: "recurring", Occurrences: len(group.runs), Recommendation: finding.Recommendation, Evidence: evidence, TargetPath: group.episode.SuspectedOwnerCommand, HonestyFlags: []string{"auto-generated"}, RecurrenceEvidence: fmt.Sprintf("distinct_runs=%d", len(group.runs))})
+		topic, publishErr := publisher.PublishFriction(ctx, promptmanager.FrictionReport{InvestigationRunID: investigationID.String(), Fingerprint: fingerprint, Category: group.episode.CauseScope, Severity: "recurring", Occurrences: len(group.runs), Recommendation: finding.Recommendation, ProposedWorkaround: finding.ProposedWorkaround, AcceptanceImpact: finding.AcceptanceImpact, OwnerHint: finding.OwnerHint, Evidence: evidence, TargetPath: group.episode.SuspectedOwnerCommand, HonestyFlags: []string{"auto-generated"}, RecurrenceEvidence: fmt.Sprintf("distinct_runs=%d", len(group.runs))})
 		if publishErr != nil {
 			result.Skipped++
 			continue

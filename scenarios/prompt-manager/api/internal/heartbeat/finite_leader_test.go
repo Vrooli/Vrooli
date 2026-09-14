@@ -245,6 +245,7 @@ func TestFiniteLeaderOwnerContinuationAndHeartbeatRead(t *testing.T) {
 	state := f.dispatch(t)
 	run := f.agent.getRuns[state.RunID]
 	run.Status, run.StartedAt, run.EndedAt = "failed", "2026-09-12T10:00:00Z", "2026-09-12T10:01:00Z"
+	f.agent.getRunCalls = nil
 	for i := 0; i < 2; i++ {
 		if _, err := f.runtime.Tick(context.Background(), "committee", "lead"); err != nil {
 			t.Fatal(err)
@@ -263,11 +264,38 @@ func TestFiniteLeaderOwnerContinuationAndHeartbeatRead(t *testing.T) {
 	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "committee", "agentId": "lead"})
 	w := httptest.NewRecorder()
 	h.GetHeartbeat(w, req)
+	if len(f.agent.getRunCalls) == 0 {
+		t.Fatalf("heartbeat read did not query the retained owner run")
+	}
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"finiteLeaderState"`) || !strings.Contains(w.Body.String(), `"runId":"leader-1"`) || strings.Contains(w.Body.String(), `"endedAt"`) {
 		t.Fatalf("heartbeat read lost current owner attempt: %s", w.Body.String())
 	}
 	if len(f.agent.createRunCalls) != 1 {
 		t.Fatal("owner continuation created a replacement")
+	}
+}
+
+func TestFiniteLeaderHeartbeatReadReconcilesKnownTerminalOwner(t *testing.T) {
+	f := newFiniteFixture(t)
+	state := f.dispatch(t)
+	run := f.agent.getRuns[state.RunID]
+	run.Status, run.StartedAt, run.EndedAt = "failed", "2026-09-12T10:00:00Z", "2026-09-12T10:01:00Z"
+	h := NewHandlers(HandlersDeps{TeamStore: f.teams, RelationStore: f.relations, Executor: f.runtime.Executor})
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "committee", "agentId": "lead"})
+	w := httptest.NewRecorder()
+	h.GetHeartbeat(w, req)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"endedAt":"2026-09-12T10:01:00Z"`) {
+		t.Fatalf("heartbeat read did not reconcile terminal owner: %s", w.Body.String())
+	}
+	updated, err := f.teams.GetHeartbeatConfig(context.Background(), "committee", "lead")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.LastExecution == nil || updated.LastExecution.RunID != state.RunID || updated.LastExecution.Status != store.HeartbeatStatusFailed {
+		t.Fatalf("terminal owner was not persisted by read reconciliation: %+v", updated.LastExecution)
+	}
+	if len(f.agent.createRunCalls) != 1 {
+		t.Fatalf("heartbeat read created a replacement owner run: %d", len(f.agent.createRunCalls))
 	}
 }
 
