@@ -16,8 +16,10 @@ message WorkflowLocator {
   string key = 2;
 }
 
-message ExecutionStrategy {
+message ExecutionMode {
   string id = 1;
+  // workflow_key is empty for the goal mode, which creates one Agent Manager
+  // run rather than draining a workflow.
   string workflow_key = 2;
   string display_name = 3;
   string description = 4;
@@ -46,7 +48,7 @@ message Transition {
   string input_contract = 6;
   repeated string terminal_outcomes = 7;
   string apply_action = 8;
-  repeated ExecutionStrategy strategies = 9;
+  repeated ExecutionMode execution_modes = 9;
   repeated HumanGate human_gates = 10;
   bool human_wait = 11;
 }

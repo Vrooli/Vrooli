@@ -132,7 +132,12 @@ func Cacheable(status string) bool {
 //
 // A normal deterministic test failure remains reusable. This keeps the cache
 // useful for genuine, identity-covered failures without allowing an external
-// prerequisite outage to become durable validation evidence.
+// prerequisite outage to become durable validation evidence. Surface-policy
+// findings are the other exception: Unit Health derives these from the live
+// Code Facts inventory, so a provider restart or discovery repair can change
+// them without changing the target tree or the unit-health binary. Reusing a
+// missing-role result would therefore turn a transient discovery observation
+// into a durable phase failure.
 func Reusable(result phases.ExecutionResult) bool {
 	if !Cacheable(result.Status) {
 		return false
@@ -149,7 +154,9 @@ func Reusable(result phases.ExecutionResult) bool {
 		}
 		code := strings.ToUpper(strings.TrimSpace(finding.GetCode()))
 		switch code {
-		case "TEST_DEPENDENCY_MISSING", "DEPENDENCY_MISSING", "PROVIDER_UNAVAILABLE":
+		case "TEST_DEPENDENCY_MISSING", "DEPENDENCY_MISSING", "PROVIDER_UNAVAILABLE",
+			"TEST_SURFACE_ABSENT", "UNIT_REQUIRED_ROLE_MISSING", "UNIT_SURFACE_UNGOVERNED",
+			"TEST_FLAKE_SUSPECTED":
 			return false
 		}
 	}

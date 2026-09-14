@@ -28,6 +28,7 @@ type ScenarioRuntime interface {
 type ScenarioPhaseRunner interface {
 	Stop(name string, opts lifecycle.StopOptions) error
 	RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
+	RunSetupIfStopped(name string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
 }
 
 type Service struct {
@@ -255,22 +256,29 @@ func (r *refreshRuntime) setupScenario(name string) (string, error) {
 		return "", err
 	}
 	wasRunning := detail.Runtime.ProcessCount > 0
+	// No-restart is a non-interruption boundary, not permission to stop a
+	// consumer and leave it down. Setup can mutate its active dependencies;
+	// defer that adoption until an explicitly coordinated restart is allowed.
+	if wasRunning && (r.noRestart || !r.item.Manifest.Package.Refresh.RestartRunningConsumers) {
+		return "running_setup_deferred", nil
+	}
 	if wasRunning {
 		if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
 			return "", err
 		}
 	}
-	if _, err := runner.RunPhaseDetailed(name, "setup", lifecycle.PhaseOptions{}); err != nil {
+	result, err := runner.RunSetupIfStopped(name, lifecycle.PhaseOptions{})
+	if err != nil {
 		return "", err
 	}
-	if wasRunning && !r.noRestart && r.item.Manifest.Package.Refresh.RestartRunningConsumers {
+	if result.Status == lifecycle.PhaseExecutionRunningDeferred {
+		return "running_setup_deferred", nil
+	}
+	if wasRunning {
 		if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
 			return "", err
 		}
 		return packageActionRestarted, nil
-	}
-	if wasRunning {
-		return "stopped_after_setup", nil
 	}
 	return packageSetupOnly, nil
 }

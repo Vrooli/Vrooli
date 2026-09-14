@@ -1,6 +1,7 @@
 {
   "schema_version": "v1",
   "runner": "claude-code",
+  "excluded_models": ["gpt-6-astra", "gpt-5.6-sol"],
   "provenance": {"source": "Claude Code --model alias surface and pinned upstream catalog (claude 2.1.257; refreshed 2026-09-11); added multi-source fallback", "observed_at": "2026-09-11"},
   "billing": {
     "mode": "subscription",

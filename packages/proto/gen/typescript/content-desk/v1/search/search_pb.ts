@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/search/search.proto.
  */
 export const file_content_desk_v1_search_search: GenFile = /*@__PURE__*/
-  fileDesc("CiNjb250ZW50LWRlc2svdjEvc2VhcmNoL3NlYXJjaC5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5zZWFyY2giLQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBSJXCgxTZWFyY2hSZXN1bHQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDwoHc25pcHBldBgDIAEoCRINCgVzY29yZRgEIAEoARIMCgRraW5kGAUgASgJIk4KDlNlYXJjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuY29udGVudF9kZXNrLnYxLnNlYXJjaC5TZWFyY2hSZXN1bHQiDwoNU3RhdHVzUmVxdWVzdCJTCg5TdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSFQoNaW5kZXhlZF9jb3VudBgCIAEoBRIXCg9sYXN0X2luZGV4ZWRfYXQYAyABKAky3QEKDVNlYXJjaFNlcnZpY2USZQoGU2VhcmNoEiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5zZWFyY2guU2VhcmNoUmVxdWVzdBotLnZyb29saS5jb250ZW50X2Rlc2sudjEuc2VhcmNoLlNlYXJjaFJlc3BvbnNlEmUKBlN0YXR1cxIsLnZyb29saS5jb250ZW50X2Rlc2sudjEuc2VhcmNoLlN0YXR1c1JlcXVlc3QaLS52cm9vbGkuY29udGVudF9kZXNrLnYxLnNlYXJjaC5TdGF0dXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9zZWFyY2g7c2VhcmNoX3YxYgZwcm90bzM");
+  fileDesc("CiNjb250ZW50LWRlc2svdjEvc2VhcmNoL3NlYXJjaC5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5zZWFyY2giLQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBSKRAQoMU2VhcmNoUmVzdWx0EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg8KB3NuaXBwZXQYAyABKAkSDQoFc2NvcmUYBCABKAESDAoEa2luZBgFIAEoCRIRCglmb2xsb3dfdXAYBiABKAkSEQoJZnJlc2huZXNzGAcgASgJEhIKCmhpc3RvcmljYWwYCCABKAgiewoOU2VhcmNoUmVzcG9uc2USPAoHcmVzdWx0cxgBIAMoCzIrLnZyb29saS5jb250ZW50X2Rlc2sudjEuc2VhcmNoLlNlYXJjaFJlc3VsdBISCgpnZW5lcmF0aW9uGAIgASgJEhcKD21hdGVyaWFsaXplZF9hdBgDIAEoCSIPCg1TdGF0dXNSZXF1ZXN0ImcKDlN0YXR1c1Jlc3BvbnNlEhEKCWF2YWlsYWJsZRgBIAEoCBIVCg1pbmRleGVkX2NvdW50GAIgASgFEhcKD2xhc3RfaW5kZXhlZF9hdBgDIAEoCRISCgpnZW5lcmF0aW9uGAQgASgJMt0BCg1TZWFyY2hTZXJ2aWNlEmUKBlNlYXJjaBIsLnZyb29saS5jb250ZW50X2Rlc2sudjEuc2VhcmNoLlNlYXJjaFJlcXVlc3QaLS52cm9vbGkuY29udGVudF9kZXNrLnYxLnNlYXJjaC5TZWFyY2hSZXNwb25zZRJlCgZTdGF0dXMSLC52cm9vbGkuY29udGVudF9kZXNrLnYxLnNlYXJjaC5TdGF0dXNSZXF1ZXN0Gi0udnJvb2xpLmNvbnRlbnRfZGVzay52MS5zZWFyY2guU3RhdHVzUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb250ZW50LWRlc2svdjEvc2VhcmNoO3NlYXJjaF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.content_desk.v1.search.SearchRequest
@@ -59,9 +59,36 @@ export type SearchResult = Message<"vrooli.content_desk.v1.search.SearchResult">
   score: number;
 
   /**
+   * Record class: a live editorial draft or a retained publish record.
+   *
    * @generated from field: string kind = 5;
    */
   kind: string;
+
+  /**
+   * Canonical owner reference an agent follows to read the authoritative
+   * record ("draft/<id>" or "publish/<id>").
+   *
+   * @generated from field: string follow_up = 6;
+   */
+  followUp: string;
+
+  /**
+   * fresh/stale/unknown for time-bounded records; empty otherwise. Content
+   * Desk's editorial projection does not assign freshness, so it is left empty
+   * rather than fabricated.
+   *
+   * @generated from field: string freshness = 7;
+   */
+  freshness: string;
+
+  /**
+   * A retained publish record: it states what was released rather than what is
+   * currently true.
+   *
+   * @generated from field: bool historical = 8;
+   */
+  historical: boolean;
 };
 
 /**
@@ -79,6 +106,22 @@ export type SearchResponse = Message<"vrooli.content_desk.v1.search.SearchRespon
    * @generated from field: repeated vrooli.content_desk.v1.search.SearchResult results = 1;
    */
   results: SearchResult[];
+
+  /**
+   * Corpus generation the ranking read; changes only when record content
+   * changes.
+   *
+   * @generated from field: string generation = 2;
+   */
+  generation: string;
+
+  /**
+   * RFC3339 timestamp of the newest observed editorial mutation, never the read
+   * time.
+   *
+   * @generated from field: string materialized_at = 3;
+   */
+  materializedAt: string;
 };
 
 /**
@@ -121,6 +164,14 @@ export type StatusResponse = Message<"vrooli.content_desk.v1.search.StatusRespon
    * @generated from field: string last_indexed_at = 3;
    */
   lastIndexedAt: string;
+
+  /**
+   * Corpus generation; rereading status without a source change returns the
+   * same value.
+   *
+   * @generated from field: string generation = 4;
+   */
+  generation: string;
 };
 
 /**

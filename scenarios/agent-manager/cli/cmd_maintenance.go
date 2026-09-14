@@ -75,16 +75,11 @@ func (a *App) maintenanceAdmission(operation string, args []string) error {
 		if operation == "status" {
 			return fmt.Errorf("status does not require --local-owner")
 		}
-		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
-			return fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		login, err := authn.ExchangeLocalMachinePrincipal(ctx)
+		owner, err := localOwnerAPI(api)
 		if err != nil {
-			return fmt.Errorf("local owner exchange unavailable: %w", err)
+			return err
 		}
-		api = api.WithToken(login.Tokens.AccessToken)
+		api = owner
 	}
 	method, path := "GET", "/api/v1/maintenance/admission"
 	var payload []byte
@@ -173,6 +168,21 @@ func (a *App) maintenanceAdmission(operation string, args []string) error {
 		return fmt.Errorf("maintenance drain is not complete")
 	}
 	return nil
+}
+
+// localOwnerAPI exchanges explicit local human authority for an owner token.
+// It is refused inside an identified agent run so an agent cannot elevate.
+func localOwnerAPI(api *cliutil.APIClient) (*cliutil.APIClient, error) {
+	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+		return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	login, err := authn.ExchangeLocalMachinePrincipal(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("local owner exchange unavailable: %w", err)
+	}
+	return api.WithToken(login.Tokens.AccessToken), nil
 }
 
 // =============================================================================

@@ -432,6 +432,7 @@ func suiteRequest(scenario string, intent *validationv1.ValidationIntent) orches
 		Preset:             presetForStrength(intent.GetRequiredStrength()),
 		Phases:             append([]string(nil), intent.GetPhases()...),
 		RequireGateQuality: intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION,
+		ValidationRun:      true,
 	}
 }
 

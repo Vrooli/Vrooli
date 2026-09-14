@@ -6,9 +6,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -31,6 +33,21 @@ func TestCodingPolicyCommandsResolveAndReportPosture(t *testing.T) {
 	}
 	if got.Enforcement.Permissions != "intent_only" {
 		t.Fatalf("posture = %#v", got.Enforcement)
+	}
+}
+
+func TestCodingPolicyResolveExpandsConfiguredExclusionsAcrossResourceAliases(t *testing.T) {
+	catalog := CodingRoleCatalog{
+		ExcludedModels: []string{"provider/blocked"},
+		ModelAliases: map[string]agentcatalog.ModelAlias{
+			"blocked":          {CanonicalModel: "provider/blocked"},
+			"provider/blocked": {CanonicalModel: "provider/blocked"},
+		},
+	}
+	got := resolvedExcludedModels(catalog)
+	want := []string{"provider/blocked", "blocked"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("resolved exclusions = %#v, want %#v", got, want)
 	}
 }
 

@@ -28,24 +28,26 @@ class ExecutionPolicyResponse(_message.Message):
     def __init__(self, policy: _Optional[_Union[_execution_pb2.ExecutionPolicy, _Mapping]] = ...) -> None: ...
 
 class CreateExecutionRequest(_message.Message):
-    __slots__ = ("backlog_kind", "backlog_name", "mode", "started_by", "operation", "strategy", "max_slices", "execution_preferences")
+    __slots__ = ("backlog_kind", "backlog_name", "mode", "started_by", "operation", "execution_mode", "max_slices", "execution_preferences", "operator_note")
     BACKLOG_KIND_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_NAME_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
-    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
     backlog_kind: str
     backlog_name: str
     mode: str
     started_by: str
     operation: str
-    strategy: str
+    execution_mode: str
     max_slices: int
     execution_preferences: _backlog_pb2.ExecutionPreferences
-    def __init__(self, backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., strategy: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+    operator_note: str
+    def __init__(self, backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., execution_mode: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., operator_note: _Optional[str] = ...) -> None: ...
 
 class FollowUpExecutionRequest(_message.Message):
     __slots__ = ("execution_id", "follow_up_type", "context", "run_mode")

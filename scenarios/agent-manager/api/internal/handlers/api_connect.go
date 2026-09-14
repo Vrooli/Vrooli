@@ -384,3 +384,23 @@ func (h *AgentManagerConnectHandler) GetRunReport(ctx context.Context, req *conn
 	}
 	return connect.NewResponse(runReportToProto(report)), nil
 }
+
+// GetRunAccounting exposes the same metered usage as the REST route, so a
+// consumer settling a standalone run reads one owner projection.
+func (h *AgentManagerConnectHandler) GetRunAccounting(ctx context.Context, req *connect.Request[api.GetRunAccountingRequest]) (*connect.Response[api.RunAccounting], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("request is required"))
+	}
+	runID, err := uuid.Parse(req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	accounting, err := h.h.svc.RunAccounting(ctx, runID)
+	if err != nil {
+		if domain.GetErrorCode(err) == domain.ErrCodeNotFoundRun {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(runAccountingToProto(accounting)), nil
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/workflowcontract"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -38,6 +40,7 @@ type GoalRunState struct {
 	TerminalClass string
 	StopReason    string
 	LastHandoff   string
+	ErrorMessage  string
 }
 
 // GetGoalRunState reads one Agent Manager run's typed terminal fields so Swarm
@@ -56,7 +59,35 @@ func (s *AgentService) GetGoalRunState(ctx context.Context, runID string) (GoalR
 		TerminalClass: run.GetTerminalClass(),
 		StopReason:    run.GetStopReason(),
 		LastHandoff:   run.GetLastHandoff(),
+		ErrorMessage:  run.GetErrorMsg(),
 	}, nil
+}
+
+// GetGoalRunUsage reads a goal run's metered usage from the owner. terminal is
+// false while the run is live. The usage flags stay false unless the owner
+// reports a terminal, complete and measured receipt; one run has no workflow
+// children, node attempts, retries or slices.
+func (s *AgentService) GetGoalRunUsage(ctx context.Context, runID string) (*workflowcontract.Usage, bool, error) {
+	if !s.enabled {
+		return nil, false, ErrNotAvailable
+	}
+	accounting, err := s.client.GetRunAccounting(ctx, strings.TrimSpace(runID))
+	if err != nil {
+		return nil, false, err
+	}
+	return goalRunUsage(accounting), accounting.GetTerminal(), nil
+}
+
+func goalRunUsage(accounting *apipb.RunAccounting) *workflowcontract.Usage {
+	terminal := accounting.GetTerminal()
+	return &workflowcontract.Usage{
+		Tokens:         accounting.GetTokens(),
+		Turns:          accounting.GetTurns(),
+		WallSeconds:    accounting.GetWallSeconds(),
+		ChargeMicroUSD: accounting.GetChargeMicroUsd(),
+		TokensKnown:    terminal && accounting.GetTokensKnown(),
+		ChargeMeasured: terminal && accounting.GetChargeMeasured(),
+	}
 }
 
 // CreateGoalRun creates exactly one Agent Manager run whose prompt is the

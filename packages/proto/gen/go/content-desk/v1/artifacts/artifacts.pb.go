@@ -1576,6 +1576,256 @@ func (x *ApproveDraftResponse) GetDraft() *Draft {
 	return nil
 }
 
+// DraftCurrentRevision is an artifact's effective body plus only the editorial
+// authority that still applies to exactly that body. The latest stored revision
+// is selected only when it matches the live draft; a review that was invalidated
+// or superseded, or an approval withdrawn by a revision, resolves to an empty
+// field (and has_* = false) instead of to stale evidence. A consumer deciding
+// whether to release must read this, not the prior review/approval.
+type DraftCurrentRevision struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	DraftId               string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	Status                string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Body                  string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	RevisionId            string                 `protobuf:"bytes,4,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	RevisionActorKind     string                 `protobuf:"bytes,5,opt,name=revision_actor_kind,json=revisionActorKind,proto3" json:"revision_actor_kind,omitempty"`
+	RevisionCapacity      string                 `protobuf:"bytes,6,opt,name=revision_capacity,json=revisionCapacity,proto3" json:"revision_capacity,omitempty"`
+	CreatedAt             string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ReviewRunId           string                 `protobuf:"bytes,8,opt,name=review_run_id,json=reviewRunId,proto3" json:"review_run_id,omitempty"`
+	ReviewAt              string                 `protobuf:"bytes,9,opt,name=review_at,json=reviewAt,proto3" json:"review_at,omitempty"`
+	ApprovalActorKind     string                 `protobuf:"bytes,10,opt,name=approval_actor_kind,json=approvalActorKind,proto3" json:"approval_actor_kind,omitempty"`
+	ApprovalCapacity      string                 `protobuf:"bytes,11,opt,name=approval_capacity,json=approvalCapacity,proto3" json:"approval_capacity,omitempty"`
+	ApprovedAt            string                 `protobuf:"bytes,12,opt,name=approved_at,json=approvedAt,proto3" json:"approved_at,omitempty"`
+	HasStoredRevision     bool                   `protobuf:"varint,13,opt,name=has_stored_revision,json=hasStoredRevision,proto3" json:"has_stored_revision,omitempty"`
+	HasApplicableReview   bool                   `protobuf:"varint,14,opt,name=has_applicable_review,json=hasApplicableReview,proto3" json:"has_applicable_review,omitempty"`
+	HasApplicableApproval bool                   `protobuf:"varint,15,opt,name=has_applicable_approval,json=hasApplicableApproval,proto3" json:"has_applicable_approval,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *DraftCurrentRevision) Reset() {
+	*x = DraftCurrentRevision{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DraftCurrentRevision) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DraftCurrentRevision) ProtoMessage() {}
+
+func (x *DraftCurrentRevision) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DraftCurrentRevision.ProtoReflect.Descriptor instead.
+func (*DraftCurrentRevision) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DraftCurrentRevision) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetRevisionActorKind() string {
+	if x != nil {
+		return x.RevisionActorKind
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetRevisionCapacity() string {
+	if x != nil {
+		return x.RevisionCapacity
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetReviewRunId() string {
+	if x != nil {
+		return x.ReviewRunId
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetReviewAt() string {
+	if x != nil {
+		return x.ReviewAt
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetApprovalActorKind() string {
+	if x != nil {
+		return x.ApprovalActorKind
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetApprovalCapacity() string {
+	if x != nil {
+		return x.ApprovalCapacity
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetApprovedAt() string {
+	if x != nil {
+		return x.ApprovedAt
+	}
+	return ""
+}
+
+func (x *DraftCurrentRevision) GetHasStoredRevision() bool {
+	if x != nil {
+		return x.HasStoredRevision
+	}
+	return false
+}
+
+func (x *DraftCurrentRevision) GetHasApplicableReview() bool {
+	if x != nil {
+		return x.HasApplicableReview
+	}
+	return false
+}
+
+func (x *DraftCurrentRevision) GetHasApplicableApproval() bool {
+	if x != nil {
+		return x.HasApplicableApproval
+	}
+	return false
+}
+
+type GetDraftCurrentRevisionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDraftCurrentRevisionRequest) Reset() {
+	*x = GetDraftCurrentRevisionRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDraftCurrentRevisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDraftCurrentRevisionRequest) ProtoMessage() {}
+
+func (x *GetDraftCurrentRevisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDraftCurrentRevisionRequest.ProtoReflect.Descriptor instead.
+func (*GetDraftCurrentRevisionRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetDraftCurrentRevisionRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetDraftCurrentRevisionResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CurrentRevision *DraftCurrentRevision  `protobuf:"bytes,1,opt,name=current_revision,json=currentRevision,proto3" json:"current_revision,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetDraftCurrentRevisionResponse) Reset() {
+	*x = GetDraftCurrentRevisionResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDraftCurrentRevisionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDraftCurrentRevisionResponse) ProtoMessage() {}
+
+func (x *GetDraftCurrentRevisionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDraftCurrentRevisionResponse.ProtoReflect.Descriptor instead.
+func (*GetDraftCurrentRevisionResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetDraftCurrentRevisionResponse) GetCurrentRevision() *DraftCurrentRevision {
+	if x != nil {
+		return x.CurrentRevision
+	}
+	return nil
+}
+
 var File_content_desk_v1_artifacts_artifacts_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
@@ -1693,7 +1943,31 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"identityId\x12\x12\n" +
 	"\x04lane\x18\x03 \x01(\tR\x04lane\"U\n" +
 	"\x14ApproveDraftResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft2\xae\r\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\xd5\x04\n" +
+	"\x14DraftCurrentRevision\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x1f\n" +
+	"\vrevision_id\x18\x04 \x01(\tR\n" +
+	"revisionId\x12.\n" +
+	"\x13revision_actor_kind\x18\x05 \x01(\tR\x11revisionActorKind\x12+\n" +
+	"\x11revision_capacity\x18\x06 \x01(\tR\x10revisionCapacity\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\x12\"\n" +
+	"\rreview_run_id\x18\b \x01(\tR\vreviewRunId\x12\x1b\n" +
+	"\treview_at\x18\t \x01(\tR\breviewAt\x12.\n" +
+	"\x13approval_actor_kind\x18\n" +
+	" \x01(\tR\x11approvalActorKind\x12+\n" +
+	"\x11approval_capacity\x18\v \x01(\tR\x10approvalCapacity\x12\x1f\n" +
+	"\vapproved_at\x18\f \x01(\tR\n" +
+	"approvedAt\x12.\n" +
+	"\x13has_stored_revision\x18\r \x01(\bR\x11hasStoredRevision\x122\n" +
+	"\x15has_applicable_review\x18\x0e \x01(\bR\x13hasApplicableReview\x126\n" +
+	"\x17has_applicable_approval\x18\x0f \x01(\bR\x15hasApplicableApproval\"0\n" +
+	"\x1eGetDraftCurrentRevisionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x84\x01\n" +
+	"\x1fGetDraftCurrentRevisionResponse\x12a\n" +
+	"\x10current_revision\x18\x01 \x01(\v26.vrooli.content_desk.v1.artifacts.DraftCurrentRevisionR\x0fcurrentRevision2\xcf\x0e\n" +
 	"\x10ArtifactsService\x12w\n" +
 	"\n" +
 	"ListDrafts\x123.vrooli.content_desk.v1.artifacts.ListDraftsRequest\x1a4.vrooli.content_desk.v1.artifacts.ListDraftsResponse\x12z\n" +
@@ -1707,7 +1981,8 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\x12SubmitReleaseDraft\x12;.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest\x1a<.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse\x12\x95\x01\n" +
 	"\x14RecordReleaseOutcome\x12=.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest\x1a>.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse\x12\x86\x01\n" +
 	"\x0fTransitionDraft\x128.vrooli.content_desk.v1.artifacts.TransitionDraftRequest\x1a9.vrooli.content_desk.v1.artifacts.TransitionDraftResponse\x12}\n" +
-	"\fApproveDraft\x125.vrooli.content_desk.v1.artifacts.ApproveDraftRequest\x1a6.vrooli.content_desk.v1.artifacts.ApproveDraftResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts;artifacts_v1b\x06proto3"
+	"\fApproveDraft\x125.vrooli.content_desk.v1.artifacts.ApproveDraftRequest\x1a6.vrooli.content_desk.v1.artifacts.ApproveDraftResponse\x12\x9e\x01\n" +
+	"\x17GetDraftCurrentRevision\x12@.vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionRequest\x1aA.vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts;artifacts_v1b\x06proto3"
 
 var (
 	file_content_desk_v1_artifacts_artifacts_proto_rawDescOnce sync.Once
@@ -1721,34 +1996,37 @@ func file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_artifacts_artifacts_proto_rawDescData
 }
 
-var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_content_desk_v1_artifacts_artifacts_proto_goTypes = []any{
-	(*Draft)(nil),                        // 0: vrooli.content_desk.v1.artifacts.Draft
-	(*ListDraftsRequest)(nil),            // 1: vrooli.content_desk.v1.artifacts.ListDraftsRequest
-	(*ListDraftsResponse)(nil),           // 2: vrooli.content_desk.v1.artifacts.ListDraftsResponse
-	(*CreateDraftRequest)(nil),           // 3: vrooli.content_desk.v1.artifacts.CreateDraftRequest
-	(*CreateDraftResponse)(nil),          // 4: vrooli.content_desk.v1.artifacts.CreateDraftResponse
-	(*UpdateDraftBodyRequest)(nil),       // 5: vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
-	(*UpdateDraftBodyResponse)(nil),      // 6: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	(*DraftAttachment)(nil),              // 7: vrooli.content_desk.v1.artifacts.DraftAttachment
-	(*AttachReleasedAssetRequest)(nil),   // 8: vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
-	(*AttachReleasedAssetResponse)(nil),  // 9: vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
-	(*ListDraftAttachmentsRequest)(nil),  // 10: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
-	(*ListDraftAttachmentsResponse)(nil), // 11: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
-	(*CommissionAgentWorkRequest)(nil),   // 12: vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
-	(*CommissionAgentWorkResponse)(nil),  // 13: vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
-	(*GetAgentWorkResultRequest)(nil),    // 14: vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
-	(*GetAgentWorkResultResponse)(nil),   // 15: vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
-	(*AdoptAgentSuggestionRequest)(nil),  // 16: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
-	(*AdoptAgentSuggestionResponse)(nil), // 17: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
-	(*SubmitReleaseDraftRequest)(nil),    // 18: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
-	(*SubmitReleaseDraftResponse)(nil),   // 19: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
-	(*RecordReleaseOutcomeRequest)(nil),  // 20: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
-	(*RecordReleaseOutcomeResponse)(nil), // 21: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
-	(*TransitionDraftRequest)(nil),       // 22: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	(*TransitionDraftResponse)(nil),      // 23: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	(*ApproveDraftRequest)(nil),          // 24: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	(*ApproveDraftResponse)(nil),         // 25: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	(*Draft)(nil),                           // 0: vrooli.content_desk.v1.artifacts.Draft
+	(*ListDraftsRequest)(nil),               // 1: vrooli.content_desk.v1.artifacts.ListDraftsRequest
+	(*ListDraftsResponse)(nil),              // 2: vrooli.content_desk.v1.artifacts.ListDraftsResponse
+	(*CreateDraftRequest)(nil),              // 3: vrooli.content_desk.v1.artifacts.CreateDraftRequest
+	(*CreateDraftResponse)(nil),             // 4: vrooli.content_desk.v1.artifacts.CreateDraftResponse
+	(*UpdateDraftBodyRequest)(nil),          // 5: vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
+	(*UpdateDraftBodyResponse)(nil),         // 6: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
+	(*DraftAttachment)(nil),                 // 7: vrooli.content_desk.v1.artifacts.DraftAttachment
+	(*AttachReleasedAssetRequest)(nil),      // 8: vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
+	(*AttachReleasedAssetResponse)(nil),     // 9: vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
+	(*ListDraftAttachmentsRequest)(nil),     // 10: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
+	(*ListDraftAttachmentsResponse)(nil),    // 11: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
+	(*CommissionAgentWorkRequest)(nil),      // 12: vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
+	(*CommissionAgentWorkResponse)(nil),     // 13: vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
+	(*GetAgentWorkResultRequest)(nil),       // 14: vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
+	(*GetAgentWorkResultResponse)(nil),      // 15: vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
+	(*AdoptAgentSuggestionRequest)(nil),     // 16: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
+	(*AdoptAgentSuggestionResponse)(nil),    // 17: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
+	(*SubmitReleaseDraftRequest)(nil),       // 18: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	(*SubmitReleaseDraftResponse)(nil),      // 19: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	(*RecordReleaseOutcomeRequest)(nil),     // 20: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	(*RecordReleaseOutcomeResponse)(nil),    // 21: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	(*TransitionDraftRequest)(nil),          // 22: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	(*TransitionDraftResponse)(nil),         // 23: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	(*ApproveDraftRequest)(nil),             // 24: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	(*ApproveDraftResponse)(nil),            // 25: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	(*DraftCurrentRevision)(nil),            // 26: vrooli.content_desk.v1.artifacts.DraftCurrentRevision
+	(*GetDraftCurrentRevisionRequest)(nil),  // 27: vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionRequest
+	(*GetDraftCurrentRevisionResponse)(nil), // 28: vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionResponse
 }
 var file_content_desk_v1_artifacts_artifacts_proto_depIdxs = []int32{
 	0,  // 0: vrooli.content_desk.v1.artifacts.ListDraftsResponse.drafts:type_name -> vrooli.content_desk.v1.artifacts.Draft
@@ -1761,35 +2039,38 @@ var file_content_desk_v1_artifacts_artifacts_proto_depIdxs = []int32{
 	0,  // 7: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 8: vrooli.content_desk.v1.artifacts.TransitionDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 9: vrooli.content_desk.v1.artifacts.ApproveDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	1,  // 10: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
-	3,  // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
-	5,  // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
-	8,  // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:input_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
-	10, // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:input_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
-	12, // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:input_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
-	14, // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:input_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
-	16, // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:input_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
-	18, // 18: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:input_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
-	20, // 19: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:input_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
-	22, // 20: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	24, // 21: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	2,  // 22: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
-	4,  // 23: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
-	6,  // 24: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	9,  // 25: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:output_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
-	11, // 26: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:output_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
-	13, // 27: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:output_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
-	15, // 28: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:output_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
-	17, // 29: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:output_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
-	19, // 30: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:output_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
-	21, // 31: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:output_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
-	23, // 32: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	25, // 33: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
-	22, // [22:34] is the sub-list for method output_type
-	10, // [10:22] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	26, // 10: vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionResponse.current_revision:type_name -> vrooli.content_desk.v1.artifacts.DraftCurrentRevision
+	1,  // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
+	3,  // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
+	5,  // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
+	8,  // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:input_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
+	10, // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:input_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
+	12, // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:input_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
+	14, // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:input_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
+	16, // 18: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:input_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
+	18, // 19: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:input_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	20, // 20: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:input_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	22, // 21: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	24, // 22: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	27, // 23: vrooli.content_desk.v1.artifacts.ArtifactsService.GetDraftCurrentRevision:input_type -> vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionRequest
+	2,  // 24: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
+	4,  // 25: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
+	6,  // 26: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
+	9,  // 27: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:output_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
+	11, // 28: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:output_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
+	13, // 29: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:output_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
+	15, // 30: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:output_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
+	17, // 31: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:output_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
+	19, // 32: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:output_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	21, // 33: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:output_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	23, // 34: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	25, // 35: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	28, // 36: vrooli.content_desk.v1.artifacts.ArtifactsService.GetDraftCurrentRevision:output_type -> vrooli.content_desk.v1.artifacts.GetDraftCurrentRevisionResponse
+	24, // [24:37] is the sub-list for method output_type
+	11, // [11:24] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_artifacts_artifacts_proto_init() }
@@ -1803,7 +2084,7 @@ func file_content_desk_v1_artifacts_artifacts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_artifacts_artifacts_proto_rawDesc), len(file_content_desk_v1_artifacts_artifacts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

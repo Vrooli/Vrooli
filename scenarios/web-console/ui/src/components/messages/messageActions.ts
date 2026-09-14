@@ -36,6 +36,8 @@ export interface MessageActionContext {
   onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
   onCopy: (eventId: string, text: string) => void;
   onPlayFromHere: (eventId: string) => void;
+  /** Present only where one message plays on its own (the reader). */
+  onPlayMessage?: (eventId: string) => void;
   onToggleRenderMode: (eventId: string) => void;
   /** The row is taller than the collapse threshold and ends in the reader footer. */
   isTall?: boolean;
@@ -104,6 +106,16 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     appliesTo: (ctx) => !ctx.readOnly && ctx.event.role !== "user",
     run: (ctx) => { ctx.onPlayFromHere(ctx.event.id); },
     testId: (ctx) => `msg-speak-from-${ctx.event.id}`,
+    disabled: (ctx) => ctx.isAudioLoading,
+  },
+  {
+    id: "play-message",
+    labelKey: strings.reader.play,
+    icon: () => Play,
+    placement: "primary",
+    appliesTo: (ctx) => ctx.onPlayMessage != null,
+    run: (ctx) => { ctx.onPlayMessage?.(ctx.event.id); },
+    testId: (ctx) => `msg-play-${ctx.event.id}`,
     disabled: (ctx) => ctx.isAudioLoading,
   },
   {

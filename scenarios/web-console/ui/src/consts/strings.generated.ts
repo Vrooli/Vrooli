@@ -1835,6 +1835,8 @@ export const strings = {
     nextReply: "reader.nextReply",
     smaller: "reader.smaller",
     larger: "reader.larger",
+    back: "reader.back",
+    nextReplyNew: "reader.nextReplyNew",
   },
 } as const;
 

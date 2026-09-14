@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -103,6 +104,63 @@ func TestMeteredClientResolvesSharedAccessTokenOnlyWhenCallerDidNotForwardOne(t 
 	}
 	if gotAuthorization != "Bearer caller-access" || resolverCalls != 1 {
 		t.Fatalf("forwarded authorization = %q, resolver calls = %d", gotAuthorization, resolverCalls)
+	}
+}
+
+func TestMeteredClientTypesProviderLimitHTTPErrors(t *testing.T) {
+	statuses := []struct {
+		name       string
+		status     int
+		retryAfter string
+		wantCode   string
+	}{
+		{"insufficient credits", http.StatusPaymentRequired, "", CodeInsufficientCredits},
+		{"rate limited", http.StatusTooManyRequests, "45", CodeRateLimited},
+		{"overloaded", http.StatusServiceUnavailable, "12", CodeProviderOverloaded},
+	}
+	for _, tc := range statuses {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.retryAfter != "" {
+					w.Header().Set("Retry-After", tc.retryAfter)
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":"provider says no"}`))
+			}))
+			defer server.Close()
+			client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+			_, err := client.Run(WithAccessToken(context.Background(), "Bearer token"), MeteredRequest{
+				Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}},
+			})
+			var cmdErr *CommandError
+			if !errors.As(err, &cmdErr) {
+				t.Fatalf("error = %v, want *CommandError", err)
+			}
+			if cmdErr.Code != tc.wantCode || cmdErr.HTTPStatus != tc.status || cmdErr.RetryAfter != tc.retryAfter {
+				t.Fatalf("command error = %+v, want code %q status %d retry-after %q", cmdErr, tc.wantCode, tc.status, tc.retryAfter)
+			}
+		})
+	}
+}
+
+func TestMeteredClientInsufficientCreditsDoesNotTripTransientBreaker(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusPaymentRequired)
+		_, _ = w.Write([]byte(`{"error":"insufficient credits"}`))
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL, FailureLimit: 1, Cooldown: time.Hour})
+	ctx := WithAccessToken(context.Background(), "Bearer token")
+	request := MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}}
+	for attempt := 0; attempt < 2; attempt++ {
+		_, err := client.Run(ctx, request)
+		var cmdErr *CommandError
+		if !errors.As(err, &cmdErr) || cmdErr.Code != CodeInsufficientCredits {
+			t.Fatalf("attempt %d error = %v, want insufficient-credits CommandError", attempt, err)
+		}
+		if !errors.Is(err, ErrInsufficientCredits) {
+			t.Fatalf("attempt %d lost the ErrInsufficientCredits sentinel", attempt)
+		}
 	}
 }
 

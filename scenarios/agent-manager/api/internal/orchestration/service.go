@@ -669,6 +669,10 @@ type Orchestrator struct {
 	// arrive concurrently must not both observe parked and start continuations.
 	wakeMu sync.Mutex
 
+	// terminalAccounting remembers which ended standalone runs have settled
+	// terminal usage, so the reconcile sweep revisits only runs that still owe it.
+	terminalAccounting terminalAccountingSweep
+
 	// Repositories (persistence)
 	profiles              repository.ProfileRepository
 	workflows             repository.WorkflowRepository

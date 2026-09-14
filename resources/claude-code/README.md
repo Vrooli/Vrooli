@@ -84,17 +84,25 @@ resource-claude-code permissions drift-check
 resource-claude-code permissions doctor
 ```
 
-Every `Bash(...)` deny rule is paired with the native
-`resource-claude-code permissions hook-guard` PreToolUse matcher as a defensive
+The managed `resource-claude-code permissions hook-guard` PreToolUse hook is
+Claude Code's entry into the shared agent policy runtime
+(`docs/architecture/agent-policy-runtime.md`). It decides every deletion by
+resolved path, against the policy floor and the locations storage-manager
+declares, including deletions inside compound commands, `bash -c`, `eval`, and
+substitutions. It returns one of three answers:
+- **allow**;
+- **ask**, which raises Claude's own confirmation prompt in `default`, `acceptEdits`, and `plan` modes and becomes deny in any mode that cannot prompt;
+- **deny**, with the reason on stderr.
+
+The hook also matches the remaining `Bash(...)` deny rules natively, as a
 backstop for the upstream `permissions.deny` enforcement bug
 ([anthropics/claude-code#18846](https://github.com/anthropics/claude-code/issues/18846),
-[#29026](https://github.com/anthropics/claude-code/issues/29026)). The matcher
-normalizes Claude's `Bash(...)` syntax and resolves `$HOME`/`~` aliases before
-glob matching, and checks `rm`, `find -delete`, and `truncate` by resolved path
-rather than by command text. It is pure Go, so it needs neither a shell nor a
-Python runtime on the host; decisions are appended to
-`~/.claude/.vrooli-hooks/log`. It is verified with a data-only replay and a
-non-mutating live probe.
+[#29026](https://github.com/anthropics/claude-code/issues/29026)). For those
+rules it normalizes Claude's `Bash(...)` syntax and resolves `$HOME`/`~` before
+glob matching. It stays installed whenever hooks are enabled, with or without
+deny rules. It is pure Go, so the host needs neither a shell nor a Python
+runtime. Decisions, asks included, are appended to `~/.claude/.vrooli-hooks/log`.
+It is verified with a data-only replay and a non-mutating live probe.
 
 For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged settings, and reports desired/live fingerprints, native paths, changes, and the `hook_verified` enforcement posture.
 

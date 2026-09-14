@@ -18,6 +18,7 @@ service ArtifactsService {
   rpc RecordReleaseOutcome(RecordReleaseOutcomeRequest) returns (RecordReleaseOutcomeResponse);
   rpc TransitionDraft(TransitionDraftRequest) returns (TransitionDraftResponse);
   rpc ApproveDraft(ApproveDraftRequest) returns (ApproveDraftResponse);
+  rpc GetDraftCurrentRevision(GetDraftCurrentRevisionRequest) returns (GetDraftCurrentRevisionResponse);
 }
 
 message Draft {
@@ -169,4 +170,34 @@ message ApproveDraftRequest {
 }
 message ApproveDraftResponse {
   Draft draft = 1;
+}
+
+// DraftCurrentRevision is an artifact's effective body plus only the editorial
+// authority that still applies to exactly that body. The latest stored revision
+// is selected only when it matches the live draft; a review that was invalidated
+// or superseded, or an approval withdrawn by a revision, resolves to an empty
+// field (and has_* = false) instead of to stale evidence. A consumer deciding
+// whether to release must read this, not the prior review/approval.
+message DraftCurrentRevision {
+  string draft_id = 1;
+  string status = 2;
+  string body = 3;
+  string revision_id = 4;
+  string revision_actor_kind = 5;
+  string revision_capacity = 6;
+  string created_at = 7;
+  string review_run_id = 8;
+  string review_at = 9;
+  string approval_actor_kind = 10;
+  string approval_capacity = 11;
+  string approved_at = 12;
+  bool has_stored_revision = 13;
+  bool has_applicable_review = 14;
+  bool has_applicable_approval = 15;
+}
+message GetDraftCurrentRevisionRequest {
+  string id = 1;
+}
+message GetDraftCurrentRevisionResponse {
+  DraftCurrentRevision current_revision = 1;
 }

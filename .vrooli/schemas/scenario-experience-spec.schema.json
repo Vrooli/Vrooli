@@ -698,8 +698,8 @@
         },
         "storyRef": {
           "type": "string",
-          "pattern": "^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/story\\.json$",
-          "description": "Path from experience/components/ to the catalog component or hook version story.json that grounds this spec. Adopted scenario components may point at the shared react-component-library catalog."
+          "pattern": "(?:^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/story\\.json$|^\\.\\./\\.\\./ui/src/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\\.story\\.json$)",
+          "description": "Path from experience/components/ to an immutable library story.json or a local UI source-adjacent page story. Adopted components may reference the shared library catalog."
         },
         "extends": {
           "$ref": "#/$defs/LibraryComponentReference",

@@ -18,7 +18,7 @@
   "effortRefs": [
     "workspace:/home/matthalloran8/Vrooli#aquila-launch-2026-09-17"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
@@ -441,7 +441,7 @@
     }
   },
   "purpose": "domain-stewardship",
-  "revision": 10,
+  "revision": 11,
   "runtime": {
     "mode": "multi-process"
   },
@@ -502,5 +502,5 @@
       "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
     }
   ],
-  "updatedAt": "2026-09-13T22:02:55Z"
+  "updatedAt": "2026-09-14T05:05:48Z"
 }

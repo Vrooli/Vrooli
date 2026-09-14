@@ -16,6 +16,26 @@
           "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
+      "projects": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude/projects",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "ask",
+        "rationale": "Per-project transcripts and agent memory. Agents curate their own memory files, so deletion here is the operator's confirmation rather than a flat refusal; the rest of ~/.claude stays denied."
+      },
+      "memory": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude/projects/*/memory",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "allow",
+        "rationale": "Claude Code's per-project auto-memory, one directory per project. Its own instructions have agents delete memories that turn out to be wrong, so agents may delete here without confirmation; the pattern is expanded to existing directories when storage-manager publishes agent-policy path rules. No budget: the bytes are measured under the projects entry."
+      },
       "skills": {
         "rung": "relocatable",
         "path": "$USER_HOME/.claude/skills",

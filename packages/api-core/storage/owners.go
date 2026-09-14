@@ -104,6 +104,11 @@ type RelocationDeclaration struct {
 type ReclaimDeclaration struct {
 	Command string `json:"command,omitempty"`
 	Pruner  string `json:"pruner,omitempty"`
+	// Operation is an owner API path (for example "/api/v1/storage/reclaim")
+	// that storage-manager POSTs {"dry_run":false} to when a non-regenerable
+	// entry stays over budget. Storage-manager never deletes such data itself;
+	// this is how its backstop asks the owner to reclaim instead.
+	Operation string `json:"operation,omitempty"`
 }
 
 // BudgetDeclaration is the legacy/storage-surface budget shape. Retention's

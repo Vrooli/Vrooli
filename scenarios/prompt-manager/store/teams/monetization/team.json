@@ -1,31 +1,5 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "monetization",
-  "displayName": "Monetization Team",
-  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
-  "objectivesServed": [
-    {
-      "id": "T1",
-      "role": "primary",
-      "acknowledgedRevision": "eb66069cc894"
-    }
-  ],
-  "instrument": {
-    "status": "live",
-    "scenario": "offer-desk",
-    "archetype": "production-ledger",
-    "coversScenarios": [
-      "offer-desk",
-      "money-ledger"
-    ]
-  },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
+  "attributionValidFrom": "2026-05-04",
   "coordination": {
     "pattern": "independent",
     "reportingMode": "none",
@@ -39,47 +13,31 @@
       "requireHandoff": true
     }
   },
+  "createdAt": "2026-04-20T00:00:00Z",
+  "displayName": "Monetization Team",
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
+  "id": "monetization",
+  "instrument": {
+    "status": "live",
+    "scenario": "offer-desk",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "offer-desk",
+      "money-ledger"
+    ]
   },
-  "revision": 2,
-  "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-22T11:17:33Z",
-  "topicCatalog": [
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
+  "objectivesServed": [
     {
-      "prefix": "opportunity-inbox/*",
-      "status": "live",
-      "purpose": "Intake for monetization opportunity signals classified by `monetization-opportunity`."
-    },
-    {
-      "prefix": "scout-scan/*",
-      "status": "live",
-      "purpose": "Scout heartbeat summaries and pool snapshots."
-    },
-    {
-      "prefix": "monetization/opportunity/*",
-      "status": "live",
-      "purpose": "Additional opportunity observations that are not yet promoted."
-    },
-    {
-      "prefix": "validation-inbox/*",
-      "status": "live",
-      "purpose": "Validation requests classified by `monetization-validation`."
-    },
-    {
-      "prefix": "monetization-benchmark-adjacent-record/*",
-      "status": "live",
-      "purpose": "Cross-team benchmark-adjacent evidence from marketing."
-    },
-    {
-      "prefix": "monetization-benchmark-record/*",
-      "status": "live",
-      "purpose": "Validated benchmark records."
+      "id": "T1",
+      "role": "primary",
+      "acknowledgedRevision": "eb66069cc894"
     }
   ],
   "operatingContract": {
@@ -375,7 +333,7 @@
           "Every candidate needs a concrete revisit trigger.",
           "Every idea needs both acquisition and retention hypotheses.",
           "Do not nominate Tier 4 hardware work without explicit operator initiation.",
-          "Inbox triage must leave no entry under opportunity-inbox/* \u2014 promote (retag to monetization/opportunity/<slug>), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
+          "Inbox triage must leave no entry under opportunity-inbox/* \u2014 promote (retag to monetization/opportunity/\u003cslug\u003e), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -384,10 +342,10 @@
         "taskParameters": {
           "ideasPerHeartbeat": "3-10 when signal supports it; fewer is valid during quiet signal",
           "destinationRule": [
-            "strong signal plus clear fit -> work item",
-            "plausible speculative idea -> knowledge entry under monetization/opportunity/<slug> with required front-matter (catalog, revisit_trigger, acquisition_hypothesis, retention_hypothesis)",
-            "raw untriaged signal -> knowledge entry under opportunity-inbox/<signal-type>/<slug>",
-            "weak or incoherent -> drop"
+            "strong signal plus clear fit -\u003e work item",
+            "plausible speculative idea -\u003e knowledge entry under monetization/opportunity/\u003cslug\u003e with required front-matter (catalog, revisit_trigger, acquisition_hypothesis, retention_hypothesis)",
+            "raw untriaged signal -\u003e knowledge entry under opportunity-inbox/\u003csignal-type\u003e/\u003cslug\u003e",
+            "weak or incoherent -\u003e drop"
           ]
         }
       },
@@ -448,7 +406,7 @@
         "safetyCriticalRules": [
           "Every captured value needs a source, date, and applicability flag.",
           "Deep research stays scoped to the active tier and bundle.",
-          "Validation-inbox triage must leave no entry under validation-inbox/* \u2014 validate (retag to monetization-benchmark-record/<slug>), preserve adjacent evidence, file a work item, or delete.",
+          "Validation-inbox triage must leave no entry under validation-inbox/* \u2014 validate (retag to monetization-benchmark-record/\u003cslug\u003e), preserve adjacent evidence, file a work item, or delete.",
           "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
         ],
         "readOnlyModeBehavior": {
@@ -501,5 +459,47 @@
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "purpose": "domain-stewardship",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "topicCatalog": [
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Intake for monetization opportunity signals classified by `monetization-opportunity`."
+    },
+    {
+      "prefix": "scout-scan/*",
+      "status": "live",
+      "purpose": "Scout heartbeat summaries and pool snapshots."
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "status": "live",
+      "purpose": "Additional opportunity observations that are not yet promoted."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Validation requests classified by `monetization-validation`."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Cross-team benchmark-adjacent evidence from marketing."
+    },
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "status": "live",
+      "purpose": "Validated benchmark records."
+    }
+  ],
+  "updatedAt": "2026-09-14T05:05:55Z"
 }

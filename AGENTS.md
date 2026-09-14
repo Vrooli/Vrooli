@@ -85,6 +85,7 @@ wait for the user to request it — recognize the pattern and act. Load with
 | Authoring an adaptive mandate (scenario target + sensors, no fixed phases) | `adaptive-mandate-authoring` |
 | Setting up or running unattended scenario self-improvement through Swarm (goal or sliced mode) | `goal-loop` → `scenario-improvement-campaign`; model in **docs/agent-system/SCENARIO_DEVELOPMENT.md** |
 | Coordinating a large cross-scenario effort across plans, agents, and resumed sessions | `large-effort-orchestration` |
+| Supervising effort orchestrators, delivery effectiveness, and supervision overhead | `large-effort-supervision` |
 | Writing a `/goal`, an `until`, or a sub-agent assignment | `harness-goal-authoring` |
 | Executing an existing plan | `implementation-plan-execution` |
 | Coordinating a reviewed multi-plan family | `plan-family-orchestration` |

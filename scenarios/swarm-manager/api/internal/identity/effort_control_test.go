@@ -229,3 +229,104 @@ func TestEffortControlRepairLimitsRejectIncoherentTotals(t *testing.T) {
 		t.Fatal("expected incoherent cumulative repair limits to be refused")
 	}
 }
+
+func TestEffortActiveMinutesLimit(t *testing.T) {
+	cases := []struct {
+		name   string
+		limits RepairLimits
+		want   int
+	}{
+		{"bounded fraction", RepairLimits{EffortFraction: 0.2, ApprovedActiveMinutes: 100}, 20},
+		{"unbounded effort", RepairLimits{EffortFraction: 0.2}, 0},
+		{"no fraction", RepairLimits{ApprovedActiveMinutes: 100}, 0},
+		{"fraction never rounds to zero", RepairLimits{EffortFraction: 0.001, ApprovedActiveMinutes: 100}, 1},
+	}
+	for _, tc := range cases {
+		if got := tc.limits.EffortActiveMinutesLimit(); got != tc.want {
+			t.Fatalf("%s: got %d want %d", tc.name, got, tc.want)
+		}
+	}
+	if err := (RepairLimits{PerFingerprint: 1, PerComponent: 1, PerEffort: 1, ComponentActiveMinutes: 90, EffortFraction: 1.5}).Validate(); err == nil {
+		t.Fatal("expected an out-of-range effort fraction to be refused")
+	}
+	if err := (RepairLimits{PerFingerprint: 1, PerComponent: 1, PerEffort: 1, ComponentActiveMinutes: 90, EffortFraction: 0.2, ApprovedActiveMinutes: 100}).Validate(); err != nil {
+		t.Fatalf("a coherent bounded repair policy was refused: %v", err)
+	}
+}
+
+func TestCandidateQualificationAdmitsBoundQualifiedRoute(t *testing.T) {
+	binding := testCandidatePolicy()
+	candidate := Candidate{
+		Runner:    "opencode",
+		Model:     "opencode-go/deepseek-v4.1-flash",
+		Qualified: true,
+	}
+	if err := binding.QualifyLastResort(candidate); err != nil {
+		t.Fatalf("a bound, qualified subscription route was refused: %v", err)
+	}
+}
+
+func TestCandidateQualificationRefusesWithheldRoute(t *testing.T) {
+	binding := testCandidatePolicy()
+	candidate := Candidate{
+		Runner:    "openrouter-paid",
+		Model:     "deepseek/deepseek-v4.1-flash",
+		Qualified: true,
+	}
+	if err := binding.QualifyLastResort(candidate); !errors.Is(err, ErrCandidateWithheld) {
+		t.Fatalf("expected a withheld route to be refused, got %v", err)
+	}
+}
+
+func TestCandidateQualificationRefusesUnboundRoute(t *testing.T) {
+	binding := testCandidatePolicy()
+	candidate := Candidate{
+		Runner:    "some-other-runner",
+		Model:     "some-other-model",
+		Qualified: true,
+	}
+	if err := binding.QualifyLastResort(candidate); !errors.Is(err, ErrCandidateUnbound) {
+		t.Fatalf("expected an unbound route to be refused, got %v", err)
+	}
+}
+
+func TestCandidateQualificationRefusesUnqualifiedRoute(t *testing.T) {
+	binding := testCandidatePolicy()
+	candidate := Candidate{
+		Runner: "opencode",
+		Model:  "opencode-go/deepseek-v4.1-flash",
+	}
+	if err := binding.QualifyLastResort(candidate); !errors.Is(err, ErrCandidateUnqualified) {
+		t.Fatalf("expected an unqualified route to be refused, got %v", err)
+	}
+}
+
+func TestCandidateQualificationRefusesUnknownBillingMeteredRoute(t *testing.T) {
+	binding := testCandidatePolicy()
+	candidate := Candidate{
+		Runner:    "opencode",
+		Model:     "opencode-go/deepseek-v4.1-flash",
+		Metered:   true,
+		Qualified: true,
+	}
+	if err := binding.QualifyLastResort(candidate); !errors.Is(err, ErrCandidateBillingUnknown) {
+		t.Fatalf("expected unknown metered billing to be refused, got %v", err)
+	}
+
+	candidate.BillingKnown = true
+	if err := binding.QualifyLastResort(candidate); !errors.Is(err, ErrCandidateBillingUnknown) {
+		t.Fatalf("expected known-but-unfunded metered billing to be refused, got %v", err)
+	}
+
+	candidate.Funded = true
+	if err := binding.QualifyLastResort(candidate); err != nil {
+		t.Fatalf("a funded metered route was refused: %v", err)
+	}
+}
+
+func TestCandidateQualificationRefusesBlankIdentity(t *testing.T) {
+	binding := testCandidatePolicy()
+	if err := binding.QualifyLastResort(Candidate{}); !errors.Is(err, ErrCandidateIdentityRequired) {
+		t.Fatalf("expected a blank candidate identity to be refused, got %v", err)
+	}
+}

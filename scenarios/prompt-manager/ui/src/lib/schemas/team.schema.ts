@@ -225,9 +225,36 @@ export type TeamSharedFileEntry = z.infer<typeof TeamSharedFileEntrySchema>
 
 export const TeamSharedFileListResponseSchema = z.object({
   teamId: z.string(),
-  files: z.array(TeamSharedFileEntrySchema),
+  // Proto3 JSON omits empty repeated fields. Treat an omitted files field as
+  // the valid empty-directory response rather than a transport failure.
+  files: z.array(TeamSharedFileEntrySchema).default([]),
 })
 export type TeamSharedFileListResponse = z.infer<typeof TeamSharedFileListResponseSchema>
+
+export const EffortWorkspaceFileSchema = TeamSharedFileEntrySchema
+export type EffortWorkspaceFile = z.infer<typeof EffortWorkspaceFileSchema>
+
+export const EffortWorkspaceSchema = z.object({
+  effortRef: z.string(),
+  slug: z.string(),
+  stage: z.string().optional(),
+  files: z.array(EffortWorkspaceFileSchema),
+})
+export type EffortWorkspace = z.infer<typeof EffortWorkspaceSchema>
+
+export const EffortWorkspaceListResponseSchema = z.object({
+  teamId: z.string(),
+  workspaces: z.array(EffortWorkspaceSchema),
+  unavailable: z.array(z.object({ effortRef: z.string(), reason: z.string() })).default([]),
+})
+export type EffortWorkspaceListResponse = z.infer<typeof EffortWorkspaceListResponseSchema>
+
+export const EffortWorkspaceContentResponseSchema = z.object({
+  effortRef: z.string(),
+  path: z.string(),
+  content: z.string(),
+})
+export type EffortWorkspaceContentResponse = z.infer<typeof EffortWorkspaceContentResponseSchema>
 
 export const TeamSharedFileContentResponseSchema = z.object({
   teamId: z.string(),

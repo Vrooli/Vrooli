@@ -60,6 +60,7 @@ describe("MESSAGE_ACTIONS", () => {
     expect(MESSAGE_ACTIONS.map(({ id }) => id)).toEqual([
       "copy",
       "read-from-here",
+      "play-message",
       "open-in-reader",
       "save-as-snippet",
       "handoff",
@@ -67,6 +68,16 @@ describe("MESSAGE_ACTIONS", () => {
       "render-mode",
       "playback-mode",
     ]);
+  });
+
+  it("offers playing one message alone only where a surface plays it (the reader)", () => {
+    const ctx = context("assistant");
+    expect(action("play-message").appliesTo(ctx)).toBe(false);
+    const onPlayMessage = vi.fn();
+    const readerCtx = { ...ctx, onPlayMessage };
+    expect(action("play-message").appliesTo(readerCtx)).toBe(true);
+    action("play-message").run(readerCtx);
+    expect(onPlayMessage).toHaveBeenCalledWith(ctx.event.id);
   });
 
   it.each(["user", "assistant"] as const)("applies universal actions to %s messages", (role) => {

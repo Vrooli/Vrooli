@@ -114,7 +114,9 @@ func scenarioMutex(key string) *sync.Mutex {
 // direct phase/stop callers surface the owner details immediately.
 //
 // The returned release closure must be invoked exactly once when the
-// caller is finished. Deferring it is the expected pattern.
+// caller is finished. Deferring it is the expected pattern. While the lock is
+// held, a write to a broken stdout or stderr fails instead of ending the
+// process (holdBrokenPipeTolerance), so the mutation it guards finishes.
 func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 	return r.acquireScenarioLockWithMode(name, true)
 }
@@ -173,6 +175,8 @@ func (r *Runner) acquireScenarioLockWithMode(name string, blocking bool) (func()
 		_ = f.Sync()
 	}
 
+	// A mutation under this lock finishes even if the CLI's output reader goes.
+	releaseBrokenPipe := holdBrokenPipeTolerance()
 	var released bool
 	return func() {
 		if released {
@@ -182,6 +186,7 @@ func (r *Runner) acquireScenarioLockWithMode(name string, blocking bool) (func()
 		releaseFile()
 		_ = f.Close()
 		mu.Unlock()
+		releaseBrokenPipe()
 	}, nil
 }
 

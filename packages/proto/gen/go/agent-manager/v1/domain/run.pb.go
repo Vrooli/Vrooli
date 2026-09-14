@@ -334,8 +334,23 @@ type Run struct {
 	// Harness identity supplied when an operator-started session is attached.
 	HarnessKind      string `protobuf:"bytes,51,opt,name=harness_kind,json=harnessKind,proto3" json:"harness_kind,omitempty"`
 	HarnessSessionId string `protobuf:"bytes,52,opt,name=harness_session_id,json=harnessSessionId,proto3" json:"harness_session_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Goal delivery mechanism for a goal-mode interactive run. One of
+	// "native_verified" (the harness installed /goal and a goal marker was
+	// observed), "native_unverified" (a native objective was sent but no marker
+	// was observed), "prompt_carried" (no native support; the finish line rode in
+	// the prompt), or empty for a run with no completion objective.
+	GoalDelivery string `protobuf:"bytes,54,opt,name=goal_delivery,json=goalDelivery,proto3" json:"goal_delivery,omitempty"`
+	// Typed terminal pair recorded on every terminal run. terminal_class is
+	// "verdict" or "interruption"; stop_reason is one of complete, blocked,
+	// abstained, usage_window, timeout, crash, session_lost. Swarm trusts a
+	// verdict and resumes an interruption.
+	TerminalClass string `protobuf:"bytes,55,opt,name=terminal_class,json=terminalClass,proto3" json:"terminal_class,omitempty"`
+	StopReason    string `protobuf:"bytes,56,opt,name=stop_reason,json=stopReason,proto3" json:"stop_reason,omitempty"`
+	// LastHandoff is the last structured handoff or assistant message retained
+	// for a resume prompt.
+	LastHandoff   string `protobuf:"bytes,57,opt,name=last_handoff,json=lastHandoff,proto3" json:"last_handoff,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -721,6 +736,34 @@ func (x *Run) GetHarnessKind() string {
 func (x *Run) GetHarnessSessionId() string {
 	if x != nil {
 		return x.HarnessSessionId
+	}
+	return ""
+}
+
+func (x *Run) GetGoalDelivery() string {
+	if x != nil {
+		return x.GoalDelivery
+	}
+	return ""
+}
+
+func (x *Run) GetTerminalClass() string {
+	if x != nil {
+		return x.TerminalClass
+	}
+	return ""
+}
+
+func (x *Run) GetStopReason() string {
+	if x != nil {
+		return x.StopReason
+	}
+	return ""
+}
+
+func (x *Run) GetLastHandoff() string {
+	if x != nil {
+		return x.LastHandoff
 	}
 	return ""
 }
@@ -3109,8 +3152,12 @@ type ContinueRunRequest struct {
 	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	// Optional replay-safe key for programmatic continuation callers.
 	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Reinstall the harness-native goal before the follow-up message. Set by a
+	// resume that re-adopts an interrupted interactive run so the finish line is
+	// installed again in the same session.
+	ReinstallGoal bool `protobuf:"varint,5,opt,name=reinstall_goal,json=reinstallGoal,proto3" json:"reinstall_goal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContinueRunRequest) Reset() {
@@ -3169,6 +3216,13 @@ func (x *ContinueRunRequest) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *ContinueRunRequest) GetReinstallGoal() bool {
+	if x != nil {
+		return x.ReinstallGoal
+	}
+	return false
 }
 
 // ContinueRunResponse contains the result of continuing a run.
@@ -3753,7 +3807,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x15\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x16\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -3816,7 +3870,12 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x0fwork_references\x185 \x03(\v2-.vrooli.vrooli_events.v1.domain.WorkReferenceR\x0eworkReferences\x12\x18\n" +
 	"\asubject\x182 \x03(\tR\asubject\x12!\n" +
 	"\fharness_kind\x183 \x01(\tR\vharnessKind\x12,\n" +
-	"\x12harness_session_id\x184 \x01(\tR\x10harnessSessionIdB\x13\n" +
+	"\x12harness_session_id\x184 \x01(\tR\x10harnessSessionId\x12#\n" +
+	"\rgoal_delivery\x186 \x01(\tR\fgoalDelivery\x12%\n" +
+	"\x0eterminal_class\x187 \x01(\tR\rterminalClass\x12\x1f\n" +
+	"\vstop_reason\x188 \x01(\tR\n" +
+	"stopReason\x12!\n" +
+	"\flast_handoff\x189 \x01(\tR\vlastHandoffB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -4075,12 +4134,13 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x1b\n" +
 	"\tfile_size\x18\x04 \x01(\x03R\bfileSize\x12!\n" +
 	"\fstorage_path\x18\x05 \x01(\tR\vstoragePath\x12\x10\n" +
-	"\x03url\x18\x06 \x01(\tR\x03url\"\xa8\x01\n" +
+	"\x03url\x18\x06 \x01(\tR\x03url\"\xcf\x01\n" +
 	"\x12ContinueRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12!\n" +
 	"\amessage\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12%\n" +
 	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12'\n" +
-	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\x8d\x01\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12%\n" +
+	"\x0ereinstall_goal\x18\x05 \x01(\bR\rreinstallGoal\"\x8d\x01\n" +
 	"\x13ContinueRunResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.agent_manager.v1.RunR\x03run\x12\x14\n" +

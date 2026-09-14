@@ -13,10 +13,16 @@ import (
 )
 
 const (
-	defaultIndexPageSize  = 250
-	defaultRepairInterval = 15 * time.Minute
-	initialRepairDelay    = 30 * time.Second
-	initialRecoveryRetry  = 5 * time.Second
+	defaultIndexPageSize = 250
+	// The periodic tick only drains queued changes. Post-commit kicks normally
+	// do that sooner; the tick is the safety net for a lost kick.
+	defaultChangeInterval = 15 * time.Minute
+	// A full rebuild rewrites every staged document and its indexes, so it runs
+	// only after a read-only drift check finds the catalog and source disagree.
+	defaultDriftCheckInterval = 24 * time.Hour
+	defaultDriftCheckDelay    = time.Hour
+	initialRepairDelay        = 30 * time.Second
+	initialRecoveryRetry      = 5 * time.Second
 	// A full or resumed semantic rebuild embeds every eligible document, so its
 	// budget scales with the planned corpus instead of a fixed wall clock. The
 	// fixed 10-second budget this replaces could never finish a corpus of more
@@ -28,10 +34,6 @@ const (
 	semanticRebuildMinimumBudget = 2 * time.Minute
 	semanticRebuildPerDocument   = 250 * time.Millisecond
 	semanticRebuildMaximumBudget = 12 * time.Hour
-	// Retired lexical generations kept for an operator rollback, and how many
-	// older ones each activation purges (bounded so a backlog drains gradually).
-	retainedLexicalGenerations            = 2
-	purgedLexicalGenerationsPerActivation = 4
 )
 
 // semanticRebuildBudget returns the wall-clock budget for a full semantic
@@ -86,9 +88,13 @@ type IndexerOptions struct {
 	Source         SourceRepository
 	Repository     *SQLiteRepository
 	Semantic       SemanticRebuilder
-	RepairInterval time.Duration
-	PageSize       int
-	Clock          func() time.Time
+	ChangeInterval time.Duration
+	// DriftCheckInterval spaces read-only source/catalog comparisons; the first
+	// runs DriftCheckDelay after the owner loop starts.
+	DriftCheckInterval time.Duration
+	DriftCheckDelay    time.Duration
+	PageSize           int
+	Clock              func() time.Time
 }
 
 type SemanticRebuilder interface {
@@ -115,12 +121,14 @@ type SemanticRollback interface {
 // explicit post-commit change evidence, while every execution compares the
 // authoritative source again; the queue is an accelerator, never source truth.
 type Indexer struct {
-	source     SourceRepository
-	repository *SQLiteRepository
-	semantic   SemanticRebuilder
-	interval   time.Duration
-	pageSize   int
-	clock      func() time.Time
+	source        SourceRepository
+	repository    *SQLiteRepository
+	semantic      SemanticRebuilder
+	interval      time.Duration
+	driftInterval time.Duration
+	driftDelay    time.Duration
+	pageSize      int
+	clock         func() time.Time
 
 	kick            chan struct{}
 	stop            context.CancelFunc
@@ -141,8 +149,14 @@ func NewIndexer(options IndexerOptions) (*Indexer, error) {
 	if options.Source == nil || options.Repository == nil {
 		return nil, errors.New("conversation indexer requires source and repository")
 	}
-	if options.RepairInterval <= 0 {
-		options.RepairInterval = defaultRepairInterval
+	if options.ChangeInterval <= 0 {
+		options.ChangeInterval = defaultChangeInterval
+	}
+	if options.DriftCheckInterval <= 0 {
+		options.DriftCheckInterval = defaultDriftCheckInterval
+	}
+	if options.DriftCheckDelay <= 0 {
+		options.DriftCheckDelay = defaultDriftCheckDelay
 	}
 	if options.PageSize <= 0 {
 		options.PageSize = defaultIndexPageSize
@@ -154,8 +168,8 @@ func NewIndexer(options IndexerOptions) (*Indexer, error) {
 		options.Clock = time.Now
 	}
 	return &Indexer{
-		source: options.Source, repository: options.Repository, semantic: options.Semantic, interval: options.RepairInterval,
-		pageSize: options.PageSize, clock: options.Clock, kick: make(chan struct{}, 1), jobs: map[string]*indexJob{}, idempotency: map[string]string{},
+		source: options.Source, repository: options.Repository, semantic: options.Semantic, interval: options.ChangeInterval,
+		driftInterval: options.DriftCheckInterval, driftDelay: options.DriftCheckDelay, pageSize: options.PageSize, clock: options.Clock, kick: make(chan struct{}, 1), jobs: map[string]*indexJob{}, idempotency: map[string]string{},
 	}, nil
 }
 
@@ -192,7 +206,15 @@ func (i *Indexer) launchInitial(ctx context.Context) error {
 	i.mu.Lock()
 	i.recoveryPending = true
 	i.mu.Unlock()
-	resumed, err := i.recoverInterrupted(ctx)
+	// The legacy projection upgrade runs before recovery so no generation can
+	// publish into the catalog while it is being copied.
+	var resumed bool
+	_, err := i.repository.UpgradeLegacyProjection(ctx)
+	if err != nil {
+		err = fmt.Errorf("upgrade legacy conversation projection: %w", err)
+	} else {
+		resumed, err = i.recoverInterrupted(ctx)
+	}
 	var active bool
 	if err == nil && !resumed {
 		// Admission needs an authoritative read; observational status tolerates
@@ -218,10 +240,19 @@ func (i *Indexer) launchInitial(ctx context.Context) error {
 	diagnosticCtx, cancel := context.WithTimeout(ctx, time.Second)
 	_ = i.repository.SetRecoveryError(diagnosticCtx, "", i.clock().UTC())
 	cancel()
+	// Staged rows stranded by an earlier process (retired, or failed with an
+	// interrupted rollback) drain here rather than waiting for an activation.
+	i.pruneSettledGenerations(ctx)
 	if resumed {
 		return nil
 	}
 	if active {
+		// A recipe change alters every document, so it is the one serving state
+		// that needs a full rebuild at startup rather than a change drain.
+		if recipe, recipeErr := i.repository.ActiveGenerationRecipe(ctx); recipeErr == nil && recipe != DefaultRecipeVersion {
+			i.launchRepair(ctx)
+			return nil
+		}
 		i.launchChanges(ctx)
 		return nil
 	}
@@ -324,7 +355,7 @@ func (i *Indexer) resume(ctx context.Context, generation Generation, staged uint
 		i.rollback(id, err, ctx)
 		return
 	}
-	i.pruneRetiredGenerations(ctx)
+	i.pruneSettledGenerations(ctx)
 	i.update(id, func(job *indexJob) {
 		job.State, job.ActiveGeneration, job.UpdatedAt = ReindexComplete, id, i.clock().UTC()
 	})
@@ -396,12 +427,17 @@ func (i *Indexer) loop(ctx context.Context) {
 	}
 	ticker := time.NewTicker(i.interval)
 	defer ticker.Stop()
+	drift := time.NewTimer(i.driftDelay)
+	defer drift.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			i.launchRepair(ctx)
+			i.launchChanges(ctx)
+		case <-drift.C:
+			i.checkDrift(ctx)
+			drift.Reset(i.driftInterval)
 		case <-i.kick:
 			timer := time.NewTimer(250 * time.Millisecond)
 			select {
@@ -642,7 +678,7 @@ func (i *Indexer) run(ctx context.Context, id string, maxDocuments uint64, incre
 		i.rollback(id, err, ctx)
 		return
 	}
-	i.pruneRetiredGenerations(ctx)
+	i.pruneSettledGenerations(ctx)
 	i.update(id, func(j *indexJob) { j.State = ReindexComplete; j.ActiveGeneration = id; j.UpdatedAt = i.clock().UTC() })
 }
 
@@ -771,7 +807,7 @@ func (i *Indexer) runIncremental(ctx context.Context, id string, gen Generation)
 		i.rollback(id, err, ctx)
 		return
 	}
-	i.pruneRetiredGenerations(ctx)
+	i.pruneSettledGenerations(ctx)
 	i.update(id, func(j *indexJob) { j.State, j.ActiveGeneration = ReindexComplete, id })
 }
 
@@ -943,7 +979,7 @@ func (i *Indexer) activateLexicalAfterSemanticFailure(id string, cause error, ct
 		i.failPublishedSemantic(id, fmt.Errorf("activate lexical snapshot after semantic failure: %w", err), ctx)
 		return false
 	}
-	i.pruneRetiredGenerations(ctx)
+	i.pruneSettledGenerations(ctx)
 	if generation, err := i.repository.LoadGeneration(context.WithoutCancel(ctx), id); err == nil {
 		generation.State = "active"
 		generation.FailedDocuments++
@@ -1058,10 +1094,11 @@ func (i *Indexer) StatusSnapshot(ctx context.Context) (ProjectionStatus, error) 
 	return status, nil
 }
 
-// pruneRetiredGenerations is best-effort housekeeping after an activation: a
-// purge failure must not undo a promotion that already serves.
-func (i *Indexer) pruneRetiredGenerations(ctx context.Context) {
+// pruneSettledGenerations is best-effort housekeeping after an activation and
+// at startup: a purge failure must not undo a promotion that already serves,
+// and the next call resumes where this one stopped.
+func (i *Indexer) pruneSettledGenerations(ctx context.Context) {
 	pruneCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 	defer cancel()
-	_, _ = i.repository.PruneRetiredGenerations(pruneCtx, retainedLexicalGenerations, purgedLexicalGenerationsPerActivation)
+	_, _ = i.repository.PruneSettledGenerations(pruneCtx)
 }

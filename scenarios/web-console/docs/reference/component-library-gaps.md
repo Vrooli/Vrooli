@@ -17,7 +17,7 @@ that is a candidate for the component library.
 |---|---|---|
 | `ui/src/components/messages/MessageRow.tsx` | Renders one conversation event: speaker from the capture source, reveal-on-demand actions from `messageActions.ts`, and the 400 px cap with a reader footer that keeps virtualized row heights stable. | Hover/focus reveal cluster with 44 px hit areas around 28 px glyphs. |
 | `ui/src/components/messages/MessageActionList.tsx` | Maps the message-action registry onto `ContextMenu/1` (fine pointer) and `BottomSheet/1` (coarse pointer). | None beyond the two library components it composes. |
-| `ui/src/components/messages/MessagesReader.tsx` | A `FullPageDrawer/1` whose header actions (copy, play) and body are bound to one conversation event and the playback queue. | `findInText.ts`: find-in-rendered-text with the CSS Custom Highlight API and a `<mark>` fallback. |
+| `ui/src/components/messages/MessagesReader.tsx` | An in-pane view (not an overlay, so the composer below stays usable) composed from `InputGroup`, `Input/1`, `IconButton` and `CopyIconButton/1`, bound to one conversation event, reply stepping, and the message-action registry. The library has no in-region "detail replaces list" surface. | `findInText.ts`: find-in-rendered-text with the CSS Custom Highlight API and a `<mark>` fallback. |
 | `ui/src/components/messages/SessionStateSlot.tsx` | Renders one session activity (the working strip and the level-1, -2 and -3 prompt cards) from the session-activity contract, and answers through `TerminalService.AnswerPrompt`. | A status card with a timed strip and an options row is generic; the levels and the answer flow are not. |
 
 ## Scenario-local playback components

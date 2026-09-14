@@ -1,6 +1,6 @@
 # CLI Reference
 
-The `web-console` CLI is a thin shell over the HTTP API. Command groups are registered in [CODE: cli/domains/domains.go]; each domain's verbs are defined in `cli/domains/<domain>/register.go`. All `--body-file` flags accept a path to a JSON file matching the corresponding [API endpoint](./api-endpoints.md) request body.
+The `web-console` CLI is a thin shell over the HTTP API. Command groups are registered in [CODE: cli/domains/domains.go]. For manifest-backed domains, `cli/manifest.json` owns command names, flags, positionals and RPC bindings; `cli/domains/<domain>/register.go` connects those bindings to handlers and adds aliases. `manifest_embed.go` embeds that canonical manifest at build time. Repair argument declarations in the manifest, not generated artifacts or handler-only test schemas. All `--body-file` flags accept a path to a JSON file matching the corresponding [API endpoint](./api-endpoints.md) request body.
 
 Run `web-console --help` for global flags (`--base-url`, `--timeout`, output format).
 
@@ -51,7 +51,7 @@ Use `--json` with target commands for the lossless proto JSON projection. It con
 | Subcommand | Description |
 |---|---|
 | `list` / `ls` | List active sessions |
-| `get` / `show` | Show one session |
+| `get <session-id>` / `show <session-id>` | Read one session's metadata without sending terminal input or changing its lifecycle; supports `--json` |
 | `create` | Create a session (optionally `--body-file PATH`). Target/launch flags: `--target <target-id>` (use `target list`), `--working-dir <path>`, `--origin ui\|programmatic\|remote` (default `programmatic`), `--owner <tag>`, `--label <text>`, `--launch-command <cmd>`, `--execute-launch-command` (run the launch command immediately for local sessions, or once on first terminal attach for remote sessions), and `--idempotency-key <key>` (make retries replay-safe) |
 | `delete` / `rm` | Permanently delete a session and its retained data |
 | `archive` | Archive a session non-destructively |

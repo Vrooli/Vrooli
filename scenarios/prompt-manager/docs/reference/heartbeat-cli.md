@@ -66,6 +66,14 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 ### Finite effort leader provisioning
 
+The operator order is: create or resume a finite delivery team; register and
+verify `team:<team-id>` in Source Ledger; validate the team's operating
+contract; qualify the selected profile and owner route with a disposable team;
+provision the binding disabled; review the evidence and obtain separate
+execution approval; then enable only the approved finite team and admit its
+first run through team execution. Team metadata and a heartbeat binding never
+grant an effort approval.
+
 Create an unused heartbeat binding in disabled state through the canonical CLI:
 
 ```bash
@@ -73,7 +81,10 @@ prompt-manager team heartbeat-bind-effort <team-id> <leader-id> --request-file b
 prompt-manager team heartbeat <team-id> <leader-id> --json
 ```
 
-`binding.json` contains the exact configuration, without an RPC envelope:
+`binding.json` contains the exact configuration, without an RPC envelope. The
+`profileKey` must be an actually qualified Agent Manager route (for the current
+Prompt Manager judgment profile this is `prompt-manager/heartbeat-judgment`),
+not a display name or an unverified historical key:
 
 ```json
 {
@@ -140,6 +151,13 @@ retained identity, explicit completion/reopen transition payloads that carry no
 configuration change, refusal of ambiguous transition input or an unbound member,
 and the real human/JSON read commands. Two standing-supervision CLI regressions
 also pass. No live configuration was provisioned by these tests.
+
+The CLI tests prove request validation and lifecycle payload shape only. Live
+qualification must additionally show the team, Source Ledger scope, PM
+heartbeat state, Agent Manager task/run, exact work reference and handoff or
+receipt. A terminal owner run is not accepted effort; use the revision-checked
+completion transition only after the owner evidence is retained. Leave
+recurrence and fresh-run recovery disabled until their separate gates pass.
 
 ### Standing effort supervisor
 

@@ -105,3 +105,99 @@ func TestGenerateSerialisesExplicitZeroTemperature(t *testing.T) {
 		t.Fatalf("max_tokens = %d, want 512", payload.MaxTokens)
 	}
 }
+
+type statusHTTPClient struct {
+	status int
+	header http.Header
+	body   io.ReadCloser
+	err    error
+}
+
+func (c *statusHTTPClient) Do(_ *http.Request) (*http.Response, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	header := c.header
+	if header == nil {
+		header = make(http.Header)
+	}
+	return &http.Response{StatusCode: c.status, Header: header, Body: c.body}, nil
+}
+
+type failingReadCloser struct{}
+
+func (failingReadCloser) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
+func (failingReadCloser) Close() error             { return nil }
+
+func TestGenerateClassifiesProviderStatusWithObservedRetryAfter(t *testing.T) {
+	runtime := resourceenv.Runtime{APIBaseURL: "https://openrouter.example/v1"}
+	cases := []struct {
+		name       string
+		status     int
+		retryAfter string
+		body       string
+		wantCode   string
+	}{
+		{name: "402 is account credits", status: http.StatusPaymentRequired, body: `{"error":{"message":"insufficient credits"}}`, wantCode: CodeInsufficientCredits},
+		{name: "429 is a rate limit", status: http.StatusTooManyRequests, retryAfter: "17", body: `{"error":{"message":"slow down"}}`, wantCode: CodeRateLimited},
+		{name: "503 is an overload", status: http.StatusServiceUnavailable, retryAfter: "5", body: `{"error":{"message":"upstream overloaded"}}`, wantCode: CodeProviderOverloaded},
+		{name: "504 is an overload", status: http.StatusGatewayTimeout, body: `{"error":{"message":"gateway timeout"}}`, wantCode: CodeProviderOverloaded},
+		{name: "other statuses stay generic", status: http.StatusBadRequest, body: `{"error":{"message":"bad request"}}`, wantCode: CodeProviderFailed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			header := make(http.Header)
+			if tc.retryAfter != "" {
+				header.Set("Retry-After", tc.retryAfter)
+			}
+			client := &statusHTTPClient{status: tc.status, header: header, body: io.NopCloser(strings.NewReader(tc.body))}
+			_, err := Generate(context.Background(), client, runtime, auth.Credentials{APIKey: "test-key"}, "text-model", "hi", nil, 0, nil, nil)
+			providerErr, ok := AsProviderError(err)
+			if !ok {
+				t.Fatalf("error = %T %v, want *ProviderError", err, err)
+			}
+			if providerErr.Code != tc.wantCode {
+				t.Fatalf("code = %q, want %q", providerErr.Code, tc.wantCode)
+			}
+			if providerErr.HTTPStatus != tc.status {
+				t.Fatalf("http status = %d, want %d", providerErr.HTTPStatus, tc.status)
+			}
+			if providerErr.RetryAfter != tc.retryAfter {
+				t.Fatalf("retry-after = %q, want %q (observed value preserved verbatim)", providerErr.RetryAfter, tc.retryAfter)
+			}
+			line, markerErr := providerErr.MarkerLine()
+			if markerErr != nil {
+				t.Fatalf("MarkerLine: %v", markerErr)
+			}
+			if !strings.HasPrefix(string(line), ProviderErrorMarker) || !strings.Contains(string(line), `"code":"`+tc.wantCode+`"`) {
+				t.Fatalf("marker = %s", line)
+			}
+		})
+	}
+}
+
+func TestGenerateClassifiesStreamFailureAfterSuccess(t *testing.T) {
+	runtime := resourceenv.Runtime{APIBaseURL: "https://openrouter.example/v1"}
+	client := &statusHTTPClient{status: http.StatusOK, body: failingReadCloser{}}
+	_, err := Generate(context.Background(), client, runtime, auth.Credentials{APIKey: "test-key"}, "text-model", "hi", nil, 0, nil, nil)
+	providerErr, ok := AsProviderError(err)
+	if !ok {
+		t.Fatalf("error = %T %v, want *ProviderError", err, err)
+	}
+	if providerErr.Code != CodeStreamFailed || providerErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("stream failure = %+v, want stream_failed after HTTP 200", providerErr)
+	}
+}
+
+func TestGenerateClassifiesTransportFailure(t *testing.T) {
+	runtime := resourceenv.Runtime{APIBaseURL: "https://openrouter.example/v1"}
+	client := &statusHTTPClient{err: io.ErrClosedPipe}
+	_, err := Generate(context.Background(), client, runtime, auth.Credentials{APIKey: "test-key"}, "text-model", "hi", nil, 0, nil, nil)
+	providerErr, ok := AsProviderError(err)
+	if !ok {
+		t.Fatalf("error = %T %v, want *ProviderError", err, err)
+	}
+	if providerErr.Code != CodeUnreachable {
+		t.Fatalf("code = %q, want %q", providerErr.Code, CodeUnreachable)
+	}
+}

@@ -295,6 +295,8 @@ import {
   TeamMemberSchema,
   TeamSharedFileListResponseSchema,
   TeamSharedFileContentResponseSchema,
+  EffortWorkspaceListResponseSchema,
+  EffortWorkspaceContentResponseSchema,
   AvailableCCTeamSchema,
   ExportCCResponseSchema,
   ExclusiveMembersResponseSchema,
@@ -383,6 +385,8 @@ import {
   type UpdateMemberRequest,
   type TeamSharedFileListResponse,
   type TeamSharedFileContentResponse,
+  type EffortWorkspaceListResponse,
+  type EffortWorkspaceContentResponse,
   type TeamSharedFileCreateRequest,
   type TeamSharedFileRenameRequest,
   type AvailableCCTeam,
@@ -1392,6 +1396,15 @@ class ApiClient {
   async getTeamSharedFileContent(teamId: string, path: string): Promise<TeamSharedFileContentResponse> {
     const response = await teamsClient.getSharedFile(create(GetTeamSharedFileRequestProtoSchema, { teamId, path }))
     return parseOrThrow(TeamSharedFileContentResponseSchema, toJson(TeamSharedFileContentProtoSchema, response), 'TeamsService.GetSharedFile')
+  }
+
+  async listEffortWorkspaces(teamId: string): Promise<EffortWorkspaceListResponse> {
+    return this.request(`/effort-workspaces?${new URLSearchParams({ teamId })}`, undefined, EffortWorkspaceListResponseSchema)
+  }
+
+  async getEffortWorkspaceContent(effortRef: string, path: string): Promise<EffortWorkspaceContentResponse> {
+    const query = new URLSearchParams({ effortRef, path })
+    return this.request(`/effort-workspaces/content?${query}`, undefined, EffortWorkspaceContentResponseSchema)
   }
 
   async setTeamSharedFileContent(teamId: string, path: string, content: string): Promise<void> {

@@ -1,6 +1,4 @@
 {
-  "purpose": "supervision",
-  "lifetime": "standing",
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "effort-supervisor",
@@ -17,13 +15,14 @@
   },
   "createdAt": "2026-09-12T00:00:00Z",
   "displayName": "Effort Supervision",
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
   },
   "id": "effort-supervision",
   "kind": "team",
+  "lifetime": "standing",
   "mission": "Supervise discovered efforts against accepted outcomes, diagnose consequential stops, coordinate owner repairs and qualified recovery, and improve supervision within its allowance and actual effort grants.",
   "operatingContract": {
     "schemaVersion": 1,
@@ -99,7 +98,8 @@
       }
     }
   },
-  "revision": 3,
+  "purpose": "supervision",
+  "revision": 4,
   "runtime": {
     "mode": "multi-process"
   },
@@ -108,5 +108,5 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "updatedAt": "2026-09-12T07:48:53Z"
+  "updatedAt": "2026-09-14T05:06:18Z"
 }

@@ -114,6 +114,7 @@ type Server struct {
 	conversationSearchFile string
 	conversationTokens     *searchControlTokens
 	searchRegistrationStop context.CancelFunc
+	storageHealth          *storageHealthRuntime
 	workspaceSandbox       interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -293,6 +294,10 @@ func NewServer() (*Server, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := srv.buildStorageHealth(routedDB, repoRoot); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	srv.setupRoutes()
 	srv.startRecovery()
 	return srv, nil
@@ -387,6 +392,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 	// retry incomplete work. Failures remain visible in health. Their context
 	// lives until Cleanup; it must not inherit a historical scan's deadline.
 	steps = append(steps, maintenance.RecoveryStep{Name: "background_workers", Run: func(ctx context.Context) error {
+		s.storageHealth.setWorkersContext(ctx)
 		if s.supervisionScheduler != nil {
 			s.supervisionScheduler.Start(ctx)
 		}
@@ -435,6 +441,7 @@ func (s *Server) setupRoutes() {
 		ConversationSemantic:     s.conversationSemantic,
 		ConversationSearchFile:   s.conversationSearchFile,
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
+		StorageHealth:            s.storageHealthHandler(),
 	})
 }
 

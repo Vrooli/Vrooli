@@ -51,9 +51,19 @@ The operator approved a documentation-first expansion, not runtime implementatio
 
 ## Development review proposal — ecosystem-design-v1
 
-**State: proposed; not approved, accepted or launched.** This packet prepares one
-Swarm backlog item, “Develop Tech Tree Designer's selected ecosystem-design
-contract.” It is not a second execution control plane. The generic goal is:
+**State: selection, floors and effects approved by the operator on 2026-09-13;
+plan not yet accepted and not launched.** The operator adopted the selection
+below (all nine P0 plus OT-P1-001, OT-P1-002 and OT-P1-006; OT-P1-003/004/005 and
+all P2 excluded), the PERFORMANCE.md qualification profile v1 floors for
+OT-P0-008, and the proposed effects. For the allowance the operator chose the Swarm
+item's existing `execution_limits` (120,000,000 tokens, 3 days wall time, USD 1,000
+coding charge) instead of the smaller ceiling proposed below. The mandate is the
+Plan Manager plan `tech-tree-designer-ecosystem-mandate`, bound to Swarm item
+`execute/tech-tree-designer-ecosystem-development`. Its acceptance remains a
+separate operator action. The remainder of this section keeps its original proposal wording as history.
+
+This packet prepares one Swarm backlog item, “Develop Tech Tree Designer's
+selected ecosystem-design contract.” It is not a second execution control plane. The generic goal is:
 “Read TTD START-HERE and tech-tree-designer-improve. Develop the selected retained
 contract within its grants and aggregate limits. Continue successive in-scope
 repairs; return owner evidence for every required outcome or an explicit unmet

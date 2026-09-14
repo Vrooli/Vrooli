@@ -30,6 +30,34 @@ func (s *Service) continuationProgress(ctx context.Context, record Record) (int,
 	return s.planProgress(readCtx, record.PlanManagerExecutionID)
 }
 
+// settleGoalChainUsageLocked records owner accounting for the item's terminal
+// goal executions under the parent's acceptance that have not settled yet, and
+// reports whether any record changed. Pending or unavailable accounting stays
+// unsettled; the allowance check then treats it as unknown.
+func (s *Service) settleGoalChainUsageLocked(ctx context.Context, records []Record, parent *Record) bool {
+	changed := false
+	for i := range records {
+		record := &records[i]
+		if !isGoalRecord(*record) || record.BacklogKind != parent.BacklogKind || record.BacklogName != parent.BacklogName ||
+			record.ApprovalDigest != parent.ApprovalDigest || record.WorkflowGrant == nil ||
+			settleableUsage(record.SettledUsage) || isInspectableStatus(record.Status) {
+			continue
+		}
+		readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		usage, err := s.settledGoalUsage(readCtx, *record)
+		cancel()
+		if err != nil || usage == nil {
+			continue
+		}
+		record.SettledUsage = usage
+		if record.ExecutionID == parent.ExecutionID {
+			parent.SettledUsage = usage
+		}
+		changed = true
+	}
+	return changed
+}
+
 // continueExhaustedLocked creates at most one continuation child per sweep
 // for each eligible budget-exhausted execution. The caller does not hold the
 // service mutex; the whole selection and append is serialized here so two
@@ -90,6 +118,12 @@ func (s *Service) continueExhaustedLocked(ctx context.Context) {
 			continue
 		}
 
+		// A goal run's owner receipt can land after its terminal status. Collect
+		// it before judging the allowance so a pending receipt is not mistaken
+		// for unknown usage.
+		if s.settleGoalChainUsageLocked(ctx, records, &parent) {
+			changed = true
+		}
 		remaining, reason := remainingContinuationAllowance(records, parent)
 		if reason != "" {
 			now := nowRFC3339()

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -199,6 +200,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	if len(parentPIDs) > 0 && parentPIDs[0] > 1 {
 		cmd = shell.NewCommand(bin, append(append([]string{}, c.Args...), "--parent-pid", strconv.Itoa(parentPIDs[0]))...)
 	}
+	cmd.Env = detachedResourceEnvironment(os.Environ())
 	cmd.Stdout = logf
 	cmd.Stderr = logf
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
@@ -443,4 +445,19 @@ func boundCompanionLog(path string, maxBytes int64) {
 		data = data[cut+1:]
 	}
 	_ = os.WriteFile(path, data, tuning.PermFile)
+}
+
+// Detached resources belong to their resource lifecycle, not to the agent that
+// requested startup. Retaining that agent's credentials or run labels both
+// leaks its authority and makes historical run drainage follow a live service.
+func detachedResourceEnvironment(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, entry := range env {
+		key, _, _ := strings.Cut(entry, "=")
+		if key == cliutil.EnvIdentityToken || key == "VROOLI_RUN_ID" || strings.HasSuffix(key, "AGENT_TAG") {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
 }

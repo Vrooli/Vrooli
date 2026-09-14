@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/transition.proto.
  */
 export const file_swarm_manager_v1_domain_transition: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi90cmFuc2l0aW9uLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4iLQoPV29ya2Zsb3dMb2NhdG9yEg0KBW93bmVyGAEgASgJEgsKA2tleRgCIAEoCSKIAQoRRXhlY3V0aW9uU3RyYXRlZ3kSCgoCaWQYASABKAkSFAoMd29ya2Zsb3dfa2V5GAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRITCgt3aGVuX3RvX3VzZRgFIAEoCRIRCgljb3N0X2JhbmQYBiABKAkitAEKCUh1bWFuR2F0ZRIKCgJpZBgBIAEoCRIPCgdkZWNpZGVzGAIgASgJEhQKDGRlZmF1bHRfbW9kZRgDIAEoCRIRCgl0aHJlc2hvbGQYBCABKAESEgoKbWluX3NhbXBsZRgFIAEoBRIMCgRtb2RlGAYgASgJEhcKD2FjY2VwdGFuY2VfcmF0ZRgHIAEoARITCgtzYW1wbGVfc2l6ZRgIIAEoBRIRCglyZWFkaW5lc3MYCSABKAkioQMKClRyYW5zaXRpb24SCwoDa2V5GAEgASgJEg8KB3N1YmplY3QYAiABKAkSPAoEa2luZBgDIAEoDjIuLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uS2luZBJBCgh3b3JrZmxvdxgEIAEoCzIvLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5Xb3JrZmxvd0xvY2F0b3ISEAoIcmVxdWlyZXMYBSADKAkSFgoOaW5wdXRfY29udHJhY3QYBiABKAkSGQoRdGVybWluYWxfb3V0Y29tZXMYByADKAkSFAoMYXBwbHlfYWN0aW9uGAggASgJEkUKCnN0cmF0ZWdpZXMYCSADKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXhlY3V0aW9uU3RyYXRlZ3kSPgoLaHVtYW5fZ2F0ZXMYCiADKAsyKS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uSHVtYW5HYXRlEhIKCmh1bWFuX3dhaXQYCyABKAgqjwEKDlRyYW5zaXRpb25LaW5kEh8KG1RSQU5TSVRJT05fS0lORF9VTlNQRUNJRklFRBAAEhsKF1RSQU5TSVRJT05fS0lORF9TRVNTSU9OEAESHAoYVFJBTlNJVElPTl9LSU5EX1dPUktGTE9XEAISIQodVFJBTlNJVElPTl9LSU5EX0RFVEVSTUlOSVNUSUMQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z");
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi90cmFuc2l0aW9uLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4iLQoPV29ya2Zsb3dMb2NhdG9yEg0KBW93bmVyGAEgASgJEgsKA2tleRgCIAEoCSKEAQoNRXhlY3V0aW9uTW9kZRIKCgJpZBgBIAEoCRIUCgx3b3JrZmxvd19rZXkYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC3doZW5fdG9fdXNlGAUgASgJEhEKCWNvc3RfYmFuZBgGIAEoCSK0AQoJSHVtYW5HYXRlEgoKAmlkGAEgASgJEg8KB2RlY2lkZXMYAiABKAkSFAoMZGVmYXVsdF9tb2RlGAMgASgJEhEKCXRocmVzaG9sZBgEIAEoARISCgptaW5fc2FtcGxlGAUgASgFEgwKBG1vZGUYBiABKAkSFwoPYWNjZXB0YW5jZV9yYXRlGAcgASgBEhMKC3NhbXBsZV9zaXplGAggASgFEhEKCXJlYWRpbmVzcxgJIAEoCSKiAwoKVHJhbnNpdGlvbhILCgNrZXkYASABKAkSDwoHc3ViamVjdBgCIAEoCRI8CgRraW5kGAMgASgOMi4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlRyYW5zaXRpb25LaW5kEkEKCHdvcmtmbG93GAQgASgLMi8udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLldvcmtmbG93TG9jYXRvchIQCghyZXF1aXJlcxgFIAMoCRIWCg5pbnB1dF9jb250cmFjdBgGIAEoCRIZChF0ZXJtaW5hbF9vdXRjb21lcxgHIAMoCRIUCgxhcHBseV9hY3Rpb24YCCABKAkSRgoPZXhlY3V0aW9uX21vZGVzGAkgAygLMi0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkV4ZWN1dGlvbk1vZGUSPgoLaHVtYW5fZ2F0ZXMYCiADKAsyKS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uSHVtYW5HYXRlEhIKCmh1bWFuX3dhaXQYCyABKAgqjwEKDlRyYW5zaXRpb25LaW5kEh8KG1RSQU5TSVRJT05fS0lORF9VTlNQRUNJRklFRBAAEhsKF1RSQU5TSVRJT05fS0lORF9TRVNTSU9OEAESHAoYVFJBTlNJVElPTl9LSU5EX1dPUktGTE9XEAISIQodVFJBTlNJVElPTl9LSU5EX0RFVEVSTUlOSVNUSUMQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.swarm_manager.v1.domain.WorkflowLocator
@@ -35,15 +35,18 @@ export const WorkflowLocatorSchema: GenMessage<WorkflowLocator> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_transition, 0);
 
 /**
- * @generated from message vrooli.swarm_manager.v1.domain.ExecutionStrategy
+ * @generated from message vrooli.swarm_manager.v1.domain.ExecutionMode
  */
-export type ExecutionStrategy = Message<"vrooli.swarm_manager.v1.domain.ExecutionStrategy"> & {
+export type ExecutionMode = Message<"vrooli.swarm_manager.v1.domain.ExecutionMode"> & {
   /**
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * workflow_key is empty for the goal mode, which creates one Agent Manager
+   * run rather than draining a workflow.
+   *
    * @generated from field: string workflow_key = 2;
    */
   workflowKey: string;
@@ -70,10 +73,10 @@ export type ExecutionStrategy = Message<"vrooli.swarm_manager.v1.domain.Executio
 };
 
 /**
- * Describes the message vrooli.swarm_manager.v1.domain.ExecutionStrategy.
- * Use `create(ExecutionStrategySchema)` to create a new message.
+ * Describes the message vrooli.swarm_manager.v1.domain.ExecutionMode.
+ * Use `create(ExecutionModeSchema)` to create a new message.
  */
-export const ExecutionStrategySchema: GenMessage<ExecutionStrategy> = /*@__PURE__*/
+export const ExecutionModeSchema: GenMessage<ExecutionMode> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_transition, 1);
 
 /**
@@ -178,9 +181,9 @@ export type Transition = Message<"vrooli.swarm_manager.v1.domain.Transition"> & 
   applyAction: string;
 
   /**
-   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ExecutionStrategy strategies = 9;
+   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ExecutionMode execution_modes = 9;
    */
-  strategies: ExecutionStrategy[];
+  executionModes: ExecutionMode[];
 
   /**
    * @generated from field: repeated vrooli.swarm_manager.v1.domain.HumanGate human_gates = 10;

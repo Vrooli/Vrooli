@@ -51,6 +51,16 @@ func TestFileProviderHonorsConfiguredRetentionByteCeiling(t *testing.T) {
 	if len(preview.Items) != 1 || preview.Items[0].Path != filepath.Join(root, "a") {
 		t.Fatalf("cap preview = %#v, want oldest single overshoot candidate", preview.Items)
 	}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{
+		ProviderVersion: provider.Metadata().Version, IdempotencyKey: "bounded-cache",
+		ApprovalMode: cleanup.ApprovalModeNone, Preview: preview,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Applied || result.ReclaimedBytes != 80 || len(fsys.Removed) != 1 || fsys.Removed[0] != filepath.Join(root, "a") {
+		t.Fatalf("non-Go cache reclamation changed: result=%#v removed=%v", result, fsys.Removed)
+	}
 }
 
 func TestFileProviderHonorsAgeCeilingUnlessFreshReclaimIsAuthorized(t *testing.T) {

@@ -327,6 +327,16 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
   useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
+  // Messages is a conversation, so its composer bar shows on every device; the
+  // terminal keeps it for touch only, where there is no hardware keyboard.
+  const composerBarVisible = needsTouchControls || activeViewMode === "messages";
+  const composerBarVisibleRef = useRef(composerBarVisible);
+  composerBarVisibleRef.current = composerBarVisible;
+  // The playback pill floats over the pane's foot, where an open reader keeps
+  // its footer (hidden while a phone keyboard is up).
+  const activeReaderOpen = useMessagesViewStore((state) => workspace.activePane != null && state.readers[workspace.activePane] != null);
+  const keyboardOpen = useWorkspaceStore((state) => state.keyboardOpen);
+  const liftPillOverReader = activeViewMode === "messages" && activeReaderOpen && !(needsTouchControls && keyboardOpen);
 
   // Single shared per-session draft: the collapsed toolbar input and the
   // full-screen composer read/write ONE value that cannot diverge.
@@ -361,7 +371,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     const target = composerDraft.getSessionId();
     if (!target || target !== useWorkspaceStore.getState().activePane) return;
     composerDraft.appendAtCaret(text);
-    setComposerOpen(true);
+    // With the bar on screen the text waits there and the operator keeps
+    // reading; focusing it inside the tap is what raises a phone's keyboard.
+    if (composerBarVisibleRef.current) mobileToolbarRef.current?.focusInput();
+    else setComposerOpen(true);
   }, [composerDraft]);
 
   const sendArchivedMessageToComposer = useCallback((text: string) => {
@@ -1124,22 +1137,25 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     if (workspace.settingsModalOpen || workspace.aiModalOpen || workspace.aiSuggestActive || workspace.appearanceModalPane !== null || composerOpen) return;
     const paneId = workspace.activePane;
     const rafId = requestAnimationFrame(() => {
-      focusActiveTerminal(paneId);
+      // Messages shows no terminal; its composer bar takes the keys instead.
+      if (activeViewMode === "messages" && !needsTouchControls) mobileToolbarRef.current?.focusInput();
+      else focusActiveTerminal(paneId);
     });
     return () => { cancelAnimationFrame(rafId); };
-  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, composerOpen, focusActiveTerminal]);
+  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, composerOpen, focusActiveTerminal, activeViewMode, needsTouchControls]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (composerOpen) {
       // Dictating into the full-screen composer — insert at its caret.
       composerDraft.appendAtCaret(text);
-    } else if (isMobile) {
-      // On mobile, inject into the toolbar text box for review before sending
+    } else if (isMobile || activeViewMode === "messages") {
+      // Into the composer bar for review before sending: on mobile, and in
+      // Messages on any device, where the bar is the composer.
       mobileToolbarRef.current?.appendText(text);
     } else {
       handleSendToTerminal(text, "bulk_text");
     }
-  }, [composerOpen, composerDraft, isMobile, handleSendToTerminal]);
+  }, [composerOpen, composerDraft, isMobile, activeViewMode, handleSendToTerminal]);
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
@@ -2304,7 +2320,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           const hasOriginal = (activeEvent.originalSpeechParagraphs?.length ?? 0) > 0;
           const canRequestSummarize = activeEvent.role === "assistant";
           return (
-            <div className="pointer-events-none absolute inset-x-0 bottom-full mb-3 flex justify-center px-4">
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-full mb-3 flex justify-center px-4"
+              style={liftPillOverReader ? { marginBottom: "calc(0.75rem + var(--wc-reader-footer-h))" } : undefined}
+            >
               <PlaybackPill
                 sessionId={sessionId}
                 event={activeEvent}
@@ -2357,7 +2376,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
-          visible={needsTouchControls}
+          visible={composerBarVisible}
           onInput={handleSendToTerminal}
           subscribeInputSettled={handleSubscribeInputSettled}
           awaitOffset={handleAwaitInputOffset}
@@ -2366,7 +2385,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           discardPendingInput={handleDiscardPendingInput}
           discardAllPendingInput={handleDiscardAllPendingInput}
           flushPendingInputNow={handleFlushPendingInputNow}
-          onFocusTerminal={handleFocusTerminal}
+          // In Messages the terminal is off screen: a send keeps focus in the bar.
+          onFocusTerminal={activeViewMode === "messages" ? undefined : handleFocusTerminal}
           activeSessionId={workspace.activePane}
           draft={composerDraft}
           onExpandComposer={openComposer}

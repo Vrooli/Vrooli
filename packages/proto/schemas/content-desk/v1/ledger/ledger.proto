@@ -10,6 +10,7 @@ service LedgerService {
   rpc ListContaminatedPublishRecords(ListContaminatedPublishRecordsRequest) returns (ListContaminatedPublishRecordsResponse);
   rpc ListCoverage(ListCoverageRequest) returns (ListCoverageResponse);
   rpc IngestMetricSample(IngestMetricSampleRequest) returns (IngestMetricSampleResponse);
+  rpc GetDraftMetrics(GetDraftMetricsRequest) returns (GetDraftMetricsResponse);
   rpc ListRemediations(ListRemediationsRequest) returns (ListRemediationsResponse);
   rpc CreateRemediation(CreateRemediationRequest) returns (CreateRemediationResponse);
   rpc ResolveRemediation(ResolveRemediationRequest) returns (ResolveRemediationResponse);
@@ -62,6 +63,27 @@ message IngestMetricSampleRequest {
 message IngestMetricSampleResponse {
   string sample_id = 1;
   bool accepted = 2;
+}
+
+// MetricReading is the latest retained observation for one metric. State is
+// "measured" when the latest observation is fresh and "stale" otherwise; value
+// is the retained sample, so a measured zero stays distinct from absent data.
+message MetricReading {
+  string metric = 1;
+  double value = 2;
+  string state = 3;
+  int32 sample_count = 4;
+  string last_observed_at = 5;
+}
+message GetDraftMetricsRequest {
+  string draft_id = 1;
+  int32 stale_after_days = 2;
+}
+message GetDraftMetricsResponse {
+  string draft_id = 1;
+  // False when no samples exist, which is not the same as a measured zero.
+  bool has_measurements = 2;
+  repeated MetricReading readings = 3;
 }
 
 message Remediation {

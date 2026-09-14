@@ -52,6 +52,7 @@ import {
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
 import { transitionService } from "../services/transition-service";
+import { planWorkshopService } from "../services/plan-workshop-service";
 import { autoFilerService } from "../services/auto-filer-service";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
@@ -132,6 +133,22 @@ export function BacklogDetailsPage() {
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
     validate: (v): v is DetailsTab => ["info", "prompt", "decide", "files", "activity", "related"].includes(v),
+  });
+  // The header CTA performs acceptance itself. Opening the Plan tab alone made
+  // "Accept plan" look dead whenever that tab was already open.
+  const acceptPlanMutation = useActionMutation({
+    mutationFn: () => {
+      if (!backlogKind || !name) throw new Error("The backlog item is not loaded.");
+      return planWorkshopService.acceptPlan(backlogKind, name);
+    },
+    errorMessage: "Unable to accept this plan.",
+    source: "BacklogDetailsPage.acceptPlan",
+    onSuccess: () => {
+      setActiveTab("prompt");
+      void refetchItem();
+      void queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "next-action"] });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-item", backlogKind, name] });
+    },
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
@@ -561,6 +578,10 @@ export function BacklogDetailsPage() {
   ) : null;
 
   const handleNextAction = () => {
+    if (nextAction?.id === "accept_plan") {
+      acceptPlanMutation.mutate();
+      return;
+    }
     if (nextAction) {
       const targetTab = nextActionDetailTab(nextAction);
       if (targetTab) {
@@ -598,7 +619,7 @@ export function BacklogDetailsPage() {
             lenses={BACKLOG_LENSES}
             menuActions={menuActions}
             primaryAction={nextAction && nextAction.id !== "none" ? (
-              <Button size="sm" onClick={handleNextAction} disabled={!nextAction.enabled} title={nextAction.reason}>
+              <Button size="sm" onClick={handleNextAction} disabled={!nextAction.enabled || acceptPlanMutation.isPending} title={nextAction.reason}>
                 {(() => {
                   const ActionIcon = nextActionIcon(nextAction.id);
                   return <ActionIcon className="h-4 w-4" aria-hidden />;

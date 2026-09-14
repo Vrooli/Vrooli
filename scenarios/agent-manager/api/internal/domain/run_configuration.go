@@ -446,6 +446,13 @@ const (
 	PayloadKindCharge = "charge"
 )
 
+// Provenance of an authoritative usage receipt that did not arrive on the live
+// stream. See UsageEventData.ReconciliationSource.
+const (
+	ReconciliationSourceTranscriptRecovery = "transcript_recovery"
+	ReconciliationSourceInterruptedTurn    = "transcript_interrupted_turn"
+)
+
 // UsageEventData contains provider-independent consumption. It is emitted
 // even when pricing is unavailable or the run is free under its billing mode.
 type UsageEventData struct {
@@ -459,13 +466,20 @@ type UsageEventData struct {
 	// ReconciliationAuthority marks the terminal provider usage snapshot as
 	// authoritative for run-total reconciliation. Per-turn usage remains
 	// available for attribution but is not added again when this is present.
-	ReconciliationAuthority bool             `json:"reconciliationAuthority,omitempty"`
-	ServiceTier             string           `json:"serviceTier,omitempty"`
-	Model                   string           `json:"model,omitempty"`
-	RunnerType              string           `json:"runnerType,omitempty"`
-	WebSearchRequests       int              `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests   int              `json:"serverToolUseRequests,omitempty"`
-	Charge                  *ChargeEventData `json:"charge,omitempty"`
+	ReconciliationAuthority bool `json:"reconciliationAuthority,omitempty"`
+	// ReconciliationSource says how an authoritative receipt reached the event
+	// store when the live stream did not carry it: ReconciliationSourceTranscriptRecovery
+	// (the harness's own receipt read back from its retained transcript) or
+	// ReconciliationSourceInterruptedTurn (a turn the harness never closed,
+	// closed from the transcript because no request was outstanding). Empty
+	// means the live stream carried the receipt.
+	ReconciliationSource  string           `json:"reconciliationSource,omitempty"`
+	ServiceTier           string           `json:"serviceTier,omitempty"`
+	Model                 string           `json:"model,omitempty"`
+	RunnerType            string           `json:"runnerType,omitempty"`
+	WebSearchRequests     int              `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests int              `json:"serverToolUseRequests,omitempty"`
+	Charge                *ChargeEventData `json:"charge,omitempty"`
 }
 
 func (d *UsageEventData) EventType() RunEventType { return EventTypeMetric }

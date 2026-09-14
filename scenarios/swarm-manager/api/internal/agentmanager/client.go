@@ -237,6 +237,34 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 	return result.Run, nil
 }
 
+// GetRunAccounting reads one run's metered usage from the owner. The owner
+// reports unknown usage as unknown; this client never fills a default.
+func (c *HTTPClient) GetRunAccounting(ctx context.Context, runID string) (*apipb.RunAccounting, error) {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed)+"/accounting", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+
+	var result apipb.RunAccounting
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(result.GetRunId()) != trimmed {
+		return nil, fmt.Errorf("%w: accounting for run %q answered run %q", ErrRequestFailed, trimmed, result.GetRunId())
+	}
+	return &result, nil
+}
+
 func (c *HTTPClient) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) (*apipb.GetRunEventsResponse, error) {
 	trimmed := strings.TrimSpace(runID)
 	if trimmed == "" {

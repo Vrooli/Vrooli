@@ -35,6 +35,9 @@ type fakeSessions struct {
 
 	calls   []string
 	screens []string
+	// onInterrupt (if set) fires after an Interrupt call is recorded, letting a
+	// test model the harness writing its closing record.
+	onInterrupt func()
 }
 
 func newFakeSessions(id string) *fakeSessions {
@@ -84,6 +87,9 @@ func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) error {
 
 func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
 	f.calls = append(f.calls, "interrupt")
+	if f.onInterrupt != nil {
+		f.onInterrupt()
+	}
 	return f.interruptErr
 }
 

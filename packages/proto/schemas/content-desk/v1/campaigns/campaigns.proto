@@ -55,7 +55,14 @@ message LaunchAssetSlot {
   string format = 4;
   int32 capacity = 5;
   int32 reserved = 6;
+  // draft_count is deprecated; it mirrors approved_count for compatibility.
+  // Prefer approved_count and ready_for_review_count for new reads.
   int32 draft_count = 7;
+  int32 approved_count = 8;
+  int32 ready_for_review_count = 9;
+  // readiness is the strongest launch-asset tier attached to the slot:
+  // "empty" | "in_progress" | "ready_for_review" | "approved".
+  string readiness = 10;
 }
 message GetLaunchAssetsResponse {
   string scenario_name = 1;

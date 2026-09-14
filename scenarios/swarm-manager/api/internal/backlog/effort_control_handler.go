@@ -23,6 +23,10 @@ type effortCompletionAcceptRequest struct {
 type effortControlResponse struct {
 	Effort          identity.EffortControl `json:"effort"`
 	AuthorityDigest string                 `json:"authority_digest"`
+	// ProviderPools reports the shared provider-pool bounds refreshed from an
+	// amendment. It is empty for admission, reads and updates that do not
+	// change the approved aggregate grant.
+	ProviderPools []ProviderPoolLimitRefresh `json:"provider_pools,omitempty"`
 }
 
 func effortIDFromRequest(r *http.Request) string {
@@ -87,7 +91,37 @@ func (h *Handler) AmendEffort(w http.ResponseWriter, r *http.Request) {
 		mapEffortControlError(w, "[backlog] amend-effort", err)
 		return
 	}
-	_ = httputil.JSON(w, effortControlResponse{Effort: amended, AuthorityDigest: amended.AuthorityDigest()})
+	// Refresh the shared provider-pool bounds from the amended grant. A service
+	// without provider accounting skips this; a real persistence failure is
+	// reported rather than leaving a stale bound silently in force.
+	refreshes, err := h.effortControl.RefreshProviderPoolLimits(effortID)
+	if err != nil && !errors.Is(err, ErrProviderAccountingUnavailable) {
+		mapEffortControlError(w, "[backlog] amend-effort", err)
+		return
+	}
+	_ = httputil.JSON(w, effortControlResponse{Effort: amended, AuthorityDigest: amended.AuthorityDigest(), ProviderPools: refreshes})
+}
+
+// RefreshEffortProviderPools re-derives and persists the shared provider-pool
+// bounds from the current admitted revision. It is idempotent and exists so the
+// amendment refresh can be replayed after an interrupted response.
+func (h *Handler) RefreshEffortProviderPools(w http.ResponseWriter, r *http.Request) {
+	const action = "[backlog] refresh-effort-provider-pools"
+	effortID := effortIDFromRequest(r)
+	if effortID == "" {
+		apierr.MapError(w, action, apierr.BadRequest("effort_id is required"))
+		return
+	}
+	if h.effortControl == nil {
+		apierr.MapError(w, action, apierr.Internal("effort control service is not configured"))
+		return
+	}
+	refreshes, err := h.effortControl.RefreshProviderPoolLimits(effortID)
+	if err != nil {
+		mapEffortProviderError(w, action, err)
+		return
+	}
+	_ = httputil.JSON(w, effortProviderRefreshResponse{EffortID: effortID, ProviderPools: refreshes})
 }
 
 // GetEffort returns the current admitted revision.
@@ -154,7 +188,10 @@ func (h *Handler) AcceptEffortCompletion(w http.ResponseWriter, r *http.Request)
 	}
 	actor := strings.TrimSpace(request.Actor)
 	if actor == "" {
-		actor = strings.TrimSpace(identity.FromContext(r.Context()).FormatStartedBy())
+		// Only a verified operator provenance may stand in for an explicit
+		// actor. Absent or unverified provenance is refused by the owner rather
+		// than being defaulted to the fail-open started-by attribution.
+		actor = strings.TrimSpace(identity.VerifiedOperatorActor(identity.FromContext(r.Context())))
 	}
 	control, err := h.effortControl.HumanAccept(effortID, actor)
 	if err != nil {

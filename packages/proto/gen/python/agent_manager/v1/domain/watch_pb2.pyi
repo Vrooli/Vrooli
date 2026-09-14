@@ -38,6 +38,7 @@ class WatchActionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     WATCH_ACTION_KIND_STOP: _ClassVar[WatchActionKind]
     WATCH_ACTION_KIND_ESCALATE: _ClassVar[WatchActionKind]
     WATCH_ACTION_KIND_WAKE_PARENT: _ClassVar[WatchActionKind]
+    WATCH_ACTION_KIND_RECOVER_FRESH: _ClassVar[WatchActionKind]
 
 class WatchActionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -85,6 +86,7 @@ WATCH_ACTION_KIND_CONTINUE: WatchActionKind
 WATCH_ACTION_KIND_STOP: WatchActionKind
 WATCH_ACTION_KIND_ESCALATE: WatchActionKind
 WATCH_ACTION_KIND_WAKE_PARENT: WatchActionKind
+WATCH_ACTION_KIND_RECOVER_FRESH: WatchActionKind
 WATCH_ACTION_STATE_UNSPECIFIED: WatchActionState
 WATCH_ACTION_STATE_REQUESTED: WatchActionState
 WATCH_ACTION_STATE_QUEUED: WatchActionState

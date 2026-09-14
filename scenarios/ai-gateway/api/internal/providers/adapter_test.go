@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -249,6 +251,27 @@ func TestAdapterResolveRoleDecodesSamplingSupportAndCap(t *testing.T) { // [REQ:
 				t.Fatalf("MaxOutputTokens = %d, want %d", resolved.MaxOutputTokens, tc.wantCap)
 			}
 		})
+	}
+}
+
+func TestAdapterMeteredExecutePreservesTypedCreditFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusPaymentRequired)
+		_, _ = w.Write([]byte(`{"error":"insufficient credits"}`))
+	}))
+	defer server.Close()
+	adapter := Adapter{
+		Provider: ProviderMetered,
+		Metered:  NewMeteredClient(MeteredClientOptions{BaseURL: server.URL}),
+	}
+	ctx := WithAccessToken(context.Background(), "Bearer token")
+	_, err := adapter.Execute(ctx, ExecutionRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: "classify.fast", InputText: "x"})
+	var cmdErr *CommandError
+	if !errors.As(err, &cmdErr) || cmdErr.Code != CodeInsufficientCredits {
+		t.Fatalf("error = %v, want insufficient-credits CommandError (no generic provider_failed flattening)", err)
+	}
+	if !errors.Is(err, ErrInsufficientCredits) {
+		t.Fatalf("error = %v, lost the ErrInsufficientCredits sentinel across the adapter seam", err)
 	}
 }
 

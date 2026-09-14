@@ -1,33 +1,5 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "meta-optimization",
-  "displayName": "Meta Optimization Team",
-  "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
-  "objectivesServed": [
-    {
-      "id": "I2",
-      "acknowledgedRevision": "5de27857cc63"
-    }
-  ],
-  "instrument": {
-    "status": "live",
-    "scenario": "meta-optimization-manager",
-    "archetype": "coverage-board",
-    "coversScenarios": [
-      "search-hub",
-      "test-genie",
-      "prompt-manager",
-      "program-runtime",
-      "agent-manager"
-    ]
-  },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
+  "attributionValidFrom": "2026-05-04",
   "coordination": {
     "pattern": "independent",
     "reportingMode": "none",
@@ -41,117 +13,33 @@
       "requireHandoff": true
     }
   },
+  "createdAt": "2026-02-09T12:00:00Z",
+  "displayName": "Meta Optimization Team",
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
+  "id": "meta-optimization",
+  "instrument": {
+    "status": "live",
+    "scenario": "meta-optimization-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "search-hub",
+      "test-genie",
+      "prompt-manager",
+      "program-runtime",
+      "agent-manager"
+    ]
   },
-  "revision": 6,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-03T00:00:00Z",
-  "topicCatalog": [
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
+  "objectivesServed": [
     {
-      "prefix": "friction-inbox/<scope>/<slug>",
-      "status": "live",
-      "purpose": "Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator."
-    },
-    {
-      "prefix": "friction-triage-record/<YYYY-MM-DD>",
-      "status": "live",
-      "purpose": "Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts."
-    },
-    {
-      "prefix": "friction-report/toolchain/<YYYY-MM-DD>/<slug>",
-      "status": "live",
-      "purpose": "Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation."
-    },
-    {
-      "prefix": "friction-report/run-execution/<YYYY-MM-DD>/<slug>",
-      "status": "live",
-      "purpose": "Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures."
-    },
-    {
-      "prefix": "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>",
-      "status": "live",
-      "purpose": "Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure."
-    },
-    {
-      "prefix": "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>",
-      "status": "live",
-      "purpose": "Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement."
-    },
-    {
-      "prefix": "toolchain-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities."
-    },
-    {
-      "prefix": "self-health/test-genie/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`."
-    },
-    {
-      "prefix": "run-lesson-report/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions."
-    },
-    {
-      "prefix": "team-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture."
-    },
-    {
-      "prefix": "agent-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift."
-    },
-    {
-      "prefix": "framework-health-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value."
-    },
-    {
-      "prefix": "team-visited/<team-id>",
-      "status": "live",
-      "purpose": "Visited tracker used to avoid repeatedly auditing the same team before the rotation completes."
-    },
-    {
-      "prefix": "agent-visited/<agent-id>",
-      "status": "live",
-      "purpose": "Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes."
-    },
-    {
-      "prefix": "skill-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates."
-    },
-    {
-      "prefix": "skill-visited/<skill-id>",
-      "status": "live",
-      "purpose": "Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes."
-    },
-    {
-      "prefix": "action-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities."
-    },
-    {
-      "prefix": "action-visited/<action-id>",
-      "status": "live",
-      "purpose": "Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes."
-    },
-    {
-      "prefix": "skill-experiment/<skill-id>/<experiment-id>",
-      "status": "live",
-      "purpose": "Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence."
-    },
-    {
-      "prefix": "debt-scan/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement."
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
     }
   ],
   "operatingContract": {
@@ -331,7 +219,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "skill-visited/<skill-id>": {
+      "skill-visited/\u003cskill-id\u003e": {
         "ownerMemberId": "skill-optimizer",
         "supersedesPrevious": true,
         "retention": "visited-tracker"
@@ -341,7 +229,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "action-visited/<action-id>": {
+      "action-visited/\u003caction-id\u003e": {
         "ownerMemberId": "skill-optimizer",
         "supersedesPrevious": true,
         "retention": "visited-tracker"
@@ -356,17 +244,17 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "team-visited/<team-id>": {
+      "team-visited/\u003cteam-id\u003e": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
-      "agent-visited/<agent-id>": {
+      "agent-visited/\u003cagent-id\u003e": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
-      "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>": {
+      "friction-report/prompt-team-agent-storage/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -376,7 +264,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction-report/run-execution/<YYYY-MM-DD>/<slug>": {
+      "friction-report/run-execution/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": {
         "ownerMemberId": "run-introspector",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -391,7 +279,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction-report/toolchain/<YYYY-MM-DD>/<slug>": {
+      "friction-report/toolchain/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": {
         "ownerMemberId": "toolchain-validator",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -401,18 +289,18 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>": {
+      "friction-report/recurring-workaround/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": {
         "ownerMemberId": "debt-curator",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "friction-inbox/<scope>/<slug>": {
+      "friction-inbox/\u003cscope\u003e/\u003cslug\u003e": {
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": false,
         "retention": "drained-on-close",
-        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/<scope>/<date>/<slug> on the owning sub-member's behalf."
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/\u003cscope\u003e/\u003cdate\u003e/\u003cslug\u003e on the owning sub-member's behalf."
       },
-      "friction-triage-record/<YYYY-MM-DD>": {
+      "friction-triage-record/\u003cYYYY-MM-DD\u003e": {
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": true,
         "retention": "snapshot",
@@ -465,10 +353,10 @@
             "expected delta and measurement plan"
           ],
           "actionDiscoveryCommands": [
-            "prompt-manager discover \"<what you need>\" --type all",
-            "prompt-manager action show <action-id>",
-            "prompt-manager action validate <action-id>",
-            "prompt-manager action run <action-id> --dry-run"
+            "prompt-manager discover \"\u003cwhat you need\u003e\" --type all",
+            "prompt-manager action show \u003caction-id\u003e",
+            "prompt-manager action validate \u003caction-id\u003e",
+            "prompt-manager action run \u003caction-id\u003e --dry-run"
           ]
         }
       },
@@ -587,8 +475,8 @@
         },
         "taskParameters": {
           "promotabilityCriteria": [
-            "repeated >=3 separate entries",
-            "stabilized >=7 heartbeats without revision or contradiction",
+            "repeated \u003e=3 separate entries",
+            "stabilized \u003e=7 heartbeats without revision or contradiction",
             "permanent solution now possible"
           ],
           "promotionDirections": [
@@ -604,7 +492,7 @@
         }
       },
       "friction-curator": {
-        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/<YYYY-MM-DD> snapshot. Router, not analyst.",
+        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/\u003cscope\u003e/\u003cdate\u003e/\u003cslug\u003e topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/\u003cYYYY-MM-DD\u003e snapshot. Router, not analyst.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -615,8 +503,8 @@
         ],
         "forbiddenWrites": [],
         "safetyCriticalRules": [
-          "Never originate friction-report/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
-          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage-record/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
+          "Never originate friction-report/\u003cscope\u003e/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
+          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage-record/\u003cYYYY-MM-DD\u003e (routed, dropped, reclassified, or handed off).",
           "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-edit friction-report/recurring-workaround/* from unknown.",
           "Cap daily inbox drain at dailyInboxDrainCap; above that, emit inbox-overflow triage entry, handoff to debt-curator, and pause further routing this heartbeat."
         ],
@@ -650,5 +538,117 @@
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "purpose": "domain-stewardship",
+  "revision": 7,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "topicCatalog": [
+    {
+      "prefix": "friction-inbox/\u003cscope\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator."
+    },
+    {
+      "prefix": "friction-triage-record/\u003cYYYY-MM-DD\u003e",
+      "status": "live",
+      "purpose": "Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts."
+    },
+    {
+      "prefix": "friction-report/toolchain/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation."
+    },
+    {
+      "prefix": "friction-report/run-execution/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures."
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure."
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement."
+    },
+    {
+      "prefix": "toolchain-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities."
+    },
+    {
+      "prefix": "self-health/test-genie/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`."
+    },
+    {
+      "prefix": "run-lesson-report/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions."
+    },
+    {
+      "prefix": "team-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture."
+    },
+    {
+      "prefix": "agent-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift."
+    },
+    {
+      "prefix": "framework-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value."
+    },
+    {
+      "prefix": "team-visited/\u003cteam-id\u003e",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same team before the rotation completes."
+    },
+    {
+      "prefix": "agent-visited/\u003cagent-id\u003e",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes."
+    },
+    {
+      "prefix": "skill-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates."
+    },
+    {
+      "prefix": "skill-visited/\u003cskill-id\u003e",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes."
+    },
+    {
+      "prefix": "action-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities."
+    },
+    {
+      "prefix": "action-visited/\u003caction-id\u003e",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes."
+    },
+    {
+      "prefix": "skill-experiment/\u003cskill-id\u003e/\u003cexperiment-id\u003e",
+      "status": "live",
+      "purpose": "Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence."
+    },
+    {
+      "prefix": "debt-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement."
+    }
+  ],
+  "updatedAt": "2026-09-14T05:05:51Z"
 }

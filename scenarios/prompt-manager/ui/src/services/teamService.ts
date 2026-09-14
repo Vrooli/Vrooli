@@ -22,6 +22,8 @@ import type {
   TeamSharedFileEntry,
   TeamSharedFileCreateRequest,
   TeamSharedFileRenameRequest,
+  EffortWorkspaceListResponse,
+  EffortWorkspaceContentResponse,
   AvailableCCTeam,
   ExportCCResponse,
   ExclusiveMember,
@@ -214,6 +216,16 @@ export async function listTeamSharedFiles(teamId: string): Promise<TeamSharedFil
 export async function getTeamSharedFileContent(teamId: string, path: string): Promise<string> {
   const response = await api.getTeamSharedFileContent(teamId, path)
   return response.content
+}
+
+/** List the protected effort workspaces linked by the team's canonical refs. */
+export async function listEffortWorkspaces(teamId: string): Promise<EffortWorkspaceListResponse> {
+  return api.listEffortWorkspaces(teamId)
+}
+
+/** Read one bounded effort workspace file. This projection is read-only. */
+export async function getEffortWorkspaceContent(effortRef: string, path: string): Promise<EffortWorkspaceContentResponse> {
+  return api.getEffortWorkspaceContent(effortRef, path)
 }
 
 /**

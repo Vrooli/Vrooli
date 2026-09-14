@@ -216,10 +216,26 @@
         "kind": "dir",
         "class": "data",
         "regenerable": false,
-        "rationale": "Scenario-owned durable data, including canonical runs/events and logically regenerable conversation-search projection tables, shares this SQLite container. The entry remains non-regenerable because canonical rows must never be reclaimed with the projection.",
+        "rationale": "Scenario-owned durable data, including canonical runs/events and logically regenerable conversation-search projection tables, shares this SQLite container. The live database is the lifecycle data directory (scenarios/agent-manager/data/agent-manager.db); storage-manager measures it together with the class root. The entry remains non-regenerable because canonical rows must never be reclaimed with the projection.",
         "budget": {
-          "max_bytes": "6GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+          "max_bytes": "12GiB",
+          "rationale": "Measured 2026-09-14: 8.7 GB of live pages inside a 293 GB file (97% free pages from repeated full search rebuilds). After projection slimming and owner compaction live data is about 5 GB, growing about 0.7 GB a month, so 12 GiB is roughly nine months of headroom. Alarm-only: storage-manager never deletes it; a sustained breach asks Agent Manager to reclaim through reclaim.operation."
+        },
+        "reclaim": {
+          "operation": "/api/v1/storage/reclaim"
+        }
+      },
+      "legacy_history": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "legacy-history",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "Read-only archive of the pre-2026-08-21 routed database (8,711 runs from 2026-04-17 to 2026-09-10, about 4,100 imported transcripts and 3,800 native runs found nowhere else), its pre-reclaim copy, and the old run-state trees. Nothing writes here; the files are made read-only when archived so a stale writer fails loudly instead of splitting history again.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Archived 2026-09-14 at about 6.9 GB and never grows; alarm-only because it is the only copy of that history."
         }
       },
       "api_data": {
@@ -296,7 +312,6 @@
     }
   },
   "environment": {
-    "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db",
     "AGENT_MANAGER_WORKSPACE_ID": "local"
   },
   "credentials": {

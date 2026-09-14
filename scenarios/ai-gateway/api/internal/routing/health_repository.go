@@ -54,12 +54,17 @@ func (r *SQLHealthRepository) Upsert(ctx context.Context, h ProviderHealth) erro
 	key := normalizeHealthKey(HealthKey{Provider: h.Provider, Role: h.Role, Kind: h.Kind})
 	_, err := r.db.ExecContext(ctx, `INSERT INTO provider_health (
 provider, role, kind, state, consecutive_failures, last_failure_class,
+http_status, retry_after, reset_at, failure_source,
 last_success_at, last_failure_at, cooldown_until, opened_at, generation, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(provider, role, kind) DO UPDATE SET
 state = excluded.state,
 consecutive_failures = excluded.consecutive_failures,
 last_failure_class = excluded.last_failure_class,
+http_status = excluded.http_status,
+retry_after = excluded.retry_after,
+reset_at = excluded.reset_at,
+failure_source = excluded.failure_source,
 last_success_at = excluded.last_success_at,
 last_failure_at = excluded.last_failure_at,
 cooldown_until = excluded.cooldown_until,
@@ -72,6 +77,10 @@ updated_at = excluded.updated_at`,
 		string(stateOrClosed(h.State)),
 		h.ConsecutiveFailures,
 		string(h.LastFailureClass),
+		h.HTTPStatus,
+		h.RetryAfter,
+		h.ResetAt,
+		h.FailureSource,
 		formatTime(h.LastSuccessAt),
 		formatTime(h.LastFailureAt),
 		formatTime(h.CooldownUntil),
@@ -103,6 +112,7 @@ func (r *SQLHealthRepository) List(ctx context.Context) ([]ProviderHealth, error
 }
 
 const selectHealthSQL = `SELECT provider, role, kind, state, consecutive_failures, last_failure_class,
+http_status, retry_after, reset_at, failure_source,
 last_success_at, last_failure_at, cooldown_until, opened_at, generation, updated_at
 FROM provider_health`
 
@@ -118,6 +128,10 @@ func scanHealth(s scanner) (ProviderHealth, error) {
 		&state,
 		&h.ConsecutiveFailures,
 		&failureClass,
+		&h.HTTPStatus,
+		&h.RetryAfter,
+		&h.ResetAt,
+		&h.FailureSource,
 		&lastSuccess,
 		&lastFailure,
 		&cooldown,

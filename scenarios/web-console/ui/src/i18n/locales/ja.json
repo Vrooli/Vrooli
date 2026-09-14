@@ -1745,6 +1745,8 @@
     "prevReply": "前の返信",
     "nextReply": "次の返信",
     "smaller": "文字を小さく",
-    "larger": "文字を大きく"
+    "larger": "文字を大きく",
+    "back": "メッセージに戻る",
+    "nextReplyNew": "次の返信（新着 {{count}} 件）"
   }
 }

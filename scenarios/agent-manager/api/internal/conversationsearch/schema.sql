@@ -1,5 +1,11 @@
-CREATE TABLE IF NOT EXISTS conversation_search_documents (
-    document_id TEXT PRIMARY KEY,
+-- The catalog replaced conversation_search_documents on 2026-09-14. Its
+-- explicit INTEGER PRIMARY KEY is the FTS content rowid: VACUUM may renumber
+-- the implicit rowid of a table without one, which would silently point the
+-- lexical index at the wrong documents. The owner loop of the indexer copies
+-- and then drops the legacy objects (projection_upgrade.go).
+CREATE TABLE IF NOT EXISTS conversation_search_catalog (
+    id INTEGER PRIMARY KEY,
+    document_id TEXT NOT NULL UNIQUE,
     source_run_id TEXT NOT NULL,
     source_event_id TEXT NOT NULL,
     source_message_id TEXT NOT NULL,
@@ -34,62 +40,68 @@ CREATE TABLE IF NOT EXISTS conversation_search_documents (
     UNIQUE(source_run_id, source_event_id, chunk_index)
 );
 
-CREATE INDEX IF NOT EXISTS idx_conversation_search_source
-    ON conversation_search_documents(source_run_id, event_sequence, chunk_index);
-CREATE INDEX IF NOT EXISTS idx_conversation_search_visibility_time
-    ON conversation_search_documents(visible, occurred_at, document_id);
-CREATE INDEX IF NOT EXISTS idx_conversation_search_role_time
-    ON conversation_search_documents(role, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_harness_time
-    ON conversation_search_documents(harness, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_project_time
-    ON conversation_search_documents(project_scope, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_model_time
-    ON conversation_search_documents(model, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_profile_time
-    ON conversation_search_documents(profile, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_status_time
-    ON conversation_search_documents(run_status, occurred_at, document_id) WHERE visible = 1;
-CREATE INDEX IF NOT EXISTS idx_conversation_search_content_hash
-    ON conversation_search_documents(content_hash, document_id) WHERE visible = 1;
+-- Relevance search is driven by FTS and joins the catalog by id, so the
+-- catalog needs only the source lookup (context windows, per-run replacement)
+-- and one time index for browsing without a lexical query. The per-filter time
+-- indexes this replaced cost about 125 MB each; live telemetry on 2026-09-14
+-- showed about 6,500 of 6,600 searches were relevance ranked.
+CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_source
+    ON conversation_search_catalog(source_run_id, event_sequence, chunk_index);
+CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_visible_time
+    ON conversation_search_catalog(occurred_at, document_id) WHERE visible = 1;
 
--- Full rebuilds are written here first. Promotion copies one validated
--- generation into the serving table in a single transaction, so readers see
--- either the previous complete projection or the next complete projection.
+-- Generations are staged here first and published into the catalog in bounded
+-- batches. Staged rows are deleted once their generation settles (active,
+-- retired, failed or cancelled); only building and ready generations keep them.
+-- The column list is explicit so the staging copy never carries catalog ids.
 CREATE TABLE IF NOT EXISTS conversation_search_generation_documents AS
-SELECT '' AS generation_id, d.* FROM conversation_search_documents d WHERE 0;
+SELECT '' AS generation_id, document_id, source_run_id, source_event_id, source_message_id,
+    chunk_index, chunk_total, start_byte, end_byte, event_sequence, role, occurred_at, content,
+    content_class, source_hash, content_hash, recipe_version, harness, source_session_id,
+    provider_origin, importer, project_scope, cwd_scope, runner, model, profile, run_status,
+    run_label, tags_json, workloads_json, evidence_ref, visible, indexed_at
+FROM conversation_search_catalog d WHERE 0;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_search_generation_document
     ON conversation_search_generation_documents(generation_id, document_id);
 CREATE INDEX IF NOT EXISTS idx_conversation_search_generation_source
     ON conversation_search_generation_documents(generation_id, source_run_id, source_event_id);
 
-CREATE VIRTUAL TABLE IF NOT EXISTS conversation_search_fts USING fts5(
+-- External content: the index stores tokens only and reads text from the
+-- catalog, which removed a second full copy of every transcript chunk (0.88 GB
+-- on 2026-09-14). The index mirrors every catalog row and queries filter
+-- visibility, so the FTS5 integrity-check and rebuild commands stay valid. An
+-- external-content delete must restate the old values exactly.
+CREATE VIRTUAL TABLE IF NOT EXISTS conversation_search_catalog_fts USING fts5(
     document_id UNINDEXED,
     content,
+    content = 'conversation_search_catalog',
+    content_rowid = 'id',
     tokenize = 'unicode61 remove_diacritics 2'
 );
 
-CREATE TRIGGER IF NOT EXISTS conversation_search_documents_ai
-AFTER INSERT ON conversation_search_documents
-WHEN new.visible = 1
+CREATE TRIGGER IF NOT EXISTS conversation_search_catalog_ai
+AFTER INSERT ON conversation_search_catalog
 BEGIN
-    INSERT INTO conversation_search_fts(rowid, document_id, content)
-    VALUES (new.rowid, new.document_id, new.content);
+    INSERT INTO conversation_search_catalog_fts(rowid, document_id, content)
+    VALUES (new.id, new.document_id, new.content);
 END;
 
-CREATE TRIGGER IF NOT EXISTS conversation_search_documents_ad
-AFTER DELETE ON conversation_search_documents
-WHEN old.visible = 1
+CREATE TRIGGER IF NOT EXISTS conversation_search_catalog_ad
+AFTER DELETE ON conversation_search_catalog
 BEGIN
-    DELETE FROM conversation_search_fts WHERE rowid = old.rowid;
+    INSERT INTO conversation_search_catalog_fts(conversation_search_catalog_fts, rowid, document_id, content)
+    VALUES ('delete', old.id, old.document_id, old.content);
 END;
 
-CREATE TRIGGER IF NOT EXISTS conversation_search_documents_au
-AFTER UPDATE ON conversation_search_documents
+-- Only a change to indexed text or identity touches the index; visibility and
+-- metadata updates leave it alone.
+CREATE TRIGGER IF NOT EXISTS conversation_search_catalog_au
+AFTER UPDATE OF id, document_id, content ON conversation_search_catalog
 BEGIN
-    DELETE FROM conversation_search_fts WHERE rowid = old.rowid;
-    INSERT INTO conversation_search_fts(rowid, document_id, content)
-    SELECT new.rowid, new.document_id, new.content WHERE new.visible = 1;
+    INSERT INTO conversation_search_catalog_fts(conversation_search_catalog_fts, rowid, document_id, content)
+    VALUES ('delete', old.id, old.document_id, old.content);
+    INSERT INTO conversation_search_catalog_fts(rowid, document_id, content)
+    VALUES (new.id, new.document_id, new.content);
 END;
 
 CREATE TABLE IF NOT EXISTS conversation_search_checkpoints (

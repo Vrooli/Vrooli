@@ -26,6 +26,32 @@ non-secret team domain and application audience. Scenario-specific providers
 adapt to `authn.Provider`; domain packages still enforce authorization and
 single-use mutation intents.
 
+Explicit local operator clients can call
+`authn.ExchangeLocalMachinePrincipal(ctx) (*accounts.LoginResponse, error)`.
+This additive helper shares the exchange used by Vrooli Bridge's `ExchangeLocal`
+and Scenario Authenticator's `exchangeLocal`, preserving their return contracts.
+It sends the hostname to Scenario Authenticator over a Unix socket only, with a
+five-second HTTP timeout and caller cancellation. The server still owns peer
+credential verification and all account/grant decisions. Calling this helper is
+not authorization to elevate an agent: operator CLIs must gate it behind explicit
+operator intent, never an automatic fallback from agent identity.
+
+The trimmed `VROOLI_AUTH_SOCKET` override takes precedence. Otherwise,
+`authn.DefaultLocalAuthenticatorSocket()` returns
+`filepath.Join(os.TempDir(), "vrooli-scenario-authenticator-scenario-authenticator.sock")`.
+Ambient `VROOLI_STORAGE_NAMESPACE` does not select the authenticator namespace.
+An unavailable socket, server refusal, canceled request, or missing/blank access
+token returns an error; there is no TCP or token-file fallback. Successful account
+and token fields are preserved (refresh tokens may be empty). The helper neither
+persists nor prints credentials. Callers must not log returned tokens or responses.
+For connection failures, check the explicit socket override and listener ownership;
+do not reinterpret refusal as permission to use a different identity.
+
+Compatibility checks use isolated Unix-socket fixtures in `authn` and scoped Go
+tests for `vrooli-bridge/cli/internal/session` and
+`scenario-authenticator/cli/domains/auth`; no live credentials or service startup
+are required.
+
 ## Quick Start
 
 Add to your scenario's `api/go.mod`:

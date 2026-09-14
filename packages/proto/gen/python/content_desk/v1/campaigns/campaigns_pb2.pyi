@@ -75,7 +75,7 @@ class GetLaunchAssetsRequest(_message.Message):
     def __init__(self, scenario_name: _Optional[str] = ...) -> None: ...
 
 class LaunchAssetSlot(_message.Message):
-    __slots__ = ("campaign_id", "campaign_name", "channel", "format", "capacity", "reserved", "draft_count")
+    __slots__ = ("campaign_id", "campaign_name", "channel", "format", "capacity", "reserved", "draft_count", "approved_count", "ready_for_review_count", "readiness")
     CAMPAIGN_ID_FIELD_NUMBER: _ClassVar[int]
     CAMPAIGN_NAME_FIELD_NUMBER: _ClassVar[int]
     CHANNEL_FIELD_NUMBER: _ClassVar[int]
@@ -83,6 +83,9 @@ class LaunchAssetSlot(_message.Message):
     CAPACITY_FIELD_NUMBER: _ClassVar[int]
     RESERVED_FIELD_NUMBER: _ClassVar[int]
     DRAFT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    APPROVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    READY_FOR_REVIEW_COUNT_FIELD_NUMBER: _ClassVar[int]
+    READINESS_FIELD_NUMBER: _ClassVar[int]
     campaign_id: str
     campaign_name: str
     channel: str
@@ -90,7 +93,10 @@ class LaunchAssetSlot(_message.Message):
     capacity: int
     reserved: int
     draft_count: int
-    def __init__(self, campaign_id: _Optional[str] = ..., campaign_name: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., capacity: _Optional[int] = ..., reserved: _Optional[int] = ..., draft_count: _Optional[int] = ...) -> None: ...
+    approved_count: int
+    ready_for_review_count: int
+    readiness: str
+    def __init__(self, campaign_id: _Optional[str] = ..., campaign_name: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., capacity: _Optional[int] = ..., reserved: _Optional[int] = ..., draft_count: _Optional[int] = ..., approved_count: _Optional[int] = ..., ready_for_review_count: _Optional[int] = ..., readiness: _Optional[str] = ...) -> None: ...
 
 class GetLaunchAssetsResponse(_message.Message):
     __slots__ = ("scenario_name", "slots")

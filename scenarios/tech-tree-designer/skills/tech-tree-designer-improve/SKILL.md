@@ -8,7 +8,7 @@ metadata:
   modes: [practice]
   tags: [ecosystem, development, evidence, proposals, improvement]
   status: active
-  revision: 2
+  revision: 3
   requires:
     scenarios: [tech-tree-designer, program-runtime]
     commands: [program-runtime library run, prompt-manager skill read]
@@ -29,16 +29,16 @@ approved mandate. Observation-only callers report the next repair without acting
 
 ### 2. Setpoint
 
-The PRD owns outcomes. The selected mandate owns which are required.
+The PRD owns outcomes. The approved mandate owns which are required: all nine P0
+plus OT-P1-001, OT-P1-002 and OT-P1-006 (operator approval 2026-09-13, recorded in
+DECISIONS.md). The other rows are excluded, never passed.
 `path:scenarios/tech-tree-designer/docs/internal/TESTING.md#outcome-evidence-inventory`
-maps every outcome to its measurement gap, protocol and repair owner.
+maps every outcome to its measurement gap, protocol, repair owner and approved band.
 Run `tech-tree-designer.setpoint-read` through `program-runtime library run`.
 Its contract owns row IDs, output semantics and bounds; its 18 outcome IDs match
 the PRD's `OT-*` IDs, without folding optional tiers into P0 acceptance.
-As of 2026-09-11 `tech-tree-designer.setpoint-read` exceeds its 60-second
-wall-clock ceiling and returns no board. The first intervention is to make it
-read; do not estimate rows while the board is absent.
-Numeric acceptance for OT-P0-008 is undecided, separately from sensor absence.
+When the board is absent or times out, the first intervention is to make it read.
+Do not estimate rows while the board is absent.
 Registry and ontology readings are diagnostic-only and never satisfy OT-P0-009.
 
 ### 3. Sensors
@@ -101,16 +101,29 @@ unmet obligations and the next authorized action in the active engagement's log.
 Reuse automatic capture. For direct sessions use the shared Memory work-record
 protocol via `prompt-manager skill read vrooli-memory`; do not create a parallel
 ledger. Preserve Program Runtime IDs and Test Genie run IDs, not just summaries.
+Under the mandate, put readings, hypotheses and rejected hypotheses in its single
+journal, `~/.vrooli/plan-artifacts/tech-tree-designer-ecosystem-mandate/journal.md`.
+Checkpoints go through Plan Manager.
 
 ### 8. Stop rules
 
-Completion needs every selected required outcome and its owner validity rules.
-An `ok` board, readable documentation or passing setup fixture is insufficient.
-Missing targets or measurements remain unmet. Implement permanent prerequisites
-within authority; do not retry them as transient outages. Use owner waits for
-pending work. Honor aggregate budgets and cancellation, and checkpoint when a
-material amendment is needed. No universal number of improvement cycles proves
-completion. The setup review proposal in DECISIONS.md is not an approved mandate.
+**Stop a repair** when its evidence disproves the hypothesis, the fix needs an
+ungranted owner, or remeasurement shows no change. Journal the result and choose
+the next route. This does not stop the mandate.
+
+**Stop the mandate** only in these cases:
+
+- Complete: every required row reads in band under its owner validity rules and
+  the evidence audit passes. An `ok` board, readable documentation or a passing
+  setup fixture is not enough.
+- Blocked: a decision, credential or approval the agent lacks. Name it. Friction
+  the agent can diagnose, a missing measurement or a stopped owner scenario is
+  work, not blocked.
+- The aggregate allowance is exhausted, or the run is cancelled.
+
+Implement permanent prerequisites within authority; do not retry them as
+transient outages. Use owner waits for pending work. Checkpoint before any
+material amendment. No universal number of improvement cycles proves completion.
 
 ### Troubleshooting & Edge Cases
 
@@ -119,5 +132,5 @@ completion. The setup review proposal in DECISIONS.md is not an approved mandate
 | All outcome rows unknown | Expected until owner sensors ship; take the selected telemetry route, not a success exit. |
 | Setup fixture passes but product test fails | Keep the product failure; setup evidence covers only the reader. |
 | Swarm development launch is not qualified | Finish authorized setup and retain its evidence; do not launch or substitute an ungoverned loop. |
-| No approved scale floor | Retain `target: null`; review the proposal in PERFORMANCE.md before acceptance. |
+| Scale floor unmeasured | The OT-P0-008 floors are approved in PERFORMANCE.md; build the named cohorts and measure, never band current readings. |
 | Child program is partial or malformed | Preserve failure and unaffected diagnostics; do not accept child presence flags as complete evidence. |

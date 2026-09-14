@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 3
+  revision: 4
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-14T04:30:00Z"
+  updatedAt: "2026-09-14T04:40:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -45,6 +45,18 @@ sub-agent, with or without native goal support.
 Out of scope: Swarm goal records (`swarm-manager goals`), milestones, and backlog
 item text. Read `swarm-manager-work-authoring` for those. A Swarm goal states a
 change in the world; a harness goal is an execution mechanism. Do not mix them.
+
+### Path resolution
+
+Unless a command explicitly declares another root, every relative path in a
+goal is relative to the project-level directory (the repository root), not the
+current scenario directory, skill directory, or shell working directory. Goal
+authors should name that root when ambiguity is possible. Use project-relative
+paths such as `scenarios/prompt-manager/...` and `docs/...`; do not write
+unqualified fragments such as `sources/...` or `requirements.json`. Paths to
+protected workspaces outside the project-level directory must be absolute, or
+must include an explicit mapping from a named workspace root. The receiving
+agent must resolve and verify paths before editing them.
 
 ### 2. How the harness judges the message
 

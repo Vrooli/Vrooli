@@ -20,6 +20,25 @@ func NewAPIClient(client *HTTPClient, baseResolver func() APIBaseOptions, tokenS
 	}
 }
 
+// WithToken returns an isolated request client with an explicitly selected
+// in-memory credential. It preserves transport/provenance and never changes or
+// persists the receiver's authentication. Authentication policy belongs to the
+// caller; this method must not be used as an implicit privilege fallback.
+func (c *APIClient) WithToken(token string) *APIClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	base := c.client
+	if base == nil {
+		base = NewHTTPClient(HTTPClientOptions{})
+	}
+	copyClient := *base
+	clone.client = &copyClient
+	clone.tokenSource = func() string { return token }
+	return &clone
+}
+
 // WithTimeout returns a copy of this client whose requests use timeout instead
 // of the CLI default. Base resolution, token wiring, and provenance headers are
 // preserved, so an operator-initiated maintenance call that legitimately runs

@@ -1,6 +1,7 @@
 import datetime
 
 from agent_manager.v1.domain import events_pb2 as _events_pb2
+from agent_manager.v1.domain import effort_pb2 as _effort_pb2
 from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import task_pb2 as _task_pb2
@@ -358,17 +359,19 @@ class ListExecutionOptionsRequest(_message.Message):
     def __init__(self, role_ref: _Optional[str] = ...) -> None: ...
 
 class ModelOption(_message.Message):
-    __slots__ = ("id", "canonical_model", "is_default")
+    __slots__ = ("id", "canonical_model", "is_default", "source")
     ID_FIELD_NUMBER: _ClassVar[int]
     CANONICAL_MODEL_FIELD_NUMBER: _ClassVar[int]
     IS_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
     id: str
     canonical_model: str
     is_default: bool
-    def __init__(self, id: _Optional[str] = ..., canonical_model: _Optional[str] = ..., is_default: _Optional[bool] = ...) -> None: ...
+    source: str
+    def __init__(self, id: _Optional[str] = ..., canonical_model: _Optional[str] = ..., is_default: _Optional[bool] = ..., source: _Optional[str] = ...) -> None: ...
 
 class ExecutionOption(_message.Message):
-    __slots__ = ("runner_type", "available", "message", "native_objective", "sandbox_modes_with_native_objective", "default_model", "models", "effort_levels")
+    __slots__ = ("runner_type", "available", "message", "native_objective", "sandbox_modes_with_native_objective", "default_model", "models", "effort_levels", "default_model_source")
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -377,6 +380,7 @@ class ExecutionOption(_message.Message):
     DEFAULT_MODEL_FIELD_NUMBER: _ClassVar[int]
     MODELS_FIELD_NUMBER: _ClassVar[int]
     EFFORT_LEVELS_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_MODEL_SOURCE_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     available: bool
     message: str
@@ -385,7 +389,8 @@ class ExecutionOption(_message.Message):
     default_model: str
     models: _containers.RepeatedCompositeFieldContainer[ModelOption]
     effort_levels: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., native_objective: _Optional[bool] = ..., sandbox_modes_with_native_objective: _Optional[_Iterable[str]] = ..., default_model: _Optional[str] = ..., models: _Optional[_Iterable[_Union[ModelOption, _Mapping]]] = ..., effort_levels: _Optional[_Iterable[str]] = ...) -> None: ...
+    default_model_source: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., native_objective: _Optional[bool] = ..., sandbox_modes_with_native_objective: _Optional[_Iterable[str]] = ..., default_model: _Optional[str] = ..., models: _Optional[_Iterable[_Union[ModelOption, _Mapping]]] = ..., effort_levels: _Optional[_Iterable[str]] = ..., default_model_source: _Optional[str] = ...) -> None: ...
 
 class ListExecutionOptionsResponse(_message.Message):
     __slots__ = ("options",)
@@ -723,8 +728,62 @@ class ProfileRef(_message.Message):
     update_existing: bool
     def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
+class IssueSupervisorDispatchRequest(_message.Message):
+    __slots__ = ("effort_ref", "expected_revision", "team_id", "member_id", "profile_key", "expires_at", "maximum_runs", "idempotency_key", "minimum_interval_seconds")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    MEMBER_ID_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    MAXIMUM_RUNS_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    expected_revision: int
+    team_id: str
+    member_id: str
+    profile_key: str
+    expires_at: _timestamp_pb2.Timestamp
+    maximum_runs: int
+    idempotency_key: str
+    minimum_interval_seconds: int
+    def __init__(self, effort_ref: _Optional[str] = ..., expected_revision: _Optional[int] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_runs: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., minimum_interval_seconds: _Optional[int] = ...) -> None: ...
+
+class RevokeSupervisorDispatchRequest(_message.Message):
+    __slots__ = ("effort_ref", "authorization_id", "expected_revision", "reason", "idempotency_key")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    authorization_id: str
+    expected_revision: int
+    reason: str
+    idempotency_key: str
+    def __init__(self, effort_ref: _Optional[str] = ..., authorization_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., reason: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class CreateSupervisorRunRequest(_message.Message):
+    __slots__ = ("effort_ref", "authorization_id", "team_id", "member_id", "task_id", "idempotency_key", "work_references")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    MEMBER_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    authorization_id: str
+    team_id: str
+    member_id: str
+    task_id: str
+    idempotency_key: str
+    work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
+    def __init__(self, effort_ref: _Optional[str] = ..., authorization_id: _Optional[str] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., task_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ...) -> None: ...
+
 class CreateRunRequest(_message.Message):
-    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode")
+    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode", "work_references", "requested_scopes", "execution_preferences")
     class EnvironmentEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -746,6 +805,9 @@ class CreateRunRequest(_message.Message):
     CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
+    WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_SCOPES_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -760,7 +822,18 @@ class CreateRunRequest(_message.Message):
     conversation_id: str
     parent_run_id: str
     execution_mode: _types_pb2.ExecutionMode
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ...) -> None: ...
+    work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
+    requested_scopes: RunIdentityScopeRequest
+    execution_preferences: _profile_pb2.ExecutionPreferences
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., requested_scopes: _Optional[_Union[RunIdentityScopeRequest, _Mapping]] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+
+class RunIdentityScopeRequest(_message.Message):
+    __slots__ = ("scopes", "expected_owner_subject")
+    SCOPES_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_OWNER_SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    scopes: _containers.RepeatedScalarFieldContainer[str]
+    expected_owner_subject: str
+    def __init__(self, scopes: _Optional[_Iterable[str]] = ..., expected_owner_subject: _Optional[str] = ...) -> None: ...
 
 class AttachRunRequest(_message.Message):
     __slots__ = ("task_id", "harness_kind", "harness_session_id", "process_id", "harness_title")
@@ -841,6 +914,32 @@ class GetRunReportRequest(_message.Message):
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class GetRunAccountingRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RunAccounting(_message.Message):
+    __slots__ = ("run_id", "terminal", "tokens", "turns", "tokens_known", "charge_micro_usd", "charge_measured", "wall_seconds")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    CHARGE_MEASURED_FIELD_NUMBER: _ClassVar[int]
+    WALL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    terminal: bool
+    tokens: int
+    turns: int
+    tokens_known: bool
+    charge_micro_usd: int
+    charge_measured: bool
+    wall_seconds: int
+    def __init__(self, run_id: _Optional[str] = ..., terminal: _Optional[bool] = ..., tokens: _Optional[int] = ..., turns: _Optional[int] = ..., tokens_known: _Optional[bool] = ..., charge_micro_usd: _Optional[int] = ..., charge_measured: _Optional[bool] = ..., wall_seconds: _Optional[int] = ...) -> None: ...
 
 class RunReport(_message.Message):
     __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome", "work_references")

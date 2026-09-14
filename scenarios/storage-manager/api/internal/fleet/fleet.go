@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 const DefaultDataDirBudgetBytes int64 = 5 * 1024 * 1024 * 1024
@@ -323,7 +325,7 @@ func (c DataDirBudgetChecker) Check(ctx context.Context, scenario string, scenar
 func (c DataDirBudgetChecker) dataDirPaths(scenario string, scenarioDir string) []string {
 	paths := make([]string, 0, 2)
 	if scenarioDir != "" {
-		paths = append(paths, filepath.Join(scenarioDir, "data"))
+		paths = append(paths, corestorage.LifecycleDataDir(scenarioDir))
 	}
 	home := c.HomeDir
 	if home == "" {

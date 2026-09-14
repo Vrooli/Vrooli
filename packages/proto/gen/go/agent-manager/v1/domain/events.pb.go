@@ -2367,7 +2367,17 @@ type RateLimitEventData struct {
 	// The limit that was hit.
 	Limit int32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Human-readable message.
-	Message       string `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	// Provider identity for a native quota observation.
+	Provider string `protobuf:"bytes,7,opt,name=provider,proto3" json:"provider,omitempty"`
+	// Provider quota pool, such as primary or secondary.
+	Pool string `protobuf:"bytes,8,opt,name=pool,proto3" json:"pool,omitempty"`
+	// Provider-reported percentage used. This does not imply an absolute quota.
+	UsedPercent *float64 `protobuf:"fixed64,9,opt,name=used_percent,json=usedPercent,proto3,oneof" json:"used_percent,omitempty"`
+	// Provider-reported rolling window length in minutes.
+	WindowMinutes int64 `protobuf:"varint,10,opt,name=window_minutes,json=windowMinutes,proto3" json:"window_minutes,omitempty"`
+	// Provenance of the native provider observation.
+	Provenance    string `protobuf:"bytes,11,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2440,6 +2450,41 @@ func (x *RateLimitEventData) GetLimit() int32 {
 func (x *RateLimitEventData) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *RateLimitEventData) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *RateLimitEventData) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *RateLimitEventData) GetUsedPercent() float64 {
+	if x != nil && x.UsedPercent != nil {
+		return *x.UsedPercent
+	}
+	return 0
+}
+
+func (x *RateLimitEventData) GetWindowMinutes() int64 {
+	if x != nil {
+		return x.WindowMinutes
+	}
+	return 0
+}
+
+func (x *RateLimitEventData) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
 	}
 	return ""
 }
@@ -2726,7 +2771,7 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\fservice_tier\x18\x06 \x01(\tR\vserviceTier\x12\x14\n" +
 	"\x05model\x18\a \x01(\tR\x05model\x12.\n" +
 	"\x13web_search_requests\x18\b \x01(\x05R\x11webSearchRequests\x127\n" +
-	"\x18server_tool_use_requests\x18\t \x01(\x05R\x15serverToolUseRequests\"\xf6\x01\n" +
+	"\x18server_tool_use_requests\x18\t \x01(\x05R\x15serverToolUseRequests\"\xa6\x03\n" +
 	"\x12RateLimitEventData\x12\x1d\n" +
 	"\n" +
 	"limit_type\x18\x01 \x01(\tR\tlimitType\x12>\n" +
@@ -2736,8 +2781,17 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"retryAfter\x12!\n" +
 	"\fcurrent_used\x18\x04 \x01(\x05R\vcurrentUsed\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessageB\r\n" +
-	"\v_reset_time\"\x81\x02\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\x12\x1a\n" +
+	"\bprovider\x18\a \x01(\tR\bprovider\x12\x12\n" +
+	"\x04pool\x18\b \x01(\tR\x04pool\x12&\n" +
+	"\fused_percent\x18\t \x01(\x01H\x01R\vusedPercent\x88\x01\x01\x12%\n" +
+	"\x0ewindow_minutes\x18\n" +
+	" \x01(\x03R\rwindowMinutes\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\v \x01(\tR\n" +
+	"provenanceB\r\n" +
+	"\v_reset_timeB\x0f\n" +
+	"\r_used_percent\"\x81\x02\n" +
 	"\x13CompactionEventData\x12\x18\n" +
 	"\asummary\x18\x01 \x01(\tR\asummary\x12\x18\n" +
 	"\atrigger\x18\x02 \x01(\tR\atrigger\x12\x14\n" +

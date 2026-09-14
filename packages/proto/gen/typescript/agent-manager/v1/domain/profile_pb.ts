@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/profile.proto.
  */
 export const file_agent_manager_v1_domain_profile: GenFile = /*@__PURE__*/
-  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIqAJCgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSGAoEbmFtZRgCIAEoCUIKukgHcgUQARj/ARIfCgtwcm9maWxlX2tleRgSIAEoCUIKukgHcgUQARj/ARITCgtkZXNjcmlwdGlvbhgDIAEoCRIcCghyb2xlX3JlZhghIAEoCUIKukgHcgUQARj/ARIdCgltYXhfdHVybnMYBiABKAVCCrpIBxoFGOgHKAASKgoHdGltZW91dBgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIVCg1hbGxvd2VkX3Rvb2xzGAggAygJEhQKDGRlbmllZF90b29scxgJIAMoCRIfChd0b29sX3Jlc3RyaWN0aW9uX3BvbGljeRgiIAEoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAogASgIEjAKCGZlYXR1cmVzGBcgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQwoLZXh0cmFfZmxhZ3MYGCADKAsyLi5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50UHJvZmlsZS5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYGSABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSFgoOb3duZXJfc2NlbmFyaW8YGiABKAkSEwoLc291cmNlX3BhdGgYGyABKAkSEwoLc291cmNlX2hhc2gYHCABKAkSGQoRbGFzdF9hcHBsaWVkX2hhc2gYHSABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYHiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmxvY2FsX292ZXJyaWRlGB8gASgIEjcKDnNhbmRib3hfY29uZmlnGBQgASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGZWZmb3J0GCMgASgJEhIKCnNraWxsX3BhY2sYJCADKAkSGwoTc2tpbGxfZXhwZXJpbWVudF9pZBglIAEoCRpSCg9FeHRyYUZsYWdzRW50cnkSCwoDa2V5GAEgASgJEi4KBXZhbHVlGAIgASgLMh8uYWdlbnRfbWFuYWdlci52MS5FeHRyYUZsYWdMaXN0OgI4AUoECAQQBUoECAUQBkoECAsQDEoECAwQDUoECBMQFEoECBYQF0oECCAQIVILcnVubmVyX3R5cGVSBW1vZGVsUgpwb2xpY3lfcmVmUhByZXF1aXJlc19zYW5kYm94UhFyZXF1aXJlc19hcHByb3ZhbFIMbW9kZWxfcHJlc2V0UhVmYWxsYmFja19ydW5uZXJfdHlwZXMisQIKClJlc3VsdFNwZWMSDwoHdmVyc2lvbhgBIAEoCRIuCgRraW5kGAIgASgOMiAuYWdlbnRfbWFuYWdlci52MS5SZXN1bHRTcGVjS2luZBIOCgZzY2hlbWEYAyABKAwSFQoNc2NoZW1hX2RpZ2VzdBgEIAEoCRIdChVjbGFzc2lmaWNhdGlvbl92YWx1ZXMYBSADKAkSQwoPZXh0cmFjdGlvbl9tb2RlGAYgASgOMiouYWdlbnRfbWFuYWdlci52MS5TdHJ1Y3R1cmVkRXh0cmFjdGlvbk1vZGUSFwoPZXh0cmFjdGlvbl9yb2xlGAcgASgJEiMKFnNjaGVtYV9yZXBhaXJfYXR0ZW1wdHMYCCABKAVIAIgBAUIZChdfc2NoZW1hX3JlcGFpcl9hdHRlbXB0cyLYBwoJUnVuQ29uZmlnEjEKC3J1bm5lcl90eXBlGAEgASgOMhwuYWdlbnRfbWFuYWdlci52MS5SdW5uZXJUeXBlEg0KBW1vZGVsGAIgASgJEhAKCHJvbGVfcmVmGBUgASgJEjEKC3Jlc3VsdF9zcGVjGBYgASgLMhwuYWdlbnRfbWFuYWdlci52MS5SZXN1bHRTcGVjEhEKCW1heF90dXJucxgDIAEoBRIqCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhUKDWFsbG93ZWRfdG9vbHMYBSADKAkSFAoMZGVuaWVkX3Rvb2xzGAYgAygJEh8KF3Rvb2xfcmVzdHJpY3Rpb25fcG9saWN5GBcgASgJEg4KBmVmZm9ydBgYIAEoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgIEjAKCGZlYXR1cmVzGBAgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQAoLZXh0cmFfZmxhZ3MYESADKAsyKy5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkNvbmZpZy5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYEiABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSQgoPcG9saWN5X3NuYXBzaG90GBMgASgLMikuYWdlbnRfbWFuYWdlci52MS5FeGVjdXRpb25Qb2xpY3lTbmFwc2hvdBI3Cg5zYW5kYm94X2NvbmZpZxgNIAEoCzIfLmFnZW50X21hbmFnZXIudjEuU2FuZGJveENvbmZpZxIVCg1hbGxvd2VkX3BhdGhzGAogAygJEhQKDGRlbmllZF9wYXRocxgLIAMoCRIfChdtYW5pZmVzdF9pbmRleF9zbmFwc2hvdBgZIAEoCRIYChB0cmFuc2NyaXB0X2NvZGVjGBogASgJEh4KFnRyYW5zY3JpcHRfY29kZWNfc2NvcmUYGyABKAESDQoFdW50aWwYHCABKAkaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFKBAgIEAlKBAgJEApKBAgMEA1KBAgPEBBKBAgUEBVSCnBvbGljeV9yZWZSEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsUgxtb2RlbF9wcmVzZXRSFWZhbGxiYWNrX3J1bm5lcl90eXBlcyKcAwoSRXhlY3V0aW9uQ2FuZGlkYXRlEjEKC3J1bm5lcl90eXBlGAEgASgOMhwuYWdlbnRfbWFuYWdlci52MS5SdW5uZXJUeXBlEjwKDnNlbGVjdGlvbl90eXBlGAIgASgOMiQuYWdlbnRfbWFuYWdlci52MS5Nb2RlbFNlbGVjdGlvblR5cGUSDQoFbW9kZWwYAyABKAkSFQoNcmVzb3VyY2Vfcm9sZRgEIAEoCRIRCglmYWxsYmFja3MYBSADKAkSEQoJYXZhaWxhYmxlGAYgASgIEhQKDGZhaWx1cmVfY29kZRgHIAEoCRIPCgdmYWlsdXJlGAggASgJEjgKCnByb3ZlbmFuY2UYCSABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLlJlc291cmNlUHJvdmVuYW5jZRI8CgtlbmZvcmNlbWVudBgKIAEoCzInLmFnZW50X21hbmFnZXIudjEuUGVybWlzc2lvbkVuZm9yY2VtZW50EhMKC3BvbGljeV9wYXRoGAsgASgJEhUKDXBvbGljeV9kaWdlc3QYDCABKAkiOQoSUmVzb3VyY2VQcm92ZW5hbmNlEg4KBnNvdXJjZRgBIAEoCRITCgtvYnNlcnZlZF9hdBgCIAEoCSI9ChVQZXJtaXNzaW9uRW5mb3JjZW1lbnQSEwoLcGVybWlzc2lvbnMYASABKAkSDwoHY2F2ZWF0cxgCIAMoCSJ/ChJDYW5kaWRhdGVQcmVmbGlnaHQSDQoFaW5kZXgYASABKAUSNwoJY2FuZGlkYXRlGAIgASgLMiQuYWdlbnRfbWFuYWdlci52MS5FeGVjdXRpb25DYW5kaWRhdGUSEQoJYXZhaWxhYmxlGAMgASgIEg4KBnJlYXNvbhgEIAEoCSKYAgobUG9saWN5UmVzb2x1dGlvbkV4cGxhbmF0aW9uEg4KBnNvdXJjZRgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEjYKEHJlcXVlc3RlZF9ydW5uZXIYAyABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSFwoPcmVxdWVzdGVkX21vZGVsGAQgASgJEhoKEnJlcXVlc3RlZF9yb2xlX3JlZhgIIAEoCRI3CglwcmVmbGlnaHQYBiADKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkNhbmRpZGF0ZVByZWZsaWdodEoECAUQBkoECAcQCFIQcmVxdWVzdGVkX3ByZXNldFIUcmVxdWVzdGVkX3BvbGljeV9yZWYixwIKF0V4ZWN1dGlvblBvbGljeVNuYXBzaG90EhYKDmNhdGFsb2dfZGlnZXN0GAEgASgJEjgKCmNhbmRpZGF0ZXMYAyADKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkNhbmRpZGF0ZRIWCg5zZWxlY3RlZF9pbmRleBgEIAEoBRJAChJzZWxlY3RlZF9jYW5kaWRhdGUYBSABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkNhbmRpZGF0ZRJCCgtleHBsYW5hdGlvbhgGIAEoCzItLmFnZW50X21hbmFnZXIudjEuUG9saWN5UmVzb2x1dGlvbkV4cGxhbmF0aW9uEhAKCHJvbGVfcmVmGAcgASgJEhgKEHNlbGVjdGlvbl9yZWFzb24YCCABKAlKBAgCEANSCnBvbGljeV9yZWYiTwoURXhlY3V0aW9uUHJlZmVyZW5jZXMSGAoQcHJlZmVycmVkX3J1bm5lchgBIAEoCRINCgVtb2RlbBgCIAEoCRIOCgZlZmZvcnQYAyABKAki7ggKElJ1bkNvbmZpZ092ZXJyaWRlcxIVCghyb2xlX3JlZhgaIAEoCUgAiAEBEjEKC3Jlc3VsdF9zcGVjGBsgASgLMhwuYWdlbnRfbWFuYWdlci52MS5SZXN1bHRTcGVjEhYKCW1heF90dXJucxgDIAEoBUgBiAEBEi8KB3RpbWVvdXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IAogBARIVCg1hbGxvd2VkX3Rvb2xzGAUgAygJEhQKDGRlbmllZF90b29scxgGIAMoCRIjChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgISAOIAQESNQoIZmVhdHVyZXMYFSABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkZlYXR1cmVGbGFnc0gEiAEBEkkKC2V4dHJhX2ZsYWdzGBYgAygLMjQuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWdPdmVycmlkZXMuRXh0cmFGbGFnc0VudHJ5EhkKEWNsZWFyX2V4dHJhX2ZsYWdzGBcgASgIEjwKDm5ldHdvcmtfYWNjZXNzGBggASgOMh8uYWdlbnRfbWFuYWdlci52MS5OZXR3b3JrQWNjZXNzSAWIAQESEwoGZWZmb3J0GBwgASgJSAaIAQESEgoFbW9kZWwYHSABKAlIB4gBARISCgV1bnRpbBgeIAEoCUgIiAEBEjcKDnNhbmRib3hfY29uZmlnGBEgASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYCiADKAkSFAoMZGVuaWVkX3BhdGhzGAsgAygJEhsKE2NsZWFyX2FsbG93ZWRfdG9vbHMYDCABKAgSGgoSY2xlYXJfZGVuaWVkX3Rvb2xzGA0gASgIEhsKE2NsZWFyX2FsbG93ZWRfcGF0aHMYDiABKAgSGgoSY2xlYXJfZGVuaWVkX3BhdGhzGA8gASgIGlIKD0V4dHJhRmxhZ3NFbnRyeRILCgNrZXkYASABKAkSLgoFdmFsdWUYAiABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkV4dHJhRmxhZ0xpc3Q6AjgBQgsKCV9yb2xlX3JlZkIMCgpfbWF4X3R1cm5zQgoKCF90aW1lb3V0QhkKF19za2lwX3Blcm1pc3Npb25fcHJvbXB0QgsKCV9mZWF0dXJlc0IRCg9fbmV0d29ya19hY2Nlc3NCCQoHX2VmZm9ydEIICgZfbW9kZWxCCAoGX3VudGlsSgQIARACSgQIAhADSgQICBAJSgQICRAKSgQIEBARSgQIExAUSgQIFBAVSgQIGRAaUgtydW5uZXJfdHlwZVIKcG9saWN5X3JlZlIQcmVxdWlyZXNfc2FuZGJveFIRcmVxdWlyZXNfYXBwcm92YWxSDG1vZGVsX3ByZXNldFIVZmFsbGJhY2tfcnVubmVyX3R5cGVzUhtjbGVhcl9mYWxsYmFja19ydW5uZXJfdHlwZXMihAEKD0hlYXJ0YmVhdENvbmZpZxIrCghpbnRlcnZhbBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhgKEG1heF9taXNzZWRfYmVhdHMYAyABKAUqlAEKDlJlc3VsdFNwZWNLaW5kEiAKHFJFU1VMVF9TUEVDX0tJTkRfVU5TUEVDSUZJRUQQABIZChVSRVNVTFRfU1BFQ19LSU5EX05PTkUQARIgChxSRVNVTFRfU1BFQ19LSU5EX0pTT05fU0NIRU1BEAISIwofUkVTVUxUX1NQRUNfS0lORF9DTEFTU0lGSUNBVElPThADKq4BChhTdHJ1Y3R1cmVkRXh0cmFjdGlvbk1vZGUSKgomU1RSVUNUVVJFRF9FWFRSQUNUSU9OX01PREVfVU5TUEVDSUZJRUQQABIxCi1TVFJVQ1RVUkVEX0VYVFJBQ1RJT05fTU9ERV9ERVRFUk1JTklTVElDX09OTFkQARIzCi9TVFJVQ1RVUkVEX0VYVFJBQ1RJT05fTU9ERV9DT05TVFJBSU5FRF9GQUxMQkFDSxACQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIqAJCgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSGAoEbmFtZRgCIAEoCUIKukgHcgUQARj/ARIfCgtwcm9maWxlX2tleRgSIAEoCUIKukgHcgUQARj/ARITCgtkZXNjcmlwdGlvbhgDIAEoCRIcCghyb2xlX3JlZhghIAEoCUIKukgHcgUQARj/ARIdCgltYXhfdHVybnMYBiABKAVCCrpIBxoFGOgHKAASKgoHdGltZW91dBgHIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIVCg1hbGxvd2VkX3Rvb2xzGAggAygJEhQKDGRlbmllZF90b29scxgJIAMoCRIfChd0b29sX3Jlc3RyaWN0aW9uX3BvbGljeRgiIAEoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAogASgIEjAKCGZlYXR1cmVzGBcgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQwoLZXh0cmFfZmxhZ3MYGCADKAsyLi5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50UHJvZmlsZS5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYGSABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSFgoOb3duZXJfc2NlbmFyaW8YGiABKAkSEwoLc291cmNlX3BhdGgYGyABKAkSEwoLc291cmNlX2hhc2gYHCABKAkSGQoRbGFzdF9hcHBsaWVkX2hhc2gYHSABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYHiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmxvY2FsX292ZXJyaWRlGB8gASgIEjcKDnNhbmRib3hfY29uZmlnGBQgASgLMh8uYWdlbnRfbWFuYWdlci52MS5TYW5kYm94Q29uZmlnEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGZWZmb3J0GCMgASgJEhIKCnNraWxsX3BhY2sYJCADKAkSGwoTc2tpbGxfZXhwZXJpbWVudF9pZBglIAEoCRpSCg9FeHRyYUZsYWdzRW50cnkSCwoDa2V5GAEgASgJEi4KBXZhbHVlGAIgASgLMh8uYWdlbnRfbWFuYWdlci52MS5FeHRyYUZsYWdMaXN0OgI4AUoECAQQBUoECAUQBkoECAsQDEoECAwQDUoECBMQFEoECBYQF0oECCAQIVILcnVubmVyX3R5cGVSBW1vZGVsUgpwb2xpY3lfcmVmUhByZXF1aXJlc19zYW5kYm94UhFyZXF1aXJlc19hcHByb3ZhbFIMbW9kZWxfcHJlc2V0UhVmYWxsYmFja19ydW5uZXJfdHlwZXMisQIKClJlc3VsdFNwZWMSDwoHdmVyc2lvbhgBIAEoCRIuCgRraW5kGAIgASgOMiAuYWdlbnRfbWFuYWdlci52MS5SZXN1bHRTcGVjS2luZBIOCgZzY2hlbWEYAyABKAwSFQoNc2NoZW1hX2RpZ2VzdBgEIAEoCRIdChVjbGFzc2lmaWNhdGlvbl92YWx1ZXMYBSADKAkSQwoPZXh0cmFjdGlvbl9tb2RlGAYgASgOMiouYWdlbnRfbWFuYWdlci52MS5TdHJ1Y3R1cmVkRXh0cmFjdGlvbk1vZGUSFwoPZXh0cmFjdGlvbl9yb2xlGAcgASgJEiMKFnNjaGVtYV9yZXBhaXJfYXR0ZW1wdHMYCCABKAVIAIgBAUIZChdfc2NoZW1hX3JlcGFpcl9hdHRlbXB0cyKLCAoJUnVuQ29uZmlnEjEKC3J1bm5lcl90eXBlGAEgASgOMhwuYWdlbnRfbWFuYWdlci52MS5SdW5uZXJUeXBlEg0KBW1vZGVsGAIgASgJEhAKCHJvbGVfcmVmGBUgASgJEjEKC3Jlc3VsdF9zcGVjGBYgASgLMhwuYWdlbnRfbWFuYWdlci52MS5SZXN1bHRTcGVjEhEKCW1heF90dXJucxgDIAEoBRIqCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhUKDWFsbG93ZWRfdG9vbHMYBSADKAkSFAoMZGVuaWVkX3Rvb2xzGAYgAygJEh8KF3Rvb2xfcmVzdHJpY3Rpb25fcG9saWN5GBcgASgJEg4KBmVmZm9ydBgYIAEoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgIEjAKCGZlYXR1cmVzGBAgASgLMh4uYWdlbnRfbWFuYWdlci52MS5GZWF0dXJlRmxhZ3MSQAoLZXh0cmFfZmxhZ3MYESADKAsyKy5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkNvbmZpZy5FeHRyYUZsYWdzRW50cnkSNwoObmV0d29ya19hY2Nlc3MYEiABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3MSQgoPcG9saWN5X3NuYXBzaG90GBMgASgLMikuYWdlbnRfbWFuYWdlci52MS5FeGVjdXRpb25Qb2xpY3lTbmFwc2hvdBI3Cg5zYW5kYm94X2NvbmZpZxgNIAEoCzIfLmFnZW50X21hbmFnZXIudjEuU2FuZGJveENvbmZpZxIVCg1hbGxvd2VkX3BhdGhzGAogAygJEhQKDGRlbmllZF9wYXRocxgLIAMoCRIfChdtYW5pZmVzdF9pbmRleF9zbmFwc2hvdBgZIAEoCRIYChB0cmFuc2NyaXB0X2NvZGVjGBogASgJEh4KFnRyYW5zY3JpcHRfY29kZWNfc2NvcmUYGyABKAESDQoFdW50aWwYHCABKAkSMQoJYWRtaXNzaW9uGB0gASgLMh4uYWdlbnRfbWFuYWdlci52MS5SdW5BZG1pc3Npb24aUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFKBAgIEAlKBAgJEApKBAgMEA1KBAgPEBBKBAgUEBVSCnBvbGljeV9yZWZSEHJlcXVpcmVzX3NhbmRib3hSEXJlcXVpcmVzX2FwcHJvdmFsUgxtb2RlbF9wcmVzZXRSFWZhbGxiYWNrX3J1bm5lcl90eXBlcyKvBQoMUnVuQWRtaXNzaW9uEhgKEHJlcXVlc3RlZF9ydW5uZXIYASABKAkSFwoPcmVxdWVzdGVkX21vZGVsGAIgASgJEhoKEnJlcXVlc3RlZF9yb2xlX3JlZhgDIAEoCRIYChByZXF1ZXN0ZWRfZWZmb3J0GAQgASgJEjQKEXJlcXVlc3RlZF90aW1lb3V0GAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhsKE3JlcXVlc3RlZF9tYXhfdHVybnMYBiABKAUSGwoTcmVxdWVzdGVkX2dvYWxfbW9kZRgHIAEoCRIYChBlZmZlY3RpdmVfcnVubmVyGAggASgJEhcKD2VmZmVjdGl2ZV9tb2RlbBgJIAEoCRIYChBlZmZlY3RpdmVfZWZmb3J0GAogASgJEjQKEWVmZmVjdGl2ZV90aW1lb3V0GAsgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhsKE2VmZmVjdGl2ZV9tYXhfdHVybnMYDCABKAUSFwoPZWZmZWN0aXZlX3VudGlsGA0gASgJEhYKDmNhdGFsb2dfZGlnZXN0GA4gASgJEhUKDXBvbGljeV9kaWdlc3QYDyABKAkSEwoLcG9saWN5X3BhdGgYECABKAkSGAoQc2VsZWN0aW9uX3JlYXNvbhgRIAEoCRIbChNwYXNzZWRfY29udHJvbF9hcmdzGBIgAygJEh8KF3RyYW5zbGF0aW9uX2RpYWdub3N0aWNzGBMgAygJEhcKD3J1bnRpbWVfdmVyc2lvbhgUIAEoCRIfChdwcm92aWRlcl9hY2tub3dsZWRnbWVudBgVIAMoCRI3CgdyZWNlaXB0GBYgASgLMiYuYWdlbnRfbWFuYWdlci52MS5RdWFsaWZpY2F0aW9uUmVjZWlwdCJ8ChJRdWFsaWZpY2F0aW9uVXNhZ2USDQoFc3RhdGUYASABKAkSFAoMaW5wdXRfdG9rZW5zGAIgASgDEhUKDW91dHB1dF90b2tlbnMYAyABKAMSEAoIY29zdF91c2QYBCABKAESGAoQcmVzZXJ2ZWRfdW5rbm93bhgFIAEoCCLRBAoUUXVhbGlmaWNhdGlvblJlY2VpcHQSDQoFcm91dGUYASABKAkSGAoQcmVxdWVzdGVkX3J1bm5lchgCIAEoCRIXCg9yZXF1ZXN0ZWRfbW9kZWwYAyABKAkSGgoScmVxdWVzdGVkX3JvbGVfcmVmGAQgASgJEhgKEHJlcXVlc3RlZF9lZmZvcnQYBSABKAkSGAoQZWZmZWN0aXZlX3J1bm5lchgGIAEoCRIXCg9lZmZlY3RpdmVfbW9kZWwYByABKAkSGAoQZWZmZWN0aXZlX2VmZm9ydBgIIAEoCRIbChNwYXNzZWRfY29udHJvbF9hcmdzGAkgAygJEh8KF3RyYW5zbGF0aW9uX2RpYWdub3N0aWNzGAogAygJEh8KF3Byb3ZpZGVyX2Fja25vd2xlZGdtZW50GAsgAygJEhYKDmNhdGFsb2dfZGlnZXN0GAwgASgJEhUKDXBvbGljeV9kaWdlc3QYDSABKAkSEwoLcG9saWN5X3BhdGgYDiABKAkSFwoPcnVudGltZV92ZXJzaW9uGA8gASgJEg4KBnJ1bl9pZBgQIAEoCRIUCgxvcGVyYXRpb25faWQYESABKAkSFwoPYWNjZXB0ZWRfb3V0cHV0GBIgASgIEjMKBXVzYWdlGBMgASgLMiQuYWdlbnRfbWFuYWdlci52MS5RdWFsaWZpY2F0aW9uVXNhZ2USEwoLbGltaXRhdGlvbnMYFCADKAkSLwoLY2FwdHVyZWRfYXQYFSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpwDChJFeGVjdXRpb25DYW5kaWRhdGUSMQoLcnVubmVyX3R5cGUYASABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSPAoOc2VsZWN0aW9uX3R5cGUYAiABKA4yJC5hZ2VudF9tYW5hZ2VyLnYxLk1vZGVsU2VsZWN0aW9uVHlwZRINCgVtb2RlbBgDIAEoCRIVCg1yZXNvdXJjZV9yb2xlGAQgASgJEhEKCWZhbGxiYWNrcxgFIAMoCRIRCglhdmFpbGFibGUYBiABKAgSFAoMZmFpbHVyZV9jb2RlGAcgASgJEg8KB2ZhaWx1cmUYCCABKAkSOAoKcHJvdmVuYW5jZRgJIAEoCzIkLmFnZW50X21hbmFnZXIudjEuUmVzb3VyY2VQcm92ZW5hbmNlEjwKC2VuZm9yY2VtZW50GAogASgLMicuYWdlbnRfbWFuYWdlci52MS5QZXJtaXNzaW9uRW5mb3JjZW1lbnQSEwoLcG9saWN5X3BhdGgYCyABKAkSFQoNcG9saWN5X2RpZ2VzdBgMIAEoCSI5ChJSZXNvdXJjZVByb3ZlbmFuY2USDgoGc291cmNlGAEgASgJEhMKC29ic2VydmVkX2F0GAIgASgJIj0KFVBlcm1pc3Npb25FbmZvcmNlbWVudBITCgtwZXJtaXNzaW9ucxgBIAEoCRIPCgdjYXZlYXRzGAIgAygJIn8KEkNhbmRpZGF0ZVByZWZsaWdodBINCgVpbmRleBgBIAEoBRI3CgljYW5kaWRhdGUYAiABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkNhbmRpZGF0ZRIRCglhdmFpbGFibGUYAyABKAgSDgoGcmVhc29uGAQgASgJIpgCChtQb2xpY3lSZXNvbHV0aW9uRXhwbGFuYXRpb24SDgoGc291cmNlGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSNgoQcmVxdWVzdGVkX3J1bm5lchgDIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIXCg9yZXF1ZXN0ZWRfbW9kZWwYBCABKAkSGgoScmVxdWVzdGVkX3JvbGVfcmVmGAggASgJEjcKCXByZWZsaWdodBgGIAMoCzIkLmFnZW50X21hbmFnZXIudjEuQ2FuZGlkYXRlUHJlZmxpZ2h0SgQIBRAGSgQIBxAIUhByZXF1ZXN0ZWRfcHJlc2V0UhRyZXF1ZXN0ZWRfcG9saWN5X3JlZiLHAgoXRXhlY3V0aW9uUG9saWN5U25hcHNob3QSFgoOY2F0YWxvZ19kaWdlc3QYASABKAkSOAoKY2FuZGlkYXRlcxgDIAMoCzIkLmFnZW50X21hbmFnZXIudjEuRXhlY3V0aW9uQ2FuZGlkYXRlEhYKDnNlbGVjdGVkX2luZGV4GAQgASgFEkAKEnNlbGVjdGVkX2NhbmRpZGF0ZRgFIAEoCzIkLmFnZW50X21hbmFnZXIudjEuRXhlY3V0aW9uQ2FuZGlkYXRlEkIKC2V4cGxhbmF0aW9uGAYgASgLMi0uYWdlbnRfbWFuYWdlci52MS5Qb2xpY3lSZXNvbHV0aW9uRXhwbGFuYXRpb24SEAoIcm9sZV9yZWYYByABKAkSGAoQc2VsZWN0aW9uX3JlYXNvbhgIIAEoCUoECAIQA1IKcG9saWN5X3JlZiJPChRFeGVjdXRpb25QcmVmZXJlbmNlcxIYChBwcmVmZXJyZWRfcnVubmVyGAEgASgJEg0KBW1vZGVsGAIgASgJEg4KBmVmZm9ydBgDIAEoCSLuCAoSUnVuQ29uZmlnT3ZlcnJpZGVzEhUKCHJvbGVfcmVmGBogASgJSACIAQESMQoLcmVzdWx0X3NwZWMYGyABKAsyHC5hZ2VudF9tYW5hZ2VyLnYxLlJlc3VsdFNwZWMSFgoJbWF4X3R1cm5zGAMgASgFSAGIAQESLwoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgCiAEBEhUKDWFsbG93ZWRfdG9vbHMYBSADKAkSFAoMZGVuaWVkX3Rvb2xzGAYgAygJEiMKFnNraXBfcGVybWlzc2lvbl9wcm9tcHQYByABKAhIA4gBARI1CghmZWF0dXJlcxgVIAEoCzIeLmFnZW50X21hbmFnZXIudjEuRmVhdHVyZUZsYWdzSASIAQESSQoLZXh0cmFfZmxhZ3MYFiADKAsyNC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkNvbmZpZ092ZXJyaWRlcy5FeHRyYUZsYWdzRW50cnkSGQoRY2xlYXJfZXh0cmFfZmxhZ3MYFyABKAgSPAoObmV0d29ya19hY2Nlc3MYGCABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLk5ldHdvcmtBY2Nlc3NIBYgBARITCgZlZmZvcnQYHCABKAlIBogBARISCgVtb2RlbBgdIAEoCUgHiAEBEhIKBXVudGlsGB4gASgJSAiIAQESNwoOc2FuZGJveF9jb25maWcYESABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLlNhbmRib3hDb25maWcSFQoNYWxsb3dlZF9wYXRocxgKIAMoCRIUCgxkZW5pZWRfcGF0aHMYCyADKAkSGwoTY2xlYXJfYWxsb3dlZF90b29scxgMIAEoCBIaChJjbGVhcl9kZW5pZWRfdG9vbHMYDSABKAgSGwoTY2xlYXJfYWxsb3dlZF9wYXRocxgOIAEoCBIaChJjbGVhcl9kZW5pZWRfcGF0aHMYDyABKAgaUgoPRXh0cmFGbGFnc0VudHJ5EgsKA2tleRgBIAEoCRIuCgV2YWx1ZRgCIAEoCzIfLmFnZW50X21hbmFnZXIudjEuRXh0cmFGbGFnTGlzdDoCOAFCCwoJX3JvbGVfcmVmQgwKCl9tYXhfdHVybnNCCgoIX3RpbWVvdXRCGQoXX3NraXBfcGVybWlzc2lvbl9wcm9tcHRCCwoJX2ZlYXR1cmVzQhEKD19uZXR3b3JrX2FjY2Vzc0IJCgdfZWZmb3J0QggKBl9tb2RlbEIICgZfdW50aWxKBAgBEAJKBAgCEANKBAgIEAlKBAgJEApKBAgQEBFKBAgTEBRKBAgUEBVKBAgZEBpSC3J1bm5lcl90eXBlUgpwb2xpY3lfcmVmUhByZXF1aXJlc19zYW5kYm94UhFyZXF1aXJlc19hcHByb3ZhbFIMbW9kZWxfcHJlc2V0UhVmYWxsYmFja19ydW5uZXJfdHlwZXNSG2NsZWFyX2ZhbGxiYWNrX3J1bm5lcl90eXBlcyKEAQoPSGVhcnRiZWF0Q29uZmlnEisKCGludGVydmFsGAEgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEioKB3RpbWVvdXQYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SGAoQbWF4X21pc3NlZF9iZWF0cxgDIAEoBSqUAQoOUmVzdWx0U3BlY0tpbmQSIAocUkVTVUxUX1NQRUNfS0lORF9VTlNQRUNJRklFRBAAEhkKFVJFU1VMVF9TUEVDX0tJTkRfTk9ORRABEiAKHFJFU1VMVF9TUEVDX0tJTkRfSlNPTl9TQ0hFTUEQAhIjCh9SRVNVTFRfU1BFQ19LSU5EX0NMQVNTSUZJQ0FUSU9OEAMqrgEKGFN0cnVjdHVyZWRFeHRyYWN0aW9uTW9kZRIqCiZTVFJVQ1RVUkVEX0VYVFJBQ1RJT05fTU9ERV9VTlNQRUNJRklFRBAAEjEKLVNUUlVDVFVSRURfRVhUUkFDVElPTl9NT0RFX0RFVEVSTUlOSVNUSUNfT05MWRABEjMKL1NUUlVDVFVSRURfRVhUUkFDVElPTl9NT0RFX0NPTlNUUkFJTkVEX0ZBTExCQUNLEAJCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * AgentProfile defines the configuration for running an agent.
@@ -464,6 +464,16 @@ export type RunConfig = Message<"agent_manager.v1.RunConfig"> & {
    * @generated from field: string until = 28;
    */
   until: string;
+
+  /**
+   * Creation-time admission record binding the caller's requested settings to
+   * the owner-resolved effective settings and the policy source they came
+   * from. Output-only; create surfaces accept RunConfigOverrides, so callers
+   * never author this directly.
+   *
+   * @generated from field: agent_manager.v1.RunAdmission admission = 29;
+   */
+  admission?: RunAdmission | undefined;
 };
 
 /**
@@ -472,6 +482,332 @@ export type RunConfig = Message<"agent_manager.v1.RunConfig"> & {
  */
 export const RunConfigSchema: GenMessage<RunConfig> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_profile, 2);
+
+/**
+ * RunAdmission is the immutable required/effective configuration record written
+ * when a run is admitted. It keeps the requested side, the owner-resolved
+ * effective side, and the source policy digests in one replay-readable place so
+ * a fresh reader never has to consult mutable policy or a transcript to learn
+ * what was asked for versus what actually ran.
+ *
+ * @generated from message agent_manager.v1.RunAdmission
+ */
+export type RunAdmission = Message<"agent_manager.v1.RunAdmission"> & {
+  /**
+   * Requested side — taken from the caller request before resolution. Empty
+   * means the caller did not request the field.
+   *
+   * @generated from field: string requested_runner = 1;
+   */
+  requestedRunner: string;
+
+  /**
+   * @generated from field: string requested_model = 2;
+   */
+  requestedModel: string;
+
+  /**
+   * @generated from field: string requested_role_ref = 3;
+   */
+  requestedRoleRef: string;
+
+  /**
+   * @generated from field: string requested_effort = 4;
+   */
+  requestedEffort: string;
+
+  /**
+   * @generated from field: google.protobuf.Duration requested_timeout = 5;
+   */
+  requestedTimeout?: Duration | undefined;
+
+  /**
+   * @generated from field: int32 requested_max_turns = 6;
+   */
+  requestedMaxTurns: number;
+
+  /**
+   * requested_goal_mode is "until" when the caller supplied a completion test,
+   * otherwise empty.
+   *
+   * @generated from field: string requested_goal_mode = 7;
+   */
+  requestedGoalMode: string;
+
+  /**
+   * Owner-resolved effective side — identical to the enclosing RunConfig.
+   *
+   * @generated from field: string effective_runner = 8;
+   */
+  effectiveRunner: string;
+
+  /**
+   * @generated from field: string effective_model = 9;
+   */
+  effectiveModel: string;
+
+  /**
+   * @generated from field: string effective_effort = 10;
+   */
+  effectiveEffort: string;
+
+  /**
+   * @generated from field: google.protobuf.Duration effective_timeout = 11;
+   */
+  effectiveTimeout?: Duration | undefined;
+
+  /**
+   * @generated from field: int32 effective_max_turns = 12;
+   */
+  effectiveMaxTurns: number;
+
+  /**
+   * @generated from field: string effective_until = 13;
+   */
+  effectiveUntil: string;
+
+  /**
+   * Source policy provenance for the selected candidate.
+   *
+   * @generated from field: string catalog_digest = 14;
+   */
+  catalogDigest: string;
+
+  /**
+   * @generated from field: string policy_digest = 15;
+   */
+  policyDigest: string;
+
+  /**
+   * @generated from field: string policy_path = 16;
+   */
+  policyPath: string;
+
+  /**
+   * @generated from field: string selection_reason = 17;
+   */
+  selectionReason: string;
+
+  /**
+   * Passed side — the runner-native control arguments the selected codec emits
+   * for the resolved configuration. Empty when the codec was unavailable or
+   * refused the configuration at admission.
+   *
+   * @generated from field: repeated string passed_control_args = 18;
+   */
+  passedControlArgs: string[];
+
+  /**
+   * Human-readable notes on how each canonical control became a native
+   * argument, or why translation was refused.
+   *
+   * @generated from field: repeated string translation_diagnostics = 19;
+   */
+  translationDiagnostics: string[];
+
+  /**
+   * Runtime side — the concrete runner/runtime version observed for this run.
+   * It is only observable at a live launch, so it stays empty until that
+   * evidence exists; the bounded live qualification probe supplies it. Never
+   * inferred from the requested or passed layers.
+   *
+   * @generated from field: string runtime_version = 20;
+   */
+  runtimeVersion: string;
+
+  /**
+   * Provider side — the provider's own acknowledgment of the effective runner,
+   * model and reasoning effort, captured from provider evidence during a
+   * bounded live launch. Empty until that evidence exists; it never
+   * substitutes for the requested, effective or passed layers.
+   *
+   * @generated from field: repeated string provider_acknowledgment = 21;
+   */
+  providerAcknowledgment: string[];
+
+  /**
+   * Qualification receipt — the reusable route-keyed evidence record produced
+   * by one bounded live qualification run. Empty until that evidence exists.
+   * A reader must be able to tell "not observed" from "observed and equal", so
+   * an unqualified run never carries a synthesized receipt here.
+   *
+   * @generated from field: agent_manager.v1.QualificationReceipt receipt = 22;
+   */
+  receipt?: QualificationReceipt | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.RunAdmission.
+ * Use `create(RunAdmissionSchema)` to create a new message.
+ */
+export const RunAdmissionSchema: GenMessage<RunAdmission> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 3);
+
+/**
+ * QualificationUsage separates provider-reported usage from usage the provider
+ * did not report. Unknown usage stays reserved and is never presented as zero.
+ *
+ * @generated from message agent_manager.v1.QualificationUsage
+ */
+export type QualificationUsage = Message<"agent_manager.v1.QualificationUsage"> & {
+  /**
+   * "measured" when the provider reported usage, "unknown-reserved" otherwise.
+   *
+   * @generated from field: string state = 1;
+   */
+  state: string;
+
+  /**
+   * @generated from field: int64 input_tokens = 2;
+   */
+  inputTokens: bigint;
+
+  /**
+   * @generated from field: int64 output_tokens = 3;
+   */
+  outputTokens: bigint;
+
+  /**
+   * @generated from field: double cost_usd = 4;
+   */
+  costUsd: number;
+
+  /**
+   * @generated from field: bool reserved_unknown = 5;
+   */
+  reservedUnknown: boolean;
+};
+
+/**
+ * Describes the message agent_manager.v1.QualificationUsage.
+ * Use `create(QualificationUsageSchema)` to create a new message.
+ */
+export const QualificationUsageSchema: GenMessage<QualificationUsage> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 4);
+
+/**
+ * QualificationReceipt is the reusable route-keyed evidence record produced by
+ * one bounded live qualification run. It binds the route and the
+ * requested/effective/passed configuration to the observed runtime, provider
+ * acknowledgment, operation identity, accepted output and usage. A receipt is
+ * evidence, never a launch: an unobserved field stays empty rather than being
+ * backfilled from the requested or effective layers.
+ *
+ * @generated from message agent_manager.v1.QualificationReceipt
+ */
+export type QualificationReceipt = Message<"agent_manager.v1.QualificationReceipt"> & {
+  /**
+   * @generated from field: string route = 1;
+   */
+  route: string;
+
+  /**
+   * @generated from field: string requested_runner = 2;
+   */
+  requestedRunner: string;
+
+  /**
+   * @generated from field: string requested_model = 3;
+   */
+  requestedModel: string;
+
+  /**
+   * @generated from field: string requested_role_ref = 4;
+   */
+  requestedRoleRef: string;
+
+  /**
+   * @generated from field: string requested_effort = 5;
+   */
+  requestedEffort: string;
+
+  /**
+   * @generated from field: string effective_runner = 6;
+   */
+  effectiveRunner: string;
+
+  /**
+   * @generated from field: string effective_model = 7;
+   */
+  effectiveModel: string;
+
+  /**
+   * @generated from field: string effective_effort = 8;
+   */
+  effectiveEffort: string;
+
+  /**
+   * @generated from field: repeated string passed_control_args = 9;
+   */
+  passedControlArgs: string[];
+
+  /**
+   * @generated from field: repeated string translation_diagnostics = 10;
+   */
+  translationDiagnostics: string[];
+
+  /**
+   * @generated from field: repeated string provider_acknowledgment = 11;
+   */
+  providerAcknowledgment: string[];
+
+  /**
+   * @generated from field: string catalog_digest = 12;
+   */
+  catalogDigest: string;
+
+  /**
+   * @generated from field: string policy_digest = 13;
+   */
+  policyDigest: string;
+
+  /**
+   * @generated from field: string policy_path = 14;
+   */
+  policyPath: string;
+
+  /**
+   * @generated from field: string runtime_version = 15;
+   */
+  runtimeVersion: string;
+
+  /**
+   * @generated from field: string run_id = 16;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string operation_id = 17;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: bool accepted_output = 18;
+   */
+  acceptedOutput: boolean;
+
+  /**
+   * @generated from field: agent_manager.v1.QualificationUsage usage = 19;
+   */
+  usage?: QualificationUsage | undefined;
+
+  /**
+   * @generated from field: repeated string limitations = 20;
+   */
+  limitations: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp captured_at = 21;
+   */
+  capturedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.QualificationReceipt.
+ * Use `create(QualificationReceiptSchema)` to create a new message.
+ */
+export const QualificationReceiptSchema: GenMessage<QualificationReceipt> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 5);
 
 /**
  * ExecutionCandidate is one immutable runner/model attempt in resolved order.
@@ -545,7 +881,7 @@ export type ExecutionCandidate = Message<"agent_manager.v1.ExecutionCandidate"> 
  * Use `create(ExecutionCandidateSchema)` to create a new message.
  */
 export const ExecutionCandidateSchema: GenMessage<ExecutionCandidate> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 3);
+  messageDesc(file_agent_manager_v1_domain_profile, 6);
 
 /**
  * ResourceProvenance records the resource-owned policy authority that
@@ -570,7 +906,7 @@ export type ResourceProvenance = Message<"agent_manager.v1.ResourceProvenance"> 
  * Use `create(ResourceProvenanceSchema)` to create a new message.
  */
 export const ResourceProvenanceSchema: GenMessage<ResourceProvenance> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 4);
+  messageDesc(file_agent_manager_v1_domain_profile, 7);
 
 /**
  * PermissionEnforcement reports the resource's real enforcement posture.
@@ -594,7 +930,7 @@ export type PermissionEnforcement = Message<"agent_manager.v1.PermissionEnforcem
  * Use `create(PermissionEnforcementSchema)` to create a new message.
  */
 export const PermissionEnforcementSchema: GenMessage<PermissionEnforcement> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 5);
+  messageDesc(file_agent_manager_v1_domain_profile, 8);
 
 /**
  * CandidatePreflight records creation-time availability evidence used to pick
@@ -629,7 +965,7 @@ export type CandidatePreflight = Message<"agent_manager.v1.CandidatePreflight"> 
  * Use `create(CandidatePreflightSchema)` to create a new message.
  */
 export const CandidatePreflightSchema: GenMessage<CandidatePreflight> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 6);
+  messageDesc(file_agent_manager_v1_domain_profile, 9);
 
 /**
  * PolicyResolutionExplanation makes profile/override precedence and initial
@@ -674,7 +1010,7 @@ export type PolicyResolutionExplanation = Message<"agent_manager.v1.PolicyResolu
  * Use `create(PolicyResolutionExplanationSchema)` to create a new message.
  */
 export const PolicyResolutionExplanationSchema: GenMessage<PolicyResolutionExplanation> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 7);
+  messageDesc(file_agent_manager_v1_domain_profile, 10);
 
 /**
  * ExecutionPolicySnapshot pins the active catalog revision and complete
@@ -724,7 +1060,7 @@ export type ExecutionPolicySnapshot = Message<"agent_manager.v1.ExecutionPolicyS
  * Use `create(ExecutionPolicySnapshotSchema)` to create a new message.
  */
 export const ExecutionPolicySnapshotSchema: GenMessage<ExecutionPolicySnapshot> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 8);
+  messageDesc(file_agent_manager_v1_domain_profile, 11);
 
 /**
  * @generated from message agent_manager.v1.ExecutionPreferences
@@ -751,7 +1087,7 @@ export type ExecutionPreferences = Message<"agent_manager.v1.ExecutionPreference
  * Use `create(ExecutionPreferencesSchema)` to create a new message.
  */
 export const ExecutionPreferencesSchema: GenMessage<ExecutionPreferences> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 9);
+  messageDesc(file_agent_manager_v1_domain_profile, 12);
 
 /**
  * RunConfigOverrides contains optional overrides for run configuration.
@@ -920,7 +1256,7 @@ export type RunConfigOverrides = Message<"agent_manager.v1.RunConfigOverrides"> 
  * Use `create(RunConfigOverridesSchema)` to create a new message.
  */
 export const RunConfigOverridesSchema: GenMessage<RunConfigOverrides> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 10);
+  messageDesc(file_agent_manager_v1_domain_profile, 13);
 
 /**
  * HeartbeatConfig defines heartbeat behavior for long-running operations.
@@ -962,7 +1298,7 @@ export type HeartbeatConfig = Message<"agent_manager.v1.HeartbeatConfig"> & {
  * Use `create(HeartbeatConfigSchema)` to create a new message.
  */
 export const HeartbeatConfigSchema: GenMessage<HeartbeatConfig> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 11);
+  messageDesc(file_agent_manager_v1_domain_profile, 14);
 
 /**
  * RunConfig contains the resolved configuration for a run.

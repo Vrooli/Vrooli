@@ -146,12 +146,20 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, &ProviderError{Code: CodeUnreachable, Message: "OpenRouter request failed before a response", Err: err}
 	}
 	defer resp.Body.Close()
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		// A body that fails mid-read after a 2xx is a transient stream failure,
+		// not a policy or request error. Preserve the observed status so the
+		// caller can retry on the provider's own window rather than a generic one.
+		return nil, &ProviderError{
+			Code:       CodeStreamFailed,
+			HTTPStatus: resp.StatusCode,
+			Message:    fmt.Sprintf("OpenRouter response stream failed after HTTP %d", resp.StatusCode),
+			Err:        err,
+		}
 	}
 	if resp.StatusCode >= 400 {
 		var failure struct {
@@ -159,10 +167,11 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 				Message string `json:"message"`
 			} `json:"error"`
 		}
-		if json.Unmarshal(responseBody, &failure) == nil && strings.TrimSpace(failure.Error.Message) != "" {
-			return nil, fmt.Errorf("OpenRouter generate failed: %s", failure.Error.Message)
+		detail := ""
+		if json.Unmarshal(responseBody, &failure) == nil {
+			detail = strings.TrimSpace(failure.Error.Message)
 		}
-		return nil, fmt.Errorf("OpenRouter generate failed with status %d", resp.StatusCode)
+		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
 	}
 	return responseBody, nil
 }
@@ -215,15 +224,29 @@ func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.R
 	req.Header.Set("Authorization", "Bearer "+creds.APIKey)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, &ProviderError{Code: CodeUnreachable, Message: "OpenRouter image request failed before a response", Err: err}
 	}
 	defer resp.Body.Close()
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, &ProviderError{
+			Code:       CodeStreamFailed,
+			HTTPStatus: resp.StatusCode,
+			Message:    fmt.Sprintf("OpenRouter image response stream failed after HTTP %d", resp.StatusCode),
+			Err:        err,
+		}
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("OpenRouter image generation failed with status %d", resp.StatusCode)
+		var failure struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		detail := ""
+		if json.Unmarshal(responseBody, &failure) == nil {
+			detail = strings.TrimSpace(failure.Error.Message)
+		}
+		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
 	}
 	return responseBody, nil
 }

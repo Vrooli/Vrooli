@@ -141,6 +141,83 @@ func TestExternalRetriesConsumeReviewedAllowanceWithoutRestoringInternalRetries(
 	}
 }
 
+type stubAggregateGrants struct {
+	grant  AggregateGrant
+	ok     bool
+	err    error
+	planID string
+}
+
+func (stub *stubAggregateGrants) AggregateGrantForPlan(_ context.Context, planID string) (AggregateGrant, bool, error) {
+	stub.planID = planID
+	return stub.grant, stub.ok, stub.err
+}
+
+func TestChildGrantLimitsBindToAdmittedAggregate(t *testing.T) {
+	stub := &stubAggregateGrants{grant: AggregateGrant{MaxConcurrency: 3, MaxRecursion: 2, MaxWaitSeconds: 900}, ok: true}
+	service := &Service{}
+	service.SetAggregateGrantProvider(stub)
+	item := backlogItem{PlanRef: &planRef{PlanID: "plan-1"}}
+	concurrency, recursion, wait := service.childGrantLimits(t.Context(), item)
+	if concurrency != 3 || recursion != 2 || wait != 900 {
+		t.Fatalf("aggregate grant not bound: %d %d %d", concurrency, recursion, wait)
+	}
+	if stub.planID != "plan-1" {
+		t.Fatalf("provider resolved the wrong plan: %q", stub.planID)
+	}
+}
+
+func TestChildGrantLimitsKeepDefaultsWhenUnresolved(t *testing.T) {
+	fallback := backlogItem{PlanRef: &planRef{PlanID: "plan-1"}}
+	cases := []struct {
+		name    string
+		service *Service
+		item    backlogItem
+		planID  string
+		grant   AggregateGrant
+		ok      bool
+		err     error
+	}{
+		{name: "no provider", service: &Service{}, item: fallback},
+		{name: "no plan ref", service: (&Service{}), item: backlogItem{}},
+		{name: "unowned plan", service: (&Service{}), item: fallback, ok: false},
+		{name: "provider error", service: (&Service{}), item: fallback, ok: true, err: fmt.Errorf("unavailable")},
+		{name: "zero fields stay default", service: (&Service{}), item: fallback, ok: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.service.aggregateGrants == nil && tc.name != "no provider" {
+				tc.service.SetAggregateGrantProvider(&stubAggregateGrants{grant: tc.grant, ok: tc.ok, err: tc.err})
+			}
+			concurrency, recursion, wait := tc.service.childGrantLimits(t.Context(), tc.item)
+			if concurrency != defaultChildConcurrency || recursion != defaultChildRecursion || wait != defaultChildWaitSeconds {
+				t.Fatalf("defaults not preserved: %d %d %d", concurrency, recursion, wait)
+			}
+		})
+	}
+}
+
+func TestPrepareExecutionGrantBindsAggregateChildLimits(t *testing.T) {
+	limits := reviewedLimits()
+	item := backlogItem{
+		Kind:            "execute",
+		Name:            "aggregate-child",
+		ExecutionLimits: limits,
+		PlanAcceptance:  &planAcceptance{SubjectVersion: "subject", PlanContentHash: "plan"},
+		PlanRef:         &planRef{PlanID: "plan-1"},
+	}
+	service := &Service{}
+	service.SetAggregateGrantProvider(&stubAggregateGrants{grant: AggregateGrant{MaxConcurrency: 2, MaxRecursion: 1, MaxWaitSeconds: 600}, ok: true})
+	record := Record{ExecutionID: "next", BacklogKind: item.Kind, BacklogName: item.Name, MaxSlices: 64, ExecutionLimits: limits.Clone(), ApprovalDigest: digestStrings("subject", "plan")}
+	if err := service.prepareExecutionGrantLocked(t.Context(), nil, &record, item); err != nil {
+		t.Fatal(err)
+	}
+	grant := record.WorkflowGrant
+	if grant == nil || grant.MaxConcurrency != 2 || grant.MaxRecursion != 1 || grant.MaxWaitSeconds != 600 {
+		t.Fatalf("child limits were not bound to the aggregate grant: %+v", grant)
+	}
+}
+
 type uniqueGrantWorkflow struct{ stubPhasedPlanWorkflow }
 
 func (w *uniqueGrantWorkflow) StartWorkflow(ctx context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {

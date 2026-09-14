@@ -1,17 +1,26 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "infra-health",
-  "displayName": "Infra Health Team",
-  "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
-  "objectivesServed": [
-    {
-      "id": "I2",
-      "acknowledgedRevision": "5de27857cc63"
+  "attributionValidFrom": "2026-05-04",
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
     }
-  ],
+  },
+  "createdAt": "2026-04-28T00:00:00Z",
+  "displayName": "Infra Health Team",
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "id": "infra-health",
   "instrument": {
     "status": "partial",
     "scenario": "infrastructure-manager",
@@ -27,51 +36,15 @@
     ],
     "gapMarker": "2026-08-20 (second revision) — the instrument is wired to its own condition domain and to a new substrate projection. Fixed since the first marker: the batch saturation read removed the N+1 per-check fan-out that was reporting deadline expiry as UNTRUSTED on roughly two thirds of checks; ghost classification now tests target existence rather than core-set membership, so installed scenarios outside the core set are reported as out-of-scope and stay in every aggregate; the focus surface now joins out-of-band and untrusted readings, so inner cascade tiers can outrank coverage gaps; and 24 of 28 setpoint bars now carry a unit and a numeric threshold, with the remaining four declared not-gradeable with stated reasons. Still open: substrate bars are provisional pending operator ratification, setpoint confidence is SKETCH, peer sources other than vrooli-autoheal have no typed reader, capability availability history is unavailable, the infra-health loop remains paused, and template provenance remains quarantined upstream. The plant remains the layer stack in docs/infra-health/operating/OPERATING_MODEL.md section Platform Under Control — not the *-health scenario fleet, which is scenario-qa's plant."
   },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
-  "coordination": {
-    "pattern": "independent",
-    "reportingMode": "none",
-    "messagingMode": "disabled",
-    "capabilities": {
-      "showOrgContext": false,
-      "injectInbox": false,
-      "allowPeerTriggers": false,
-      "showTaskBoardGuidance": false,
-      "showKnowledgeLogGuidance": true,
-      "requireHandoff": true
-    }
-  },
-  "topicCatalog": [
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
+  "objectivesServed": [
     {
-      "prefix": "runtime-health-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot one runtime-health signal or quiet-day review."
-    },
-    {
-      "prefix": "platform-code-audit/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot one internal platform-code audit slice."
-    },
-    {
-      "prefix": "contrarian-scan/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Stale work-item and failure-mode review snapshot."
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
     }
   ],
-  "execution": {
-    "queuePolicy": "bounded-parallel",
-    "maxConcurrentRuns": 3
-  },
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
-  },
-  "revision": 4,
-  "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-08-20T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
     "documents": {
@@ -162,7 +135,7 @@
             "openLoop": "infrastructure-manager coverage open-loop --json",
             "condition": "infrastructure-manager condition status --json",
             "trust": "infrastructure-manager condition trust --json",
-            "explain": "infrastructure-manager condition explain <cell-ref> --json"
+            "explain": "infrastructure-manager condition explain \u003ccell-ref\u003e --json"
           },
           "setpoint": "scenarios/infrastructure-manager/setpoint/reliability-setpoint.json",
           "rationale": "The team's instrument. Members read reliability state here instead of re-deriving it; no member may write to the setpoint, which is what stops the supervisor grading itself.",
@@ -309,5 +282,32 @@
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "purpose": "domain-stewardship",
+  "revision": 5,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "topicCatalog": [
+    {
+      "prefix": "runtime-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one runtime-health signal or quiet-day review."
+    },
+    {
+      "prefix": "platform-code-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one internal platform-code audit slice."
+    },
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Stale work-item and failure-mode review snapshot."
+    }
+  ],
+  "updatedAt": "2026-09-14T05:05:43Z"
 }

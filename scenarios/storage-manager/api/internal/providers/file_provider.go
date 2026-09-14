@@ -37,9 +37,9 @@ type FileProviderConfig struct {
 	// newer files spared, leaving a corrupt fragment that is worse than either
 	// keeping or removing the whole thing.
 	//
-	// Content-addressed caches (Go's build cache, Playwright's browser cache)
-	// want the opposite: their entries are independent by construction and
-	// per-file aging is exactly right, so they leave this false.
+	// Caches with independently reclaimable entries leave this false. Content
+	// addressing alone does not establish that safety: shared Go build outputs
+	// can still be needed by a later build step, even without an open handle.
 	TopLevelEntries bool
 
 	// MeasureBudget caps the wall-clock time spent measuring one root.
@@ -158,7 +158,7 @@ func NewScratchProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileP
 
 func NewCacheProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
 	tier := cfg.Tier
-	if tier == "" {
+	if tier == "" || isGoBuildCacheProvider(cfg.ID) {
 		tier = cleanup.SafetyTierConditional
 	}
 	approval := cleanup.ApprovalModeOperator
@@ -166,6 +166,24 @@ func NewCacheProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FilePro
 		approval = cleanup.ApprovalModeNone
 	}
 	return newFileProvider(files, clock, cfg, tier, cleanup.ProviderModeDisabled, approval, "cache-remove", desktopPlatforms)
+}
+
+func isGoBuildCacheProvider(id string) bool {
+	// Both are canonical registry identities: the current root-spec provider
+	// and its legacy adapter. Do not let an old regenerable declaration restore
+	// autonomous authority while it still advertises a false NoLease proof.
+	return id == "go-build-cache" || id == "spec-go-build-cache"
+}
+
+func (p *FileProvider) reclaimBlockedReason() string {
+	if isGoBuildCacheProvider(p.meta.ID) {
+		// Go promises a Get/Put output remains available through cache Close.
+		// File age, a byte cap, and a snapshot of open handles cannot establish
+		// that all builds have finished using it. This provider has no tool-owner
+		// build-use protocol; even operator approval is not that evidence.
+		return "Go build cache reclaim requires tool-owner build-use or quiescence proof; generic filesystem cleanup cannot provide it"
+	}
+	return ""
 }
 
 func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig, tier cleanup.SafetyTier, mode cleanup.ProviderMode, approval cleanup.ApprovalMode, action string, platforms []string) *FileProvider {
@@ -233,6 +251,11 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 	}
 	if req.IdempotencyKey == "" {
 		return cleanup.ApplyResult{}, fmt.Errorf("provider %s apply requires idempotency key", p.meta.ID)
+	}
+	// Recheck at the effect boundary: a persisted preview or standing approval
+	// from before the safety repair must not authorize deletion on replay.
+	if reason := p.reclaimBlockedReason(); reason != "" {
+		return cleanup.ApplyResult{ProviderID: p.meta.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{reason}}, nil
 	}
 	if req.ApprovalMode == cleanup.ApprovalModeDisabled {
 		return cleanup.ApplyResult{ProviderID: p.meta.ID, Applied: false, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"provider disabled by policy"}}, nil
@@ -329,6 +352,9 @@ func (p *FileProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.V
 // preview measures the configured roots, reusing a very recent identical
 // measurement when one exists.
 func (p *FileProvider) preview(ctx context.Context, scope cleanup.ObservationScope, policy cleanup.ProviderPolicy) (cleanup.Preview, error) {
+	if reason := p.reclaimBlockedReason(); reason != "" {
+		return cleanup.Preview{ProviderID: p.meta.ID, ProviderVersion: p.meta.Version, BlockedReason: reason}, nil
+	}
 	key := memoKey(scope, policy)
 
 	p.memoMu.Lock()

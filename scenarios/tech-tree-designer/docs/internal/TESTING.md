@@ -52,11 +52,12 @@ Record each sensor's owner, discoverable invocation, input cohort, freshness/app
 
 ### Outcome evidence inventory
 
-Inventory revision: `ecosystem-design-v1`, 2026-09-09. Row IDs in the setpoint
-program are the PRD IDs below. Every product reading is currently `null` with
-`pending_telemetry`; no outcome has an implemented acceptance resolver. Targets
-remain in the PRD, not derived from current counts. All numeric bands are null
-until cohort approval. P1/P2 become required only by explicit mandate selection.
+Inventory revision: `ecosystem-design-v1`, 2026-09-09; the selection and bands
+were approved by the operator on 2026-09-13 (see DECISIONS.md). Row IDs in the
+setpoint program are the PRD IDs below. Every product reading is still `null` with
+`pending_telemetry`, and no outcome has an implemented acceptance resolver. Targets
+remain in the PRD and are not derived from current counts. The only numeric band
+is OT-P0-008, taken from PERFORMANCE.md's approved profile v1.
 
 | Outcome | Existing evidence / missing acceptance measurement | Protocol | Repair owner |
 | --- | --- | --- | --- |
@@ -78,6 +79,30 @@ until cohort approval. P1/P2 become required only by explicit mandate selection.
 | OT-P2-001 | Existing SDA adapter tests, not new entity/source coverage | SOURCE | SDA + graph |
 | OT-P2-002 | No qualified strategic suggestion evidence | STRATEGY | ontology + inference owner |
 | OT-P2-003 | No exhaustive-horizon or simulation evidence; optional vision | STRATEGY, SCALE | ontology + future qualified owners |
+
+#### Approved bands (2026-09-13)
+
+A row is in band only when the program reads it from a fresh owner-backed receipt.
+That receipt must carry the approved target revision, the named cohort and a
+passing verdict for every falsification case of the listed protocol. A stale,
+failed, canceled, incomplete or wrong-revision receipt keeps the row out of band.
+
+| Outcome | Status | Band |
+| --- | --- | --- |
+| OT-P0-001 | Required | SOURCE passes: live, cached and unavailable SDA are distinguished with provenance; unavailable never reads as healthy empty |
+| OT-P0-002 | Required | SCOPE and APPLY pass: an invalid planned contract is refused before materialization |
+| OT-P0-003 | Required | VIEWS passes |
+| OT-P0-004 | Required | SCOPE passes for one unpublished proposal spanning an existing scenario, a new scenario, a resource, a shared package and root docs |
+| OT-P0-005 | Required | REVISION passes |
+| OT-P0-006 | Required | APPLY and RECOVERY pass |
+| OT-P0-007 | Required | ISOLATION passes |
+| OT-P0-008 | Required | SCALE passes and every floor and limit in PERFORMANCE.md "Proposed qualification profile v1" holds on each named cohort, under that section's trial rule |
+| OT-P0-009 | Required | EVIDENCE passes, including fresh-session cases 1–5 below |
+| OT-P1-001 | Required | ONTOLOGY passes |
+| OT-P1-002 | Required | UX passes |
+| OT-P1-006 | Required | PARITY passes |
+| OT-P1-003, OT-P1-004, OT-P1-005 | Excluded | Reported as excluded, never as passed |
+| OT-P2-001, OT-P2-002, OT-P2-003 | Excluded | Reported as excluded, never as passed |
 
 The board's three diagnostics are not outcome sensors:
 

@@ -42,6 +42,15 @@ type Enforcer struct {
 	// values. A map keeps the adapter copyable while retaining the two-cycle
 	// sustained-breach rule.
 	OverBudgetCycles map[string]int
+	// OwnerReclaim is the backstop for a non-regenerable entry that declares
+	// reclaim.operation: after a sustained breach storage-manager asks the
+	// owner to reclaim and re-measures. Nil disables the backstop.
+	OwnerReclaim OwnerReclaimer
+	// OwnerReclaimAttempts is shared across cycles like OverBudgetCycles and
+	// spaces requests for one entry by OwnerReclaimInterval.
+	OwnerReclaimAttempts map[string]time.Time
+	OwnerReclaimInterval time.Duration
+	Now                  func() time.Time
 }
 
 // Result records the outcome for one owner entry. A successful result means
@@ -52,15 +61,23 @@ type Enforcer struct {
 // That is still a governed outcome: the budget keeps working as an alarm, it
 // just never works as a deleter.
 type Result struct {
-	Owner     string
-	Entry     string
-	Deleted   int
-	Freed     int64
-	Error     string
-	Refused   bool
-	Reason    string
-	UsedBytes int64
-	OverBytes int64
+	Owner       string `json:"owner"`
+	Entry       string `json:"entry,omitempty"`
+	Deleted     int    `json:"deleted,omitempty"`
+	Freed       int64  `json:"freed_bytes,omitempty"`
+	Error       string `json:"error,omitempty"`
+	Refused     bool   `json:"refused,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	UsedBytes   int64  `json:"used_bytes"`
+	OverBytes   int64  `json:"over_bytes,omitempty"`
+	BudgetBytes int64  `json:"budget_bytes,omitempty"`
+	// Locations lists every place the entry's bytes were measured.
+	Locations []LocationMeasurement `json:"locations,omitempty"`
+	// OwnerReclaim is set when this cycle asked the owner to reclaim.
+	OwnerReclaim *OwnerReclaimOutcome `json:"owner_reclaim,omitempty"`
+	// Escalated means the owner could not be asked, failed, or is still over
+	// budget after a repeated request: an operator must act.
+	Escalated bool `json:"escalated,omitempty"`
 	// EntryResults preserves the outcome for every budgeted entry. The other
 	// fields remain an owner-level rollup for compatibility with existing
 	// consumers that only need the governance state.
@@ -103,8 +120,10 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			}
 			if entry.Reclaim != nil && entry.Reclaim.Pruner == "custom" {
 				hasCustom = true
-				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Refused: true,
-					Reason: "custom retention is enforced by the owner with live-work protection"})
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: "custom retention is enforced by the owner with live-work protection",
+				})
 				continue
 			}
 			path, err := coreStorage.ResolveOwnerStoragePath(e.RepoRoot, owner, entry, platform, coreStorage.PlatformSeams{})
@@ -114,21 +133,6 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 					continue
 				}
 				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("resolve storage path: %w", err).Error()})
-				continue
-			}
-			// Contract-protected runtime-home entries are control-plane
-			// substrate shared by every scenario and resource. An owner may
-			// declare a budget over one -- by mistake, or because it
-			// contributes a few files to a shared directory and named the whole
-			// directory -- and that declaration must never become a licence to
-			// prune it. Refusing here catches the ancestor case too: a budget on
-			// ~/.vrooli would otherwise remove ~/.vrooli/bin as one top-level
-			// entry.
-			if coreRetention.ProtectedPathOverlap(path, protectedRoots) {
-				addResult(results, owner.ID, Result{
-					Owner: owner.ID, Entry: entry.Name, Refused: true,
-					Reason: "path overlaps a contract-protected runtime-home entry, which is never retention-managed",
-				})
 				continue
 			}
 			budget := coreRetention.Budget{Name: entry.Name}
@@ -146,6 +150,31 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 					continue
 				}
 			}
+			// Pruning deletes files. For an entry its owner declared it cannot
+			// rebuild, the deleted bytes are the only copy, so a budget here is
+			// an accountability signal and never a licence to destroy. Measure
+			// every location and report; a sustained breach asks the owner.
+			// Measuring deletes nothing, so it runs before the protected-path
+			// refusal below; that refusal guards pruning, not accounting.
+			if !entry.Regenerable {
+				addResult(results, owner.ID, e.alarmOnly(ctx, owner, entry, budget, platform))
+				continue
+			}
+			// Contract-protected runtime-home entries are control-plane
+			// substrate shared by every scenario and resource. An owner may
+			// declare a budget over one -- by mistake, or because it
+			// contributes a few files to a shared directory and named the whole
+			// directory -- and that declaration must never become a licence to
+			// prune it. Refusing here catches the ancestor case too: a budget on
+			// ~/.vrooli would otherwise remove ~/.vrooli/bin as one top-level
+			// entry.
+			if coreRetention.ProtectedPathOverlap(path, protectedRoots) {
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: "path overlaps a contract-protected runtime-home entry, which is never retention-managed",
+				})
+				continue
+			}
 			var pruner budgetPruner
 			if entry.Kind == "dir" {
 				pruner, err = coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
@@ -159,27 +188,6 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			}
 			if err != nil {
 				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("build provider: %w", err).Error()})
-				continue
-			}
-			// Pruning deletes files. For an entry its owner declared it cannot
-			// rebuild, the deleted bytes are the only copy, so a budget here is
-			// an accountability signal and never a licence to destroy. Measure
-			// and report instead: the owner still learns it is over ceiling.
-			if !entry.Regenerable {
-				usage, measureErr := pruner.Measure(ctx)
-				if measureErr != nil {
-					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("measure non-regenerable entry: %w", measureErr).Error()})
-					continue
-				}
-				result := Result{
-					Owner: owner.ID, Entry: entry.Name, Refused: true, UsedBytes: usage.Bytes,
-					Reason: "entry is declared regenerable=false; budgets on non-regenerable data alarm but never prune",
-				}
-				if budget.MaxBytes > 0 && usage.Bytes > budget.MaxBytes {
-					result.OverBytes = usage.Bytes - budget.MaxBytes
-				}
-				e.recordBudgetBreach(ctx, owner.ID, entry.Name, usage.Bytes, budget.MaxBytes, result.OverBytes > 0, entry.Regenerable)
-				addResult(results, owner.ID, result)
 				continue
 			}
 			out, err := pruner.Prune(ctx, budget)
@@ -214,23 +222,112 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 	return results, nil
 }
 
-func (e Enforcer) recordBudgetBreach(ctx context.Context, owner, entry string, measured, budget int64, overage bool, regenerable bool) {
+// recordBudgetBreach returns how many consecutive cycles the entry has been
+// over budget; zero when breach memory is not wired.
+func (e Enforcer) recordBudgetBreach(ctx context.Context, owner, entry string, measured, budget int64, overage bool, regenerable bool) int {
 	if e.OverBudgetCycles == nil {
-		return
+		return 0
 	}
 	key := owner + "/" + entry
 	if !overage {
 		e.OverBudgetCycles[key] = 0
-		return
+		return 0
 	}
 	e.OverBudgetCycles[key]++
-	if e.OverBudgetCycles[key] != 2 || e.BudgetEvent == nil {
-		return
+	cycles := e.OverBudgetCycles[key]
+	if cycles != 2 || e.BudgetEvent == nil {
+		return cycles
 	}
 	_ = e.BudgetEvent(ctx, "storage.budget.exceeded", map[string]any{
 		"owner": owner, "entry": entry, "measured_bytes": measured,
 		"budget_bytes": budget, "cycles_over": 2, "regenerable": regenerable,
 	})
+	return cycles
+}
+
+// alarmOnly measures a non-regenerable entry at every location that holds its
+// bytes and never prunes it. A sustained breach asks the owner to reclaim when
+// the entry declares reclaim.operation; a failed request, or a breach that
+// persists after a repeated request, is escalated.
+func (e Enforcer) alarmOnly(ctx context.Context, owner coreStorage.OwnerManifest, entry coreStorage.StorageEntry, budget coreRetention.Budget, platform coreStorage.Platform) Result {
+	measurement, err := MeasureEntry(e.RepoRoot, owner, entry, platform)
+	if err != nil {
+		return Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("measure non-regenerable entry: %w", err).Error()}
+	}
+	result := Result{
+		Owner: owner.ID, Entry: entry.Name, Refused: true, UsedBytes: measurement.Bytes,
+		BudgetBytes: budget.MaxBytes, OverBytes: overBytes(measurement.Bytes, budget.MaxBytes), Locations: measurement.Locations,
+		Reason: "entry is declared regenerable=false; budgets on non-regenerable data alarm but never prune",
+	}
+	key := owner.ID + "/" + entry.Name
+	over := result.OverBytes > 0
+	cycles := e.recordBudgetBreach(ctx, owner.ID, entry.Name, measurement.Bytes, budget.MaxBytes, over, entry.Regenerable)
+	if !over && e.OwnerReclaimAttempts != nil {
+		delete(e.OwnerReclaimAttempts, key)
+	}
+	if !over || cycles < 2 || entry.Reclaim == nil || strings.TrimSpace(entry.Reclaim.Operation) == "" || e.OwnerReclaim == nil {
+		return result
+	}
+	repeated, due := e.ownerReclaimDue(key)
+	if !due {
+		return result
+	}
+	outcome := OwnerReclaimOutcome{Operation: entry.Reclaim.Operation, RequestedAt: e.now(), BeforeBytes: measurement.Bytes, AfterBytes: measurement.Bytes, BudgetBytes: budget.MaxBytes}
+	if owner.Kind != coreStorage.OwnerScenario {
+		outcome.Error = "owner reclaim requires a scenario owner with an API"
+	} else {
+		receipt, reclaimErr := e.OwnerReclaim.Reclaim(ctx, owner.ID, entry.Reclaim.Operation)
+		outcome.Receipt = receipt
+		if reclaimErr != nil {
+			outcome.Error = reclaimErr.Error()
+		}
+	}
+	if after, measureErr := MeasureEntry(e.RepoRoot, owner, entry, platform); measureErr == nil {
+		outcome.AfterBytes = after.Bytes
+		result.UsedBytes, result.Locations, result.OverBytes = after.Bytes, after.Locations, overBytes(after.Bytes, budget.MaxBytes)
+	}
+	outcome.StillOver = overBytes(outcome.AfterBytes, budget.MaxBytes) > 0
+	result.OwnerReclaim = &outcome
+	// An owner may reclaim asynchronously, so the first request is not judged
+	// by an immediate re-measure. A second request an interval later that
+	// finds the breach still standing is.
+	if outcome.Error != "" || (repeated && outcome.StillOver) {
+		result.Escalated = true
+		if e.BudgetEvent != nil {
+			_ = e.BudgetEvent(ctx, "storage.budget.owner_reclaim_insufficient", map[string]any{
+				"owner": owner.ID, "entry": entry.Name, "operation": outcome.Operation,
+				"before_bytes": outcome.BeforeBytes, "after_bytes": outcome.AfterBytes,
+				"budget_bytes": budget.MaxBytes, "error": outcome.Error,
+			})
+		}
+	}
+	return result
+}
+
+// ownerReclaimDue reports whether a request for key may be sent now, and
+// whether an earlier request for the same breach already went out.
+func (e Enforcer) ownerReclaimDue(key string) (repeated, due bool) {
+	if e.OwnerReclaimAttempts == nil {
+		return false, true
+	}
+	interval := e.OwnerReclaimInterval
+	if interval <= 0 {
+		interval = DefaultOwnerReclaimInterval
+	}
+	now := e.now()
+	last, had := e.OwnerReclaimAttempts[key]
+	if had && now.Sub(last) < interval {
+		return true, false
+	}
+	e.OwnerReclaimAttempts[key] = now
+	return had, true
+}
+
+func (e Enforcer) now() time.Time {
+	if e.Now != nil {
+		return e.Now()
+	}
+	return time.Now().UTC()
 }
 
 // protectedRuntimeRoots returns every runtime-home entry the repository
@@ -297,6 +394,7 @@ func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	rollup.UsedBytes += entryResult.UsedBytes
 	rollup.OverBytes += entryResult.OverBytes
 	rollup.Refused = rollup.Refused || entryResult.Refused
+	rollup.Escalated = rollup.Escalated || entryResult.Escalated
 	// A refusal that reaches the owner level with no reason is the shape this
 	// package exists to avoid: an operator sees "refused" and cannot act on it.
 	// First reason wins; the per-entry detail stays in EntryResults.

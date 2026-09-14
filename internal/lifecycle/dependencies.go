@@ -163,6 +163,10 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", nil
 	}
 	if session.contains(dependencyName) {
+		if decision.continueOnFailure {
+			r.logWarn("Deferring optional dependency already being started by an ancestor", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+			return dependencyName, nil
+		}
 		return "", fmt.Errorf("circular scenario dependency detected involving %s", dependencyName)
 	}
 
@@ -193,7 +197,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", err
 	}
 	dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
-	strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
+	strictHealthy := r.isRegistryRuntimeServingHealthy(dependencyItem, dependencyView)
 	dependencyRunning := dependencyView.Authoritative
 	// Optional capabilities never justify disrupting a healthy shared process.
 	// In particular, do not perform an expensive source-freshness walk merely
@@ -223,6 +227,10 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	var freshnessReasons []string
 	if dependencyRunning && strictHealthy {
 		freshnessStale, freshnessReasons, err = r.setupNeededCached(dependencyItem, dependencyForceSetup, session)
+		if !r.registryRuntimeBuildCurrent(dependencyItem, dependencyView) {
+			freshnessStale = true
+			freshnessReasons = append(freshnessReasons, "serving build identity differs from current sources")
+		}
 		if err != nil {
 			if decision.continueOnFailure {
 				r.logWarn("Dependency setup check failed; continuing in best-effort mode",
@@ -318,8 +326,8 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		if err != nil {
 			return false, err
 		}
-		if decision.continueOnFailure {
-			return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view), nil
+		if decision.continueOnFailure || decision.freshnessPolicy == scenario.DependencyFreshnessPolicyReuseRunning {
+			return view.Authoritative && r.isRegistryRuntimeServingHealthy(dependencyItem, view), nil
 		}
 		stale, _, err := r.setupNeededCached(dependencyItem, dependencyForceSetup, session)
 		if err != nil {
@@ -368,6 +376,21 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		session.markReady(dependencyName)
 		return "", nil
 	}
+	defer depRelease()
+	// Recheck after lock acquisition: another invocation may have made the
+	// dependency reusable while this invocation was waiting for ownership.
+	if ready, checkErr := dependencyReadyForReuse(); checkErr == nil && ready {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(leaseID)
+		session.markReady(dependencyName)
+		return "", nil
+	}
 
 	beforeLeases := session.dependencyLeaseSet()
 	leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
@@ -378,7 +401,6 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", leaseErr
 	}
 	_, depErr := r.startScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
-	depRelease()
 	if err := depErr; err != nil {
 		_ = r.releaseDemandLease(ctx, leaseID, "dependency start failed")
 		_ = r.releaseNewStartSessionDemand(ctx, session, beforeLeases, "dependency start failed")
@@ -562,6 +584,16 @@ func (r *Runner) applyDependencyFreshnessPolicyContext(ctx context.Context, star
 func (r *Runner) rebuildDependencyArtifactsContext(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	// Freshness arbitration happens before dependency-start locking. Rebuilding
+	// here is also a lifecycle mutation, so it must use the same target lock.
+	release, err := r.tryAcquireScenarioLock(recordSlug(item))
+	if err != nil {
+		return err
+	}
+	defer release()
+	if _, err := r.requireOwnerMaintenance(ctx, item, 0); err != nil {
+		return err
 	}
 	env := envFromRuntimeView(item.Manifest, view)
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {

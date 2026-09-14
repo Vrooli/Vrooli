@@ -593,6 +593,21 @@ message RateLimitEventData {
 
   // Human-readable message.
   string message = 6;
+
+  // Provider identity for a native quota observation.
+  string provider = 7;
+
+  // Provider quota pool, such as primary or secondary.
+  string pool = 8;
+
+  // Provider-reported percentage used. This does not imply an absolute quota.
+  optional double used_percent = 9;
+
+  // Provider-reported rolling window length in minutes.
+  int64 window_minutes = 10;
+
+  // Provenance of the native provider observation.
+  string provenance = 11;
 }
 
 // =============================================================================

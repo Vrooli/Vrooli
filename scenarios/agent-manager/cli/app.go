@@ -121,6 +121,7 @@ func (a *App) dependencies() support.Dependencies {
 		PermissionPolicy: a.cmdPermissionPolicy,
 		Settings:         a.cmdSettings,
 		Maintenance:      a.cmdMaintenance,
+		Storage:          a.cmdStorage,
 		Ops:              a.cmdOps,
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,

@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -10,7 +11,149 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+func TestRunSetupIfStoppedAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		status    string
+		variant   string
+		deferred  bool
+		openError bool
+		readError bool
+	}{
+		{name: "no_instance"},
+		{name: "stopped_instance", status: scenarioruntime.StatusStopped},
+		{name: "start_before_lock", status: scenarioruntime.StatusRunning, deferred: true},
+		{name: "starting_instance", status: scenarioruntime.StatusStarting, deferred: true},
+		{name: "stopping_instance", status: scenarioruntime.StatusStopping, deferred: true},
+		{name: "other_variant", status: scenarioruntime.StatusRunning, variant: "preview", deferred: true},
+		{name: "registry_unavailable", openError: true},
+		{name: "registry_read_failure", readError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, home := t.TempDir(), t.TempDir()
+			writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+				Service: scenario.ServiceMetadata{Name: "alpha"},
+				Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
+					Name: "setup-marker", Exec: []string{"bash", "-c", "printf setup >> setup.txt"},
+				}}}},
+			})
+			dbPath := filepath.Join(home, "registry.db")
+			openStore := func() (*scenarioruntime.SQLiteStore, error) {
+				return scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{DBPath: dbPath})
+			}
+			registryErr := errors.New("fixture registry failure")
+			lockAcquired := false
+			seeded := false
+			registryReads := 0
+			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.runtimeRegistry = func(context.Context, string) (scenarioRuntimeStore, error) {
+					registryReads++
+					if !lockAcquired {
+						t.Error("registry admission read before acquiring scenario lock")
+					}
+					if tc.openError {
+						return nil, registryErr
+					}
+					store, err := openStore()
+					if err != nil {
+						return nil, err
+					}
+					if tc.readError {
+						return &setupAdmissionReadErrorStore{scenarioRuntimeStore: store, err: registryErr}, nil
+					}
+					return store, nil
+				}
+			})
+			// Inject the competing start's registry commit at lock acquisition.
+			// Any pre-lock observation sees no instance. No sleep or live start
+			// is needed to reproduce the stale-state interleaving.
+			originalLock := lockFileFn
+			t.Cleanup(func() { lockFileFn = originalLock })
+			lockFileFn = func(file *os.File, nonBlocking bool) (func(), error) {
+				if tc.status != "" && !seeded {
+					store, err := openStore()
+					if err != nil {
+						return nil, err
+					}
+					_, err = store.CreateInstance(context.Background(), scenarioruntime.Instance{
+						InstanceID: "competing-start", Scenario: "alpha", Variant: tc.variant, Status: tc.status,
+					})
+					_ = store.Close()
+					if err != nil {
+						return nil, err
+					}
+					seeded = true
+				}
+				release, err := originalLock(file, nonBlocking)
+				if err != nil {
+					return nil, err
+				}
+				lockAcquired = true
+				return func() { lockAcquired = false; release() }, nil
+			}
+			output := &setupLockCheckingWriter{t: t, runner: runner}
+			runner.Out = output
+			runner.WithVerbosity(VerbosityVerbose)
+			result, err := runner.RunSetupIfStopped("alpha", PhaseOptions{ProjectMode: true})
+			if tc.openError || tc.readError {
+				if !errors.Is(err, registryErr) {
+					t.Fatalf("error = %v, want registry failure", err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if registryReads != 1 {
+				t.Fatalf("registry reads = %d, want 1", registryReads)
+			}
+			marker, markerErr := os.ReadFile(filepath.Join(root, "scenarios", "alpha", "setup.txt"))
+			if tc.deferred || tc.openError || tc.readError {
+				if !os.IsNotExist(markerErr) || result.ExecutedSteps != 0 || output.writes != 0 {
+					t.Fatalf("setup effects on refused admission: marker=%q err=%v result=%#v writes=%d", marker, markerErr, result, output.writes)
+				}
+				if tc.deferred && (result.Status != PhaseExecutionRunningDeferred || result.RunID != "") {
+					t.Fatalf("deferred result = %#v", result)
+				}
+			} else if markerErr != nil || string(marker) != "setup" || result.ExecutedSteps != 1 || result.Status != PhaseExecutionCompleted || output.writes == 0 {
+				t.Fatalf("stopped setup: marker=%q err=%v result=%#v writes=%d", marker, markerErr, result, output.writes)
+			}
+			release, err := runner.tryAcquireScenarioLock("alpha")
+			if err != nil {
+				t.Fatalf("admission leaked scenario lock: %v", err)
+			}
+			release()
+		})
+	}
+}
+
+type setupAdmissionReadErrorStore struct {
+	scenarioRuntimeStore
+	err error
+}
+
+func (s *setupAdmissionReadErrorStore) ListInstances(context.Context, scenarioruntime.InstanceFilter) ([]scenarioruntime.Instance, error) {
+	return nil, s.err
+}
+
+type setupLockCheckingWriter struct {
+	t      *testing.T
+	runner *Runner
+	writes int
+}
+
+func (w *setupLockCheckingWriter) Write(data []byte) (int, error) {
+	w.writes++
+	if release, err := w.runner.tryAcquireScenarioLock("alpha"); err == nil {
+		release()
+		w.t.Error("setup released the scenario lock before phase execution finished")
+	} else if !errors.Is(err, ErrScenarioBusy) {
+		w.t.Errorf("check setup lock: %v", err)
+	}
+	return io.Discard.Write(data)
+}
 
 func TestAcquireScenarioLockBlocksSecondCallerSameProcess(t *testing.T) {
 	home := t.TempDir()

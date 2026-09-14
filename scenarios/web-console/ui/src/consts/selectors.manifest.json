@@ -701,9 +701,17 @@
       "testId": "reader-copy",
       "selector": "[data-testid=\"reader-copy\"]"
     },
-    "messages.readerPlay": {
-      "testId": "reader-play",
-      "selector": "[data-testid=\"reader-play\"]"
+    "messages.readerBack": {
+      "testId": "reader-back",
+      "selector": "[data-testid=\"reader-back\"]"
+    },
+    "messages.readerMeta": {
+      "testId": "reader-meta",
+      "selector": "[data-testid=\"reader-meta\"]"
+    },
+    "messages.readerNextReply": {
+      "testId": "reader-next-reply",
+      "selector": "[data-testid=\"reader-next-reply\"]"
     },
     "messages.newMessagesPill": {
       "testId": "msg-new-pill",
@@ -1685,6 +1693,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "46060d5911b133104e7c8981c5246920f7a9e3933c9c80fb968f3005396106c2"
+    "ui/src/consts/selectors.ts": "f4a18f6eeda93b21d61f0ef2b4dadb430125e12d3e577926c075156c945c9745"
   }
 }

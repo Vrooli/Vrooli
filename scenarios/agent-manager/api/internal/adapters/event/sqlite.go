@@ -79,6 +79,7 @@ type SQLiteStore struct {
 	log         *logrus.Logger
 	mu          sync.RWMutex
 	subscribers map[uuid.UUID][]chan *domain.RunEvent
+	compaction  compactionCursor
 }
 
 // NewSQLiteStore creates a new SQLite event store.
@@ -203,17 +204,21 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 // before opening a write transaction: LIMIT bounds rows returned, not the cost
 // of scanning history, and SQLite reserves its writer before a DELETE's scan.
 // Recheck eligibility by stable event identity in the short write transaction.
+//
+// An event whose run row no longer exists is deleted once it is past the
+// cutoff even without a completed read-model projection: nothing can project a
+// deleted run, so waiting for one kept such events forever (213 of 11,747
+// orphans measured 2026-09-14). Imported runs are never age-deleted.
 func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error) {
 	if limit <= 0 {
 		return 0, fmt.Errorf("event retention batch limit must be positive")
 	}
 	var ids []string
 	if err := s.db.SelectContext(ctx, &ids, `SELECT events.id FROM run_events events
-		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
+		LEFT JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
 		LEFT JOIN runs run ON run.id = events.run_id
 		WHERE events.timestamp < ?
-		  AND watermark.projection_complete = 1
-		  AND COALESCE(run.execution_mode, '') <> 'imported'
+		  AND (run.id IS NULL OR (watermark.projection_complete = 1 AND COALESCE(run.execution_mode, '') <> 'imported'))
 		ORDER BY events.timestamp ASC LIMIT ?`, sqliteTime(cutoff), limit); err != nil {
 		return 0, dbError("select_expired_events", err)
 	}
@@ -238,10 +243,11 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 	defer tx.Rollback()
 	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE id IN (`+placeholders+`)
 		AND timestamp < ?
-		AND EXISTS (SELECT 1 FROM invocation_read_model_watermarks watermark
-		  WHERE watermark.run_id = run_events.run_id AND watermark.projection_complete = 1)
-		AND NOT EXISTS (SELECT 1 FROM runs run
-		  WHERE run.id = run_events.run_id AND run.execution_mode = 'imported')`, args...)
+		AND (NOT EXISTS (SELECT 1 FROM runs run WHERE run.id = run_events.run_id)
+		  OR (EXISTS (SELECT 1 FROM invocation_read_model_watermarks watermark
+		        WHERE watermark.run_id = run_events.run_id AND watermark.projection_complete = 1)
+		      AND NOT EXISTS (SELECT 1 FROM runs run
+		        WHERE run.id = run_events.run_id AND run.execution_mode = 'imported')))`, args...)
 	if err != nil {
 		return 0, dbError("delete_expired_events", err)
 	}

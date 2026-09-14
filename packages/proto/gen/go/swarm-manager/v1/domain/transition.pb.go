@@ -125,32 +125,34 @@ func (x *WorkflowLocator) GetKey() string {
 	return ""
 }
 
-type ExecutionStrategy struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkflowKey   string                 `protobuf:"bytes,2,opt,name=workflow_key,json=workflowKey,proto3" json:"workflow_key,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	WhenToUse     string                 `protobuf:"bytes,5,opt,name=when_to_use,json=whenToUse,proto3" json:"when_to_use,omitempty"`
-	CostBand      string                 `protobuf:"bytes,6,opt,name=cost_band,json=costBand,proto3" json:"cost_band,omitempty"`
+type ExecutionMode struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// workflow_key is empty for the goal mode, which creates one Agent Manager
+	// run rather than draining a workflow.
+	WorkflowKey   string `protobuf:"bytes,2,opt,name=workflow_key,json=workflowKey,proto3" json:"workflow_key,omitempty"`
+	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	WhenToUse     string `protobuf:"bytes,5,opt,name=when_to_use,json=whenToUse,proto3" json:"when_to_use,omitempty"`
+	CostBand      string `protobuf:"bytes,6,opt,name=cost_band,json=costBand,proto3" json:"cost_band,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExecutionStrategy) Reset() {
-	*x = ExecutionStrategy{}
+func (x *ExecutionMode) Reset() {
+	*x = ExecutionMode{}
 	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExecutionStrategy) String() string {
+func (x *ExecutionMode) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExecutionStrategy) ProtoMessage() {}
+func (*ExecutionMode) ProtoMessage() {}
 
-func (x *ExecutionStrategy) ProtoReflect() protoreflect.Message {
+func (x *ExecutionMode) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -162,47 +164,47 @@ func (x *ExecutionStrategy) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExecutionStrategy.ProtoReflect.Descriptor instead.
-func (*ExecutionStrategy) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExecutionMode.ProtoReflect.Descriptor instead.
+func (*ExecutionMode) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_domain_transition_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ExecutionStrategy) GetId() string {
+func (x *ExecutionMode) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ExecutionStrategy) GetWorkflowKey() string {
+func (x *ExecutionMode) GetWorkflowKey() string {
 	if x != nil {
 		return x.WorkflowKey
 	}
 	return ""
 }
 
-func (x *ExecutionStrategy) GetDisplayName() string {
+func (x *ExecutionMode) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-func (x *ExecutionStrategy) GetDescription() string {
+func (x *ExecutionMode) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *ExecutionStrategy) GetWhenToUse() string {
+func (x *ExecutionMode) GetWhenToUse() string {
 	if x != nil {
 		return x.WhenToUse
 	}
 	return ""
 }
 
-func (x *ExecutionStrategy) GetCostBand() string {
+func (x *ExecutionMode) GetCostBand() string {
 	if x != nil {
 		return x.CostBand
 	}
@@ -327,7 +329,7 @@ type Transition struct {
 	InputContract    string                 `protobuf:"bytes,6,opt,name=input_contract,json=inputContract,proto3" json:"input_contract,omitempty"`
 	TerminalOutcomes []string               `protobuf:"bytes,7,rep,name=terminal_outcomes,json=terminalOutcomes,proto3" json:"terminal_outcomes,omitempty"`
 	ApplyAction      string                 `protobuf:"bytes,8,opt,name=apply_action,json=applyAction,proto3" json:"apply_action,omitempty"`
-	Strategies       []*ExecutionStrategy   `protobuf:"bytes,9,rep,name=strategies,proto3" json:"strategies,omitempty"`
+	ExecutionModes   []*ExecutionMode       `protobuf:"bytes,9,rep,name=execution_modes,json=executionModes,proto3" json:"execution_modes,omitempty"`
 	HumanGates       []*HumanGate           `protobuf:"bytes,10,rep,name=human_gates,json=humanGates,proto3" json:"human_gates,omitempty"`
 	HumanWait        bool                   `protobuf:"varint,11,opt,name=human_wait,json=humanWait,proto3" json:"human_wait,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -420,9 +422,9 @@ func (x *Transition) GetApplyAction() string {
 	return ""
 }
 
-func (x *Transition) GetStrategies() []*ExecutionStrategy {
+func (x *Transition) GetExecutionModes() []*ExecutionMode {
 	if x != nil {
-		return x.Strategies
+		return x.ExecutionModes
 	}
 	return nil
 }
@@ -448,8 +450,8 @@ const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
 	"(swarm-manager/v1/domain/transition.proto\x12\x1evrooli.swarm_manager.v1.domain\"9\n" +
 	"\x0fWorkflowLocator\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x10\n" +
-	"\x03key\x18\x02 \x01(\tR\x03key\"\xc8\x01\n" +
-	"\x11ExecutionStrategy\x12\x0e\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\"\xc4\x01\n" +
+	"\rExecutionMode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkflow_key\x18\x02 \x01(\tR\vworkflowKey\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
@@ -467,7 +469,7 @@ const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
 	"\x0facceptance_rate\x18\a \x01(\x01R\x0eacceptanceRate\x12\x1f\n" +
 	"\vsample_size\x18\b \x01(\x05R\n" +
 	"sampleSize\x12\x1c\n" +
-	"\treadiness\x18\t \x01(\tR\treadiness\"\x9a\x04\n" +
+	"\treadiness\x18\t \x01(\tR\treadiness\"\x9f\x04\n" +
 	"\n" +
 	"Transition\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x18\n" +
@@ -477,10 +479,8 @@ const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
 	"\brequires\x18\x05 \x03(\tR\brequires\x12%\n" +
 	"\x0einput_contract\x18\x06 \x01(\tR\rinputContract\x12+\n" +
 	"\x11terminal_outcomes\x18\a \x03(\tR\x10terminalOutcomes\x12!\n" +
-	"\fapply_action\x18\b \x01(\tR\vapplyAction\x12Q\n" +
-	"\n" +
-	"strategies\x18\t \x03(\v21.vrooli.swarm_manager.v1.domain.ExecutionStrategyR\n" +
-	"strategies\x12J\n" +
+	"\fapply_action\x18\b \x01(\tR\vapplyAction\x12V\n" +
+	"\x0fexecution_modes\x18\t \x03(\v2-.vrooli.swarm_manager.v1.domain.ExecutionModeR\x0eexecutionModes\x12J\n" +
 	"\vhuman_gates\x18\n" +
 	" \x03(\v2).vrooli.swarm_manager.v1.domain.HumanGateR\n" +
 	"humanGates\x12\x1d\n" +
@@ -507,16 +507,16 @@ func file_swarm_manager_v1_domain_transition_proto_rawDescGZIP() []byte {
 var file_swarm_manager_v1_domain_transition_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_swarm_manager_v1_domain_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_domain_transition_proto_goTypes = []any{
-	(TransitionKind)(0),       // 0: vrooli.swarm_manager.v1.domain.TransitionKind
-	(*WorkflowLocator)(nil),   // 1: vrooli.swarm_manager.v1.domain.WorkflowLocator
-	(*ExecutionStrategy)(nil), // 2: vrooli.swarm_manager.v1.domain.ExecutionStrategy
-	(*HumanGate)(nil),         // 3: vrooli.swarm_manager.v1.domain.HumanGate
-	(*Transition)(nil),        // 4: vrooli.swarm_manager.v1.domain.Transition
+	(TransitionKind)(0),     // 0: vrooli.swarm_manager.v1.domain.TransitionKind
+	(*WorkflowLocator)(nil), // 1: vrooli.swarm_manager.v1.domain.WorkflowLocator
+	(*ExecutionMode)(nil),   // 2: vrooli.swarm_manager.v1.domain.ExecutionMode
+	(*HumanGate)(nil),       // 3: vrooli.swarm_manager.v1.domain.HumanGate
+	(*Transition)(nil),      // 4: vrooli.swarm_manager.v1.domain.Transition
 }
 var file_swarm_manager_v1_domain_transition_proto_depIdxs = []int32{
 	0, // 0: vrooli.swarm_manager.v1.domain.Transition.kind:type_name -> vrooli.swarm_manager.v1.domain.TransitionKind
 	1, // 1: vrooli.swarm_manager.v1.domain.Transition.workflow:type_name -> vrooli.swarm_manager.v1.domain.WorkflowLocator
-	2, // 2: vrooli.swarm_manager.v1.domain.Transition.strategies:type_name -> vrooli.swarm_manager.v1.domain.ExecutionStrategy
+	2, // 2: vrooli.swarm_manager.v1.domain.Transition.execution_modes:type_name -> vrooli.swarm_manager.v1.domain.ExecutionMode
 	3, // 3: vrooli.swarm_manager.v1.domain.Transition.human_gates:type_name -> vrooli.swarm_manager.v1.domain.HumanGate
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type

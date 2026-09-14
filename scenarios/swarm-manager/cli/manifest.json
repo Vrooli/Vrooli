@@ -868,7 +868,7 @@
         },
         {
           "name": "cancel",
-          "description": "Cancel an execution (--id ID)",
+          "description": "Cancel an execution (--id ID [--write-off --actor A --reason R])",
           "binding": {
             "kind": "local"
           },

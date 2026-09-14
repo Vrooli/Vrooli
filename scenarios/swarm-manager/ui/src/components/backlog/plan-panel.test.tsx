@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PlanPanel } from "./plan-panel";
 import { ApiError } from "../../lib/api-client";
+import type { BacklogNextAction, BacklogNextActionID } from "../../services/backlog/types";
 
 vi.mock("../../services", () => ({
   backlogService: {
@@ -140,7 +141,7 @@ describe("PlanPanel", () => {
 
   describe("plan acceptance", () => {
     const acceptance = { actor: "operator", acceptedAt: "2026-09-13T02:39:59Z", planContentHash: "hash", subjectVersion: "sha256:old" };
-    const nextAction = (id: string, reason?: string) => ({ id, compactLabel: id, expandedLabel: id, enabled: true, reason, blockers: [] });
+    const nextAction = (id: BacklogNextActionID, reason?: string): BacklogNextAction => ({ id, compactLabel: id, expandedLabel: id, enabled: true, reason, blockers: [] });
 
     it("offers re-acceptance when the server reports the recorded acceptance is out of date", async () => {
       vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);

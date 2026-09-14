@@ -1,36 +1,5 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "director-swarm",
-  "displayName": "Director Swarm",
-  "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
-  "objectivesServed": [
-    {
-      "id": "I1",
-      "acknowledgedRevision": "0ad42308ee4f"
-    },
-    {
-      "id": "I3",
-      "role": "primary",
-      "note": "Ranking authority only; detection of missing instruments stays distributed across teams.",
-      "acknowledgedRevision": "d19b30f48e11"
-    }
-  ],
-  "instrument": {
-    "status": "partial",
-    "archetype": "production-ledger",
-    "coversScenarios": [
-      "swarm-manager",
-      "command-center"
-    ],
-    "gapMarker": "2026-08-13 — two addresses. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter."
-  },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
+  "attributionValidFrom": "2026-05-04",
   "coordination": {
     "pattern": "independent",
     "reportingMode": "none",
@@ -44,52 +13,36 @@
       "requireHandoff": true
     }
   },
+  "createdAt": "2026-02-09T12:00:00Z",
+  "displayName": "Director Swarm",
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
+  "id": "director-swarm",
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "swarm-manager",
+      "command-center"
+    ],
+    "gapMarker": "2026-08-13 — two addresses. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter."
   },
-  "revision": 17,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-09-06T00:00:00Z",
-  "topicCatalog": [
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
+  "objectivesServed": [
     {
-      "prefix": "contrarian-scan/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result."
+      "id": "I1",
+      "acknowledgedRevision": "0ad42308ee4f"
     },
     {
-      "prefix": "goal-portfolio-record/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot portfolio interpretation against the ranking criteria."
-    },
-    {
-      "prefix": "outcome-target-record/YYYY-MM-DD",
-      "status": "live",
-      "purpose": "Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists."
-    },
-    {
-      "prefix": "vision-walk-record/<date>/<slug>",
-      "status": "live",
-      "purpose": "Read-only morning vision-walk briefing material."
-    },
-    {
-      "prefix": "research-inbox/*",
-      "status": "live",
-      "purpose": "Route vision-walk research signal into the marketing research queue for that team's drainer to classify."
-    },
-    {
-      "prefix": "opportunity-inbox/*",
-      "status": "live",
-      "purpose": "Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify."
-    },
-    {
-      "prefix": "validation-inbox/*",
-      "status": "live",
-      "purpose": "Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify."
+      "id": "I3",
+      "role": "primary",
+      "note": "Ranking authority only; detection of missing instruments stays distributed across teams.",
+      "acknowledgedRevision": "d19b30f48e11"
     }
   ],
   "operatingContract": {
@@ -204,7 +157,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "vision-walk-record/<date>/<slug>": {
+      "vision-walk-record/\u003cdate\u003e/\u003cslug\u003e": {
         "ownerMemberId": "vision-walk-prep",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -248,7 +201,7 @@
         },
         "taskParameters": {
           "requiredScenarioCoverageCheck": "Run swarm-manager goals context before proposing scenario-scoped goals.",
-          "workDispositionLookup": "swarm-manager backlog get <item-id> --json",
+          "workDispositionLookup": "swarm-manager backlog get \u003citem-id\u003e --json",
           "staleAfterDays": 14,
           "stalenessItemLimit": 6,
           "stalenessGoalLimit": 3
@@ -289,13 +242,25 @@
       "director-contrarian": {
         "lane": "Hold director-swarm against the target operating model's deviation catalogue and report the first deviation with evidence; never restructure.",
         "allowedWrites": [
-          {"kind": "knowledge"},
-          {"kind": "handoff"}
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
         ],
         "forbiddenWrites": [
-          {"kind": "task"},
-          {"base": "repo-root", "path": "docs/director-swarm/"},
-          {"base": "repo-root", "path": "docs/concepts/ARCHITECTURE.md"}
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/director-swarm/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
         ],
         "safetyCriticalRules": [
           "Report only; do not restructure the team or authorize work.",
@@ -340,5 +305,52 @@
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "purpose": "domain-stewardship",
+  "revision": 18,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "topicCatalog": [
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result."
+    },
+    {
+      "prefix": "goal-portfolio-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot portfolio interpretation against the ranking criteria."
+    },
+    {
+      "prefix": "outcome-target-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists."
+    },
+    {
+      "prefix": "vision-walk-record/\u003cdate\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Read-only morning vision-walk briefing material."
+    },
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk research signal into the marketing research queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify."
+    }
+  ],
+  "updatedAt": "2026-09-14T05:05:31Z"
 }

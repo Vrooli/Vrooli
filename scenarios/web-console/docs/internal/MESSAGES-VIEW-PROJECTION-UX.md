@@ -101,7 +101,9 @@ Handoff suggestions render inside the row's measured block. One rule matching se
 
 ## The reader
 
-Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens a full-height reader with its own scroll and padded text. Its header has copy, play, and More, which opens the message's full action list (the same one the row offers, less "Open in reader"). Find-in-message is one field; the match count and the previous and next match controls appear only once there is a query. When the sheet is swiped to full height the field becomes the header, replacing the speaker and time (the dialog is still named for the speaker), and a query in progress keeps its text and caret. The reader's footer steps to the previous and next reply (the operator's own messages are skipped) and changes the text size in 2 px steps from 12 to 32 px; a two-finger pinch on the text does the same, and the size is kept across readers and reloads. The list stays mounted underneath and does not move; closing returns focus to the row the reader showed last. There is no inline expand.
+Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens the reader, which takes the list's place inside the pane rather than covering the page, so the composer bar below stays usable: the operator drafts a reply while reading. Its header is a back arrow, the find-in-message field, copy, and More, which opens the message's full action list (the same one the row offers, less "Open in reader", plus "Play this message"). The match count and the previous and next match controls appear only once there is a query. The speaker, time, and sequence head the text, which has its own scroll and padding. The footer steps to the previous and next reply (the operator's own messages are skipped) and changes the text size in 2 px steps from 12 to 32 px; a two-finger pinch on the text does the same, and the size is kept across readers and reloads. A reply that arrives while the reader is open marks the next-reply button with a count until the reader steps to it; a send never closes the reader. While a phone keyboard is up the footer is hidden, so the text keeps its room.
+
+On touch the reader takes focus itself, so opening it never raises the keyboard; on a keyboard the find field takes it. Back and `Escape` return to the list. The list stays laid out and live underneath (hidden, it would measure every row at zero) and is inert while covered, so `j`/`k` and search never reach it; closing returns focus to the row the reader showed last. A live pane's open reader survives a tab switch for as long as the page is open, never across a reload; the archive's reader is its own. File and diagram viewers opened from the reader stay overlays. There is no inline expand.
 
 ## Echo rows and history
 
@@ -115,6 +117,8 @@ Send types the draft verbatim and never presses Enter. After a send is acknowled
 | Neither within 60 s | "sent · not seen on screen" |
 
 Echo rows are transient and local; they are never persisted or merged into events. The pane no longer flips to the terminal after a send. A long-press on Send offers "Send and press Enter" as an explicit secondary action. The composer shows a session state chip that never disables Send. History keeps the last 50 sends per device (localStorage) with Insert and Resend, reachable from the toolbar and the expanded composer.
+
+In Messages the composer bar shows on every device, not only on touch: it is the one composer, with the same draft as the expanded composer. On a desktop it takes the focus the terminal would take, dictation lands in it for review, and a send keeps focus in it. "Send to composer" inserts the message into the bar and focuses it (inside the tap, so a phone's keyboard rises); the expanded composer opens only where the bar is not on screen.
 
 ## One search
 
@@ -132,7 +136,7 @@ The navigator lists server hits in sequence order with those ranges for highligh
 
 ## The pill
 
-Playback is one floating pill over the list that takes no layout height. Collapsed: play/pause, what is playing, elapsed and total, close, and a progress hairline. Expanded: scrub, previous and next, speed, summarize mode, voice, jump to message, and settings. Tap toggles; swipe down dismisses and stops playback; swipe left or right steps messages; drag on the progress zone scrubs. Transport values come from provider events, not polling. Media Session and lock-screen controls keep working. A dismissed pill is gone, not minimized; the next message to speak brings it back.
+Playback is one floating pill over the list that takes no layout height. Collapsed: play/pause, what is playing, elapsed and total, close, and a progress hairline. Expanded: scrub, previous and next, speed, summarize mode, voice, jump to message, and settings. Tap toggles; swipe down dismisses and stops playback; swipe left or right steps messages; drag on the progress zone scrubs. Transport values come from provider events, not polling. Media Session and lock-screen controls keep working. A dismissed pill is gone, not minimized; the next message to speak brings it back. While a reader is open the pill rises by the reader footer's height (`--wc-reader-footer-h`), so it never covers the footer's controls.
 
 ## Scroll invariants
 
@@ -151,7 +155,7 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - **D4 — One follow boolean:** The scroll model is `follow` plus the prepend anchor and the virtualizer's resize compensation.
 - **D5 — Restore pages before it scrolls:** Position restore loads the page containing the saved event and never falls back to the bottom silently.
 - **D6 — Persist view mode and position in a dedicated store:** `useMessagesViewStore` (`wc-messages-view`) with its own migration ladder.
-- **D7 — Reader instead of inline expand:** Long replies open a full-height reader on every platform.
+- **D7 — Reader instead of inline expand, in the pane:** Long replies open a reader that replaces the list inside the pane on every platform, never a page overlay, so a reply can be drafted while reading.
 - **D8 — Actions hidden at rest:** Hover or focus reveals up to three inline actions on fine pointers; long-press opens a sheet on coarse pointers; hit targets stay 44 px.
 - **D9 — Send never presses Enter:** Enter stays a separate, visible action; no setting changes the default.
 - **D10 — Sends are never blocked and never routed:** The composer labels state and outcome; it does not gate or redirect bytes.
@@ -165,6 +169,7 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - **D18 — Activity is pushed on the existing SSE hub** as kind `session_activity`.
 - **D19 — Pill, reader, and state slot are scenario-local;** recorded in `docs/reference/component-library-gaps.md`.
 - **D20 — The prior plan `web-console-messages-view-open-reliably-at-thousands-of` is superseded.**
+- **D21 — One composer in Messages:** The composer bar shows in Messages on every device; there is no composer inside the reader, and "Send to composer" stages into the bar.
 
 ## Mockups
 

@@ -7,16 +7,32 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Claim(_message.Message):
-    __slots__ = ("id", "statement", "verification_status", "kind")
+    __slots__ = ("id", "statement", "verification_status", "kind", "qualification")
     ID_FIELD_NUMBER: _ClassVar[int]
     STATEMENT_FIELD_NUMBER: _ClassVar[int]
     VERIFICATION_STATUS_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
+    QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     statement: str
     verification_status: str
     kind: str
-    def __init__(self, id: _Optional[str] = ..., statement: _Optional[str] = ..., verification_status: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
+    qualification: str
+    def __init__(self, id: _Optional[str] = ..., statement: _Optional[str] = ..., verification_status: _Optional[str] = ..., kind: _Optional[str] = ..., qualification: _Optional[str] = ...) -> None: ...
+
+class SetClaimQualificationRequest(_message.Message):
+    __slots__ = ("id", "qualification")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    qualification: str
+    def __init__(self, id: _Optional[str] = ..., qualification: _Optional[str] = ...) -> None: ...
+
+class SetClaimQualificationResponse(_message.Message):
+    __slots__ = ("claim",)
+    CLAIM_FIELD_NUMBER: _ClassVar[int]
+    claim: Claim
+    def __init__(self, claim: _Optional[_Union[Claim, _Mapping]] = ...) -> None: ...
 
 class ListClaimsRequest(_message.Message):
     __slots__ = ()

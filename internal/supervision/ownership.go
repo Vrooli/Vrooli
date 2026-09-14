@@ -2,6 +2,7 @@
 package supervision
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -132,6 +133,11 @@ func (i *Index) Owners() []Owner {
 }
 
 type NativeProcessTableSource struct{}
+
+// ProcessesContext is the bounded read variant used for lifecycle exclusion.
+func (NativeProcessTableSource) ProcessesContext(ctx context.Context) (map[int]ProcessInfo, error) {
+	return readNativeProcessTableContext(ctx)
+}
 
 func (NativeProcessTableSource) Processes() (map[int]ProcessInfo, error) {
 	return readNativeProcessTable()

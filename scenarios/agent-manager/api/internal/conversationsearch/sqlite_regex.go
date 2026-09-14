@@ -21,14 +21,14 @@ func (r *SQLiteRepository) RegexCandidates(ctx context.Context, request Candidat
 	}
 	where := make([]string, 0, 16)
 	args := make([]any, 0, 16)
-	from := "conversation_search_documents d"
+	from := "conversation_search_catalog d"
 	if request.PrefilterLiteral != "" {
 		expression, err := buildFTSExpression(request.PrefilterLiteral)
 		if err != nil {
 			return RegexCandidatePage{}, fmt.Errorf("build regex literal prefilter: %w", err)
 		}
-		from = "conversation_search_fts JOIN conversation_search_documents d ON d.rowid = conversation_search_fts.rowid"
-		where = append(where, "conversation_search_fts MATCH ?")
+		from = "conversation_search_catalog_fts JOIN conversation_search_catalog d ON d.rowid = conversation_search_catalog_fts.rowid"
+		where = append(where, "conversation_search_catalog_fts MATCH ?")
 		args = append(args, expression)
 	}
 	if !request.IncludeHidden {

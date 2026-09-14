@@ -87,7 +87,7 @@ func TestAbandonedGenerationCleanupYieldsWriterAndRemainsRecoverable(t *testing.
 	require.Equal(t, "failed", generation.State)
 }
 
-func TestPruneRetiredGenerationsKeepsNewestAndBoundsWork(t *testing.T) {
+func TestPruneSettledGenerationsKeepsOnlyUnpublishedStaging(t *testing.T) {
 	t.Parallel()
 
 	db := openProjectionTestDB(t)
@@ -95,51 +95,44 @@ func TestPruneRetiredGenerationsKeepsNewestAndBoundsWork(t *testing.T) {
 	repository := NewSQLiteRepository(db)
 	ctx := context.Background()
 	base := time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC)
-
-	// Five generations activated in order: gen-1 .. gen-4 end up retired,
-	// gen-5 is the serving generation. Each stages one document row.
-	for index := 1; index <= 5; index++ {
-		id := fmt.Sprintf("gen-%d", index)
-		created := base.Add(time.Duration(index) * time.Minute)
-		require.NoError(t, repository.SaveGeneration(ctx, Generation{GenerationID: id, State: "building", RecipeVersion: DefaultRecipeVersion, CreatedAt: created, UpdatedAt: created}))
+	stage := func(id, state string, offset int) {
+		created := base.Add(time.Duration(offset) * time.Minute)
+		require.NoError(t, repository.SaveGeneration(ctx, Generation{GenerationID: id, State: state, RecipeVersion: DefaultRecipeVersion, CreatedAt: created, UpdatedAt: created}))
 		document := testDocument()
 		document.DocumentID = "doc-" + id
 		document.SourceRunID, document.SourceEventID, document.SourceMessageID = "run-"+id, "event-"+id, "message-"+id
 		require.NoError(t, repository.StageDocument(ctx, id, document))
-		require.NoError(t, repository.PublishStagedGeneration(ctx, id, 1))
-		require.NoError(t, repository.ActivateGeneration(ctx, id, created))
 	}
+	// gen-1 .. gen-3 activate in order: gen-3 serves and the others retire.
+	for index := 1; index <= 3; index++ {
+		id := fmt.Sprintf("gen-%d", index)
+		stage(id, "building", index)
+		require.NoError(t, repository.PublishStagedGeneration(ctx, id, 1))
+		require.NoError(t, repository.ActivateGeneration(ctx, id, base.Add(time.Duration(index)*time.Minute)))
+	}
+	stage("abandoned", "failed", 4)
+	stage("resumable", "ready", 5)
+	stage("in-flight", "building", 6)
 	rowsFor := func(id string) int {
 		var count int
 		require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM conversation_search_generation_documents WHERE generation_id = ?`, id))
 		return count
 	}
-	stateOf := func(id string) string {
-		var state string
-		require.NoError(t, db.Get(&state, `SELECT state FROM conversation_search_generations WHERE generation_id = ?`, id))
-		return state
-	}
-	prune := func(keep, limit int) []string {
-		purged, err := repository.PruneRetiredGenerations(ctx, keep, limit)
-		require.NoError(t, err)
-		return purged
-	}
-	for index := 1; index <= 4; index++ {
-		require.Equal(t, "retired", stateOf(fmt.Sprintf("gen-%d", index)))
-		require.Equal(t, 1, rowsFor(fmt.Sprintf("gen-%d", index)), "activation alone must not delete rows")
-	}
 
-	// keep=2 retains gen-4 and gen-3; limit=1 purges only the oldest.
-	require.Equal(t, []string{"gen-2"}, prune(2, 1), "newest-first ordering skips the two kept, then purges the next")
-	require.Equal(t, 0, rowsFor("gen-2"))
-	require.Equal(t, "retired", stateOf("gen-2"), "the record stays retired; only its rows go")
-	require.Equal(t, 1, rowsFor("gen-1"), "bounded by limit")
+	purged, err := repository.PruneSettledGenerations(ctx)
 
-	require.Equal(t, []string{"gen-1"}, prune(2, 10), "an already-pruned generation is skipped, not counted")
-	for _, kept := range []string{"gen-3", "gen-4", "gen-5"} {
-		require.Equal(t, 1, rowsFor(kept), "%s must keep its rows", kept)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gen-1", "gen-2", "gen-3", "abandoned"}, purged, "active, retired and failed generations never read staging again")
+	for _, id := range purged {
+		require.Zero(t, rowsFor(id), "%s kept staged rows", id)
 	}
-	require.Equal(t, "active", stateOf("gen-5"))
+	require.Equal(t, 1, rowsFor("resumable"), "restart recovery republishes a ready generation from its staged rows")
+	require.Equal(t, 1, rowsFor("in-flight"), "a building generation is still being staged")
+	ids, err := repository.ProjectionDocumentIDs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"doc-gen-3"}, ids, "pruning staging never touches the serving catalog")
 
-	require.Empty(t, prune(2, 10), "nothing left beyond keep")
+	again, err := repository.PruneSettledGenerations(ctx)
+	require.NoError(t, err)
+	require.Empty(t, again)
 }

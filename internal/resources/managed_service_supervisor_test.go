@@ -11,10 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/process"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 func TestManagedServiceSupervisorStartsVerifiedArtifactAndStops(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "original-requester-secret")
+	t.Setenv("VROOLI_RUN_ID", "original-run")
+	t.Setenv("CODEX_AGENT_TAG", "original-tag")
 	if testing.Short() {
 		t.Skip("uses a helper process")
 	}
@@ -33,6 +37,19 @@ func TestManagedServiceSupervisorStartsVerifiedArtifactAndStops(t *testing.T) {
 	}
 	if state.PID <= 0 {
 		t.Fatalf("Start() pid = %d", state.PID)
+	}
+
+	liveEnv, err := process.ReadEnvironment(state.PID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"VROOLI_AGENT_IDENTITY_TOKEN", "VROOLI_RUN_ID", "CODEX_AGENT_TAG"} {
+		if liveEnv[key] != "" {
+			t.Errorf("detached service inherited requester %s", key)
+		}
+	}
+	if liveEnv[managedServiceOwnershipTokenEnv] == "" || liveEnv["VROOLI_MANAGED_SERVICE_FIXTURE"] != "1" {
+		t.Fatal("resource identity and runtime environment must remain available")
 	}
 	if state.InstanceID == "" {
 		t.Fatal("Start() did not persist a managed-service identity")

@@ -81,6 +81,24 @@ message ExecutionRecord {
 
   // Recorded Plan Manager boundary widenings projected into execution scope.
   repeated ScopeExtension scope_extensions = 30;
+
+  // Execution mode (sliced or goal) this record ran under.
+  optional string execution_mode = 31;
+
+  // Operator note carried from the item/queue request into the worker prompt or
+  // goal message.
+  optional string operator_note = 32;
+
+  // Goal delivery mechanism reported by Agent Manager for a goal execution.
+  optional string goal_delivery = 33;
+
+  // Typed Agent Manager terminal pair projected onto the execution record.
+  optional string terminal_class = 34;
+  optional string stop_reason = 35;
+
+  // Continuation chain ordinals/reason for a resumed child.
+  optional int32 resume_ordinal = 36;
+  optional string resume_reason = 37;
 }
 
 // ScopeExtension is an execution-local projection of one Plan Manager

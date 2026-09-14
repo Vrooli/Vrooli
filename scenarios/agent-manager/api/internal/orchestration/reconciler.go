@@ -159,6 +159,29 @@ type Reconciler struct {
 	workflowRecovery       WorkflowExecutionRecoverer
 	workflowLiveness       WorkflowWaitingLivenessRecoverer
 	pendingRunRecovery     PendingRunRecoverer
+	terminalAccounting     TerminalAccountingRecoverer
+	storageMaintainer      StorageMaintainer
+}
+
+// StorageMaintainer keeps the database file inside its declared budget. Each
+// call does bounded work, so it can run on every reconcile cycle.
+type StorageMaintainer interface {
+	Maintain(context.Context) error
+}
+
+// SetStorageMaintainer installs the storage owner after construction; the
+// maintainer depends on the maintenance fence, which is built after the
+// reconciler.
+func (r *Reconciler) SetStorageMaintainer(m StorageMaintainer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.storageMaintainer = m
+}
+
+func (r *Reconciler) currentStorageMaintainer() StorageMaintainer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.storageMaintainer
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
@@ -179,6 +202,12 @@ type ReconcileStats struct {
 }
 
 type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
+
+// TerminalAccountingRecoverer settles terminal usage for ended standalone runs
+// from the harness's retained transcript. The orchestrator owns it.
+type TerminalAccountingRecoverer interface {
+	RecoverStandaloneTerminalAccounting(context.Context) error
+}
 
 type WorkflowWaitingLivenessRecoverer interface {
 	ReconcileUnarmedWorkflowWaits(context.Context, time.Duration, time.Duration) error
@@ -313,6 +342,10 @@ func WithReconcilerInteractive(sessions webconsole.SessionController) Reconciler
 
 func WithReconcilerWorkflowRecovery(recoverer WorkflowExecutionRecoverer) ReconcilerOption {
 	return func(r *Reconciler) { r.workflowRecovery = recoverer }
+}
+
+func WithReconcilerTerminalAccounting(recoverer TerminalAccountingRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.terminalAccounting = recoverer }
 }
 
 func WithReconcilerWorkflowWaitingLiveness(recoverer WorkflowWaitingLivenessRecoverer) ReconcilerOption {
@@ -478,6 +511,11 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 			stats.WorkflowRecoveryRuns++
 		}
 	}
+	if r.terminalAccounting != nil {
+		if err := r.terminalAccounting.RecoverStandaloneTerminalAccounting(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "terminal accounting recovery: "+err.Error())
+		}
+	}
 	if r.workflowLiveness != nil {
 		if err := r.workflowLiveness.ReconcileUnarmedWorkflowWaits(ctx, r.levers.Workflow.UnarmedWaitWarningThreshold, r.levers.Workflow.UnarmedWaitFailureThreshold); err != nil {
 			stats.Errors = append(stats.Errors, "workflow waiting liveness: "+err.Error())
@@ -587,6 +625,15 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		stats.Errors = append(stats.Errors, "artifact retention: "+err.Error())
 	} else {
 		stats.ArtifactsPruned = deleted
+	}
+	r.recordImportedEventCompaction(ctx, &stats)
+
+	// Step 9: Return pages freed by the retention steps above to the
+	// filesystem, within the declared storage budget.
+	if maintainer := r.currentStorageMaintainer(); maintainer != nil {
+		if err := maintainer.Maintain(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "storage maintenance: "+err.Error())
+		}
 	}
 
 	stats.Duration = time.Since(start)

@@ -74,12 +74,23 @@ func (x *SearchRequest) GetLimit() int32 {
 }
 
 type SearchResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Snippet       string                 `protobuf:"bytes,3,opt,name=snippet,proto3" json:"snippet,omitempty"`
-	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
-	Kind          string                 `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title   string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Snippet string                 `protobuf:"bytes,3,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	Score   float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
+	// Record class: a live editorial draft or a retained publish record.
+	Kind string `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Canonical owner reference an agent follows to read the authoritative
+	// record ("draft/<id>" or "publish/<id>").
+	FollowUp string `protobuf:"bytes,6,opt,name=follow_up,json=followUp,proto3" json:"follow_up,omitempty"`
+	// fresh/stale/unknown for time-bounded records; empty otherwise. Content
+	// Desk's editorial projection does not assign freshness, so it is left empty
+	// rather than fabricated.
+	Freshness string `protobuf:"bytes,7,opt,name=freshness,proto3" json:"freshness,omitempty"`
+	// A retained publish record: it states what was released rather than what is
+	// currently true.
+	Historical    bool `protobuf:"varint,8,opt,name=historical,proto3" json:"historical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,11 +160,38 @@ func (x *SearchResult) GetKind() string {
 	return ""
 }
 
+func (x *SearchResult) GetFollowUp() string {
+	if x != nil {
+		return x.FollowUp
+	}
+	return ""
+}
+
+func (x *SearchResult) GetFreshness() string {
+	if x != nil {
+		return x.Freshness
+	}
+	return ""
+}
+
+func (x *SearchResult) GetHistorical() bool {
+	if x != nil {
+		return x.Historical
+	}
+	return false
+}
+
 type SearchResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Results []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	// Corpus generation the ranking read; changes only when record content
+	// changes.
+	Generation string `protobuf:"bytes,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// RFC3339 timestamp of the newest observed editorial mutation, never the read
+	// time.
+	MaterializedAt string `protobuf:"bytes,3,opt,name=materialized_at,json=materializedAt,proto3" json:"materialized_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *SearchResponse) Reset() {
@@ -191,6 +229,20 @@ func (x *SearchResponse) GetResults() []*SearchResult {
 		return x.Results
 	}
 	return nil
+}
+
+func (x *SearchResponse) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *SearchResponse) GetMaterializedAt() string {
+	if x != nil {
+		return x.MaterializedAt
+	}
+	return ""
 }
 
 type StatusRequest struct {
@@ -235,6 +287,9 @@ type StatusResponse struct {
 	IndexedCount int32                  `protobuf:"varint,2,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
 	// RFC3339 timestamp of the live corpus materialization observed by Status.
 	LastIndexedAt string `protobuf:"bytes,3,opt,name=last_indexed_at,json=lastIndexedAt,proto3" json:"last_indexed_at,omitempty"`
+	// Corpus generation; rereading status without a source change returns the
+	// same value.
+	Generation    string `protobuf:"bytes,4,opt,name=generation,proto3" json:"generation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -290,6 +345,13 @@ func (x *StatusResponse) GetLastIndexedAt() string {
 	return ""
 }
 
+func (x *StatusResponse) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
 var File_content_desk_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_search_search_proto_rawDesc = "" +
@@ -297,20 +359,32 @@ const file_content_desk_v1_search_search_proto_rawDesc = "" +
 	"#content-desk/v1/search/search.proto\x12\x1dvrooli.content_desk.v1.search\";\n" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"x\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\xd3\x01\n" +
 	"\fSearchResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
 	"\asnippet\x18\x03 \x01(\tR\asnippet\x12\x14\n" +
 	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x12\n" +
-	"\x04kind\x18\x05 \x01(\tR\x04kind\"W\n" +
+	"\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1b\n" +
+	"\tfollow_up\x18\x06 \x01(\tR\bfollowUp\x12\x1c\n" +
+	"\tfreshness\x18\a \x01(\tR\tfreshness\x12\x1e\n" +
+	"\n" +
+	"historical\x18\b \x01(\bR\n" +
+	"historical\"\xa0\x01\n" +
 	"\x0eSearchResponse\x12E\n" +
-	"\aresults\x18\x01 \x03(\v2+.vrooli.content_desk.v1.search.SearchResultR\aresults\"\x0f\n" +
-	"\rStatusRequest\"{\n" +
+	"\aresults\x18\x01 \x03(\v2+.vrooli.content_desk.v1.search.SearchResultR\aresults\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\tR\n" +
+	"generation\x12'\n" +
+	"\x0fmaterialized_at\x18\x03 \x01(\tR\x0ematerializedAt\"\x0f\n" +
+	"\rStatusRequest\"\x9b\x01\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12#\n" +
 	"\rindexed_count\x18\x02 \x01(\x05R\findexedCount\x12&\n" +
-	"\x0flast_indexed_at\x18\x03 \x01(\tR\rlastIndexedAt2\xdd\x01\n" +
+	"\x0flast_indexed_at\x18\x03 \x01(\tR\rlastIndexedAt\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\tR\n" +
+	"generation2\xdd\x01\n" +
 	"\rSearchService\x12e\n" +
 	"\x06Search\x12,.vrooli.content_desk.v1.search.SearchRequest\x1a-.vrooli.content_desk.v1.search.SearchResponse\x12e\n" +
 	"\x06Status\x12,.vrooli.content_desk.v1.search.StatusRequest\x1a-.vrooli.content_desk.v1.search.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/search;search_v1b\x06proto3"

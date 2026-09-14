@@ -287,15 +287,23 @@ func openRetentionLedger() (*artifactledger.Ledger, error) {
 func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger, db *database.RoutedDB) {
 	platform := storage.Platform(runtime.GOOS)
 	budgetCycles := map[string]int{}
+	reclaimAttempts := map[string]time.Time{}
+	reclaimer := &managerRetention.HTTPOwnerReclaimer{ResolveURL: discovery.ResolveScenarioURLDefault, HTTPClient: http.DefaultClient}
 	events := eventbus.NewDiscoveredClient(ctx)
 	managerRetention.NewScheduler(retentionInterval(), func(cycleCtx context.Context) error {
 		inventory, err := inventorycache.Load(repoRoot, platform)
 		if err != nil {
 			return err
 		}
-		_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: platform, Ledger: ledger, RecoveryLockPath: storageRecoveryLockPath(repoRoot), OverBudgetCycles: budgetCycles, BudgetEvent: func(eventCtx context.Context, eventType string, payload map[string]any) error {
-			return events.PublishDomainEvent(eventCtx, eventbus.DomainEvent{Source: "storage-manager", EventType: eventType, Payload: payload, Occurred: time.Now().UTC()})
-		}}).Enforce(cycleCtx, inventory)
+		var results map[string]managerRetention.Result
+		results, err = (managerRetention.Enforcer{
+			RepoRoot: repoRoot, Platform: platform, Ledger: ledger, RecoveryLockPath: storageRecoveryLockPath(repoRoot),
+			OverBudgetCycles: budgetCycles, OwnerReclaim: reclaimer, OwnerReclaimAttempts: reclaimAttempts,
+			BudgetEvent: func(eventCtx context.Context, eventType string, payload map[string]any) error {
+				return events.PublishDomainEvent(eventCtx, eventbus.DomainEvent{Source: "storage-manager", EventType: eventType, Payload: payload, Occurred: time.Now().UTC()})
+			},
+		}).Enforce(cycleCtx, inventory)
+		managerRetention.RecordCycle(time.Now().UTC(), results, err)
 		if err == nil {
 			// Ledger rows are derived evidence and have their own retention
 			// policy; do not route them through owner filesystem pruning.

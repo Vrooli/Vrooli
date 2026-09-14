@@ -21,17 +21,31 @@ export interface MessagesPosition {
 /** Positions older than this are dropped when the store hydrates. */
 export const MESSAGES_POSITION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * The reader open in a session's pane: the reply it shows, and the newest
+ * sequence it has accounted for, so replies arriving later read as new.
+ */
+export interface OpenReader {
+  eventId: string;
+  seenThrough: number;
+}
+
 interface MessagesViewState {
   viewModes: Record<string, PaneViewMode>;
   positions: Record<string, MessagesPosition>;
   /** The reader's text size in px; null follows the pane's. */
   readerFontSize: number | null;
+  /** Open readers by session. Kept while the page lives (a tab switch
+   *  remounts the pane), never across a reload. */
+  readers: Record<string, OpenReader>;
 }
 
 interface MessagesViewActions {
   setViewMode: (sessionId: string, mode: PaneViewMode) => void;
   savePosition: (sessionId: string, position: Omit<MessagesPosition, "savedAt">) => void;
   setReaderFontSize: (size: number) => void;
+  /** Opens (or moves) a session's reader; null closes it. */
+  setReader: (sessionId: string, reader: OpenReader | null) => void;
   /** Drops everything remembered for a session; called when it is deleted. */
   forget: (sessionId: string) => void;
 }
@@ -57,15 +71,23 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
       viewModes: {},
       positions: {},
       readerFontSize: null,
+      readers: {},
       setViewMode: (sessionId, mode) => { set((state) => ({ viewModes: { ...state.viewModes, [sessionId]: mode } })); },
       savePosition: (sessionId, position) => {
         set((state) => ({ positions: { ...state.positions, [sessionId]: { ...position, savedAt: Date.now() } } }));
       },
       setReaderFontSize: (size) => { set({ readerFontSize: size }); },
+      setReader: (sessionId, reader) => {
+        set((state) => {
+          const others = Object.fromEntries(Object.entries(state.readers).filter(([id]) => id !== sessionId));
+          return { readers: reader ? { ...others, [sessionId]: reader } : others };
+        });
+      },
       forget: (sessionId) => {
         set((state) => ({
           viewModes: Object.fromEntries(Object.entries(state.viewModes).filter(([id]) => id !== sessionId)),
           positions: Object.fromEntries(Object.entries(state.positions).filter(([id]) => id !== sessionId)),
+          readers: Object.fromEntries(Object.entries(state.readers).filter(([id]) => id !== sessionId)),
         }));
       },
     }),

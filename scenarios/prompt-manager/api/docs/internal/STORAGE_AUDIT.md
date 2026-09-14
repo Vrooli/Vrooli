@@ -65,6 +65,13 @@ and `runtimeMemberDir` simultaneously (`store/team_store.go:351,334`).
 directory plus the mutable task board. Durable corpus and telemetry are
 queried from their owning services rather than exposed as files.
 
+Protected Plan Manager effort workspaces are a separate read-only projection.
+`internal/effortworkspace` resolves only exact `team.EffortRefs` through the
+canonical `effort.json` manifest under `Roots.PlanArtifacts`; it does not merge
+those files into team `shared/`, and it rejects symlinks, traversal, and
+oversized reads. The Team Files UI exposes this projection as the separate
+“Effort workspaces” view.
+
 #### Prompt-section source-path references
 
 Prompt sections use semantic source labels for ledger context and handoff

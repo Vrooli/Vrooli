@@ -2,7 +2,6 @@ package lifecycle
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -54,9 +53,10 @@ const (
 type PhaseExecutionStatus string
 
 const (
-	PhaseExecutionCompleted PhaseExecutionStatus = "completed"
-	PhaseExecutionSkipped   PhaseExecutionStatus = "skipped"
-	PhaseExecutionUndefined PhaseExecutionStatus = "undefined"
+	PhaseExecutionCompleted       PhaseExecutionStatus = "completed"
+	PhaseExecutionSkipped         PhaseExecutionStatus = "skipped"
+	PhaseExecutionUndefined       PhaseExecutionStatus = "undefined"
+	PhaseExecutionRunningDeferred PhaseExecutionStatus = "running_setup_deferred"
 )
 
 type PhaseResult struct {
@@ -136,6 +136,17 @@ func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
 }
 
 func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (PhaseResult, error) {
+	return r.runPhaseDetailed(name, phaseName, opts, false)
+}
+
+// RunSetupIfStopped admits setup only when no variant has a starting, running,
+// or stopping registry instance. Admission and setup share the lifecycle lock,
+// so a concurrent start cannot invalidate the decision before setup finishes.
+func (r *Runner) RunSetupIfStopped(name string, opts PhaseOptions) (PhaseResult, error) {
+	return r.runPhaseDetailed(name, phasesSetup, opts, true)
+}
+
+func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, stoppedOnly bool) (PhaseResult, error) {
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -158,6 +169,29 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	}
 	defer release()
 
+	if stoppedOnly {
+		store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+		if err != nil {
+			return PhaseResult{}, fmt.Errorf("admit stopped-only setup for %q: %w", item.Slug, err)
+		}
+		instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+			Scenario: item.Slug,
+			Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
+		})
+		_ = store.Close()
+		if err != nil {
+			return PhaseResult{}, fmt.Errorf("admit stopped-only setup for %q: %w", item.Slug, err)
+		}
+		if len(instances) > 0 {
+			return PhaseResult{Scenario: item.Slug, Phase: phaseName, Status: PhaseExecutionRunningDeferred}, nil
+		}
+	}
+
+	if phaseName == phasesSetup {
+		if _, err := r.requireOwnerMaintenance(ctx, item, 0); err != nil {
+			return PhaseResult{}, err
+		}
+	}
 	if phaseRequiresBootstrap(phaseName) {
 		bootstrapOpts := StartOptions{CustomPath: opts.CustomPath}
 		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, newStartSession(ctx)); err != nil {
@@ -1397,7 +1431,8 @@ func governedGoTempDir(env []string) string {
 // and [INFO]/[WARNING] step headers) — it tees the log file and the
 // console, gated by the current verbosity; childWriter is for raw tool
 // stdout (vite/pnpm) — it tees the log file and reaches the console only
-// at VerbosityVerbose. The log file always receives everything.
+// at VerbosityVerbose. The log file always receives everything, and a console
+// whose reader has gone is dropped rather than failing the run (logFirstTee).
 func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter, childWriter io.Writer) error) (RunMeta, error) {
 	if strings.TrimSpace(ctx.Scenario) == "" {
 		ctx.Scenario = scenarioruntime.HealthStatusUnknown
@@ -1422,8 +1457,7 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	defer file.Close()
 	_ = config.ChownToInvokingUser(path)
 
-	logWriter := io.MultiWriter(r.consoleOut(), file)
-	childWriter := io.MultiWriter(r.childStdoutConsole(), file)
+	logWriter, childWriter := newLogFirstTees(file, r.consoleOut(), r.childStdoutConsole())
 	startedAt := time.Now().UTC()
 	runID := strings.TrimSpace(ctx.RunID)
 	if runID == "" {
@@ -1609,27 +1643,8 @@ func (r *Runner) placeServiceProcess(slug, step string, pid int) {
 // A digest preserves identity across sanitization, tuple boundaries, and
 // truncation; a restart of the same service reuses the same name.
 func serviceScopeName(slug, step string) string {
-	clean := func(value string) string {
-		var b strings.Builder
-		for _, r := range strings.ToLower(value) {
-			switch {
-			case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-				b.WriteRune(r)
-			default:
-				b.WriteRune('-')
-			}
-		}
-		return strings.Trim(b.String(), "-")
-	}
-	name := "vrooli-service-" + clean(slug) + "-" + clean(step)
-	// Length prefixes make the identity unambiguous even for unusual input.
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%s%d:%s", len(slug), slug, len(step), step)))
-	suffix := fmt.Sprintf("-%x", digest[:16])
-	if len(name) > serviceScopeNameLimit-len(suffix) {
-		name = name[:serviceScopeNameLimit-len(suffix)]
-	}
-	return strings.TrimRight(name, "-") + suffix
+	return scenarioruntime.ServiceScopeName(slug, step)
 }
 
 // serviceScopeNameLimit keeps a unit name inside systemd's bound.
-const serviceScopeNameLimit = 200
+const serviceScopeNameLimit = scenarioruntime.ServiceScopeNameLimit

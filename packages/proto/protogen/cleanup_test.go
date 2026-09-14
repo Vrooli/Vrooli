@@ -18,6 +18,7 @@ func TestPlanCleanupFindsOrphanOwnerFootprintAndEmptySchemaOwner(t *testing.T) {
 		filepath.Join(protoRoot, "gen", "go", "retired", "v1", "service.pb.go"),
 		filepath.Join(protoRoot, "gen", "typescript", "retired", "v1", "service_pb.ts"),
 		filepath.Join(protoRoot, "gen", "python", "retired", "v1", "service_pb2.py"),
+		filepath.Join(protoRoot, "gen", "python", "forgotten", "v1", "service_pb2.py"),
 		filepath.Join(protoRoot, "gen", "manifests", "retired.lock.json"),
 	} {
 		writeCleanupFile(t, path, "stale")
@@ -27,11 +28,14 @@ func TestPlanCleanupFindsOrphanOwnerFootprintAndEmptySchemaOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Actions) != 6 {
-		t.Fatalf("actions = %d, want 6: %#v", len(plan.Actions), plan.Actions)
+	if len(plan.Actions) != 7 {
+		t.Fatalf("actions = %d, want 7: %#v", len(plan.Actions), plan.Actions)
 	}
 	if !strings.Contains(strings.Join(cleanupActionPaths(plan), "\n"), "gen") {
 		t.Fatalf("plan did not include generated orphan paths: %#v", plan.Actions)
+	}
+	if !strings.Contains(strings.Join(cleanupActionPaths(plan), "\n"), "gen/python/forgotten") {
+		t.Fatalf("plan did not include unowned generated output: %#v", plan.Actions)
 	}
 	if !strings.Contains(strings.Join(cleanupActionPaths(plan), "\n"), "schemas/retired") {
 		t.Fatalf("plan did not include empty retired owner: %#v", plan.Actions)
@@ -57,6 +61,28 @@ func TestPlanCleanupKeepsActiveOwnerAndSupportsScenarioFilter(t *testing.T) {
 	}
 	if strings.Contains(strings.Join(cleanupActionPaths(plan), "\n"), "gen/go/other") {
 		t.Fatalf("scenario filter leaked other owner: %#v", plan.Actions)
+	}
+}
+
+func TestRemoveEmptyDirectoryTreePreservesFiles(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "retired", "v1")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeEmptyDirectoryTree(filepath.Dir(root)); err != nil {
+		t.Fatalf("remove empty directory tree: %v", err)
+	}
+	if _, err := os.Stat(filepath.Dir(root)); !os.IsNotExist(err) {
+		t.Fatalf("empty directory tree still exists, stat error = %v", err)
+	}
+
+	root = filepath.Join(t.TempDir(), "retired", "v1")
+	writeCleanupFile(t, filepath.Join(root, "keep.proto"), "syntax = \"proto3\";\n")
+	if err := removeEmptyDirectoryTree(filepath.Dir(root)); err == nil {
+		t.Fatal("remove empty directory tree succeeded despite source file")
+	}
+	if _, err := os.Stat(filepath.Join(root, "keep.proto")); err != nil {
+		t.Fatalf("source file was not preserved: %v", err)
 	}
 }
 

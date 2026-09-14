@@ -473,17 +473,69 @@ func intPtr(v int) *int {
 	return &v
 }
 
+// cleanupRestingRunStateDirs covers runs whose process has exited but which
+// are not terminal. needs_review waits for an operator: its caches go after the
+// grace period, and the whole directory once the review is untouched past the
+// stale window. parked waits on an await handle and wake resumes its session
+// home, so only its regenerable caches are ever removed.
+func (r *Reconciler) cleanupRestingRunStateDirs(ctx context.Context, root string, now time.Time) {
+	staleDays := r.levers.Storage.StaleRunStateRetentionDays
+	for _, status := range []domain.RunStatus{domain.RunStatusNeedsReview, domain.RunStatusParked} {
+		if status.LivenessPolicy().ExpectsProcess {
+			continue
+		}
+		runs, err := r.runs.List(ctx, repository.RunListFilter{Status: &status})
+		if err != nil {
+			continue
+		}
+		for _, run := range runs {
+			if run == nil || r.recoveryTailerActive(run.ID) {
+				continue
+			}
+			runDir, err := runstate.RunDir(root, run.ID)
+			if err != nil {
+				continue
+			}
+			idle := now.Sub(run.UpdatedAt)
+			switch {
+			case status == domain.RunStatusNeedsReview && staleDays > 0 && idle >= time.Duration(staleDays)*24*time.Hour:
+				_ = os.RemoveAll(runDir)
+			case idle >= runStateCacheGrace:
+				_ = PruneRunnerCaches(runDir)
+			}
+		}
+	}
+}
+
+// recoveryTailerActive reports whether a recovery tailer is following this
+// run's transcript; its state is in use regardless of the run's status.
+func (r *Reconciler) recoveryTailerActive(runID uuid.UUID) bool {
+	r.recoveryMu.Lock()
+	defer r.recoveryMu.Unlock()
+	_, active := r.tailers[runID]
+	return active
+}
+
+// runStateCacheGrace is how long a run that stopped keeps its downloaded runner
+// caches, so a prompt follow-up turn does not immediately fetch them again.
+const runStateCacheGrace = time.Hour
+
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
-	cutoff := r.now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
+	now := r.now()
+	cutoff := now.Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
 	root, rootErr := r.resolveRunStateRoot(ctx)
 	if rootErr != nil {
 		r.log().Warn("run-state retention skipped: root unavailable", obs.KeyError, rootErr.Error())
 		return
 	}
+	// Unknown is terminal: imported history without a trustworthy terminal
+	// signal has no process and never resumes, so its directory ages out like
+	// any other finished run's.
 	statuses := []domain.RunStatus{
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,
 		domain.RunStatusCancelled,
+		domain.RunStatusUnknown,
 	}
 	for _, status := range statuses {
 		runs, err := r.runs.List(ctx, repository.RunListFilter{Status: &status})
@@ -491,21 +543,26 @@ func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 			continue
 		}
 		for _, run := range runs {
-			if run == nil {
+			if run == nil || r.recoveryTailerActive(run.ID) {
 				continue
 			}
 			terminalAt := run.UpdatedAt
 			if run.EndedAt != nil && !run.EndedAt.IsZero() {
 				terminalAt = *run.EndedAt
 			}
-			if terminalAt.After(cutoff) {
+			runDir, err := runstate.RunDir(root, run.ID)
+			if err != nil {
 				continue
 			}
-			if runDir, err := runstate.RunDir(root, run.ID); err == nil {
+			switch {
+			case !terminalAt.After(cutoff):
 				_ = os.RemoveAll(runDir)
+			case now.Sub(terminalAt) >= runStateCacheGrace:
+				_ = PruneRunnerCaches(runDir)
 			}
 		}
 	}
+	r.cleanupRestingRunStateDirs(ctx, root, now)
 
 	// Rows can disappear before their private state directory (for example a
 	// failed transaction or a manually deleted run). Sweep those orphaned UUID

@@ -42,6 +42,14 @@ service TeamsService {
   rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
 }
 
+// Existing objective declaration; edits stay with the objective owner.
+message ObjectiveDeclaration {
+ string id = 1;
+ string role = 2;
+ string coverage = 3;
+ string note = 4;
+ string acknowledged_revision = 5;
+}
 message Team {
   string id = 1;
   string display_name = 2;
@@ -55,6 +63,10 @@ message Team {
   int32 member_count = 10;
   string created_at = 11;
   string updated_at = 12;
+  string purpose = 13;
+  string lifetime = 14;
+  repeated string effort_refs = 15;
+  repeated ObjectiveDeclaration objectives_served = 16;
 }
 message Role { string id = 1; string name = 2; string description = 3; }
 message Member { string agent_id = 1; string display_name = 2; repeated string roles = 3; string status = 4; }
@@ -73,6 +85,10 @@ message TeamDetails {
   string updated_at = 12;
   repeated Role roles = 13;
   repeated Member members = 14;
+  string purpose = 15;
+  string lifetime = 16;
+  repeated string effort_refs = 17;
+  repeated ObjectiveDeclaration objectives_served = 18;
 }
 message TeamInput {
   string id = 1;
@@ -83,6 +99,9 @@ message TeamInput {
   google.protobuf.Struct coordination = 6;
   google.protobuf.Struct execution = 7;
   google.protobuf.Struct operating_contract = 8;
+  string purpose = 9;
+  string lifetime = 10;
+  repeated string effort_refs = 11;
 }
 message ListTeamsRequest {}
 message ListTeamsResponse { repeated Team teams = 1; }

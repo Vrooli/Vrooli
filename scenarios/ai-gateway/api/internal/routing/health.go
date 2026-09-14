@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -38,6 +39,19 @@ const (
 	FailureExecution     FailureClass = "execution_error"
 	FailureCancellation  FailureClass = "cancellation"
 	FailureUnavailable   FailureClass = "unavailable"
+	// FailureInsufficientCredits means the account behind the provider ran out
+	// of credits (LPBS HTTP 402). It is an account condition, not a transient
+	// execution fault, so a bounded retry cannot resolve it and the route must
+	// escalate or move to an explicitly funded candidate.
+	FailureInsufficientCredits FailureClass = "insufficient_credits"
+	// FailureRateLimited means the provider throttled the request (HTTP 429).
+	// Unlike execution_error it carries an observed Retry-After window when the
+	// provider supplied one.
+	FailureRateLimited FailureClass = "rate_limited"
+	// FailureProviderOverloaded means the provider was temporarily unavailable
+	// (HTTP 502/503/504), a transient condition with an observed recovery
+	// window when the provider supplied one.
+	FailureProviderOverloaded FailureClass = "provider_overloaded"
 	// FailureUnsupportedSampling means a candidate was skipped because its
 	// resolved role does not honor the caller's explicit sampling control. It is
 	// never recorded against provider health: the provider failed nothing, and
@@ -45,38 +59,93 @@ const (
 	FailureUnsupportedSampling FailureClass = "unsupported_sampling"
 )
 
-// ClassifyProviderError maps a provider adapter error into a stable failure
-// class. It reads the resource CommandError.Code where present and falls back
-// to context cancellation/deadline semantics so callers never have to inspect
+// ProviderFailure is the typed, provider-neutral classification of a provider
+// execution failure together with any observed recovery window. Class is the
+// stable classification; RetryAfter and ResetAt carry observed provenance only
+// (empty means the provider supplied none, and they are never synthesized from
+// a default cooldown); Source identifies where the observation came from.
+type ProviderFailure struct {
+	Class      FailureClass
+	HTTPStatus int
+	RetryAfter string
+	ResetAt    string
+	Source     string
+}
+
+// HasRecoveryWindow reports whether the failure carries an observed recovery
+// time, so a caller parks on it instead of using a generic backoff.
+func (f ProviderFailure) HasRecoveryWindow() bool {
+	return strings.TrimSpace(f.RetryAfter) != "" || strings.TrimSpace(f.ResetAt) != ""
+}
+
+// ClassifyProviderFailure maps a provider adapter error into a typed failure
+// class with its observed recovery provenance. It reads the resource
+// CommandError.Code where present and falls back to context
+// cancellation/deadline semantics so callers never have to inspect
 // provider-specific strings.
-func ClassifyProviderError(err error) FailureClass {
+func ClassifyProviderFailure(err error) ProviderFailure {
 	if err == nil {
-		return FailureNone
+		return ProviderFailure{}
 	}
 	if errors.Is(err, context.Canceled) {
-		return FailureCancellation
+		return ProviderFailure{Class: FailureCancellation, Source: "context"}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return FailureTimeout
+		return ProviderFailure{Class: FailureTimeout, Source: "context"}
+	}
+	observed := ProviderFailure{}
+	if errors.Is(err, providers.ErrInsufficientCredits) {
+		observed.Class = FailureInsufficientCredits
 	}
 	var cmdErr *providers.CommandError
 	if errors.As(err, &cmdErr) {
-		switch cmdErr.Code {
-		case "missing_binary":
-			return FailureMissingBinary
-		case "timeout":
-			return FailureTimeout
-		case "malformed_json":
-			return FailureMalformedJSON
-		case "exit_error", "command_failed":
-			return FailureExecution
-		case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request":
-			return FailurePolicyError
-		case "unavailable", "empty_inventory":
-			return FailureUnavailable
+		observed.HTTPStatus = cmdErr.HTTPStatus
+		observed.RetryAfter = strings.TrimSpace(cmdErr.RetryAfter)
+		observed.ResetAt = strings.TrimSpace(cmdErr.ResetAt)
+		if observed.Class == "" {
+			switch cmdErr.Code {
+			case "missing_binary":
+				observed.Class = FailureMissingBinary
+			case "timeout":
+				observed.Class = FailureTimeout
+			case "malformed_json":
+				observed.Class = FailureMalformedJSON
+			case "exit_error", "command_failed", "provider_failed":
+				observed.Class = FailureExecution
+			case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request":
+				observed.Class = FailurePolicyError
+			case "unavailable", "empty_inventory":
+				observed.Class = FailureUnavailable
+			case "insufficient_credits":
+				observed.Class = FailureInsufficientCredits
+			case "rate_limited":
+				observed.Class = FailureRateLimited
+			case "provider_overloaded", "stream_failed":
+				observed.Class = FailureProviderOverloaded
+			case "unreachable":
+				observed.Class = FailureUnavailable
+			}
 		}
 	}
-	return FailureExecution
+	if observed.Source == "" {
+		switch {
+		case observed.HTTPStatus != 0:
+			observed.Source = fmt.Sprintf("http:%d", observed.HTTPStatus)
+		case observed.Class != "":
+			observed.Source = "provider-command"
+		}
+	}
+	if observed.Class == "" {
+		observed.Class = FailureExecution
+	}
+	return observed
+}
+
+// ClassifyProviderError returns only the stable failure class. Prefer
+// ClassifyProviderFailure when the observed Retry-After/reset provenance is
+// needed for recovery.
+func ClassifyProviderError(err error) FailureClass {
+	return ClassifyProviderFailure(err).Class
 }
 
 // HealthKey identifies one circuit breaker. Breakers are isolated per provider,
@@ -97,6 +166,14 @@ func normalizeHealthKey(k HealthKey) HealthKey {
 }
 
 // ProviderHealth is the persisted breaker record for one HealthKey.
+//
+// The HTTPStatus/RetryAfter/ResetAt/FailureSource fields preserve the observed
+// provenance of the most recent failure alongside its class. ResetAt and
+// RetryAfter are recorded only when the provider supplied them; they are never
+// synthesized from the breaker's own cooldown, so a reader can tell an observed
+// recovery window from a policy default. A zero HTTPStatus and empty strings
+// mean the failure carried no transport provenance (context cancellation, a
+// local command fault).
 type ProviderHealth struct {
 	Provider            string
 	Role                string
@@ -104,6 +181,10 @@ type ProviderHealth struct {
 	State               BreakerState
 	ConsecutiveFailures int
 	LastFailureClass    FailureClass
+	HTTPStatus          int
+	RetryAfter          string
+	ResetAt             string
+	FailureSource       string
 	LastSuccessAt       time.Time
 	LastFailureAt       time.Time
 	CooldownUntil       time.Time
@@ -190,5 +271,21 @@ func (b Breaker) OnFailure(h ProviderHealth, class FailureClass, now time.Time) 
 		h.CooldownUntil = now.Add(b.policy.Cooldown)
 		h.Generation++
 	}
+	return h
+}
+
+// OnProviderFailure records a typed failure together with the observed
+// provenance from its ProviderFailure. It is the full-fidelity form of
+// OnFailure: the breaker transition is identical, and the observed HTTP status,
+// Retry-After, reset time and source are stored verbatim so a reader can park
+// on the provider's own recovery window instead of the breaker's default
+// cooldown. The provenance is previous-failure state, so it is cleared when a
+// later observation supplies none rather than lingering with a stale window.
+func (b Breaker) OnProviderFailure(h ProviderHealth, failure ProviderFailure, now time.Time) ProviderHealth {
+	h = b.OnFailure(h, failure.Class, now)
+	h.HTTPStatus = failure.HTTPStatus
+	h.RetryAfter = strings.TrimSpace(failure.RetryAfter)
+	h.ResetAt = strings.TrimSpace(failure.ResetAt)
+	h.FailureSource = strings.TrimSpace(failure.Source)
 	return h
 }

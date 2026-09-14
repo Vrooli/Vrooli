@@ -45,6 +45,9 @@ const (
 	// LedgerServiceIngestMetricSampleProcedure is the fully-qualified name of the LedgerService's
 	// IngestMetricSample RPC.
 	LedgerServiceIngestMetricSampleProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/IngestMetricSample"
+	// LedgerServiceGetDraftMetricsProcedure is the fully-qualified name of the LedgerService's
+	// GetDraftMetrics RPC.
+	LedgerServiceGetDraftMetricsProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/GetDraftMetrics"
 	// LedgerServiceListRemediationsProcedure is the fully-qualified name of the LedgerService's
 	// ListRemediations RPC.
 	LedgerServiceListRemediationsProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/ListRemediations"
@@ -62,6 +65,7 @@ type LedgerServiceClient interface {
 	ListContaminatedPublishRecords(context.Context, *connect.Request[ledger.ListContaminatedPublishRecordsRequest]) (*connect.Response[ledger.ListContaminatedPublishRecordsResponse], error)
 	ListCoverage(context.Context, *connect.Request[ledger.ListCoverageRequest]) (*connect.Response[ledger.ListCoverageResponse], error)
 	IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error)
+	GetDraftMetrics(context.Context, *connect.Request[ledger.GetDraftMetricsRequest]) (*connect.Response[ledger.GetDraftMetricsResponse], error)
 	ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error)
 	CreateRemediation(context.Context, *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error)
 	ResolveRemediation(context.Context, *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error)
@@ -102,6 +106,12 @@ func NewLedgerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ledgerServiceMethods.ByName("IngestMetricSample")),
 			connect.WithClientOptions(opts...),
 		),
+		getDraftMetrics: connect.NewClient[ledger.GetDraftMetricsRequest, ledger.GetDraftMetricsResponse](
+			httpClient,
+			baseURL+LedgerServiceGetDraftMetricsProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("GetDraftMetrics")),
+			connect.WithClientOptions(opts...),
+		),
 		listRemediations: connect.NewClient[ledger.ListRemediationsRequest, ledger.ListRemediationsResponse](
 			httpClient,
 			baseURL+LedgerServiceListRemediationsProcedure,
@@ -129,6 +139,7 @@ type ledgerServiceClient struct {
 	listContaminatedPublishRecords *connect.Client[ledger.ListContaminatedPublishRecordsRequest, ledger.ListContaminatedPublishRecordsResponse]
 	listCoverage                   *connect.Client[ledger.ListCoverageRequest, ledger.ListCoverageResponse]
 	ingestMetricSample             *connect.Client[ledger.IngestMetricSampleRequest, ledger.IngestMetricSampleResponse]
+	getDraftMetrics                *connect.Client[ledger.GetDraftMetricsRequest, ledger.GetDraftMetricsResponse]
 	listRemediations               *connect.Client[ledger.ListRemediationsRequest, ledger.ListRemediationsResponse]
 	createRemediation              *connect.Client[ledger.CreateRemediationRequest, ledger.CreateRemediationResponse]
 	resolveRemediation             *connect.Client[ledger.ResolveRemediationRequest, ledger.ResolveRemediationResponse]
@@ -155,6 +166,11 @@ func (c *ledgerServiceClient) IngestMetricSample(ctx context.Context, req *conne
 	return c.ingestMetricSample.CallUnary(ctx, req)
 }
 
+// GetDraftMetrics calls vrooli.content_desk.v1.ledger.LedgerService.GetDraftMetrics.
+func (c *ledgerServiceClient) GetDraftMetrics(ctx context.Context, req *connect.Request[ledger.GetDraftMetricsRequest]) (*connect.Response[ledger.GetDraftMetricsResponse], error) {
+	return c.getDraftMetrics.CallUnary(ctx, req)
+}
+
 // ListRemediations calls vrooli.content_desk.v1.ledger.LedgerService.ListRemediations.
 func (c *ledgerServiceClient) ListRemediations(ctx context.Context, req *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error) {
 	return c.listRemediations.CallUnary(ctx, req)
@@ -177,6 +193,7 @@ type LedgerServiceHandler interface {
 	ListContaminatedPublishRecords(context.Context, *connect.Request[ledger.ListContaminatedPublishRecordsRequest]) (*connect.Response[ledger.ListContaminatedPublishRecordsResponse], error)
 	ListCoverage(context.Context, *connect.Request[ledger.ListCoverageRequest]) (*connect.Response[ledger.ListCoverageResponse], error)
 	IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error)
+	GetDraftMetrics(context.Context, *connect.Request[ledger.GetDraftMetricsRequest]) (*connect.Response[ledger.GetDraftMetricsResponse], error)
 	ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error)
 	CreateRemediation(context.Context, *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error)
 	ResolveRemediation(context.Context, *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error)
@@ -213,6 +230,12 @@ func NewLedgerServiceHandler(svc LedgerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(ledgerServiceMethods.ByName("IngestMetricSample")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ledgerServiceGetDraftMetricsHandler := connect.NewUnaryHandler(
+		LedgerServiceGetDraftMetricsProcedure,
+		svc.GetDraftMetrics,
+		connect.WithSchema(ledgerServiceMethods.ByName("GetDraftMetrics")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ledgerServiceListRemediationsHandler := connect.NewUnaryHandler(
 		LedgerServiceListRemediationsProcedure,
 		svc.ListRemediations,
@@ -241,6 +264,8 @@ func NewLedgerServiceHandler(svc LedgerServiceHandler, opts ...connect.HandlerOp
 			ledgerServiceListCoverageHandler.ServeHTTP(w, r)
 		case LedgerServiceIngestMetricSampleProcedure:
 			ledgerServiceIngestMetricSampleHandler.ServeHTTP(w, r)
+		case LedgerServiceGetDraftMetricsProcedure:
+			ledgerServiceGetDraftMetricsHandler.ServeHTTP(w, r)
 		case LedgerServiceListRemediationsProcedure:
 			ledgerServiceListRemediationsHandler.ServeHTTP(w, r)
 		case LedgerServiceCreateRemediationProcedure:
@@ -270,6 +295,10 @@ func (UnimplementedLedgerServiceHandler) ListCoverage(context.Context, *connect.
 
 func (UnimplementedLedgerServiceHandler) IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) GetDraftMetrics(context.Context, *connect.Request[ledger.GetDraftMetricsRequest]) (*connect.Response[ledger.GetDraftMetricsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.GetDraftMetrics is not implemented"))
 }
 
 func (UnimplementedLedgerServiceHandler) ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error) {

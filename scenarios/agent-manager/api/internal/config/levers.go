@@ -321,9 +321,30 @@ type StorageLevers struct {
 
 	// RunStateRetentionDays is how long the reconciler keeps on-disk
 	// run-state directories (transcripts, scratchpads) for terminal
-	// (Complete / Failed / Cancelled) runs before sweeping them.
+	// (Complete / Failed / Cancelled / Unknown) runs before sweeping them.
+	// Downloaded runner caches inside them go an hour after the run ends.
 	// Range: 1 to 365. Default: 7.
 	RunStateRetentionDays int `json:"runStateRetentionDays"`
+
+	// StaleRunStateRetentionDays is how long a needs_review run left untouched
+	// keeps its run-state directory. Past it the review is treated as abandoned:
+	// a later continuation starts a fresh session. Parked runs are never swept.
+	// 0 disables. Range: 0 to 365. Default: 30.
+	StaleRunStateRetentionDays int `json:"staleRunStateRetentionDays"`
+
+	// ImportedToolCompactionDays is the age after which an imported
+	// transcript's bulky tool payloads are compacted in place to a bounded
+	// head and tail excerpt with the original byte count and sha256. Imported
+	// transcripts are the conversation-recall corpus, so their events are never
+	// age-deleted and their prose is never compacted. 0 disables.
+	// Range: 0 to 365. Default: 30.
+	ImportedToolCompactionDays int `json:"importedToolCompactionDays"`
+
+	// ImportedToolCompactionMinBytes is the stored payload size above which an
+	// imported tool event is compacted; each compacted value keeps a quarter of
+	// it at the head and a quarter at the tail.
+	// Range: 1024 to 1048576. Default: 4096.
+	ImportedToolCompactionMinBytes int `json:"importedToolCompactionMinBytes"`
 }
 
 // =============================================================================
@@ -619,6 +640,12 @@ func DefaultLevers() Levers {
 			EventRetentionDays:    30,
 			ArtifactRetentionDays: 90,
 			RunStateRetentionDays: 7,
+			// Measured 2026-09-14: imported tool payloads above 4 KiB and older
+			// than 30 days carry ~40 MB beyond 4 KiB (7.8k events); the 7-30 day
+			// band adds ~43 MB as it ages. Smaller payloads save little.
+			StaleRunStateRetentionDays:     30,
+			ImportedToolCompactionDays:     30,
+			ImportedToolCompactionMinBytes: 4096,
 		},
 		Heartbeat: HeartbeatLevers{
 			RunHeartbeatInterval:    15 * time.Second,
@@ -841,6 +868,15 @@ func (s *StorageLevers) Validate() error {
 	}
 	if s.RunStateRetentionDays < 1 || s.RunStateRetentionDays > 365 {
 		return NewInvalid("runStateRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.RunStateRetentionDays), nil)
+	}
+	if s.StaleRunStateRetentionDays < 0 || s.StaleRunStateRetentionDays > 365 {
+		return NewInvalid("staleRunStateRetentionDays", fmt.Sprintf("must be between 0 and 365, got %d", s.StaleRunStateRetentionDays), nil)
+	}
+	if s.ImportedToolCompactionDays < 0 || s.ImportedToolCompactionDays > 365 {
+		return NewInvalid("importedToolCompactionDays", fmt.Sprintf("must be between 0 and 365, got %d", s.ImportedToolCompactionDays), nil)
+	}
+	if s.ImportedToolCompactionDays > 0 && (s.ImportedToolCompactionMinBytes < 1024 || s.ImportedToolCompactionMinBytes > 1<<20) {
+		return NewInvalid("importedToolCompactionMinBytes", fmt.Sprintf("must be between 1024 and 1048576, got %d", s.ImportedToolCompactionMinBytes), nil)
 	}
 	return nil
 }

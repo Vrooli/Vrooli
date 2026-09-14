@@ -1043,6 +1043,33 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	})
 }
 
+func TestSyncRequirementsSnapshotsDuringValidationRun(t *testing.T) {
+	stubSyncer := &stubRequirementsSyncer{
+		outcome: &reqsync.SyncOutcome{OTComplete: 2, OTTotal: 4},
+	}
+	orchestrator := &SuiteOrchestrator{requirements: stubSyncer}
+	phase := phasespkg.Definition{Name: phasespkg.Name("unit")}
+	plan := &phasePlan{Definitions: []phasespkg.Definition{phase}, Selected: []phasespkg.Definition{phase}}
+
+	outcome := orchestrator.syncRequirementsIfNeeded(
+		context.Background(),
+		workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()},
+		nil,
+		SuiteExecutionRequest{ValidationRun: true},
+		plan,
+		[]PhaseExecutionResult{{Name: "unit", Status: "passed"}},
+	)
+	if stubSyncer.calls != 0 {
+		t.Fatalf("validation run must not mutate requirements, sync calls = %d", stubSyncer.calls)
+	}
+	if stubSyncer.snapshotCalls != 1 {
+		t.Fatalf("validation run should snapshot requirements once, snapshot calls = %d", stubSyncer.snapshotCalls)
+	}
+	if outcome == nil || outcome.SkipReason != "validation run — requirements not updated" {
+		t.Fatalf("unexpected validation requirements result: %#v", outcome)
+	}
+}
+
 func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
 	t.Setenv("UI_PORT", "21223")
 	t.Setenv("API_PORT", "15421")

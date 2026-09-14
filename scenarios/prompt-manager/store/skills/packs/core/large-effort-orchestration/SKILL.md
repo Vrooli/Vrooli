@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
   icon: network
   status: active
-  revision: 6
+  revision: 7
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-12T00:00:00Z"
+  updatedAt: "2026-09-14T00:00:00Z"
   requires:
     scenarios: [prompt-manager, plan-manager, agent-manager, program-runtime]
     commands: [prompt-manager skill read, plan-manager, agent-manager, program-runtime]
@@ -21,7 +21,7 @@ metadata:
 
 ## Practice focus: Large effort orchestration
 
-Turn a large request into a finite, recoverable effort without losing its intent or spending the whole investment repairing infrastructure. Preserve the destination, delegate coherent work, and close only against evidence for that destination.
+Turn a large request into a finite, recoverable effort without losing its intent or spending the whole investment repairing infrastructure. Large efforts use one governed start model: a finite, effort-based Prompt Manager delivery team coordinates bounded work; Agent Manager owns runs and outcomes; Swarm Manager owns grants and dispositions; Plan Manager owns plans only when the selected work shape requires one. Preserve the destination, delegate coherent work, and close only against evidence for that destination.
 
 This skill owns cross-round judgment, source preservation, and recovery policy. Plan Manager owns implementation plans and family admission. Agent Manager owns runs and supervision. Swarm Manager owns its work and grants when selected. The effort workspace joins those owners; it does not replace them.
 
@@ -44,6 +44,16 @@ writer access to active effort control files. Read `large-effort-supervision` wh
 assigned to assess orchestrators rather than deliver this effort.
 
 Entry: the user supplies a large outcome or an existing effort reference.
+
+#### Canonical team-native start
+
+1. Create or resume one finite delivery team and one protected effort workspace. Record purpose, finite lifetime, mission, exact effort reference, leader, operating contract, serialized execution policy and acceptance revision. Team metadata describes coordination; it does not grant authority.
+2. Register or verify the team's Source Ledger scope. Persist the coordinator goal and source references in the effort workspace; keep the workspace a recoverable index, never a second owner ledger.
+3. Qualify the exact team, runner, profile, model, owner route and recovery behavior with a disposable finite fixture. The fixture must exercise registration, contract validation, a disabled finite-leader binding, one controlled owner admission, identity/receipt reconciliation, lifecycle transitions and explicit recurrence/recovery limits.
+4. Provision the finite-leader binding disabled with exact effort, accepted revision, coordinator prompt and source references. A binding is not an execution grant. Request execution approval only after qualification evidence is reviewed; staging or a successful configuration read is not approval.
+5. When approved, enable only the finite team and its qualified member, admit the first run through the governed team execution route, and reconcile the PM admission identity with the Agent Manager task/run and handoff. Keep the UX effort inactive until this sequence and its approval gate are complete.
+
+The finite team's operating contract is the coordinator's recovery handoff. Team registration, heartbeat provisioning, owner-run admission, continuation authority and accepted completion are separate states. A completed run is not accepted work; an explicit revision-checked completion receipt is required. Recurring continuation and fresh-run recovery are separate gates: a heartbeat tick may observe a retained owner wait or recovery condition, but it cannot invent a continuation edge, replacement run, grant or approval. Uncertain dispatch retains its exact identity until the owner reconciles it; it never authorizes a speculative retry.
 
 1. Discover related work and reusable programs through Search Hub before inventing another work owner.
 2. Resume the existing effort when its identity and destination match.
@@ -81,7 +91,7 @@ Let the current reviewed frontier determine admission. Family topology review
 can use an authorized reviewer; it need not create another human approval for
 every in-scope plan.
 
-Exit: each requirement is covered, deferred by an explicit user decision, or visibly unresolved. Plans expose dependencies and evidence; none claim runtime qualification that has not occurred.
+Exit: each requirement is covered, deferred by an explicit user decision, or visibly unresolved. The team, effort workspace and owner views expose exact identities and evidence; none claim runtime qualification that has not occurred.
 
 ### 3. Admit and supervise bounded work
 
@@ -107,6 +117,8 @@ Choose the least expensive qualified profile for the assignment. Respect the use
 
 Persist selected runner/profile/model, credential-pool reference, policy revision, reserved usage and required capabilities with admission. Limit strong-model concurrency separately. Keep context bounded through source pointers and stable shared prompt sections. Use isolated worker checkouts when the owner supports them; still declare schema, generated-output, integration and live-service conflicts. Independent review remains a bounded worker assignment for material outcomes. Do not create a permanent judge or integration agent for every task.
 
+The standing effort supervisor observes the team-native effort through the owner board and exact work references. It is not the finite coordinator, does not become a private scheduler, and cannot derive authority from its standing membership or a heartbeat. Legacy drivers and bespoke shell/tmux loops are migration evidence only; they are not a supported second start model.
+
 Reuse Program Runtime compositions for repeated joins and bounded fan-out. Read a discovered program and its owner skill together. Runtime code must retain owner IDs, cancellation, budgets, partial results and idempotency. Promote repeated deterministic composition only after its inputs and stop rule are known. Put state-machine, repair and scheduling invariants in their owning scenario, not a private shell loop or a growing program.
 
 The leader advances every useful admitted branch before waiting. On pending work, park on a supported producer or checkpoint and end its turn. A configured recurring wake is a recovery opportunity, not a queue: skip while the leader is running, queued, parked or uncertain. Qualify restart/outage behavior before enabling unattended wakeups. Never interpret an unavailable run lookup as a dead process.
@@ -120,6 +132,8 @@ proof; do not compete with another maintainer in a close/resume loop.
 For runner exhaustion, use the recovery reference to distinguish context capacity, session/weekly subscription limits, transient rate limits, exhausted API credits and denied access. Persist a checkpoint and owner wake condition. A timer or reset event should make work eligible once; repeated leader ticks must not create new attempts against the same exhausted allowance. Runtime restarts and provider fallback consume the original effort budget.
 
 Exit: work is complete, durably pending, or bounded by a recorded recovery decision. No child exists solely in the leader's recollection.
+
+Before enabling recurring finite wakes, prove separately that the owner can select an explicit continuation, the accepted grant and revision propagate to that continuation, a lost response reconciles to the original task/run identity, restart/outage recovery preserves the reservation, and retirement prevents replacement dispatch. If any gate is unqualified, keep the finite heartbeat disabled and use a single explicitly admitted run or a recorded owner wait.
 
 ### 4. Review evidence and choose the next round
 

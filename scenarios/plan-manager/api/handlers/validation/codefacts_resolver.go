@@ -110,14 +110,20 @@ func (r codeFactsReferenceResolver) resolveWithCodeFacts(ctx context.Context, re
 	if err != nil {
 		return ref, fmt.Errorf("describe code facts: %w", err)
 	}
-	if hasMissingEvidence(resp.Msg) {
-		ref.Resolution = planmodel.ResolutionMissing
-		ref.Note = "code-facts reported missing target evidence"
-		return ref, nil
-	}
+	// Proven evidence wins over unrelated missing surfaces. A single-file (or
+	// doc) target only exists in one surface, so code-facts reports the other
+	// surfaces (cli/runtime/ui) MISSING while the target's own parse unit is
+	// PROVEN or its target root resolves. Checking missing first marked every
+	// existing file MISSING; a genuinely absent target is rejected upstream by
+	// code-facts (stat error) and resolved by the filesystem floor instead.
 	if hasProvenEvidence(resp.Msg) || resp.Msg.GetTarget().GetRootPath() != "" {
 		ref.Resolution = planmodel.ResolutionResolved
 		ref.Note = "resolved by code-facts"
+		return ref, nil
+	}
+	if hasMissingEvidence(resp.Msg) {
+		ref.Resolution = planmodel.ResolutionMissing
+		ref.Note = "code-facts reported missing target evidence"
 		return ref, nil
 	}
 	ref.Resolution = planmodel.ResolutionUnresolved

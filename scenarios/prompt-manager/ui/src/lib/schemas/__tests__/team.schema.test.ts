@@ -133,6 +133,10 @@ describe('TeamDetailsSchema', () => {
 })
 
 describe('TeamSharedFileListResponseSchema (proto int64 wire form)', () => {
+  it('treats an omitted proto3 repeated files field as an empty directory', () => {
+    expect(TeamSharedFileListResponseSchema.parse({ teamId: 'empty-team' }).files).toEqual([])
+  })
+
   it('parses a ListSharedFiles response whose int64 size is serialized as a string', () => {
     const proto = create(ListSharedFilesResponseSchema, {
       teamId: 'marketing-crew',

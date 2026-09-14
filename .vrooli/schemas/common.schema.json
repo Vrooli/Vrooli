@@ -436,6 +436,15 @@
           "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
           "description": "Optional path below the resolver-selected class root. Must be relative and traversal-safe."
         },
+        "agent_removal": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "ask",
+            "deny"
+          ],
+          "description": "Whether a coding agent may delete here: allow, ask (the operator confirms), or deny. Omit to let storage-manager infer it from regenerable and sensitive, which describe backup and reclaim rather than agent permission. See docs/architecture/agent-policy-runtime.md §\"Filesystem removal\"."
+        },
         "regenerable": {
           "type": "boolean",
           "description": "Required deletion intent. true means the owner can reconstruct the entry; false means retention may measure it but must never prune it."
@@ -490,6 +499,11 @@
                 "builtin",
                 "custom"
               ]
+            },
+            "operation": {
+              "type": "string",
+              "pattern": "^/api/",
+              "description": "Owner API path storage-manager POSTs {\"dry_run\":false} to when this non-regenerable entry stays over budget. The owner reclaims; storage-manager never deletes non-regenerable data."
             }
           }
         },
@@ -779,6 +793,195 @@
         }
       }
     },
+    "deploymentSupportedTarget": {
+      "type": "object",
+      "description": "One target platform the component declares it can be deployed to. The closure resolver refuses platforms outside this list with a typed unsupported_platform entry; an absent list defers to resource artifacts.",
+      "required": [
+        "os"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "os": {
+          "type": "string",
+          "enum": [
+            "linux",
+            "macos",
+            "windows"
+          ]
+        },
+        "distribution": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional distribution the claim was evidenced on, e.g. ubuntu."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional distribution version the claim was evidenced on, e.g. 24.04."
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          }
+        }
+      }
+    },
+    "deploymentPersistentData": {
+      "type": "object",
+      "description": "One persistent data set a deployment must preserve across updates and restores. It names the owner (the component whose lifecycle holds the data), the binding the owner uses to reach it, the backup provider, and who owns schema migration. The closure carries these so the manifest can identify the recovery contract of every data set.",
+      "required": [
+        "id",
+        "binding",
+        "migration_owner"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Component id that owns the data (a resource such as postgres, or the declaring scenario). Defaults to the declaring component."
+        },
+        "binding": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Declared binding the owner uses to locate the data, e.g. schema:<name>, data-dir, bucket:<name>. Never a host path."
+        },
+        "backup_provider": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Declared provider reference that captures this data set (e.g. data-backup-manager)."
+        },
+        "migration_owner": {
+          "type": "string",
+          "enum": [
+            "scenario",
+            "resource",
+            "none"
+          ],
+          "description": "Who applies schema/data migrations when the code revision changes."
+        }
+      }
+    },
+    "deploymentListener": {
+      "type": "object",
+      "description": "Edge exposure and readiness for one declared port. Ports not listed here are private to the target.",
+      "required": [
+        "id",
+        "port",
+        "visibility"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Key of the ports map this listener refers to."
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "public_via_edge",
+            "private"
+          ],
+          "description": "public_via_edge: reachable through the deployment edge (reverse proxy/TLS); private: bound to the target only."
+        },
+        "readiness": {
+          "type": "object",
+          "description": "Readiness probe the edge waits on before routing. Defaults to the owning component's run.readiness.",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "http",
+                "port_open"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "deploymentRecovery": {
+      "type": "object",
+      "description": "Recovery contract for code and schema. It tells the planner which rollbacks are safe without the operator reading the scenario's source.",
+      "additionalProperties": false,
+      "properties": {
+        "code_rollback": {
+          "type": "string",
+          "enum": [
+            "compatible_predecessor_only",
+            "any_predecessor",
+            "none"
+          ],
+          "description": "Which earlier releases the code can be rolled back to while the current data remains in place."
+        },
+        "schema_strategy": {
+          "type": "string",
+          "enum": [
+            "expand_contract",
+            "explicit_restore",
+            "none"
+          ],
+          "description": "expand_contract: migrations are backward compatible for one release; explicit_restore: rollback requires restoring a backup; none: no schema."
+        }
+      }
+    },
+    "deploymentDeclaration": {
+      "type": "object",
+      "description": "Additive deployment declarations read by the scenario-to-cloud closure resolver. Declared facts only; deployability verdicts are derived and never stored here.",
+      "additionalProperties": false,
+      "properties": {
+        "supported_targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentSupportedTarget"
+          }
+        },
+        "persistent_data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentPersistentData"
+          }
+        },
+        "listeners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentListener"
+          }
+        },
+        "recovery": {
+          "$ref": "#/definitions/deploymentRecovery"
+        },
+        "backup": {
+          "$ref": "#/definitions/deploymentBackupHook"
+        }
+      }
+    },
     "credentialDescriptor": {
       "type": "object",
       "description": "Declares one credential by a durable, backend-neutral name. logical_id and field are the only identifiers the credential store ever sees; a descriptor never names Vault, a file, or any other provider-shaped path. Replaces the retired secretDescriptor.",
@@ -787,6 +990,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "version": {
+          "type": "string",
+          "const": "credential-descriptor/v1"
+        },
         "logical_id": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9._-]+/[a-z0-9][a-z0-9._/-]+$",
@@ -814,6 +1021,10 @@
           "type": "string",
           "description": "Why this credential is needed and what it unlocks."
         },
+        "placeholder": {
+          "type": "string",
+          "description": "Safe, non-secret sample text shown inside an operator input. It communicates the expected shape and must never be a usable credential value."
+        },
         "obtain_url": {
           "type": "string",
           "format": "uri",
@@ -838,6 +1049,147 @@
           },
           "uniqueItems": true,
           "description": "Deployment tiers where this credential is required. Empty or omitted means every tier."
+        },
+        "owner": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Owner that supplies the registered setup and verification actions."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["secret", "public", "generated", "delegated", "external", "hardware"]
+        },
+        "provider": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "applies_when": {
+          "$ref": "#/definitions/credentialApplicability"
+        },
+        "requirement_group": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "consumer_refs": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/credentialMetadataRef" }
+        },
+        "companion_settings": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/credentialMetadataRef" }
+        },
+        "companion_credentials": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/credentialMetadataRef" }
+        },
+        "acquisition_ref": { "$ref": "#/definitions/credentialMetadataRef" },
+        "verification_ref": { "$ref": "#/definitions/credentialMetadataRef" },
+        "recovery_ref": { "$ref": "#/definitions/credentialMetadataRef" },
+        "help_ref": { "$ref": "#/definitions/credentialMetadataRef" },
+        "evidence_policy": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "provider_version": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    },
+    "credentialMetadataRef": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$",
+      "maxLength": 256
+    },
+    "credentialApplicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "all": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/definitions/credentialApplicabilityRule" }
+        },
+        "any": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/definitions/credentialApplicabilityRule" }
+        },
+        "not": { "$ref": "#/definitions/credentialApplicabilityRule" }
+      }
+    },
+    "credentialApplicabilityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["eq"] },
+        { "required": ["neq"] }
+      ],
+      "properties": {
+        "eq": { "$ref": "#/definitions/credentialApplicabilityMatch" },
+        "neq": { "$ref": "#/definitions/credentialApplicabilityMatch" }
+      }
+    },
+    "credentialApplicabilityMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "minProperties": 2,
+      "properties": {
+        "context": { "type": "string", "maxLength": 256 },
+        "setting": { "type": "string", "maxLength": 256 },
+        "operation": { "type": "string", "maxLength": 256 },
+        "role": { "type": "string", "maxLength": 256 },
+        "target": { "type": "string", "maxLength": 256 },
+        "environment": { "type": "string", "maxLength": 256 },
+        "capability": { "type": "string", "maxLength": 256 },
+        "provider": { "type": "string", "maxLength": 256 },
+        "value": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "credentialConsumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "consumer", "source_ref"],
+      "properties": {
+        "logical_id": { "type": "string" },
+        "address_pattern": { "type": "string", "maxLength": 256 },
+        "field": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+        "kind": { "type": "string", "enum": ["authority", "environment", "generated", "provider_default", "dynamic", "delegated", "external", "public", "backup"] },
+        "consumer": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "source_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "required": { "type": "boolean" },
+        "reason": { "type": "string", "maxLength": 4096 },
+        "tiers": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^tier-[1-5]-[a-z0-9-]+$" } }
+      }
+    },
+    "operatorCapabilityReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_id",
+        "provider_id"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "operator-capability/v1",
+          "description": "Versioned operator-capability descriptor contract. Unknown versions are rejected by the control plane."
+        },
+        "capability_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+        },
+        "provider_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$"
         }
       }
     },
@@ -851,6 +1203,73 @@
           "items": {
             "$ref": "#/definitions/credentialDescriptor"
           }
+        },
+        "consumers": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/definitions/credentialConsumer"
+          }
+        }
+      }
+    },
+    "deploymentBackupArgv": {
+      "description": "One declared backup/restore/quiesce hook as {tool, argv[]}. Credentials never travel in argv; the caller supplies them through the child environment.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "argv"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Executable name (resolved on PATH or beneath the owner's native binary directory). Never a shell string."
+        },
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments. Whole-argument placeholders {database}, {output}, {input} are substituted by the caller; a placeholder is never split into extra arguments."
+        }
+      }
+    },
+    "deploymentBackupHook": {
+      "type": "object",
+      "description": "Declared consistency boundary and backup tooling for the component's persistent data. A resource that owns a database declares its database-native dump/restore argv here (a generic file copy of a live database is never a backup); a scenario declares the quiesce/release hooks that coordinate writes across its data stores. Read by scenario-to-cloud recovery points and by the target-local `vrooli cloud-target data` verbs.",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "object_store",
+            "application_hooks"
+          ],
+          "description": "Which recovery-point provider captures this component's bindings."
+        },
+        "consistency": {
+          "type": "string",
+          "enum": [
+            "database_native",
+            "object_inventory",
+            "application_hooks"
+          ],
+          "description": "Consistency mode the hook guarantees."
+        },
+        "dump": {
+          "$ref": "#/definitions/deploymentBackupArgv"
+        },
+        "restore": {
+          "$ref": "#/definitions/deploymentBackupArgv"
+        },
+        "quiesce": {
+          "$ref": "#/definitions/deploymentBackupArgv"
+        },
+        "release": {
+          "$ref": "#/definitions/deploymentBackupArgv"
         }
       }
     }

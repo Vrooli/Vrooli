@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "497da4993fca6b141b41f194c01d21027ab7f49d827a62d880eac5d47097b164",
+  "key": "bfe7fb169379c4c727337af1ad7420490a3e84d0195ccf91e5ff3fdb3ef884f4",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -205,6 +205,7 @@
     "scenarios/prompt-manager/api/internal/agents",
     "scenarios/prompt-manager/api/internal/aisearch",
     "scenarios/prompt-manager/api/internal/database",
+    "scenarios/prompt-manager/api/internal/effortworkspace",
     "scenarios/prompt-manager/api/internal/finding",
     "scenarios/prompt-manager/api/internal/graph",
     "scenarios/prompt-manager/api/internal/heartbeat",

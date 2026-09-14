@@ -3,6 +3,7 @@ package providers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +16,14 @@ import (
 )
 
 const DefaultCommandTimeout = 5 * time.Second
+
+// ProviderErrorMarker is the stable line protocol an owner adapter writes to
+// stderr when it classifies a provider-limit failure. The AI Gateway recovers
+// the typed code and observed recovery window from it so a resource-command
+// boundary does not flatten an account-credit exhaustion or a rate limit into a
+// generic exit error. Keep in sync with
+// resources/openrouter/cli/internal/health.ProviderErrorMarker.
+const ProviderErrorMarker = "VROOLI_PROVIDER_ERROR "
 
 // seam: CommandRunner executes resource-owned CLI commands. Production wires
 // ExecRunner; tests wire providers/mocks.FakeRunner.
@@ -44,6 +53,16 @@ type CommandError struct {
 	ExitCode int
 	Stderr   string
 	Err      error
+	// HTTPStatus is the provider HTTP status that produced the failure, when the
+	// failure came from an HTTP response. 0 when not applicable.
+	HTTPStatus int
+	// RetryAfter is the observed Retry-After value exactly as the provider sent
+	// it (seconds or an HTTP date). Empty means the provider sent none; it is
+	// never synthesized from a default cooldown.
+	RetryAfter string
+	// ResetAt is the observed reset time (RFC3339) when the provider supplied
+	// one. Empty means unknown and must stay unknown rather than being guessed.
+	ResetAt string
 }
 
 func (e *CommandError) Error() string {
@@ -97,15 +116,73 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	if err == nil {
 		return result, nil
 	}
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return result, &CommandError{Code: "timeout", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: ctx.Err()}
+	var cmdErr *CommandError
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		cmdErr = &CommandError{Code: "timeout", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: ctx.Err()}
+	default:
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			result.ExitCode = exitErr.ExitCode()
+			cmdErr = &CommandError{Code: "exit_error", Command: command.String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
+		} else {
+			cmdErr = &CommandError{Code: "missing_binary", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: err}
+		}
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
-		result.ExitCode = exitErr.ExitCode()
-		return result, &CommandError{Code: "exit_error", Command: command.String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
+	applyProviderErrorMarker(cmdErr, result.Stderr)
+	return result, cmdErr
+}
+
+// providerErrorEnvelope is the JSON payload an owner adapter writes after the
+// ProviderErrorMarker. It mirrors the marker shape in the OpenRouter resource.
+type providerErrorEnvelope struct {
+	Code       string `json:"code"`
+	HTTPStatus int    `json:"http_status"`
+	RetryAfter string `json:"retry_after"`
+	Message    string `json:"message"`
+}
+
+// applyProviderErrorMarker recovers a typed provider failure an owner adapter
+// wrote to stderr, preserving the observed HTTP status and Retry-After instead
+// of flattening it into a generic exit error. It is best-effort: a missing or
+// malformed marker leaves the original CommandError untouched.
+func applyProviderErrorMarker(cmdErr *CommandError, stderr string) {
+	if cmdErr == nil {
+		return
 	}
-	return result, &CommandError{Code: "missing_binary", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: err}
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, ProviderErrorMarker) {
+			continue
+		}
+		raw := strings.TrimSpace(strings.TrimPrefix(line, ProviderErrorMarker))
+		var envelope providerErrorEnvelope
+		if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
+			continue
+		}
+		code := normalizeProviderErrorCode(envelope.Code)
+		if code == "" {
+			continue
+		}
+		cmdErr.Code = code
+		if envelope.HTTPStatus != 0 {
+			cmdErr.HTTPStatus = envelope.HTTPStatus
+		}
+		if retryAfter := strings.TrimSpace(envelope.RetryAfter); retryAfter != "" {
+			cmdErr.RetryAfter = retryAfter
+		}
+		return
+	}
+}
+
+func normalizeProviderErrorCode(code string) string {
+	switch strings.TrimSpace(code) {
+	case CodeInsufficientCredits, CodeRateLimited, CodeProviderOverloaded,
+		CodeProviderFailed, CodeStreamFailed, CodeUnreachable:
+		return strings.TrimSpace(code)
+	default:
+		return ""
+	}
 }
 
 func (c Command) String() string {

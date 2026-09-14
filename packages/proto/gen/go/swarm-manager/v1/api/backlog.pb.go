@@ -116,15 +116,15 @@ type CreateBacklogItemRequest struct {
 	PlanRef *shared.PlanRef `protobuf:"bytes,18,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
 	// Typed, stable acceptance criteria present at item creation.
 	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,19,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	// Optional plan execution strategy. Empty uses the default phased-plan-drain
-	// strategy; adaptive-improvement executes the plan through the governed
-	// self-improvement campaign.
-	ExecutionStrategy *string                 `protobuf:"bytes,20,opt,name=execution_strategy,json=executionStrategy,proto3,oneof" json:"execution_strategy,omitempty"`
-	ExecutionLimits   *domain.ExecutionLimits `protobuf:"bytes,21,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
-	Continuation      *string                 `protobuf:"bytes,22,opt,name=continuation,proto3,oneof" json:"continuation,omitempty"`
-	ScopePolicy       *string                 `protobuf:"bytes,23,opt,name=scope_policy,json=scopePolicy,proto3,oneof" json:"scope_policy,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional execution mode (sliced or goal). Empty uses the default sliced
+	// mode.
+	ExecutionMode   *string                 `protobuf:"bytes,20,opt,name=execution_mode,json=executionMode,proto3,oneof" json:"execution_mode,omitempty"`
+	ExecutionLimits *domain.ExecutionLimits `protobuf:"bytes,21,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
+	Continuation    *string                 `protobuf:"bytes,22,opt,name=continuation,proto3,oneof" json:"continuation,omitempty"`
+	ScopePolicy     *string                 `protobuf:"bytes,23,opt,name=scope_policy,json=scopePolicy,proto3,oneof" json:"scope_policy,omitempty"`
+	OperatorNote    *string                 `protobuf:"bytes,24,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CreateBacklogItemRequest) Reset() {
@@ -269,9 +269,9 @@ func (x *CreateBacklogItemRequest) GetAcceptanceCriteria() []*shared.BacklogCrit
 	return nil
 }
 
-func (x *CreateBacklogItemRequest) GetExecutionStrategy() string {
-	if x != nil && x.ExecutionStrategy != nil {
-		return *x.ExecutionStrategy
+func (x *CreateBacklogItemRequest) GetExecutionMode() string {
+	if x != nil && x.ExecutionMode != nil {
+		return *x.ExecutionMode
 	}
 	return ""
 }
@@ -293,6 +293,13 @@ func (x *CreateBacklogItemRequest) GetContinuation() string {
 func (x *CreateBacklogItemRequest) GetScopePolicy() string {
 	if x != nil && x.ScopePolicy != nil {
 		return *x.ScopePolicy
+	}
+	return ""
+}
+
+func (x *CreateBacklogItemRequest) GetOperatorNote() string {
+	if x != nil && x.OperatorNote != nil {
+		return *x.OperatorNote
 	}
 	return ""
 }
@@ -343,13 +350,14 @@ type UpdateBacklogItemRequest struct {
 	// Typed, stable acceptance criteria. Supplying this field replaces the
 	// complete criterion list; an empty list explicitly clears it.
 	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,17,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	// Plan execution strategy. Set to the empty string to clear it.
-	ExecutionStrategy *string                 `protobuf:"bytes,18,opt,name=execution_strategy,json=executionStrategy,proto3,oneof" json:"execution_strategy,omitempty"`
-	ExecutionLimits   *domain.ExecutionLimits `protobuf:"bytes,19,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
-	Continuation      *string                 `protobuf:"bytes,20,opt,name=continuation,proto3,oneof" json:"continuation,omitempty"`
-	ScopePolicy       *string                 `protobuf:"bytes,21,opt,name=scope_policy,json=scopePolicy,proto3,oneof" json:"scope_policy,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Execution mode (sliced or goal). Set to the empty string to clear it.
+	ExecutionMode   *string                 `protobuf:"bytes,18,opt,name=execution_mode,json=executionMode,proto3,oneof" json:"execution_mode,omitempty"`
+	ExecutionLimits *domain.ExecutionLimits `protobuf:"bytes,19,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
+	Continuation    *string                 `protobuf:"bytes,20,opt,name=continuation,proto3,oneof" json:"continuation,omitempty"`
+	ScopePolicy     *string                 `protobuf:"bytes,21,opt,name=scope_policy,json=scopePolicy,proto3,oneof" json:"scope_policy,omitempty"`
+	OperatorNote    *string                 `protobuf:"bytes,22,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateBacklogItemRequest) Reset() {
@@ -487,9 +495,9 @@ func (x *UpdateBacklogItemRequest) GetAcceptanceCriteria() []*shared.BacklogCrit
 	return nil
 }
 
-func (x *UpdateBacklogItemRequest) GetExecutionStrategy() string {
-	if x != nil && x.ExecutionStrategy != nil {
-		return *x.ExecutionStrategy
+func (x *UpdateBacklogItemRequest) GetExecutionMode() string {
+	if x != nil && x.ExecutionMode != nil {
+		return *x.ExecutionMode
 	}
 	return ""
 }
@@ -511,6 +519,13 @@ func (x *UpdateBacklogItemRequest) GetContinuation() string {
 func (x *UpdateBacklogItemRequest) GetScopePolicy() string {
 	if x != nil && x.ScopePolicy != nil {
 		return *x.ScopePolicy
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetOperatorNote() string {
+	if x != nil && x.OperatorNote != nil {
+		return *x.OperatorNote
 	}
 	return ""
 }
@@ -2190,11 +2205,13 @@ type QueueBacklogItemRequest struct {
 	// Override queue readiness feedback gates (unanswered questions / pending
 	// suggestions). API-level safety checks remain for non-overridable constraints.
 	Force *bool `protobuf:"varint,6,opt,name=force,proto3,oneof" json:"force,omitempty"`
-	// Declared execution strategy. Omitted selects the sole default strategy.
-	Strategy *string `protobuf:"bytes,7,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
+	// Declared execution mode (sliced or goal). Omitted selects the item's mode
+	// or the default.
+	ExecutionMode *string `protobuf:"bytes,7,opt,name=execution_mode,json=executionMode,proto3,oneof" json:"execution_mode,omitempty"`
 	// Maximum plan slices for this execution, inclusive range 1..6.
 	MaxSlices            *int32                       `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
 	ExecutionPreferences *domain.ExecutionPreferences `protobuf:"bytes,9,opt,name=execution_preferences,json=executionPreferences,proto3,oneof" json:"execution_preferences,omitempty"`
+	OperatorNote         *string                      `protobuf:"bytes,10,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -2264,9 +2281,9 @@ func (x *QueueBacklogItemRequest) GetForce() bool {
 	return false
 }
 
-func (x *QueueBacklogItemRequest) GetStrategy() string {
-	if x != nil && x.Strategy != nil {
-		return *x.Strategy
+func (x *QueueBacklogItemRequest) GetExecutionMode() string {
+	if x != nil && x.ExecutionMode != nil {
+		return *x.ExecutionMode
 	}
 	return ""
 }
@@ -2283,6 +2300,13 @@ func (x *QueueBacklogItemRequest) GetExecutionPreferences() *domain.ExecutionPre
 		return x.ExecutionPreferences
 	}
 	return nil
+}
+
+func (x *QueueBacklogItemRequest) GetOperatorNote() string {
+	if x != nil && x.OperatorNote != nil {
+		return *x.OperatorNote
+	}
+	return ""
 }
 
 // QueueBacklogItemResponse returns queue results.
@@ -3978,7 +4002,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xfc\b\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xac\t\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -3997,12 +4021,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04note\x18\x10 \x01(\tH\x05R\x04note\x88\x01\x01\x12\x18\n" +
 	"\acreates\x18\x11 \x03(\tR\acreates\x12G\n" +
 	"\bplan_ref\x18\x12 \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\x06R\aplanRef\x88\x01\x01\x12a\n" +
-	"\x13acceptance_criteria\x18\x13 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x122\n" +
-	"\x12execution_strategy\x18\x14 \x01(\tH\aR\x11executionStrategy\x88\x01\x01\x12_\n" +
+	"\x13acceptance_criteria\x18\x13 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x12*\n" +
+	"\x0eexecution_mode\x18\x14 \x01(\tH\aR\rexecutionMode\x88\x01\x01\x12_\n" +
 	"\x10execution_limits\x18\x15 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\bR\x0fexecutionLimits\x88\x01\x01\x12'\n" +
 	"\fcontinuation\x18\x16 \x01(\tH\tR\fcontinuation\x88\x01\x01\x12&\n" +
 	"\fscope_policy\x18\x17 \x01(\tH\n" +
-	"R\vscopePolicy\x88\x01\x01B\x0e\n" +
+	"R\vscopePolicy\x88\x01\x01\x12(\n" +
+	"\roperator_note\x18\x18 \x01(\tH\vR\foperatorNote\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\f\n" +
 	"\n" +
@@ -4010,12 +4035,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
-	"\t_plan_refB\x15\n" +
-	"\x13_execution_strategyB\x13\n" +
+	"\t_plan_refB\x11\n" +
+	"\x0f_execution_modeB\x13\n" +
 	"\x11_execution_limitsB\x0f\n" +
 	"\r_continuationB\x0f\n" +
-	"\r_scope_policyJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\xdb\b\n" +
+	"\r_scope_policyB\x10\n" +
+	"\x0e_operator_noteJ\x04\b\a\x10\bJ\x04\b\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\x8b\t\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12$\n" +
@@ -4033,12 +4059,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04note\x18\x0e \x01(\tH\aR\x04note\x88\x01\x01\x12\x18\n" +
 	"\acreates\x18\x0f \x03(\tR\acreates\x12G\n" +
 	"\bplan_ref\x18\x10 \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\bR\aplanRef\x88\x01\x01\x12a\n" +
-	"\x13acceptance_criteria\x18\x11 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x122\n" +
-	"\x12execution_strategy\x18\x12 \x01(\tH\tR\x11executionStrategy\x88\x01\x01\x12_\n" +
+	"\x13acceptance_criteria\x18\x11 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x12*\n" +
+	"\x0eexecution_mode\x18\x12 \x01(\tH\tR\rexecutionMode\x88\x01\x01\x12_\n" +
 	"\x10execution_limits\x18\x13 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\n" +
 	"R\x0fexecutionLimits\x88\x01\x01\x12'\n" +
 	"\fcontinuation\x18\x14 \x01(\tH\vR\fcontinuation\x88\x01\x01\x12&\n" +
-	"\fscope_policy\x18\x15 \x01(\tH\fR\vscopePolicy\x88\x01\x01B\b\n" +
+	"\fscope_policy\x18\x15 \x01(\tH\fR\vscopePolicy\x88\x01\x01\x12(\n" +
+	"\roperator_note\x18\x16 \x01(\tH\rR\foperatorNote\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\t\n" +
 	"\a_statusB\v\n" +
@@ -4048,11 +4075,12 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
-	"\t_plan_refB\x15\n" +
-	"\x13_execution_strategyB\x13\n" +
+	"\t_plan_refB\x11\n" +
+	"\x0f_execution_modeB\x13\n" +
 	"\x11_execution_limitsB\x0f\n" +
 	"\r_continuationB\x0f\n" +
-	"\r_scope_policyJ\x04\b\x06\x10\aJ\x04\b\n" +
+	"\r_scope_policyB\x10\n" +
+	"\x0e_operator_noteJ\x04\b\x06\x10\aJ\x04\b\n" +
 	"\x10\v\"\xc4\x01\n" +
 	"\x11UpdateItemRequest\x12\x1b\n" +
 	"\x04kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1b\n" +
@@ -4194,29 +4222,32 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\v2+.vrooli.swarm_manager.v1.shared.BacklogFileH\x00R\x04file\x88\x01\x01\x12&\n" +
 	"\fdeleted_path\x18\x02 \x01(\tH\x01R\vdeletedPath\x88\x01\x01B\a\n" +
 	"\x05_fileB\x0f\n" +
-	"\r_deleted_path\"\x9d\x04\n" +
+	"\r_deleted_path\"\xea\x04\n" +
 	"\x17QueueBacklogItemRequest\x12=\n" +
 	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01\x12,\n" +
 	"\x04mode\x18\x02 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloH\x01R\x04mode\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"started_by\x18\x04 \x01(\tH\x02R\tstartedBy\x88\x01\x01\x12\x1d\n" +
 	"\aconfirm\x18\x05 \x01(\bH\x03R\aconfirm\x88\x01\x01\x12\x19\n" +
-	"\x05force\x18\x06 \x01(\bH\x04R\x05force\x88\x01\x01\x12\x1f\n" +
-	"\bstrategy\x18\a \x01(\tH\x05R\bstrategy\x88\x01\x01\x12.\n" +
+	"\x05force\x18\x06 \x01(\bH\x04R\x05force\x88\x01\x01\x12*\n" +
+	"\x0eexecution_mode\x18\a \x01(\tH\x05R\rexecutionMode\x88\x01\x01\x12.\n" +
 	"\n" +
 	"max_slices\x18\b \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x06R\tmaxSlices\x88\x01\x01\x12n\n" +
-	"\x15execution_preferences\x18\t \x01(\v24.vrooli.swarm_manager.v1.domain.ExecutionPreferencesH\aR\x14executionPreferences\x88\x01\x01B\f\n" +
+	"\x15execution_preferences\x18\t \x01(\v24.vrooli.swarm_manager.v1.domain.ExecutionPreferencesH\aR\x14executionPreferences\x88\x01\x01\x12(\n" +
+	"\roperator_note\x18\n" +
+	" \x01(\tH\bR\foperatorNote\x88\x01\x01B\f\n" +
 	"\n" +
 	"_operationB\a\n" +
 	"\x05_modeB\r\n" +
 	"\v_started_byB\n" +
 	"\n" +
 	"\b_confirmB\b\n" +
-	"\x06_forceB\v\n" +
-	"\t_strategyB\r\n" +
+	"\x06_forceB\x11\n" +
+	"\x0f_execution_modeB\r\n" +
 	"\v_max_slicesB\x18\n" +
-	"\x16_execution_preferencesJ\x04\b\x03\x10\x04\"\xe7\x03\n" +
+	"\x16_execution_preferencesB\x10\n" +
+	"\x0e_operator_noteJ\x04\b\x03\x10\x04\"\xe7\x03\n" +
 	"\x18QueueBacklogItemResponse\x12?\n" +
 	"\x04item\x18\x01 \x01(\v2+.vrooli.swarm_manager.v1.domain.BacklogItemR\x04item\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +

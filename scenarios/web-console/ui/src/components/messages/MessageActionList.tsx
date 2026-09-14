@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
@@ -103,7 +104,14 @@ export function MessageActionList({ actions, ctx, coarsePointer, origin, anchorR
                 data-action-row
                 disabled={action.disabled?.(ctx)}
                 aria-pressed={action.pressed?.(ctx)}
-                onClick={() => { onClose(); action.run(ctx); }}
+                onClick={() => {
+                  // Close first, synchronously: an open modal sheet makes the
+                  // rest of the page inert, so an action that moves focus
+                  // there (staging into the composer, which raises a phone's
+                  // keyboard only inside this tap) would focus nothing.
+                  flushSync(() => { onClose(); });
+                  action.run(ctx);
+                }}
                 className={cn(
                   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-start text-sm transition hover:bg-wc-surface-input disabled:opacity-60",
                   primary ? "text-wc-accent" : "text-wc-text-secondary",

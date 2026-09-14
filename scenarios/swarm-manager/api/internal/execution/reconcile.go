@@ -168,6 +168,15 @@ func (s *Service) applyReconciledGoalRun(ctx context.Context, executionID string
 		// validating forever.
 		ensureFinalization(target)
 	}
+	// Settle the run's owner accounting with its terminal status so a resume or
+	// re-queue can admit against the remaining allowance. A pending or
+	// unavailable receipt leaves the reservation held for the grant path to
+	// collect later; it never blocks the status transition.
+	if target.SettledUsage == nil {
+		if usage, usageErr := s.settledGoalUsage(ctx, *target); usageErr == nil && usage != nil {
+			target.SettledUsage = usage
+		}
+	}
 	s.mu.Lock()
 	if err := s.store.Save(records); err != nil {
 		s.mu.Unlock()
@@ -197,6 +206,20 @@ func goalRunStatus(state agentmanager.GoalRunState) (Status, string, bool) {
 		// An involuntary stop is resumable under until-allowance; nothing
 		// finalizes it until the sweeper resumes or the chain halts.
 		return StatusInterrupted, "goal interruption: " + state.StopReason, true
+	}
+	// A run can end before its harness reports a typed terminal — a launch
+	// failure, or a cancel before start. Treating that as live leaves the
+	// execution starting forever with its lane held. A failure is final:
+	// the until-allowance sweeper must not relaunch a run that cannot start.
+	switch strings.TrimSpace(state.Status) {
+	case "RUN_STATUS_FAILED", "RUN_STATUS_CANCELLED":
+		reason := "goal run ended " + strings.TrimPrefix(state.Status, "RUN_STATUS_") + " without a verdict or interruption"
+		if msg := strings.TrimSpace(state.ErrorMessage); msg != "" {
+			reason += ": " + msg
+		}
+		return StatusFailed, reason, true
+	case "RUN_STATUS_COMPLETE":
+		return StatusNeedsReview, "goal run completed without a verdict", true
 	default:
 		return "", "", false
 	}

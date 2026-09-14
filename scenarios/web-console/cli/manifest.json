@@ -901,7 +901,7 @@
           "description": "Show one session",
           "positionals": [
             {
-              "name": "sessionId",
+              "name": "session-id",
               "required": true,
               "description": "Session ID",
               "bind": {

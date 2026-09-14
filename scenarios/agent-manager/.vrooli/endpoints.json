@@ -291,6 +291,14 @@
       "category": "declarations"
     },
     {
+      "id": "get-api-v1-execution-options",
+      "path": "/api/v1/execution-options",
+      "method": "GET",
+      "summary": "GET /api/v1/execution-options",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "execution-options"
+    },
+    {
       "id": "get-api-v1-findings",
       "path": "/api/v1/findings",
       "method": "GET",
@@ -875,6 +883,14 @@
       "category": "runs"
     },
     {
+      "id": "get-api-v1-runs-id-accounting",
+      "path": "/api/v1/runs/{id}/accounting",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/{id}/accounting",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
       "id": "post-api-v1-runs-id-approve",
       "path": "/api/v1/runs/{id}/approve",
       "method": "POST",
@@ -1067,6 +1083,30 @@
       "category": "runs"
     },
     {
+      "id": "post-api-v1-storage-compact",
+      "path": "/api/v1/storage/compact",
+      "method": "POST",
+      "summary": "POST /api/v1/storage/compact",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "storage"
+    },
+    {
+      "id": "get-api-v1-storage-health",
+      "path": "/api/v1/storage/health",
+      "method": "GET",
+      "summary": "GET /api/v1/storage/health",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "storage"
+    },
+    {
+      "id": "post-api-v1-storage-reclaim",
+      "path": "/api/v1/storage/reclaim",
+      "method": "POST",
+      "summary": "POST /api/v1/storage/reclaim",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "storage"
+    },
+    {
       "id": "get-api-v1-tasks",
       "path": "/api/v1/tasks",
       "method": "GET",
@@ -1215,14 +1255,6 @@
       "path": "/api/v1/workflow-executions/{id}/trace",
       "method": "GET",
       "summary": "GET /api/v1/workflow-executions/{id}/trace",
-      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
-      "category": "workflow-executions"
-    },
-    {
-      "id": "post-api-v1-workflow-executions-id-wait",
-      "path": "/api/v1/workflow-executions/{id}/wait",
-      "method": "POST",
-      "summary": "POST /api/v1/workflow-executions/{id}/wait",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "workflow-executions"
     },

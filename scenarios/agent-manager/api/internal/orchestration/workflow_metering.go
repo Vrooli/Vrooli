@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
@@ -35,15 +34,8 @@ func (o *Orchestrator) nudgeWorkflowUsage(runID uuid.UUID, evt *domain.RunEvent)
 // Use the same invocation boundaries and deduplication rules as owner
 // accounting. Continuations reuse the Run ID and its cumulative event stream.
 func (l workflowChildLauncher) InspectMetered(ctx context.Context, id uuid.UUID) (workflowruntime.ChildState, error) {
-	run, err := l.o.GetRun(ctx, id)
-	if err != nil {
-		return workflowruntime.ChildState{}, err
-	}
-	events, err := l.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
-	if err != nil {
-		return workflowruntime.ChildState{}, err
-	}
-	return meteredWorkflowChildState(run, events, l.o.now())
+	_, state, err := l.o.meteredRun(ctx, id)
+	return state, err
 }
 
 func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now time.Time) (workflowruntime.ChildState, error) {

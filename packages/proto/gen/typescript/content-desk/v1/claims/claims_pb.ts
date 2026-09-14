@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/claims/claims.proto.
  */
 export const file_content_desk_v1_claims_claims: GenFile = /*@__PURE__*/
-  fileDesc("CiNjb250ZW50LWRlc2svdjEvY2xhaW1zL2NsYWltcy5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMiUQoFQ2xhaW0SCgoCaWQYASABKAkSEQoJc3RhdGVtZW50GAIgASgJEhsKE3ZlcmlmaWNhdGlvbl9zdGF0dXMYAyABKAkSDAoEa2luZBgEIAEoCSITChFMaXN0Q2xhaW1zUmVxdWVzdCJKChJMaXN0Q2xhaW1zUmVzcG9uc2USNAoGY2xhaW1zGAEgAygLMiQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW0iKgoWTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCSJPChdMaXN0RHJhZnRDbGFpbXNSZXNwb25zZRI0CgZjbGFpbXMYASADKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSKeAQoSQ3JlYXRlQ2xhaW1SZXF1ZXN0EhEKCXN0YXRlbWVudBgBIAEoCRIMCgRraW5kGAIgASgJEhUKDWV2aWRlbmNlX2tpbmQYAyABKAkSEQoJcmVmZXJlbmNlGAQgASgJEg8KB2NvbW1hbmQYBSABKAkSFwoPZXhwZWN0ZWRfcmVzdWx0GAYgASgJEhMKC29ic2VydmVkX2F0GAcgASgJIkoKE0NyZWF0ZUNsYWltUmVzcG9uc2USMwoFY2xhaW0YASABKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSJqChBDaXRlQ2xhaW1SZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJEhAKCGNsYWltX2lkGAIgASgJEhIKCnNwYW5fc3RhcnQYAyABKAUSEAoIc3Bhbl9lbmQYBCABKAUSDAoEYm9keRgFIAEoCSITChFDaXRlQ2xhaW1SZXNwb25zZSIgChJWZXJpZnlDbGFpbVJlcXVlc3QSCgoCaWQYASABKAkiSgoTVmVyaWZ5Q2xhaW1SZXNwb25zZRIzCgVjbGFpbRgBIAEoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIhQKElN3ZWVwQ2xhaW1zUmVxdWVzdCJLChNTd2VlcENsYWltc1Jlc3BvbnNlEjQKBmNsYWltcxgBIAMoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIksKCFRleHRTcGFuEg0KBXN0YXJ0GAEgASgFEgsKA2VuZBgCIAEoBRIQCghjbGFpbV9pZBgDIAEoCRIRCglzdXBwb3J0ZWQYBCABKAgiOQoXR2V0Q2xhaW1Db3ZlcmFnZVJlcXVlc3QSEAoIZHJhZnRfaWQYASABKAkSDAoEYm9keRgCIAEoCSKeAQoYR2V0Q2xhaW1Db3ZlcmFnZVJlc3BvbnNlEkAKD3N1cHBvcnRlZF9zcGFucxgBIAMoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlRleHRTcGFuEkAKD3VuY292ZXJlZF9zcGFucxgCIAMoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlRleHRTcGFuIngKDUNsYWltUHJvcG9zYWwSCgoCaWQYASABKAkSEAoIZHJhZnRfaWQYAiABKAkSEQoJc3RhdGVtZW50GAMgASgJEg4KBnN0YXR1cxgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCmRlY2lkZWRfYXQYBiABKAkiPgocRXh0cmFjdENsYWltUHJvcG9zYWxzUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCRIMCgRib2R5GAIgASgJImAKHUV4dHJhY3RDbGFpbVByb3Bvc2Fsc1Jlc3BvbnNlEj8KCXByb3Bvc2FscxgBIAMoCzIsLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltUHJvcG9zYWwiLQoZTGlzdENsYWltUHJvcG9zYWxzUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCSJdChpMaXN0Q2xhaW1Qcm9wb3NhbHNSZXNwb25zZRI/Cglwcm9wb3NhbHMYASADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbVByb3Bvc2FsIjgKGkRlY2lkZUNsYWltUHJvcG9zYWxSZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnN0YXR1cxgCIAEoCSJdChtEZWNpZGVDbGFpbVByb3Bvc2FsUmVzcG9uc2USPgoIcHJvcG9zYWwYASABKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbVByb3Bvc2FsMo0KCg1DbGFpbXNTZXJ2aWNlEnEKCkxpc3RDbGFpbXMSMC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5MaXN0Q2xhaW1zUmVxdWVzdBoxLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbXNSZXNwb25zZRKAAQoPTGlzdERyYWZ0Q2xhaW1zEjUudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBo2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3REcmFmdENsYWltc1Jlc3BvbnNlEnQKC0NyZWF0ZUNsYWltEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXNwb25zZRJuCglDaXRlQ2xhaW0SLy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DaXRlQ2xhaW1SZXF1ZXN0GjAudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2l0ZUNsYWltUmVzcG9uc2USdAoLVmVyaWZ5Q2xhaW0SMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlcXVlc3QaMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlc3BvbnNlEnQKC1N3ZWVwQ2xhaW1zEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXNwb25zZRKDAQoQR2V0Q2xhaW1Db3ZlcmFnZRI2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkdldENsYWltQ292ZXJhZ2VSZXF1ZXN0GjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuR2V0Q2xhaW1Db3ZlcmFnZVJlc3BvbnNlEpIBChVFeHRyYWN0Q2xhaW1Qcm9wb3NhbHMSOy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5FeHRyYWN0Q2xhaW1Qcm9wb3NhbHNSZXF1ZXN0GjwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuRXh0cmFjdENsYWltUHJvcG9zYWxzUmVzcG9uc2USiQEKEkxpc3RDbGFpbVByb3Bvc2FscxI4LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbVByb3Bvc2Fsc1JlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5MaXN0Q2xhaW1Qcm9wb3NhbHNSZXNwb25zZRKMAQoTRGVjaWRlQ2xhaW1Qcm9wb3NhbBI5LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkRlY2lkZUNsYWltUHJvcG9zYWxSZXF1ZXN0GjoudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuRGVjaWRlQ2xhaW1Qcm9wb3NhbFJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29udGVudC1kZXNrL3YxL2NsYWltcztjbGFpbXNfdjFiBnByb3RvMw");
+  fileDesc("CiNjb250ZW50LWRlc2svdjEvY2xhaW1zL2NsYWltcy5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMiaAoFQ2xhaW0SCgoCaWQYASABKAkSEQoJc3RhdGVtZW50GAIgASgJEhsKE3ZlcmlmaWNhdGlvbl9zdGF0dXMYAyABKAkSDAoEa2luZBgEIAEoCRIVCg1xdWFsaWZpY2F0aW9uGAUgASgJIkEKHFNldENsYWltUXVhbGlmaWNhdGlvblJlcXVlc3QSCgoCaWQYASABKAkSFQoNcXVhbGlmaWNhdGlvbhgCIAEoCSJUCh1TZXRDbGFpbVF1YWxpZmljYXRpb25SZXNwb25zZRIzCgVjbGFpbRgBIAEoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIhMKEUxpc3RDbGFpbXNSZXF1ZXN0IkoKEkxpc3RDbGFpbXNSZXNwb25zZRI0CgZjbGFpbXMYASADKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSIqChZMaXN0RHJhZnRDbGFpbXNSZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJIk8KF0xpc3REcmFmdENsYWltc1Jlc3BvbnNlEjQKBmNsYWltcxgBIAMoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIp4BChJDcmVhdGVDbGFpbVJlcXVlc3QSEQoJc3RhdGVtZW50GAEgASgJEgwKBGtpbmQYAiABKAkSFQoNZXZpZGVuY2Vfa2luZBgDIAEoCRIRCglyZWZlcmVuY2UYBCABKAkSDwoHY29tbWFuZBgFIAEoCRIXCg9leHBlY3RlZF9yZXN1bHQYBiABKAkSEwoLb2JzZXJ2ZWRfYXQYByABKAkiSgoTQ3JlYXRlQ2xhaW1SZXNwb25zZRIzCgVjbGFpbRgBIAEoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltImoKEENpdGVDbGFpbVJlcXVlc3QSEAoIZHJhZnRfaWQYASABKAkSEAoIY2xhaW1faWQYAiABKAkSEgoKc3Bhbl9zdGFydBgDIAEoBRIQCghzcGFuX2VuZBgEIAEoBRIMCgRib2R5GAUgASgJIhMKEUNpdGVDbGFpbVJlc3BvbnNlIiAKElZlcmlmeUNsYWltUmVxdWVzdBIKCgJpZBgBIAEoCSJKChNWZXJpZnlDbGFpbVJlc3BvbnNlEjMKBWNsYWltGAEgASgLMiQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW0iFAoSU3dlZXBDbGFpbXNSZXF1ZXN0IksKE1N3ZWVwQ2xhaW1zUmVzcG9uc2USNAoGY2xhaW1zGAEgAygLMiQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW0iSwoIVGV4dFNwYW4SDQoFc3RhcnQYASABKAUSCwoDZW5kGAIgASgFEhAKCGNsYWltX2lkGAMgASgJEhEKCXN1cHBvcnRlZBgEIAEoCCI5ChdHZXRDbGFpbUNvdmVyYWdlUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCRIMCgRib2R5GAIgASgJIp4BChhHZXRDbGFpbUNvdmVyYWdlUmVzcG9uc2USQAoPc3VwcG9ydGVkX3NwYW5zGAEgAygLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuVGV4dFNwYW4SQAoPdW5jb3ZlcmVkX3NwYW5zGAIgAygLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuVGV4dFNwYW4ieAoNQ2xhaW1Qcm9wb3NhbBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIRCglzdGF0ZW1lbnQYAyABKAkSDgoGc3RhdHVzGAQgASgJEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKZGVjaWRlZF9hdBgGIAEoCSI+ChxFeHRyYWN0Q2xhaW1Qcm9wb3NhbHNSZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJEgwKBGJvZHkYAiABKAkiYAodRXh0cmFjdENsYWltUHJvcG9zYWxzUmVzcG9uc2USPwoJcHJvcG9zYWxzGAEgAygLMiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW1Qcm9wb3NhbCItChlMaXN0Q2xhaW1Qcm9wb3NhbHNSZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJIl0KGkxpc3RDbGFpbVByb3Bvc2Fsc1Jlc3BvbnNlEj8KCXByb3Bvc2FscxgBIAMoCzIsLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltUHJvcG9zYWwiOAoaRGVjaWRlQ2xhaW1Qcm9wb3NhbFJlcXVlc3QSCgoCaWQYASABKAkSDgoGc3RhdHVzGAIgASgJIl0KG0RlY2lkZUNsYWltUHJvcG9zYWxSZXNwb25zZRI+Cghwcm9wb3NhbBgBIAEoCzIsLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltUHJvcG9zYWwyogsKDUNsYWltc1NlcnZpY2UScQoKTGlzdENsYWltcxIwLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbXNSZXF1ZXN0GjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdENsYWltc1Jlc3BvbnNlEoABCg9MaXN0RHJhZnRDbGFpbXMSNS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5MaXN0RHJhZnRDbGFpbXNSZXF1ZXN0GjYudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdERyYWZ0Q2xhaW1zUmVzcG9uc2USdAoLQ3JlYXRlQ2xhaW0SMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DcmVhdGVDbGFpbVJlcXVlc3QaMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DcmVhdGVDbGFpbVJlc3BvbnNlEm4KCUNpdGVDbGFpbRIvLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNpdGVDbGFpbVJlcXVlc3QaMC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DaXRlQ2xhaW1SZXNwb25zZRJ0CgtWZXJpZnlDbGFpbRIxLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlZlcmlmeUNsYWltUmVxdWVzdBoyLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlZlcmlmeUNsYWltUmVzcG9uc2USdAoLU3dlZXBDbGFpbXMSMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5Td2VlcENsYWltc1JlcXVlc3QaMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5Td2VlcENsYWltc1Jlc3BvbnNlEoMBChBHZXRDbGFpbUNvdmVyYWdlEjYudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuR2V0Q2xhaW1Db3ZlcmFnZVJlcXVlc3QaNy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5HZXRDbGFpbUNvdmVyYWdlUmVzcG9uc2USkgEKFUV4dHJhY3RDbGFpbVByb3Bvc2FscxI7LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkV4dHJhY3RDbGFpbVByb3Bvc2Fsc1JlcXVlc3QaPC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5FeHRyYWN0Q2xhaW1Qcm9wb3NhbHNSZXNwb25zZRKJAQoSTGlzdENsYWltUHJvcG9zYWxzEjgudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdENsYWltUHJvcG9zYWxzUmVxdWVzdBo5LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbVByb3Bvc2Fsc1Jlc3BvbnNlEowBChNEZWNpZGVDbGFpbVByb3Bvc2FsEjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuRGVjaWRlQ2xhaW1Qcm9wb3NhbFJlcXVlc3QaOi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5EZWNpZGVDbGFpbVByb3Bvc2FsUmVzcG9uc2USkgEKFVNldENsYWltUXVhbGlmaWNhdGlvbhI7LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlNldENsYWltUXVhbGlmaWNhdGlvblJlcXVlc3QaPC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5TZXRDbGFpbVF1YWxpZmljYXRpb25SZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9jbGFpbXM7Y2xhaW1zX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.Claim
@@ -35,6 +35,18 @@ export type Claim = Message<"vrooli.content_desk.v1.claims.Claim"> & {
    * @generated from field: string kind = 4;
    */
   kind: string;
+
+  /**
+   * qualification is the reviewed evidence verdict and is distinct from
+   * verification_status, which is the re-runnable check lifecycle. Closed
+   * set: asserted | supported | captured-review-pending | verified | stale.
+   * Empty is reported as asserted. This is how a citation-backed claim that
+   * a reviewer has judged supported (or whose captured artifact still awaits
+   * review) is representable in the ledger.
+   *
+   * @generated from field: string qualification = 5;
+   */
+  qualification: string;
 };
 
 /**
@@ -43,6 +55,45 @@ export type Claim = Message<"vrooli.content_desk.v1.claims.Claim"> & {
  */
 export const ClaimSchema: GenMessage<Claim> = /*@__PURE__*/
   messageDesc(file_content_desk_v1_claims_claims, 0);
+
+/**
+ * @generated from message vrooli.content_desk.v1.claims.SetClaimQualificationRequest
+ */
+export type SetClaimQualificationRequest = Message<"vrooli.content_desk.v1.claims.SetClaimQualificationRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string qualification = 2;
+   */
+  qualification: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.claims.SetClaimQualificationRequest.
+ * Use `create(SetClaimQualificationRequestSchema)` to create a new message.
+ */
+export const SetClaimQualificationRequestSchema: GenMessage<SetClaimQualificationRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_claims_claims, 1);
+
+/**
+ * @generated from message vrooli.content_desk.v1.claims.SetClaimQualificationResponse
+ */
+export type SetClaimQualificationResponse = Message<"vrooli.content_desk.v1.claims.SetClaimQualificationResponse"> & {
+  /**
+   * @generated from field: vrooli.content_desk.v1.claims.Claim claim = 1;
+   */
+  claim?: Claim | undefined;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.claims.SetClaimQualificationResponse.
+ * Use `create(SetClaimQualificationResponseSchema)` to create a new message.
+ */
+export const SetClaimQualificationResponseSchema: GenMessage<SetClaimQualificationResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_claims_claims, 2);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListClaimsRequest
@@ -55,7 +106,7 @@ export type ListClaimsRequest = Message<"vrooli.content_desk.v1.claims.ListClaim
  * Use `create(ListClaimsRequestSchema)` to create a new message.
  */
 export const ListClaimsRequestSchema: GenMessage<ListClaimsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 1);
+  messageDesc(file_content_desk_v1_claims_claims, 3);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListClaimsResponse
@@ -72,7 +123,7 @@ export type ListClaimsResponse = Message<"vrooli.content_desk.v1.claims.ListClai
  * Use `create(ListClaimsResponseSchema)` to create a new message.
  */
 export const ListClaimsResponseSchema: GenMessage<ListClaimsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 2);
+  messageDesc(file_content_desk_v1_claims_claims, 4);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListDraftClaimsRequest
@@ -89,7 +140,7 @@ export type ListDraftClaimsRequest = Message<"vrooli.content_desk.v1.claims.List
  * Use `create(ListDraftClaimsRequestSchema)` to create a new message.
  */
 export const ListDraftClaimsRequestSchema: GenMessage<ListDraftClaimsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 3);
+  messageDesc(file_content_desk_v1_claims_claims, 5);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListDraftClaimsResponse
@@ -106,7 +157,7 @@ export type ListDraftClaimsResponse = Message<"vrooli.content_desk.v1.claims.Lis
  * Use `create(ListDraftClaimsResponseSchema)` to create a new message.
  */
 export const ListDraftClaimsResponseSchema: GenMessage<ListDraftClaimsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 4);
+  messageDesc(file_content_desk_v1_claims_claims, 6);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.CreateClaimRequest
@@ -153,7 +204,7 @@ export type CreateClaimRequest = Message<"vrooli.content_desk.v1.claims.CreateCl
  * Use `create(CreateClaimRequestSchema)` to create a new message.
  */
 export const CreateClaimRequestSchema: GenMessage<CreateClaimRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 5);
+  messageDesc(file_content_desk_v1_claims_claims, 7);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.CreateClaimResponse
@@ -170,7 +221,7 @@ export type CreateClaimResponse = Message<"vrooli.content_desk.v1.claims.CreateC
  * Use `create(CreateClaimResponseSchema)` to create a new message.
  */
 export const CreateClaimResponseSchema: GenMessage<CreateClaimResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 6);
+  messageDesc(file_content_desk_v1_claims_claims, 8);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.CiteClaimRequest
@@ -207,7 +258,7 @@ export type CiteClaimRequest = Message<"vrooli.content_desk.v1.claims.CiteClaimR
  * Use `create(CiteClaimRequestSchema)` to create a new message.
  */
 export const CiteClaimRequestSchema: GenMessage<CiteClaimRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 7);
+  messageDesc(file_content_desk_v1_claims_claims, 9);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.CiteClaimResponse
@@ -220,7 +271,7 @@ export type CiteClaimResponse = Message<"vrooli.content_desk.v1.claims.CiteClaim
  * Use `create(CiteClaimResponseSchema)` to create a new message.
  */
 export const CiteClaimResponseSchema: GenMessage<CiteClaimResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 8);
+  messageDesc(file_content_desk_v1_claims_claims, 10);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.VerifyClaimRequest
@@ -237,7 +288,7 @@ export type VerifyClaimRequest = Message<"vrooli.content_desk.v1.claims.VerifyCl
  * Use `create(VerifyClaimRequestSchema)` to create a new message.
  */
 export const VerifyClaimRequestSchema: GenMessage<VerifyClaimRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 9);
+  messageDesc(file_content_desk_v1_claims_claims, 11);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.VerifyClaimResponse
@@ -254,7 +305,7 @@ export type VerifyClaimResponse = Message<"vrooli.content_desk.v1.claims.VerifyC
  * Use `create(VerifyClaimResponseSchema)` to create a new message.
  */
 export const VerifyClaimResponseSchema: GenMessage<VerifyClaimResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 10);
+  messageDesc(file_content_desk_v1_claims_claims, 12);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.SweepClaimsRequest
@@ -267,7 +318,7 @@ export type SweepClaimsRequest = Message<"vrooli.content_desk.v1.claims.SweepCla
  * Use `create(SweepClaimsRequestSchema)` to create a new message.
  */
 export const SweepClaimsRequestSchema: GenMessage<SweepClaimsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 11);
+  messageDesc(file_content_desk_v1_claims_claims, 13);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.SweepClaimsResponse
@@ -284,7 +335,7 @@ export type SweepClaimsResponse = Message<"vrooli.content_desk.v1.claims.SweepCl
  * Use `create(SweepClaimsResponseSchema)` to create a new message.
  */
 export const SweepClaimsResponseSchema: GenMessage<SweepClaimsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 12);
+  messageDesc(file_content_desk_v1_claims_claims, 14);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.TextSpan
@@ -316,7 +367,7 @@ export type TextSpan = Message<"vrooli.content_desk.v1.claims.TextSpan"> & {
  * Use `create(TextSpanSchema)` to create a new message.
  */
 export const TextSpanSchema: GenMessage<TextSpan> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 13);
+  messageDesc(file_content_desk_v1_claims_claims, 15);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.GetClaimCoverageRequest
@@ -338,7 +389,7 @@ export type GetClaimCoverageRequest = Message<"vrooli.content_desk.v1.claims.Get
  * Use `create(GetClaimCoverageRequestSchema)` to create a new message.
  */
 export const GetClaimCoverageRequestSchema: GenMessage<GetClaimCoverageRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 14);
+  messageDesc(file_content_desk_v1_claims_claims, 16);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.GetClaimCoverageResponse
@@ -360,7 +411,7 @@ export type GetClaimCoverageResponse = Message<"vrooli.content_desk.v1.claims.Ge
  * Use `create(GetClaimCoverageResponseSchema)` to create a new message.
  */
 export const GetClaimCoverageResponseSchema: GenMessage<GetClaimCoverageResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 15);
+  messageDesc(file_content_desk_v1_claims_claims, 17);
 
 /**
  * ClaimProposal is advisory extracted text. It is not a claim and does not
@@ -405,7 +456,7 @@ export type ClaimProposal = Message<"vrooli.content_desk.v1.claims.ClaimProposal
  * Use `create(ClaimProposalSchema)` to create a new message.
  */
 export const ClaimProposalSchema: GenMessage<ClaimProposal> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 16);
+  messageDesc(file_content_desk_v1_claims_claims, 18);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ExtractClaimProposalsRequest
@@ -427,7 +478,7 @@ export type ExtractClaimProposalsRequest = Message<"vrooli.content_desk.v1.claim
  * Use `create(ExtractClaimProposalsRequestSchema)` to create a new message.
  */
 export const ExtractClaimProposalsRequestSchema: GenMessage<ExtractClaimProposalsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 17);
+  messageDesc(file_content_desk_v1_claims_claims, 19);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ExtractClaimProposalsResponse
@@ -444,7 +495,7 @@ export type ExtractClaimProposalsResponse = Message<"vrooli.content_desk.v1.clai
  * Use `create(ExtractClaimProposalsResponseSchema)` to create a new message.
  */
 export const ExtractClaimProposalsResponseSchema: GenMessage<ExtractClaimProposalsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 18);
+  messageDesc(file_content_desk_v1_claims_claims, 20);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListClaimProposalsRequest
@@ -461,7 +512,7 @@ export type ListClaimProposalsRequest = Message<"vrooli.content_desk.v1.claims.L
  * Use `create(ListClaimProposalsRequestSchema)` to create a new message.
  */
 export const ListClaimProposalsRequestSchema: GenMessage<ListClaimProposalsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 19);
+  messageDesc(file_content_desk_v1_claims_claims, 21);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.ListClaimProposalsResponse
@@ -478,7 +529,7 @@ export type ListClaimProposalsResponse = Message<"vrooli.content_desk.v1.claims.
  * Use `create(ListClaimProposalsResponseSchema)` to create a new message.
  */
 export const ListClaimProposalsResponseSchema: GenMessage<ListClaimProposalsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 20);
+  messageDesc(file_content_desk_v1_claims_claims, 22);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.DecideClaimProposalRequest
@@ -500,7 +551,7 @@ export type DecideClaimProposalRequest = Message<"vrooli.content_desk.v1.claims.
  * Use `create(DecideClaimProposalRequestSchema)` to create a new message.
  */
 export const DecideClaimProposalRequestSchema: GenMessage<DecideClaimProposalRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 21);
+  messageDesc(file_content_desk_v1_claims_claims, 23);
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.DecideClaimProposalResponse
@@ -517,7 +568,7 @@ export type DecideClaimProposalResponse = Message<"vrooli.content_desk.v1.claims
  * Use `create(DecideClaimProposalResponseSchema)` to create a new message.
  */
 export const DecideClaimProposalResponseSchema: GenMessage<DecideClaimProposalResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_claims_claims, 22);
+  messageDesc(file_content_desk_v1_claims_claims, 24);
 
 /**
  * ClaimsService owns the reusable claim library and its evidence lifecycle.
@@ -604,6 +655,14 @@ export const ClaimsService: GenService<{
     methodKind: "unary";
     input: typeof DecideClaimProposalRequestSchema;
     output: typeof DecideClaimProposalResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.claims.ClaimsService.SetClaimQualification
+   */
+  setClaimQualification: {
+    methodKind: "unary";
+    input: typeof SetClaimQualificationRequestSchema;
+    output: typeof SetClaimQualificationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_content_desk_v1_claims_claims, 0);

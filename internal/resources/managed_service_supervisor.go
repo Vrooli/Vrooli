@@ -185,7 +185,7 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 		return ManagedServiceState{}, err
 	}
 	cmd := shell.NewCommand(launchPath, args...)
-	cmd.Env = values.SetEnv(env, managedServiceOwnershipTokenEnv, ownershipToken)
+	cmd.Env = values.SetEnv(detachedResourceEnvironment(env), managedServiceOwnershipTokenEnv, ownershipToken)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
 		cmd.Dir = artifactPath
 	} else {

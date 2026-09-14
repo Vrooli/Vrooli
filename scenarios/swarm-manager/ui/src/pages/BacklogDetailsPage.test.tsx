@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
+import { planWorkshopService } from "../services/plan-workshop-service";
 import { createTestQueryClient, renderWithProviders } from "../test-utils";
 
 vi.mock("../hooks/useStorePolling", () => ({ useStorePolling: vi.fn() }));
@@ -18,6 +19,7 @@ vi.mock("../services/backlog-service", () => ({
     delete: vi.fn(),
     archiveItem: vi.fn(),
     unarchiveItem: vi.fn(),
+    getNextAction: vi.fn().mockResolvedValue({ id: "accept_plan", compactLabel: "Accept plan", expandedLabel: "Accept plan", enabled: true, reason: "canonical plan has not been explicitly accepted", blockers: [], target: "plan_accept", effect: "state_change" }),
   },
 }));
 vi.mock("../services/execution-service", () => ({ executionService: { list: vi.fn().mockResolvedValue([]) } }));
@@ -35,5 +37,19 @@ describe("BacklogDetailsPage", () => {
     expect(await screen.findByRole("tab", { name: /Decide/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Workshop$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Finalize$/i })).toBeNull();
+  });
+
+  // The header CTA must perform the acceptance, not merely open the Plan tab:
+  // when that tab was already open the button did nothing visible.
+  it("accepts the plan from the header's Accept plan button", async () => {
+    vi.mocked(planWorkshopService.acceptPlan).mockResolvedValue({ plan_acceptance: { actor: "operator", accepted_at: "2026-09-13T00:00:00Z", plan_content_hash: "hash", subject_version: "sha256:v" } });
+    renderWithProviders(
+      <Routes><Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} /></Routes>,
+      { queryClient: createTestQueryClient(), initialEntries: ["/backlog/idea/test-idea?tab=prompt"] },
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Accept plan/i }));
+
+    await waitFor(() => expect(planWorkshopService.acceptPlan).toHaveBeenCalledWith("idea", "test-idea"));
   });
 });

@@ -248,8 +248,10 @@
         "description": { "type": "string" },
         "required": { "type": "boolean", "default": false },
         "repeatable": { "type": "boolean", "default": false, "description": "Accept the flag more than once; equivalent to repeated for CLI compatibility." },
+        "repeated": { "type": "boolean", "default": false, "description": "Deprecated spelling of repeatable; retained for manifest compatibility." },
         "default": { "type": "string" },
         "bool": { "type": "boolean", "default": false },
+        "type": { "type": "string", "enum": ["bool", "int", "string", "float"], "description": "Deprecated scalar type spelling; bool is mapped to bool=true and other values remain metadata for compatibility." },
         "local_only": { "type": "boolean", "description": "The CLI parses this control but it is not projected into the bound RPC request." },
 		"bind_waiver": { "type": "string", "minLength": 1, "description": "Required explanation when an explicit bind intentionally overrides a semantic binding rule." },
         "values": {
@@ -374,6 +376,7 @@
             "enum": [
               "filesystem:read",
               "filesystem:write",
+              "process:spawn",
               "network:internal",
               "network:external",
               "admin"

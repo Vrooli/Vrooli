@@ -2,10 +2,53 @@ package execution
 
 import (
 	"context"
+	"strings"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/workflowcontract"
 )
+
+// Documented child-workflow defaults. They apply only when no admitted effort
+// aggregate grant references the item's canonical plan. An admitted effort
+// binds these values to its reviewed aggregate allowance instead, so they are
+// never the sole authority for a goal-directed effort.
+const (
+	defaultChildConcurrency = 1
+	defaultChildRecursion   = 3
+	defaultChildWaitSeconds = 3600
+)
+
+// childGrantLimits resolves the effort-wide child limits for one item. The
+// projection is additive and non-weakening: an unset, unowned or unreachable
+// aggregate grant leaves the documented defaults in force, while an admitted
+// effort overrides only the fields it explicitly bounds.
+func (s *Service) childGrantLimits(ctx context.Context, item backlogItem) (concurrency, recursion, waitSeconds int) {
+	concurrency, recursion, waitSeconds = defaultChildConcurrency, defaultChildRecursion, defaultChildWaitSeconds
+	if s == nil || s.aggregateGrants == nil || item.PlanRef == nil {
+		return concurrency, recursion, waitSeconds
+	}
+	planID := strings.TrimSpace(item.PlanRef.PlanID)
+	if planID == "" {
+		planID = strings.TrimSpace(item.PlanRef.Slug)
+	}
+	if planID == "" {
+		return concurrency, recursion, waitSeconds
+	}
+	grant, ok, err := s.aggregateGrants.AggregateGrantForPlan(ctx, planID)
+	if err != nil || !ok {
+		return concurrency, recursion, waitSeconds
+	}
+	if grant.MaxConcurrency > 0 {
+		concurrency = grant.MaxConcurrency
+	}
+	if grant.MaxRecursion > 0 {
+		recursion = grant.MaxRecursion
+	}
+	if grant.MaxWaitSeconds > 0 {
+		waitSeconds = grant.MaxWaitSeconds
+	}
+	return concurrency, recursion, waitSeconds
+}
 
 // prepareExecutionGrantLocked derives the next reservation from the reviewed
 // allowance and terminal owner receipts. The existing execution store and
@@ -24,7 +67,8 @@ func (s *Service) prepareExecutionGrantLocked(ctx context.Context, records []Rec
 		return nil
 	} // Replay the retained reservation.
 	limits := record.ExecutionLimits
-	remaining := workflowcontract.Grant{MaxTurns: limits.MaxTurns, MaxTokens: limits.MaxTokens, MaxWallTimeSeconds: limits.MaxWallSeconds, MaxChargeMicroUSD: limits.MaxChargeMicroUSD, MaxChildren: limits.MaxChildren, MaxNodeAttempts: limits.MaxNodeAttempts, MaxRetries: limits.MaxRetries, MaxConcurrency: 1, MaxRecursion: 3, MaxWaitSeconds: 3600}
+	childConcurrency, childRecursion, childWaitSeconds := s.childGrantLimits(ctx, item)
+	remaining := workflowcontract.Grant{MaxTurns: limits.MaxTurns, MaxTokens: limits.MaxTokens, MaxWallTimeSeconds: limits.MaxWallSeconds, MaxChargeMicroUSD: limits.MaxChargeMicroUSD, MaxChildren: limits.MaxChildren, MaxNodeAttempts: limits.MaxNodeAttempts, MaxRetries: limits.MaxRetries, MaxConcurrency: childConcurrency, MaxRecursion: childRecursion, MaxWaitSeconds: childWaitSeconds}
 	remaining.RetryLimitSet = true
 	priorReservations := 0
 	slices := limits.MaxSlices
@@ -34,6 +78,18 @@ func (s *Service) prepareExecutionGrantLocked(ctx context.Context, records []Rec
 			continue
 		}
 		priorReservations++
+		if isGoalRecord(*prior) && (prior.SettledUsage == nil || !prior.SettledUsage.TokensKnown || !prior.SettledUsage.ChargeMeasured) {
+			// A goal run has no workflow receipt; its own owner metering is the
+			// only source that can settle its reservation.
+			usage, err := s.settledGoalUsage(ctx, *prior)
+			if err != nil {
+				return apierr.Conflict("prior execution %s accounting remains unresolved: %s", prior.ExecutionID, err)
+			}
+			if usage == nil {
+				return apierr.Conflict("prior execution %s lacks terminal token, wall-time, or charge accounting; its reservation remains held", prior.ExecutionID)
+			}
+			prior.SettledUsage = usage
+		}
 		if prior.SettledUsage == nil || !prior.SettledUsage.TokensKnown || !prior.SettledUsage.ChargeMeasured {
 			correlation, err := s.transitionCorrelation(*prior)
 			if err != nil {

@@ -135,6 +135,59 @@ func TestCodeFactsReferenceResolverUsesConnectEvidence(t *testing.T) {
 	require.Equal(t, "resolved by code-facts", got.Note)
 }
 
+// [REQ:PM-REF-001] A real single-file target reports its own surface as PROVEN
+// while the unrelated cli/runtime/ui surfaces are MISSING. Resolution must
+// follow the proven parse unit, not the unrelated missing surfaces.
+func TestCodeFactsReferenceResolverPrefersProvenParseUnitOverMissingSurfaces(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "alpha"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "alpha", "x.go"), []byte("package alpha\n"), 0o644))
+	server := newCodeFactsTestServer(t, fakeCodeFactsService{report: &factsv1.CodeFactsReport{
+		Target: &factsv1.TargetContext{RootPath: filepath.Join(root, "scenarios", "alpha", "x.go")},
+		Surfaces: []*factsv1.Surface{
+			{Id: "api", Status: factsv1.SurfaceStatus_SURFACE_STATUS_MISSING, Evidence: []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING}}},
+			{Id: "cli", Status: factsv1.SurfaceStatus_SURFACE_STATUS_MISSING, Evidence: []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING}}},
+			{Id: "ui", Status: factsv1.SurfaceStatus_SURFACE_STATUS_MISSING, Evidence: []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING}}},
+		},
+		ParseUnits: []*factsv1.ParseUnit{{Id: "go:" + filepath.Join(root, "scenarios", "alpha"), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN}},
+	}})
+	defer server.Close()
+
+	resolver := newCodeFactsReferenceResolver(root)
+	resolver.resolver = staticResolver{baseURL: server.URL}
+	got, err := resolver.Resolve(context.Background(), internalplans.Reference{
+		Kind:   internalplans.ReferenceCode,
+		Target: "scenarios/alpha/x.go",
+	})
+	require.NoError(t, err)
+	require.Equal(t, internalplans.ResolutionResolved, got.Resolution)
+	require.Equal(t, "resolved by code-facts", got.Note)
+}
+
+// [REQ:PM-REF-001] A target that exists but yields no proven evidence and no
+// resolving root is still reported missing rather than silently resolved.
+func TestCodeFactsReferenceResolverReportsMissingWithoutProvenEvidence(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "alpha"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "alpha", "x.go"), []byte("package alpha\n"), 0o644))
+	server := newCodeFactsTestServer(t, fakeCodeFactsService{report: &factsv1.CodeFactsReport{
+		Surfaces: []*factsv1.Surface{
+			{Id: "api", Status: factsv1.SurfaceStatus_SURFACE_STATUS_MISSING, Evidence: []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING}}},
+		},
+	}})
+	defer server.Close()
+
+	resolver := newCodeFactsReferenceResolver(root)
+	resolver.resolver = staticResolver{baseURL: server.URL}
+	got, err := resolver.Resolve(context.Background(), internalplans.Reference{
+		Kind:   internalplans.ReferenceCode,
+		Target: "scenarios/alpha/x.go",
+	})
+	require.NoError(t, err)
+	require.Equal(t, internalplans.ResolutionMissing, got.Resolution)
+	require.Equal(t, "code-facts reported missing target evidence", got.Note)
+}
+
 func TestCodeFactsReferenceResolverFallsBackWhenDependencyDown(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "alpha"), 0o755))

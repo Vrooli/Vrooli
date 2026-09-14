@@ -80,6 +80,13 @@ provenance** (kept verbatim because it could not be mapped).
 | `work_posture_source` | computed | How posture was decided: `default`, `service_maturity`, `explicit_override`, `import_legacy`. |
 | `work_posture_detail` | computed | Human-readable derivation note (e.g. fallback reason, sunset warning). |
 
+**Plan Shape** — what kind of work the plan is (see [Plan shape](#plan-shape)).
+Target; the field is not yet built (see [Implementation status](#implementation-status)).
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `shape` | authored (target) | `phased` (ordered phases with steps, acceptance, validation) or `mandate` (target pointer, sensors, bands, scope and authority, stop rules, suggested arc, journal). Decides the body sections, the quality rules, and the execution status. |
+
 **Change Boundary** — the plan's blast radius, the source of truth for posture, anchor, and validation scope.
 
 | Field | Origin | Meaning |
@@ -412,6 +419,79 @@ When posture is `brownfield`, the renderer emits a conservative block, e.g.:
 If an author submits constraints that contradict the derived posture (e.g. a
 greenfield plan that asks for compatibility shims), validation **flags the
 conflict** rather than rendering contradictory guidance.
+
+## Plan shape
+
+Work posture says how careful the work must be. **Plan shape** says what the
+work is. Every plan carries `shape: phased | mandate`. The shape decides which
+body sections the plan carries, which quality rules validation applies, what
+execution status reports, and which authoring skill writes it. Shape is
+independent of execution mode: a plan of either shape can run under Swarm's
+`sliced` or `goal` mode (see the
+[scenario development doc](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)).
+
+### `phased` — an implementation plan
+
+A phased plan is the shape described in the rest of this document: ordered
+phases, each with steps, acceptance criteria, and validation. It fits work whose
+end state is known and whose steps can be written down before execution starts.
+
+- **Carries:** the Overview, Execution Model, Validation Model, and Phases
+  sections above, with the phase records in [Phase](#phase).
+- **Quality rules:** each phase needs ordered steps, phase validation, and
+  objective acceptance. Validation flags thin or imported phases that lack them.
+- **Execution status:** the phase frontier (done, current, remaining), the
+  execution-log ledger, and the handoff.
+- **Completion policy:** every phase recorded finished with an
+  `OutcomeAssessment` and evidence (see [Completion policy](#completion-policy)).
+- **Authoring skill:** `implementation-plan-authoring`.
+
+### `mandate` — an adaptive mandate
+
+A mandate is a plan whose body is a target and a set of instruments, not a step
+list. It fits open-ended improvement of an existing scenario, where the agent
+reads evidence, chooses an intervention, implements it, verifies it, and
+repeats. Progress is the setpoint board, not a phase count.
+
+A mandate has these required sections:
+
+| Section | What it holds |
+|---|---|
+| Target pointer | A reference to the scenario docs that state the intended design. A pointer, never an embedded copy: the docs are the source of truth and the plan must not drift from them. |
+| Sensors | The setpoint programs, named by program name, that measure the scenario. Each sensor produces one or more rows on the setpoint board. |
+| Bands / definition of done | For each sensor row, the band the value must fall into. The mandate is done when every row is in band and the evidence audit passes. |
+| Scope and authority | What the agent may change (the change boundary globs) and what authority it holds, including whether it may extend the boundary with a recorded reason. |
+| Stop rules | Conditions under which the agent stops and reports instead of continuing: for example a sensor that cannot run, a band that needs a design decision, or an intervention that would leave the scope. |
+| Suggested arc | Guidance on the order of work: understand, instrument, improve, validate. The arc is reorderable; the agent may skip or repeat a step when the evidence says so. |
+| Journal location | Where the agent writes its running notes, checkpoints, and handoffs. |
+
+- **Quality rules:** validation refuses a long imperative step list and refuses
+  an embedded snapshot of the target (a copied design section instead of a
+  pointer). It checks that every sensor names a program and every band names a
+  sensor row.
+- **Execution status:** the setpoint board (each row, its current value, its
+  band, and in-band or out-of-band) and the evidence audit result. There is no
+  phase frontier.
+- **Completion policy:** all rows in band and the evidence audit passes. A
+  feeling of doneness is not a completion signal.
+- **Authoring skill:** `adaptive-mandate-authoring`.
+
+### Rules that hold for both shapes
+
+- The change boundary works the same way: `acceptance_allow` bounds the work,
+  `acceptance_deny` still refuses, and boundary extensions stay append-only.
+- Work posture is derived the same way.
+- The rendered markdown mirror is derived from the structured record for both.
+
+### Implementation status
+
+The `shape` field does not exist yet. Every plan today is a phased plan, and the
+quality rules, execution status, and completion policy in this document apply
+to all of them. The two product mandates, `audio-tools-portable-voice-development`
+and `tech-tree-designer-ecosystem-development`, are written as phased plans and
+will be rewritten as mandates when the shape lands. The interim mapping between
+target vocabulary and current fields is in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ## Import Provenance & Unmapped Import Sections
 

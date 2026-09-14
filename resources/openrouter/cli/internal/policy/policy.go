@@ -18,11 +18,12 @@ import (
 )
 
 type Policy struct {
-	SchemaVersion string                `json:"schema_version"`
-	Roles         map[string]Role       `json:"roles"`
-	Models        map[string]Model      `json:"models"`
-	Constraints   Constraints           `json:"constraints"`
-	Provenance    map[string]Provenance `json:"provenance"`
+	SchemaVersion  string                `json:"schema_version"`
+	Roles          map[string]Role       `json:"roles"`
+	Models         map[string]Model      `json:"models"`
+	ExcludedModels []string              `json:"excluded_models,omitempty"`
+	Constraints    Constraints           `json:"constraints"`
+	Provenance     map[string]Provenance `json:"provenance"`
 }
 
 type Role struct {
@@ -316,6 +317,7 @@ type ResolvedPolicyModel struct {
 	Model                 string           `json:"model"`
 	Endpoint              string           `json:"endpoint"`
 	Fallbacks             []string         `json:"fallbacks,omitempty"`
+	ExcludedModels        []string         `json:"excluded_models,omitempty"`
 	RequiredCapabilities  []string         `json:"required_capabilities,omitempty"`
 	PreferredCapabilities []string         `json:"preferred_capabilities,omitempty"`
 	Capabilities          []string         `json:"capabilities"`
@@ -428,9 +430,14 @@ func (p Policy) Resolve(req ResolveRequest) (ResolveResolution, error) {
 			errs = append(errs, fmt.Errorf("unknown model role %q", roleName))
 			continue
 		}
+		model, modelErr := p.roleModel(roleName, role)
+		if modelErr != nil {
+			errs = append(errs, modelErr)
+			continue
+		}
 		out.Roles = append(out.Roles, ResolvedRole{
 			Role:     roleName,
-			Model:    role.Model,
+			Model:    model,
 			Endpoint: role.Endpoint,
 			Required: roleReq.IsRequired(),
 			Reason:   strings.TrimSpace(roleReq.Reason),
@@ -448,14 +455,22 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	if !ok {
 		return ResolvedPolicyModel{}, fmt.Errorf("unknown model role %q", roleName)
 	}
-	model, ok := p.Models[role.Model]
-	if !ok {
-		return ResolvedPolicyModel{}, fmt.Errorf("role %q resolved unknown model %q", roleName, role.Model)
+	modelRef, err := p.roleModel(roleName, role)
+	if err != nil {
+		return ResolvedPolicyModel{}, err
 	}
-	resolved := p.resolvedPolicyModel("role", role.Model, model)
+	model, ok := p.Models[modelRef]
+	if !ok {
+		return ResolvedPolicyModel{}, fmt.Errorf("role %q resolved unknown model %q", roleName, modelRef)
+	}
+	resolved := p.resolvedPolicyModel("role", modelRef, model)
 	resolved.Role = roleName
 	resolved.Endpoint = role.Endpoint
-	resolved.Fallbacks = append([]string{}, role.Fallbacks...)
+	for _, fallback := range role.Fallbacks {
+		if !p.isModelExcluded(fallback) {
+			resolved.Fallbacks = append(resolved.Fallbacks, fallback)
+		}
+	}
 	resolved.RequiredCapabilities = append([]string{}, role.RequiredCapabilities...)
 	resolved.PreferredCapabilities = append([]string{}, role.PreferredCapabilities...)
 	resolved.RequestDefaults = role.RequestDefaults
@@ -469,6 +484,9 @@ func (p Policy) ResolveModel(modelRef string) (ResolvedPolicyModel, error) {
 	modelRef = strings.TrimSpace(modelRef)
 	if modelRef == "" {
 		return ResolvedPolicyModel{}, errors.New("model is required")
+	}
+	if p.isModelExcluded(modelRef) {
+		return ResolvedPolicyModel{}, fmt.Errorf("model %q is excluded by resource policy", modelRef)
 	}
 	model, ok := p.Models[modelRef]
 	if !ok {
@@ -486,6 +504,7 @@ func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) Resolv
 		SchemaVersion:        p.SchemaVersion,
 		Source:               source,
 		Model:                modelRef,
+		ExcludedModels:       append([]string{}, p.ExcludedModels...),
 		Capabilities:         append([]string{}, model.Capabilities...),
 		Modalities:           model.Modalities,
 		CoordinateConvention: model.CoordinateConvention,
@@ -502,6 +521,28 @@ func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) Resolv
 func (p Policy) RoleNames() []string { return keys(p.Roles) }
 func (p Policy) ModelRefs() []string { return keys(p.Models) }
 
+func (p Policy) isModelExcluded(model string) bool {
+	model = strings.TrimSpace(model)
+	for _, excluded := range p.ExcludedModels {
+		if strings.EqualFold(model, strings.TrimSpace(excluded)) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p Policy) roleModel(roleName string, role Role) (string, error) {
+	if !p.isModelExcluded(role.Model) {
+		return role.Model, nil
+	}
+	for _, fallback := range role.Fallbacks {
+		if !p.isModelExcluded(fallback) {
+			return fallback, nil
+		}
+	}
+	return "", fmt.Errorf("role %q has no model allowed by resource policy", roleName)
+}
+
 func (p Policy) Validate() error {
 	var errs []error
 	if strings.TrimSpace(p.SchemaVersion) == "" {
@@ -512,6 +553,19 @@ func (p Policy) Validate() error {
 	}
 	if len(p.Models) == 0 {
 		errs = append(errs, errors.New("models must not be empty"))
+	}
+	seenExcluded := map[string]struct{}{}
+	for _, model := range p.ExcludedModels {
+		trimmed := strings.TrimSpace(model)
+		if trimmed == "" || trimmed != model {
+			errs = append(errs, errors.New("excluded_models must contain trimmed, non-empty values"))
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seenExcluded[key]; exists {
+			errs = append(errs, fmt.Errorf("excluded_models contains duplicate %q", model))
+		}
+		seenExcluded[key] = struct{}{}
 	}
 	sourceKinds := set(p.Constraints.ProvenanceSourceKinds)
 	if len(sourceKinds) == 0 {

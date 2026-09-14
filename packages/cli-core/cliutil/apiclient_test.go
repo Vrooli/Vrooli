@@ -35,6 +35,29 @@ func TestAPIClientAppliesBaseAndToken(t *testing.T) {
 	}
 }
 
+func TestWithTokenIsRequestLocalAndPreservesProvenance(t *testing.T) {
+	var auth []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization"))
+		if r.Header.Get(HeaderInvocationCommand) != "effort withdraw" {
+			t.Error("lost invocation provenance")
+		}
+		fmt.Fprint(w, `{}`)
+	}))
+	defer server.Close()
+	base := NewHTTPClient(HTTPClientOptions{})
+	base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "effort withdraw"} })
+	client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{DefaultBase: server.URL} }, func() string { return "ordinary-fixture" })
+	for _, c := range []*APIClient{client.WithToken("operator-fixture"), client, client.WithToken("")} {
+		if _, err := c.Get("/test", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if strings.Join(auth, "|") != "Bearer operator-fixture|Bearer ordinary-fixture|" {
+		t.Fatal("request override leaked into receiver or empty credential fell back")
+	}
+}
+
 // A long maintenance call must not have to choose between finishing and
 // keeping its provenance: the longer-timeout copy has to carry the same token
 // and headers the CLI sends on every other request.

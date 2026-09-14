@@ -573,6 +573,198 @@ func (x *IngestMetricSampleResponse) GetAccepted() bool {
 	return false
 }
 
+// MetricReading is the latest retained observation for one metric. State is
+// "measured" when the latest observation is fresh and "stale" otherwise; value
+// is the retained sample, so a measured zero stays distinct from absent data.
+type MetricReading struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Metric         string                 `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
+	Value          float64                `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	State          string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	SampleCount    int32                  `protobuf:"varint,4,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	LastObservedAt string                 `protobuf:"bytes,5,opt,name=last_observed_at,json=lastObservedAt,proto3" json:"last_observed_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MetricReading) Reset() {
+	*x = MetricReading{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MetricReading) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MetricReading) ProtoMessage() {}
+
+func (x *MetricReading) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MetricReading.ProtoReflect.Descriptor instead.
+func (*MetricReading) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *MetricReading) GetMetric() string {
+	if x != nil {
+		return x.Metric
+	}
+	return ""
+}
+
+func (x *MetricReading) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *MetricReading) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *MetricReading) GetSampleCount() int32 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *MetricReading) GetLastObservedAt() string {
+	if x != nil {
+		return x.LastObservedAt
+	}
+	return ""
+}
+
+type GetDraftMetricsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DraftId        string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	StaleAfterDays int32                  `protobuf:"varint,2,opt,name=stale_after_days,json=staleAfterDays,proto3" json:"stale_after_days,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetDraftMetricsRequest) Reset() {
+	*x = GetDraftMetricsRequest{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDraftMetricsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDraftMetricsRequest) ProtoMessage() {}
+
+func (x *GetDraftMetricsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDraftMetricsRequest.ProtoReflect.Descriptor instead.
+func (*GetDraftMetricsRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetDraftMetricsRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *GetDraftMetricsRequest) GetStaleAfterDays() int32 {
+	if x != nil {
+		return x.StaleAfterDays
+	}
+	return 0
+}
+
+type GetDraftMetricsResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	DraftId string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	// False when no samples exist, which is not the same as a measured zero.
+	HasMeasurements bool             `protobuf:"varint,2,opt,name=has_measurements,json=hasMeasurements,proto3" json:"has_measurements,omitempty"`
+	Readings        []*MetricReading `protobuf:"bytes,3,rep,name=readings,proto3" json:"readings,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetDraftMetricsResponse) Reset() {
+	*x = GetDraftMetricsResponse{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDraftMetricsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDraftMetricsResponse) ProtoMessage() {}
+
+func (x *GetDraftMetricsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDraftMetricsResponse.ProtoReflect.Descriptor instead.
+func (*GetDraftMetricsResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetDraftMetricsResponse) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *GetDraftMetricsResponse) GetHasMeasurements() bool {
+	if x != nil {
+		return x.HasMeasurements
+	}
+	return false
+}
+
+func (x *GetDraftMetricsResponse) GetReadings() []*MetricReading {
+	if x != nil {
+		return x.Readings
+	}
+	return nil
+}
+
 type Remediation struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -588,7 +780,7 @@ type Remediation struct {
 
 func (x *Remediation) Reset() {
 	*x = Remediation{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +792,7 @@ func (x *Remediation) String() string {
 func (*Remediation) ProtoMessage() {}
 
 func (x *Remediation) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +805,7 @@ func (x *Remediation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Remediation.ProtoReflect.Descriptor instead.
 func (*Remediation) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{10}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Remediation) GetId() string {
@@ -675,7 +867,7 @@ type ListRemediationsRequest struct {
 
 func (x *ListRemediationsRequest) Reset() {
 	*x = ListRemediationsRequest{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +879,7 @@ func (x *ListRemediationsRequest) String() string {
 func (*ListRemediationsRequest) ProtoMessage() {}
 
 func (x *ListRemediationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,7 +892,7 @@ func (x *ListRemediationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRemediationsRequest.ProtoReflect.Descriptor instead.
 func (*ListRemediationsRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{11}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListRemediationsRequest) GetPublishRecordId() string {
@@ -726,7 +918,7 @@ type ListRemediationsResponse struct {
 
 func (x *ListRemediationsResponse) Reset() {
 	*x = ListRemediationsResponse{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +930,7 @@ func (x *ListRemediationsResponse) String() string {
 func (*ListRemediationsResponse) ProtoMessage() {}
 
 func (x *ListRemediationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +943,7 @@ func (x *ListRemediationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRemediationsResponse.ProtoReflect.Descriptor instead.
 func (*ListRemediationsResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{12}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListRemediationsResponse) GetRemediations() []*Remediation {
@@ -772,7 +964,7 @@ type CreateRemediationRequest struct {
 
 func (x *CreateRemediationRequest) Reset() {
 	*x = CreateRemediationRequest{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -784,7 +976,7 @@ func (x *CreateRemediationRequest) String() string {
 func (*CreateRemediationRequest) ProtoMessage() {}
 
 func (x *CreateRemediationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -797,7 +989,7 @@ func (x *CreateRemediationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRemediationRequest.ProtoReflect.Descriptor instead.
 func (*CreateRemediationRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{13}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateRemediationRequest) GetPublishRecordId() string {
@@ -830,7 +1022,7 @@ type CreateRemediationResponse struct {
 
 func (x *CreateRemediationResponse) Reset() {
 	*x = CreateRemediationResponse{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1034,7 @@ func (x *CreateRemediationResponse) String() string {
 func (*CreateRemediationResponse) ProtoMessage() {}
 
 func (x *CreateRemediationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1047,7 @@ func (x *CreateRemediationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRemediationResponse.ProtoReflect.Descriptor instead.
 func (*CreateRemediationResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{14}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateRemediationResponse) GetRemediation() *Remediation {
@@ -874,7 +1066,7 @@ type ResolveRemediationRequest struct {
 
 func (x *ResolveRemediationRequest) Reset() {
 	*x = ResolveRemediationRequest{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +1078,7 @@ func (x *ResolveRemediationRequest) String() string {
 func (*ResolveRemediationRequest) ProtoMessage() {}
 
 func (x *ResolveRemediationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +1091,7 @@ func (x *ResolveRemediationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveRemediationRequest.ProtoReflect.Descriptor instead.
 func (*ResolveRemediationRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{15}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ResolveRemediationRequest) GetId() string {
@@ -918,7 +1110,7 @@ type ResolveRemediationResponse struct {
 
 func (x *ResolveRemediationResponse) Reset() {
 	*x = ResolveRemediationResponse{}
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +1122,7 @@ func (x *ResolveRemediationResponse) String() string {
 func (*ResolveRemediationResponse) ProtoMessage() {}
 
 func (x *ResolveRemediationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,7 +1135,7 @@ func (x *ResolveRemediationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveRemediationResponse.ProtoReflect.Descriptor instead.
 func (*ResolveRemediationResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{16}
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ResolveRemediationResponse) GetRemediation() *Remediation {
@@ -994,7 +1186,20 @@ const file_content_desk_v1_ledger_ledger_proto_rawDesc = "" +
 	"observedAt\"U\n" +
 	"\x1aIngestMetricSampleResponse\x12\x1b\n" +
 	"\tsample_id\x18\x01 \x01(\tR\bsampleId\x12\x1a\n" +
-	"\baccepted\x18\x02 \x01(\bR\baccepted\"\xc9\x01\n" +
+	"\baccepted\x18\x02 \x01(\bR\baccepted\"\xa0\x01\n" +
+	"\rMetricReading\x12\x16\n" +
+	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
+	"\fsample_count\x18\x04 \x01(\x05R\vsampleCount\x12(\n" +
+	"\x10last_observed_at\x18\x05 \x01(\tR\x0elastObservedAt\"]\n" +
+	"\x16GetDraftMetricsRequest\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12(\n" +
+	"\x10stale_after_days\x18\x02 \x01(\x05R\x0estaleAfterDays\"\xa9\x01\n" +
+	"\x17GetDraftMetricsResponse\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12)\n" +
+	"\x10has_measurements\x18\x02 \x01(\bR\x0fhasMeasurements\x12H\n" +
+	"\breadings\x18\x03 \x03(\v2,.vrooli.content_desk.v1.ledger.MetricReadingR\breadings\"\xc9\x01\n" +
 	"\vRemediation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
 	"\x11publish_record_id\x18\x02 \x01(\tR\x0fpublishRecordId\x12\x12\n" +
@@ -1019,12 +1224,13 @@ const file_content_desk_v1_ledger_ledger_proto_rawDesc = "" +
 	"\x19ResolveRemediationRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
 	"\x1aResolveRemediationResponse\x12L\n" +
-	"\vremediation\x18\x01 \x01(\v2*.vrooli.content_desk.v1.ledger.RemediationR\vremediation2\xeb\a\n" +
+	"\vremediation\x18\x01 \x01(\v2*.vrooli.content_desk.v1.ledger.RemediationR\vremediation2\xee\b\n" +
 	"\rLedgerService\x12\x89\x01\n" +
 	"\x12ListPublishRecords\x128.vrooli.content_desk.v1.ledger.ListPublishRecordsRequest\x1a9.vrooli.content_desk.v1.ledger.ListPublishRecordsResponse\x12\xad\x01\n" +
 	"\x1eListContaminatedPublishRecords\x12D.vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest\x1aE.vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse\x12w\n" +
 	"\fListCoverage\x122.vrooli.content_desk.v1.ledger.ListCoverageRequest\x1a3.vrooli.content_desk.v1.ledger.ListCoverageResponse\x12\x89\x01\n" +
-	"\x12IngestMetricSample\x128.vrooli.content_desk.v1.ledger.IngestMetricSampleRequest\x1a9.vrooli.content_desk.v1.ledger.IngestMetricSampleResponse\x12\x83\x01\n" +
+	"\x12IngestMetricSample\x128.vrooli.content_desk.v1.ledger.IngestMetricSampleRequest\x1a9.vrooli.content_desk.v1.ledger.IngestMetricSampleResponse\x12\x80\x01\n" +
+	"\x0fGetDraftMetrics\x125.vrooli.content_desk.v1.ledger.GetDraftMetricsRequest\x1a6.vrooli.content_desk.v1.ledger.GetDraftMetricsResponse\x12\x83\x01\n" +
 	"\x10ListRemediations\x126.vrooli.content_desk.v1.ledger.ListRemediationsRequest\x1a7.vrooli.content_desk.v1.ledger.ListRemediationsResponse\x12\x86\x01\n" +
 	"\x11CreateRemediation\x127.vrooli.content_desk.v1.ledger.CreateRemediationRequest\x1a8.vrooli.content_desk.v1.ledger.CreateRemediationResponse\x12\x89\x01\n" +
 	"\x12ResolveRemediation\x128.vrooli.content_desk.v1.ledger.ResolveRemediationRequest\x1a9.vrooli.content_desk.v1.ledger.ResolveRemediationResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger;ledger_v1b\x06proto3"
@@ -1041,7 +1247,7 @@ func file_content_desk_v1_ledger_ledger_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_ledger_ledger_proto_rawDescData
 }
 
-var file_content_desk_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_content_desk_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_content_desk_v1_ledger_ledger_proto_goTypes = []any{
 	(*PublishRecord)(nil),                          // 0: vrooli.content_desk.v1.ledger.PublishRecord
 	(*ListPublishRecordsRequest)(nil),              // 1: vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
@@ -1053,40 +1259,46 @@ var file_content_desk_v1_ledger_ledger_proto_goTypes = []any{
 	(*ListCoverageResponse)(nil),                   // 7: vrooli.content_desk.v1.ledger.ListCoverageResponse
 	(*IngestMetricSampleRequest)(nil),              // 8: vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
 	(*IngestMetricSampleResponse)(nil),             // 9: vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
-	(*Remediation)(nil),                            // 10: vrooli.content_desk.v1.ledger.Remediation
-	(*ListRemediationsRequest)(nil),                // 11: vrooli.content_desk.v1.ledger.ListRemediationsRequest
-	(*ListRemediationsResponse)(nil),               // 12: vrooli.content_desk.v1.ledger.ListRemediationsResponse
-	(*CreateRemediationRequest)(nil),               // 13: vrooli.content_desk.v1.ledger.CreateRemediationRequest
-	(*CreateRemediationResponse)(nil),              // 14: vrooli.content_desk.v1.ledger.CreateRemediationResponse
-	(*ResolveRemediationRequest)(nil),              // 15: vrooli.content_desk.v1.ledger.ResolveRemediationRequest
-	(*ResolveRemediationResponse)(nil),             // 16: vrooli.content_desk.v1.ledger.ResolveRemediationResponse
+	(*MetricReading)(nil),                          // 10: vrooli.content_desk.v1.ledger.MetricReading
+	(*GetDraftMetricsRequest)(nil),                 // 11: vrooli.content_desk.v1.ledger.GetDraftMetricsRequest
+	(*GetDraftMetricsResponse)(nil),                // 12: vrooli.content_desk.v1.ledger.GetDraftMetricsResponse
+	(*Remediation)(nil),                            // 13: vrooli.content_desk.v1.ledger.Remediation
+	(*ListRemediationsRequest)(nil),                // 14: vrooli.content_desk.v1.ledger.ListRemediationsRequest
+	(*ListRemediationsResponse)(nil),               // 15: vrooli.content_desk.v1.ledger.ListRemediationsResponse
+	(*CreateRemediationRequest)(nil),               // 16: vrooli.content_desk.v1.ledger.CreateRemediationRequest
+	(*CreateRemediationResponse)(nil),              // 17: vrooli.content_desk.v1.ledger.CreateRemediationResponse
+	(*ResolveRemediationRequest)(nil),              // 18: vrooli.content_desk.v1.ledger.ResolveRemediationRequest
+	(*ResolveRemediationResponse)(nil),             // 19: vrooli.content_desk.v1.ledger.ResolveRemediationResponse
 }
 var file_content_desk_v1_ledger_ledger_proto_depIdxs = []int32{
 	0,  // 0: vrooli.content_desk.v1.ledger.ListPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
 	0,  // 1: vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
 	5,  // 2: vrooli.content_desk.v1.ledger.ListCoverageResponse.cells:type_name -> vrooli.content_desk.v1.ledger.CoverageCell
-	10, // 3: vrooli.content_desk.v1.ledger.ListRemediationsResponse.remediations:type_name -> vrooli.content_desk.v1.ledger.Remediation
-	10, // 4: vrooli.content_desk.v1.ledger.CreateRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
-	10, // 5: vrooli.content_desk.v1.ledger.ResolveRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
-	1,  // 6: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
-	3,  // 7: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest
-	6,  // 8: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:input_type -> vrooli.content_desk.v1.ledger.ListCoverageRequest
-	8,  // 9: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:input_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
-	11, // 10: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:input_type -> vrooli.content_desk.v1.ledger.ListRemediationsRequest
-	13, // 11: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:input_type -> vrooli.content_desk.v1.ledger.CreateRemediationRequest
-	15, // 12: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:input_type -> vrooli.content_desk.v1.ledger.ResolveRemediationRequest
-	2,  // 13: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsResponse
-	4,  // 14: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse
-	7,  // 15: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:output_type -> vrooli.content_desk.v1.ledger.ListCoverageResponse
-	9,  // 16: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:output_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
-	12, // 17: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:output_type -> vrooli.content_desk.v1.ledger.ListRemediationsResponse
-	14, // 18: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:output_type -> vrooli.content_desk.v1.ledger.CreateRemediationResponse
-	16, // 19: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:output_type -> vrooli.content_desk.v1.ledger.ResolveRemediationResponse
-	13, // [13:20] is the sub-list for method output_type
-	6,  // [6:13] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	10, // 3: vrooli.content_desk.v1.ledger.GetDraftMetricsResponse.readings:type_name -> vrooli.content_desk.v1.ledger.MetricReading
+	13, // 4: vrooli.content_desk.v1.ledger.ListRemediationsResponse.remediations:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	13, // 5: vrooli.content_desk.v1.ledger.CreateRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	13, // 6: vrooli.content_desk.v1.ledger.ResolveRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	1,  // 7: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
+	3,  // 8: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest
+	6,  // 9: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:input_type -> vrooli.content_desk.v1.ledger.ListCoverageRequest
+	8,  // 10: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:input_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
+	11, // 11: vrooli.content_desk.v1.ledger.LedgerService.GetDraftMetrics:input_type -> vrooli.content_desk.v1.ledger.GetDraftMetricsRequest
+	14, // 12: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:input_type -> vrooli.content_desk.v1.ledger.ListRemediationsRequest
+	16, // 13: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:input_type -> vrooli.content_desk.v1.ledger.CreateRemediationRequest
+	18, // 14: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:input_type -> vrooli.content_desk.v1.ledger.ResolveRemediationRequest
+	2,  // 15: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsResponse
+	4,  // 16: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse
+	7,  // 17: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:output_type -> vrooli.content_desk.v1.ledger.ListCoverageResponse
+	9,  // 18: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:output_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
+	12, // 19: vrooli.content_desk.v1.ledger.LedgerService.GetDraftMetrics:output_type -> vrooli.content_desk.v1.ledger.GetDraftMetricsResponse
+	15, // 20: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:output_type -> vrooli.content_desk.v1.ledger.ListRemediationsResponse
+	17, // 21: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:output_type -> vrooli.content_desk.v1.ledger.CreateRemediationResponse
+	19, // 22: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:output_type -> vrooli.content_desk.v1.ledger.ResolveRemediationResponse
+	15, // [15:23] is the sub-list for method output_type
+	7,  // [7:15] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_ledger_ledger_proto_init() }
@@ -1100,7 +1312,7 @@ func file_content_desk_v1_ledger_ledger_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_ledger_ledger_proto_rawDesc), len(file_content_desk_v1_ledger_ledger_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/ledger/ledger.proto.
  */
 export const file_content_desk_v1_ledger_ledger: GenFile = /*@__PURE__*/
-  fileDesc("CiNjb250ZW50LWRlc2svdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIiXgoNUHVibGlzaFJlY29yZBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIVCg1wdWJsaXNoZWRfdXJsGAMgASgJEhgKEHBsYXRmb3JtX3Bvc3RfaWQYBCABKAkiGwoZTGlzdFB1Ymxpc2hSZWNvcmRzUmVxdWVzdCJjChpMaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRJFCg9wdWJsaXNoX3JlY29yZHMYASADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5QdWJsaXNoUmVjb3JkIjkKJUxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QSEAoIY2xhaW1faWQYASABKAkibwomTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USRQoPcHVibGlzaF9yZWNvcmRzGAEgAygLMiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUHVibGlzaFJlY29yZCKQAQoMQ292ZXJhZ2VDZWxsEhMKC2NhbXBhaWduX2lkGAEgASgJEgwKBGxhbmUYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRILCgNza3UYBCABKAkSFQoNcHVibGlzaF9jb3VudBgFIAEoBRIZChFsYXN0X3B1Ymxpc2hlZF9hdBgGIAEoCRINCgVzdGFsZRgHIAEoCCIvChNMaXN0Q292ZXJhZ2VSZXF1ZXN0EhgKEHN0YWxlX2FmdGVyX2RheXMYASABKAUiUgoUTGlzdENvdmVyYWdlUmVzcG9uc2USOgoFY2VsbHMYASADKAsyKy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Db3ZlcmFnZUNlbGwiiAEKGUluZ2VzdE1ldHJpY1NhbXBsZVJlcXVlc3QSEQoJc2FtcGxlX2lkGAEgASgJEhIKCnJlbGVhc2VfaWQYAiABKAkSEAoIZHJhZnRfaWQYAyABKAkSDgoGbWV0cmljGAQgASgJEg0KBXZhbHVlGAUgASgBEhMKC29ic2VydmVkX2F0GAYgASgJIkEKGkluZ2VzdE1ldHJpY1NhbXBsZVJlc3BvbnNlEhEKCXNhbXBsZV9pZBgBIAEoCRIQCghhY2NlcHRlZBgCIAEoCCKJAQoLUmVtZWRpYXRpb24SCgoCaWQYASABKAkSGQoRcHVibGlzaF9yZWNvcmRfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIOCgZzdGF0dXMYBCABKAkSDAoEbm90ZRgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhMKC3Jlc29sdmVkX2F0GAcgASgJIkcKF0xpc3RSZW1lZGlhdGlvbnNSZXF1ZXN0EhkKEXB1Ymxpc2hfcmVjb3JkX2lkGAEgASgJEhEKCW9wZW5fb25seRgCIAEoCCJcChhMaXN0UmVtZWRpYXRpb25zUmVzcG9uc2USQAoMcmVtZWRpYXRpb25zGAEgAygLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVtZWRpYXRpb24iUQoYQ3JlYXRlUmVtZWRpYXRpb25SZXF1ZXN0EhkKEXB1Ymxpc2hfcmVjb3JkX2lkGAEgASgJEgwKBGtpbmQYAiABKAkSDAoEbm90ZRgDIAEoCSJcChlDcmVhdGVSZW1lZGlhdGlvblJlc3BvbnNlEj8KC3JlbWVkaWF0aW9uGAEgASgLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVtZWRpYXRpb24iJwoZUmVzb2x2ZVJlbWVkaWF0aW9uUmVxdWVzdBIKCgJpZBgBIAEoCSJdChpSZXNvbHZlUmVtZWRpYXRpb25SZXNwb25zZRI/CgtyZW1lZGlhdGlvbhgBIAEoCzIqLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLlJlbWVkaWF0aW9uMusHCg1MZWRnZXJTZXJ2aWNlEokBChJMaXN0UHVibGlzaFJlY29yZHMSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0UHVibGlzaFJlY29yZHNSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USrQEKHkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3JkcxJELnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QaRS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q29udGFtaW5hdGVkUHVibGlzaFJlY29yZHNSZXNwb25zZRJ3CgxMaXN0Q292ZXJhZ2USMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q292ZXJhZ2VSZXF1ZXN0GjMudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdENvdmVyYWdlUmVzcG9uc2USiQEKEkluZ2VzdE1ldHJpY1NhbXBsZRI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkluZ2VzdE1ldHJpY1NhbXBsZVJlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Jbmdlc3RNZXRyaWNTYW1wbGVSZXNwb25zZRKDAQoQTGlzdFJlbWVkaWF0aW9ucxI2LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RSZW1lZGlhdGlvbnNSZXF1ZXN0GjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdFJlbWVkaWF0aW9uc1Jlc3BvbnNlEoYBChFDcmVhdGVSZW1lZGlhdGlvbhI3LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkNyZWF0ZVJlbWVkaWF0aW9uUmVxdWVzdBo4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkNyZWF0ZVJlbWVkaWF0aW9uUmVzcG9uc2USiQEKElJlc29sdmVSZW1lZGlhdGlvbhI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLlJlc29sdmVSZW1lZGlhdGlvblJlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5SZXNvbHZlUmVtZWRpYXRpb25SZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9sZWRnZXI7bGVkZ2VyX3YxYgZwcm90bzM");
+  fileDesc("CiNjb250ZW50LWRlc2svdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIiXgoNUHVibGlzaFJlY29yZBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIVCg1wdWJsaXNoZWRfdXJsGAMgASgJEhgKEHBsYXRmb3JtX3Bvc3RfaWQYBCABKAkiGwoZTGlzdFB1Ymxpc2hSZWNvcmRzUmVxdWVzdCJjChpMaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRJFCg9wdWJsaXNoX3JlY29yZHMYASADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5QdWJsaXNoUmVjb3JkIjkKJUxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QSEAoIY2xhaW1faWQYASABKAkibwomTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USRQoPcHVibGlzaF9yZWNvcmRzGAEgAygLMiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUHVibGlzaFJlY29yZCKQAQoMQ292ZXJhZ2VDZWxsEhMKC2NhbXBhaWduX2lkGAEgASgJEgwKBGxhbmUYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRILCgNza3UYBCABKAkSFQoNcHVibGlzaF9jb3VudBgFIAEoBRIZChFsYXN0X3B1Ymxpc2hlZF9hdBgGIAEoCRINCgVzdGFsZRgHIAEoCCIvChNMaXN0Q292ZXJhZ2VSZXF1ZXN0EhgKEHN0YWxlX2FmdGVyX2RheXMYASABKAUiUgoUTGlzdENvdmVyYWdlUmVzcG9uc2USOgoFY2VsbHMYASADKAsyKy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Db3ZlcmFnZUNlbGwiiAEKGUluZ2VzdE1ldHJpY1NhbXBsZVJlcXVlc3QSEQoJc2FtcGxlX2lkGAEgASgJEhIKCnJlbGVhc2VfaWQYAiABKAkSEAoIZHJhZnRfaWQYAyABKAkSDgoGbWV0cmljGAQgASgJEg0KBXZhbHVlGAUgASgBEhMKC29ic2VydmVkX2F0GAYgASgJIkEKGkluZ2VzdE1ldHJpY1NhbXBsZVJlc3BvbnNlEhEKCXNhbXBsZV9pZBgBIAEoCRIQCghhY2NlcHRlZBgCIAEoCCJtCg1NZXRyaWNSZWFkaW5nEg4KBm1ldHJpYxgBIAEoCRINCgV2YWx1ZRgCIAEoARINCgVzdGF0ZRgDIAEoCRIUCgxzYW1wbGVfY291bnQYBCABKAUSGAoQbGFzdF9vYnNlcnZlZF9hdBgFIAEoCSJEChZHZXREcmFmdE1ldHJpY3NSZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJEhgKEHN0YWxlX2FmdGVyX2RheXMYAiABKAUihQEKF0dldERyYWZ0TWV0cmljc1Jlc3BvbnNlEhAKCGRyYWZ0X2lkGAEgASgJEhgKEGhhc19tZWFzdXJlbWVudHMYAiABKAgSPgoIcmVhZGluZ3MYAyADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5NZXRyaWNSZWFkaW5nIokBCgtSZW1lZGlhdGlvbhIKCgJpZBgBIAEoCRIZChFwdWJsaXNoX3JlY29yZF9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIMCgRub3RlGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEwoLcmVzb2x2ZWRfYXQYByABKAkiRwoXTGlzdFJlbWVkaWF0aW9uc1JlcXVlc3QSGQoRcHVibGlzaF9yZWNvcmRfaWQYASABKAkSEQoJb3Blbl9vbmx5GAIgASgIIlwKGExpc3RSZW1lZGlhdGlvbnNSZXNwb25zZRJACgxyZW1lZGlhdGlvbnMYASADKAsyKi52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5SZW1lZGlhdGlvbiJRChhDcmVhdGVSZW1lZGlhdGlvblJlcXVlc3QSGQoRcHVibGlzaF9yZWNvcmRfaWQYASABKAkSDAoEa2luZBgCIAEoCRIMCgRub3RlGAMgASgJIlwKGUNyZWF0ZVJlbWVkaWF0aW9uUmVzcG9uc2USPwoLcmVtZWRpYXRpb24YASABKAsyKi52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5SZW1lZGlhdGlvbiInChlSZXNvbHZlUmVtZWRpYXRpb25SZXF1ZXN0EgoKAmlkGAEgASgJIl0KGlJlc29sdmVSZW1lZGlhdGlvblJlc3BvbnNlEj8KC3JlbWVkaWF0aW9uGAEgASgLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVtZWRpYXRpb24y7ggKDUxlZGdlclNlcnZpY2USiQEKEkxpc3RQdWJsaXNoUmVjb3JkcxI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RQdWJsaXNoUmVjb3Jkc1JlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRKtAQoeTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzEkQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVxdWVzdBpFLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1Jlc3BvbnNlEncKDExpc3RDb3ZlcmFnZRIyLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb3ZlcmFnZVJlcXVlc3QaMy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q292ZXJhZ2VSZXNwb25zZRKJAQoSSW5nZXN0TWV0cmljU2FtcGxlEjgudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuSW5nZXN0TWV0cmljU2FtcGxlUmVxdWVzdBo5LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkluZ2VzdE1ldHJpY1NhbXBsZVJlc3BvbnNlEoABCg9HZXREcmFmdE1ldHJpY3MSNS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5HZXREcmFmdE1ldHJpY3NSZXF1ZXN0GjYudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuR2V0RHJhZnRNZXRyaWNzUmVzcG9uc2USgwEKEExpc3RSZW1lZGlhdGlvbnMSNi52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0UmVtZWRpYXRpb25zUmVxdWVzdBo3LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RSZW1lZGlhdGlvbnNSZXNwb25zZRKGAQoRQ3JlYXRlUmVtZWRpYXRpb24SNy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5DcmVhdGVSZW1lZGlhdGlvblJlcXVlc3QaOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5DcmVhdGVSZW1lZGlhdGlvblJlc3BvbnNlEokBChJSZXNvbHZlUmVtZWRpYXRpb24SOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5SZXNvbHZlUmVtZWRpYXRpb25SZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVzb2x2ZVJlbWVkaWF0aW9uUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb250ZW50LWRlc2svdjEvbGVkZ2VyO2xlZGdlcl92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.PublishRecord
@@ -254,6 +254,98 @@ export const IngestMetricSampleResponseSchema: GenMessage<IngestMetricSampleResp
   messageDesc(file_content_desk_v1_ledger_ledger, 9);
 
 /**
+ * MetricReading is the latest retained observation for one metric. State is
+ * "measured" when the latest observation is fresh and "stale" otherwise; value
+ * is the retained sample, so a measured zero stays distinct from absent data.
+ *
+ * @generated from message vrooli.content_desk.v1.ledger.MetricReading
+ */
+export type MetricReading = Message<"vrooli.content_desk.v1.ledger.MetricReading"> & {
+  /**
+   * @generated from field: string metric = 1;
+   */
+  metric: string;
+
+  /**
+   * @generated from field: double value = 2;
+   */
+  value: number;
+
+  /**
+   * @generated from field: string state = 3;
+   */
+  state: string;
+
+  /**
+   * @generated from field: int32 sample_count = 4;
+   */
+  sampleCount: number;
+
+  /**
+   * @generated from field: string last_observed_at = 5;
+   */
+  lastObservedAt: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.MetricReading.
+ * Use `create(MetricReadingSchema)` to create a new message.
+ */
+export const MetricReadingSchema: GenMessage<MetricReading> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 10);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.GetDraftMetricsRequest
+ */
+export type GetDraftMetricsRequest = Message<"vrooli.content_desk.v1.ledger.GetDraftMetricsRequest"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: int32 stale_after_days = 2;
+   */
+  staleAfterDays: number;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.GetDraftMetricsRequest.
+ * Use `create(GetDraftMetricsRequestSchema)` to create a new message.
+ */
+export const GetDraftMetricsRequestSchema: GenMessage<GetDraftMetricsRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 11);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.GetDraftMetricsResponse
+ */
+export type GetDraftMetricsResponse = Message<"vrooli.content_desk.v1.ledger.GetDraftMetricsResponse"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+
+  /**
+   * False when no samples exist, which is not the same as a measured zero.
+   *
+   * @generated from field: bool has_measurements = 2;
+   */
+  hasMeasurements: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.ledger.MetricReading readings = 3;
+   */
+  readings: MetricReading[];
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.GetDraftMetricsResponse.
+ * Use `create(GetDraftMetricsResponseSchema)` to create a new message.
+ */
+export const GetDraftMetricsResponseSchema: GenMessage<GetDraftMetricsResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 12);
+
+/**
  * @generated from message vrooli.content_desk.v1.ledger.Remediation
  */
 export type Remediation = Message<"vrooli.content_desk.v1.ledger.Remediation"> & {
@@ -298,7 +390,7 @@ export type Remediation = Message<"vrooli.content_desk.v1.ledger.Remediation"> &
  * Use `create(RemediationSchema)` to create a new message.
  */
 export const RemediationSchema: GenMessage<Remediation> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 10);
+  messageDesc(file_content_desk_v1_ledger_ledger, 13);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.ListRemediationsRequest
@@ -320,7 +412,7 @@ export type ListRemediationsRequest = Message<"vrooli.content_desk.v1.ledger.Lis
  * Use `create(ListRemediationsRequestSchema)` to create a new message.
  */
 export const ListRemediationsRequestSchema: GenMessage<ListRemediationsRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 11);
+  messageDesc(file_content_desk_v1_ledger_ledger, 14);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.ListRemediationsResponse
@@ -337,7 +429,7 @@ export type ListRemediationsResponse = Message<"vrooli.content_desk.v1.ledger.Li
  * Use `create(ListRemediationsResponseSchema)` to create a new message.
  */
 export const ListRemediationsResponseSchema: GenMessage<ListRemediationsResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 12);
+  messageDesc(file_content_desk_v1_ledger_ledger, 15);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.CreateRemediationRequest
@@ -364,7 +456,7 @@ export type CreateRemediationRequest = Message<"vrooli.content_desk.v1.ledger.Cr
  * Use `create(CreateRemediationRequestSchema)` to create a new message.
  */
 export const CreateRemediationRequestSchema: GenMessage<CreateRemediationRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 13);
+  messageDesc(file_content_desk_v1_ledger_ledger, 16);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.CreateRemediationResponse
@@ -381,7 +473,7 @@ export type CreateRemediationResponse = Message<"vrooli.content_desk.v1.ledger.C
  * Use `create(CreateRemediationResponseSchema)` to create a new message.
  */
 export const CreateRemediationResponseSchema: GenMessage<CreateRemediationResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 14);
+  messageDesc(file_content_desk_v1_ledger_ledger, 17);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.ResolveRemediationRequest
@@ -398,7 +490,7 @@ export type ResolveRemediationRequest = Message<"vrooli.content_desk.v1.ledger.R
  * Use `create(ResolveRemediationRequestSchema)` to create a new message.
  */
 export const ResolveRemediationRequestSchema: GenMessage<ResolveRemediationRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 15);
+  messageDesc(file_content_desk_v1_ledger_ledger, 18);
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.ResolveRemediationResponse
@@ -415,7 +507,7 @@ export type ResolveRemediationResponse = Message<"vrooli.content_desk.v1.ledger.
  * Use `create(ResolveRemediationResponseSchema)` to create a new message.
  */
 export const ResolveRemediationResponseSchema: GenMessage<ResolveRemediationResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_ledger_ledger, 16);
+  messageDesc(file_content_desk_v1_ledger_ledger, 19);
 
 /**
  * LedgerService owns append-oriented publish history and its read surface.
@@ -454,6 +546,14 @@ export const LedgerService: GenService<{
     methodKind: "unary";
     input: typeof IngestMetricSampleRequestSchema;
     output: typeof IngestMetricSampleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.GetDraftMetrics
+   */
+  getDraftMetrics: {
+    methodKind: "unary";
+    input: typeof GetDraftMetricsRequestSchema;
+    output: typeof GetDraftMetricsResponseSchema;
   },
   /**
    * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.ListRemediations

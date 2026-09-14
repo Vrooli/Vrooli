@@ -6,6 +6,12 @@
     "legacy_project_bash_supported": false,
     "platform_conformance_gate": "vrooli capability conformance"
   },
+  "build.go_flags": {
+    "develop": ["-trimpath"],
+    "distribution": ["-trimpath", "-buildvcs=false"],
+    "scenario": ["-trimpath"],
+    "rationale": "Compile-affecting Go flags are centralized so development, scenario, and distribution builds share one trimpath policy."
+  },
   "root": {
     "markers": {
       "required_dirs": [
@@ -41,7 +47,6 @@
       "dependencies",
       "generated",
       "capability-vocabulary.json",
-      "operator-state.json",
       "repo-contract.json",
       "skip-budgets.json",
       "resources",
@@ -125,13 +130,9 @@
         "kind": "dir",
         "regenerable": true,
         "owner": "control_plane",
-        "cleanup": "storage_manager",
-        "retention": {
-          "max_age": "90d",
-          "max_bytes": "50GiB",
-          "keep_count": 10,
-          "protect_active": true
-        }
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Shared managed-service and scenario artifact root. Entries include live resource executables and independently-owned release artifacts; generic age/size cleanup cannot prove an executable is unused. Reclaim requires the owning provider's liveness and lease evidence."
       },
       "backups": {
         "path": "backups",
@@ -226,6 +227,15 @@
         "protected": true,
         "cleanup": "never"
       },
+      "plan_artifacts": {
+        "path": "plan-artifacts",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "plan-manager",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Plan source material and execution evidence referenced by durable plans. Plan Manager exposes this existing home location during authoring; relocation preserves citations and evidence."
+      },
       "processes": {
         "path": "processes",
         "kind": "dir",
@@ -301,6 +311,40 @@
       "scenario_secrets": "scenarios/{scenario}/secrets.json",
       "project_state": "state/projects/{project_key}",
       "test_runs_scenario": "test-runs/{scenario}"
+    }
+  },
+  "storage": {
+    "roots": [
+      { "id": "go-work-dirs", "root": "$VROOLI_HOME/tmp/go-work", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "rationale": "policy: bounded Go work directories are disposable after six hours" },
+      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "conditional", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs remain in use between compile, link and vet without continuously open handles. External deletion requires tool-owner build-use or quiescence proof, unavailable to the generic provider; retention budgets do not authorize deletion. Leave trimming to Go until owner-coordinated reclamation exists." },
+      { "id": "uv-cache", "root": "$USER_HOME/.cache/uv", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos"], "tool_prune_command": ["uv", "cache", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded working-set share for a reproducible Python cache" },
+      { "id": "huggingface-cache", "root": "$USER_HOME/.cache/huggingface/hub", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "model_pin", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded downloadable model cache; pinned models require a future lease-aware provider" },
+      { "id": "playwright-cache", "root": "$USER_HOME/.cache/ms-playwright", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded browser installation cache" },
+      { "id": "go-module-cache", "root": "$USER_HOME/go/pkg/mod", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "30GiB", "protect": ["cache/lock"], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded module cache; missing modules are restored by the toolchain" },
+      { "id": "pnpm-store", "root": "$USER_HOME/.local/share/pnpm/store", "class": "cache", "tier": "regenerable", "max_age": "60d", "max_bytes": "6GiB", "protect": ["lock.yaml"], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "tool_prune_command": ["pnpm", "store", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded pnpm content-addressed store; packages are restored by the package manager" },
+      { "id": "homebrew-cache", "root": "$USER_HOME/Library/Caches/Homebrew", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["macos"], "tool_prune_command": ["brew", "cleanup"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: Homebrew downloads and old formula artifacts are reproducible; macOS-only" },
+      { "id": "windows-temp", "root": "$USER_HOME/AppData/Local/Temp", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["windows"], "rationale": "policy: user-scoped temporary files are disposable after six hours; active handles remain protected" },
+      { "id": "winget-packages-cache", "root": "$USER_HOME/AppData/Local/Microsoft/WinGet/Packages", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "12GiB", "protect": [], "lease_check": "open_handle", "platforms": ["windows"], "tool_prune_command": ["winget", "cache", "clean"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: WinGet package cache is reproducible; Windows-only" },
+      { "id": "scenario-desktop-staging", "root": "$VROOLI_HOME/cache/vrooli/scenario-to-desktop/staging", "class": "cache", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "20GiB", "protect": ["*/.building"], "lease_check": "lease_file", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "Owner enforces staging retention from its storage declaration; pipeline and desktop-session state are required to protect live bundles." },
+      { "id": "browser-recordings", "root": "$VROOLI_HOME/data/vrooli/browser-automation-studio/recordings", "class": "data", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "150GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "browser-captures", "root": "$VROOLI_HOME/data/vrooli/browser-automation-studio/captures", "class": "data", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "40GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "web-console-sessions", "root": "$VROOLI_HOME/state/vrooli/web-console/sessions", "class": "state", "tier": "safe_with_owner", "max_age": "30d", "max_bytes": "60GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "test-runs", "root": "$VROOLI_HOME/test-runs", "class": "test_runs", "tier": "safe_with_owner", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] }
+    ],
+    "recovery": {
+      "free_space_target_percent": 15,
+      "floor_bytes": 10737418240,
+      "bands": {
+        "warning": 80,
+        "high": 90,
+        "critical": 95
+      },
+      "debounce_ticks": 2,
+      "cooldown_seconds": 1800,
+      "fast_fill_percent": 5,
+      "hot_writer_default_bytes_per_hour": 21474836480,
+      "rate_window_samples": 6,
+      "sample_interval_seconds": 60
     }
   },
   "scenario": {

@@ -94,6 +94,38 @@ class IngestMetricSampleResponse(_message.Message):
     accepted: bool
     def __init__(self, sample_id: _Optional[str] = ..., accepted: _Optional[bool] = ...) -> None: ...
 
+class MetricReading(_message.Message):
+    __slots__ = ("metric", "value", "state", "sample_count", "last_observed_at")
+    METRIC_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LAST_OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    metric: str
+    value: float
+    state: str
+    sample_count: int
+    last_observed_at: str
+    def __init__(self, metric: _Optional[str] = ..., value: _Optional[float] = ..., state: _Optional[str] = ..., sample_count: _Optional[int] = ..., last_observed_at: _Optional[str] = ...) -> None: ...
+
+class GetDraftMetricsRequest(_message.Message):
+    __slots__ = ("draft_id", "stale_after_days")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    STALE_AFTER_DAYS_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    stale_after_days: int
+    def __init__(self, draft_id: _Optional[str] = ..., stale_after_days: _Optional[int] = ...) -> None: ...
+
+class GetDraftMetricsResponse(_message.Message):
+    __slots__ = ("draft_id", "has_measurements", "readings")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    HAS_MEASUREMENTS_FIELD_NUMBER: _ClassVar[int]
+    READINGS_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    has_measurements: bool
+    readings: _containers.RepeatedCompositeFieldContainer[MetricReading]
+    def __init__(self, draft_id: _Optional[str] = ..., has_measurements: _Optional[bool] = ..., readings: _Optional[_Iterable[_Union[MetricReading, _Mapping]]] = ...) -> None: ...
+
 class Remediation(_message.Message):
     __slots__ = ("id", "publish_record_id", "kind", "status", "note", "created_at", "resolved_at")
     ID_FIELD_NUMBER: _ClassVar[int]

@@ -155,6 +155,11 @@ type RunReportService interface {
 	BuildRunReport(context.Context, uuid.UUID) (*runreport.RunReport, error)
 }
 
+// RunAccountingService reads one run's metered usage for reservation settlement.
+type RunAccountingService interface {
+	RunAccounting(context.Context, uuid.UUID) (RunAccounting, error)
+}
+
 type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, error)
 	Episodes(context.Context, uuid.UUID) ([]runsignal.FrictionEpisode, error)
@@ -203,6 +208,7 @@ type HandlerServices struct {
 	IdentityService
 	DelegationService
 	RunReportService
+	RunAccountingService
 	InvocationFactService
 	DurabilityService
 	FindingsService
@@ -230,6 +236,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		IdentityService:              orchestrator,
 		DelegationService:            orchestrator,
 		RunReportService:             orchestrator,
+		RunAccountingService:         orchestrator,
 		InvocationFactService:        orchestrator,
 		DurabilityService:            orchestrator,
 		FindingsService:              orchestrator,

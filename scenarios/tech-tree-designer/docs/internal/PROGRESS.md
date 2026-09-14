@@ -157,8 +157,8 @@ measures-adoption, debugging and Memory skills were resolved through the registr
 | Operation argument syntax | Collapse | CLI already owns syntax | TTD CLI help/manifest | Stale copied flags |
 | Bounded diagnostic collection | Collapse | Repeated joins belong in the program | tech-tree-designer.setpoint-read | Child failure must remain visible |
 | Generic proposal versus proto publication | Keep | Safety and scope | Usage role boundary | Accidental canonical publication |
-| Evidence selection and repair authority | Keep | Judgment and ownership | Shared development contract | False acceptance or unauthorized scope |
-| Per-repair approval queue | Delete | Contradicts authorized iterative development | Shared development contract | Reintroducing a queue for every local repair |
+| Evidence selection and repair authority | Keep | Judgment and ownership | Shared development grant model (`docs/agent-system/SCENARIO_DEVELOPMENT.md`) | False acceptance or unauthorized scope |
+| Per-repair approval queue | Delete | Contradicts authorized iterative development | Shared development grant model (`docs/agent-system/SCENARIO_DEVELOPMENT.md`) | Reintroducing a queue for every local repair |
 
 #### Recommendations and notes
 

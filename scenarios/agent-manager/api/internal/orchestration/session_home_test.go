@@ -63,4 +63,27 @@ func TestPrepareCodecSessionHome_PersistsCodexRolloutAcrossTurns(t *testing.T) {
 	if _, err := os.Stat(rollout); err != nil {
 		t.Fatalf("rollout removed by credential cleanup: %v", err)
 	}
+
+	catalog := filepath.Join(home, "cache", "remote_plugin_catalog", "catalog.json")
+	bundle := filepath.Join(home, "plugins", "cache", "openai-curated-remote", "reference.pptx")
+	for _, path := range []string{catalog, bundle} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("downloaded"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runDir := filepath.Dir(filepath.Dir(home))
+	if err := PruneRunnerCaches(runDir); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{catalog, bundle} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("downloaded cache %s survived pruning: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(rollout); err != nil {
+		t.Fatalf("rollout removed by cache pruning: %v", err)
+	}
 }

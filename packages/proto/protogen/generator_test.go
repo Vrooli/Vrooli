@@ -556,6 +556,192 @@ func TestGeneratePublishesSelectedArtifactAndRejectsSourceDrift(t *testing.T) {
 	}
 }
 
+// Given an older selected artifact and unrelated edits in the compatibility
+// tree, a scoped generation must publish its own outputs without restoring the
+// rest of that snapshot. All tooling, schemas and artifact storage are isolated
+// under t.TempDir; this regression never invokes a real generator subprocess.
+func TestScopedArtifactPublishPreservesUnrelatedWorktreeOutputs(t *testing.T) {
+	for _, tc := range []struct {
+		artifacts, descriptorBuilt bool
+	}{{true, true}, {true, false}, {false, true}, {false, false}} {
+		t.Run(fmt.Sprintf("artifacts=%t/descriptor_built=%t", tc.artifacts, tc.descriptorBuilt), func(t *testing.T) {
+			root := t.TempDir()
+			protoRoot := filepath.Join(root, "packages", "proto")
+			genRoot := filepath.Join(protoRoot, "gen")
+			write := func(path, contents string) {
+				t.Helper()
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, scenario := range []string{"alpha", "beta"} {
+				write(filepath.Join(protoRoot, "schemas", scenario, "v1", "binding.proto"),
+					fmt.Sprintf("syntax = \"proto3\";\npackage %s.v1;\nmessage Binding {}\n", scenario))
+			}
+			write(filepath.Join(protoRoot, "schemas", "consumer", "v1", "binding.proto"),
+				"syntax = \"proto3\";\npackage consumer.v1;\nimport \"alpha/v1/binding.proto\";\nmessage Binding { alpha.v1.Binding alpha = 1; }\n")
+			for _, file := range []string{"buf.yaml", "buf.gen.yaml", "buf.lock"} {
+				write(filepath.Join(protoRoot, file), "version: v2\n")
+			}
+			for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
+				write(filepath.Join(root, "internal", "tools", tool, "tool.json"), `{"version":"test"}`)
+			}
+			generation := 0
+			fakeTool := func(_ context.Context, _ string, name string, args ...string) error {
+				if name != "buf" || len(args) == 0 {
+					return fmt.Errorf("unexpected tool invocation: %s %v", name, args)
+				}
+				switch args[0] {
+				case "generate":
+					generation++
+					scenarios := []string{"alpha", "beta", "consumer"}
+					if generation == 2 {
+						var paths []string
+						for i, arg := range args {
+							if arg == "--path" && i+1 < len(args) {
+								paths = append(paths, args[i+1])
+							}
+						}
+						if !reflect.DeepEqual(paths, []string{"schemas/alpha", "schemas/consumer"}) {
+							return fmt.Errorf("scoped tool paths = %v; want alpha and its reverse dependent consumer", paths)
+						}
+						scenarios = []string{"alpha", "consumer"}
+						// An unrelated edit made after staging must also survive.
+						write(filepath.Join(genRoot, "typescript", "beta", "binding.ts"), "concurrent beta edit")
+					}
+					staged := filepath.Join(argumentAfter(args, "--output"), "gen")
+					for _, scenario := range scenarios {
+						for _, rel := range []string{"go/" + scenario + "/binding.go", "python/" + scenario + "/binding.py", "typescript/" + scenario + "/binding.ts"} {
+							write(filepath.Join(staged, rel), fmt.Sprintf("%s generation %d", scenario, generation))
+						}
+					}
+					if generation == 1 {
+						write(filepath.Join(staged, "go", "alpha", "retired.go"), "retired selected output")
+					}
+					write(filepath.Join(staged, "typescript", "buf", "shared.ts"), fmt.Sprintf("shared generation %d", generation))
+					return nil
+				case "build":
+					output := argumentAfter(args, "-o")
+					if output == "" { // Full-fleet schema-owner validation.
+						return nil
+					}
+					if generation == 2 && !tc.descriptorBuilt {
+						write(output, "partial failed descriptor")
+						return fmt.Errorf("unrelated schema prevents the whole-tree descriptor build")
+					}
+					write(output, fmt.Sprintf("descriptor generation %d", generation))
+					return nil
+				default:
+					return fmt.Errorf("unexpected buf command: %v", args)
+				}
+			}
+			config := Config{RepoRoot: root, ProtoRoot: protoRoot,
+				LockPath: filepath.Join(root, "generator.lock"), StageParent: filepath.Join(root, "packages"),
+				ArtifactRoot: filepath.Join(root, "artifacts"), PublishArtifacts: tc.artifacts, RunTool: fakeTool}
+			generator, err := New(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := generator.Generate(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			preserved := map[string]string{
+				"go/beta/binding.go":         "unrelated beta edit",
+				"go/beta/effort.pb.go":       "new unrelated type",
+				"typescript/beta/binding.ts": "concurrent beta edit",
+				"typescript/beta/effort.ts":  "new unrelated TS type",
+				"manifests/beta.lock.json":   "unrelated beta manifest",
+				"typescript/buf/other.ts":    "unmaterialized shared type",
+				"typescript/package.json":    "{\"name\":\"fixture-types\"}",
+			}
+			for rel, contents := range preserved {
+				write(filepath.Join(genRoot, rel), contents)
+			}
+			write(filepath.Join(genRoot, "typescript", "beta", "binding.ts"), "beta edit before staging")
+			untouched := filepath.Join(genRoot, "go", "beta", "binding.go")
+			before, err := os.Stat(untouched)
+			if err != nil {
+				t.Fatal(err)
+			}
+			deleted := filepath.Join(genRoot, "python", "beta", "binding.py")
+			if err := os.Remove(deleted); err != nil {
+				t.Fatal(err)
+			}
+			write(filepath.Join(genRoot, "descriptor", "image.binpb"), "newer unrelated descriptor")
+			config.Scenarios = []string{"alpha"}
+			generator, err = New(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := generator.Generate(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			for rel, want := range preserved {
+				if got, err := os.ReadFile(filepath.Join(genRoot, rel)); err != nil || string(got) != want {
+					t.Errorf("unrelated output %s = %q, err=%v; want %q", rel, got, err, want)
+				}
+			}
+			if _, err := os.Stat(deleted); !os.IsNotExist(err) {
+				t.Errorf("unrelated deleted output was restored: %v", err)
+			}
+			if after, err := os.Stat(untouched); err != nil || !os.SameFile(before, after) || !after.ModTime().Equal(before.ModTime()) {
+				t.Errorf("unrelated output was replaced or touched: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(genRoot, "go", "alpha", "retired.go")); !os.IsNotExist(err) {
+				t.Errorf("retired selected output was not pruned: %v", err)
+			}
+			for _, scenario := range []string{"alpha", "consumer"} {
+				for _, rel := range []string{"go/" + scenario + "/binding.go", "python/" + scenario + "/binding.py", "typescript/" + scenario + "/binding.ts"} {
+					if got, err := os.ReadFile(filepath.Join(genRoot, rel)); err != nil || string(got) != scenario+" generation 2" {
+						t.Errorf("selected output %s = %q, err=%v; want %s generation 2", rel, got, err, scenario)
+					}
+				}
+			}
+			if got, err := os.ReadFile(filepath.Join(genRoot, "typescript", "buf", "shared.ts")); err != nil || string(got) != "shared generation 2" {
+				t.Errorf("selected shared import = %q, err=%v; want shared generation 2", got, err)
+			}
+			wantDescriptor := "newer unrelated descriptor"
+			if tc.descriptorBuilt {
+				wantDescriptor = "descriptor generation 2"
+			}
+			if got, err := os.ReadFile(filepath.Join(genRoot, "descriptor", "image.binpb")); err != nil || string(got) != wantDescriptor {
+				t.Errorf("descriptor = %q, err=%v; want %q", got, err, wantDescriptor)
+			}
+			if tc.artifacts {
+				store, err := NewArtifactStore(config.ArtifactRoot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				selected, err := store.Resolve(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer selected.Close()
+				wantDescriptor = "descriptor generation 1"
+				if tc.descriptorBuilt {
+					wantDescriptor = "descriptor generation 2"
+				}
+				for rel, want := range map[string]string{
+					"go/alpha/binding.go":    "alpha generation 2",
+					"go/consumer/binding.go": "consumer generation 2",
+					"go/beta/binding.go":     "beta generation 1",
+					"descriptor/image.binpb": wantDescriptor,
+				} {
+					if got, err := os.ReadFile(filepath.Join(selected.GenRoot(), rel)); err != nil || string(got) != want {
+						t.Errorf("immutable artifact output %s = %q, err=%v; want %q", rel, got, err, want)
+					}
+				}
+				if _, err := os.Stat(filepath.Join(selected.GenRoot(), "go", "alpha", "retired.go")); !os.IsNotExist(err) {
+					t.Errorf("retired selected output remained in the artifact: %v", err)
+				}
+			}
+		})
+	}
+}
+
 func TestBufCommandArgsUseExtendedBoundedTimeout(t *testing.T) {
 	args := bufCommandArgs("generate", "--output", "/tmp/stage")
 	want := []string{"generate", "--timeout", "15m0s", "--output", "/tmp/stage"}

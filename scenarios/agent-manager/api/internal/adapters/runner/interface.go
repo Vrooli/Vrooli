@@ -544,6 +544,15 @@ type TranscriptBillingSetter interface {
 	SetTranscriptBilling(domain.BillingSnapshot)
 }
 
+// TranscriptInterruptedTurnFinalizer closes the final turn of a transcript whose
+// harness was stopped before it wrote its own turn boundary. It returns that
+// turn's usage receipt only when the transcript proves no model request was
+// outstanding when it ended; otherwise ok is false and usage stays unknown.
+// Call it once, after every line has been parsed with the same parser.
+type TranscriptInterruptedTurnFinalizer interface {
+	FinalizeInterruptedTurn(runID uuid.UUID, at time.Time) (events []*domain.RunEvent, ok bool)
+}
+
 // BillingStateSetter supplies the immutable billing context stamped for the
 // run to a per-run codec state used by the live decode path. A codec that
 // emits a runner-reported charge must honor this basis: a subscription or

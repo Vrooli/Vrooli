@@ -56,7 +56,7 @@ RECEIPT_OBSERVATION_STATE_DEGRADED: ReceiptObservationState
 RECEIPT_OBSERVATION_STATE_UNAVAILABLE: ReceiptObservationState
 
 class Run(_message.Message):
-    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "commit_hash", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url", "result", "import_source_harness", "import_source_session_id", "imported_at", "goal_id", "label", "label_source", "work_references", "subject", "harness_kind", "harness_session_id")
+    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "commit_hash", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url", "result", "import_source_harness", "import_source_session_id", "imported_at", "goal_id", "label", "label_source", "work_references", "subject", "harness_kind", "harness_session_id", "goal_delivery", "terminal_class", "stop_reason", "last_handoff")
     ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -108,6 +108,10 @@ class Run(_message.Message):
     SUBJECT_FIELD_NUMBER: _ClassVar[int]
     HARNESS_KIND_FIELD_NUMBER: _ClassVar[int]
     HARNESS_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    GOAL_DELIVERY_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_CLASS_FIELD_NUMBER: _ClassVar[int]
+    STOP_REASON_FIELD_NUMBER: _ClassVar[int]
+    LAST_HANDOFF_FIELD_NUMBER: _ClassVar[int]
     id: str
     task_id: str
     agent_profile_id: str
@@ -159,7 +163,11 @@ class Run(_message.Message):
     subject: _containers.RepeatedScalarFieldContainer[str]
     harness_kind: str
     harness_session_id: str
-    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., commit_hash: _Optional[str] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., finalization_status: _Optional[_Union[_types_pb2.RunFinalizationStatus, str]] = ..., finalization_error: _Optional[str] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., await_handle: _Optional[_Union[AwaitHandle, _Mapping]] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., web_console_session_id: _Optional[str] = ..., web_console_session_url: _Optional[str] = ..., result: _Optional[_Union[RunResult, _Mapping]] = ..., import_source_harness: _Optional[str] = ..., import_source_session_id: _Optional[str] = ..., imported_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., goal_id: _Optional[str] = ..., label: _Optional[str] = ..., label_source: _Optional[str] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., subject: _Optional[_Iterable[str]] = ..., harness_kind: _Optional[str] = ..., harness_session_id: _Optional[str] = ...) -> None: ...
+    goal_delivery: str
+    terminal_class: str
+    stop_reason: str
+    last_handoff: str
+    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., commit_hash: _Optional[str] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., finalization_status: _Optional[_Union[_types_pb2.RunFinalizationStatus, str]] = ..., finalization_error: _Optional[str] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., await_handle: _Optional[_Union[AwaitHandle, _Mapping]] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., web_console_session_id: _Optional[str] = ..., web_console_session_url: _Optional[str] = ..., result: _Optional[_Union[RunResult, _Mapping]] = ..., import_source_harness: _Optional[str] = ..., import_source_session_id: _Optional[str] = ..., imported_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., goal_id: _Optional[str] = ..., label: _Optional[str] = ..., label_source: _Optional[str] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., subject: _Optional[_Iterable[str]] = ..., harness_kind: _Optional[str] = ..., harness_session_id: _Optional[str] = ..., goal_delivery: _Optional[str] = ..., terminal_class: _Optional[str] = ..., stop_reason: _Optional[str] = ..., last_handoff: _Optional[str] = ...) -> None: ...
 
 class FinalOutputCandidate(_message.Message):
     __slots__ = ("id", "event_id", "sequence", "content", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_tier")
@@ -618,16 +626,18 @@ class Attachment(_message.Message):
     def __init__(self, id: _Optional[str] = ..., file_name: _Optional[str] = ..., content_type: _Optional[str] = ..., file_size: _Optional[int] = ..., storage_path: _Optional[str] = ..., url: _Optional[str] = ...) -> None: ...
 
 class ContinueRunRequest(_message.Message):
-    __slots__ = ("run_id", "message", "attachment_ids", "idempotency_key")
+    __slots__ = ("run_id", "message", "attachment_ids", "idempotency_key", "reinstall_goal")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    REINSTALL_GOAL_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
     idempotency_key: str
-    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    reinstall_goal: bool
+    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., idempotency_key: _Optional[str] = ..., reinstall_goal: _Optional[bool] = ...) -> None: ...
 
 class ContinueRunResponse(_message.Message):
     __slots__ = ("success", "run", "error", "error_code")

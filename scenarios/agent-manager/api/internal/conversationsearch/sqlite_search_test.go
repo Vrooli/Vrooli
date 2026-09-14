@@ -88,7 +88,7 @@ func TestLexicalCandidatesRejectInjectionAsData(t *testing.T) {
 	_, err := repository.LexicalCandidates(context.Background(), CandidateQuery{Query: `' OR 1=1 --`, Limit: 10})
 	require.NoError(t, err)
 	var count int
-	require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM conversation_search_documents`))
+	require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM conversation_search_catalog`))
 	require.Equal(t, 1, count)
 }
 

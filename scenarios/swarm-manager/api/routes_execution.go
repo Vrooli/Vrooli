@@ -68,6 +68,12 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		cfg.GoalRunReader = s.agentSvc
 	}
 	s.executionSvc = execution.NewService(cfg)
+	// Bind hard-coded child-workflow limits to the approved aggregate grant of
+	// the admitted effort that owns the accepted plan. An unowned plan keeps the
+	// documented defaults, so this seam can never weaken an existing guarantee.
+	if effortControl := s.backlogHandler.EffortControlService(); effortControl != nil {
+		s.executionSvc.SetAggregateGrantProvider(effortChildGrantProvider{service: effortControl})
+	}
 	if s.agentActivitySvc != nil {
 		s.executionSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)
 	}
@@ -170,6 +176,28 @@ func baselineEngagementEnabled() bool {
 	default:
 		return false
 	}
+}
+
+// effortChildGrantProvider projects the swarm-manager effort-control aggregate
+// into the execution child-limit seam. It is read-only and never mutates the
+// admitted effort authority.
+type effortChildGrantProvider struct {
+	service *backlog.EffortControlService
+}
+
+func (provider effortChildGrantProvider) AggregateGrantForPlan(ctx context.Context, planID string) (execution.AggregateGrant, bool, error) {
+	if provider.service == nil {
+		return execution.AggregateGrant{}, false, nil
+	}
+	grant, ok, err := provider.service.ChildGrantForPlan(planID)
+	if err != nil || !ok {
+		return execution.AggregateGrant{}, ok, err
+	}
+	return execution.AggregateGrant{
+		MaxConcurrency: grant.MaxConcurrency,
+		MaxRecursion:   grant.MaxRecursion,
+		MaxWaitSeconds: grant.MaxWaitSeconds,
+	}, true, nil
 }
 
 // repoRootFromScenarioRoot derives the repo root from the scenario source path

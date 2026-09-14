@@ -18,6 +18,7 @@ package paths
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -62,6 +63,11 @@ type Roots struct {
 	// ScenariosDir is filepath.Join(RepoRoot, "scenarios"). Used by
 	// discoverScenarioNames to enumerate sibling scenarios.
 	ScenariosDir string
+
+	// PlanArtifacts is the protected operator runtime-home root owned by Plan
+	// Manager. Prompt Manager may expose bounded read-only projections of
+	// declared effort workspaces, but it must not write through this path.
+	PlanArtifacts string
 }
 
 // Resolve constructs production Roots: Config from configDir (already absolute
@@ -98,13 +104,22 @@ func Resolve(configDir string) (Roots, error) {
 	if err != nil {
 		return Roots{}, fmt.Errorf("paths.Resolve: repo root: %w", err)
 	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return Roots{}, fmt.Errorf("paths.Resolve: user home: %w", err)
+	}
+	planArtifacts, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlanArtifacts)
+	if err != nil {
+		return Roots{}, fmt.Errorf("paths.Resolve: plan artifacts root: %w", err)
+	}
 
 	return Roots{
-		Config:       absConfig,
-		RuntimeData:  data,
-		RuntimeCache: cache,
-		RepoRoot:     repoRoot,
-		ScenariosDir: filepath.Join(repoRoot, "scenarios"),
+		Config:        absConfig,
+		RuntimeData:   data,
+		RuntimeCache:  cache,
+		RepoRoot:      repoRoot,
+		ScenariosDir:  filepath.Join(repoRoot, "scenarios"),
+		PlanArtifacts: planArtifacts,
 	}, nil
 }
 
@@ -117,11 +132,12 @@ func RootsForRepoStoreTest(t *testing.T, configDir string) Roots {
 	t.Helper()
 	base := t.TempDir()
 	return Roots{
-		Config:       configDir,
-		RuntimeData:  filepath.Join(base, "data"),
-		RuntimeCache: filepath.Join(base, "cache"),
-		RepoRoot:     filepath.Join(base, "repo"),
-		ScenariosDir: filepath.Join(base, "repo", "scenarios"),
+		Config:        configDir,
+		RuntimeData:   filepath.Join(base, "data"),
+		RuntimeCache:  filepath.Join(base, "cache"),
+		RepoRoot:      filepath.Join(base, "repo"),
+		ScenariosDir:  filepath.Join(base, "repo", "scenarios"),
+		PlanArtifacts: filepath.Join(base, "plan-artifacts"),
 	}
 }
 
@@ -134,11 +150,12 @@ func RootsForTest(t *testing.T) Roots {
 	t.Helper()
 	base := t.TempDir()
 	roots := Roots{
-		Config:       filepath.Join(base, "config"),
-		RuntimeData:  filepath.Join(base, "data"),
-		RuntimeCache: filepath.Join(base, "cache"),
-		RepoRoot:     filepath.Join(base, "repo"),
-		ScenariosDir: filepath.Join(base, "repo", "scenarios"),
+		Config:        filepath.Join(base, "config"),
+		RuntimeData:   filepath.Join(base, "data"),
+		RuntimeCache:  filepath.Join(base, "cache"),
+		RepoRoot:      filepath.Join(base, "repo"),
+		ScenariosDir:  filepath.Join(base, "repo", "scenarios"),
+		PlanArtifacts: filepath.Join(base, "plan-artifacts"),
 	}
 	return roots
 }

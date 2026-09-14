@@ -259,6 +259,60 @@ func TestCancelDefaultWorkflowUsesOriginalUngrantBinding(t *testing.T) {
 	}
 }
 
+// An execution admitted without reviewed limits holds no reservation. When its
+// owner workflow is terminal but never produced complete accounting, the
+// cancellation must finish instead of occupying the lane forever, and it must
+// not record any usage.
+func TestCancelUnreservedFinishesWhenOwnerTerminalWithoutAccounting(t *testing.T) {
+	service, workflow, started, _ := setupPhasedPlanExecution(t, "cancel-unreserved-unknown")
+	if started.WorkflowGrant != nil {
+		t.Fatal("fixture must be admitted without reviewed limits")
+	}
+	correlation := workflowCorrelationFor(t, service, started)
+	workflow.completion = agentmanager.InvocationCompletion{
+		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
+		Status:      domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED,
+		BudgetUsage: &domainpb.WorkflowBudgetUsage{AccountingComplete: false, Tokens: 21},
+	}
+	settled, err := service.Cancel(t.Context(), started.ExecutionID)
+	if err != nil || settled.Status != StatusCanceled || settled.SettledUsage != nil || !strings.Contains(settled.FailureReason, "no reviewed allowance was reserved") {
+		t.Fatalf("unreserved cancellation with a terminal owner stayed pending or invented usage: %+v %v", settled, err)
+	}
+}
+
+// A qualification-era execution can lose its workflow correlation. Without a
+// reservation it may finish once Agent Manager says its recorded run stopped,
+// and never while that run is still live.
+func TestCancelUnreservedWithLostOwnerIdentityWaitsForTerminalRun(t *testing.T) {
+	service, _, started, _ := setupPhasedPlanExecution(t, "cancel-unreserved-orphan")
+	orphan := started
+	orphan.ExecutionID = "orphan-exec"
+	orphan.RunID = "orphan-run"
+	// Like the stuck qualification records: cancellation was requested long
+	// ago, so Cancel re-enters the plan-execution cancellation path.
+	orphan.Status = StatusCancelling
+	orphan.Cancellation = &CancellationStanding{RequestID: "cancel-orphan-exec", RequestedAt: nowRFC3339()}
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.store.Save(append(records, orphan)); err != nil {
+		t.Fatal(err)
+	}
+
+	service.goalRunReader = stubGoalRunReader{terminal: false}
+	pending, err := service.Cancel(t.Context(), orphan.ExecutionID)
+	if err != nil || pending.Status != StatusCancelling || pending.Cancellation == nil || pending.Cancellation.SettledAt != "" {
+		t.Fatalf("a live run released an unreserved cancellation: %+v %v", pending, err)
+	}
+
+	service.goalRunReader = stubGoalRunReader{terminal: true}
+	settled, err := service.Cancel(t.Context(), orphan.ExecutionID)
+	if err != nil || settled.Status != StatusCanceled || settled.SettledUsage != nil || !strings.Contains(settled.FailureReason, "recorded owner run is terminal") {
+		t.Fatalf("terminal run did not finish the orphaned unreserved cancellation: %+v %v", settled, err)
+	}
+}
+
 func TestCancellationCleanupPreservesImmediateRetryBacklogStatus(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "cancel-retry-race")
 	service.agentService = &stubAgentService{}

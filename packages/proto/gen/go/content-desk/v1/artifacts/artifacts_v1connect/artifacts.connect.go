@@ -69,6 +69,9 @@ const (
 	// ArtifactsServiceApproveDraftProcedure is the fully-qualified name of the ArtifactsService's
 	// ApproveDraft RPC.
 	ArtifactsServiceApproveDraftProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/ApproveDraft"
+	// ArtifactsServiceGetDraftCurrentRevisionProcedure is the fully-qualified name of the
+	// ArtifactsService's GetDraftCurrentRevision RPC.
+	ArtifactsServiceGetDraftCurrentRevisionProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetDraftCurrentRevision"
 )
 
 // ArtifactsServiceClient is a client for the vrooli.content_desk.v1.artifacts.ArtifactsService
@@ -86,6 +89,7 @@ type ArtifactsServiceClient interface {
 	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
 	ApproveDraft(context.Context, *connect.Request[artifacts.ApproveDraftRequest]) (*connect.Response[artifacts.ApproveDraftResponse], error)
+	GetDraftCurrentRevision(context.Context, *connect.Request[artifacts.GetDraftCurrentRevisionRequest]) (*connect.Response[artifacts.GetDraftCurrentRevisionResponse], error)
 }
 
 // NewArtifactsServiceClient constructs a client for the
@@ -172,23 +176,30 @@ func NewArtifactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(artifactsServiceMethods.ByName("ApproveDraft")),
 			connect.WithClientOptions(opts...),
 		),
+		getDraftCurrentRevision: connect.NewClient[artifacts.GetDraftCurrentRevisionRequest, artifacts.GetDraftCurrentRevisionResponse](
+			httpClient,
+			baseURL+ArtifactsServiceGetDraftCurrentRevisionProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("GetDraftCurrentRevision")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // artifactsServiceClient implements ArtifactsServiceClient.
 type artifactsServiceClient struct {
-	listDrafts           *connect.Client[artifacts.ListDraftsRequest, artifacts.ListDraftsResponse]
-	createDraft          *connect.Client[artifacts.CreateDraftRequest, artifacts.CreateDraftResponse]
-	updateDraftBody      *connect.Client[artifacts.UpdateDraftBodyRequest, artifacts.UpdateDraftBodyResponse]
-	attachReleasedAsset  *connect.Client[artifacts.AttachReleasedAssetRequest, artifacts.AttachReleasedAssetResponse]
-	listDraftAttachments *connect.Client[artifacts.ListDraftAttachmentsRequest, artifacts.ListDraftAttachmentsResponse]
-	commissionAgentWork  *connect.Client[artifacts.CommissionAgentWorkRequest, artifacts.CommissionAgentWorkResponse]
-	getAgentWorkResult   *connect.Client[artifacts.GetAgentWorkResultRequest, artifacts.GetAgentWorkResultResponse]
-	adoptAgentSuggestion *connect.Client[artifacts.AdoptAgentSuggestionRequest, artifacts.AdoptAgentSuggestionResponse]
-	submitReleaseDraft   *connect.Client[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse]
-	recordReleaseOutcome *connect.Client[artifacts.RecordReleaseOutcomeRequest, artifacts.RecordReleaseOutcomeResponse]
-	transitionDraft      *connect.Client[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse]
-	approveDraft         *connect.Client[artifacts.ApproveDraftRequest, artifacts.ApproveDraftResponse]
+	listDrafts              *connect.Client[artifacts.ListDraftsRequest, artifacts.ListDraftsResponse]
+	createDraft             *connect.Client[artifacts.CreateDraftRequest, artifacts.CreateDraftResponse]
+	updateDraftBody         *connect.Client[artifacts.UpdateDraftBodyRequest, artifacts.UpdateDraftBodyResponse]
+	attachReleasedAsset     *connect.Client[artifacts.AttachReleasedAssetRequest, artifacts.AttachReleasedAssetResponse]
+	listDraftAttachments    *connect.Client[artifacts.ListDraftAttachmentsRequest, artifacts.ListDraftAttachmentsResponse]
+	commissionAgentWork     *connect.Client[artifacts.CommissionAgentWorkRequest, artifacts.CommissionAgentWorkResponse]
+	getAgentWorkResult      *connect.Client[artifacts.GetAgentWorkResultRequest, artifacts.GetAgentWorkResultResponse]
+	adoptAgentSuggestion    *connect.Client[artifacts.AdoptAgentSuggestionRequest, artifacts.AdoptAgentSuggestionResponse]
+	submitReleaseDraft      *connect.Client[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse]
+	recordReleaseOutcome    *connect.Client[artifacts.RecordReleaseOutcomeRequest, artifacts.RecordReleaseOutcomeResponse]
+	transitionDraft         *connect.Client[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse]
+	approveDraft            *connect.Client[artifacts.ApproveDraftRequest, artifacts.ApproveDraftResponse]
+	getDraftCurrentRevision *connect.Client[artifacts.GetDraftCurrentRevisionRequest, artifacts.GetDraftCurrentRevisionResponse]
 }
 
 // ListDrafts calls vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts.
@@ -254,6 +265,12 @@ func (c *artifactsServiceClient) ApproveDraft(ctx context.Context, req *connect.
 	return c.approveDraft.CallUnary(ctx, req)
 }
 
+// GetDraftCurrentRevision calls
+// vrooli.content_desk.v1.artifacts.ArtifactsService.GetDraftCurrentRevision.
+func (c *artifactsServiceClient) GetDraftCurrentRevision(ctx context.Context, req *connect.Request[artifacts.GetDraftCurrentRevisionRequest]) (*connect.Response[artifacts.GetDraftCurrentRevisionResponse], error) {
+	return c.getDraftCurrentRevision.CallUnary(ctx, req)
+}
+
 // ArtifactsServiceHandler is an implementation of the
 // vrooli.content_desk.v1.artifacts.ArtifactsService service.
 type ArtifactsServiceHandler interface {
@@ -269,6 +286,7 @@ type ArtifactsServiceHandler interface {
 	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
 	ApproveDraft(context.Context, *connect.Request[artifacts.ApproveDraftRequest]) (*connect.Response[artifacts.ApproveDraftResponse], error)
+	GetDraftCurrentRevision(context.Context, *connect.Request[artifacts.GetDraftCurrentRevisionRequest]) (*connect.Response[artifacts.GetDraftCurrentRevisionResponse], error)
 }
 
 // NewArtifactsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -350,6 +368,12 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 		connect.WithSchema(artifactsServiceMethods.ByName("ApproveDraft")),
 		connect.WithHandlerOptions(opts...),
 	)
+	artifactsServiceGetDraftCurrentRevisionHandler := connect.NewUnaryHandler(
+		ArtifactsServiceGetDraftCurrentRevisionProcedure,
+		svc.GetDraftCurrentRevision,
+		connect.WithSchema(artifactsServiceMethods.ByName("GetDraftCurrentRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.content_desk.v1.artifacts.ArtifactsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ArtifactsServiceListDraftsProcedure:
@@ -376,6 +400,8 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 			artifactsServiceTransitionDraftHandler.ServeHTTP(w, r)
 		case ArtifactsServiceApproveDraftProcedure:
 			artifactsServiceApproveDraftHandler.ServeHTTP(w, r)
+		case ArtifactsServiceGetDraftCurrentRevisionProcedure:
+			artifactsServiceGetDraftCurrentRevisionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -431,4 +457,8 @@ func (UnimplementedArtifactsServiceHandler) TransitionDraft(context.Context, *co
 
 func (UnimplementedArtifactsServiceHandler) ApproveDraft(context.Context, *connect.Request[artifacts.ApproveDraftRequest]) (*connect.Response[artifacts.ApproveDraftResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) GetDraftCurrentRevision(context.Context, *connect.Request[artifacts.GetDraftCurrentRevisionRequest]) (*connect.Response[artifacts.GetDraftCurrentRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.GetDraftCurrentRevision is not implemented"))
 }

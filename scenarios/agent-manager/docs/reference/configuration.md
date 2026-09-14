@@ -247,7 +247,11 @@ Transcript-tail and resume-after-restart cadence. Drives `Reconciler.startTailer
 | Field | Default | What it controls |
 |---|---|---|
 | `TranscriptTailInterval` | 100ms | How often the recovery tailer polls the transcript file for new lines. |
-| `RunStateRetentionDays` | (operator) | How long completed run state directories are kept on disk. |
+| `RunStateRetentionDays` | 7 | How long terminal (complete, failed, cancelled, unknown) run-state directories are kept on disk. Downloaded runner caches inside them (Codex plugin catalog and curated plugin bundles) are removed one hour after the run ends. |
+| `StaleRunStateRetentionDays` | 30 | How long an untouched `needs_review` run keeps its run-state directory; past it a continuation starts a fresh session. Parked runs are never swept. `0` disables. |
+| `EventRetentionDays` | 30 | Age after which events of non-imported runs with a completed read-model projection are deleted. Events whose run row no longer exists are deleted at the same age. Imported runs are never age-deleted: they are the conversation-recall corpus. |
+| `ImportedToolCompactionDays` | 30 | Age after which imported `tool_call` and `tool_result` payloads are compacted in place to a head and tail excerpt with the original byte count and sha256. Prose is never compacted. Each rewrite queues a conversation-search reindex. `0` disables. |
+| `ImportedToolCompactionMinBytes` | 4096 | Stored payload size above which an imported tool event is compacted; each compacted value keeps a quarter of it at the head and a quarter at the tail. |
 
 ## Scanner
 

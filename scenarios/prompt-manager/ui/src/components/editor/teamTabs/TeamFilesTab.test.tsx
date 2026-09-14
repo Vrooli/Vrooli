@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@/test-utils/renderWithProviders'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import { TeamFilesTab } from './TeamFilesTab'
 import * as teamService from '@/services/teamService'
 
@@ -10,6 +10,8 @@ vi.mock('@/services/teamService', async () => {
     listTeamSharedFiles: vi.fn(),
     getTeamSharedFileContent: vi.fn(),
     setTeamSharedFileContent: vi.fn(),
+    listEffortWorkspaces: vi.fn(),
+    getEffortWorkspaceContent: vi.fn(),
   }
 })
 
@@ -26,6 +28,8 @@ vi.mock('../SkillContentEditor', () => ({
 
 const listTeamSharedFiles = vi.mocked(teamService.listTeamSharedFiles)
 const getTeamSharedFileContent = vi.mocked(teamService.getTeamSharedFileContent)
+const listEffortWorkspaces = vi.mocked(teamService.listEffortWorkspaces)
+const getEffortWorkspaceContent = vi.mocked(teamService.getEffortWorkspaceContent)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -55,5 +59,28 @@ describe('TeamFilesTab isolation (R27)', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('team-file-content')).toHaveValue('team-b-content')
     )
+  })
+
+  it('shows eligible effort files in the same sidebar as team files', async () => {
+    listEffortWorkspaces.mockResolvedValue({
+      teamId: 'team-a',
+      workspaces: [{ effortRef: 'effort:one', slug: 'one', stage: 'intake', files: [{ path: 'README.md', isDir: false, size: 4 }] }],
+      unavailable: [],
+    })
+    getEffortWorkspaceContent.mockResolvedValue({ effortRef: 'effort:one', path: 'README.md', content: 'workspace-read' })
+
+    render(<TeamFilesTab teamId="team-a" showEffortWorkspaces />)
+
+    expect(await screen.findByText('one')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'README.md' }))
+    expect(await screen.findByText('workspace-read')).toBeInTheDocument()
+    expect(getEffortWorkspaceContent).toHaveBeenCalledWith('effort:one', 'README.md')
+  })
+
+  it('does not load effort files for ineligible teams', async () => {
+    render(<TeamFilesTab teamId="standing-team" />)
+
+    await waitFor(() => expect(listEffortWorkspaces).not.toHaveBeenCalled())
+    expect(screen.queryByText('Effort workspaces')).not.toBeInTheDocument()
   })
 })

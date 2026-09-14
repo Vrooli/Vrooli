@@ -251,10 +251,14 @@ type SuiteExecutionRequest struct {
 	AdmissionQueued bool `json:"admissionQueued,omitempty"`
 	// AdmissionResources is populated from selected phase descriptors so the
 	// durable run manager can serialize suites sharing a singleton service.
-	AdmissionResources               []string `json:"admissionResources,omitempty"`
-	RequireGateQuality               bool     `json:"requireGateQuality,omitempty"`
-	CollectionReservationID          string   `json:"collectionReservationId,omitempty"`
-	CollectionReservationMemberCount int      `json:"collectionReservationMemberCount,omitempty"`
+	AdmissionResources []string `json:"admissionResources,omitempty"`
+	RequireGateQuality bool     `json:"requireGateQuality,omitempty"`
+	// ValidationRun marks executions owned by a validation receipt. Validation
+	// evidence must be read-only with respect to tracked scenario inputs, so
+	// finalization snapshots requirements instead of synchronizing them.
+	ValidationRun                    bool   `json:"validationRun,omitempty"`
+	CollectionReservationID          string `json:"collectionReservationId,omitempty"`
+	CollectionReservationMemberCount int    `json:"collectionReservationMemberCount,omitempty"`
 	// RetainForEvidence requests a server-owned expiring lease before the run
 	// starts, preserving calibration measurements through ordinary retention.
 	RetainForEvidence bool   `json:"retainForEvidence,omitempty"`
@@ -1728,6 +1732,17 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 		PhaseDefinitions: planCoverageDefinitions(plan),
 		PhaseResults:     phaseResults,
 		CommandHistory:   history,
+	}
+	if req.ValidationRun {
+		outcome, err := o.requirements.Snapshot(ctx, input)
+		if err != nil {
+			log.Printf("requirements snapshot failed for validation run: %v", err)
+			return nil
+		}
+		if outcome != nil {
+			outcome.SkipReason = "validation run — requirements not updated"
+		}
+		return outcome
 	}
 
 	decision := newRequirementsSyncDecision(cfg, plan, phaseResults)

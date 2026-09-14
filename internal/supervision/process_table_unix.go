@@ -3,6 +3,7 @@
 package supervision
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -15,11 +16,16 @@ import (
 const processStartTableFieldCount = 6
 
 func readNativeProcessTable() (map[int]ProcessInfo, error) {
+	return readNativeProcessTableContext(context.Background())
+}
+
+func readNativeProcessTableContext(ctx context.Context) (map[int]ProcessInfo, error) {
 	env := append(os.Environ(), "LC_ALL=C")
 	output, err := shell.Output(shell.Spec{
-		Name: "ps",
-		Args: []string{"-axo", "pid=,lstart="},
-		Env:  env,
+		Context: ctx,
+		Name:    "ps",
+		Args:    []string{"-axo", "pid=,lstart="},
+		Env:     env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("inspect process start times: %w", err)

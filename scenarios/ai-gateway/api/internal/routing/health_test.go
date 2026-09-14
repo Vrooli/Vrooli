@@ -100,6 +100,112 @@ func TestClassifyProviderError(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	}
 }
 
+func TestClassifyProviderFailurePreservesObservedRecoveryWindow(t *testing.T) {
+	cases := []struct {
+		name       string
+		err        error
+		wantClass  routing.FailureClass
+		wantRetry  string
+		wantReset  string
+		wantSource string
+		wantWindow bool
+	}{
+		{
+			name:       "metered insufficient credits is an account condition",
+			err:        &providers.CommandError{Code: "insufficient_credits", HTTPStatus: 402},
+			wantClass:  routing.FailureInsufficientCredits,
+			wantSource: "http:402",
+		},
+		{
+			name:       "metered rate limit keeps the observed retry-after",
+			err:        &providers.CommandError{Code: "rate_limited", HTTPStatus: 429, RetryAfter: "45"},
+			wantClass:  routing.FailureRateLimited,
+			wantRetry:  "45",
+			wantSource: "http:429",
+			wantWindow: true,
+		},
+		{
+			name:       "metered overload keeps the observed reset",
+			err:        &providers.CommandError{Code: "provider_overloaded", HTTPStatus: 503, ResetAt: "2026-09-13T21:00:00Z"},
+			wantClass:  routing.FailureProviderOverloaded,
+			wantReset:  "2026-09-13T21:00:00Z",
+			wantSource: "http:503",
+			wantWindow: true,
+		},
+		{
+			name:       "raw sentinel still classifies as insufficient credits",
+			err:        providers.ErrInsufficientCredits,
+			wantClass:  routing.FailureInsufficientCredits,
+			wantSource: "provider-command",
+		},
+		{
+			name:       "generic execution error stays generic",
+			err:        &providers.CommandError{Code: "exit_error"},
+			wantClass:  routing.FailureExecution,
+			wantSource: "provider-command",
+		},
+		{
+			name:       "openrouter stream failure after 200 is transient",
+			err:        &providers.CommandError{Code: "stream_failed", HTTPStatus: 200},
+			wantClass:  routing.FailureProviderOverloaded,
+			wantSource: "http:200",
+		},
+		{
+			name:       "openrouter transport failure is unavailable",
+			err:        &providers.CommandError{Code: "unreachable"},
+			wantClass:  routing.FailureUnavailable,
+			wantSource: "provider-command",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := routing.ClassifyProviderFailure(tc.err)
+			require.Equal(t, tc.wantClass, got.Class)
+			require.Equal(t, tc.wantRetry, got.RetryAfter)
+			require.Equal(t, tc.wantReset, got.ResetAt)
+			require.Equal(t, tc.wantSource, got.Source)
+			require.Equal(t, tc.wantWindow, got.HasRecoveryWindow())
+			require.Equal(t, got.Class, routing.ClassifyProviderError(tc.err), "class-only helper must agree")
+		})
+	}
+}
+
+func TestClassifyProviderErrorUnchangedForLegacyCodes(t *testing.T) {
+	require.Equal(t, routing.FailureExecution, routing.ClassifyProviderError(&providers.CommandError{Code: "provider_failed"}))
+	require.Equal(t, routing.FailureExecution, routing.ClassifyProviderError(errors.New("boom")))
+}
+
+func TestBreakerOnProviderFailureRecordsObservedProvenance(t *testing.T) {
+	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second})
+	h := routing.ProviderHealth{Provider: "openrouter", Role: "code.flatrate"}
+
+	h = b.OnProviderFailure(h, routing.ProviderFailure{
+		Class:      routing.FailureRateLimited,
+		HTTPStatus: 429,
+		RetryAfter: "45",
+		Source:     "http:429",
+	}, breakerBaseTime)
+
+	require.Equal(t, routing.FailureRateLimited, h.LastFailureClass)
+	require.Equal(t, 429, h.HTTPStatus)
+	require.Equal(t, "45", h.RetryAfter)
+	require.Empty(t, h.ResetAt)
+	require.Equal(t, "http:429", h.FailureSource)
+	require.Equal(t, routing.BreakerOpen, b.Effective(h, breakerBaseTime))
+
+	// A later failure with no observed window clears the previous provenance
+	// rather than leaving a stale recovery window attached to the new class.
+	h = b.OnProviderFailure(h, routing.ProviderFailure{
+		Class:  routing.FailureExecution,
+		Source: "provider-command",
+	}, breakerBaseTime.Add(time.Minute))
+	require.Equal(t, routing.FailureExecution, h.LastFailureClass)
+	require.Zero(t, h.HTTPStatus)
+	require.Empty(t, h.RetryAfter)
+	require.Empty(t, h.ResetAt)
+	require.Equal(t, "provider-command", h.FailureSource)
+}
+
 func TestSQLHealthRepositoryRoundTrip(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	db := newSchemaDB(t)
 	repo := routing.NewSQLHealthRepository(db)
@@ -116,7 +222,11 @@ func TestSQLHealthRepositoryRoundTrip(t *testing.T) { // [REQ:AIGW-PROVIDER-BREA
 		Kind:                sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
 		State:               routing.BreakerOpen,
 		ConsecutiveFailures: 3,
-		LastFailureClass:    routing.FailureTimeout,
+		LastFailureClass:    routing.FailureRateLimited,
+		HTTPStatus:          429,
+		RetryAfter:          "45",
+		ResetAt:             "2026-07-06T12:01:00Z",
+		FailureSource:       "http:429",
 		LastFailureAt:       breakerBaseTime,
 		CooldownUntil:       breakerBaseTime.Add(30 * time.Second),
 		OpenedAt:            breakerBaseTime,
@@ -130,7 +240,11 @@ func TestSQLHealthRepositoryRoundTrip(t *testing.T) { // [REQ:AIGW-PROVIDER-BREA
 	require.True(t, found)
 	require.Equal(t, routing.BreakerOpen, got.State)
 	require.Equal(t, 3, got.ConsecutiveFailures)
-	require.Equal(t, routing.FailureTimeout, got.LastFailureClass)
+	require.Equal(t, routing.FailureRateLimited, got.LastFailureClass)
+	require.Equal(t, 429, got.HTTPStatus)
+	require.Equal(t, "45", got.RetryAfter)
+	require.Equal(t, "2026-07-06T12:01:00Z", got.ResetAt)
+	require.Equal(t, "http:429", got.FailureSource)
 	require.True(t, got.CooldownUntil.Equal(breakerBaseTime.Add(30*time.Second)))
 	require.Equal(t, int64(1), got.Generation)
 

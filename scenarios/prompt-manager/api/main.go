@@ -41,6 +41,7 @@ import (
 	"prompt-manager/handlers/testing"
 	"prompt-manager/handlers/topics"
 	worldhandlers "prompt-manager/handlers/world"
+	"prompt-manager/internal/effortworkspace"
 	promptmeasures "prompt-manager/internal/measures"
 	"prompt-manager/internal/metrics"
 	localmodules "prompt-manager/internal/modules"
@@ -885,6 +886,9 @@ func main() {
 
 	// Team services
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
+	effortWorkspaceHandlers := effortworkspace.NewHandlers(effortworkspace.New(roots.PlanArtifacts, fileStore.Teams()))
+	v1.HandleFunc("/effort-workspaces", effortWorkspaceHandlers.List).Methods("GET")
+	v1.HandleFunc("/effort-workspaces/content", effortWorkspaceHandlers.Read).Methods("GET")
 	teamHandlers.SetGraphInvalidator(graphIndex)
 	teamHandlers.SetAIIndexer(aiSearchService)
 	// Member-flow (per-member topics.json) routes — declares each member's

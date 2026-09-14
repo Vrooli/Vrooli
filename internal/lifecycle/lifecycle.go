@@ -186,6 +186,9 @@ type lifecycleDeps struct {
 	hostSession             func(context.Context, string) (hostsession.Snapshot, error)
 	ensureRuntimeSupervisor func(context.Context, string, io.Writer, io.Writer) error
 	captureInitiator        func() process.InitiatorInfo
+	readOwnerMaintenance    func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error)
+	verifyOwnerAccounting   func(context.Context, scenario.Scenario, []string) error
+	requireRuntimeAbsent    func(context.Context, maintenance.RuntimeScopeRef) error
 }
 
 type hostProbeDeps struct {
@@ -307,6 +310,9 @@ func defaultGoListJSONContext(parent context.Context, dir string) ([]byte, error
 }
 
 type StartOptions struct {
+	// ownerBootstrap restores an absent execution-owner API without host
+	// cleanup. A failed restoration must not sweep its surviving executors.
+	ownerBootstrap bool
 	// Context carries cancellation from the owning caller through the complete
 	// recursive start graph. Nil preserves the historical background context
 	// for library callers that do not need cancellation.
@@ -349,6 +355,9 @@ type StopOptions struct {
 	// Variant selects which instance to stop. Empty / "live" stops only the
 	// canonical instance and never reaps a sibling shadow (and vice versa).
 	Variant string
+	// maintenanceRevision pins the preflight observation through replacement
+	// preparation. It is never a caller-supplied bypass of the owner read.
+	maintenanceRevision int64
 }
 
 type PhaseOptions struct {
@@ -590,6 +599,14 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	if err != nil {
 		return Result{}, err
 	}
+	item.Variant = opts.Variant
+	var maintenanceRevision int64
+	if opts.stopFirst {
+		maintenanceRevision, err = r.requireOwnerMaintenance(opts.Context, item, 0)
+		if err != nil {
+			return Result{}, err
+		}
+	}
 	treePaths, err := r.startTreeScenarioPaths(item)
 	if err != nil {
 		return Result{}, err
@@ -615,7 +632,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		// Restart semantics: unconditional teardown before the start body,
 		// announced (and rendered) before "starting …" like the historical
 		// stop+start sequence.
-		if err := r.stopLocked(name, StopOptions{Context: opts.Context, Variant: opts.Variant}); err != nil {
+		if err := r.stopLocked(name, StopOptions{Context: opts.Context, Variant: opts.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision}); err != nil {
 			return Result{}, err
 		}
 		if err := r.waitForInstanceReleased(opts.Context, name, opts.Variant); err != nil {
@@ -728,6 +745,19 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			AlreadyRunning:     true,
 		}, nil
 	case decisionStopThenStart:
+		maintenanceRevision, err := r.requireOwnerMaintenance(opts.Context, item, 0)
+		if errors.Is(err, errOwnerAdmissionUnavailable) && item.Slug == "agent-manager" && !observed.View.Authoritative {
+			if err := r.retireAbsentOwner(ctxOrBackground(opts.Context), item, observed.View); err != nil {
+				return Result{}, err
+			}
+			// No Stop, setup-before-teardown, signal or owner-gate exchange:
+			// only positively dead registry bookkeeping was finalized.
+			opts.ownerBootstrap = true
+			break
+		}
+		if err != nil {
+			return Result{}, err
+		}
 		// Running-but-unfit, or a stale registry row whose leftover claims
 		// would collide with a fresh start.
 		r.logDebug("Stopping existing instance before start",
@@ -741,7 +771,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 				return Result{}, err
 			}
 		}
-		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision}); err != nil {
 			return Result{}, err
 		}
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
@@ -791,7 +821,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 			err = errors.Join(err, runtimeErr)
 		}
 		_ = runtimeSession.close()
-		if !cleanupOnError {
+		if !cleanupOnError || opts.ownerBootstrap {
 			return
 		}
 		// Rollback is intentionally scoped to the scenario currently being started.
@@ -815,7 +845,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 	}
 
-	env, err := r.prepareScenarioEnvironment(ctx, item, runtimeSession)
+	env, err := r.prepareScenarioEnvironmentWithCleanup(ctx, item, runtimeSession, !opts.ownerBootstrap)
 	cleanupOnError = true
 	if err != nil {
 		return Result{}, err
@@ -1016,8 +1046,14 @@ func credentialGapCounts(gaps []resourceenv.MissingCredential) (required, option
 }
 
 func (r *Runner) prepareScenarioEnvironment(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
-	if err := r.cleanupFixedPortOrphans(item); err != nil {
-		return ports.Environment{}, err
+	return r.prepareScenarioEnvironmentWithCleanup(ctx, item, runtimeSession, true)
+}
+
+func (r *Runner) prepareScenarioEnvironmentWithCleanup(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession, cleanup bool) (ports.Environment, error) {
+	if cleanup {
+		if err := r.cleanupFixedPortOrphans(item); err != nil {
+			return ports.Environment{}, err
+		}
 	}
 
 	if ctx == nil {
@@ -1135,6 +1171,16 @@ func (r *Runner) StopContext(ctx context.Context, name string, opts StopOptions)
 // itself called under the Start/Restart lock) and by Restart.
 func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
+	if name == "agent-manager" {
+		item, err := r.loadScenario(name, opts.CustomPath)
+		if err != nil {
+			return err
+		}
+		item.Variant = opts.Variant
+		if _, err := r.requireOwnerMaintenance(opts.Context, item, opts.maintenanceRevision); err != nil {
+			return err
+		}
+	}
 	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})
 	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
 	if err := r.cleanupScenarioRuntimeWithRegistryContext(opts.Context, name, opts.Variant, opts.CustomPath, true, true); err != nil {

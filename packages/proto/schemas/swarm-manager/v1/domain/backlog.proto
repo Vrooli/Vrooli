@@ -160,10 +160,13 @@ message BacklogItem {
   // Independently settleable definitions of done for this item.
   repeated shared.BacklogCriterion acceptance_criteria = 30;
 
-  // Plan execution strategy. The strategy selects how the canonical plan is
-  // executed; it does not create a second backlog work type. Empty means the
-  // default phased-plan-drain strategy.
-  optional string execution_strategy = 31;
+  // Execution mode. The mode selects how the canonical plan is executed
+  // (sliced or goal); it does not create a second backlog work type. Empty
+  // means the default sliced mode.
+  optional string execution_mode = 31;
+
+  // Operator note rendered verbatim into the worker prompt / goal message.
+  optional string operator_note = 38;
 
   // Reviewed aggregate coding allowance. Product-provider spend is separate.
   optional ExecutionLimits execution_limits = 32;

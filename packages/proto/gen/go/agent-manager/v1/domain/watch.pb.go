@@ -147,6 +147,9 @@ const (
 	WatchActionKind_WATCH_ACTION_KIND_STOP        WatchActionKind = 5
 	WatchActionKind_WATCH_ACTION_KIND_ESCALATE    WatchActionKind = 6
 	WatchActionKind_WATCH_ACTION_KIND_WAKE_PARENT WatchActionKind = 7
+	// Separate effort authority for owner-qualified missing-session replacement.
+	// Ordinary watch actions do not implicitly support this operation.
+	WatchActionKind_WATCH_ACTION_KIND_RECOVER_FRESH WatchActionKind = 8
 )
 
 // Enum value maps for WatchActionKind.
@@ -160,16 +163,18 @@ var (
 		5: "WATCH_ACTION_KIND_STOP",
 		6: "WATCH_ACTION_KIND_ESCALATE",
 		7: "WATCH_ACTION_KIND_WAKE_PARENT",
+		8: "WATCH_ACTION_KIND_RECOVER_FRESH",
 	}
 	WatchActionKind_value = map[string]int32{
-		"WATCH_ACTION_KIND_UNSPECIFIED": 0,
-		"WATCH_ACTION_KIND_OBSERVE":     1,
-		"WATCH_ACTION_KIND_NUDGE":       2,
-		"WATCH_ACTION_KIND_PARK":        3,
-		"WATCH_ACTION_KIND_CONTINUE":    4,
-		"WATCH_ACTION_KIND_STOP":        5,
-		"WATCH_ACTION_KIND_ESCALATE":    6,
-		"WATCH_ACTION_KIND_WAKE_PARENT": 7,
+		"WATCH_ACTION_KIND_UNSPECIFIED":   0,
+		"WATCH_ACTION_KIND_OBSERVE":       1,
+		"WATCH_ACTION_KIND_NUDGE":         2,
+		"WATCH_ACTION_KIND_PARK":          3,
+		"WATCH_ACTION_KIND_CONTINUE":      4,
+		"WATCH_ACTION_KIND_STOP":          5,
+		"WATCH_ACTION_KIND_ESCALATE":      6,
+		"WATCH_ACTION_KIND_WAKE_PARENT":   7,
+		"WATCH_ACTION_KIND_RECOVER_FRESH": 8,
 	}
 )
 
@@ -3694,7 +3699,7 @@ const file_agent_manager_v1_domain_watch_proto_rawDesc = "" +
 	"\x18WATCH_DISPOSITION_SIGNAL\x10\x02\x12\x1e\n" +
 	"\x1aWATCH_DISPOSITION_TERMINAL\x10\x03\x12\"\n" +
 	"\x1eWATCH_DISPOSITION_CURSOR_RESET\x10\x04\x12!\n" +
-	"\x1dWATCH_DISPOSITION_UNAVAILABLE\x10\x05*\x8b\x02\n" +
+	"\x1dWATCH_DISPOSITION_UNAVAILABLE\x10\x05*\xb0\x02\n" +
 	"\x0fWatchActionKind\x12!\n" +
 	"\x1dWATCH_ACTION_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19WATCH_ACTION_KIND_OBSERVE\x10\x01\x12\x1b\n" +
@@ -3703,7 +3708,8 @@ const file_agent_manager_v1_domain_watch_proto_rawDesc = "" +
 	"\x1aWATCH_ACTION_KIND_CONTINUE\x10\x04\x12\x1a\n" +
 	"\x16WATCH_ACTION_KIND_STOP\x10\x05\x12\x1e\n" +
 	"\x1aWATCH_ACTION_KIND_ESCALATE\x10\x06\x12!\n" +
-	"\x1dWATCH_ACTION_KIND_WAKE_PARENT\x10\a*\xc2\x02\n" +
+	"\x1dWATCH_ACTION_KIND_WAKE_PARENT\x10\a\x12#\n" +
+	"\x1fWATCH_ACTION_KIND_RECOVER_FRESH\x10\b*\xc2\x02\n" +
 	"\x10WatchActionState\x12\"\n" +
 	"\x1eWATCH_ACTION_STATE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cWATCH_ACTION_STATE_REQUESTED\x10\x01\x12\x1d\n" +

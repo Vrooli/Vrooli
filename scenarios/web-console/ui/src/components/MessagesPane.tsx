@@ -5,7 +5,7 @@ import { ArrowDown, Search } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { useMessagesViewStore } from "../stores/useMessagesViewStore";
+import { useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
 import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
@@ -641,10 +641,25 @@ export default function MessagesPane({
   }, []);
   const closeMermaidViewer = useCallback(() => { setMermaidViewer(null); }, []);
 
-  // --- Reader: a long reply in full, over the list, which stays mounted ---
-  const [readerEventId, setReaderEventId] = useState<string | null>(null);
+  // --- Reader: a reply in full, in the pane in place of the list, which stays
+  // laid out and live underneath. A live pane's reader outlives a tab switch
+  // (the pane remounts), so it is kept in the store; the archive's is its own.
+  const [archiveReader, setArchiveReader] = useState<OpenReader | null>(null);
+  const storedReader = useMessagesViewStore((state) => (readOnly ? undefined : state.readers[sessionId]));
+  const reader = readOnly ? archiveReader : storedReader ?? null;
+  const setReader = useCallback((next: OpenReader | null) => {
+    if (readOnly) setArchiveReader(next);
+    else useMessagesViewStore.getState().setReader(sessionId, next);
+  }, [readOnly, sessionId]);
+  const readerEventId = reader?.eventId ?? null;
   const readerIndex = readerEventId == null ? undefined : eventIndexById.get(readerEventId);
   const readerEvent = readerIndex == null ? null : events[readerIndex] ?? null;
+  const readerShown = readerEvent != null;
+  const keyboardOpen = useWorkspaceStore((state) => state.keyboardOpen);
+  // Replies past everything the reader has shown arrived while it was open.
+  const newReplyCount = reader == null
+    ? 0
+    : events.filter((candidate) => candidate.role !== "user" && candidate.sequence > reader.seenThrough).length;
   // The reader steps between replies; the operator's own messages are skipped.
   const replyNear = (from: number, direction: -1 | 1): string | null => {
     for (let index = from + direction; index >= 0 && index < events.length; index += direction) {
@@ -658,11 +673,22 @@ export default function MessagesPane({
   const readerFontSize = clampReaderFont(useMessagesViewStore((state) => state.readerFontSize) ?? fontSize);
   const setReaderFontSize = useCallback((size: number) => { useMessagesViewStore.getState().setReaderFontSize(size); }, []);
   const openReader = useCallback((eventId: string) => {
-    if (eventIndexById.has(eventId)) setReaderEventId(eventId);
-  }, [eventIndexById]);
+    if (!eventIndexById.has(eventId)) return;
+    setReader({ eventId, seenThrough: events[events.length - 1]?.sequence ?? 0 });
+  }, [eventIndexById, events, setReader]);
+  const stepReader = (eventId: string) => {
+    const target = events[eventIndexById.get(eventId) ?? -1];
+    if (!reader || !target) return;
+    setReader({ eventId, seenThrough: Math.max(reader.seenThrough, target.sequence) });
+  };
+  // The list and its controls are out of reach while the reader covers them.
+  const controlStripRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    for (const node of [controlStripRef.current, scrollContainerRef.current]) node?.toggleAttribute("inert", readerShown);
+  }, [readerShown]);
   const closeReader = useCallback(() => {
     const eventId = readerEventId;
-    setReaderEventId(null);
+    setReader(null);
     // Return focus to the row the reader showed last; the list did not move.
     if (eventId) {
       requestAnimationFrame(() => {
@@ -671,7 +697,7 @@ export default function MessagesPane({
           ?.focus({ preventScroll: true });
       });
     }
-  }, [readerEventId]);
+  }, [readerEventId, setReader]);
 
   // --- Message actions: the pane owns which row's list is open (one at a time) ---
   const coarsePointer = useTouchControls();
@@ -707,6 +733,8 @@ export default function MessagesPane({
   // Keyboard: j/k move between messages, Enter opens the focused message's
   // actions, Escape closes them. Typing in a field inside the pane is left alone.
   const handleListKeyDown = useCallback((keyEvent: React.KeyboardEvent<HTMLDivElement>) => {
+    // The reader owns the keys while it covers the list.
+    if (readerShown) return;
     const target = keyEvent.target as HTMLElement;
     if (target.closest("input, textarea, select, [contenteditable='true'], [role='menu']")) return;
     // Cmd/Ctrl+K: search this session.
@@ -737,7 +765,7 @@ export default function MessagesPane({
     if (!nextId) return;
     keyEvent.preventDefault();
     focusAndScroll(nextId);
-  }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator]);
+  }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator, readerShown]);
 
   // One action context per message, shared by its row and the reader.
   const actionContextFor = (event: ConversationEvent): MessageActionContext => ({
@@ -778,6 +806,7 @@ export default function MessagesPane({
       className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 pt-1 select-text"
     >
       <div
+        ref={controlStripRef}
         data-testid="messages-control-strip"
         className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
       >
@@ -922,7 +951,7 @@ export default function MessagesPane({
 
       {/* Centred by a full-width row, not a transform: the library button
           resets `transform` on hover and press, which slid it sideways. */}
-      {(newMessageCount > 0 || (!following && events.length > 0)) && (
+      {!readerShown && (newMessageCount > 0 || (!following && events.length > 0)) && (
         <div
           data-testid="msg-bottom-actions"
           className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,var(--wc-safe-bottom,0px))] z-wc-chrome-raised flex justify-center"
@@ -966,14 +995,15 @@ export default function MessagesPane({
 
       {readerEvent && (
         <MessagesReader
-          actionContext={{ ...actionContextFor(readerEvent), onOpenReader: undefined }}
+          actionContext={{ ...actionContextFor(readerEvent), onOpenReader: undefined, onPlayMessage: readOnly ? undefined : onPlayEvent }}
           fontSize={readerFontSize}
           onFontSizeChange={setReaderFontSize}
           coarsePointer={coarsePointer}
+          hideFooter={coarsePointer && keyboardOpen}
           onClose={closeReader}
-          onPlay={readOnly ? undefined : onPlayEvent}
-          onPrev={prevReplyId ? () => { setReaderEventId(prevReplyId); } : undefined}
-          onNext={nextReplyId ? () => { setReaderEventId(nextReplyId); } : undefined}
+          onPrev={prevReplyId ? () => { stepReader(prevReplyId); } : undefined}
+          onNext={nextReplyId ? () => { stepReader(nextReplyId); } : undefined}
+          newReplyCount={newReplyCount}
           onLinkClick={handleMarkdownLinkClick}
           onFileReferenceClick={handleInlineCodeFileClick}
           onMermaidOpen={handleMermaidOpen}

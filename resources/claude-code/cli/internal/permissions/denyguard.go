@@ -7,19 +7,20 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/agentharness"
 )
 
-// The PreToolUse guard is the native matcher paired with every Bash deny rule.
-// It is pure Go on purpose: the previous implementation was a bash script that
-// shelled out to python3, which made the deny hook unavailable on any host
-// without both. Command text is data here — the guard parses and inspects it
-// and never executes it.
+// The PreToolUse guard is Claude Code's entry into the shared agent policy
+// runtime, the same one Codex, OpenCode, and Grok reach through
+// vrooli-policy-runner. Filesystem deletion is decided there by resolved path;
+// the remaining Bash deny patterns are matched here as a native backstop.
+// Command text is data: the guard parses it and never executes it.
 
-// Claude Code's hook contract uses the process exit code as the decision:
-// zero lets the tool call continue, two denies it.
+// Claude Code's hook contract: exit zero continues (optionally with a JSON
+// decision on stdout), exit two denies with stderr as the reason.
 const (
 	GuardExitContinue = 0
 	GuardExitDeny     = 2
@@ -32,37 +33,24 @@ const (
 	defaultGuardLogCommandMax  = 300
 	guardLogMaxBytesEnv        = "VROOLI_HOOK_LOG_MAX_BYTES"
 	guardLogCommandMaxCharsEnv = "VROOLI_HOOK_LOG_CMD_MAX_CHARS"
+	// guardPolicyModeEnv selects the rollout profile, as it does for
+	// vrooli-policy-runner.
+	guardPolicyModeEnv = "VROOLI_AGENT_POLICY_MODE"
 )
 
-// shellPunctuation are the characters tokenized as standalone operators rather
-// than word characters, mirroring POSIX shell lexing.
-const shellPunctuation = ";&|<>()"
+// interactivePermissionModes are the Claude Code modes in which a hook's "ask"
+// reaches a person. In any other mode (bypassPermissions, a headless run, an
+// unknown future mode) nobody would see the prompt, so ask becomes deny.
+var interactivePermissionModes = map[string]bool{"default": true, "acceptEdits": true, "plan": true}
 
-// shellControlOperators are the operators whose presence means the command is
-// compound, so single-command target extraction cannot be trusted.
-var shellControlOperators = map[string]struct{}{
-	";": {}, "&&": {}, "||": {}, "|": {}, "<": {}, ">": {}, "(": {}, ")": {},
-}
-
-var (
-	destructiveCommandPattern = regexp.MustCompile(`(^|\s)(sudo\s+)?(rm|find|truncate)(\s|$)`)
-	shellInterpreterPattern   = regexp.MustCompile(`(^|\s)(bash|sh|zsh)\s+-c(\s|$)`)
-	unresolvedVariablePattern = regexp.MustCompile(`\$\{?[A-Za-z_][A-Za-z0-9_]*\}?`)
-	expandableVariable        = regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*`)
-)
-
-// GuardEnv is the resolved host context a single guard decision reads. It is a
+// GuardEnv is the resolved context a single guard decision reads. It is a
 // value rather than ambient process state so the decision is testable in
 // process and behaves identically when invoked as a hook.
 type GuardEnv struct {
-	// Home is the protected user home directory.
+	// Home resolves home references in native deny patterns.
 	Home string
-	// RepoRoot is the protected source checkout, when one is known.
-	RepoRoot string
-	// EphemeralRoots are the only directories a destructive command may target.
-	EphemeralRoots []string
-	// Lookup resolves environment variables found in a destructive path.
-	Lookup func(string) (string, bool)
+	// Runtime is the shared agent policy runtime that decides the event.
+	Runtime agentharness.Runtime
 	// LogPath is the append-only audit log for hook decisions.
 	LogPath string
 	// LogMaxBytes is the size at which the audit log rotates.
@@ -73,27 +61,22 @@ type GuardEnv struct {
 
 // LoadGuardEnv resolves the guard context from the process environment.
 func LoadGuardEnv() GuardEnv {
-	home := strings.TrimSpace(os.Getenv("HOME"))
-	if home == "" {
-		home, _ = os.UserHomeDir()
+	home, _ := os.UserHomeDir()
+	runtime := agentharness.Runtime{Profile: agentharness.RolloutProfile(strings.ToLower(strings.TrimSpace(os.Getenv(guardPolicyModeEnv))))}
+	if runtime.Profile == "" {
+		runtime.Profile = agentharness.ProfileAdvisory
 	}
-	roots := []string{"/tmp", "/var/tmp"}
-	if temporary := strings.TrimSpace(os.TempDir()); temporary != "" {
-		roots = append(roots, temporary)
-	}
-	for _, extra := range filepath.SplitList(os.Getenv("VROOLI_EPHEMERAL_ROOTS")) {
-		if strings.TrimSpace(extra) != "" {
-			roots = append(roots, extra)
-		}
+	// Without a store the runtime reports that no provider rules apply and the
+	// floor decides alone, which is stricter, never looser.
+	if dir, err := agentharness.DefaultDataDir(); err == nil {
+		runtime.Store = agentharness.NewBundleStore(dir)
 	}
 	return GuardEnv{
-		Home:           home,
-		RepoRoot:       strings.TrimSpace(os.Getenv("VROOLI_ROOT")),
-		EphemeralRoots: roots,
-		Lookup:         os.LookupEnv,
-		LogPath:        filepath.Join(home, ".claude", HookStateDirName, "log"),
-		LogMaxBytes:    positiveEnvInt(guardLogMaxBytesEnv, defaultGuardLogMaxBytes),
-		LogCommandMax:  int(positiveEnvInt(guardLogCommandMaxCharsEnv, defaultGuardLogCommandMax)),
+		Home:          home,
+		Runtime:       runtime,
+		LogPath:       filepath.Join(home, ".claude", HookStateDirName, "log"),
+		LogMaxBytes:   positiveEnvInt(guardLogMaxBytesEnv, defaultGuardLogMaxBytes),
+		LogCommandMax: int(positiveEnvInt(guardLogCommandMaxCharsEnv, defaultGuardLogCommandMax)),
 	}
 }
 
@@ -109,194 +92,85 @@ func positiveEnvInt(name string, fallback int64) int64 {
 	return value
 }
 
-func (e GuardEnv) lookup(name string) (string, bool) {
-	if e.Lookup == nil {
-		return "", false
-	}
-	return e.Lookup(name)
+// HookEvent is the part of a PreToolUse payload the guard reads.
+type HookEvent struct {
+	Command          string
+	WorkingDirectory string
+	PermissionMode   string
 }
 
-// GuardDecision is the outcome of one PreToolUse evaluation.
+// ExtractHookEvent reads a PreToolUse Bash event. The payload is treated
+// strictly as data.
+func ExtractHookEvent(data []byte) (HookEvent, error) {
+	malformed := errors.New("malformed hook input or missing tool_input.command")
+	var payload struct {
+		Cwd            string `json:"cwd"`
+		PermissionMode string `json:"permission_mode"`
+		ToolInput      struct {
+			Command *string `json:"command"`
+		} `json:"tool_input"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return HookEvent{}, malformed
+	}
+	if payload.ToolInput.Command == nil || *payload.ToolInput.Command == "" {
+		return HookEvent{}, malformed
+	}
+	return HookEvent{Command: *payload.ToolInput.Command, WorkingDirectory: payload.Cwd, PermissionMode: payload.PermissionMode}, nil
+}
+
+// GuardDecision is the outcome of one PreToolUse evaluation. Ask continues
+// the call through Claude's own confirmation prompt.
 type GuardDecision struct {
 	Exit   int
+	Ask    bool
 	Reason string
 }
 
 // Denied reports whether the decision stops the tool call.
 func (d GuardDecision) Denied() bool { return d.Exit != GuardExitContinue }
 
-func allowGuard() GuardDecision { return GuardDecision{Exit: GuardExitContinue} }
-
 func denyGuard(reason string) GuardDecision {
 	return GuardDecision{Exit: GuardExitDeny, Reason: reason}
 }
 
-// ExtractHookCommand reads the Bash command text out of a PreToolUse event.
-// The payload is treated strictly as data.
-func ExtractHookCommand(data []byte) (string, error) {
-	malformed := errors.New("malformed hook input or missing tool_input.command")
-	var event struct {
-		ToolInput struct {
-			Command *string `json:"command"`
-		} `json:"tool_input"`
-	}
-	if err := json.Unmarshal(data, &event); err != nil {
-		return "", malformed
-	}
-	if event.ToolInput.Command == nil || *event.ToolInput.Command == "" {
-		return "", malformed
-	}
-	return *event.ToolInput.Command, nil
-}
-
-// EvaluateGuard decides one command. Filesystem deletion is checked by
-// resolved paths first, then the remaining native deny patterns are matched.
-func EvaluateGuard(command string, patterns []string, env GuardEnv) GuardDecision {
-	if decision := evaluateDestructivePaths(command, env); decision.Denied() {
+// EvaluateGuard decides one event: native deny patterns first, then the
+// shared policy runtime.
+func EvaluateGuard(event HookEvent, patterns []string, env GuardEnv) GuardDecision {
+	if decision := evaluateDenyPatterns(event.Command, patterns, env.Home); decision.Denied() {
 		return decision
 	}
-	return evaluateDenyPatterns(command, patterns, env)
-}
-
-func evaluateDestructivePaths(command string, env GuardEnv) GuardDecision {
-	tokens, err := splitShellTokens(command)
+	toolEvent := agentharness.ToolEvent{Runner: "claude-code", Tool: "Bash", Shell: event.Command, WorkingDirectory: event.WorkingDirectory}
+	if event.PermissionMode != "" {
+		toolEvent.Context = map[string]string{"permission_mode": event.PermissionMode}
+	}
+	decision, err := env.Runtime.Evaluate(toolEvent)
 	if err != nil {
-		return denyGuard("malformed shell command")
+		return denyGuard("the agent policy runtime could not evaluate the command: " + err.Error())
 	}
-	destructive := destructiveCommandPattern.MatchString(command)
-	if containsControlOperator(tokens) {
-		if destructive {
-			return denyGuard("compound destructive shell command requires review")
+	switch decision.Action {
+	case agentharness.ActionDeny:
+		return denyGuard(decision.Reason)
+	case agentharness.ActionAsk:
+		if interactivePermissionModes[event.PermissionMode] {
+			return GuardDecision{Exit: GuardExitContinue, Ask: true, Reason: decision.Reason}
 		}
-		return allowGuard()
+		return denyGuard(decision.Reason + " (this session cannot show a confirmation prompt, so the operator must run it)")
 	}
-	if destructive && shellInterpreterPattern.MatchString(command) {
-		return denyGuard("destructive command through a shell interpreter requires review")
-	}
-	if index := tokenIndex(tokens, "rm"); index >= 0 {
-		return checkDestructiveTargets(removeTargets(tokens[index+1:]), "rm has no explicit target", true, env)
-	}
-	if index := tokenIndex(tokens, "find"); index >= 0 && containsToken(tokens[index+1:], "-delete") {
-		return checkDestructiveTargets(leadingOperands(tokens[index+1:]), "find -delete has no explicit root", false, env)
-	}
-	if index := tokenIndex(tokens, "truncate"); index >= 0 {
-		return checkDestructiveTargets(truncateTargets(tokens[index+1:]), "truncate has no explicit target", false, env)
-	}
-	return allowGuard()
+	return GuardDecision{Exit: GuardExitContinue}
 }
 
-func checkDestructiveTargets(targets []string, emptyReason string, rejectGlobs bool, env GuardEnv) GuardDecision {
-	if len(targets) == 0 {
-		return denyGuard(emptyReason)
-	}
-	for _, target := range targets {
-		if rejectGlobs && strings.ContainsAny(target, "*?[") {
-			return denyGuard("destructive path globs require review")
-		}
-		if decision := checkDestructiveTarget(target, env); decision.Denied() {
-			return decision
-		}
-	}
-	return allowGuard()
-}
-
-func checkDestructiveTarget(raw string, env GuardEnv) GuardDecision {
-	value := expandUserHome(expandVariables(raw, env), env.Home)
-	if unresolvedVariablePattern.MatchString(value) {
-		return denyGuard("unresolved environment variable in destructive path")
-	}
-	if !filepath.IsAbs(value) {
-		return denyGuard("destructive path is not absolute")
-	}
-	path := realPath(value)
-	if path == "/" || path == string(filepath.Separator) {
-		return denyGuard("destructive target is a protected root")
-	}
-	for _, protected := range []string{env.Home, env.RepoRoot} {
-		resolved := realPath(protected)
-		if resolved == "" {
-			continue
-		}
-		if path == resolved || isWithin(path, resolved) {
-			return denyGuard("destructive target is a protected root")
-		}
-	}
-	if isDepthOneSystemDirectory(path) {
-		return denyGuard("destructive target is a depth-one system directory")
-	}
-	for _, root := range env.EphemeralRoots {
-		resolved := realPath(root)
-		if resolved == "" {
-			continue
-		}
-		if path != resolved && isWithin(path, resolved) {
-			return allowGuard()
-		}
-	}
-	return denyGuard("destructive target is outside an approved ephemeral root")
-}
-
-// isDepthOneSystemDirectory reports whether the path is a direct child of the
-// filesystem root, such as /etc, which is never an acceptable target.
-func isDepthOneSystemDirectory(path string) bool {
-	return strings.HasPrefix(path, "/") && strings.Count(path, "/") == 1
-}
-
-func isWithin(path, root string) bool {
-	return strings.HasPrefix(path, strings.TrimSuffix(root, string(filepath.Separator))+string(filepath.Separator))
-}
-
-// realPath resolves symlinks without requiring the path to exist, so a target
-// that has not been created yet still resolves through its existing parents.
-func realPath(path string) string {
-	if strings.TrimSpace(path) == "" {
-		return ""
-	}
-	path = filepath.Clean(path)
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	parent := filepath.Dir(path)
-	if parent == path {
-		return path
-	}
-	return filepath.Join(realPath(parent), filepath.Base(path))
-}
-
-func expandVariables(value string, env GuardEnv) string {
-	return expandableVariable.ReplaceAllStringFunc(value, func(match string) string {
-		name := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(match, "$"), "{"), "}")
-		if resolved, ok := env.lookup(name); ok {
-			return resolved
-		}
-		return match
-	})
-}
-
-func expandUserHome(value, home string) string {
-	if home == "" {
-		return value
-	}
-	if value == "~" {
-		return home
-	}
-	if strings.HasPrefix(value, "~/") {
-		return home + value[1:]
-	}
-	return value
-}
-
-func evaluateDenyPatterns(command string, patterns []string, env GuardEnv) GuardDecision {
+func evaluateDenyPatterns(command string, patterns []string, home string) GuardDecision {
 	for _, raw := range patterns {
-		pattern := normalizeDenyPattern(raw, env.Home)
-		if pattern == "" || isPathAwareDenyPattern(pattern) {
+		pattern := normalizeDenyPattern(raw, home)
+		if pattern == "" || isRemovalDenyPattern(pattern) {
 			continue
 		}
 		if matchShellGlob(pattern, command) {
 			return denyGuard("native deny pattern=" + raw)
 		}
 	}
-	return allowGuard()
+	return GuardDecision{Exit: GuardExitContinue}
 }
 
 // normalizeDenyPattern unwraps the Claude `Bash(...)` rule vocabulary and
@@ -313,11 +187,11 @@ func normalizeDenyPattern(raw, home string) string {
 	return pattern
 }
 
-// isPathAwareDenyPattern reports whether a pattern targets a command family
-// already decided by resolved paths. Matching those textually would deny the
-// approved ephemeral cases the path check exists to allow.
-func isPathAwareDenyPattern(pattern string) bool {
-	for _, family := range []string{"rm ", "find ", "truncate "} {
+// isRemovalDenyPattern reports whether a pattern targets a command family the
+// removal engine decides by resolved path. Matching those textually would deny
+// the declared-safe locations the engine exists to allow.
+func isRemovalDenyPattern(pattern string) bool {
+	for _, family := range []string{"rm ", "rmdir ", "unlink ", "shred ", "find ", "truncate "} {
 		if strings.HasPrefix(pattern, family) || strings.HasPrefix(pattern, "sudo "+family) {
 			return true
 		}
@@ -400,167 +274,32 @@ func matchGlobClass(pattern []rune, open int, value rune) (int, bool) {
 	return index + 1, matched != negated
 }
 
-// splitShellTokens lexes command text with POSIX quoting rules. It reports an
-// error for unterminated quotes and dangling escapes so a command that cannot
-// be understood is never treated as understood.
-func splitShellTokens(command string) ([]string, error) {
-	tokens := make([]string, 0, 8)
-	var current strings.Builder
-	started := false
-	flush := func() {
-		if started {
-			tokens = append(tokens, current.String())
-			current.Reset()
-			started = false
-		}
-	}
-	runes := []rune(command)
-	for index := 0; index < len(runes); index++ {
-		char := runes[index]
-		switch {
-		case char == ' ' || char == '\t' || char == '\n' || char == '\r':
-			flush()
-		case strings.ContainsRune(shellPunctuation, char):
-			flush()
-			var operator strings.Builder
-			for index < len(runes) && strings.ContainsRune(shellPunctuation, runes[index]) {
-				operator.WriteRune(runes[index])
-				index++
-			}
-			index--
-			tokens = append(tokens, operator.String())
-		case char == '\'':
-			index++
-			start := index
-			for index < len(runes) && runes[index] != '\'' {
-				index++
-			}
-			if index >= len(runes) {
-				return nil, errors.New("no closing quotation")
-			}
-			current.WriteString(string(runes[start:index]))
-			started = true
-		case char == '"':
-			index++
-			for index < len(runes) && runes[index] != '"' {
-				if runes[index] == '\\' && index+1 < len(runes) && strings.ContainsRune(`"\$`+"`", runes[index+1]) {
-					current.WriteRune(runes[index+1])
-					index += 2
-					continue
-				}
-				current.WriteRune(runes[index])
-				index++
-			}
-			if index >= len(runes) {
-				return nil, errors.New("no closing quotation")
-			}
-			started = true
-		case char == '\\':
-			if index+1 >= len(runes) {
-				return nil, errors.New("no escaped character")
-			}
-			index++
-			current.WriteRune(runes[index])
-			started = true
-		default:
-			current.WriteRune(char)
-			started = true
-		}
-	}
-	flush()
-	return tokens, nil
-}
-
-func containsControlOperator(tokens []string) bool {
-	for _, token := range tokens {
-		if _, ok := shellControlOperators[token]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func containsToken(tokens []string, wanted string) bool {
-	for _, token := range tokens {
-		if token == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-// tokenIndex finds a command by name, accepting an absolute or relative
-// invocation such as /bin/rm.
-func tokenIndex(tokens []string, name string) int {
-	for index, token := range tokens {
-		if token == name || strings.HasSuffix(token, "/"+name) {
-			return index
-		}
-	}
-	return -1
-}
-
-// removeTargets collects rm operands, honouring the `--` end-of-options marker.
-func removeTargets(tokens []string) []string {
-	targets := make([]string, 0, len(tokens))
-	endOptions := false
-	for _, token := range tokens {
-		if !endOptions && token == "--" {
-			endOptions = true
-			continue
-		}
-		if !endOptions && strings.HasPrefix(token, "-") {
-			continue
-		}
-		targets = append(targets, token)
-	}
-	return targets
-}
-
-// leadingOperands collects the paths a find invocation walks, which precede
-// its first predicate.
-func leadingOperands(tokens []string) []string {
-	targets := make([]string, 0, len(tokens))
-	for _, token := range tokens {
-		if strings.HasPrefix(token, "-") {
-			break
-		}
-		targets = append(targets, token)
-	}
-	return targets
-}
-
-// truncateTargets collects truncate operands, skipping the size argument.
-func truncateTargets(tokens []string) []string {
-	targets := make([]string, 0, len(tokens))
-	skip := false
-	for _, token := range tokens {
-		switch {
-		case skip:
-			skip = false
-		case token == "-s" || token == "--size":
-			skip = true
-		case !strings.HasPrefix(token, "-"):
-			targets = append(targets, token)
-		}
-	}
-	return targets
-}
-
 // RunHookGuard performs one PreToolUse decision end to end and returns the
-// process exit code Claude Code reads.
-func RunHookGuard(input io.Reader, stderr io.Writer, patterns []string, env GuardEnv) int {
+// process exit code Claude Code reads. An ask is written to stdout as Claude's
+// structured permission decision.
+func RunHookGuard(input io.Reader, stdout, stderr io.Writer, patterns []string, env GuardEnv) int {
 	data, err := io.ReadAll(input)
 	if err != nil {
 		return refuse(stderr, env, "", "unreadable hook input")
 	}
-	command, err := ExtractHookCommand(data)
+	event, err := ExtractHookEvent(data)
 	if err != nil {
 		return refuse(stderr, env, "", err.Error())
 	}
-	env.appendLog(fmt.Sprintf("%s tool=Bash cmd=%q patterns=%d", guardTimestamp(), env.excerpt(command), len(patterns)))
-	if decision := EvaluateGuard(command, patterns, env); decision.Denied() {
-		return refuse(stderr, env, command, decision.Reason)
+	env.appendLog(fmt.Sprintf("%s tool=Bash cwd=%q mode=%q cmd=%q patterns=%d", guardTimestamp(), event.WorkingDirectory, event.PermissionMode, env.excerpt(event.Command), len(patterns)))
+	decision := EvaluateGuard(event, patterns, env)
+	if decision.Denied() {
+		return refuse(stderr, env, event.Command, decision.Reason)
+	}
+	if decision.Ask {
+		env.appendLog(fmt.Sprintf("%s ASK cmd=%q reason=%q", guardTimestamp(), env.excerpt(event.Command), decision.Reason))
+		if stdout != nil {
+			_ = json.NewEncoder(stdout).Encode(map[string]any{"hookSpecificOutput": map[string]string{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "ask",
+				"permissionDecisionReason": "vrooli agent policy: " + decision.Reason,
+			}})
+		}
 	}
 	return GuardExitContinue
 }
@@ -568,7 +307,7 @@ func RunHookGuard(input io.Reader, stderr io.Writer, patterns []string, env Guar
 func refuse(stderr io.Writer, env GuardEnv, command, reason string) int {
 	env.appendLog(fmt.Sprintf("%s BLOCKED cmd=%q reason=%q", guardTimestamp(), env.excerpt(command), reason))
 	if stderr != nil {
-		fmt.Fprintf(stderr, "vrooli-managed deny rule blocked this command: %s\n", reason)
+		fmt.Fprintf(stderr, "vrooli agent policy blocked this command: %s\n", reason)
 	}
 	return GuardExitDeny
 }

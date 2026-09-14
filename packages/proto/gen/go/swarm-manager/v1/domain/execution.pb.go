@@ -58,8 +58,21 @@ type ExecutionRecord struct {
 	ContinuationChildIds []string `protobuf:"bytes,29,rep,name=continuation_child_ids,json=continuationChildIds,proto3" json:"continuation_child_ids,omitempty"`
 	// Recorded Plan Manager boundary widenings projected into execution scope.
 	ScopeExtensions []*ScopeExtension `protobuf:"bytes,30,rep,name=scope_extensions,json=scopeExtensions,proto3" json:"scope_extensions,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Execution mode (sliced or goal) this record ran under.
+	ExecutionMode *string `protobuf:"bytes,31,opt,name=execution_mode,json=executionMode,proto3,oneof" json:"execution_mode,omitempty"`
+	// Operator note carried from the item/queue request into the worker prompt or
+	// goal message.
+	OperatorNote *string `protobuf:"bytes,32,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
+	// Goal delivery mechanism reported by Agent Manager for a goal execution.
+	GoalDelivery *string `protobuf:"bytes,33,opt,name=goal_delivery,json=goalDelivery,proto3,oneof" json:"goal_delivery,omitempty"`
+	// Typed Agent Manager terminal pair projected onto the execution record.
+	TerminalClass *string `protobuf:"bytes,34,opt,name=terminal_class,json=terminalClass,proto3,oneof" json:"terminal_class,omitempty"`
+	StopReason    *string `protobuf:"bytes,35,opt,name=stop_reason,json=stopReason,proto3,oneof" json:"stop_reason,omitempty"`
+	// Continuation chain ordinals/reason for a resumed child.
+	ResumeOrdinal *int32  `protobuf:"varint,36,opt,name=resume_ordinal,json=resumeOrdinal,proto3,oneof" json:"resume_ordinal,omitempty"`
+	ResumeReason  *string `protobuf:"bytes,37,opt,name=resume_reason,json=resumeReason,proto3,oneof" json:"resume_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -265,6 +278,55 @@ func (x *ExecutionRecord) GetScopeExtensions() []*ScopeExtension {
 		return x.ScopeExtensions
 	}
 	return nil
+}
+
+func (x *ExecutionRecord) GetExecutionMode() string {
+	if x != nil && x.ExecutionMode != nil {
+		return *x.ExecutionMode
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetOperatorNote() string {
+	if x != nil && x.OperatorNote != nil {
+		return *x.OperatorNote
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetGoalDelivery() string {
+	if x != nil && x.GoalDelivery != nil {
+		return *x.GoalDelivery
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetTerminalClass() string {
+	if x != nil && x.TerminalClass != nil {
+		return *x.TerminalClass
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetStopReason() string {
+	if x != nil && x.StopReason != nil {
+		return *x.StopReason
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetResumeOrdinal() int32 {
+	if x != nil && x.ResumeOrdinal != nil {
+		return *x.ResumeOrdinal
+	}
+	return 0
+}
+
+func (x *ExecutionRecord) GetResumeReason() string {
+	if x != nil && x.ResumeReason != nil {
+		return *x.ResumeReason
+	}
+	return ""
 }
 
 // ScopeExtension is an execution-local projection of one Plan Manager
@@ -1616,7 +1678,7 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xa8\r\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xcf\x10\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
@@ -1651,7 +1713,15 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x10selection_reason\x18\x1b \x01(\tH\rR\x0fselectionReason\x88\x01\x01\x12,\n" +
 	"\x0fcontinuation_of\x18\x1c \x01(\tH\x0eR\x0econtinuationOf\x88\x01\x01\x124\n" +
 	"\x16continuation_child_ids\x18\x1d \x03(\tR\x14continuationChildIds\x12Y\n" +
-	"\x10scope_extensions\x18\x1e \x03(\v2..vrooli.swarm_manager.v1.domain.ScopeExtensionR\x0fscopeExtensionsB\n" +
+	"\x10scope_extensions\x18\x1e \x03(\v2..vrooli.swarm_manager.v1.domain.ScopeExtensionR\x0fscopeExtensions\x12*\n" +
+	"\x0eexecution_mode\x18\x1f \x01(\tH\x0fR\rexecutionMode\x88\x01\x01\x12(\n" +
+	"\roperator_note\x18  \x01(\tH\x10R\foperatorNote\x88\x01\x01\x12(\n" +
+	"\rgoal_delivery\x18! \x01(\tH\x11R\fgoalDelivery\x88\x01\x01\x12*\n" +
+	"\x0eterminal_class\x18\" \x01(\tH\x12R\rterminalClass\x88\x01\x01\x12$\n" +
+	"\vstop_reason\x18# \x01(\tH\x13R\n" +
+	"stopReason\x88\x01\x01\x12*\n" +
+	"\x0eresume_ordinal\x18$ \x01(\x05H\x14R\rresumeOrdinal\x88\x01\x01\x12(\n" +
+	"\rresume_reason\x18% \x01(\tH\x15R\fresumeReason\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\r\n" +
@@ -1668,7 +1738,14 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0e_actual_runnerB\x0f\n" +
 	"\r_actual_modelB\x13\n" +
 	"\x11_selection_reasonB\x12\n" +
-	"\x10_continuation_ofJ\x04\b\b\x10\tJ\x04\b\x13\x10\x17\"w\n" +
+	"\x10_continuation_ofB\x11\n" +
+	"\x0f_execution_modeB\x10\n" +
+	"\x0e_operator_noteB\x10\n" +
+	"\x0e_goal_deliveryB\x11\n" +
+	"\x0f_terminal_classB\x0e\n" +
+	"\f_stop_reasonB\x11\n" +
+	"\x0f_resume_ordinalB\x10\n" +
+	"\x0e_resume_reasonJ\x04\b\b\x10\tJ\x04\b\x13\x10\x17\"w\n" +
 	"\x0eScopeExtension\x12\x14\n" +
 	"\x05paths\x18\x01 \x03(\tR\x05paths\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1f\n" +

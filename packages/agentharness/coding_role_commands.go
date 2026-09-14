@@ -22,6 +22,7 @@ type codingRoleResponse struct {
 	Fallbacks      []string                       `json:"fallbacks,omitempty"`
 	Description    string                         `json:"description"`
 	Capabilities   []string                       `json:"capabilities"`
+	ExcludedModels []string                       `json:"excluded_models,omitempty"`
 	Provenance     agentcatalog.CatalogProvenance `json:"provenance"`
 	Enforcement    EnforcementPosture             `json:"enforcement"`
 	PolicyPath     string                         `json:"policy_path"`
@@ -199,7 +200,47 @@ func responseFor(cfg CodingPolicyConfig, catalog CodingRoleCatalog, role string,
 		copy := *r.Challenger
 		challenger = &copy
 	}
-	return codingRoleResponse{SchemaVersion: CodingRolePolicySchemaVersion, Runner: catalog.Runner, Role: role, Model: r.Model, CanonicalModel: r.CanonicalModel, Fallbacks: append([]string(nil), r.Fallbacks...), Description: r.Description, Capabilities: append([]string(nil), r.Capabilities...), Provenance: catalog.Provenance, Enforcement: cfg.Posture, PolicyPath: cfg.CatalogPath, PolicyDigest: digest(data), Billing: billing, Challenger: challenger}
+	return codingRoleResponse{SchemaVersion: CodingRolePolicySchemaVersion, Runner: catalog.Runner, Role: role, Model: r.Model, CanonicalModel: r.CanonicalModel, Fallbacks: append([]string(nil), r.Fallbacks...), Description: r.Description, Capabilities: append([]string(nil), r.Capabilities...), ExcludedModels: resolvedExcludedModels(catalog), Provenance: catalog.Provenance, Enforcement: cfg.Posture, PolicyPath: cfg.CatalogPath, PolicyDigest: digest(data), Billing: billing, Challenger: challenger}
+}
+
+// resolvedExcludedModels includes both configured spellings and the resource's
+// canonical aliases. Agent Manager can therefore fence an explicit provider
+// model spelling without owning or guessing the resource vocabulary.
+func resolvedExcludedModels(catalog CodingRoleCatalog) []string {
+	seen := make(map[string]struct{}, len(catalog.ExcludedModels))
+	result := make([]string, 0, len(catalog.ExcludedModels)*2)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		result = append(result, value)
+	}
+	for _, excluded := range catalog.ExcludedModels {
+		add(excluded)
+	}
+	aliasKeys := make([]string, 0, len(catalog.ModelAliases))
+	for alias := range catalog.ModelAliases {
+		aliasKeys = append(aliasKeys, alias)
+	}
+	sort.Strings(aliasKeys)
+	for _, excluded := range catalog.ExcludedModels {
+		for _, alias := range aliasKeys {
+			entry := catalog.ModelAliases[alias]
+			if strings.EqualFold(strings.TrimSpace(alias), strings.TrimSpace(excluded)) {
+				add(entry.CanonicalModel)
+			}
+			if strings.EqualFold(strings.TrimSpace(entry.CanonicalModel), strings.TrimSpace(excluded)) {
+				add(alias)
+			}
+		}
+	}
+	return result
 }
 
 func sortedRoles(c CodingRoleCatalog) []string {

@@ -31,6 +31,10 @@ func TestStartCompanionsDormant(t *testing.T) {
 // TestCompanionLifecycle proves start launches + tracks a detached process,
 // start is idempotent while alive, and stop signals it and clears the pidfile.
 func TestCompanionLifecycle(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "original-requester-secret")
+	t.Setenv("OPENCODE_AGENT_TAG", "original-tag")
+	t.Setenv("VROOLI_RUN_ID", "original-run")
+	t.Setenv("RESOURCE_COMPANION_FIXTURE", "retained")
 	dir := t.TempDir()
 	defer withCompanionDir(t, func(string) (string, error) { return dir, nil })()
 
@@ -40,6 +44,18 @@ func TestCompanionLifecycle(t *testing.T) {
 	}
 	pidPath := filepath.Join(dir, "edge.pid")
 	pid, ok := readCompanionPID(pidPath)
+	liveEnv, envErr := process.ReadEnvironment(pid)
+	if envErr != nil {
+		t.Fatal(envErr)
+	}
+	for _, key := range []string{"VROOLI_AGENT_IDENTITY_TOKEN", "OPENCODE_AGENT_TAG", "VROOLI_RUN_ID"} {
+		if liveEnv[key] != "" {
+			t.Errorf("detached companion inherited requester %s", key)
+		}
+	}
+	if liveEnv["RESOURCE_COMPANION_FIXTURE"] != "retained" {
+		t.Fatal("resource environment lost")
+	}
 	if !ok || !process.IsPIDRunning(pid) {
 		t.Fatalf("companion should be running; pidfile ok=%v pid=%d", ok, pid)
 	}

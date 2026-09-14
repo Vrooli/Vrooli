@@ -176,6 +176,15 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvInt("AGENT_MANAGER_STORAGE_ARTIFACT_RETENTION_DAYS"); v > 0 {
 		l.Storage.ArtifactRetentionDays = v
 	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_STALE_RUN_STATE_RETENTION_DAYS"); v > 0 {
+		l.Storage.StaleRunStateRetentionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_DAYS"); v > 0 {
+		l.Storage.ImportedToolCompactionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_MIN_BYTES"); v > 0 {
+		l.Storage.ImportedToolCompactionMinBytes = v
+	}
 }
 
 // =============================================================================

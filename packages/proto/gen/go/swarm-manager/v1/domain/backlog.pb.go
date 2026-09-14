@@ -107,10 +107,12 @@ type BacklogItem struct {
 	PlanAcceptance *PlanAcceptance `protobuf:"bytes,29,opt,name=plan_acceptance,json=planAcceptance,proto3,oneof" json:"plan_acceptance,omitempty"`
 	// Independently settleable definitions of done for this item.
 	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,30,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	// Plan execution strategy. The strategy selects how the canonical plan is
-	// executed; it does not create a second backlog work type. Empty means the
-	// default phased-plan-drain strategy.
-	ExecutionStrategy *string `protobuf:"bytes,31,opt,name=execution_strategy,json=executionStrategy,proto3,oneof" json:"execution_strategy,omitempty"`
+	// Execution mode. The mode selects how the canonical plan is executed
+	// (sliced or goal); it does not create a second backlog work type. Empty
+	// means the default sliced mode.
+	ExecutionMode *string `protobuf:"bytes,31,opt,name=execution_mode,json=executionMode,proto3,oneof" json:"execution_mode,omitempty"`
+	// Operator note rendered verbatim into the worker prompt / goal message.
+	OperatorNote *string `protobuf:"bytes,38,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
 	// Reviewed aggregate coding allowance. Product-provider spend is separate.
 	ExecutionLimits *ExecutionLimits `protobuf:"bytes,32,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
 	// Continuation policy: manual (default) or until-allowance.
@@ -344,9 +346,16 @@ func (x *BacklogItem) GetAcceptanceCriteria() []*shared.BacklogCriterion {
 	return nil
 }
 
-func (x *BacklogItem) GetExecutionStrategy() string {
-	if x != nil && x.ExecutionStrategy != nil {
-		return *x.ExecutionStrategy
+func (x *BacklogItem) GetExecutionMode() string {
+	if x != nil && x.ExecutionMode != nil {
+		return *x.ExecutionMode
+	}
+	return ""
+}
+
+func (x *BacklogItem) GetOperatorNote() string {
+	if x != nil && x.OperatorNote != nil {
+		return *x.OperatorNote
 	}
 	return ""
 }
@@ -969,7 +978,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\x8d\x10\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xbd\x10\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -1004,14 +1013,15 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"R\n" +
 	"lastReview\x88\x01\x01\x12\\\n" +
 	"\x0fplan_acceptance\x18\x1d \x01(\v2..vrooli.swarm_manager.v1.domain.PlanAcceptanceH\vR\x0eplanAcceptance\x88\x01\x01\x12a\n" +
-	"\x13acceptance_criteria\x18\x1e \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x122\n" +
-	"\x12execution_strategy\x18\x1f \x01(\tH\fR\x11executionStrategy\x88\x01\x01\x12_\n" +
-	"\x10execution_limits\x18  \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\rR\x0fexecutionLimits\x88\x01\x01\x12'\n" +
-	"\fcontinuation\x18! \x01(\tH\x0eR\fcontinuation\x88\x01\x01\x12&\n" +
-	"\fscope_policy\x18\" \x01(\tH\x0fR\vscopePolicy\x88\x01\x01\x129\n" +
-	"\x16continuation_halted_at\x18# \x01(\tH\x10R\x14continuationHaltedAt\x88\x01\x01\x129\n" +
-	"\x16continuation_halted_by\x18$ \x01(\tH\x11R\x14continuationHaltedBy\x88\x01\x01\x12C\n" +
-	"\x1bcontinuation_stopped_reason\x18% \x01(\tH\x12R\x19continuationStoppedReason\x88\x01\x01B\f\n" +
+	"\x13acceptance_criteria\x18\x1e \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x12*\n" +
+	"\x0eexecution_mode\x18\x1f \x01(\tH\fR\rexecutionMode\x88\x01\x01\x12(\n" +
+	"\roperator_note\x18& \x01(\tH\rR\foperatorNote\x88\x01\x01\x12_\n" +
+	"\x10execution_limits\x18  \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\x0eR\x0fexecutionLimits\x88\x01\x01\x12'\n" +
+	"\fcontinuation\x18! \x01(\tH\x0fR\fcontinuation\x88\x01\x01\x12&\n" +
+	"\fscope_policy\x18\" \x01(\tH\x10R\vscopePolicy\x88\x01\x01\x129\n" +
+	"\x16continuation_halted_at\x18# \x01(\tH\x11R\x14continuationHaltedAt\x88\x01\x01\x129\n" +
+	"\x16continuation_halted_by\x18$ \x01(\tH\x12R\x14continuationHaltedBy\x88\x01\x01\x12C\n" +
+	"\x1bcontinuation_stopped_reason\x18% \x01(\tH\x13R\x19continuationStoppedReason\x88\x01\x01B\f\n" +
 	"\n" +
 	"_milestoneB\t\n" +
 	"\a_effortB\x0f\n" +
@@ -1024,8 +1034,9 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\f_finding_refB\b\n" +
 	"\x06_staleB\x0e\n" +
 	"\f_last_reviewB\x12\n" +
-	"\x10_plan_acceptanceB\x15\n" +
-	"\x13_execution_strategyB\x13\n" +
+	"\x10_plan_acceptanceB\x11\n" +
+	"\x0f_execution_modeB\x10\n" +
+	"\x0e_operator_noteB\x13\n" +
 	"\x11_execution_limitsB\x0f\n" +
 	"\r_continuationB\x0f\n" +
 	"\r_scope_policyB\x19\n" +

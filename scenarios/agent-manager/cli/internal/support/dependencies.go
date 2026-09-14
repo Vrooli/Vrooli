@@ -19,6 +19,7 @@ type Dependencies struct {
 	PermissionPolicy CommandFunc
 	Settings         CommandFunc
 	Maintenance      CommandFunc
+	Storage          CommandFunc
 	Ops              CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc

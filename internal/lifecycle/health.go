@@ -107,6 +107,20 @@ func (r *Runner) awaitScenarioReadiness(ctx context.Context, item scenario.Scena
 // (that authority lives in the registry); this only evaluates whether the
 // manifest's health checks pass against the bound ports.
 func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryRuntimeView) bool {
+	return r.registryRuntimeBuildCurrent(item, view) && r.isRegistryRuntimeServingHealthy(item, view)
+}
+
+// Source identity is an adoption/freshness obligation, not a failed health
+// probe. Dependency edges must apply their declared freshness policy to it.
+func (r *Runner) registryRuntimeBuildCurrent(item scenario.Scenario, view registryRuntimeView) bool {
+	if view.Instance.BuildIdentity == "" {
+		return true
+	}
+	current, err := scenarioBuildIdentity(item)
+	return err == nil && buildIdentityMatches(view.Instance.BuildIdentity, current)
+}
+
+func (r *Runner) isRegistryRuntimeServingHealthy(item scenario.Scenario, view registryRuntimeView) bool {
 	if !view.Authoritative {
 		return false
 	}
@@ -125,14 +139,6 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 		r.logWarn("Registry runtime owner pid is not alive; a bound port answered by another process would be an orphan squat",
 			logx.AttrScenario, item.Slug, "owner_pid", *pid)
 		return false
-	}
-	if view.Instance.BuildIdentity != "" {
-		current, err := scenarioBuildIdentity(item)
-		if err != nil || !buildIdentityMatches(view.Instance.BuildIdentity, current) {
-			r.logWarn("Registry runtime build identity is stale; refusing healthy reuse", logx.AttrScenario, item.Slug,
-				"served_build_identity", view.Instance.BuildIdentity, "current_build_identity", current)
-			return false
-		}
 	}
 	health := item.Manifest.HealthConfig()
 	if health == nil || len(health.Checks) == 0 {

@@ -275,6 +275,111 @@ message RunConfig {
 
   // Engine-owned completion test for warm plan engagements.
   string until = 28;
+
+  // Creation-time admission record binding the caller's requested settings to
+  // the owner-resolved effective settings and the policy source they came
+  // from. Output-only; create surfaces accept RunConfigOverrides, so callers
+  // never author this directly.
+  RunAdmission admission = 29;
+}
+
+// RunAdmission is the immutable required/effective configuration record written
+// when a run is admitted. It keeps the requested side, the owner-resolved
+// effective side, and the source policy digests in one replay-readable place so
+// a fresh reader never has to consult mutable policy or a transcript to learn
+// what was asked for versus what actually ran.
+message RunAdmission {
+  // Requested side — taken from the caller request before resolution. Empty
+  // means the caller did not request the field.
+  string requested_runner = 1;
+  string requested_model = 2;
+  string requested_role_ref = 3;
+  string requested_effort = 4;
+  google.protobuf.Duration requested_timeout = 5;
+  int32 requested_max_turns = 6;
+  // requested_goal_mode is "until" when the caller supplied a completion test,
+  // otherwise empty.
+  string requested_goal_mode = 7;
+
+  // Owner-resolved effective side — identical to the enclosing RunConfig.
+  string effective_runner = 8;
+  string effective_model = 9;
+  string effective_effort = 10;
+  google.protobuf.Duration effective_timeout = 11;
+  int32 effective_max_turns = 12;
+  string effective_until = 13;
+
+  // Source policy provenance for the selected candidate.
+  string catalog_digest = 14;
+  string policy_digest = 15;
+  string policy_path = 16;
+  string selection_reason = 17;
+
+  // Passed side — the runner-native control arguments the selected codec emits
+  // for the resolved configuration. Empty when the codec was unavailable or
+  // refused the configuration at admission.
+  repeated string passed_control_args = 18;
+  // Human-readable notes on how each canonical control became a native
+  // argument, or why translation was refused.
+  repeated string translation_diagnostics = 19;
+
+  // Runtime side — the concrete runner/runtime version observed for this run.
+  // It is only observable at a live launch, so it stays empty until that
+  // evidence exists; the bounded live qualification probe supplies it. Never
+  // inferred from the requested or passed layers.
+  string runtime_version = 20;
+  // Provider side — the provider's own acknowledgment of the effective runner,
+  // model and reasoning effort, captured from provider evidence during a
+  // bounded live launch. Empty until that evidence exists; it never
+  // substitutes for the requested, effective or passed layers.
+  repeated string provider_acknowledgment = 21;
+
+  // Qualification receipt — the reusable route-keyed evidence record produced
+  // by one bounded live qualification run. Empty until that evidence exists.
+  // A reader must be able to tell "not observed" from "observed and equal", so
+  // an unqualified run never carries a synthesized receipt here.
+  QualificationReceipt receipt = 22;
+}
+
+// QualificationUsage separates provider-reported usage from usage the provider
+// did not report. Unknown usage stays reserved and is never presented as zero.
+message QualificationUsage {
+  // "measured" when the provider reported usage, "unknown-reserved" otherwise.
+  string state = 1;
+  int64 input_tokens = 2;
+  int64 output_tokens = 3;
+  double cost_usd = 4;
+  bool reserved_unknown = 5;
+}
+
+// QualificationReceipt is the reusable route-keyed evidence record produced by
+// one bounded live qualification run. It binds the route and the
+// requested/effective/passed configuration to the observed runtime, provider
+// acknowledgment, operation identity, accepted output and usage. A receipt is
+// evidence, never a launch: an unobserved field stays empty rather than being
+// backfilled from the requested or effective layers.
+message QualificationReceipt {
+  string route = 1;
+  string requested_runner = 2;
+  string requested_model = 3;
+  string requested_role_ref = 4;
+  string requested_effort = 5;
+  string effective_runner = 6;
+  string effective_model = 7;
+  string effective_effort = 8;
+  repeated string passed_control_args = 9;
+  repeated string translation_diagnostics = 10;
+  repeated string provider_acknowledgment = 11;
+  string catalog_digest = 12;
+  string policy_digest = 13;
+  string policy_path = 14;
+  string runtime_version = 15;
+  string run_id = 16;
+  string operation_id = 17;
+  bool accepted_output = 18;
+  QualificationUsage usage = 19;
+  repeated string limitations = 20;
+  google.protobuf.Timestamp captured_at = 21;
 }
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.

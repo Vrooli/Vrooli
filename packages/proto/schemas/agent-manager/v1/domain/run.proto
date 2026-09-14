@@ -220,6 +220,24 @@ message Run {
   // Harness identity supplied when an operator-started session is attached.
   string harness_kind = 51;
   string harness_session_id = 52;
+
+  // Goal delivery mechanism for a goal-mode interactive run. One of
+  // "native_verified" (the harness installed /goal and a goal marker was
+  // observed), "native_unverified" (a native objective was sent but no marker
+  // was observed), "prompt_carried" (no native support; the finish line rode in
+  // the prompt), or empty for a run with no completion objective.
+  string goal_delivery = 54;
+
+  // Typed terminal pair recorded on every terminal run. terminal_class is
+  // "verdict" or "interruption"; stop_reason is one of complete, blocked,
+  // abstained, usage_window, timeout, crash, session_lost. Swarm trusts a
+  // verdict and resumes an interruption.
+  string terminal_class = 55;
+  string stop_reason = 56;
+
+  // LastHandoff is the last structured handoff or assistant message retained
+  // for a resume prompt.
+  string last_handoff = 57;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a
@@ -811,6 +829,11 @@ message ContinueRunRequest {
 
   // Optional replay-safe key for programmatic continuation callers.
   string idempotency_key = 4;
+
+  // Reinstall the harness-native goal before the follow-up message. Set by a
+  // resume that re-adopts an interrupted interactive run so the finish line is
+  // installed again in the same session.
+  bool reinstall_goal = 5;
 }
 
 // ContinueRunResponse contains the result of continuing a run.

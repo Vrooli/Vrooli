@@ -16,6 +16,7 @@ service ClaimsService {
   rpc ExtractClaimProposals(ExtractClaimProposalsRequest) returns (ExtractClaimProposalsResponse);
   rpc ListClaimProposals(ListClaimProposalsRequest) returns (ListClaimProposalsResponse);
   rpc DecideClaimProposal(DecideClaimProposalRequest) returns (DecideClaimProposalResponse);
+  rpc SetClaimQualification(SetClaimQualificationRequest) returns (SetClaimQualificationResponse);
 }
 
 message Claim {
@@ -23,6 +24,21 @@ message Claim {
   string statement = 2;
   string verification_status = 3;
   string kind = 4;
+  // qualification is the reviewed evidence verdict and is distinct from
+  // verification_status, which is the re-runnable check lifecycle. Closed
+  // set: asserted | supported | captured-review-pending | verified | stale.
+  // Empty is reported as asserted. This is how a citation-backed claim that
+  // a reviewer has judged supported (or whose captured artifact still awaits
+  // review) is representable in the ledger.
+  string qualification = 5;
+}
+
+message SetClaimQualificationRequest {
+  string id = 1;
+  string qualification = 2;
+}
+message SetClaimQualificationResponse {
+  Claim claim = 1;
 }
 
 message ListClaimsRequest {}

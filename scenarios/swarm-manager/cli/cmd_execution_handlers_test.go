@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -105,5 +106,36 @@ func TestCmdExecutionGet_RendersDetail(t *testing.T) {
 	}
 	if !strings.Contains(out, "Backlog: fix/beta") || !strings.Contains(out, "Failure: timeout") {
 		t.Errorf("detail body missing: %q", out)
+	}
+}
+
+// A plain cancel sends no body; --write-off sends the operator's decision so
+// the server can finish a reserved cancellation whose usage is unknowable.
+func TestCmdExecutionCancel_WriteOffSendsDecisionBody(t *testing.T) {
+	var gotBodies []string
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/execution/e1/cancel" || r.Method != http.MethodPost {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		raw, _ := io.ReadAll(r.Body)
+		gotBodies = append(gotBodies, string(raw))
+		_, _ = w.Write([]byte(`{"execution":{"execution_id":"e1","status":"canceled"}}`))
+	}))
+	app := newAppT(t)
+	_ = clitest.CaptureStdout(t, func() error { return app.cmdExecutionCancel([]string{"--id", "e1", "--json"}) })
+	_ = clitest.CaptureStdout(t, func() error {
+		return app.cmdExecutionCancel([]string{"--id", "e1", "--write-off", "--actor", "operator", "--reason", "unpriced model", "--json"})
+	})
+	if len(gotBodies) != 2 || strings.Contains(gotBodies[0], "write_off") {
+		t.Fatalf("plain cancel sent a write-off body: %q", gotBodies)
+	}
+	if !strings.Contains(gotBodies[1], `"write_off":true`) || !strings.Contains(gotBodies[1], `"actor":"operator"`) || !strings.Contains(gotBodies[1], `"reason":"unpriced model"`) {
+		t.Fatalf("write-off body = %q", gotBodies[1])
+	}
+	if err := app.cmdExecutionCancel([]string{"--id", "e1", "--write-off", "--actor", "operator"}); err == nil {
+		t.Fatal("write-off without a reason was accepted")
+	}
+	if err := app.cmdExecutionCancel([]string{"--id", "e1", "--reason", "x"}); err == nil {
+		t.Fatal("--reason without --write-off was accepted")
 	}
 }

@@ -34,6 +34,23 @@ type RunStopper interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// AggregateGrant is the effort-wide child-limit projection resolved from the
+// admitted effort revision that owns a canonical plan. A zero field keeps the
+// caller's documented default, so an unresolved or absent effort cannot weaken
+// an existing guarantee.
+type AggregateGrant struct {
+	MaxConcurrency int
+	MaxRecursion   int
+	MaxWaitSeconds int
+}
+
+// AggregateGrantProvider resolves the approved aggregate grant that owns a
+// canonical plan. ok=false means no admitted effort envelope references the
+// plan, so the documented child defaults remain in force.
+type AggregateGrantProvider interface {
+	AggregateGrantForPlan(ctx context.Context, planID string) (AggregateGrant, bool, error)
+}
+
 // RunApprover releases a run held at needs_review, merging its sandbox overlay
 // into the working tree. The Baseline Modes pre-merge hold calls this after the
 // shadow restore point has captured the clean working tree.

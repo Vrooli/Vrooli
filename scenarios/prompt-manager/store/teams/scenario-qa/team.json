@@ -1,26 +1,5 @@
 {
-  "purpose": "domain-stewardship",
-  "lifetime": "standing",
-  "kind": "team",
-  "schemaVersion": 1,
-  "id": "scenario-qa",
-  "displayName": "Scenario QA Team",
-  "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
-  "objectivesServed": [
-    {
-      "id": "I1",
-      "acknowledgedRevision": "0ad42308ee4f"
-    }
-  ],
-  "instrument": {
-    "status": "none",
-    "archetype": "coverage-board",
-    "gapMarker": "2026-08-13 — test-genie, scenario-auditor, scenario-completeness-scoring and tidiness-manager each hold part of the answer and no denominator is authored. Needs an obligation list before an observer is worth building."
-  },
-  "enabled": true,
-  "runtime": {
-    "mode": "multi-process"
-  },
+  "attributionValidFrom": "2026-05-04",
   "coordination": {
     "pattern": "independent",
     "reportingMode": "none",
@@ -34,32 +13,26 @@
       "requireHandoff": true
     }
   },
+  "createdAt": "2026-02-09T12:00:00Z",
+  "displayName": "Scenario QA Team",
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 4
   },
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
+  "id": "scenario-qa",
+  "instrument": {
+    "status": "none",
+    "archetype": "coverage-board",
+    "gapMarker": "2026-08-13 — test-genie, scenario-auditor, scenario-completeness-scoring and tidiness-manager each hold part of the answer and no denominator is authored. Needs an obligation list before an observer is worth building."
   },
-  "revision": 5,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-30T00:00:00Z",
-  "topicCatalog": [
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
+  "objectivesServed": [
     {
-      "prefix": "quality-audit/<scenario-id>/<skill-id>",
-      "status": "live",
-      "purpose": "Judgment-based structural audit finding produced with a registered audit technique."
-    },
-    {
-      "prefix": "bug-inbox/<signal-type>/<slug>",
-      "status": "live",
-      "purpose": "Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator."
-    },
-    {
-      "prefix": "bug-investigation-report/<slug>",
-      "status": "live",
-      "purpose": "Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps."
+      "id": "I1",
+      "acknowledgedRevision": "0ad42308ee4f"
     }
   ],
   "operatingContract": {
@@ -121,24 +94,24 @@
       ]
     },
     "knowledgeTopics": {
-      "quality-audit/<scenario-id>/<skill-id>": {
+      "quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "audit-lens-adoption/<skill-id>": {
+      "audit-lens-adoption/\u003cskill-id\u003e": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": true,
         "retention": "snapshot",
         "comment": "One-time gated adoption assessment for a steer audit-technique lens newly surfaced by the derived rotation query (ADOPTED vs NEEDS-REVIEW). Latest verdict per lens; prevents re-assessing the same lens every heartbeat. Adoption is from the existing catalog only — the auditor never invents a skill."
       },
-      "bug-inbox/<signal-type>/<slug>": {
+      "bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e": {
         "ownerMemberId": "bug-investigator",
         "supersedesPrevious": false,
         "retention": "drained-on-close",
         "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-bug skill. The bug-investigator drains."
       },
-      "bug-investigation-report/<slug>": {
+      "bug-investigation-report/\u003cslug\u003e": {
         "ownerMemberId": "bug-investigator",
         "supersedesPrevious": false,
         "retention": "append-only",
@@ -181,7 +154,7 @@
         }
       },
       "bug-investigator": {
-        "lane": "Drain bug-inbox/* (universal-source — any team may write via the report-bug skill). Apply a registered investigation technique, identify root cause, take the smallest useful action, write a bug-investigation-report/<slug> audit-log entry on close.",
+        "lane": "Drain bug-inbox/* (universal-source — any team may write via the report-bug skill). Apply a registered investigation technique, identify root cause, take the smallest useful action, write a bug-investigation-report/\u003cslug\u003e audit-log entry on close.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -202,7 +175,7 @@
         "safetyCriticalRules": [
           "Do not modify target scenario code directly; investigation produces evidence, not patches.",
           "Do not write to bug-inbox/* (the producer side); the investigator only drains. The constraint is enforced by the topics.json output declarations and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level.",
-          "Close every drained entry with a bug-investigation-report/<slug> audit-log entry — never silently delete a bug-inbox entry."
+          "Close every drained entry with a bug-investigation-report/\u003cslug\u003e audit-log entry — never silently delete a bug-inbox entry."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -252,5 +225,32 @@
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "purpose": "domain-stewardship",
+  "revision": 6,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "topicCatalog": [
+    {
+      "prefix": "quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e",
+      "status": "live",
+      "purpose": "Judgment-based structural audit finding produced with a registered audit technique."
+    },
+    {
+      "prefix": "bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator."
+    },
+    {
+      "prefix": "bug-investigation-report/\u003cslug\u003e",
+      "status": "live",
+      "purpose": "Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps."
+    }
+  ],
+  "updatedAt": "2026-09-14T05:05:59Z"
 }

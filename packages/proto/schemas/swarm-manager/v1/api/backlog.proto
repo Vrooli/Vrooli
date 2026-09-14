@@ -103,13 +103,13 @@ message CreateBacklogItemRequest {
   // Typed, stable acceptance criteria present at item creation.
   repeated shared.BacklogCriterion acceptance_criteria = 19;
 
-  // Optional plan execution strategy. Empty uses the default phased-plan-drain
-  // strategy; adaptive-improvement executes the plan through the governed
-  // self-improvement campaign.
-  optional string execution_strategy = 20;
+  // Optional execution mode (sliced or goal). Empty uses the default sliced
+  // mode.
+  optional string execution_mode = 20;
   optional domain.ExecutionLimits execution_limits = 21;
   optional string continuation = 22;
   optional string scope_policy = 23;
+  optional string operator_note = 24;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -188,11 +188,12 @@ message UpdateBacklogItemRequest {
   // complete criterion list; an empty list explicitly clears it.
   repeated shared.BacklogCriterion acceptance_criteria = 17;
 
-  // Plan execution strategy. Set to the empty string to clear it.
-  optional string execution_strategy = 18;
+  // Execution mode (sliced or goal). Set to the empty string to clear it.
+  optional string execution_mode = 18;
   optional domain.ExecutionLimits execution_limits = 19;
   optional string continuation = 20;
   optional string scope_policy = 21;
+  optional string operator_note = 22;
 }
 
 // UpdateItemRequest identifies an item and preserves PATCH presence through
@@ -529,14 +530,16 @@ message QueueBacklogItemRequest {
   // Override queue readiness feedback gates (unanswered questions / pending
   // suggestions). API-level safety checks remain for non-overridable constraints.
   optional bool force = 6;
-  // Declared execution strategy. Omitted selects the sole default strategy.
-  optional string strategy = 7;
+  // Declared execution mode (sliced or goal). Omitted selects the item's mode
+  // or the default.
+  optional string execution_mode = 7;
   // Maximum plan slices for this execution, inclusive range 1..6.
   optional int32 max_slices = 8 [(buf.validate.field).int32 = {
     gte: 1
     lte: 512
   }];
   optional domain.ExecutionPreferences execution_preferences = 9;
+  optional string operator_note = 10;
 }
 
 // QueueBacklogItemResponse returns queue results.

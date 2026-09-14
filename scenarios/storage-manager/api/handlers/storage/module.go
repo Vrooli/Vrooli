@@ -22,6 +22,7 @@ import (
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/placement"
 	"storage-manager/internal/providers"
+	managerRetention "storage-manager/internal/retention"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
@@ -278,6 +279,15 @@ func Module(d ModuleDeps) module.Module {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(budget.Aggregate(inventory, capacity))
+		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/retention/budget-status", func(w http.ResponseWriter, req *http.Request) {
+			status, ok := managerRetention.LatestCycle()
+			w.Header().Set("Content-Type", "application/json")
+			if !ok {
+				_ = json.NewEncoder(w).Encode(map[string]any{"observed": false, "reason": "no retention cycle has completed since startup"})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"observed": true, "cycle": status})
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/retention/owners", func(w http.ResponseWriter, req *http.Request) {
 			retentionCacheMu.Lock()
@@ -1128,12 +1138,15 @@ func formatBytesDeclaration(bytes int64) string {
 	return fmt.Sprintf("%dB", bytes)
 }
 
+// entryBytes reports an entry's bytes across every location that holds them,
+// so inspect shows a lifecycle-launched scenario's live database rather than
+// only the class root.
 func entryBytes(repoRoot string, owner corestorage.OwnerManifest, entry corestorage.StorageEntry) (int64, bool) {
-	path, err := corestorage.ResolveOwnerStoragePath(repoRoot, owner, entry, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
+	measurement, err := managerRetention.MeasureEntry(repoRoot, owner, entry, corestorage.Platform(runtime.GOOS))
 	if err != nil {
 		return 0, false
 	}
-	return directorySize(path), true
+	return measurement.Bytes, true
 }
 
 func directorySize(path string) int64 {
@@ -1330,6 +1343,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "storage_census", Path: "/api/v1/census", Method: http.MethodGet, Summary: "Measure declared and unattributed storage", Description: "Read-only closed accounting over the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_census_history", Path: "/api/v1/census/history", Method: http.MethodGet, Summary: "Read persisted census history", Description: "Returns immutable census snapshots and growth observations for the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_growth", Path: "/api/v1/storage/growth", Method: http.MethodGet, Summary: "Rank storage growth", Description: "Fits per-owner growth over persisted census samples and projects declared ceilings.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_retention_budget_status", Path: "/api/v1/retention/budget-status", Method: http.MethodGet, Summary: "Read the latest budget enforcement outcome", Description: "Per-entry usage across every location, over-budget entries, owner reclaim receipts, and escalations from the latest retention cycle.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_retention_owners", Path: "/api/v1/retention/owners", Method: http.MethodGet, Summary: "List owner retention budgets", Description: "Loads retention declarations across scenarios, resources, tools, and safeguards with typed parse errors.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_budget_health", Path: "/api/v1/storage/budget-health", Method: http.MethodGet, Summary: "Check aggregate storage budget health", Description: "Sums declared byte ceilings and compares the reservation with the latest device capacity.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_placement_show", Path: "/api/v1/placement", Method: http.MethodGet, Summary: "Show resolved storage placement", Description: "Resolves portable owner declarations for a requested platform without changing host state.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},

@@ -22,7 +22,9 @@ Cohorts must include a representative current repository, a deliberately larger 
 
 ### Proposed qualification profile v1
 
-**Proposal, not an approved SLO or spending grant.** Review this profile with
+**Approved by the operator on 2026-09-13 as the OT-P0-008 acceptance floors.**
+It is not a spending grant, and nothing below is measured yet: every cell still
+needs owner-backed receipts on the named cohorts. The grant and allowance are in
 `DECISIONS.md`'s development packet. Store the selected cohort seed/digest,
 hardware and software revision in each future owner receipt. Reject comparisons
 whose cohort, limits or cache state differ. Treat failed trials as failures, not

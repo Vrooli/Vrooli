@@ -1822,6 +1822,8 @@
     "prevReply": "Previous reply",
     "nextReply": "Next reply",
     "smaller": "Smaller text",
-    "larger": "Larger text"
+    "larger": "Larger text",
+    "back": "Back to messages",
+    "nextReplyNew": "Next reply ({{count}} new)"
   }
 }

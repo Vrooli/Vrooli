@@ -84,18 +84,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.NotFound(w, req)
 		return
 	}
-	token, ok := strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
-	if !ok || strings.TrimSpace(token) == "" {
-		http.Error(w, "owner credential required", http.StatusUnauthorized)
-		return
-	}
-	owner, err := h.owners.Verify(req.Context(), strings.TrimSpace(token))
+	subject, status, err := h.AuthorizeOwner(req)
 	if err != nil {
-		http.Error(w, "owner credential could not be verified", http.StatusUnauthorized)
-		return
-	}
-	if !owner.Verified || owner.Kind != identity.ActorHuman || strings.TrimSpace(owner.Subject) == "" || !maintenanceScope(owner.Scopes) {
-		http.Error(w, "owner maintenance authority required", http.StatusForbidden)
+		http.Error(w, err.Error(), status)
 		return
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, req.Body, 4096))
@@ -115,7 +106,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "reason must contain 1-512 bytes", http.StatusBadRequest)
 			return
 		}
-		state, err := h.gate.Enter(req.Context(), owner.Subject, input.Reason)
+		state, err := h.gate.Enter(req.Context(), subject, input.Reason)
 		h.respond(w, state, err)
 	case "resume":
 		release, err := h.interlock.acquire(req.Context())
@@ -126,7 +117,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		defer release()
-		state, err := h.gate.Resume(req.Context(), owner.Subject, input.Revision)
+		state, err := h.gate.Resume(req.Context(), subject, input.Revision)
 		h.respond(w, state, err)
 	case "wait":
 		if input.TimeoutSeconds < 1 || input.TimeoutSeconds > 120 {
@@ -154,6 +145,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		state.LifecycleInterlock = ScenarioLockV1
 		h.respond(w, state, err)
 	}
+}
+
+// Observe is the owner's fence-and-inventory projection that status reports.
+// Operations that require a drained fence read it here rather than trusting a
+// caller's claim.
+func (h *Handler) Observe(ctx context.Context) (Standing, error) { return h.standing(ctx) }
+
+// AuthorizeOwner verifies a human owner credential carrying maintenance
+// scope and returns its subject, or the status that refuses the request.
+func (h *Handler) AuthorizeOwner(req *http.Request) (string, int, error) {
+	token, ok := strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
+	if !ok || strings.TrimSpace(token) == "" {
+		return "", http.StatusUnauthorized, errors.New("owner credential required")
+	}
+	owner, err := h.owners.Verify(req.Context(), strings.TrimSpace(token))
+	if err != nil {
+		return "", http.StatusUnauthorized, errors.New("owner credential could not be verified")
+	}
+	if !owner.Verified || owner.Kind != identity.ActorHuman || strings.TrimSpace(owner.Subject) == "" || !maintenanceScope(owner.Scopes) {
+		return "", http.StatusForbidden, errors.New("owner maintenance authority required")
+	}
+	return owner.Subject, 0, nil
 }
 
 func maintenanceScope(scopes []string) bool {

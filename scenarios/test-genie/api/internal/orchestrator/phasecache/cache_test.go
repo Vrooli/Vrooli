@@ -288,6 +288,31 @@ func TestStoreRejectsProviderDependencyFailures(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsLiveSurfaceDiscoveryFailures(t *testing.T) {
+	store := New(t.TempDir())
+	for _, code := range []string{"TEST_SURFACE_ABSENT", "UNIT_REQUIRED_ROLE_MISSING", "UNIT_SURFACE_UNGOVERNED"} {
+		result := phases.ExecutionResult{
+			Name:                 "unit",
+			Status:               "failed",
+			Classification:       phases.FailureClassTestFailure,
+			ClassificationSource: phases.ClassificationSourceProvider,
+			Findings: []*architecturev1.ArchitectureFinding{
+				{Code: code, Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+			},
+		}
+		if Reusable(result) {
+			t.Fatalf("live surface discovery finding %q must not be reusable", code)
+		}
+		key := "pc:surface-discovery:" + strings.ToLower(code)
+		if err := store.Save(key, "run-x", result); err != nil {
+			t.Fatalf("save %q: %v", code, err)
+		}
+		if _, ok, err := store.Load(key); err != nil || ok {
+			t.Fatalf("live surface discovery finding %q must not load: ok=%v err=%v", code, ok, err)
+		}
+	}
+}
+
 func TestReusableKeepsDeterministicTestFailures(t *testing.T) {
 	result := phases.ExecutionResult{
 		Name:                 "unit",
@@ -300,6 +325,22 @@ func TestReusableKeepsDeterministicTestFailures(t *testing.T) {
 	}
 	if !Reusable(result) {
 		t.Fatal("deterministic test failure should remain reusable")
+	}
+}
+
+func TestReusableRejectsSuspectedFlakeVerdicts(t *testing.T) {
+	result := phases.ExecutionResult{
+		Name:                 "unit",
+		Status:               "failed",
+		Classification:       phases.FailureClassTestFailure,
+		ClassificationSource: phases.ClassificationSourceProvider,
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "TEST_EXECUTION_FAILURE", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+			{Code: "TEST_FLAKE_SUSPECTED", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING},
+		},
+	}
+	if Reusable(result) {
+		t.Fatal("suspected-flake verdict must not be reusable")
 	}
 }
 

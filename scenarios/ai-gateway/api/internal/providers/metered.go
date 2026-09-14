@@ -158,11 +158,40 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 		_ = c.egress.Record(ctx, ProviderMetered, request.Role, request.Profile, response.StatusCode)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		retryAfter := strings.TrimSpace(response.Header.Get("Retry-After"))
+		detail := strings.TrimSpace(string(bodyBytes))
+		// 402 is an account-credit condition, not a transient execution fault:
+		// it is typed and deliberately does NOT trip the transient breaker,
+		// because a bounded retry cannot mint credits.
 		if response.StatusCode == http.StatusPaymentRequired {
-			return MeteredResponse{}, fmt.Errorf("%w: %s", ErrInsufficientCredits, strings.TrimSpace(string(bodyBytes)))
+			return MeteredResponse{}, &CommandError{
+				Code: CodeInsufficientCredits, Command: ProviderMetered, ExitCode: -1,
+				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+				Err: fmt.Errorf("%w: %s", ErrInsufficientCredits, detail),
+			}
 		}
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("metered inference returned HTTP %d: %s", response.StatusCode, strings.TrimSpace(string(bodyBytes)))
+		// 429 and 5xx are transient: carry the observed Retry-After so the
+		// caller can park until the provider's own recovery window.
+		if response.StatusCode == http.StatusTooManyRequests {
+			return MeteredResponse{}, &CommandError{
+				Code: CodeRateLimited, Command: ProviderMetered, ExitCode: -1,
+				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+				Err: fmt.Errorf("metered inference rate limited: HTTP %d: %s", response.StatusCode, detail),
+			}
+		}
+		if response.StatusCode == http.StatusServiceUnavailable || response.StatusCode == 502 || response.StatusCode == 504 {
+			return MeteredResponse{}, &CommandError{
+				Code: CodeProviderOverloaded, Command: ProviderMetered, ExitCode: -1,
+				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+				Err: fmt.Errorf("metered inference provider overloaded: HTTP %d: %s", response.StatusCode, detail),
+			}
+		}
+		return MeteredResponse{}, &CommandError{
+			Code: CodeProviderFailed, Command: ProviderMetered, ExitCode: -1,
+			HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+			Err: fmt.Errorf("metered inference returned HTTP %d: %s", response.StatusCode, detail),
+		}
 	}
 	var result MeteredResponse
 	if decodeErr := json.Unmarshal(bodyBytes, &result); decodeErr != nil {

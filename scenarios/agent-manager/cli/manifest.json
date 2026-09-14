@@ -1663,6 +1663,54 @@
       ]
     },
     {
+      "name": "storage",
+      "description": "Inspect and reclaim Agent Manager's SQLite storage",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show file, free pages, WAL, and budget standing",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reclaim",
+          "description": "Return free pages online in bounded batches",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compact",
+          "description": "Fenced one-time rewrite into incremental auto-vacuum",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "ops",
       "description": "Inspect typed-event operational statistics",
       "commands": [

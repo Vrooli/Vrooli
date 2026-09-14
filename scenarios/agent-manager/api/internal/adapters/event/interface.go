@@ -46,6 +46,13 @@ type RetentionStore interface {
 	DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error)
 }
 
+// PayloadCompactor bounds bulky historical payloads in place without deleting
+// events. Imported transcripts are the conversation-recall corpus and their
+// source files may no longer exist, so they are compacted, never age-deleted.
+type PayloadCompactor interface {
+	CompactImportedToolPayloads(ctx context.Context, cutoff time.Time, minBytes, limit int) (int, error)
+}
+
 // GetOptions specifies criteria for retrieving events.
 type GetOptions struct {
 	// AfterSequence returns events with sequence > this value.

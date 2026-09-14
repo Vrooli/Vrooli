@@ -474,14 +474,21 @@ func (x *GetLaunchAssetsRequest) GetScenarioName() string {
 }
 
 type LaunchAssetSlot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CampaignId    string                 `protobuf:"bytes,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
-	CampaignName  string                 `protobuf:"bytes,2,opt,name=campaign_name,json=campaignName,proto3" json:"campaign_name,omitempty"`
-	Channel       string                 `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
-	Format        string                 `protobuf:"bytes,4,opt,name=format,proto3" json:"format,omitempty"`
-	Capacity      int32                  `protobuf:"varint,5,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	Reserved      int32                  `protobuf:"varint,6,opt,name=reserved,proto3" json:"reserved,omitempty"`
-	DraftCount    int32                  `protobuf:"varint,7,opt,name=draft_count,json=draftCount,proto3" json:"draft_count,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	CampaignId   string                 `protobuf:"bytes,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	CampaignName string                 `protobuf:"bytes,2,opt,name=campaign_name,json=campaignName,proto3" json:"campaign_name,omitempty"`
+	Channel      string                 `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
+	Format       string                 `protobuf:"bytes,4,opt,name=format,proto3" json:"format,omitempty"`
+	Capacity     int32                  `protobuf:"varint,5,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Reserved     int32                  `protobuf:"varint,6,opt,name=reserved,proto3" json:"reserved,omitempty"`
+	// draft_count is deprecated; it mirrors approved_count for compatibility.
+	// Prefer approved_count and ready_for_review_count for new reads.
+	DraftCount          int32 `protobuf:"varint,7,opt,name=draft_count,json=draftCount,proto3" json:"draft_count,omitempty"`
+	ApprovedCount       int32 `protobuf:"varint,8,opt,name=approved_count,json=approvedCount,proto3" json:"approved_count,omitempty"`
+	ReadyForReviewCount int32 `protobuf:"varint,9,opt,name=ready_for_review_count,json=readyForReviewCount,proto3" json:"ready_for_review_count,omitempty"`
+	// readiness is the strongest launch-asset tier attached to the slot:
+	// "empty" | "in_progress" | "ready_for_review" | "approved".
+	Readiness     string `protobuf:"bytes,10,opt,name=readiness,proto3" json:"readiness,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -565,6 +572,27 @@ func (x *LaunchAssetSlot) GetDraftCount() int32 {
 	return 0
 }
 
+func (x *LaunchAssetSlot) GetApprovedCount() int32 {
+	if x != nil {
+		return x.ApprovedCount
+	}
+	return 0
+}
+
+func (x *LaunchAssetSlot) GetReadyForReviewCount() int32 {
+	if x != nil {
+		return x.ReadyForReviewCount
+	}
+	return 0
+}
+
+func (x *LaunchAssetSlot) GetReadiness() string {
+	if x != nil {
+		return x.Readiness
+	}
+	return ""
+}
+
 type GetLaunchAssetsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
@@ -646,7 +674,7 @@ const file_content_desk_v1_campaigns_campaigns_proto_rawDesc = "" +
 	"\x18ActivateCampaignResponse\x12F\n" +
 	"\bcampaign\x18\x01 \x01(\v2*.vrooli.content_desk.v1.campaigns.CampaignR\bcampaign\"=\n" +
 	"\x16GetLaunchAssetsRequest\x12#\n" +
-	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\"\xe2\x01\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\"\xdc\x02\n" +
 	"\x0fLaunchAssetSlot\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12#\n" +
@@ -656,7 +684,11 @@ const file_content_desk_v1_campaigns_campaigns_proto_rawDesc = "" +
 	"\bcapacity\x18\x05 \x01(\x05R\bcapacity\x12\x1a\n" +
 	"\breserved\x18\x06 \x01(\x05R\breserved\x12\x1f\n" +
 	"\vdraft_count\x18\a \x01(\x05R\n" +
-	"draftCount\"\x87\x01\n" +
+	"draftCount\x12%\n" +
+	"\x0eapproved_count\x18\b \x01(\x05R\rapprovedCount\x123\n" +
+	"\x16ready_for_review_count\x18\t \x01(\x05R\x13readyForReviewCount\x12\x1c\n" +
+	"\treadiness\x18\n" +
+	" \x01(\tR\treadiness\"\x87\x01\n" +
 	"\x17GetLaunchAssetsResponse\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12G\n" +
 	"\x05slots\x18\x02 \x03(\v21.vrooli.content_desk.v1.campaigns.LaunchAssetSlotR\x05slots2\xb0\x04\n" +

@@ -16,8 +16,10 @@ var ErrNotFound = errors.New("conversation search projection not found")
 
 const coverageCacheTTL = time.Minute
 
-const generationMutationBatchSize = 1000
-const generationMutationPause = 10 * time.Millisecond
+const (
+	generationMutationBatchSize = 1000
+	generationMutationPause     = 10 * time.Millisecond
+)
 
 type SQLiteRepository struct {
 	db              sqlcompat.DB
@@ -47,7 +49,7 @@ func (r *SQLiteRepository) UpsertDocument(ctx context.Context, document Document
 	if document.Visible {
 		visible = 1
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO conversation_search_documents (
+	_, err = r.db.ExecContext(ctx, `INSERT INTO conversation_search_catalog (
         document_id, source_run_id, source_event_id, source_message_id,
         chunk_index, chunk_total, start_byte, end_byte, event_sequence, role, occurred_at, content,
         content_class, source_hash, content_hash, recipe_version, harness,
@@ -90,7 +92,7 @@ func (r *SQLiteRepository) UpsertDocument(ctx context.Context, document Document
 }
 
 func (r *SQLiteRepository) DeleteDocument(ctx context.Context, documentID string) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE document_id = ?`, documentID)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE document_id = ?`, documentID)
 	if err != nil {
 		return fmt.Errorf("delete conversation search document %q: %w", documentID, err)
 	}
@@ -125,12 +127,12 @@ func (r *SQLiteRepository) archiveAndDelete(ctx context.Context, predicate strin
 	}
 	defer tx.Rollback()
 	archive := `INSERT OR REPLACE INTO conversation_search_deleted_sources (document_id, source_run_id, source_event_id, deleted_at)
-SELECT document_id, source_run_id, source_event_id, ? FROM conversation_search_documents WHERE ` + predicate
+SELECT document_id, source_run_id, source_event_id, ? FROM conversation_search_catalog WHERE ` + predicate
 	archiveArgs := append([]any{formatTime(time.Now().UTC())}, args...)
 	if _, err := tx.ExecContext(ctx, archive, archiveArgs...); err != nil {
 		return 0, err
 	}
-	result, err := tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE `+predicate, args...)
+	result, err := tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE `+predicate, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +148,7 @@ SELECT document_id, source_run_id, source_event_id, ? FROM conversation_search_d
 }
 
 func (r *SQLiteRepository) deleteWhere(ctx context.Context, predicate string, args ...any) (int64, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE `+predicate, args...)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE `+predicate, args...)
 	if err != nil {
 		return 0, fmt.Errorf("delete conversation search projection: %w", err)
 	}
@@ -166,7 +168,7 @@ func (r *SQLiteRepository) invalidateCoverage() {
 
 func (r *SQLiteRepository) GetDocument(ctx context.Context, documentID string) (Document, error) {
 	var row documentRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM conversation_search_documents WHERE document_id = ?`, documentID)
+	err := r.db.GetContext(ctx, &row, `SELECT * FROM conversation_search_catalog WHERE document_id = ?`, documentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Document{}, ErrNotFound
 	}
@@ -178,7 +180,7 @@ func (r *SQLiteRepository) GetDocument(ctx context.Context, documentID string) (
 
 func (r *SQLiteRepository) VisibleDocument(ctx context.Context, documentID string) (bool, error) {
 	var visible int
-	err := r.db.GetContext(ctx, &visible, `SELECT visible FROM conversation_search_documents WHERE document_id = ?`, documentID)
+	err := r.db.GetContext(ctx, &visible, `SELECT visible FROM conversation_search_catalog WHERE document_id = ?`, documentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, ErrNotFound
 	}
@@ -240,16 +242,18 @@ func (r *SQLiteRepository) refreshCoverage() {
 
 func (r *SQLiteRepository) queryCoverage(ctx context.Context) (visibleMessages, catalogDocuments, lexicalDocuments uint64, err error) {
 	if err := r.db.GetContext(ctx, &visibleMessages, `SELECT COUNT(*) FROM (
-        SELECT source_run_id, source_message_id FROM conversation_search_documents
+        SELECT source_run_id, source_message_id FROM conversation_search_catalog
         WHERE visible = 1 GROUP BY source_run_id, source_message_id
     )`); err != nil {
 		return 0, 0, 0, fmt.Errorf("count visible conversation messages: %w", err)
 	}
-	if err := r.db.GetContext(ctx, &catalogDocuments, `SELECT COUNT(*) FROM conversation_search_documents WHERE visible = 1`); err != nil {
+	if err := r.db.GetContext(ctx, &catalogDocuments, `SELECT COUNT(*) FROM conversation_search_catalog WHERE visible = 1`); err != nil {
 		return 0, 0, 0, fmt.Errorf("count visible conversation documents: %w", err)
 	}
-	if err := r.db.GetContext(ctx, &lexicalDocuments, `SELECT COUNT(*) FROM conversation_search_fts f
-        JOIN conversation_search_documents d ON d.rowid = f.rowid WHERE d.visible = 1`); err != nil {
+	// The external-content index keeps one docsize row per indexed document;
+	// scanning the FTS table itself would read the catalog, not the index.
+	if err := r.db.GetContext(ctx, &lexicalDocuments, `SELECT COUNT(*) FROM conversation_search_catalog_fts_docsize f
+        JOIN conversation_search_catalog d ON d.id = f.id WHERE d.visible = 1`); err != nil {
 		return 0, 0, 0, fmt.Errorf("count lexical conversation documents: %w", err)
 	}
 	return visibleMessages, catalogDocuments, lexicalDocuments, nil
@@ -428,13 +432,13 @@ func (r *SQLiteRepository) DeleteStagedEvent(ctx context.Context, generationID, 
 
 func (r *SQLiteRepository) RunDocumentIDs(ctx context.Context, runID string) ([]string, error) {
 	var ids []string
-	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_documents WHERE source_run_id=? ORDER BY document_id`, runID)
+	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE source_run_id=? ORDER BY document_id`, runID)
 	return ids, err
 }
 
 func (r *SQLiteRepository) EventDocumentIDs(ctx context.Context, runID, eventID string) ([]string, error) {
 	var ids []string
-	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_documents WHERE source_run_id=? AND source_event_id=? ORDER BY document_id`, runID, eventID)
+	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE source_run_id=? AND source_event_id=? ORDER BY document_id`, runID, eventID)
 	return ids, err
 }
 
@@ -485,20 +489,20 @@ func (r *SQLiteRepository) ApplyStagedChanges(ctx context.Context, generationID 
 		switch change.Operation {
 		case ChangeUpsertRun:
 			if change.SourceEventID != "" {
-				if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID); err == nil {
-					_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_documents (`+projectionDocumentColumns+`)
+				if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID); err == nil {
+					_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_catalog (`+projectionDocumentColumns+`)
 SELECT `+projectionDocumentColumns+` FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=? AND source_event_id=?`, generationID, change.SourceRunID, change.SourceEventID)
 				}
-			} else if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=?`, change.SourceRunID); err == nil {
-				_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_documents (`+projectionDocumentColumns+`)
+			} else if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE source_run_id=?`, change.SourceRunID); err == nil {
+				_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_catalog (`+projectionDocumentColumns+`)
 SELECT `+projectionDocumentColumns+` FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=?`, generationID, change.SourceRunID)
 			}
 		case ChangeDeleteEvent:
 			containsDeletion = true
-			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID)
+			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID)
 		case ChangeDeleteRun:
 			containsDeletion = true
-			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=?`, change.SourceRunID)
+			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog WHERE source_run_id=?`, change.SourceRunID)
 		default:
 			err = fmt.Errorf("unsupported staged change %q", change.Operation)
 		}
@@ -628,7 +632,7 @@ WHERE generation_id=? AND document_id>? ORDER BY document_id LIMIT ?`, generatio
 		// implicit delete whose DELETE triggers are disabled unless recursive
 		// triggers are enabled, leaving stale rows in the standalone FTS table.
 		// The explicit delete keeps catalog and FTS identity synchronized.
-		if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_search_documents
+		if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_search_catalog
 WHERE document_id IN (
   SELECT document_id FROM conversation_search_generation_documents
   WHERE generation_id=? AND document_id>? AND document_id<=?
@@ -636,43 +640,43 @@ WHERE document_id IN (
 AND NOT EXISTS (
   SELECT 1 FROM conversation_search_generation_documents staged
   WHERE staged.generation_id=?
-    AND staged.document_id=conversation_search_documents.document_id
-    AND staged.source_run_id IS conversation_search_documents.source_run_id
-    AND staged.source_event_id IS conversation_search_documents.source_event_id
-    AND staged.source_message_id IS conversation_search_documents.source_message_id
-    AND staged.chunk_index IS conversation_search_documents.chunk_index
-    AND staged.chunk_total IS conversation_search_documents.chunk_total
-    AND staged.start_byte IS conversation_search_documents.start_byte
-    AND staged.end_byte IS conversation_search_documents.end_byte
-    AND staged.event_sequence IS conversation_search_documents.event_sequence
-    AND staged.role IS conversation_search_documents.role
-    AND staged.occurred_at IS conversation_search_documents.occurred_at
-    AND staged.content IS conversation_search_documents.content
-    AND staged.content_class IS conversation_search_documents.content_class
-    AND staged.source_hash IS conversation_search_documents.source_hash
-    AND staged.content_hash IS conversation_search_documents.content_hash
-    AND staged.recipe_version IS conversation_search_documents.recipe_version
-    AND staged.harness IS conversation_search_documents.harness
-    AND staged.source_session_id IS conversation_search_documents.source_session_id
-    AND staged.provider_origin IS conversation_search_documents.provider_origin
-    AND staged.importer IS conversation_search_documents.importer
-    AND staged.project_scope IS conversation_search_documents.project_scope
-    AND staged.cwd_scope IS conversation_search_documents.cwd_scope
-    AND staged.runner IS conversation_search_documents.runner
-    AND staged.model IS conversation_search_documents.model
-    AND staged.profile IS conversation_search_documents.profile
-    AND staged.run_status IS conversation_search_documents.run_status
-    AND staged.run_label IS conversation_search_documents.run_label
-    AND staged.tags_json IS conversation_search_documents.tags_json
-    AND staged.workloads_json IS conversation_search_documents.workloads_json
-    AND staged.evidence_ref IS conversation_search_documents.evidence_ref
-    AND staged.visible IS conversation_search_documents.visible
+    AND staged.document_id=conversation_search_catalog.document_id
+    AND staged.source_run_id IS conversation_search_catalog.source_run_id
+    AND staged.source_event_id IS conversation_search_catalog.source_event_id
+    AND staged.source_message_id IS conversation_search_catalog.source_message_id
+    AND staged.chunk_index IS conversation_search_catalog.chunk_index
+    AND staged.chunk_total IS conversation_search_catalog.chunk_total
+    AND staged.start_byte IS conversation_search_catalog.start_byte
+    AND staged.end_byte IS conversation_search_catalog.end_byte
+    AND staged.event_sequence IS conversation_search_catalog.event_sequence
+    AND staged.role IS conversation_search_catalog.role
+    AND staged.occurred_at IS conversation_search_catalog.occurred_at
+    AND staged.content IS conversation_search_catalog.content
+    AND staged.content_class IS conversation_search_catalog.content_class
+    AND staged.source_hash IS conversation_search_catalog.source_hash
+    AND staged.content_hash IS conversation_search_catalog.content_hash
+    AND staged.recipe_version IS conversation_search_catalog.recipe_version
+    AND staged.harness IS conversation_search_catalog.harness
+    AND staged.source_session_id IS conversation_search_catalog.source_session_id
+    AND staged.provider_origin IS conversation_search_catalog.provider_origin
+    AND staged.importer IS conversation_search_catalog.importer
+    AND staged.project_scope IS conversation_search_catalog.project_scope
+    AND staged.cwd_scope IS conversation_search_catalog.cwd_scope
+    AND staged.runner IS conversation_search_catalog.runner
+    AND staged.model IS conversation_search_catalog.model
+    AND staged.profile IS conversation_search_catalog.profile
+    AND staged.run_status IS conversation_search_catalog.run_status
+    AND staged.run_label IS conversation_search_catalog.run_label
+    AND staged.tags_json IS conversation_search_catalog.tags_json
+    AND staged.workloads_json IS conversation_search_catalog.workloads_json
+    AND staged.evidence_ref IS conversation_search_catalog.evidence_ref
+    AND staged.visible IS conversation_search_catalog.visible
 )`, generationID, after, last, generationID); err != nil {
 			_ = tx.Rollback()
 			_ = conn.Close()
 			return fmt.Errorf("replace lexical bootstrap batch through %q: %w", last, err)
 		}
-		query := `INSERT INTO conversation_search_documents (` + projectionDocumentColumns + `)
+		query := `INSERT INTO conversation_search_catalog (` + projectionDocumentColumns + `)
 SELECT ` + projectionDocumentColumns + ` FROM conversation_search_generation_documents staged
 WHERE staged.generation_id=? AND staged.document_id>? AND staged.document_id<=?
 AND NOT EXISTS (
@@ -682,7 +686,7 @@ AND NOT EXISTS (
       OR (c.operation='delete_event' AND c.source_run_id=staged.source_run_id AND c.source_event_id=staged.source_event_id))
 )
 AND NOT EXISTS (
-  SELECT 1 FROM conversation_search_documents serving
+  SELECT 1 FROM conversation_search_catalog serving
   WHERE serving.document_id=staged.document_id
 )
 ORDER BY staged.document_id`
@@ -718,7 +722,7 @@ ORDER BY staged.document_id`
 	for {
 		var orphanIDs []string
 		if err := r.db.SelectContext(ctx, &orphanIDs, `SELECT serving.document_id
-FROM conversation_search_documents serving
+FROM conversation_search_catalog serving
 WHERE serving.document_id>?
   AND NOT EXISTS (
     SELECT 1 FROM conversation_search_generation_documents staged
@@ -731,11 +735,11 @@ ORDER BY serving.document_id LIMIT ?`, afterServingID, generationID, batchSize);
 			break
 		}
 		last := orphanIDs[len(orphanIDs)-1]
-		result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_documents
+		result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_catalog
 WHERE document_id>? AND document_id<=?
   AND NOT EXISTS (
     SELECT 1 FROM conversation_search_generation_documents staged
-    WHERE staged.generation_id=? AND staged.document_id=conversation_search_documents.document_id
+    WHERE staged.generation_id=? AND staged.document_id=conversation_search_catalog.document_id
   )`, afterServingID, last, generationID)
 		if err != nil {
 			return fmt.Errorf("remove lexical publication orphans through %q: %w", last, err)
@@ -756,44 +760,9 @@ WHERE document_id>? AND document_id<=?
 		case <-timer.C:
 		}
 	}
-	// Repair residue from historical INSERT OR REPLACE publication. Bound each
-	// writer transaction so search and health requests retain a scheduling turn.
-	var afterFTSRowID int64
-	for {
-		var orphanRowIDs []int64
-		if err := r.db.SelectContext(ctx, &orphanRowIDs, `SELECT f.rowid
-FROM conversation_search_fts f
-LEFT JOIN conversation_search_documents d ON d.rowid=f.rowid
-WHERE f.rowid>? AND d.rowid IS NULL
-ORDER BY f.rowid LIMIT ?`, afterFTSRowID, batchSize); err != nil {
-			return fmt.Errorf("select lexical index orphans: %w", err)
-		}
-		if len(orphanRowIDs) == 0 {
-			break
-		}
-		last := orphanRowIDs[len(orphanRowIDs)-1]
-		result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_fts
-WHERE rowid>? AND rowid<=?
-  AND NOT EXISTS (SELECT 1 FROM conversation_search_documents d WHERE d.rowid=conversation_search_fts.rowid)`, afterFTSRowID, last)
-		if err != nil {
-			return fmt.Errorf("remove lexical index orphans: %w", err)
-		}
-		removed, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("count removed lexical index orphans: %w", err)
-		}
-		if removed != int64(len(orphanRowIDs)) {
-			return fmt.Errorf("lexical index orphan set changed: selected %d, removed %d", len(orphanRowIDs), removed)
-		}
-		afterFTSRowID = last
-		timer := time.NewTimer(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
-		}
-	}
+	// The external-content index is maintained only by catalog triggers, so
+	// it cannot hold rows the catalog lacks; the orphan sweep the standalone
+	// index needed is gone.
 	return nil
 }
 
@@ -829,47 +798,27 @@ func (r *SQLiteRepository) ActivateGeneration(ctx context.Context, generationID 
 	return nil
 }
 
-// PruneRetiredGenerations deletes the staged document rows of retired
-// generations beyond the newest keep, at most limit generations per call so
-// the backlog drains a few generations per activation instead of in one
-// enormous transaction. The generation record stays retired (its state set is
-// schema-checked); a retired generation with no rows is simply already
-// pruned. ActivateGeneration only flips the previous serving generation to
-// retired; without this, every 15-minute full repair left its complete
-// document projection behind (340 retired generations of 847k rows each, a
-// 293 GB database, on 2026-09-09).
-func (r *SQLiteRepository) PruneRetiredGenerations(ctx context.Context, keep, limit int) ([]string, error) {
-	if keep < 0 {
-		keep = 0
-	}
-	if limit <= 0 {
-		return nil, nil
-	}
+// PruneSettledGenerations deletes the staged rows of every generation that no
+// longer needs them. Building and ready generations keep theirs: restart
+// recovery republishes them and the semantic leg reads them. Once a generation
+// is active, retired, failed or cancelled nothing reads its staged rows again
+// (a rollback rebuilds from canonical source), so they go in bounded batches.
+// Keeping retired generations' rows left a staged copy of the corpus behind
+// activations: 1.88 GB of the 8.74 GB live projection on 2026-09-14, and 340
+// retired generations in a 293 GB database on 2026-09-09. Interrupted
+// rollbacks had also stranded rows of failed generations.
+func (r *SQLiteRepository) PruneSettledGenerations(ctx context.Context) ([]string, error) {
 	var ids []string
-	if err := r.db.SelectContext(ctx, &ids, `SELECT generation_id FROM conversation_search_generations
-        WHERE state='retired' ORDER BY created_at DESC`); err != nil {
-		return nil, fmt.Errorf("list retired conversation search generations: %w", err)
+	if err := r.db.SelectContext(ctx, &ids, `SELECT g.generation_id FROM conversation_search_generations g
+WHERE g.state NOT IN ('building', 'ready')
+  AND EXISTS (SELECT 1 FROM conversation_search_generation_documents staged WHERE staged.generation_id = g.generation_id)
+ORDER BY g.created_at`); err != nil {
+		return nil, fmt.Errorf("list settled conversation search generations: %w", err)
 	}
-	purged := make([]string, 0, limit)
-	for index, id := range ids {
-		if index < keep || len(purged) >= limit {
-			if len(purged) >= limit {
-				break
-			}
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			return purged, err
-		}
-		var populated bool
-		if err := r.db.GetContext(ctx, &populated, `SELECT EXISTS(SELECT 1 FROM conversation_search_generation_documents WHERE generation_id = ?)`, id); err != nil {
-			return purged, fmt.Errorf("inspect retired generation %q: %w", id, err)
-		}
-		if !populated {
-			continue
-		}
+	purged := make([]string, 0, len(ids))
+	for _, id := range ids {
 		if err := r.deleteGenerationBatches(ctx, id); err != nil {
-			return purged, fmt.Errorf("purge retired generation %q: %w", id, err)
+			return purged, fmt.Errorf("purge staged rows of generation %q: %w", id, err)
 		}
 		purged = append(purged, id)
 	}
@@ -963,7 +912,7 @@ func (r *SQLiteRepository) ProjectionStatus(ctx context.Context) (ProjectionStat
 	_ = r.db.GetContext(ctx, &status.CandidateGeneration, `SELECT generation_id FROM conversation_search_generations WHERE state IN ('building','ready') ORDER BY updated_at DESC LIMIT 1`)
 	var lastSuccess, lastIndexed, lastError sql.NullString
 	_ = r.db.GetContext(ctx, &lastSuccess, `SELECT MAX(updated_at) FROM conversation_search_generations WHERE state='active'`)
-	_ = r.db.GetContext(ctx, &lastIndexed, `SELECT MAX(indexed_at) FROM conversation_search_documents`)
+	_ = r.db.GetContext(ctx, &lastIndexed, `SELECT MAX(indexed_at) FROM conversation_search_catalog`)
 	_ = r.db.GetContext(ctx, &lastError, `SELECT last_error_code FROM conversation_search_checkpoints WHERE source_name='canonical'`)
 	if lastSuccess.Valid {
 		status.LastSuccessAt, _ = parseTime(lastSuccess.String)
@@ -979,7 +928,7 @@ func (r *SQLiteRepository) ProjectionStatus(ctx context.Context) (ProjectionStat
 
 func (r *SQLiteRepository) ProjectionDocumentIDs(ctx context.Context) ([]string, error) {
 	var ids []string
-	if err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_documents WHERE visible = 1 ORDER BY document_id`); err != nil {
+	if err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE visible = 1 ORDER BY document_id`); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -1019,6 +968,7 @@ func parseTime(value string) (time.Time, error) {
 }
 
 type documentRow struct {
+	ID              int64        `db:"id"`
 	DocumentID      string       `db:"document_id"`
 	SourceRunID     string       `db:"source_run_id"`
 	SourceEventID   string       `db:"source_event_id"`

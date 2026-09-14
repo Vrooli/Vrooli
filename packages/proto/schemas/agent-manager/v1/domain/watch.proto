@@ -37,6 +37,9 @@ enum WatchActionKind {
   WATCH_ACTION_KIND_STOP = 5;
   WATCH_ACTION_KIND_ESCALATE = 6;
   WATCH_ACTION_KIND_WAKE_PARENT = 7;
+  // Separate effort authority for owner-qualified missing-session replacement.
+  // Ordinary watch actions do not implicitly support this operation.
+  WATCH_ACTION_KIND_RECOVER_FRESH = 8;
 }
 
 enum WatchActionState {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,124 @@ import (
 	"storage-manager/internal/cleanup"
 	cleanupfakes "storage-manager/internal/testutil/cleanup"
 )
+
+func TestGoBuildCacheDeclarationRequiresOwnerProof(t *testing.T) {
+	specs, err := LoadRootSpecs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, spec := range specs {
+		if spec.ID != "go-build-cache" {
+			continue
+		}
+		found++
+		if err := ValidateRootSpec(spec); err != nil {
+			t.Error(err)
+		}
+		if spec.Tier != cleanup.SafetyTierConditional || spec.LeaseCheck != "owner" || spec.Proof.NoLease {
+			t.Errorf("Go cache must require owner build-use proof, got %#v", spec)
+		}
+		if len(spec.ToolPruneCommand) != 0 {
+			t.Errorf("Go cache must not advertise an uncoordinated prune command: %v", spec.ToolPruneCommand)
+		}
+	}
+	if found != 1 {
+		t.Fatalf("Go cache declarations = %d, want exactly one", found)
+	}
+}
+
+func TestGoBuildCacheRefusesReclaimWithoutBuildUseProof(t *testing.T) {
+	for _, id := range []string{"go-build-cache", "spec-go-build-cache"} {
+		for _, declaration := range []string{"legacy-regenerable", "owner-required"} {
+			t.Run(id+"/"+declaration, func(t *testing.T) {
+				root := t.TempDir()
+				path := filepath.Join(root, "02", "output-d")
+				fresh := filepath.Join(root, "0e", "fresh-d")
+				// No open handle or lock marker is required for an output to be
+				// needed by a later link/vet step. Even an old output is not proof
+				// of quiescence; the fake permits removal so safety is the oracle.
+				fsys := &cleanupfakes.FileSystem{Root: root, AllowRemove: true, Files: map[string]cleanup.FileInfo{
+					path: file(path, 100, now.Add(-30*24*time.Hour)), fresh: file(fresh, 100, now),
+				}}
+				spec := RootSpec{
+					ID: id, Root: root, Class: "cache", Tier: cleanup.SafetyTierRegenerable,
+					MaxAge: "14d", MaxBytes: "100B", LeaseCheck: "none", Platforms: []string{"linux", "macos", "windows"},
+					Proof: RootSpecProof{Derived: true, ToolRecreates: true, ExactRoot: true, NoLease: true}, Rationale: "test Go cache",
+				}
+				if declaration == "owner-required" {
+					spec.Tier, spec.LeaseCheck, spec.Proof.NoLease = cleanup.SafetyTierConditional, "owner", false
+				}
+				provider, err := NewSpecProvider(fsys, cleanupfakes.Clock{Time: now}, spec, FileProviderConfig{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				meta := provider.Metadata()
+				if err := meta.Validate(); err != nil {
+					t.Error(err)
+				}
+				if meta.SafetyTier != cleanup.SafetyTierConditional || meta.NoLease || meta.RegenerableProof.NoLease || meta.DefaultApproval != cleanup.ApprovalModeOperator {
+					t.Errorf("Go cache metadata still authorizes autonomous recovery: %#v", meta)
+				}
+				for _, recovery := range []bool{false, true} {
+					scope := cleanup.ObservationScope{Now: now, RootPaths: []string{root}, Recovery: recovery, CompleteCensus: true}
+					policy := cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone, AllowFreshReclaim: true}
+					estimate, err := provider.Estimate(context.Background(), cleanup.EstimateRequest{Scope: scope, Policy: policy})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if estimate.EstimatedBytes != 0 || estimate.ItemCount != 0 || !strings.Contains(estimate.BlockedReason, "build-use") {
+						t.Errorf("recovery=%v estimate must explain missing build-use proof: %#v", recovery, estimate)
+					}
+					preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: scope, Policy: policy})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(preview.Items) != 0 || !strings.Contains(preview.BlockedReason, "build-use") {
+						t.Errorf("recovery=%v preview must refuse even fresh-reclaim override: %#v", recovery, preview)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestGoBuildCacheRefusesPreviouslyApprovedPreview(t *testing.T) {
+	for _, id := range []string{"go-build-cache", "spec-go-build-cache"} {
+		for _, approval := range []cleanup.ApprovalMode{cleanup.ApprovalModeNone, cleanup.ApprovalModeOperator, cleanup.ApprovalModeOwner} {
+			t.Run(id+"/"+string(approval), func(t *testing.T) {
+				root := t.TempDir()
+				shard, path := filepath.Join(root, "02"), filepath.Join(root, "0e", "output-d")
+				fsys := &cleanupfakes.FileSystem{Root: root, AllowRemove: true, Files: map[string]cleanup.FileInfo{
+					shard: dir(shard, now), path: file(path, 100, now),
+				}}
+				provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+					ID: id, Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable, RetentionMaxBytes: 1,
+				})
+				// A persisted v1 plan may select either whole shards (recovery)
+				// or individual outputs (ordinary cleanup). Never trust that plan
+				// or its operator/standing approval as live build-use evidence.
+				req := cleanup.ApplyRequest{ProviderVersion: "v1", IdempotencyKey: "old-plan", ApprovalMode: approval,
+					Preview: cleanup.Preview{ProviderID: id, ProviderVersion: "v1", Items: []cleanup.PreviewItem{
+						{ID: "shard", Path: shard, Bytes: 4096}, {ID: "output", Path: path, Bytes: 100},
+					}},
+				}
+				for attempt := 0; attempt < 2; attempt++ {
+					result, err := provider.Apply(context.Background(), req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if result.Applied || result.ReclaimedBytes != 0 || len(result.AppliedItems) != 0 || len(result.SkippedItems) != 2 || !strings.Contains(strings.Join(result.Warnings, " "), "build-use") {
+						t.Errorf("attempt=%d old plan must be refused explicitly: %#v", attempt, result)
+					}
+					if len(fsys.Removed) != 0 {
+						t.Fatalf("Go cache removal reached filesystem: %v", fsys.Removed)
+					}
+				}
+			})
+		}
+	}
+}
 
 func TestValidateRootSpecRequiresRegenerableProof(t *testing.T) {
 	spec := RootSpec{ID: "cache", Root: "/tmp/cache", Class: "cache", Tier: cleanup.SafetyTierRegenerable, Platforms: []string{"linux"}, Rationale: "derived cache"}

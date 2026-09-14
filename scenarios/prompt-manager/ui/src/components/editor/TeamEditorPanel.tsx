@@ -906,6 +906,7 @@ export function TeamEditorPanel({
           >
             <TeamFilesTab
               teamId={team.id}
+              showEffortWorkspaces={team.purpose === 'delivery' && team.lifetime === 'finite'}
               highlightRequest={highlightRequest}
               onHighlightHandled={onHighlightHandled}
               className="h-full min-h-0"

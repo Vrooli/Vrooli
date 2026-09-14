@@ -261,3 +261,49 @@ class ApproveDraftResponse(_message.Message):
     DRAFT_FIELD_NUMBER: _ClassVar[int]
     draft: Draft
     def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
+
+class DraftCurrentRevision(_message.Message):
+    __slots__ = ("draft_id", "status", "body", "revision_id", "revision_actor_kind", "revision_capacity", "created_at", "review_run_id", "review_at", "approval_actor_kind", "approval_capacity", "approved_at", "has_stored_revision", "has_applicable_review", "has_applicable_approval")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_ACTOR_KIND_FIELD_NUMBER: _ClassVar[int]
+    REVISION_CAPACITY_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_AT_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_ACTOR_KIND_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_CAPACITY_FIELD_NUMBER: _ClassVar[int]
+    APPROVED_AT_FIELD_NUMBER: _ClassVar[int]
+    HAS_STORED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    HAS_APPLICABLE_REVIEW_FIELD_NUMBER: _ClassVar[int]
+    HAS_APPLICABLE_APPROVAL_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    status: str
+    body: str
+    revision_id: str
+    revision_actor_kind: str
+    revision_capacity: str
+    created_at: str
+    review_run_id: str
+    review_at: str
+    approval_actor_kind: str
+    approval_capacity: str
+    approved_at: str
+    has_stored_revision: bool
+    has_applicable_review: bool
+    has_applicable_approval: bool
+    def __init__(self, draft_id: _Optional[str] = ..., status: _Optional[str] = ..., body: _Optional[str] = ..., revision_id: _Optional[str] = ..., revision_actor_kind: _Optional[str] = ..., revision_capacity: _Optional[str] = ..., created_at: _Optional[str] = ..., review_run_id: _Optional[str] = ..., review_at: _Optional[str] = ..., approval_actor_kind: _Optional[str] = ..., approval_capacity: _Optional[str] = ..., approved_at: _Optional[str] = ..., has_stored_revision: _Optional[bool] = ..., has_applicable_review: _Optional[bool] = ..., has_applicable_approval: _Optional[bool] = ...) -> None: ...
+
+class GetDraftCurrentRevisionRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetDraftCurrentRevisionResponse(_message.Message):
+    __slots__ = ("current_revision",)
+    CURRENT_REVISION_FIELD_NUMBER: _ClassVar[int]
+    current_revision: DraftCurrentRevision
+    def __init__(self, current_revision: _Optional[_Union[DraftCurrentRevision, _Mapping]] = ...) -> None: ...

@@ -123,7 +123,7 @@ class ResultSpec(_message.Message):
     def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ..., schema_repair_attempts: _Optional[int] = ...) -> None: ...
 
 class RunConfig(_message.Message):
-    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score", "until")
+    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score", "until", "admission")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -153,6 +153,7 @@ class RunConfig(_message.Message):
     TRANSCRIPT_CODEC_FIELD_NUMBER: _ClassVar[int]
     TRANSCRIPT_CODEC_SCORE_FIELD_NUMBER: _ClassVar[int]
     UNTIL_FIELD_NUMBER: _ClassVar[int]
+    ADMISSION_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     model: str
     role_ref: str
@@ -175,7 +176,116 @@ class RunConfig(_message.Message):
     transcript_codec: str
     transcript_codec_score: float
     until: str
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ..., until: _Optional[str] = ...) -> None: ...
+    admission: RunAdmission
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ..., until: _Optional[str] = ..., admission: _Optional[_Union[RunAdmission, _Mapping]] = ...) -> None: ...
+
+class RunAdmission(_message.Message):
+    __slots__ = ("requested_runner", "requested_model", "requested_role_ref", "requested_effort", "requested_timeout", "requested_max_turns", "requested_goal_mode", "effective_runner", "effective_model", "effective_effort", "effective_timeout", "effective_max_turns", "effective_until", "catalog_digest", "policy_digest", "policy_path", "selection_reason", "passed_control_args", "translation_diagnostics", "runtime_version", "provider_acknowledgment", "receipt")
+    REQUESTED_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_GOAL_MODE_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_MODEL_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    POLICY_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PATH_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    PASSED_CONTROL_ARGS_FIELD_NUMBER: _ClassVar[int]
+    TRANSLATION_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_VERSION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ACKNOWLEDGMENT_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    requested_runner: str
+    requested_model: str
+    requested_role_ref: str
+    requested_effort: str
+    requested_timeout: _duration_pb2.Duration
+    requested_max_turns: int
+    requested_goal_mode: str
+    effective_runner: str
+    effective_model: str
+    effective_effort: str
+    effective_timeout: _duration_pb2.Duration
+    effective_max_turns: int
+    effective_until: str
+    catalog_digest: str
+    policy_digest: str
+    policy_path: str
+    selection_reason: str
+    passed_control_args: _containers.RepeatedScalarFieldContainer[str]
+    translation_diagnostics: _containers.RepeatedScalarFieldContainer[str]
+    runtime_version: str
+    provider_acknowledgment: _containers.RepeatedScalarFieldContainer[str]
+    receipt: QualificationReceipt
+    def __init__(self, requested_runner: _Optional[str] = ..., requested_model: _Optional[str] = ..., requested_role_ref: _Optional[str] = ..., requested_effort: _Optional[str] = ..., requested_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., requested_max_turns: _Optional[int] = ..., requested_goal_mode: _Optional[str] = ..., effective_runner: _Optional[str] = ..., effective_model: _Optional[str] = ..., effective_effort: _Optional[str] = ..., effective_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., effective_max_turns: _Optional[int] = ..., effective_until: _Optional[str] = ..., catalog_digest: _Optional[str] = ..., policy_digest: _Optional[str] = ..., policy_path: _Optional[str] = ..., selection_reason: _Optional[str] = ..., passed_control_args: _Optional[_Iterable[str]] = ..., translation_diagnostics: _Optional[_Iterable[str]] = ..., runtime_version: _Optional[str] = ..., provider_acknowledgment: _Optional[_Iterable[str]] = ..., receipt: _Optional[_Union[QualificationReceipt, _Mapping]] = ...) -> None: ...
+
+class QualificationUsage(_message.Message):
+    __slots__ = ("state", "input_tokens", "output_tokens", "cost_usd", "reserved_unknown")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    COST_USD_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_UNKNOWN_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    reserved_unknown: bool
+    def __init__(self, state: _Optional[str] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., reserved_unknown: _Optional[bool] = ...) -> None: ...
+
+class QualificationReceipt(_message.Message):
+    __slots__ = ("route", "requested_runner", "requested_model", "requested_role_ref", "requested_effort", "effective_runner", "effective_model", "effective_effort", "passed_control_args", "translation_diagnostics", "provider_acknowledgment", "catalog_digest", "policy_digest", "policy_path", "runtime_version", "run_id", "operation_id", "accepted_output", "usage", "limitations", "captured_at")
+    ROUTE_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_MODEL_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    PASSED_CONTROL_ARGS_FIELD_NUMBER: _ClassVar[int]
+    TRANSLATION_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ACKNOWLEDGMENT_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    POLICY_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PATH_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    route: str
+    requested_runner: str
+    requested_model: str
+    requested_role_ref: str
+    requested_effort: str
+    effective_runner: str
+    effective_model: str
+    effective_effort: str
+    passed_control_args: _containers.RepeatedScalarFieldContainer[str]
+    translation_diagnostics: _containers.RepeatedScalarFieldContainer[str]
+    provider_acknowledgment: _containers.RepeatedScalarFieldContainer[str]
+    catalog_digest: str
+    policy_digest: str
+    policy_path: str
+    runtime_version: str
+    run_id: str
+    operation_id: str
+    accepted_output: bool
+    usage: QualificationUsage
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    captured_at: _timestamp_pb2.Timestamp
+    def __init__(self, route: _Optional[str] = ..., requested_runner: _Optional[str] = ..., requested_model: _Optional[str] = ..., requested_role_ref: _Optional[str] = ..., requested_effort: _Optional[str] = ..., effective_runner: _Optional[str] = ..., effective_model: _Optional[str] = ..., effective_effort: _Optional[str] = ..., passed_control_args: _Optional[_Iterable[str]] = ..., translation_diagnostics: _Optional[_Iterable[str]] = ..., provider_acknowledgment: _Optional[_Iterable[str]] = ..., catalog_digest: _Optional[str] = ..., policy_digest: _Optional[str] = ..., policy_path: _Optional[str] = ..., runtime_version: _Optional[str] = ..., run_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., accepted_output: _Optional[bool] = ..., usage: _Optional[_Union[QualificationUsage, _Mapping]] = ..., limitations: _Optional[_Iterable[str]] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ExecutionCandidate(_message.Message):
     __slots__ = ("runner_type", "selection_type", "model", "resource_role", "fallbacks", "available", "failure_code", "failure", "provenance", "enforcement", "policy_path", "policy_digest")

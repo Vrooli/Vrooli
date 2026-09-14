@@ -33,7 +33,7 @@ INSERT INTO run_events(id, data) VALUES ('canonical-1', '{"content":"must surviv
 	var canonical string
 	require.NoError(t, db.Get(&canonical, `SELECT data FROM run_events WHERE id = 'canonical-1'`))
 	require.Equal(t, `{"content":"must survive"}`, canonical)
-	for _, object := range []string{"conversation_search_documents", "conversation_search_fts", "conversation_search_checkpoints", "conversation_search_generations"} {
+	for _, object := range []string{"conversation_search_catalog", "conversation_search_catalog_fts", "conversation_search_checkpoints", "conversation_search_generations"} {
 		var count int
 		require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE name = ?`, object))
 		require.Equalf(t, 1, count, "missing schema object %s", object)
@@ -53,7 +53,7 @@ func TestSQLiteProjectionSynchronizesFTSAndPreservesStableIdentity(t *testing.T)
 	require.Equal(t, []string{"doc-stable"}, ftsIDs(t, db, "corrected"))
 
 	var initialRowID int64
-	require.NoError(t, db.Get(&initialRowID, `SELECT rowid FROM conversation_search_documents WHERE document_id = ?`, document.DocumentID))
+	require.NoError(t, db.Get(&initialRowID, `SELECT rowid FROM conversation_search_catalog WHERE document_id = ?`, document.DocumentID))
 	document.Content = "adaptive admission uses the shared capacity ledger"
 	document.ContentHash = "content-v2"
 	require.NoError(t, repository.UpsertDocument(ctx, document))
@@ -79,7 +79,7 @@ func TestSQLiteProjectionSynchronizesFTSAndPreservesStableIdentity(t *testing.T)
 
 	require.NoError(t, repository.UpsertDocument(ctx, document))
 	var replacementRowID int64
-	require.NoError(t, db.Get(&replacementRowID, `SELECT rowid FROM conversation_search_documents WHERE document_id = ?`, document.DocumentID))
+	require.NoError(t, db.Get(&replacementRowID, `SELECT rowid FROM conversation_search_catalog WHERE document_id = ?`, document.DocumentID))
 	require.NotEqual(t, initialRowID, replacementRowID)
 	require.Equal(t, document.DocumentID, ftsIDs(t, db, "capacity")[0])
 }
@@ -98,8 +98,8 @@ func TestSQLiteProjectionRejectsInvalidWriteWithoutFTSResidue(t *testing.T) {
 	err := repository.UpsertDocument(context.Background(), document)
 	require.ErrorContains(t, err, "chunk index")
 	var catalog, lexical int
-	require.NoError(t, db.Get(&catalog, `SELECT COUNT(*) FROM conversation_search_documents`))
-	require.NoError(t, db.Get(&lexical, `SELECT COUNT(*) FROM conversation_search_fts`))
+	require.NoError(t, db.Get(&catalog, `SELECT COUNT(*) FROM conversation_search_catalog`))
+	require.NoError(t, db.Get(&lexical, `SELECT COUNT(*) FROM conversation_search_catalog_fts`))
 	require.Zero(t, catalog)
 	require.Zero(t, lexical)
 }
@@ -242,10 +242,10 @@ func TestInitialGenerationRepublishKeepsFTSInLockstep(t *testing.T) {
 
 	require.NoError(t, repository.PublishStagedGeneration(ctx, generationID, 1))
 	var firstRowID int64
-	require.NoError(t, db.Get(&firstRowID, `SELECT rowid FROM conversation_search_documents WHERE document_id=?`, testDocument().DocumentID))
+	require.NoError(t, db.Get(&firstRowID, `SELECT rowid FROM conversation_search_catalog WHERE document_id=?`, testDocument().DocumentID))
 	require.NoError(t, repository.PublishStagedGeneration(ctx, generationID, 1))
 	var resumedRowID int64
-	require.NoError(t, db.Get(&resumedRowID, `SELECT rowid FROM conversation_search_documents WHERE document_id=?`, testDocument().DocumentID))
+	require.NoError(t, db.Get(&resumedRowID, `SELECT rowid FROM conversation_search_catalog WHERE document_id=?`, testDocument().DocumentID))
 	require.Equal(t, firstRowID, resumedRowID, "an unchanged resumed snapshot must not churn serving or FTS identity")
 
 	changed := testDocument()
@@ -254,8 +254,8 @@ func TestInitialGenerationRepublishKeepsFTSInLockstep(t *testing.T) {
 	require.NoError(t, repository.PublishStagedGeneration(ctx, generationID, 1))
 
 	var catalog, lexical int
-	require.NoError(t, db.Get(&catalog, `SELECT COUNT(*) FROM conversation_search_documents`))
-	require.NoError(t, db.Get(&lexical, `SELECT COUNT(*) FROM conversation_search_fts`))
+	require.NoError(t, db.Get(&catalog, `SELECT COUNT(*) FROM conversation_search_catalog`))
+	require.NoError(t, db.Get(&lexical, `SELECT COUNT(*) FROM conversation_search_catalog_fts`))
 	require.Equal(t, 1, catalog)
 	require.Equal(t, catalog, lexical)
 	require.Equal(t, []string{changed.DocumentID}, ftsIDs(t, db, "changed"))
@@ -634,7 +634,7 @@ func TestIndexerOwnerLoopRetriesRecoveryBeforeAdmittingKicks(t *testing.T) {
 	require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "serving", State: "active", RecipeVersion: DefaultRecipeVersion, CreatedAt: now, UpdatedAt: now}))
 	fault := &recoveryFaultDB{DB: db, queryFragment: "WHERE state IN ('building','ready') ORDER BY created_at"}
 	fault.failing.Store(true)
-	indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: NewSQLiteRepository(fault), RepairInterval: time.Hour})
+	indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: NewSQLiteRepository(fault), ChangeInterval: time.Hour})
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -695,7 +695,8 @@ func TestIndexerResumedGenerationObservesOwnerCancellation(t *testing.T) {
 	require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "resumable", State: "building", RecipeVersion: DefaultRecipeVersion, PlannedDocuments: 1, ProcessedDocuments: 1, CreatedAt: now, UpdatedAt: now}))
 	require.NoError(t, repository.StageDocument(t.Context(), "resumable", testDocument()))
 	started, cancelled := make(chan struct{}), make(chan struct{})
-	indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: repository,
+	indexer, err := NewIndexer(IndexerOptions{
+		Source: &mutableProjectionSource{}, Repository: repository,
 		Semantic: semanticRebuilderFunc(func(ctx context.Context, _ string) error {
 			close(started)
 			<-ctx.Done()
@@ -805,7 +806,7 @@ func TestSQLiteProjectionConstraintFailureRollsBackFTSUpdate(t *testing.T) {
 	repository := NewSQLiteRepository(db)
 	require.NoError(t, repository.UpsertDocument(context.Background(), testDocument()))
 
-	_, err := db.ExecContext(context.Background(), `UPDATE conversation_search_documents
+	_, err := db.ExecContext(context.Background(), `UPDATE conversation_search_catalog
         SET content = 'poison replacement', tags_json = '{'
         WHERE document_id = 'doc-stable'`)
 	require.Error(t, err)
@@ -882,12 +883,16 @@ func TestSQLiteProjectionCoverageSeparatesMessagesFromChunks(t *testing.T) {
 	require.Equal(t, uint64(2), lexicalDocuments)
 }
 
-func TestProjectionFilterQueryUsesDeclaredIndex(t *testing.T) {
+// Filtered browsing without a lexical query walks the one visible-time index
+// in order and filters rows as it goes; it must never sort the corpus. The
+// per-filter time indexes it replaced cost ~125 MB each for queries live
+// telemetry showed were rare.
+func TestProjectionBrowseQueryUsesTimeIndexWithoutSorting(t *testing.T) {
 	t.Parallel()
 
 	db := openProjectionTestDB(t)
 	applyProjectionSchema(t, db)
-	rows, err := db.Queryx(`EXPLAIN QUERY PLAN SELECT document_id FROM conversation_search_documents
+	rows, err := db.Queryx(`EXPLAIN QUERY PLAN SELECT document_id FROM conversation_search_catalog
         WHERE visible = 1 AND harness = ? AND occurred_at >= ?
         ORDER BY occurred_at, document_id`, "claude-code", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -900,7 +905,9 @@ func TestProjectionFilterQueryUsesDeclaredIndex(t *testing.T) {
 		details = append(details, detail)
 	}
 	require.NoError(t, rows.Err())
-	require.Contains(t, strings.Join(details, "\n"), "idx_conversation_search_harness_time")
+	plan := strings.Join(details, "\n")
+	require.Contains(t, plan, "idx_conversation_search_catalog_visible_time")
+	require.NotContains(t, plan, "TEMP B-TREE")
 }
 
 func TestProjectionTestsUseOnlyMemoryDatabase(t *testing.T) {
@@ -944,7 +951,7 @@ func testDocument() Document {
 func ftsIDs(t *testing.T, db *sqlx.DB, query string) []string {
 	t.Helper()
 	var ids []string
-	require.NoError(t, db.Select(&ids, `SELECT document_id FROM conversation_search_fts WHERE conversation_search_fts MATCH ? ORDER BY document_id`, query))
+	require.NoError(t, db.Select(&ids, `SELECT document_id FROM conversation_search_catalog_fts WHERE conversation_search_catalog_fts MATCH ? ORDER BY document_id`, query))
 	return ids
 }
 

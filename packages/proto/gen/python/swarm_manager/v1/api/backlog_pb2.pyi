@@ -24,7 +24,7 @@ ARCHIVED_FILTER_ONLY: ArchivedFilter
 ARCHIVED_FILTER_ALL: ArchivedFilter
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria", "execution_strategy", "execution_limits", "continuation", "scope_policy")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria", "execution_mode", "execution_limits", "continuation", "scope_policy", "operator_note")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -41,10 +41,11 @@ class CreateBacklogItemRequest(_message.Message):
     CREATES_FIELD_NUMBER: _ClassVar[int]
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
-    EXECUTION_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_LIMITS_FIELD_NUMBER: _ClassVar[int]
     CONTINUATION_FIELD_NUMBER: _ClassVar[int]
     SCOPE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -61,14 +62,15 @@ class CreateBacklogItemRequest(_message.Message):
     creates: _containers.RepeatedScalarFieldContainer[str]
     plan_ref: _plan_ref_pb2.PlanRef
     acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2_1.BacklogCriterion]
-    execution_strategy: str
+    execution_mode: str
     execution_limits: _backlog_pb2.ExecutionLimits
     continuation: str
     scope_policy: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ..., execution_strategy: _Optional[str] = ..., execution_limits: _Optional[_Union[_backlog_pb2.ExecutionLimits, _Mapping]] = ..., continuation: _Optional[str] = ..., scope_policy: _Optional[str] = ...) -> None: ...
+    operator_note: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ..., execution_mode: _Optional[str] = ..., execution_limits: _Optional[_Union[_backlog_pb2.ExecutionLimits, _Mapping]] = ..., continuation: _Optional[str] = ..., scope_policy: _Optional[str] = ..., operator_note: _Optional[str] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria", "execution_strategy", "execution_limits", "continuation", "scope_policy")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria", "execution_mode", "execution_limits", "continuation", "scope_policy", "operator_note")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -84,10 +86,11 @@ class UpdateBacklogItemRequest(_message.Message):
     CREATES_FIELD_NUMBER: _ClassVar[int]
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
-    EXECUTION_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_LIMITS_FIELD_NUMBER: _ClassVar[int]
     CONTINUATION_FIELD_NUMBER: _ClassVar[int]
     SCOPE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -103,11 +106,12 @@ class UpdateBacklogItemRequest(_message.Message):
     creates: _containers.RepeatedScalarFieldContainer[str]
     plan_ref: _plan_ref_pb2.PlanRef
     acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2_1.BacklogCriterion]
-    execution_strategy: str
+    execution_mode: str
     execution_limits: _backlog_pb2.ExecutionLimits
     continuation: str
     scope_policy: str
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ..., execution_strategy: _Optional[str] = ..., execution_limits: _Optional[_Union[_backlog_pb2.ExecutionLimits, _Mapping]] = ..., continuation: _Optional[str] = ..., scope_policy: _Optional[str] = ...) -> None: ...
+    operator_note: str
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ..., execution_mode: _Optional[str] = ..., execution_limits: _Optional[_Union[_backlog_pb2.ExecutionLimits, _Mapping]] = ..., continuation: _Optional[str] = ..., scope_policy: _Optional[str] = ..., operator_note: _Optional[str] = ...) -> None: ...
 
 class UpdateItemRequest(_message.Message):
     __slots__ = ("kind", "name", "patch", "fields")
@@ -395,24 +399,26 @@ class BacklogFileOperationResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2_1.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation", "mode", "started_by", "confirm", "force", "strategy", "max_slices", "execution_preferences")
+    __slots__ = ("operation", "mode", "started_by", "confirm", "force", "execution_mode", "max_slices", "execution_preferences", "operator_note")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
-    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
     operation: str
     mode: str
     started_by: str
     confirm: bool
     force: bool
-    strategy: str
+    execution_mode: str
     max_slices: int
     execution_preferences: _backlog_pb2.ExecutionPreferences
-    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ..., strategy: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+    operator_note: str
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ..., execution_mode: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., operator_note: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
     __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions", "advisories")

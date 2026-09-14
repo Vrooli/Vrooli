@@ -292,9 +292,17 @@ func (g *Generator) Generate(ctx context.Context) (err error) {
 		return fmt.Errorf("create staged generated tree: %w", err)
 	}
 	scoped := g.cfg.Changed || len(g.cfg.Scenarios) > 0 || len(excluded) > 0
-	parentArtifactID, err := g.seedGenerationBase(ctx, stageGen, scoped)
-	if err != nil {
-		return err
+	// Keep the freshly generated slice separate from the complete artifact.
+	// A seeded snapshot includes unrelated owners and is not authority to
+	// overwrite their concurrent edits in the repository compatibility tree.
+	artifactGen := stageGen
+	var parentArtifactID string
+	if scoped && g.cfg.PublishArtifacts {
+		artifactGen = filepath.Join(stage, "artifact", "gen")
+		parentArtifactID, err = g.seedGenerationBase(ctx, artifactGen, true)
+		if err != nil {
+			return err
+		}
 	}
 	if err := g.seedGeneratedMetadata(stageGen); err != nil {
 		return err
@@ -322,6 +330,11 @@ func (g *Generator) Generate(ctx context.Context) (err error) {
 			return annotateBufError("build descriptor", len(scope), err)
 		}
 		descriptorBuilt = false
+		// Buf can leave partial output on failure. The separately seeded
+		// artifact retains its previous whole-tree descriptor instead.
+		if removeErr := os.Remove(filepath.Join(stageGen, "descriptor", "image.binpb")); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return fmt.Errorf("discard failed staged descriptor: %w", removeErr)
+		}
 		logf(g.cfg.Logger, "protogen: whole-tree descriptor unavailable during a scoped run for %d scenario(s); committed descriptor left untouched: %v", len(scope), annotateBufError("build descriptor", len(scope), err))
 	}
 	if err := g.writeManifests(stageGen, scope); err != nil {
@@ -333,16 +346,31 @@ func (g *Generator) Generate(ctx context.Context) (err error) {
 		return fmt.Errorf("%w: captured=%s current=%s", ErrArtifactSourceDrift, sourceDigest, currentDigest)
 	}
 	if g.cfg.PublishArtifacts {
-		if err := g.publishArtifact(ctx, stageGen, sourceDigest, inputFiles, scope, parentArtifactID); err != nil {
+		if scoped {
+			// Selected owner directories are authoritative, including removals.
+			// Shared imports merge only the files emitted by this generation.
+			for _, scenario := range scope {
+				for _, rel := range genmanifest.ScenarioOutputDirs(scenario) {
+					if err := os.RemoveAll(filepath.Join(artifactGen, strings.TrimPrefix(rel, "gen/"))); err != nil {
+						return fmt.Errorf("replace staged artifact owner %s: %w", scenario, err)
+					}
+				}
+			}
+			if err := copyTree(ctx, stageGen, artifactGen); err != nil {
+				return fmt.Errorf("merge generated slice into staged artifact: %w", err)
+			}
+		}
+		if err := g.publishArtifact(ctx, artifactGen, sourceDigest, inputFiles, scope, parentArtifactID); err != nil {
 			return err
 		}
-		// The repository tree is a compatibility view only. Replace it from the
-		// already-validated snapshot as one directory transaction so legacy
-		// readers cannot observe the generator's per-file staging sequence.
-		if err := g.publishSelectedCompatibility(ctx); err != nil {
-			return err
+		// Only a deliberate full generation owns the entire compatibility
+		// tree. Scoped runs publish their fresh slice after artifact validation;
+		// never pass an immutable snapshot to the consuming file publisher.
+		if !scoped {
+			return g.publishSelectedCompatibility(ctx)
 		}
-	} else if err := g.publish(stageGen, scope, !scoped, descriptorBuilt); err != nil {
+	}
+	if err := g.publish(stageGen, scope, !scoped, descriptorBuilt); err != nil {
 		return err
 	}
 	if len(excluded) > 0 {

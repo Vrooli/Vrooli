@@ -2,6 +2,7 @@ package protogen
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -180,7 +181,7 @@ func ApplyCleanup(ctx context.Context, opts CleanupOptions, plan CleanupPlan, lo
 		action := &result.Plan.Actions[i]
 		if action.Kind == "empty_schema_owner" {
 			path := filepath.Join(opts.RepoRoot, filepath.FromSlash(action.Path))
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			if err := removeEmptyDirectoryTree(path); err != nil {
 				return result, fmt.Errorf("remove empty schema owner %s: %w", action.Path, err)
 			}
 		}
@@ -188,6 +189,35 @@ func ApplyCleanup(ctx context.Context, opts CleanupOptions, plan CleanupPlan, lo
 	}
 	result.Applied = true
 	return result, nil
+}
+
+// removeEmptyDirectoryTree removes a directory and any empty descendants.
+// It refuses to remove the tree if a file (including a symlink) appears at
+// any depth, so a concurrent or previously missed source file is preserved.
+func removeEmptyDirectoryTree(root string) error {
+	var directories []string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return fmt.Errorf("directory contains file %s", path)
+		}
+		directories = append(directories, path)
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for i := len(directories) - 1; i >= 0; i-- {
+		if err := os.Remove(directories[i]); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
 }
 
 func orphanGeneratedOwnerActions(protoRoot string, active, stale map[string]bool) []CleanupAction {
@@ -200,8 +230,8 @@ func orphanGeneratedOwnerActions(protoRoot string, active, stale map[string]bool
 			})
 		} else if !active[owner] {
 			actions = append(actions, CleanupAction{
-				Kind: "unrecognized_generated_directory", Owner: owner, Path: path,
-				Reason: fmt.Sprintf("generated directory %s has no active schema owner or stale manifest; review before removing", cleanupRelativePath(protoRoot, path)), Safe: false,
+				Kind: kind, Owner: owner, Path: path,
+				Reason: fmt.Sprintf("generated output %s has no active schema owner; full generation will prune it", cleanupRelativePath(protoRoot, path)), Safe: true,
 			})
 		}
 	}

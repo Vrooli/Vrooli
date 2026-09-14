@@ -95,3 +95,36 @@ Generic retention now defers storage entries declaring `reclaim.pruner: custom`,
 
 
 Activation verified 2026-09-05 05:41 UTC: service restarted and reports healthy/ready. A missing generated-proto checksum was repaired through `scenario-dependency-analyzer deps install`, followed by passing dependency governance validation. Owner cleanup completed and the normal schedules were restored; generic custom-entry deference remains active.
+
+### 2026-09-12 — Shared Go cache recovery deleted build inputs
+
+**Symptom:** Go compile/link/vet reported missing shared-cache artifacts during
+otherwise passing source builds. Recovery receipts `recovery-962049-1789170239922466140-75`
+and `-76` reclaimed 1,128,742,621 and 969,941,935 bytes at 16:11:59 and 16:14:01 UTC.
+Their `go-build-cache` apply audit events are `audit-1baa9bbf9cfcf523` and
+`audit-1d061b76aab7543f`. The receipts identify the deleting provider and root, not
+each missing artifact hash.
+
+**Root cause:** A false regenerable/no-lease declaration let RATE recovery
+override policy/age protection and delete whole cache shards. Go permits
+concurrent builds on a local cache; external deletion violated its output-use
+lifetime. The triggering pressure warning was about 74.5% disk use, not disk full.
+
+**Workaround:** No ordinary policy toggle or perpetual new GOCACHE directory is
+a safety repair. Coordinate the canonical Storage Manager lifecycle rollout;
+source-only changes do not contain the running reclaimer. No restart or cache
+deletion was performed by this repair.
+
+**Real fix:** The declaration now requires owner evidence and the canonical
+provider refuses preview/apply, including old-plan replay and recovery overrides.
+Future external reclamation needs a tool-owner build-use/quiescence protocol;
+mtime and open-handle snapshots are insufficient. Runtime adoption remains a
+separate operator-owned step.
+
+**Owner:** Storage Manager provider owner; control-plane owner for lifecycle adoption.
+
+**Refs:** [Safety invariant](../reference/recovery-ledger.md#shared-go-build-cache-safety),
+`api/internal/providers/file_provider.go`, `spec_provider_test.go`,
+`.vrooli/repo-contract.json`; prior memory record
+`source-ledger.agent-memory/4ac20388-16fd-4867-89e9-de3b681bb995` correctly identified
+churn but its external mtime-cap recommendation lacked active-build safety.

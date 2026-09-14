@@ -634,6 +634,11 @@ type claudeTranscriptParser struct {
 	// `result` line on disk, design §3 / R2). The stdout dialect never
 	// carries sessionId, so this never trips during pipe-mode replay.
 	onDisk bool
+	// openTurnUsage is the latest on-disk assistant response usage since the
+	// last turn boundary; requestPending records that a user line (a tool
+	// result or a prompt) followed it, so a new request may have been sent.
+	openTurnUsage  []*domain.UsageEventData
+	requestPending bool
 }
 
 func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
@@ -678,7 +683,7 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 		// top of this marker (interactive sessions stay open awaiting input).
 		if p.onDisk && strings.EqualFold(streamEvent.Type, "assistant") &&
 			streamEvent.Message != nil && streamEvent.Message.StopReason == "end_turn" {
-			var computedCharges []*domain.RunEvent
+			var receipts []*domain.UsageEventData
 			for _, event := range result.Events {
 				usage, ok := event.Data.(*domain.UsageEventData)
 				if !ok {
@@ -688,26 +693,9 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 				// terminal snapshot for interactive Claude. It remains a
 				// token receipt even when pricing is unavailable.
 				usage.ReconciliationAuthority = true
-				// The on-disk dialect has no cost line. When a pricing lookup
-				// is wired, compute the charge from this reconciliation
-				// authority usage; otherwise the charge stays unknown and the
-				// allowance must remain reserved. The first event returned by
-				// buildCostEvents is a duplicate usage event, so only its charge
-				// events are kept.
-				if p.pricing != nil {
-					tokens := usageTokens{
-						InputTokens:         usage.InputTokens,
-						OutputTokens:        usage.OutputTokens,
-						CacheReadTokens:     usage.CacheReadTokens,
-						CacheCreationTokens: usage.CacheCreationTokens,
-					}
-					charges := buildCostEvents(runID, domain.RunnerTypeClaudeCode, p.pricing, p.state.model, tokens, p.state.billing)
-					if len(charges) > 1 {
-						computedCharges = append(computedCharges, charges[1:]...)
-					}
-				}
+				receipts = append(receipts, usage)
 			}
-			result.Events = append(result.Events, computedCharges...)
+			result.Events = append(result.Events, p.receiptCharges(runID, receipts)...)
 			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "turn_boundary"}
 		}
 		if strings.EqualFold(streamEvent.Type, "result") {
@@ -737,8 +725,85 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 		if marker, ok := claudeGoalStatus(line); ok {
 			result.Goal = &marker
 		}
+		p.trackOpenTurn(streamEvent.Type, result)
 	}
 	return result
+}
+
+// receiptCharges prices reconciliation-authority usage. The on-disk dialect has
+// no cost line: when a pricing lookup is wired, compute the charge from the
+// receipt usage; otherwise the charge stays unknown and the allowance must
+// remain reserved. The first event buildCostEvents returns duplicates the
+// usage, so only its charge events are kept.
+func (p *claudeTranscriptParser) receiptCharges(runID uuid.UUID, receipts []*domain.UsageEventData) []*domain.RunEvent {
+	if p.pricing == nil {
+		return nil
+	}
+	var charges []*domain.RunEvent
+	for _, usage := range receipts {
+		tokens := usageTokens{
+			InputTokens:         usage.InputTokens,
+			OutputTokens:        usage.OutputTokens,
+			CacheReadTokens:     usage.CacheReadTokens,
+			CacheCreationTokens: usage.CacheCreationTokens,
+		}
+		built := buildCostEvents(runID, domain.RunnerTypeClaudeCode, p.pricing, p.state.model, tokens, p.state.billing)
+		if len(built) > 1 {
+			charges = append(charges, built[1:]...)
+		}
+	}
+	return charges
+}
+
+// trackOpenTurn remembers the latest on-disk assistant usage since the last
+// turn boundary and whether a user line followed it. Claude writes a response's
+// usage only once the response completes, and writes the tool result or prompt
+// before it sends the next request, so these two facts decide whether a request
+// could have been outstanding when the transcript ends.
+func (p *claudeTranscriptParser) trackOpenTurn(lineType string, result runner.TranscriptParseResult) {
+	if !p.onDisk {
+		return
+	}
+	switch {
+	case result.Terminal != nil:
+		p.openTurnUsage, p.requestPending = nil, false
+	case strings.EqualFold(lineType, "assistant"):
+		var usage []*domain.UsageEventData
+		for _, event := range result.Events {
+			if data, ok := event.Data.(*domain.UsageEventData); ok {
+				usage = append(usage, data)
+			}
+		}
+		if len(usage) > 0 {
+			p.openTurnUsage, p.requestPending = usage, false
+		}
+	case strings.EqualFold(lineType, "user"):
+		p.requestPending = true
+	}
+}
+
+// FinalizeInterruptedTurn satisfies [runner.TranscriptInterruptedTurnFinalizer].
+// A transcript that ends on a completed assistant response, with no tool result
+// or prompt after it, had no request outstanding: that response's usage is the
+// turn's final snapshot and is promoted exactly as end_turn would promote it.
+func (p *claudeTranscriptParser) FinalizeInterruptedTurn(runID uuid.UUID, at time.Time) ([]*domain.RunEvent, bool) {
+	if !p.onDisk || p.requestPending || len(p.openTurnUsage) == 0 {
+		return nil, false
+	}
+	receipts := make([]*domain.UsageEventData, 0, len(p.openTurnUsage))
+	events := make([]*domain.RunEvent, 0, len(p.openTurnUsage))
+	for _, usage := range p.openTurnUsage {
+		receipt := *usage
+		receipt.ReconciliationAuthority = true
+		receipt.ReconciliationSource = domain.ReconciliationSourceInterruptedTurn
+		receipts = append(receipts, &receipt)
+		events = append(events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: at, Data: &receipt})
+	}
+	for _, charge := range p.receiptCharges(runID, receipts) {
+		charge.Timestamp = at
+		events = append(events, charge)
+	}
+	return events, true
 }
 
 // =============================================================================

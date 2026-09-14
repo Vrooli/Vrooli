@@ -20,6 +20,25 @@ const (
 	ProviderMetered    = "lpbs"
 )
 
+// Typed provider-limit codes. They are the provider-neutral seam between a
+// native provider failure and the routing classifier so an account-credit
+// exhaustion, a rate limit, or an overload is not flattened into a generic
+// execution failure. The observed recovery window (Retry-After/reset) rides on
+// CommandError beside the code.
+const (
+	CodeInsufficientCredits = "insufficient_credits"
+	CodeRateLimited         = "rate_limited"
+	CodeProviderOverloaded  = "provider_overloaded"
+	CodeProviderFailed      = "provider_failed"
+	// CodeStreamFailed is a provider response whose body failed mid-read after
+	// an HTTP 2xx. It is transient, so it is classified like an overload.
+	CodeStreamFailed = "stream_failed"
+	// CodeUnreachable is a provider command that could not reach the provider at
+	// all. It is an availability condition, not a request fault.
+	CodeUnreachable   = "unreachable"
+	CodeCommandFailed = "command_failed"
+)
+
 type Adapter struct {
 	Provider    string
 	CommandName string
@@ -345,7 +364,7 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 			Profile: req.Profile,
 		})
 		if err != nil {
-			return ExecutionResult{}, &CommandError{Code: "provider_failed", Command: a.Provider, ExitCode: -1, Err: err}
+			return ExecutionResult{}, mapCommandError(a.Provider, err)
 		}
 		encoded, marshalErr := json.Marshal(result)
 		if marshalErr != nil {

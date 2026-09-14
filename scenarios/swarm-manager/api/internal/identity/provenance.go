@@ -11,6 +11,8 @@ import (
 const (
 	TypeOperator = provenance.ActorOperator
 	TypeAgent    = provenance.ActorAgent
+
+	VerificationVerified = provenance.VerificationVerified
 )
 
 type Provenance = provenance.Provenance
@@ -20,3 +22,14 @@ func NewContext(ctx context.Context, p Provenance) context.Context {
 }
 
 func FromContext(ctx context.Context) Provenance { return provenance.FromContext(ctx) }
+
+// VerifiedOperatorActor returns the operator attribution only when request
+// provenance proves an authenticated operator. An absent, invalid or unavailable
+// verification is not an operator and yields an empty string, so callers that
+// need a real human act cannot inherit the fail-open started-by default.
+func VerifiedOperatorActor(p Provenance) string {
+	if p.Actor == TypeOperator && p.VerificationStatus == VerificationVerified {
+		return p.FormatStartedBy()
+	}
+	return ""
+}

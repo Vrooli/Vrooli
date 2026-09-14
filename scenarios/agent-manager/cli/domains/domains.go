@@ -58,6 +58,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		support.SubcommandGroup("task", "Manage tasks", deps.Task,
 			[2]string{"list", "List all tasks"}, [2]string{"get", "Get task details"}, [2]string{"create", "Create a task"}, [2]string{"update", "Update a task"}, [2]string{"delete", "Delete a cancelled task"}, [2]string{"cancel", "Cancel a queued or running task"}),
 		maintenanceGroup(deps),
+		storageGroup(deps),
 		support.SubcommandGroup("ops", "Inspect typed-event operational statistics", deps.Ops,
 			[2]string{"summary", "Show every operational category"}, [2]string{"fallback", "Show runner and model fallback insights"}, [2]string{"health", "Show engine-derived health transitions"}, [2]string{"sandbox", "Show sandbox operation outcomes"}, [2]string{"heartbeat", "Show heartbeat-miss counters"}, [2]string{"checkpoint", "Show checkpoint-failure counters"}, [2]string{"retry", "Show retry-attempt counters"}),
 		support.SubcommandGroup("health", "Inspect persisted health snapshots and audit", deps.Health,

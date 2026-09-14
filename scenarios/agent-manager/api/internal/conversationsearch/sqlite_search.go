@@ -19,16 +19,16 @@ func (r *SQLiteRepository) LexicalCandidates(ctx context.Context, request Candid
 	}
 	where := make([]string, 0, 16)
 	args := make([]any, 0, 16)
-	from := "conversation_search_documents d"
+	from := "conversation_search_catalog d"
 	score := "0.0"
 	if strings.TrimSpace(request.Query) != "" {
 		expression, err := buildFTSExpressionFor(request.Query, request.MatchAllTerms)
 		if err != nil {
 			return nil, err
 		}
-		from = "conversation_search_fts JOIN conversation_search_documents d ON d.rowid = conversation_search_fts.rowid"
-		score = "-bm25(conversation_search_fts)"
-		where = append(where, "conversation_search_fts MATCH ?")
+		from = "conversation_search_catalog_fts JOIN conversation_search_catalog d ON d.rowid = conversation_search_catalog_fts.rowid"
+		score = "-bm25(conversation_search_catalog_fts)"
+		where = append(where, "conversation_search_catalog_fts MATCH ?")
 		args = append(args, expression)
 	} else if request.Sort == SearchSortRelevance {
 		return nil, errors.New("lexical query is required for relevance sorting")
@@ -132,7 +132,7 @@ func (r *SQLiteRepository) contextSide(ctx context.Context, runID string, sequen
 	if direction != "ASC" && direction != "DESC" {
 		return nil, errors.New("invalid internal context direction")
 	}
-	query := `SELECT * FROM conversation_search_documents
+	query := `SELECT * FROM conversation_search_catalog
         WHERE source_run_id = ? AND visible = 1 AND chunk_index = 0 AND event_sequence ` + comparator + ` ?
         ORDER BY event_sequence ` + direction + `, document_id ASC LIMIT ?`
 	rows, err := r.db.QueryxContext(ctx, query, runID, sequence, limit)

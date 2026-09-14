@@ -85,15 +85,18 @@ func (scope EffortScope) Allows(path string) bool {
 // Descendant depth and active-descendant caps are shared across every branch so
 // siblings and nested planners cannot mint additional capacity.
 type AggregateLimits struct {
-	MaxWorkers            int    `json:"max_workers"`
-	MaxConcurrency        int    `json:"max_concurrency"`
-	MaxDepth              int    `json:"max_depth"`
-	MaxActiveDescendants  int    `json:"max_active_descendants"`
-	MaxPremiumDescendants int    `json:"max_premium_descendants"`
-	MaxTokens             int64  `json:"max_tokens,omitempty"`
-	MaxChargeMicroUSD     int64  `json:"max_charge_micro_usd,omitempty"`
-	MaxWallSeconds        int64  `json:"max_wall_seconds,omitempty"`
-	Deadline              string `json:"deadline,omitempty"`
+	MaxWorkers            int   `json:"max_workers"`
+	MaxConcurrency        int   `json:"max_concurrency"`
+	MaxDepth              int   `json:"max_depth"`
+	MaxActiveDescendants  int   `json:"max_active_descendants"`
+	MaxPremiumDescendants int   `json:"max_premium_descendants"`
+	MaxTokens             int64 `json:"max_tokens,omitempty"`
+	MaxChargeMicroUSD     int64 `json:"max_charge_micro_usd,omitempty"`
+	MaxWallSeconds        int64 `json:"max_wall_seconds,omitempty"`
+	// MaxWaitSeconds optionally bounds how long one child dispatch may wait for
+	// its owner. Zero leaves the reviewed child default in force.
+	MaxWaitSeconds int    `json:"max_wait_seconds,omitempty"`
+	Deadline       string `json:"deadline,omitempty"`
 }
 
 func (limits AggregateLimits) Validate() error {
@@ -128,6 +131,7 @@ func (limits AggregateLimits) Validate() error {
 		{"max_tokens", limits.MaxTokens, 2147483647},
 		{"max_charge_micro_usd", limits.MaxChargeMicroUSD, 1000000000000},
 		{"max_wall_seconds", limits.MaxWallSeconds, 604800},
+		{"max_wait_seconds", int64(limits.MaxWaitSeconds), 604800},
 	} {
 		if field.value < 0 || field.value > field.maximum {
 			return fmt.Errorf("aggregate_limits.%s must be between 0 and %d", field.name, field.maximum)
@@ -159,14 +163,39 @@ func (limits AggregateLimits) CanActivate(activeDescendants, activePremium int, 
 
 // RepairLimits is the reviewed cumulative waste bound. It is copied from the
 // approved effort policy at admission and never reset by a new plan or worker.
+//
+// The count caps (per fingerprint/component/effort) and the active-time caps
+// (component_active_minutes and the diversion fraction of the approved work
+// allowance) are complementary: whichever threshold is reached first stops
+// further repair admission. ApprovedActiveMinutes is the numeric denominator the
+// aggregate work allowance contributes; zero means the effort left the allowance
+// unbounded, so the fraction cannot be enforced numerically.
 type RepairLimits struct {
-	PerFingerprint         int `json:"per_fingerprint"`
-	PerComponent           int `json:"per_component"`
-	PerEffort              int `json:"per_effort"`
-	ComponentActiveMinutes int `json:"component_active_minutes"`
-	ProbeAttempts          int `json:"probe_attempts,omitempty"`
-	TransportAttempts      int `json:"transport_attempts,omitempty"`
-	StatusReads            int `json:"status_reads,omitempty"`
+	PerFingerprint         int     `json:"per_fingerprint"`
+	PerComponent           int     `json:"per_component"`
+	PerEffort              int     `json:"per_effort"`
+	ComponentActiveMinutes int     `json:"component_active_minutes"`
+	EffortFraction         float64 `json:"effort_fraction_of_approved_work_allowance,omitempty"`
+	ApprovedActiveMinutes  int     `json:"approved_active_minutes,omitempty"`
+	ProbeAttempts          int     `json:"probe_attempts,omitempty"`
+	TransportAttempts      int     `json:"transport_attempts,omitempty"`
+	StatusReads            int     `json:"status_reads,omitempty"`
+}
+
+// EffortActiveMinutesLimit resolves the numeric diversion time bound from the
+// approved aggregate work allowance and the reviewed diversion fraction. Zero
+// means the effort is not numerically bounded, so the caller enforces only the
+// per-component time cap. A non-zero fraction of a bounded allowance never
+// rounds down to no allowance.
+func (limits RepairLimits) EffortActiveMinutesLimit() int {
+	if limits.EffortFraction <= 0 || limits.ApprovedActiveMinutes <= 0 {
+		return 0
+	}
+	bound := int(float64(limits.ApprovedActiveMinutes) * limits.EffortFraction)
+	if bound < 1 {
+		return 1
+	}
+	return bound
 }
 
 func (limits RepairLimits) Validate() error {
@@ -189,6 +218,9 @@ func (limits RepairLimits) Validate() error {
 	if limits.PerEffort < limits.PerComponent {
 		return fmt.Errorf("repair_limits.per_effort cannot be less than per_component")
 	}
+	if limits.EffortFraction < 0 || limits.EffortFraction > 1 {
+		return fmt.Errorf("repair_limits.effort_fraction_of_approved_work_allowance must be between 0 and 1")
+	}
 	for _, field := range []struct {
 		name  string
 		value int
@@ -196,6 +228,7 @@ func (limits RepairLimits) Validate() error {
 		{"probe_attempts", limits.ProbeAttempts},
 		{"transport_attempts", limits.TransportAttempts},
 		{"status_reads", limits.StatusReads},
+		{"approved_active_minutes", limits.ApprovedActiveMinutes},
 	} {
 		if field.value < 0 {
 			return fmt.Errorf("repair_limits.%s must not be negative", field.name)
@@ -278,6 +311,102 @@ func (binding CandidatePolicyBinding) Validate() error {
 		return fmt.Errorf("candidate_policy fallback runner and model must be set together")
 	}
 	return nil
+}
+
+// Sentinel errors for last-resort fallback candidate qualification. A candidate
+// that fails any of these is never selected, so an unqualified or unfunded route
+// cannot be reached by silently falling through.
+var (
+	ErrCandidateIdentityRequired = errors.New("candidate runner and model are required")
+	ErrCandidateWithheld         = errors.New("candidate is withheld for this effort")
+	ErrCandidateUnbound          = errors.New("candidate is not one of the bound routes")
+	ErrCandidateUnqualified      = errors.New("candidate lacks a qualified accepted-output result")
+	ErrCandidateBillingUnknown   = errors.New("metered candidate billing is unknown or unfunded")
+)
+
+// Candidate is one proposed runner/model at a dispatch or fallback route,
+// together with the qualification facts the reviewed effort policy requires
+// before a last-resort fallback may select it. Metered candidates must have known,
+// funded billing; subscription candidates draw on an authenticated account and
+// are not refused on billing alone.
+type Candidate struct {
+	Runner       string `json:"runner"`
+	Model        string `json:"model"`
+	Metered      bool   `json:"metered,omitempty"`
+	BillingKnown bool   `json:"billing_known,omitempty"`
+	Funded       bool   `json:"funded,omitempty"`
+	Qualified    bool   `json:"qualified,omitempty"`
+}
+
+// CandidateQualification is the read-only disposition of one proposed candidate
+// against the admitted effort's immutable candidate-policy binding.
+type CandidateQualification struct {
+	Runner    string `json:"runner"`
+	Model     string `json:"model"`
+	Qualified bool   `json:"qualified"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// QualifyLastResort refuses a candidate that the effort policy does not permit a
+// last-resort fallback to select. The checks are ordered from the most explicit
+// policy refusal to the most general: a withheld route is refused first, then an
+// unbound route, then a route without a qualified accepted output, then a metered
+// route whose billing/funding is unknown. A candidate that passes every check is
+// admitted.
+func (binding CandidatePolicyBinding) QualifyLastResort(candidate Candidate) error {
+	candidate.Runner = strings.TrimSpace(candidate.Runner)
+	candidate.Model = strings.TrimSpace(candidate.Model)
+	if candidate.Runner == "" || candidate.Model == "" {
+		return ErrCandidateIdentityRequired
+	}
+	for _, withheld := range binding.Withheld {
+		if candidateSpecMatches(withheld, candidate) {
+			return fmt.Errorf("%w: %q", ErrCandidateWithheld, strings.TrimSpace(withheld))
+		}
+	}
+	if !binding.bindsRoute(candidate) {
+		return fmt.Errorf("%w: %s/%s", ErrCandidateUnbound, candidate.Runner, candidate.Model)
+	}
+	if !candidate.Qualified {
+		return fmt.Errorf("%w: %s/%s", ErrCandidateUnqualified, candidate.Runner, candidate.Model)
+	}
+	if candidate.Metered && !(candidate.BillingKnown && candidate.Funded) {
+		return fmt.Errorf("%w: %s/%s", ErrCandidateBillingUnknown, candidate.Runner, candidate.Model)
+	}
+	return nil
+}
+
+// bindsRoute reports whether the candidate exactly matches one of the bound
+// economical, fallback or premium routes.
+func (binding CandidatePolicyBinding) bindsRoute(candidate Candidate) bool {
+	return routeMatches(binding.EconomicalRunner, binding.EconomicalModel, candidate) ||
+		routeMatches(binding.FallbackRunner, binding.FallbackModel, candidate) ||
+		routeMatches(binding.PremiumRunner, binding.PremiumModel, candidate)
+}
+
+func routeMatches(runner, model string, candidate Candidate) bool {
+	runner, model = strings.TrimSpace(runner), strings.TrimSpace(model)
+	if runner == "" || model == "" {
+		return false
+	}
+	return strings.EqualFold(runner, candidate.Runner) && strings.EqualFold(model, candidate.Model)
+}
+
+// candidateSpecMatches matches a withheld spec against a candidate's runner,
+// model, or `runner/model` / `runner:model` key. It is case-insensitive so a
+// policy author cannot bypass a withholding with a casing change.
+func candidateSpecMatches(spec string, candidate Candidate) bool {
+	spec = strings.ToLower(strings.TrimSpace(spec))
+	if spec == "" {
+		return false
+	}
+	runner := strings.ToLower(candidate.Runner)
+	model := strings.ToLower(candidate.Model)
+	switch spec {
+	case runner, model, runner + "/" + model, runner + ":" + model:
+		return true
+	}
+	return false
 }
 
 // WorkReference points at an existing canonical owner record. The aggregate

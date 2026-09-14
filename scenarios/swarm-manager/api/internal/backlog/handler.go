@@ -139,11 +139,24 @@ func (h *Handler) SetEffortControlService(service *EffortControlService) {
 	h.effortControl = service
 }
 
+// EffortControlService exposes the owner effort-control admission service for
+// read-only aggregate-grant projection (for example binding child-workflow
+// limits). It returns nil when no service is configured.
+func (h *Handler) EffortControlService() *EffortControlService {
+	if h == nil {
+		return nil
+	}
+	return h.effortControl
+}
+
 // newDefaultEffortControlService wires durable effort persistence under the
 // runtime data root and binds approved policy from the live effort workspace.
 func newDefaultEffortControlService(dataRoot string) *EffortControlService {
 	store := NewFileEffortControlStore(filepath.Join(dataRoot, "effort-control"))
-	return NewEffortControlService(store, FileEffortPolicySource{Root: defaultEffortPolicyRoot()})
+	return NewEffortControlService(store, FileEffortPolicySource{Root: defaultEffortPolicyRoot()}).
+		WithRepairLedgerRoot(filepath.Join(dataRoot, "effort-control-repairs")).
+		WithProviderPoolRoot(filepath.Join(dataRoot, "provider-pools")).
+		WithDescendantRoot(filepath.Join(dataRoot, "effort-descendants"))
 }
 
 // defaultEffortPolicyRoot resolves the runtime-home plan_artifacts/efforts
@@ -501,6 +514,44 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/efforts/{effortID}", h.GetEffort).Methods("GET")
 	r.HandleFunc("/api/v1/efforts/{effortID}/completion/evidence", h.MarkEffortEvidenceComplete).Methods("POST")
 	r.HandleFunc("/api/v1/efforts/{effortID}/completion/accept", h.AcceptEffortCompletion).Methods("POST")
+	// Cumulative repair accounting: reserve before contacting an owner, finish
+	// for disposition, read totals for the shared waste bound. See
+	// effort_control_repair_handler.go.
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs", h.BeginEffortRepair).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs", h.GetEffortRepairs).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}", h.GetEffortRepairDispatch).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/finish", h.FinishEffortRepair).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/dispatch", h.AcknowledgeEffortRepairDispatch).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/uncertain", h.MarkEffortRepairUncertain).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/reconcile", h.ReconcileEffortRepairDispatch).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/fallback", h.FallbackEffortRepairDispatch).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/repairs/{attemptID}/cancel", h.CancelEffortRepairDispatch).Methods("POST")
+
+	// Provider/credential-pool reservations and typed runner-limit recovery.
+	// Observations pause a shared pool with an explicit reset condition;
+	// reservations are accounted before an owner is contacted. See
+	// effort_provider_handler.go.
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}", h.GetEffortProviderPool).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/refresh", h.RefreshEffortProviderPools).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/observations", h.ObserveEffortProviderLimit).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/failures", h.ObserveEffortProviderFailure).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/reservations", h.ReserveEffortProviderSlot).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/reservations", h.ListEffortProviderReservations).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/reservations/{attemptID}/settle", h.SettleEffortProviderSlot).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/provider-pools/{pool}/reservations/{attemptID}/release", h.ReleaseEffortProviderSlot).Methods("POST")
+
+	// Effort-wide descendant capacity. Every branch draws on one shared
+	// depth/active/premium allowance derived from the approved aggregate grant;
+	// a slot is charged before dispatch and released when the branch ends. See
+	// effort_descendant_handler.go.
+	r.HandleFunc("/api/v1/efforts/{effortID}/descendants", h.AdmitEffortDescendant).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/descendants", h.ListEffortDescendants).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/descendants/{attemptID}/release", h.ReleaseEffortDescendant).Methods("POST")
+
+	// Last-resort fallback candidate qualification. A withheld, unbound,
+	// unqualified or unknown-billing candidate is refused before dispatch. See
+	// effort_candidate_handler.go.
+	r.HandleFunc("/api/v1/efforts/{effortID}/candidates/qualify", h.QualifyEffortCandidate).Methods("POST")
 
 	// Connect BacklogService — the typed cross-scenario feedback contract
 	// (CreateItem/GetItem). See connect_service.go. Mounted alongside the REST

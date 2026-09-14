@@ -106,9 +106,12 @@ func TestLeversFieldLivenessRegistryIsComplete(t *testing.T) {
 	}
 	assertFieldRegistry(t, reflect.TypeOf(config.Levers{}), "Levers", registry)
 	for field, consumer := range map[string]string{
-		"Storage.EventRetentionDays":    "cleanupExpiredEvents",
-		"Storage.ArtifactRetentionDays": "cleanupExpiredArtifacts",
-		"Storage.RunStateRetentionDays": "cleanupRunStateDirs",
+		"Storage.EventRetentionDays":             "cleanupExpiredEvents",
+		"Storage.ArtifactRetentionDays":          "cleanupExpiredArtifacts",
+		"Storage.RunStateRetentionDays":          "cleanupRunStateDirs",
+		"Storage.StaleRunStateRetentionDays":     "cleanupRunStateDirs",
+		"Storage.ImportedToolCompactionDays":     "compactImportedEventPayloads",
+		"Storage.ImportedToolCompactionMinBytes": "compactImportedEventPayloads",
 	} {
 		if !consumerExists(t, consumer) {
 			t.Errorf("%s names absent consumer %q", field, consumer)

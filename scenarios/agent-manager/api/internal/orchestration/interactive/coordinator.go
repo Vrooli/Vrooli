@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -44,6 +45,10 @@ const (
 	// terminalReasonMaxTurns marks a run that reached its configured assistant
 	// turn ceiling. Phase 3 types this as an interruption, not a failure.
 	terminalReasonMaxTurns = "max_turns"
+	// defaultTimeoutDrainGrace is how long the tail keeps reading after the run's
+	// timeout, once the harness has been asked to stop its turn, so the
+	// harness's own closing record reaches the event store.
+	defaultTimeoutDrainGrace = 30 * time.Second
 	// defaultNativeGoalFallbackTurns is how many success turn boundaries a run
 	// may produce with no goal marker ever observed before the coordinator stops
 	// waiting for runner-native goal support and accepts a validated structured
@@ -129,6 +134,10 @@ type CoordinatorDeps struct {
 	// negative disables the heartbeat goroutine — used by the recovery path,
 	// which does not own the live run).
 	Heartbeat time.Duration
+	// TimeoutDrainGrace overrides how long the tail keeps reading after the
+	// run's timeout interrupt (0 uses the default; negative disables the
+	// interrupt and ends the tail at the deadline).
+	TimeoutDrainGrace time.Duration
 }
 
 // Coordinator runs the interactive execution strategy: it launches the real
@@ -145,6 +154,7 @@ type Coordinator struct {
 	activityPoll time.Duration
 	sessionPoll  time.Duration
 	heartbeat    time.Duration
+	timeoutDrain time.Duration
 
 	sessionReattachWindow time.Duration
 }
@@ -158,7 +168,11 @@ func NewCoordinator(deps CoordinatorDeps) *Coordinator {
 		activityPoll:          deps.ActivityPoll,
 		sessionPoll:           deps.SessionPoll,
 		heartbeat:             deps.Heartbeat,
+		timeoutDrain:          deps.TimeoutDrainGrace,
 		sessionReattachWindow: deps.SessionReattachWindow,
+	}
+	if c.timeoutDrain == 0 {
+		c.timeoutDrain = defaultTimeoutDrainGrace
 	}
 	if c.clock == nil {
 		c.clock = time.Now
@@ -261,7 +275,57 @@ func (c *Coordinator) TailToCompletion(ctx context.Context, run *domain.Run) (*r
 	return c.tailToCompletion(ctx, run, tailContext{}, &mu)
 }
 
+// tailToCompletion follows the transcript to a run boundary. When the run's
+// timeout expires it asks the harness to stop its turn and keeps reading for a
+// bounded grace, so the harness's closing record (codex writes turn_aborted,
+// which its parser turns into the turn's usage receipt) is stored before the run
+// is finalized. The result still reports the timeout.
 func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex) (*runner.TranscriptTerminal, error) {
+	loopCtx, timedOut, release := c.timeoutInterruptContext(ctx, run)
+	defer release()
+	terminal, err := c.tailLoop(loopCtx, run, tc, mu)
+	if timedOut() && !errors.Is(err, ErrSessionGone) {
+		if terminal != nil && !terminal.Success {
+			// The harness's abort answers our own timeout interrupt; it is not
+			// the run's outcome, which stays a timeout.
+			terminal = nil
+		}
+		return terminal, context.DeadlineExceeded
+	}
+	return terminal, err
+}
+
+// timeoutInterruptContext returns the context the tail runs under. Without a
+// deadline, a session, or a positive grace it is ctx itself. Otherwise it
+// outlives ctx's deadline by the drain grace: at the deadline the harness is
+// interrupted, and any other end of ctx (shutdown, stop) ends the tail at once.
+func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.Run) (context.Context, func() bool, func()) {
+	deadline, ok := ctx.Deadline()
+	if !ok || c.timeoutDrain <= 0 || c.deps.Sessions == nil || run.WebConsoleSessionID == "" {
+		return ctx, func() bool { return false }, func() {}
+	}
+	extended, cancel := context.WithDeadline(context.WithoutCancel(ctx), deadline.Add(c.timeoutDrain))
+	var timedOut atomic.Bool
+	stop := context.AfterFunc(ctx, func() {
+		if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			cancel()
+			return
+		}
+		timedOut.Store(true)
+		interruptCtx, cancelInterrupt := context.WithTimeout(context.Background(), c.timeoutDrain)
+		defer cancelInterrupt()
+		if err := c.deps.Sessions.Interrupt(interruptCtx, run.WebConsoleSessionID, interactiveSource(run)); err != nil {
+			// Nothing will close the turn; stop waiting for it.
+			cancel()
+		}
+	})
+	return extended, timedOut.Load, func() {
+		stop()
+		cancel()
+	}
+}
+
+func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex) (*runner.TranscriptTerminal, error) {
 	var sink runner.EventSink
 	if c.deps.NewSink != nil {
 		sink = c.deps.NewSink(run.ID)

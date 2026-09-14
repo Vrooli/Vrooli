@@ -768,6 +768,12 @@
               "type": "string"
             }
           },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
           "expected_status": {
             "type": "array",
             "items": {
@@ -1013,6 +1019,34 @@
           "additionalProperties": {
             "$ref": "#/definitions/deploymentProfile"
           }
+        },
+        "supported_targets": {
+          "type": "array",
+          "description": "Optional narrowing of the platforms the profiles claim; the closure resolver reports platforms outside it as unsupported_platform.",
+          "items": {
+            "$ref": "common.schema.json#/definitions/deploymentSupportedTarget"
+          }
+        },
+        "persistent_data": {
+          "type": "array",
+          "description": "Persistent data sets this resource owns (owner defaults to the resource).",
+          "items": {
+            "$ref": "common.schema.json#/definitions/deploymentPersistentData"
+          }
+        },
+        "listeners": {
+          "type": "array",
+          "description": "Edge exposure for declared ports; unlisted ports are private.",
+          "items": {
+            "$ref": "common.schema.json#/definitions/deploymentListener"
+          }
+        },
+        "recovery": {
+          "$ref": "common.schema.json#/definitions/deploymentRecovery"
+        },
+        "backup": {
+          "$ref": "common.schema.json#/definitions/deploymentBackupHook",
+          "description": "Database-native backup and restore argv this resource owns for its persistent data."
         }
       },
       "additionalProperties": false
@@ -1097,9 +1131,9 @@
     "operator_capabilities": {
       "type": "array",
       "items": {
-        "type": "object"
+        "$ref": "common.schema.json#/definitions/operatorCapabilityReference"
       },
-      "description": "Operator capability references this resource satisfies."
+      "description": "Operator capability references this resource satisfies. The provider owns the executable policy; this declaration is metadata only."
     },
     "portability_tier": {
       "type": "string",

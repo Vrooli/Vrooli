@@ -3,7 +3,9 @@ package execution
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/workflowcontract"
 )
 
@@ -42,6 +44,66 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 		s.dispatchStatusUpdate(record)
 		return record, nil
 	}
+	settle := func(usage *workflowcontract.Usage) (Record, error) {
+		record.SettledUsage = usage
+		record.Cancellation.SettledAt = nowRFC3339()
+		record.Cancellation.LastError = ""
+		record.Status = StatusCanceled
+		record.FinishedAt = record.Cancellation.SettledAt
+		record.UpdatedAt = record.FinishedAt
+		record.FailureReason = "cancellation settled with original owner terminal accounting"
+		records[idx] = record
+		if err := s.store.Save(records); err != nil {
+			return Record{}, err
+		}
+		s.dispatchStatusAndLog(record, StatusCancelling)
+		return record, nil
+	}
+	// An execution admitted without reviewed limits holds no reservation, so its
+	// cancellation needs no accounting to release: it needs only proof that the
+	// owner's agent work has stopped. Nothing is recorded as settled usage.
+	finishUnreserved := func(evidence string) (Record, error) {
+		record.Cancellation.SettledAt = nowRFC3339()
+		record.Cancellation.LastError = ""
+		record.Status = StatusCanceled
+		record.FinishedAt = record.Cancellation.SettledAt
+		record.UpdatedAt = record.FinishedAt
+		record.FailureReason = "cancellation settled without accounting: no reviewed allowance was reserved and " + evidence
+		records[idx] = record
+		if err := s.store.Save(records); err != nil {
+			return Record{}, err
+		}
+		s.dispatchStatusAndLog(record, StatusCancelling)
+		return record, nil
+	}
+	unreserved := record.WorkflowGrant == nil
+	// A goal execution is one Agent Manager run with no workflow owner: stop the
+	// run, then settle only from that run's own terminal accounting.
+	if isGoalRecord(record) {
+		if record.Cancellation.AcknowledgedAt == "" && s.stopper != nil && strings.TrimSpace(record.RunID) != "" {
+			// Agent Manager refuses to stop a run that already ended; that run has
+			// stopped, which is what the acknowledgement records.
+			if err := s.stopper.StopRun(ctx, record.RunID); err != nil && !s.ownerRunTerminal(ctx, record) {
+				return finishPending("goal run stop unavailable; reservation retained: " + err.Error())
+			}
+			record.Cancellation.AcknowledgedAt = nowRFC3339()
+			records[idx] = record
+			if err := s.store.Save(records); err != nil {
+				return Record{}, err
+			}
+		}
+		usage, err := s.settledGoalUsage(ctx, record)
+		if err != nil {
+			return finishPending("goal run accounting unresolved; reservation retained: " + err.Error())
+		}
+		if usage == nil {
+			if unreserved && s.ownerRunTerminal(ctx, record) {
+				return finishUnreserved("the goal run is terminal")
+			}
+			return finishPending("goal run termination or final usage remains unknown; reservation retained")
+		}
+		return settle(usage)
+	}
 	if s.transitionRunner == nil {
 		return finishPending("transition owner is unavailable; reservation retained")
 	}
@@ -51,6 +113,9 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 		// replay Start while local dispatch authority has been withdrawn.
 		correlation, err = s.transitionRunner.ResolveDispatch(ctx, "plan.execute", record.ExecutionID)
 		if err != nil {
+			if unreserved && s.ownerRunTerminal(ctx, record) {
+				return finishUnreserved("the original workflow identity is unavailable while the recorded owner run is terminal")
+			}
 			return finishPending("original owner identity remains unresolved; reservation retained: " + err.Error())
 		}
 	}
@@ -81,15 +146,59 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 		return finishPending("owner acknowledged; terminal accounting unresolved: " + usageErr.Error())
 	}
 	if usage == nil || !usage.TokensKnown || !usage.ChargeMeasured || usage.WallSeconds <= 0 {
+		// CollectUsage returns a receipt only for a terminal owner workflow, so
+		// the owner has stopped even though its accounting is incomplete.
+		if unreserved {
+			return finishUnreserved("the owner workflow is terminal")
+		}
 		return finishPending("owner termination or final usage remains unknown; reservation retained")
 	}
-	record.SettledUsage = usage
-	record.Cancellation.SettledAt = nowRFC3339()
+	return settle(usage)
+}
+
+// WriteOffCancellation is the operator's explicit end for a reserved
+// cancellation whose owner run has stopped but whose usage can never be known
+// (an unpriced model, a launch failure with no receipt, a kill mid-turn). It
+// charges the entire reservation as used, so unknown usage is never counted as
+// less than it could have been, and records who decided and why. The automatic
+// cancellation path never does this.
+func (s *Service) WriteOffCancellation(ctx context.Context, executionID, actor, reason string) (Record, error) {
+	actor, reason = strings.TrimSpace(actor), strings.TrimSpace(reason)
+	if actor == "" || reason == "" {
+		return Record{}, apierr.BadRequest("a cancellation write-off requires a non-blank actor and reason")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, idx, err := s.loadRecordLocked(executionID)
+	if err != nil {
+		return Record{}, err
+	}
+	record := records[idx]
+	if record.Cancellation == nil || record.Cancellation.SettledAt != "" || record.Status != StatusCancelling {
+		return Record{}, apierr.Conflict("execution %s is not an unsettled cancellation", executionID)
+	}
+	grant := record.WorkflowGrant
+	if grant == nil {
+		return Record{}, apierr.Conflict("execution %s holds no reservation; its cancellation finishes on its own once the owner run stops", executionID)
+	}
+	if !s.ownerRunTerminal(ctx, record) {
+		return Record{}, apierr.Conflict("execution %s: Agent Manager does not confirm that owner run %q has stopped; a live or unreadable run cannot be written off", executionID, record.RunID)
+	}
+	now := nowRFC3339()
+	record.SettledUsage = &workflowcontract.Usage{
+		Tokens: grant.MaxTokens, Turns: int64(grant.MaxTurns), WallSeconds: grant.MaxWallTimeSeconds,
+		ChargeMicroUSD: grant.MaxChargeMicroUSD, Children: int64(grant.MaxChildren), NodeAttempts: int64(grant.MaxNodeAttempts),
+		Retries: int64(grant.MaxRetries), Slices: int64(record.MaxSlices), TokensKnown: true, ChargeMeasured: true,
+	}
+	record.Cancellation.WriteOffActor = actor
+	record.Cancellation.WriteOffReason = reason
+	record.Cancellation.WrittenOffAt = now
+	record.Cancellation.SettledAt = now
 	record.Cancellation.LastError = ""
 	record.Status = StatusCanceled
-	record.FinishedAt = record.Cancellation.SettledAt
-	record.UpdatedAt = record.FinishedAt
-	record.FailureReason = "cancellation settled with original owner terminal accounting"
+	record.FinishedAt = now
+	record.UpdatedAt = now
+	record.FailureReason = fmt.Sprintf("cancellation written off by %s: owner run terminal, usage unknown; the full reservation is charged as used: %s", actor, reason)
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
@@ -119,12 +228,12 @@ func (s *Service) reconcilePendingCancellations(ctx context.Context) error {
 		if record.Status != StatusCanceled {
 			continue
 		}
-		correlation, err := s.transitionCorrelation(record)
-		if err != nil {
-			return err
-		}
-		if err := s.transitionRunner.CloseUnapplied(correlation.ExecutionID, "cancelled"); err != nil {
-			return err
+		// A goal run, or an execution whose workflow identity was lost, has no
+		// correlation to close; that must not abort the rest of the cycle.
+		if correlation, corrErr := s.transitionCorrelation(record); corrErr == nil {
+			if err := s.transitionRunner.CloseUnapplied(correlation.ExecutionID, "cancelled"); err != nil {
+				return err
+			}
 		}
 		s.mu.Lock()
 		current, idx, loadErr := s.loadRecordLocked(record.ExecutionID)

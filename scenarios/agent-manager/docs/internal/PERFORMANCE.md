@@ -9,6 +9,16 @@ size is five for operational validity; release latency evidence uses at least
 30 queries per condition. Cold build and failure drills must not modify
 canonical runs/events.
 
+Projection storage (since 2026-09-14): the catalog
+`conversation_search_catalog` carries an explicit `id INTEGER PRIMARY KEY`
+that the external-content lexical index uses as its rowid, so whole-file
+compaction cannot misalign hits. The lexical index stores tokens only and
+mirrors every catalog row; queries filter visibility. The catalog keeps two
+secondary indexes (source lookup, visible time). Staged generation rows exist
+only while a generation is building or ready. A legacy projection is moved by
+the index owner loop in bounded, resumable, deletion-guarded batches; schema
+application creates the current objects beside it and never mutates data.
+
 Initial floors are:
 
 | Operation | Floor / ceiling |
@@ -66,6 +76,11 @@ Initial floors are:
 | active run receives one new event | Only the named event is read and replaced; sibling events and unrelated runs retain stable serving identity. | `TestSQLiteSourceLoadsOnlyNamedRunForIncrementalProjection`, `TestApplyStagedChangesReplacesOnlyNamedEvent` |
 | coverage or semantic status is cold | Retrieval returns hits within its own budget while one bounded background refresh warms observational counts. | `TestSearchDoesNotBlockOnColdCoverageCount`, `TestSemanticStatusCachesRemotePointCount` |
 | live/shadow namespace overlap | Variant-aware collection resolution and memory-only SQLite tests prevent cross-contamination. | `TestProjectionTestsUseOnlyMemoryDatabase` plus shared Qdrant generation-store tests |
+| idle corpus on the periodic tick | No generation is created; drift is detected by a read-only source/catalog comparison and only a mismatch or degraded serving rebuilds. | `TestOwnerLoopTickNeverRebuildsAnIdleCorpus`, `TestDriftCheckLeavesAMatchingCatalogAlone`, `TestDriftCheckRebuildsWhenSourceAndCatalogDisagree` |
+| legacy projection at startup | The owner loop copies the catalog without reviving pending deletions, resumes a partial copy, drops the legacy objects, and keeps the serving generation (no full rebuild). | `TestUpgradeLegacyProjectionCopiesCatalogAndDropsLegacyObjects`, `TestUpgradeLegacyProjectionResumesAfterAPartialCopy`, `TestLaunchInitialUpgradesALegacyProjectionWithoutRebuilding` |
+| catalog update, delete, visibility change | The lexical index passes FTS5 integrity-check and hidden documents are never served. | `TestCatalogFTSStaysConsistentThroughUpdatesDeletesAndVisibility` |
+| whole-file VACUUM / compaction | Catalog ids and lexical hits are unchanged. | `TestCatalogFTSSurvivesVacuum` |
+| generation settles | Staged rows of active, retired, failed and cancelled generations are deleted; building and ready generations keep theirs for recovery. | `TestPruneSettledGenerationsKeepsOnlyUnpublishedStaging` |
 
 ## Tuning rule
 

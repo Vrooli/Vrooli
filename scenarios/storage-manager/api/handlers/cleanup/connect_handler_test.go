@@ -66,7 +66,8 @@ func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testin
 }
 
 func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testing.T) {
-	configs := governedRootProviderConfigs("/home/matthalloran8/Vrooli")
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	configs := governedRootProviderConfigs(repoRoot)
 	if len(configs) == 0 {
 		t.Fatal("governed root provider configs are empty")
 	}
@@ -79,12 +80,26 @@ func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testi
 			t.Fatalf("duplicate governed root provider %q", cfg.ID)
 		}
 		seen[cfg.ID] = true
-		if cfg.ID == "spec-browser-recordings" || cfg.ID == "spec-browser-captures" {
+		if cfg.ID == "spec-browser-recordings" || cfg.ID == "spec-browser-captures" || cfg.ID == "spec-go-build-cache" {
 			t.Fatalf("owner-leased root was admitted to autonomous provider set: %q", cfg.ID)
 		}
 	}
-	if !seen["spec-uv-cache"] || !seen["spec-go-build-cache"] || !seen["spec-go-module-cache"] || !seen["spec-go-work-dirs"] {
+	if !seen["spec-uv-cache"] || !seen["spec-go-module-cache"] || !seen["spec-go-work-dirs"] {
 		t.Fatalf("expected declarative cache roots, got %v", seen)
+	}
+	// The current startup path must also withhold the owner-required Go root,
+	// not only the legacy spec- adapter above.
+	specs, err := governedRootSpecs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(specs) == 0 {
+		t.Fatal("governed root specs are empty")
+	}
+	for _, spec := range specs {
+		if spec.ID == "go-build-cache" {
+			t.Fatal("Go build cache admitted to current autonomous provider registry")
+		}
 	}
 }
 

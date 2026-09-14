@@ -424,7 +424,32 @@ func (a *App) cmdExecutionStart(args []string) error {
 }
 
 func (a *App) cmdExecutionCancel(args []string) error {
-	return a.runExecutionMutation(args, "cancel")
+	fs := flag.NewFlagSet("execution cancel", flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
+	writeOff := fs.Bool("write-off", false, "Finish a reserved cancellation whose owner run stopped but whose usage can never be known, charging the full reservation as used")
+	actor := fs.String("actor", "", "Who decided the write-off (required with --write-off)")
+	reason := fs.String("reason", "", "Why the usage can never be known (required with --write-off)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution cancel --id ID [--write-off --actor A --reason R] [--json]\n\n%s", err)
+	}
+	var payload any
+	if *writeOff {
+		if strings.TrimSpace(*actor) == "" || strings.TrimSpace(*reason) == "" {
+			return fmt.Errorf("--write-off requires --actor and --reason")
+		}
+		encoded, err := json.Marshal(map[string]any{"write_off": true, "actor": strings.TrimSpace(*actor), "reason": strings.TrimSpace(*reason)})
+		if err != nil {
+			return fmt.Errorf("failed to encode request: %w", err)
+		}
+		payload = json.RawMessage(encoded)
+	} else if strings.TrimSpace(*actor) != "" || strings.TrimSpace(*reason) != "" {
+		return fmt.Errorf("--actor and --reason apply only with --write-off")
+	}
+	return a.postExecutionMutation(strings.TrimSpace(*id), "cancel", payload, *jsonOut)
 }
 
 // cmdExecutionRetry retries a terminal execution as a NEW attempt parented
@@ -535,12 +560,15 @@ func (a *App) runExecutionMutation(args []string, action string) error {
 	if err := requireFlag("id", *id); err != nil {
 		return fmt.Errorf("usage: execution %s --id ID [--json]\n\n%s", action, err)
 	}
-	executionID := strings.TrimSpace(*id)
-	body, err := a.core.Request("POST", "/execution/"+executionID+"/"+action, nil, nil)
+	return a.postExecutionMutation(strings.TrimSpace(*id), action, nil, *jsonOut)
+}
+
+func (a *App) postExecutionMutation(executionID, action string, payload any, jsonOut bool) error {
+	body, err := a.core.Request("POST", "/execution/"+executionID+"/"+action, nil, payload)
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
+	if printJSONIfRequested(jsonOut, body) {
 		return nil
 	}
 

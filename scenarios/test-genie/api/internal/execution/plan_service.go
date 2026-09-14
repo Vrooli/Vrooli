@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator"
@@ -65,6 +66,13 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 		Phases:                   make([]PlannedPhase, 0, len(basePlan.Phases)),
 		NotApplicablePhases:      make([]PlannedPhase, 0, len(basePlan.NotApplicablePhases)),
 	}
+	if validationUsesComprehensiveCandidates(req) {
+		// The candidate plan is comprehensive because quick/smoke are adaptive
+		// profiles, but the validation request's original preset remains the
+		// execution knob carried to the durable run. Keep the identity aligned
+		// with that actual request rather than the planner-only candidate.
+		preview.ConfigurationFingerprint = orchestrator.ExecutionConfigurationFingerprint(req, basePlan.DescriptorSnapshotDigest)
+	}
 
 	phaseNames := make([]string, 0, len(basePlan.Phases))
 	for _, phase := range basePlan.Phases {
@@ -121,6 +129,7 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 			previewPhase.OmissionReasons = append([]string(nil), decision.Reasons...)
 			preview.OmittedPhases = append(preview.OmittedPhases, previewPhase)
 		}
+		canonicalizeAdaptivePhases(basePlan.Phases, preview)
 		appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
 		return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
 	}
@@ -149,7 +158,7 @@ func (s *ExecutionPlanService) applyRunLevelEstimate(ctx context.Context, req or
 	if err != nil {
 		return nil, err
 	}
-	comparable := comparableRunSamples(planSamples, base.PhaseSetDigest, base.DescriptorSnapshotDigest, base.ConfigurationFingerprint)
+	comparable := comparableRunSamples(planSamples, preview.PhaseSetDigest, base.DescriptorSnapshotDigest, base.ConfigurationFingerprint)
 	if len(comparable) > 0 {
 		estimate := profileplanner.EstimateComparableRun(comparable)
 		preview.Summary.EstimatedDurationSeconds = estimate.DurationSeconds
@@ -169,6 +178,47 @@ func (s *ExecutionPlanService) applyRunLevelEstimate(ctx context.Context, req or
 	preview.Summary.EstimateConfidence = EstimateConfidenceLow
 	preview.Summary.EstimateMode = "additive_phase_history"
 	return preview, nil
+}
+
+// canonicalizeAdaptivePhases makes the planner's externally visible phase
+// order independent of the cost ordering used to fit a quick/smoke profile.
+// The fit is allowed to use history to decide membership, but that history is
+// not an execution-contract change when the selected set is unchanged. Stable
+// catalog order also gives validation identity and the executor the same
+// representation on every preview.
+func canonicalizeAdaptivePhases(base []orchestrator.PlannedPhase, preview *ExecutionPlanPreview) {
+	if preview == nil {
+		return
+	}
+	order := make(map[string]int, len(base))
+	for index, phase := range base {
+		key := strings.ToLower(strings.TrimSpace(phase.Name))
+		if key != "" {
+			order[key] = index
+		}
+	}
+	phaseOrder := func(left, right PlannedPhase) bool {
+		leftKey := strings.ToLower(strings.TrimSpace(left.Name))
+		rightKey := strings.ToLower(strings.TrimSpace(right.Name))
+		leftIndex, leftKnown := order[leftKey]
+		rightIndex, rightKnown := order[rightKey]
+		if leftKnown && rightKnown && leftIndex != rightIndex {
+			return leftIndex < rightIndex
+		}
+		if leftKnown != rightKnown {
+			return leftKnown
+		}
+		return leftKey < rightKey
+	}
+	sort.SliceStable(preview.Phases, func(i, j int) bool { return phaseOrder(preview.Phases[i], preview.Phases[j]) })
+	sort.SliceStable(preview.OmittedPhases, func(i, j int) bool { return phaseOrder(preview.OmittedPhases[i], preview.OmittedPhases[j]) })
+	names := make([]string, 0, len(preview.Phases))
+	for _, phase := range preview.Phases {
+		if name := strings.TrimSpace(phase.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	preview.PhaseSetDigest = phases.PhaseSetDigest(names)
 }
 
 // measuredOrchestrationOverheadSeconds estimates startup, readiness, cleanup,
@@ -209,6 +259,11 @@ func comparableRunSamples(samples []PlanDurationSample, phaseSetDigest, descript
 }
 
 func (s *ExecutionPlanService) previewBasePlan(req orchestrator.SuiteExecutionRequest) (*orchestrator.ExecutionPlanPreview, error) {
+	if validationUsesComprehensiveCandidates(req) {
+		candidateReq := req
+		candidateReq.Preset = phases.PresetComprehensive.String()
+		return s.builder.PreviewExecution(candidateReq)
+	}
 	if _, ok := adaptiveProfileForRequest(req, ""); !ok {
 		return s.builder.PreviewExecution(req)
 	}
@@ -217,8 +272,24 @@ func (s *ExecutionPlanService) previewBasePlan(req orchestrator.SuiteExecutionRe
 	return s.builder.PreviewExecution(candidateReq)
 }
 
+func validationUsesComprehensiveCandidates(req orchestrator.SuiteExecutionRequest) bool {
+	if !req.ValidationRun || len(req.Phases) > 0 {
+		return false
+	}
+	switch phases.NormalizeKey(req.Preset) {
+	case phases.PresetQuick.String(), phases.PresetSmoke.String():
+		return true
+	default:
+		return false
+	}
+}
+
 func adaptiveProfileForRequest(req orchestrator.SuiteExecutionRequest, presetUsed string) (profileplanner.Profile, bool) {
-	if len(req.Phases) > 0 {
+	// Validation receipts must compare one admitted execution contract from
+	// admission through finalization. History-driven membership changes are
+	// useful for ordinary quick/smoke feedback, but they would let a provider
+	// run completed during validation change the phase set being authenticated.
+	if req.ValidationRun || len(req.Phases) > 0 {
 		return profileplanner.Profile{}, false
 	}
 	name := phases.NormalizeKey(req.Preset)

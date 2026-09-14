@@ -100,10 +100,26 @@ func SQLiteDSN(log *logrus.Logger) (string, error) {
 	if err != nil {
 		return "", domain.NewConfigInvalidError("storage", "resolve canonical sqlite path", err)
 	}
+	dsn = withWALLimit(dsn)
 	if log != nil {
 		log.WithField("dsn", dsn).Info("Using SQLite database")
 	}
 	return dsn, nil
+}
+
+// walJournalSizeLimit caps the WAL file a connection leaves behind when it
+// resets the log after a checkpoint. Without it the WAL keeps its high-water
+// size: 1 GB stayed on disk on 2026-09-14 long after the burst that grew it.
+const walJournalSizeLimit = 64 << 20
+
+func withWALLimit(dsn string) string {
+	return fmt.Sprintf("%s&_pragma=journal_size_limit(%d)", dsn, walJournalSizeLimit)
+}
+
+// SQLiteFilePath is the database file SQLiteDSN opens, for owners that measure
+// the file itself (storage health) rather than connect to it.
+func SQLiteFilePath() (string, error) {
+	return storage.SQLitePath(storage.SQLiteConfig{Scenario: "agent-manager"})
 }
 
 // Close closes the database connection.

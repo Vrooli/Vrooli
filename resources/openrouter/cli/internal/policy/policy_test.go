@@ -73,6 +73,21 @@ func TestResolveModel(t *testing.T) {
 	}
 }
 
+func TestExcludedModelsRejectDirectResolutionAndSelectAllowedFallback(t *testing.T) {
+	p := loadFixture(t)
+	p.ExcludedModels = []string{"vendor/chat-a"}
+	got, err := p.ResolveRole("chat.default")
+	if err != nil {
+		t.Fatalf("ResolveRole: %v", err)
+	}
+	if got.Model != "vendor/chat-b" {
+		t.Fatalf("model = %q, want allowed fallback", got.Model)
+	}
+	if _, err := p.ResolveModel("vendor/chat-a"); err == nil || !strings.Contains(err.Error(), "excluded") {
+		t.Fatalf("excluded direct model error = %v", err)
+	}
+}
+
 func TestResolveRequestRoles(t *testing.T) {
 	p := loadFixture(t)
 	res, err := p.Resolve(policy.ResolveRequest{ModelRoles: []policy.RoleRequest{{Role: "chat.default"}, {Role: "image.generate.logo"}}})

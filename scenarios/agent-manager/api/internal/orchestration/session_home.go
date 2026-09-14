@@ -102,6 +102,30 @@ func CleanupCodecSessionHomeCredentials(root string, runID uuid.UUID, runnerType
 	return firstErr
 }
 
+// runnerCacheDirs are downloaded, regenerable caches inside a run's private
+// homes. Every fresh CODEX_HOME re-fetches the remote plugin catalog (~20 MB)
+// and the curated plugin bundles (~27 MB): 19.3 GB of 23.4 GB of run state on
+// 2026-09-14. Rollouts, transcripts and state databases are never listed.
+var runnerCacheDirs = []string{
+	filepath.Join(RuntimeDirName, "codex", "cache"),
+	filepath.Join(RuntimeDirName, "codex", "plugins", "cache"),
+	// The interactive substrate's run-scoped CODEX_HOME.
+	filepath.Join("codex", "cache"),
+	filepath.Join("codex", "plugins", "cache"),
+}
+
+// PruneRunnerCaches removes a run's regenerable runner caches. A later turn of
+// the same run downloads them again.
+func PruneRunnerCaches(runDir string) error {
+	var firstErr error
+	for _, relative := range runnerCacheDirs {
+		if err := os.RemoveAll(filepath.Join(runDir, relative)); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
 func sessionHomeSeedFiles(runnerType domain.RunnerType) []string {
 	if runnerType == domain.RunnerTypeCodex {
 		return []string{"auth.json", "config.toml"}

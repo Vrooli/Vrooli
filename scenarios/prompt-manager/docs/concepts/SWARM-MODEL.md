@@ -69,6 +69,25 @@ accepted effort completion. Binding persistence and retirement fences do not
 qualify recurrence or legacy-driver adoption. See the
 [finite leader implementation checkpoint](HEARTBEATS.md#finite-effort-leader-binding).
 
+### Governed finite-effort start
+
+Large efforts use one team-native start model. Create or resume a finite delivery
+team, bind its exact effort reference and accepted revision, register its Source
+Ledger team scope, validate its operating contract, and qualify the selected
+team/runner/profile/owner route with a disposable fixture. Provision the finite
+leader binding disabled. Only after the qualification evidence is reviewed and
+execution is separately approved may the operator enable the finite team and
+admit its first owner run through team execution.
+
+Keep these states separate: team registration, disabled heartbeat provisioning,
+owner-run admission, continuation authority, and accepted completion. The team
+and protected effort workspace are the recovery handoff; PM projections do not
+replace Agent Manager run identity, Swarm grants, Plan Manager plans, or an
+explicit completion receipt. A standing supervisor observes the owner board; it
+does not coordinate the finite team or act as a private scheduler. Bespoke
+scripts, tmux loops, and transitional drivers are historical migration evidence,
+not a supported alternative start path.
+
 **Director Swarm and Effort Supervision have different decisions to make.**
 Director Swarm handles portfolio strategy, priorities, operator-readable work
 preparation, and disposition through its existing contract. Effort Supervision

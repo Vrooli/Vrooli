@@ -43,8 +43,6 @@
 
 /* The message navigator's sheet header is its search field: let the title
  * slot the sheet puts it in take the row beside the Export action. */
-/* At full height the reader's header is its find field: let it take the row. */
-.wc-reader[data-expanded="true"] .rcl-full-page-drawer__panel > header > :first-child { flex: 1 1 auto; }
 .wc-nav-sheet .rcl-bottom-sheet__header > :first-child {
   flex: 1 1 auto;
 }
@@ -62,6 +60,10 @@
 
 :root {
   color-scheme: dark;
+
+  /* The Messages reader's footer height; the playback pill rises by it while
+   * a reader is open so the two never overlap. */
+  --wc-reader-footer-h: 3.25rem;
 
   /* ── Design Tokens ──
    * Semantic palette used throughout the app.

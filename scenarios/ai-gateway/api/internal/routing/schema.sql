@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS provider_health (
   state TEXT NOT NULL DEFAULT 'closed',
   consecutive_failures INTEGER NOT NULL DEFAULT 0,
   last_failure_class TEXT NOT NULL DEFAULT '',
+  -- Observed provenance of the most recent failure. These are recorded only
+  -- when the provider supplied them and are never synthesized from the
+  -- breaker's cooldown, so a reader can distinguish an observed recovery
+  -- window from a policy default.
+  http_status INTEGER NOT NULL DEFAULT 0,
+  retry_after TEXT NOT NULL DEFAULT '',
+  reset_at TEXT NOT NULL DEFAULT '',
+  failure_source TEXT NOT NULL DEFAULT '',
   last_success_at TEXT NOT NULL DEFAULT '',
   last_failure_at TEXT NOT NULL DEFAULT '',
   cooldown_until TEXT NOT NULL DEFAULT '',

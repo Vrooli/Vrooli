@@ -2,6 +2,8 @@ package execution
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -146,7 +148,26 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[execution] cancel", apierr.BadRequest("execution_id is required"))
 		return
 	}
-	record, err := h.service.Cancel(r.Context(), executionID)
+	// An optional body asks for an operator write-off; without one this is the
+	// ordinary strict cancellation.
+	var body struct {
+		WriteOff bool   `json:"write_off"`
+		Actor    string `json:"actor"`
+		Reason   string `json:"reason"`
+	}
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+			apierr.MapError(w, "[execution] cancel", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	var record Record
+	var err error
+	if body.WriteOff {
+		record, err = h.service.WriteOffCancellation(r.Context(), executionID, body.Actor, body.Reason)
+	} else {
+		record, err = h.service.Cancel(r.Context(), executionID)
+	}
 	if err != nil {
 		apierr.MapError(w, "[execution] cancel", err)
 		return

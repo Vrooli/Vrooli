@@ -1,6 +1,7 @@
 package scenarioruntime
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 )
@@ -188,3 +189,31 @@ func ParseInstanceKey(nameArg, flagVariant string) (InstanceKey, error) {
 
 	return InstanceKey{Scenario: scenario, Variant: variant}.Normalize(), nil
 }
+
+// ServiceScopeName returns the lifecycle service unit stem for a variant-aware
+// record slug and step. Placement and ownership verification share this identity.
+func ServiceScopeName(slug, step string) string {
+	clean := func(value string) string {
+		var b strings.Builder
+		for _, r := range strings.ToLower(value) {
+			switch {
+			case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+			default:
+				b.WriteRune('-')
+			}
+		}
+		return strings.Trim(b.String(), "-")
+	}
+	name := "vrooli-service-" + clean(slug) + "-" + clean(step)
+	// Length prefixes make the identity unambiguous even for unusual input.
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%s%d:%s", len(slug), slug, len(step), step)))
+	suffix := fmt.Sprintf("-%x", digest[:16])
+	if len(name) > ServiceScopeNameLimit-len(suffix) {
+		name = name[:ServiceScopeNameLimit-len(suffix)]
+	}
+	return strings.TrimRight(name, "-") + suffix
+}
+
+// ServiceScopeNameLimit keeps the service unit inside systemd's bound.
+const ServiceScopeNameLimit = 200

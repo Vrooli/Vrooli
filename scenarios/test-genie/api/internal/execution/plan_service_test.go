@@ -357,6 +357,9 @@ func TestExecutionPlanServicePreviewPlansQuickFromComprehensiveCandidates(t *tes
 	if got := phaseNames(preview.Phases); got != "structure,unit,security" {
 		t.Fatalf("selected phases = %s, want structure,unit,security", got)
 	}
+	if got, want := preview.PhaseSetDigest, phases.PhaseSetDigest([]string{"structure", "unit", "security"}); got != want {
+		t.Fatalf("selected phase identity = %s, want %s", got, want)
+	}
 	if got := phaseNames(preview.OmittedPhases); got != "performance" {
 		t.Fatalf("omitted phases = %s, want performance", got)
 	}
@@ -372,6 +375,36 @@ func TestExecutionPlanServicePreviewPlansQuickFromComprehensiveCandidates(t *tes
 	}
 	if preview.Summary.EstimatedDurationSeconds != 370 {
 		t.Fatalf("estimated total = %d, want 370", preview.Summary.EstimatedDurationSeconds)
+	}
+}
+
+func TestExecutionPlanServiceValidationRunKeepsDeclaredPreset(t *testing.T) {
+	builder := &stubPlanBuilder{
+		preview: &orchestrator.ExecutionPlanPreview{
+			ScenarioName: "demo",
+			PresetUsed:   "quick",
+			Phases: []orchestrator.PlannedPhase{{
+				Name:            "structure",
+				SelectionStatus: "selected",
+				Policy:          phasepolicy.RequiredProviderPolicy(),
+			}},
+		},
+	}
+	svc := NewExecutionPlanService(builder, &stubPhaseSampleReader{})
+
+	preview, err := svc.Preview(context.Background(), orchestrator.SuiteExecutionRequest{
+		ScenarioName:  "demo",
+		Preset:        "quick",
+		ValidationRun: true,
+	})
+	if err != nil {
+		t.Fatalf("preview failed: %v", err)
+	}
+	if len(builder.requests) != 1 || builder.requests[0].Preset != "comprehensive" {
+		t.Fatalf("validation planning must use a stable comprehensive candidate, got requests %#v", builder.requests)
+	}
+	if preview.PresetUsed != "quick" {
+		t.Fatalf("presetUsed = %q, want quick", preview.PresetUsed)
 	}
 }
 

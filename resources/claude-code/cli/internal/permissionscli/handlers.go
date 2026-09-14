@@ -91,7 +91,7 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 		ExclusivePatterns: false,
 		Stdout:            h.Stdout, Stderr: h.Stderr,
 		DoctorExtra: func(stdout, _ io.Writer, _ agentharness.PermissionAdapter) error {
-			_, _ = io.WriteString(stdout, "native deny hook: "+permissions.GuardCommand()+" "+strings.Join(permissions.GuardSubcommand, " ")+" (replay-verified)\n")
+			_, _ = io.WriteString(stdout, "PreToolUse guard: "+permissions.GuardCommand()+" "+strings.Join(permissions.GuardSubcommand, " ")+" (shared agent policy runtime; replay-verified)\n")
 			return nil
 		},
 	})

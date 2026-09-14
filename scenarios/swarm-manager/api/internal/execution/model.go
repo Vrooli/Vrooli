@@ -233,6 +233,11 @@ type CancellationStanding struct {
 	SettledAt      string `json:"settled_at,omitempty"`
 	ReconciledAt   string `json:"reconciled_at,omitempty"`
 	LastError      string `json:"last_error,omitempty"`
+	// An operator write-off finished a reserved cancellation whose usage can
+	// never be known by charging the whole reservation as used.
+	WriteOffActor  string `json:"write_off_actor,omitempty"`
+	WriteOffReason string `json:"write_off_reason,omitempty"`
+	WrittenOffAt   string `json:"written_off_at,omitempty"`
 }
 
 // WorkflowAttemptProvenance is the bounded run-attempt trace retained at the

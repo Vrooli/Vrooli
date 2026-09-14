@@ -1,0 +1,73 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "qualification-coordinator-20260914",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-14T04:44:50Z",
+  "displayName": "qualification-finite-20260914",
+  "effortRefs": [
+    "effort:qualification-disposable-20260914"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "qualification-finite-20260914",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Qualify one disposable team-native finite effort and retire it",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "qualification/*": {
+        "ownerMemberId": "qualification-coordinator-20260914",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "qualification-coordinator-20260914": {
+        "lane": "Run one read-only qualification turn; reconcile exact owner identity and write a handoff.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Disposable fixture only; never activate the real UX effort or global policy.",
+          "Retain exact effort, task, run, receipt, revision, and evidence references."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 4,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-14T04:48:02Z"
+}

@@ -609,6 +609,152 @@ func TestCleanupRunStateDirs_ReclaimsOnlyExpiredOrphans(t *testing.T) {
 	}
 }
 
+var (
+	runStateCacheFiles = []string{
+		"runtime/codex/cache/remote_plugin_catalog/catalog.json",
+		"runtime/codex/plugins/cache/openai-curated-remote/reference.pptx",
+		"codex/cache/remote_plugin_catalog/catalog.json",
+		"codex/plugins/cache/openai-curated-remote/reference.docx",
+	}
+	runStateKeptFiles = []string{
+		"transcript.ndjson",
+		"runtime/codex/sessions/2026/09/14/rollout-thread.jsonl",
+		"runtime/codex/state_5.sqlite",
+		"codex/sessions/2026/09/14/rollout-thread.jsonl",
+	}
+)
+
+func seedRunStateDir(t *testing.T, root string, runID uuid.UUID) string {
+	t.Helper()
+	dir, err := runstate.RunDir(root, runID)
+	if err != nil {
+		t.Fatalf("run state dir: %v", err)
+	}
+	for _, relative := range append(append([]string{}, runStateCacheFiles...), runStateKeptFiles...) {
+		path := filepath.Join(dir, relative)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func setRecoveryTestRunStatus(t *testing.T, repos *database.Repositories, run *domain.Run, status domain.RunStatus, endedAt *time.Time) {
+	t.Helper()
+	run.Status, run.EndedAt = status, endedAt
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+}
+
+func requireCachesPrunedStateKept(t *testing.T, dir string) {
+	t.Helper()
+	for _, relative := range runStateCacheFiles {
+		if _, err := os.Stat(filepath.Join(dir, relative)); !os.IsNotExist(err) {
+			t.Fatalf("runner cache %s survived: %v", relative, err)
+		}
+	}
+	for _, relative := range runStateKeptFiles {
+		if _, err := os.Stat(filepath.Join(dir, relative)); err != nil {
+			t.Fatalf("run state %s was removed: %v", relative, err)
+		}
+	}
+}
+
+func TestCleanupRunStateDirs_AgesOutUnknownImportedRuns(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeClaudeCode)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeClaudeCode)
+	setRecoveryTestRunStatus(t, repos, run, domain.RunStatusUnknown, nil)
+	reconciler.runStateRoot = t.TempDir()
+	dir := seedRunStateDir(t, reconciler.runStateRoot, run.ID)
+	reconciler.clock = func() time.Time { return time.Now().Add(8 * 24 * time.Hour) }
+
+	reconciler.cleanupRunStateDirs(context.Background())
+
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("unknown-status run state outlived retention: %v", err)
+	}
+}
+
+func TestCleanupRunStateDirs_PrunesOnlyCachesWithinRetention(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	ended := time.Now()
+	setRecoveryTestRunStatus(t, repos, run, domain.RunStatusComplete, &ended)
+	reconciler.runStateRoot = t.TempDir()
+	dir := seedRunStateDir(t, reconciler.runStateRoot, run.ID)
+
+	reconciler.cleanupRunStateDirs(context.Background())
+	for _, relative := range runStateCacheFiles {
+		if _, err := os.Stat(filepath.Join(dir, relative)); err != nil {
+			t.Fatalf("cache %s pruned inside the follow-up grace period: %v", relative, err)
+		}
+	}
+
+	reconciler.clock = func() time.Time { return time.Now().Add(2 * time.Hour) }
+	reconciler.cleanupRunStateDirs(context.Background())
+	requireCachesPrunedStateKept(t, dir)
+}
+
+func TestCleanupRunStateDirs_RestingRuns(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		status    domain.RunStatus
+		idle      time.Duration
+		removeDir bool
+	}{
+		{"abandoned review", domain.RunStatusNeedsReview, 31 * 24 * time.Hour, true},
+		{"recent review", domain.RunStatusNeedsReview, 2 * time.Hour, false},
+		{"long parked", domain.RunStatusParked, 90 * 24 * time.Hour, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+			run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+			setRecoveryTestRunStatus(t, repos, run, test.status, nil)
+			reconciler.runStateRoot = t.TempDir()
+			dir := seedRunStateDir(t, reconciler.runStateRoot, run.ID)
+			reconciler.clock = func() time.Time { return time.Now().Add(test.idle) }
+
+			reconciler.cleanupRunStateDirs(context.Background())
+
+			if test.removeDir {
+				if _, err := os.Stat(dir); !os.IsNotExist(err) {
+					t.Fatalf("abandoned review state kept: %v", err)
+				}
+				return
+			}
+			requireCachesPrunedStateKept(t, dir)
+		})
+	}
+}
+
+func TestCleanupRunStateDirs_SkipsRunsUnderRecoveryTailing(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	ended := time.Now()
+	setRecoveryTestRunStatus(t, repos, run, domain.RunStatusComplete, &ended)
+	reconciler.runStateRoot = t.TempDir()
+	dir := seedRunStateDir(t, reconciler.runStateRoot, run.ID)
+	reconciler.recoveryMu.Lock()
+	if reconciler.tailers == nil {
+		reconciler.tailers = map[uuid.UUID]context.CancelFunc{}
+	}
+	reconciler.tailers[run.ID] = func() {}
+	reconciler.recoveryMu.Unlock()
+	reconciler.clock = func() time.Time { return time.Now().Add(8 * 24 * time.Hour) }
+
+	reconciler.cleanupRunStateDirs(context.Background())
+
+	for _, relative := range append(append([]string{}, runStateCacheFiles...), runStateKeptFiles...) {
+		if _, err := os.Stat(filepath.Join(dir, relative)); err != nil {
+			t.Fatalf("state of a run under recovery tailing was removed (%s): %v", relative, err)
+		}
+	}
+}
+
 func newRecoveryTestReconciler(t *testing.T, rt domain.RunnerType) (*Reconciler, *database.Repositories, event.Store) {
 	t.Helper()
 

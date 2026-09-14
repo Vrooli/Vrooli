@@ -2,6 +2,8 @@ package maintenance
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -363,19 +365,26 @@ func isTrackedOrAncestorTracked(pid int, tracked, trackedSIDs map[int]struct{}, 
 }
 
 func listProcessTable() (map[int]processTableEntry, error) {
-	output, err := shell.Output(shell.Spec{
-		Name: "ps",
+	return listProcessTableContext(context.Background())
+}
+
+func listProcessTableContext(ctx context.Context) (map[int]processTableEntry, error) {
+	var output bytes.Buffer
+	cmd := shell.Command(shell.Spec{
+		Context: ctx,
+		Name:    "ps",
+		Stdout:  &output,
 		// `-axo` and `sess` are accepted by both procps (Linux) and the
 		// BSD-derived macOS ps. The previous `-eo ... sid=` form is Linux-only
 		// and made every Mac health/cleanup probe fail before parsing a row.
 		Args: []string{"-axo", "pid=,ppid=,pgid=,sess=,state=,command="},
 	})
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("inspect process table: %w", err)
 	}
 
 	processTable := make(map[int]processTableEntry)
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	scanner := bufio.NewScanner(&output)
 	// Command lines can legitimately approach the host ARG_MAX (for example a
 	// generated test invocation). Scanner's 64 KiB default must not make the
 	// entire ownership classifier unavailable because one process has a long
@@ -384,13 +393,19 @@ func listProcessTable() (map[int]processTableEntry, error) {
 	for scanner.Scan() {
 		entry, ok := parseProcessTableLine(scanner.Text())
 		if !ok {
-			continue
+			if strings.TrimSpace(scanner.Text()) == "" {
+				continue
+			}
+			return nil, fmt.Errorf("incomplete process table row")
 		}
 		processTable[entry.PID] = entry
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan process table: %w", err)
 	}
+	// Exclude only the exact observation subprocess we just waited for, not
+	// arbitrary processes named ps (which may themselves carry run labels).
+	delete(processTable, cmd.Process.Pid)
 	return processTable, nil
 }
 

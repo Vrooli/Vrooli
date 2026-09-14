@@ -278,6 +278,27 @@ extensions have shipped. Direct coordination with the dispatch owner remains
 unconfirmed: no native collaborator-message tool or verified Dirac inbox mapping
 was available to the finite-leader implementation session.
 
+### Team-native qualification boundary
+
+The finite-leader binding is part of one governed team-native effort start. A
+real effort must first have a finite delivery team, a validated operating
+contract, a registered Source Ledger scope, an exact accepted effort/revision,
+and a disposable qualification of the selected owner route. Qualification must
+show one controlled owner admission and reconcile PM's admission identity with
+the Agent Manager task, run, work reference and handoff/receipt. It must also
+exercise disable, pause, restart, uncertain dispatch, retirement and explicit
+completion/reopen boundaries without changing global heartbeat policy or
+another effort.
+
+The disposable qualification does not establish recurring continuation. A
+heartbeat tick may retain and observe an owner wait or uncertain identity, but
+it cannot choose a fresh run, invent authority, or replace a lost dispatch.
+Fresh-run recovery, accepted continuation authority, useful-progress evidence,
+and autonomous recurrence remain separate gates until their owner contracts are
+qualified. Keep the real finite effort disabled and unapproved when any gate is
+unqualified. The standing effort supervisor remains read-only observation of
+owner state; it is not the finite coordinator.
+
 ## Engagement Auto-Pause
 
 Prompt-manager also has a global heartbeat control layer that can pause future scheduled/manual heartbeat starts when operator engagement goes idle. This is separate from `heartbeat.json.enabled`: auto-pause never disables or deletes member heartbeat configs.

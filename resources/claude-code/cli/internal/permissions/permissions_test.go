@@ -187,7 +187,9 @@ func TestSaveOverwritesPriorManagedHook(t *testing.T) {
 	}
 }
 
-func TestSaveRemovesManagedHookWhenDenyEmpty(t *testing.T) {
+// TestManagedHookFollowsHooksNotDenyPatterns: the hook enforces deletion
+// policy, so it stays without deny patterns and leaves only when hooks are off.
+func TestManagedHookFollowsHooksNotDenyPatterns(t *testing.T) {
 	a := newTestAdapter(t)
 	if err := a.Save(Policy{BashDeny: []string{"Bash(x)"}, Hooks: true}); err != nil {
 		t.Fatalf("seed save: %v", err)
@@ -196,8 +198,15 @@ func TestSaveRemovesManagedHookWhenDenyEmpty(t *testing.T) {
 		t.Fatalf("clear save: %v", err)
 	}
 	raw, _ := os.ReadFile(a.SettingsPath)
+	if !strings.Contains(string(raw), ManagedByMarker) {
+		t.Errorf("managed entry must remain while hooks are on, even with no deny patterns: %s", raw)
+	}
+	if err := a.Save(Policy{Hooks: false}); err != nil {
+		t.Fatalf("disable save: %v", err)
+	}
+	raw, _ = os.ReadFile(a.SettingsPath)
 	if strings.Contains(string(raw), ManagedByMarker) {
-		t.Errorf("managed entry should be removed when no deny patterns remain: %s", raw)
+		t.Errorf("managed entry should be removed when hooks are off: %s", raw)
 	}
 }
 

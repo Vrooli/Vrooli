@@ -158,6 +158,32 @@ Reads, records, or revokes host-local standing approvals for conditional
 recovery providers. `POST` accepts `approved_at`, `approved_by`, `host_id`, and
 optional `subject_constraints`; it never accepts a command or arbitrary path.
 
+### `GET /api/v1/retention/budget-status`
+
+Returns the latest retention cycle: every budgeted entry's `used_bytes`,
+`budget_bytes`, `over_bytes`, and the `locations` it was measured at, plus the
+`over_budget` and `escalated` subsets and any `owner_reclaim` receipt. Before
+the first cycle completes it returns `{"observed": false}`.
+
+A scenario's class-data entry is measured at both its class root
+(`~/.vrooli/data/vrooli/<scenario>`) and the lifecycle data directory
+(`scenarios/<scenario>/data`) that a lifecycle-launched live instance opens
+through `SQLitePath`. The extra location is measurement-only: pruning still
+acts on the single resolved path. Bytes of a more specific sibling entry are
+excluded, so nested entries are never counted twice.
+
+### Owner reclaim backstop
+
+Non-regenerable data is never pruned by storage-manager. An entry may declare
+`"reclaim": {"operation": "/api/v1/..."}`. After two consecutive over-budget
+cycles storage-manager POSTs `{"dry_run":false}` to that path on the owner's
+discovered API, stores the owner's JSON receipt, and re-measures. Requests for
+one entry are spaced by six hours. The breach is escalated (`escalated: true`
+and a `storage.budget.owner_reclaim_insufficient` event) when the request
+fails, or when a repeated request still finds the entry over budget. The first
+request is not judged by an immediate re-measure because an owner may reclaim
+asynchronously.
+
 ### Owner cleanup contract
 
 Owner-delegated providers call the owning scenario's

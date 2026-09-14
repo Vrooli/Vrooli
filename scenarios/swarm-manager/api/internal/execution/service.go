@@ -169,6 +169,7 @@ type Service struct {
 	eventDispatcher          dispatch.NodeDispatcher
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
+	aggregateGrants          AggregateGrantProvider
 	activityLaneReader       ActivityLaneReader
 	goalPriorityProvider     GoalPriorityProvider
 	goalReadyProvider        GoalReadyProvider
@@ -191,6 +192,16 @@ func (s *Service) SetActivityLaneReader(r ActivityLaneReader) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.activityLaneReader = r
+}
+
+// SetAggregateGrantProvider wires the effort-control aggregate as the
+// authoritative source of child-workflow limits for an accepted plan. When
+// unset, or when no admitted effort references the plan, the documented child
+// defaults remain in force.
+func (s *Service) SetAggregateGrantProvider(p AggregateGrantProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.aggregateGrants = p
 }
 
 // NewService creates a new execution service.

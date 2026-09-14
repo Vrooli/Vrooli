@@ -7,6 +7,35 @@
 - Blocker: None; the unearned declarations were demoted to `in_progress` while their validation references remain intact so a future comprehensive run can earn completion.
 - Measured: 2026-09-04
 
+## 2026-09-12 — Session get manifest positional mismatch
+
+**RESOLVED, scoped W3 CLI repair:** `web-console session get
+e29964c2-1c16-4ee1-af25-1eb7620c7854 --json` panicked before the owner read because
+the embedded canonical manifest named its required argument `sessionId`, while
+`domains/session/handlers.go::get` requested `session-id`. The handler-only test
+constructed its own matching `ArgSchema`, and the registration test checked only
+that commands existed, so neither exercised the failing production route.
+
+Changed only the `session get` positional name in `cli/manifest.json` to
+`session-id`; its required status, read governance and protobuf binding to `id`
+remain intact. No handler fallback, generated schema or shared parser change.
+The CLI reference now identifies manifest versus registration ownership.
+
+`TestSessionGetRoutesEmbeddedManifest` uses `NewApp`, the actual embedded
+manifest/parser/dispatcher, and a test-only Connect server. It reproduced the
+exact panic before the manifest change. Afterward, its five cases cover get JSON,
+the show alias, human output, a missing required ID without an owner Get, and an
+owner not-found response without success output. Exact request identity and call
+counts are checked. `go test -race . ./domains/session -count=1 -timeout=60s`
+passed in `cli/` (2.567s and 1.034s); scoped `git diff --check` passed.
+
+The exact live command then exited zero with the same session ID, persistent
+backend, owner `agent-manager`, and label `swarm-execution-a91b2b02a04c3bbb`.
+The standard launcher rebuilt the CLI from the updated embedded manifest before
+retrying the read. No terminal input, session mutation, recovery, service restart
+or broad test admission occurred. Metadata observation does not establish that
+the interactive run is fresh, progressing or complete.
+
 ## 1. Interactive CLI Fidelity Edge Cases
 
 PTY handling for complex interactive CLIs (Claude Code, Codex) may have edge cases around resize during active output, cursor reporting conflicts, and reconnect during mid-escape-sequence. Requires dedicated e2e validation.

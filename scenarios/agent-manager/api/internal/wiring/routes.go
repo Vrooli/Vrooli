@@ -33,6 +33,7 @@ import (
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/storagehealth"
 	"agent-manager/internal/supervision"
 
 	"github.com/gorilla/mux"
@@ -78,6 +79,7 @@ type RouteDependencies struct {
 	ConversationSemantic     *conversationsearch.SemanticRuntime
 	ConversationSearchFile   string
 	ConversationControlToken func() string
+	StorageHealth            *storagehealth.Handler
 	WorkspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -147,6 +149,13 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
 	router.HandleFunc("/api/v1/runs/external/tombstone", handlers.TombstoneExternalConversation(deps.Orchestrator, deps.DB, deps.ConversationIndexer)).Methods(http.MethodPost)
+	if deps.StorageHealth != nil {
+		// The reclaim pair is the contract storage-manager calls when the declared
+		// budget is exceeded; compact requires the owner and a drained fence.
+		router.HandleFunc("/api/v1/storage/health", deps.StorageHealth.Health).Methods("GET")
+		router.HandleFunc("/api/v1/storage/reclaim", deps.StorageHealth.Reclaim).Methods("POST")
+		router.HandleFunc("/api/v1/storage/compact", deps.StorageHealth.Compact).Methods("POST")
+	}
 	if deps.ConversationSearch != nil {
 		searchPath, searchHandler := domainconnect.NewConversationSearchServiceHandler(
 			handlers.NewConversationSearchConnectHandler(handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)),

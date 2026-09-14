@@ -25,6 +25,10 @@ type CodingRoleCatalog struct {
 	SchemaVersion string                `json:"schema_version"`
 	Runner        string                `json:"runner"`
 	Roles         map[string]CodingRole `json:"roles"`
+	// ExcludedModels is an operator-owned deny list applied to every role in
+	// this resource catalog. The resource remains the authority for its model
+	// vocabulary; consumers receive this list as admission evidence.
+	ExcludedModels []string `json:"excluded_models,omitempty"`
 	// ModelAliases is the resource-owned translation table from the runner's
 	// model vocabulary to the canonical identity used by pricing providers.
 	// Agent Manager consumes this through the resource CLI; it never owns this
@@ -251,6 +255,19 @@ func validateCodingRoleCatalog(c CodingRoleCatalog, expectedRunner string) error
 	}
 	if _, err := parseObservedAt(c.Provenance.ObservedAt); err != nil {
 		errs = append(errs, err)
+	}
+	seenExcluded := make(map[string]struct{}, len(c.ExcludedModels))
+	for _, model := range c.ExcludedModels {
+		trimmed := strings.TrimSpace(model)
+		if trimmed == "" || trimmed != model {
+			errs = append(errs, errors.New("excluded_models must contain trimmed, non-empty values"))
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seenExcluded[key]; exists {
+			errs = append(errs, fmt.Errorf("excluded_models contains duplicate %q", model))
+		}
+		seenExcluded[key] = struct{}{}
 	}
 	for _, required := range []string{"code.default", "code.fast", "code.smart", "code.cheap"} {
 		r, ok := c.Roles[required]

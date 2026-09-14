@@ -3,6 +3,7 @@ syntax = "proto3";
 package agent_manager.v1;
 
 import "agent-manager/v1/domain/events.proto";
+import "agent-manager/v1/domain/effort.proto";
 import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/run.proto";
 import "agent-manager/v1/domain/task.proto";
@@ -47,6 +48,19 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manage
 // Enables scenarios to create tasks, configure agent profiles, start runs,
 // monitor progress, and manage approval workflows.
 service AgentManagerService {
+  // Generic effort supervision; reads never enroll or scan implicitly.
+  rpc ListEfforts(ListEffortsRequest) returns (ListEffortsResponse);
+  rpc GetEffortBoard(GetEffortBoardRequest) returns (EffortBoard);
+  rpc EnrollEffort(EnrollEffortRequest) returns (EffortEnrollment);
+  rpc WithdrawEffort(WithdrawEffortRequest) returns (EffortEnrollment);
+  rpc ReconcileEffortDiscovery(ReconcileEffortDiscoveryRequest) returns (EffortDiscovery);
+  rpc RequestEffortDirective(RequestEffortDirectiveRequest) returns (EffortDirective);
+  rpc ListEffortDirectives(ListEffortDirectivesRequest) returns (ListEffortDirectivesResponse);
+  rpc UpdateEffortDirective(UpdateEffortDirectiveRequest) returns (EffortDirective);
+  rpc RecordEffortAssessment(RecordEffortAssessmentRequest) returns (EffortAssessment);
+  rpc IssueSupervisorDispatch(IssueSupervisorDispatchRequest) returns (EffortEnrollment);
+  rpc RevokeSupervisorDispatch(RevokeSupervisorDispatchRequest) returns (EffortEnrollment);
+  rpc CreateSupervisorRun(CreateSupervisorRunRequest) returns (CreateRunResponse);
   // ==========================================================================
   // HEALTH
   // ==========================================================================
@@ -406,6 +420,13 @@ service AgentManagerService {
   // progressive-disclosure endpoints.
   rpc GetRunReport(GetRunReportRequest) returns (RunReport) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}/report"};
+  }
+
+  // GetRunAccounting returns one run's metered usage from the same metering
+  // the workflow owner applies to its child runs, so a consumer that dispatched
+  // a standalone run can settle its reservation. Unknown usage stays unknown.
+  rpc GetRunAccounting(GetRunAccountingRequest) returns (RunAccounting) {
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/accounting"};
   }
 
   // GetRunByTag retrieves a run by its custom tag.
@@ -854,6 +875,9 @@ message ModelOption {
   string id = 1;
   string canonical_model = 2;
   bool is_default = 3;
+  // source distinguishes a role-policy model ("role_policy") from a model
+  // discovered by the local runner probe ("local_probe").
+  string source = 4;
 }
 
 message ExecutionOption {
@@ -865,6 +889,8 @@ message ExecutionOption {
   string default_model = 6;
   repeated ModelOption models = 7;
   repeated string effort_levels = 8;
+  // default_model_source is "role_policy" or "local_probe".
+  string default_model_source = 9;
 }
 
 message ListExecutionOptionsResponse {
@@ -1200,6 +1226,36 @@ message ProfileRef {
 }
 
 // CreateRunRequest starts a new run.
+// Issuance provisions directly through the canonical credential authority.
+message IssueSupervisorDispatchRequest {
+  string effort_ref = 1;
+  uint64 expected_revision = 2;
+  string team_id = 3;
+  string member_id = 4;
+  string profile_key = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  uint32 maximum_runs = 7;
+  string idempotency_key = 8;
+  uint32 minimum_interval_seconds = 9;
+}
+message RevokeSupervisorDispatchRequest {
+  string effort_ref = 1;
+  string authorization_id = 2;
+  uint64 expected_revision = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+}
+// No config, scope or authority overrides: the owner grant supplies these.
+message CreateSupervisorRunRequest {
+  string effort_ref = 1;
+  string authorization_id = 2;
+  string team_id = 3;
+  string member_id = 4;
+  string task_id = 5;
+  string idempotency_key = 6;
+  repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 7;
+}
+
 message CreateRunRequest {
   // Task ID to execute.
   // @format uuid
@@ -1261,6 +1317,32 @@ message CreateRunRequest {
     defined_only: true
     not_in: [0]
   }];
+
+  // Bounded attributable workload declarations. These never grant authority.
+  repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 15
+      [(buf.validate.field).repeated.max_items = 100];
+
+  // Optional narrowing of verified owner authority. Presence with no scopes
+  // explicitly grants nothing. This declaration never supplies authority.
+  RunIdentityScopeRequest requested_scopes = 16;
+
+  // Optional execution preferences (preferred runner, model, effort). The
+  // preferred runner biases role-policy resolution; the model/effort override
+  // the resolved candidate when the runner supports them. Mirrors
+  // StartWorkflowExecutionRequest.execution_preferences so goal-mode runs can
+  // target a runner the same way workflow nodes do.
+  ExecutionPreferences execution_preferences = 17;
+}
+
+// RunIdentityScopeRequest narrows an owner-authenticated CreateRun request.
+// Credentials are accepted only from the Authorization header.
+message RunIdentityScopeRequest {
+  repeated string scopes = 1 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {string: {min_len: 1, max_len: 256}}
+  }];
+  // When set, refuse credentials belonging to any other verified owner.
+  string expected_owner_subject = 2 [(buf.validate.field).string.max_len = 512];
 }
 
 // AttachRunRequest identifies an operator-started coding-agent session.
@@ -1360,6 +1442,30 @@ message GetRunResponse {
 // is requested.
 message GetRunReportRequest {
   string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetRunAccountingRequest identifies the run whose metered usage is requested.
+message GetRunAccountingRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// RunAccounting is one run's metered usage. A consumer may release or settle a
+// reservation only when the run is terminal, tokens_known is true and
+// charge_measured is true; anything less is an unresolved reservation, never
+// zero usage.
+message RunAccounting {
+  string run_id = 1;
+  bool terminal = 2;
+  int64 tokens = 3;
+  int64 turns = 4;
+  // True only when an authoritative terminal receipt covers every invocation.
+  bool tokens_known = 5;
+  int64 charge_micro_usd = 6;
+  // True only when every invocation's marginal charge is explicitly metered or
+  // an explicit zero for a subscription or local billing basis.
+  bool charge_measured = 7;
+  // Conservative elapsed time from the run's durable start and end.
+  int64 wall_seconds = 8;
 }
 
 // RunReport is the shared, cheap-to-read diagnosis surface for one run.

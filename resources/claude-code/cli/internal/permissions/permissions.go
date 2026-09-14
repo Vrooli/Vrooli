@@ -6,9 +6,10 @@
 // entry tagged `"managedBy": "vrooli"`. Every other top-level key, and
 // every hook entry not tagged as Vrooli-managed, round-trips untouched.
 //
-// The PreToolUse hook is a native Go matcher paired with every Bash deny rule.
-// Native permission rules remain authoritative; the hook receives JSON as data
-// and never evaluates the command text.
+// The PreToolUse hook is Claude Code's entry into the shared agent policy
+// runtime: it decides filesystem deletion by resolved path and matches the
+// remaining Bash deny patterns natively. Native permission rules remain
+// authoritative; the hook receives JSON as data and never executes it.
 package permissions
 
 import (
@@ -307,8 +308,10 @@ func (a *Adapter) Save(p Policy) error {
 		return err
 	}
 
+	// The hook carries deletion policy as well as the deny patterns, so it
+	// stays installed when no deny pattern remains.
 	hook := buildHookEntry(GuardCommand(), p.BashDeny)
-	if p.Hooks && len(p.BashDeny) > 0 {
+	if p.Hooks {
 		inner := hook["hooks"].([]map[string]string)[0]
 		_, err = broker.Reconcile(
 			agentharness.HookTarget{Agent: "claude-code", Path: a.SettingsPath},
@@ -355,7 +358,7 @@ func shellQuote(value string) string {
 // RenderHook returns the hook entry as a JSON object, primarily for
 // docs/debugging surfaces. The same shape is what Save writes.
 func (a *Adapter) RenderHook(p Policy) map[string]any {
-	if !p.Hooks || len(p.BashDeny) == 0 {
+	if !p.Hooks {
 		return nil
 	}
 	return buildHookEntry(GuardCommand(), p.BashDeny)

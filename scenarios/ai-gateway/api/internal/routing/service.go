@@ -126,7 +126,7 @@ func (s *Service) effectiveBreaker(ctx context.Context, provider, role string, k
 // recordOutcome updates persisted breaker state after an execution attempt.
 // It is best-effort: a health-store write failure must not fail the caller's
 // request, since routing already succeeded or failed on its own merits.
-func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind sharedv1.RequestKind, class FailureClass, success bool) {
+func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind sharedv1.RequestKind, failure ProviderFailure, success bool) {
 	if s.health == nil {
 		return
 	}
@@ -140,7 +140,7 @@ func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind
 	if success {
 		h = s.breaker.OnSuccess(h, now)
 	} else {
-		h = s.breaker.OnFailure(h, class, now)
+		h = s.breaker.OnProviderFailure(h, failure, now)
 	}
 	_ = s.health.Upsert(ctx, h)
 }
@@ -279,9 +279,9 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		resolvedRole, resolveErr := adapter.ResolveRole(ctxExec, candidate.GetRole())
 		if resolveErr != nil {
 			cancel()
-			class := ClassifyProviderError(resolveErr)
-			lastFailureClass = class
-			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), class, false)
+			failure := ClassifyProviderFailure(resolveErr)
+			lastFailureClass = failure.Class
+			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
 			failures = append(failures, fmt.Sprintf("%s: resolve role: %v", candidate.GetProvider(), resolveErr))
 			if i == 0 && !plan.fallbackAllowed {
 				break
@@ -321,16 +321,16 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		s.releaseCapacity(ctxExec, capEval)
 		cancel()
 		if err != nil {
-			class := ClassifyProviderError(err)
-			lastFailureClass = class
-			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), class, false)
+			failure := ClassifyProviderFailure(err)
+			lastFailureClass = failure.Class
+			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
 			failures = append(failures, fmt.Sprintf("%s: %v", candidate.GetProvider(), err))
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
 			continue
 		}
-		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), FailureNone, true)
+		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), ProviderFailure{}, true)
 		fallbackUsed := i > 0
 		ev := s.evidence(req, plan, "succeeded", time.Since(started), fallbackUsed, failures)
 		ev.SelectedProvider = candidate.GetProvider()

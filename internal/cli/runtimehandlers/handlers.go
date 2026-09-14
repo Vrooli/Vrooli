@@ -30,6 +30,7 @@ var (
 const runtimeHelpText = `vrooli runtime - Manage Vrooli runtime control-plane services
 
 Usage:
+	 vrooli runtime executor-scope --json < request.json
   vrooli runtime supervisor run [options]
   vrooli runtime supervisor status [--json]
   vrooli runtime supervisor install [--user]
@@ -58,6 +59,7 @@ Environment:
 // RegisteredCommandPaths returns the child paths bound by the runtime handler.
 func RegisteredCommandPaths() []string {
 	paths := make([]string, 0, len(supervisorCommandNames)+len(recoveryPolicyNames))
+	paths = append(paths, "runtime executor-scope")
 	for _, name := range supervisorCommandNames {
 		paths = append(paths, "runtime supervisor "+name)
 	}
@@ -81,6 +83,14 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 				}
 				if args[0] == "recovery" {
 					return runRecoveryManifest(operationCtx, app, commandCtx, args[1:], deps.Stdout(ctx), deps.Stderr(ctx))
+				}
+				if args[0] == "executor-scope" {
+					for _, arg := range args[1:] {
+						if arg != "--json" {
+							return fmt.Errorf("runtime executor-scope accepts only --json and a JSON request on stdin")
+						}
+					}
+					return app.ExecutorScope(operationCtx, commandCtx.Stdin, commandCtx.Stdout)
 				}
 				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "runtime/supervisor", runtimeBindings(operationCtx, app, commandCtx, []string{"supervisor"}, supervisorCommandNames))
 				if err != nil {

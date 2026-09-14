@@ -644,6 +644,11 @@ func TestSQLiteStore_RetentionSelectionDoesNotBlockWrites(t *testing.T) {
 	ensureProjectionWatermarksTable(t, db)
 	store := event.NewSQLiteStore(db, newTestLogger())
 	runID := uuid.New()
+	// A live run row routes selection through the projection gate below; an
+	// orphan would be eligible without reading it.
+	if _, err := db.Exec(`INSERT INTO runs(id) VALUES (?)`, runID.String()); err != nil {
+		t.Fatal(err)
+	}
 	old := time.Now().Add(-48 * time.Hour)
 	evt := domain.NewLogEvent(runID, "info", "expired")
 	evt.Timestamp = old
@@ -751,6 +756,9 @@ func TestSQLiteStore_DeleteBeforePreservesEventsWithoutCompletedProjection(t *te
 	old := time.Now().Add(-48 * time.Hour)
 	completeRun, incompleteRun := uuid.New(), uuid.New()
 	for _, runID := range []uuid.UUID{completeRun, incompleteRun} {
+		if _, err := db.Exec(`INSERT INTO runs (id) VALUES (?)`, runID.String()); err != nil {
+			t.Fatal(err)
+		}
 		evt := domain.NewLogEvent(runID, "info", "expired")
 		evt.Timestamp = old
 		if err := store.Append(ctx, runID, evt); err != nil {

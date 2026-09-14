@@ -62,6 +62,9 @@ const (
 	// ClaimsServiceDecideClaimProposalProcedure is the fully-qualified name of the ClaimsService's
 	// DecideClaimProposal RPC.
 	ClaimsServiceDecideClaimProposalProcedure = "/vrooli.content_desk.v1.claims.ClaimsService/DecideClaimProposal"
+	// ClaimsServiceSetClaimQualificationProcedure is the fully-qualified name of the ClaimsService's
+	// SetClaimQualification RPC.
+	ClaimsServiceSetClaimQualificationProcedure = "/vrooli.content_desk.v1.claims.ClaimsService/SetClaimQualification"
 )
 
 // ClaimsServiceClient is a client for the vrooli.content_desk.v1.claims.ClaimsService service.
@@ -76,6 +79,7 @@ type ClaimsServiceClient interface {
 	ExtractClaimProposals(context.Context, *connect.Request[claims.ExtractClaimProposalsRequest]) (*connect.Response[claims.ExtractClaimProposalsResponse], error)
 	ListClaimProposals(context.Context, *connect.Request[claims.ListClaimProposalsRequest]) (*connect.Response[claims.ListClaimProposalsResponse], error)
 	DecideClaimProposal(context.Context, *connect.Request[claims.DecideClaimProposalRequest]) (*connect.Response[claims.DecideClaimProposalResponse], error)
+	SetClaimQualification(context.Context, *connect.Request[claims.SetClaimQualificationRequest]) (*connect.Response[claims.SetClaimQualificationResponse], error)
 }
 
 // NewClaimsServiceClient constructs a client for the vrooli.content_desk.v1.claims.ClaimsService
@@ -149,6 +153,12 @@ func NewClaimsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(claimsServiceMethods.ByName("DecideClaimProposal")),
 			connect.WithClientOptions(opts...),
 		),
+		setClaimQualification: connect.NewClient[claims.SetClaimQualificationRequest, claims.SetClaimQualificationResponse](
+			httpClient,
+			baseURL+ClaimsServiceSetClaimQualificationProcedure,
+			connect.WithSchema(claimsServiceMethods.ByName("SetClaimQualification")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -164,6 +174,7 @@ type claimsServiceClient struct {
 	extractClaimProposals *connect.Client[claims.ExtractClaimProposalsRequest, claims.ExtractClaimProposalsResponse]
 	listClaimProposals    *connect.Client[claims.ListClaimProposalsRequest, claims.ListClaimProposalsResponse]
 	decideClaimProposal   *connect.Client[claims.DecideClaimProposalRequest, claims.DecideClaimProposalResponse]
+	setClaimQualification *connect.Client[claims.SetClaimQualificationRequest, claims.SetClaimQualificationResponse]
 }
 
 // ListClaims calls vrooli.content_desk.v1.claims.ClaimsService.ListClaims.
@@ -216,6 +227,11 @@ func (c *claimsServiceClient) DecideClaimProposal(ctx context.Context, req *conn
 	return c.decideClaimProposal.CallUnary(ctx, req)
 }
 
+// SetClaimQualification calls vrooli.content_desk.v1.claims.ClaimsService.SetClaimQualification.
+func (c *claimsServiceClient) SetClaimQualification(ctx context.Context, req *connect.Request[claims.SetClaimQualificationRequest]) (*connect.Response[claims.SetClaimQualificationResponse], error) {
+	return c.setClaimQualification.CallUnary(ctx, req)
+}
+
 // ClaimsServiceHandler is an implementation of the vrooli.content_desk.v1.claims.ClaimsService
 // service.
 type ClaimsServiceHandler interface {
@@ -229,6 +245,7 @@ type ClaimsServiceHandler interface {
 	ExtractClaimProposals(context.Context, *connect.Request[claims.ExtractClaimProposalsRequest]) (*connect.Response[claims.ExtractClaimProposalsResponse], error)
 	ListClaimProposals(context.Context, *connect.Request[claims.ListClaimProposalsRequest]) (*connect.Response[claims.ListClaimProposalsResponse], error)
 	DecideClaimProposal(context.Context, *connect.Request[claims.DecideClaimProposalRequest]) (*connect.Response[claims.DecideClaimProposalResponse], error)
+	SetClaimQualification(context.Context, *connect.Request[claims.SetClaimQualificationRequest]) (*connect.Response[claims.SetClaimQualificationResponse], error)
 }
 
 // NewClaimsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -298,6 +315,12 @@ func NewClaimsServiceHandler(svc ClaimsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(claimsServiceMethods.ByName("DecideClaimProposal")),
 		connect.WithHandlerOptions(opts...),
 	)
+	claimsServiceSetClaimQualificationHandler := connect.NewUnaryHandler(
+		ClaimsServiceSetClaimQualificationProcedure,
+		svc.SetClaimQualification,
+		connect.WithSchema(claimsServiceMethods.ByName("SetClaimQualification")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.content_desk.v1.claims.ClaimsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClaimsServiceListClaimsProcedure:
@@ -320,6 +343,8 @@ func NewClaimsServiceHandler(svc ClaimsServiceHandler, opts ...connect.HandlerOp
 			claimsServiceListClaimProposalsHandler.ServeHTTP(w, r)
 		case ClaimsServiceDecideClaimProposalProcedure:
 			claimsServiceDecideClaimProposalHandler.ServeHTTP(w, r)
+		case ClaimsServiceSetClaimQualificationProcedure:
+			claimsServiceSetClaimQualificationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -367,4 +392,8 @@ func (UnimplementedClaimsServiceHandler) ListClaimProposals(context.Context, *co
 
 func (UnimplementedClaimsServiceHandler) DecideClaimProposal(context.Context, *connect.Request[claims.DecideClaimProposalRequest]) (*connect.Response[claims.DecideClaimProposalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.claims.ClaimsService.DecideClaimProposal is not implemented"))
+}
+
+func (UnimplementedClaimsServiceHandler) SetClaimQualification(context.Context, *connect.Request[claims.SetClaimQualificationRequest]) (*connect.Response[claims.SetClaimQualificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.claims.ClaimsService.SetClaimQualification is not implemented"))
 }

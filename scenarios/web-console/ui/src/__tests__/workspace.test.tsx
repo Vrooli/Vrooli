@@ -1,7 +1,7 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { forwardRef } from "react";
+import { forwardRef, useImperativeHandle } from "react";
 import Workspace from "../components/Workspace";
 import { strings } from "../consts/strings";
 import { BANNER_CHROME } from "../components/banners/arbitrate";
@@ -297,10 +297,13 @@ vi.mock("../components/TerminalLauncher", () => ({
   ),
 }));
 
+const mobileToolbarHandle = vi.hoisted(() => ({ appendText: vi.fn(), focusInput: vi.fn(), clearInput: vi.fn() }));
+
 vi.mock("../components/MobileToolbar", () => ({
-  default: forwardRef<HTMLDivElement, { visible?: boolean; onOpenAi?: () => void; onAiSuggestExecute?: (cmd: string) => void }>(function MockMobileToolbar({ visible = true, onOpenAi, onAiSuggestExecute }, ref) {
+  default: forwardRef<typeof mobileToolbarHandle, { visible?: boolean; onOpenAi?: () => void; onAiSuggestExecute?: (cmd: string) => void }>(function MockMobileToolbar({ visible = true, onOpenAi, onAiSuggestExecute }, ref) {
+    useImperativeHandle(ref, () => mobileToolbarHandle);
     if (!visible) return null;
-    return <div ref={ref} data-testid="mock-mobile-toolbar">
+    return <div data-testid="mock-mobile-toolbar">
       {onOpenAi && <button data-testid="mock-mobile-ai" onClick={onOpenAi}>AI</button>}
       {onAiSuggestExecute && <button data-testid="mock-mobile-ai-execute" onClick={() => onAiSuggestExecute("pwd")}>Execute</button>}
     </div>;
@@ -551,6 +554,21 @@ describe("Workspace", () => {
     render(<Workspace />);
 
     expect(screen.queryByTestId("mock-mobile-toolbar")).toBeNull();
+  });
+
+  it("shows the composer bar in Messages view on a desktop, and gives it the focus the terminal would get", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent", supportsMessagesView: true }];
+    touchControlsState.needsTouchControls = false;
+    useMessagesViewStore.setState({ viewModes: { [mockSession.id]: "messages" } });
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+    await waitFor(() => { expect(mobileToolbarHandle.focusInput).toHaveBeenCalled(); });
+    expect(mockFocusActiveTerminal).not.toHaveBeenCalled();
   });
 
   it("keeps touch controls available on wide phone landscape viewports", () => {

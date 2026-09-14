@@ -259,6 +259,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/invocation-facts/metrics", h.InvocationMetrics).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/accounting", h.GetRunAccounting).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/durability", h.GetDurability).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/invocation-facts", h.GetInvocationFacts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/episodes", h.GetEpisodesHTTP).Methods("GET")
