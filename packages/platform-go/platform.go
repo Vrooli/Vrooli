@@ -132,8 +132,14 @@ func ProcessHasChildren(pid int) (bool, error) { return processHasChildren(pid) 
 // failure.
 func ProcessScope(pid int) (string, error) { return processScope(pid) }
 
+// ProcessExecutablePath returns the executable image pid is running: Linux
+// reports the resolved /proc/<pid>/exe, darwin the path the process was
+// started with. Unsupported platforms return ErrUnsupported.
+func ProcessExecutablePath(pid int) (string, error) { return processExecutablePath(pid) }
+
 // ReadProcessEnvironment returns the environment observable for pid on hosts
-// that expose it. Unsupported hosts return a typed error from their backend.
+// that expose it. Hosts that cannot observe it return an error wrapping
+// ErrUnsupported, so callers can choose another proof with errors.Is.
 func ReadProcessEnvironment(pid int) (map[string]string, error) {
 	return readProcessEnvironment(pid)
 }

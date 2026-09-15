@@ -396,17 +396,34 @@ func (x *LogoCandidate) GetThumbnailUrl() string {
 }
 
 type ExploreCandidatesRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	BrandId        string                 `protobuf:"bytes,1,opt,name=brand_id,json=brandId,proto3" json:"brand_id,omitempty"`
-	Brief          string                 `protobuf:"bytes,2,opt,name=brief,proto3" json:"brief,omitempty"`
-	Concepts       []string               `protobuf:"bytes,3,rep,name=concepts,proto3" json:"concepts,omitempty"`
-	Variations     int32                  `protobuf:"varint,4,opt,name=variations,proto3" json:"variations,omitempty"` // 1..4 per concept
-	PreferVector   bool                   `protobuf:"varint,5,opt,name=prefer_vector,json=preferVector,proto3" json:"prefer_vector,omitempty"`
-	QualityPolicy  string                 `protobuf:"bytes,6,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
-	FallbackPolicy string                 `protobuf:"bytes,7,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
-	AllowByok      bool                   `protobuf:"varint,8,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BrandId    string                 `protobuf:"bytes,1,opt,name=brand_id,json=brandId,proto3" json:"brand_id,omitempty"`
+	Brief      string                 `protobuf:"bytes,2,opt,name=brief,proto3" json:"brief,omitempty"`
+	Concepts   []string               `protobuf:"bytes,3,rep,name=concepts,proto3" json:"concepts,omitempty"`
+	Variations int32                  `protobuf:"varint,4,opt,name=variations,proto3" json:"variations,omitempty"` // 1..4 per concept
+	// prefer_vector renders concepts with the SVG-native role instead of the
+	// illustration role. Vector models draw flat, geometric marks; use it only for
+	// a deliberately flat direction.
+	PreferVector   bool   `protobuf:"varint,5,opt,name=prefer_vector,json=preferVector,proto3" json:"prefer_vector,omitempty"`
+	QualityPolicy  string `protobuf:"bytes,6,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
+	FallbackPolicy string `protobuf:"bytes,7,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
+	// allow_byok is kept for older callers. Explore permits the cloud tier unless
+	// fallback_policy is local_only, the same default as brand image generation.
+	AllowByok bool `protobuf:"varint,8,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
+	// role overrides the OpenRouter role concepts render with. Empty uses the
+	// illustration role (image.generate.default), or the edit role when a style
+	// reference is given.
+	Role string `protobuf:"bytes,9,opt,name=role,proto3" json:"role,omitempty"`
+	// style_reference_brand names another brand (id or slug) whose picked mark,
+	// composed in that brand's container style, is the style reference every
+	// concept is rendered to match. Use it to keep a product line consistent.
+	StyleReferenceBrand string `protobuf:"bytes,10,opt,name=style_reference_brand,json=styleReferenceBrand,proto3" json:"style_reference_brand,omitempty"`
+	// style_reference_asset_id names an asset used directly as the style
+	// reference. An SVG asset is rasterized first. Ignored when
+	// style_reference_brand is set.
+	StyleReferenceAssetId string `protobuf:"bytes,11,opt,name=style_reference_asset_id,json=styleReferenceAssetId,proto3" json:"style_reference_asset_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ExploreCandidatesRequest) Reset() {
@@ -493,6 +510,27 @@ func (x *ExploreCandidatesRequest) GetAllowByok() bool {
 		return x.AllowByok
 	}
 	return false
+}
+
+func (x *ExploreCandidatesRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ExploreCandidatesRequest) GetStyleReferenceBrand() string {
+	if x != nil {
+		return x.StyleReferenceBrand
+	}
+	return ""
+}
+
+func (x *ExploreCandidatesRequest) GetStyleReferenceAssetId() string {
+	if x != nil {
+		return x.StyleReferenceAssetId
+	}
+	return ""
 }
 
 type ExploreCandidatesResponse struct {
@@ -1354,7 +1392,7 @@ const file_brand_manager_v1_candidates_candidates_proto_rawDesc = "" +
 	"\x04note\x18\r \x01(\tR\x04note\x129\n" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12#\n" +
-	"\rthumbnail_url\x18\x0f \x01(\tR\fthumbnailUrl\"\x9b\x02\n" +
+	"\rthumbnail_url\x18\x0f \x01(\tR\fthumbnailUrl\"\x9c\x03\n" +
 	"\x18ExploreCandidatesRequest\x12\x19\n" +
 	"\bbrand_id\x18\x01 \x01(\tR\abrandId\x12\x14\n" +
 	"\x05brief\x18\x02 \x01(\tR\x05brief\x12\x1a\n" +
@@ -1366,7 +1404,11 @@ const file_brand_manager_v1_candidates_candidates_proto_rawDesc = "" +
 	"\x0equality_policy\x18\x06 \x01(\tR\rqualityPolicy\x12'\n" +
 	"\x0ffallback_policy\x18\a \x01(\tR\x0efallbackPolicy\x12\x1d\n" +
 	"\n" +
-	"allow_byok\x18\b \x01(\bR\tallowByok\"\x8a\x01\n" +
+	"allow_byok\x18\b \x01(\bR\tallowByok\x12\x12\n" +
+	"\x04role\x18\t \x01(\tR\x04role\x122\n" +
+	"\x15style_reference_brand\x18\n" +
+	" \x01(\tR\x13styleReferenceBrand\x127\n" +
+	"\x18style_reference_asset_id\x18\v \x01(\tR\x15styleReferenceAssetId\"\x8a\x01\n" +
 	"\x19ExploreCandidatesResponse\x12Q\n" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v21.vrooli.brand_manager.v1.candidates.LogoCandidateR\n" +

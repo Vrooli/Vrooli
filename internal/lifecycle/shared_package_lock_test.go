@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,32 @@ import (
 	"testing"
 	"time"
 )
+
+func TestAcquireSharedPackageLockHasBoundedWait(t *testing.T) {
+	oldTimeout, oldPoll := sharedPackageLockWaitTimeout, sharedPackageLockPollInterval
+	sharedPackageLockWaitTimeout, sharedPackageLockPollInterval = 40*time.Millisecond, 5*time.Millisecond
+	t.Cleanup(func() { sharedPackageLockWaitTimeout, sharedPackageLockPollInterval = oldTimeout, oldPoll })
+
+	home := t.TempDir()
+	root := t.TempDir()
+	release, err := acquireSharedPackageLock(home, "@vrooli/stalled", root, nil)
+	if err != nil {
+		t.Fatalf("first acquire: %v", err)
+	}
+	defer release()
+
+	started := time.Now()
+	_, err = acquireSharedPackageLockContext(context.Background(), home, "@vrooli/stalled", root, nil)
+	if err == nil {
+		t.Fatal("second acquire unexpectedly succeeded")
+	}
+	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+		t.Fatalf("bounded lock wait took %s", elapsed)
+	}
+	if !strings.Contains(err.Error(), "await: condition not met") {
+		t.Fatalf("error = %v, want bounded await diagnostic", err)
+	}
+}
 
 type synchronizedBuffer struct {
 	mu sync.Mutex

@@ -133,6 +133,23 @@ func TestExecutorScopeBoundsAndMidReadBirth(t *testing.T) {
 	}
 }
 
+func TestExecutorScopeIgnoresUnrelatedHostProcessChurn(t *testing.T) {
+	oldTable, oldIdentity := scopeProcessTable, scopeReadIdentity
+	t.Cleanup(func() { scopeProcessTable, scopeReadIdentity = oldTable, oldIdentity })
+	calls := 0
+	scopeProcessTable = func(context.Context) (map[int]processTableEntry, error) {
+		calls++
+		// A changing unrelated process must not make an otherwise provable
+		// historical executor impossible to exclude.
+		return map[int]processTableEntry{100 + calls: {PID: 100 + calls, PGID: 100 + calls}}, nil
+	}
+	scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) { return scopeIdentity{}, nil }
+	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{RunID: "run-1", Tag: "current", LegacyTag: "legacy", PID: 10, PGID: 10}}})
+	if err != nil || !report.Complete || report.Executors[0].State != "absent" {
+		t.Fatalf("unrelated process churn blocked exclusion: report=%+v err=%v", report, err)
+	}
+}
+
 func TestExecutorScopeBatchSharesOneBoundedObservation(t *testing.T) {
 	scopeFixture(t, map[int]processTableEntry{1: {PID: 1}}, nil)
 	reads := 0

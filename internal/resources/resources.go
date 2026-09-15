@@ -351,6 +351,7 @@ func (c *Controller) resolveCLIPath(name string) (string, bool) {
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
 	if path, ok := c.resolveCLIPath(name); ok {
 		env := resourceEnvForResource(c.Root, c.Home, name)
+		var runAsUser string
 		// Resource CLIs need the same provider-selected, non-secret runtime
 		// context as lifecycle operations. In particular, a managed-service
 		// client must not fall back to a legacy Docker adapter simply because it
@@ -380,6 +381,18 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 			if artifact, err := managedServiceArtifactPath(c, manifest); err == nil {
 				env = values.SetEnv(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", artifact)
 			}
+			if userName := strings.TrimSpace(manifest.ManagedService.RunAsUser); userName != "" && os.Geteuid() == 0 {
+				runAsUser = userName
+			}
+		}
+		// Keep privileged target execution safe even when a sealed release has
+		// an older or temporarily unreadable declaration. PostgreSQL is the
+		// current root-target managed service and has an explicit OS requirement.
+		if runAsUser == "" && os.Geteuid() == 0 && os.Getenv("VROOLI_CLI_ARTIFACT_MODE") == "1" && strings.TrimSpace(name) == "postgres" {
+			runAsUser = "postgres"
+		}
+		if runAsUser != "" && os.Geteuid() == 0 {
+			return shell.Command(shell.Spec{Name: "runuser", Args: append([]string{"--preserve-environment", "--user", runAsUser, "--", path}, args...), Dir: c.Root, Env: env}), nil
 		}
 		return shell.Command(shell.Spec{
 			Name: path,

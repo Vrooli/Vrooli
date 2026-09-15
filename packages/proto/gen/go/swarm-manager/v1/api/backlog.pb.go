@@ -2212,8 +2212,11 @@ type QueueBacklogItemRequest struct {
 	MaxSlices            *int32                       `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
 	ExecutionPreferences *domain.ExecutionPreferences `protobuf:"bytes,9,opt,name=execution_preferences,json=executionPreferences,proto3,oneof" json:"execution_preferences,omitempty"`
 	OperatorNote         *string                      `protobuf:"bytes,10,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Operator-authorized response to a blocker outside the item's declared
+	// scope. Values are in_scope_only, investigate, or repair_and_continue.
+	BlockerRepairPolicy *string `protobuf:"bytes,11,opt,name=blocker_repair_policy,json=blockerRepairPolicy,proto3,oneof" json:"blocker_repair_policy,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *QueueBacklogItemRequest) Reset() {
@@ -2305,6 +2308,13 @@ func (x *QueueBacklogItemRequest) GetExecutionPreferences() *domain.ExecutionPre
 func (x *QueueBacklogItemRequest) GetOperatorNote() string {
 	if x != nil && x.OperatorNote != nil {
 		return *x.OperatorNote
+	}
+	return ""
+}
+
+func (x *QueueBacklogItemRequest) GetBlockerRepairPolicy() string {
+	if x != nil && x.BlockerRepairPolicy != nil {
+		return *x.BlockerRepairPolicy
 	}
 	return ""
 }
@@ -4222,7 +4232,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\v2+.vrooli.swarm_manager.v1.shared.BacklogFileH\x00R\x04file\x88\x01\x01\x12&\n" +
 	"\fdeleted_path\x18\x02 \x01(\tH\x01R\vdeletedPath\x88\x01\x01B\a\n" +
 	"\x05_fileB\x0f\n" +
-	"\r_deleted_path\"\xea\x04\n" +
+	"\r_deleted_path\"\xf5\x05\n" +
 	"\x17QueueBacklogItemRequest\x12=\n" +
 	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01\x12,\n" +
 	"\x04mode\x18\x02 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloH\x01R\x04mode\x88\x01\x01\x12\"\n" +
@@ -4236,7 +4246,8 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x06R\tmaxSlices\x88\x01\x01\x12n\n" +
 	"\x15execution_preferences\x18\t \x01(\v24.vrooli.swarm_manager.v1.domain.ExecutionPreferencesH\aR\x14executionPreferences\x88\x01\x01\x12(\n" +
 	"\roperator_note\x18\n" +
-	" \x01(\tH\bR\foperatorNote\x88\x01\x01B\f\n" +
+	" \x01(\tH\bR\foperatorNote\x88\x01\x01\x12o\n" +
+	"\x15blocker_repair_policy\x18\v \x01(\tB6\xbaH3r1R\rin_scope_onlyR\vinvestigateR\x13repair_and_continueH\tR\x13blockerRepairPolicy\x88\x01\x01B\f\n" +
 	"\n" +
 	"_operationB\a\n" +
 	"\x05_modeB\r\n" +
@@ -4247,7 +4258,8 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x0f_execution_modeB\r\n" +
 	"\v_max_slicesB\x18\n" +
 	"\x16_execution_preferencesB\x10\n" +
-	"\x0e_operator_noteJ\x04\b\x03\x10\x04\"\xe7\x03\n" +
+	"\x0e_operator_noteB\x18\n" +
+	"\x16_blocker_repair_policyJ\x04\b\x03\x10\x04\"\xe7\x03\n" +
 	"\x18QueueBacklogItemResponse\x12?\n" +
 	"\x04item\x18\x01 \x01(\v2+.vrooli.swarm_manager.v1.domain.BacklogItemR\x04item\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +

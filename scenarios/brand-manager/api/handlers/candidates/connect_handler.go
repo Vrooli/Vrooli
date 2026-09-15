@@ -39,6 +39,11 @@ func (h *connectHandler) ExploreCandidates(ctx context.Context, req *connect.Req
 		QualityPolicy:  m.GetQualityPolicy(),
 		FallbackPolicy: m.GetFallbackPolicy(),
 		AllowBYOK:      m.GetAllowByok(),
+		Role:           m.GetRole(),
+		// Style references resolve before any generation starts, so a bad
+		// reference fails the call before anything is paid for.
+		StyleReferenceBrand:   m.GetStyleReferenceBrand(),
+		StyleReferenceAssetID: m.GetStyleReferenceAssetId(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

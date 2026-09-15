@@ -29,7 +29,15 @@ type DefaultService struct {
 	analyzer       ScenarioAnalyzer
 	iconSyncer     IconSyncer
 	bundlePackager BundlePackager
+	signingStore   signingStore
+	defaultSigning func(context.Context, string) (*signing.SigningConfig, error)
 	logger         *slog.Logger
+}
+
+// signingStore is the read/write seam for a scenario's signing.json.
+type signingStore interface {
+	Get(ctx context.Context, scenario string) (*signing.SigningConfig, error)
+	Save(ctx context.Context, scenario string, config *signing.SigningConfig) error
 }
 
 // RecordStore persists desktop app records.
@@ -139,6 +147,22 @@ func WithLogger(logger *slog.Logger) ServiceOption {
 	}
 }
 
+// WithSigningStore overrides how a scenario's signing.json is read and written.
+// Production uses the file repository; tests inject an in-memory store.
+func WithSigningStore(store signingStore) ServiceOption {
+	return func(s *DefaultService) {
+		s.signingStore = store
+	}
+}
+
+// WithDefaultSigningResolver overrides how the shared default signing key is
+// resolved. Production uses signing.DefaultManagedLinuxConfig.
+func WithDefaultSigningResolver(resolver func(context.Context, string) (*signing.SigningConfig, error)) ServiceOption {
+	return func(s *DefaultService) {
+		s.defaultSigning = resolver
+	}
+}
+
 // NewService creates a new generation service.
 func NewService(opts ...ServiceOption) *DefaultService {
 	s := &DefaultService{
@@ -156,6 +180,13 @@ func NewService(opts ...ServiceOption) *DefaultService {
 	// Create default icon syncer if not provided
 	if s.iconSyncer == nil {
 		s.iconSyncer = NewIconSyncer(s.vrooliRoot)
+	}
+
+	if s.signingStore == nil {
+		s.signingStore = signing.NewFileRepository()
+	}
+	if s.defaultSigning == nil {
+		s.defaultSigning = signing.DefaultManagedLinuxConfig
 	}
 
 	return s
@@ -356,17 +387,25 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 
 // prepareSigningConfig loads and applies signing configuration if needed.
 func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) error {
-	if config.CodeSigning == nil && config.ScenarioName != "" {
-		signingConfig, err := s.loadSigningConfig(config.ScenarioName)
-		if err != nil {
+	scenarioName := s.signingScenarioName(config)
+	if config.CodeSigning == nil && scenarioName != "" {
+		signingConfig, err := s.loadSigningConfig(scenarioName)
+		switch {
+		case err != nil:
 			s.updateBuildStatus(buildID, func(status *BuildStatus) {
 				status.BuildLog = append(status.BuildLog, fmt.Sprintf("Note: Could not load signing config: %v", err))
 			})
-		} else if signingConfig != nil && signingConfig.Enabled {
+		case signingConfig != nil && signingConfig.Enabled:
 			config.CodeSigning = signingConfig
 			s.updateBuildStatus(buildID, func(status *BuildStatus) {
 				status.BuildLog = append(status.BuildLog, "Loaded signing configuration from scenario")
 			})
+		case signingConfig == nil:
+			// No explicit scenario signing configuration. Apply the shared
+			// publisher key when the credential authority holds it, so every
+			// generated app is signed without per-scenario setup. An explicit
+			// signing.json with enabled=false remains an opt-out.
+			s.applyDefaultSigning(buildID, scenarioName, config)
 		}
 	}
 
@@ -552,15 +591,91 @@ func (s *DefaultService) stagingOutputPath(appName, buildID string) (string, err
 	return filepath.Join(root, appName, buildID), nil
 }
 
-// loadSigningConfig loads the signing configuration from the file repository for a scenario.
+// scenarioDirExists reports whether a scenario directory exists under the
+// configured repository root. Without a configured root the name is not
+// trustworthy, so automatic signing stays off.
+func (s *DefaultService) scenarioDirExists(scenarioName string) bool {
+	root := strings.TrimSpace(s.vrooliRoot)
+	if root == "" || strings.TrimSpace(scenarioName) == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(root, "scenarios", scenarioName))
+	return err == nil && info.IsDir()
+}
+
+// signingScenarioName resolves the scenario whose signing config applies. The
+// canonical field is ScenarioName; AppName is the scenario slug in every
+// generation path that omits it.
+func (s *DefaultService) signingScenarioName(config *DesktopConfig) string {
+	if strings.TrimSpace(config.ScenarioName) != "" {
+		return strings.TrimSpace(config.ScenarioName)
+	}
+	return strings.TrimSpace(config.AppName)
+}
+
+// applyDefaultSigning resolves and persists the shared publisher signing
+// configuration. Absence of an available key is not a generation failure; it is
+// reported so an operator can provision the key and regenerate. A persisted
+// signing.json is what the build stage later reads to materialize the key.
+func (s *DefaultService) applyDefaultSigning(buildID, scenarioName string, config *DesktopConfig) {
+	if s.defaultSigning == nil {
+		return
+	}
+	// Only a real scenario carries a signing config. This also keeps tests and
+	// speculative generations from writing signing.json for a name that does
+	// not exist in the repository.
+	if !s.scenarioDirExists(scenarioName) {
+		return
+	}
+	autoConfig, err := s.defaultSigning(context.Background(), scenarioName)
+	switch {
+	case err != nil:
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.BuildLog = append(status.BuildLog, fmt.Sprintf("Note: Automatic desktop signing unavailable: %v", err))
+		})
+		return
+	case autoConfig == nil:
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.BuildLog = append(status.BuildLog,
+				"Note: No shared desktop signing key is configured; this build is unsigned. Provision "+signing.DefaultSharedLogicalID+" and regenerate to sign.")
+		})
+		return
+	}
+
+	config.CodeSigning = autoConfig
+	if saveErr := s.saveSigningConfig(scenarioName, autoConfig); saveErr != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.BuildLog = append(status.BuildLog,
+				fmt.Sprintf("Note: Applied shared desktop signing key %s but could not persist signing.json: %v", autoConfig.Linux.GPGKeyID, saveErr))
+		})
+		return
+	}
+	fingerprint := autoConfig.Linux.GPGKeyID
+	identity := autoConfig.Linux.ManagedKey.LogicalID
+	s.updateBuildStatus(buildID, func(status *BuildStatus) {
+		status.BuildLog = append(status.BuildLog,
+			fmt.Sprintf("Applied shared desktop signing key %s (identity %s)", fingerprint, identity))
+	})
+}
+
+// loadSigningConfig loads the signing configuration for a scenario.
 func (s *DefaultService) loadSigningConfig(scenarioName string) (*signing.SigningConfig, error) {
-	repo := signing.NewFileRepository()
-	ctx := context.Background()
-	config, err := repo.Get(ctx, scenarioName)
+	if s.signingStore == nil {
+		return nil, nil
+	}
+	config, err := s.signingStore.Get(context.Background(), scenarioName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load signing config: %w", err)
 	}
 	return config, nil
+}
+
+// saveSigningConfig persists the signing configuration for a scenario.
+func (s *DefaultService) saveSigningConfig(scenarioName string, config *signing.SigningConfig) error {
+	if s.signingStore == nil {
+		return fmt.Errorf("signing store is not configured")
+	}
+	return s.signingStore.Save(context.Background(), scenarioName, config)
 }
 
 // generateSigningArtifacts generates signing-related files in the output directory.

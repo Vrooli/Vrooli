@@ -211,7 +211,10 @@ func Install(ctx context.Context, spec Spec) error {
 			}
 			cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", filepath.Dir(spec.BinDir), "--no-fund", "--no-audit", target.Package+"@"+target.Version)
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			return cmd.Run()
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("install %s: %w", target.Package, err)
+			}
+			return linkNPMBinary(filepath.Dir(spec.BinDir), spec.Binary, spec.BinDir)
 		}
 		_, err = binaryfetch.Fetch(ctx, binaryfetch.Target{Name: spec.Binary, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, BinPath: target.BinPath, Mode: target.Mode}, spec.BinDir, nil)
 		return err
@@ -227,7 +230,7 @@ func Install(ctx context.Context, spec Spec) error {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("install %s: %w", spec.NPM, err)
 		}
-		return nil
+		return linkNPMBinary(prefix, spec.Binary, spec.BinDir)
 	}
 	url := strings.TrimSpace(os.Getenv(strings.ToUpper(spec.Binary) + "_ARTIFACT_URL"))
 	if url == "" {
@@ -238,6 +241,42 @@ func Install(ctx context.Context, spec Spec) error {
 		}
 	}
 	return download(ctx, url, target, spec.ArchiveEntry)
+}
+
+// linkNPMBinary exposes an npm-installed executable at the install location
+// the resource declares. `npm install --prefix P` links executables under
+// P/node_modules/.bin, never P/bin, so the install used to report success while
+// the binary that the resource status, the PATH, and a node's capability probe
+// look for never appeared — a remote "Install" that changed nothing.
+//
+// Only a missing path or an existing symlink is replaced; a real file at the
+// target belongs to someone else and is refused, not overwritten.
+func linkNPMBinary(prefix, binary, binDir string) error {
+	if runtime.GOOS == string(hostreqspec.PlatformWindows) {
+		return nil
+	}
+	source := filepath.Join(prefix, "node_modules", ".bin", binary)
+	if _, err := os.Stat(source); err != nil {
+		return fmt.Errorf("npm finished but produced no %s executable at %s: %w", binary, source, err)
+	}
+	target := filepath.Join(binDir, binary)
+	if info, err := os.Lstat(target); err == nil {
+		if info.Mode()&os.ModeSymlink == 0 {
+			return fmt.Errorf("refusing to replace %s: it is a file this installer did not create", target)
+		}
+		if current, readErr := os.Readlink(target); readErr == nil && current == source {
+			return nil
+		}
+		if err := os.Remove(target); err != nil {
+			return fmt.Errorf("replace link %s: %w", target, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect %s: %w", target, err)
+	}
+	if err := os.Symlink(source, target); err != nil {
+		return fmt.Errorf("link %s into %s: %w", binary, binDir, err)
+	}
+	return nil
 }
 
 func npmTarballURL(packageName, version string) string {

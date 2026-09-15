@@ -38,6 +38,11 @@ type SelectRequest struct {
 	QualityPolicy string
 	// AllowBYOK permits BYOK/cloud catalog candidates such as openrouter-image.
 	AllowBYOK bool
+	// PreferRemote ranks permitted gateway (OpenRouter) candidates first. It is set
+	// when the caller names an OpenRouter role: a role selects a gateway model and
+	// means nothing to a local model, so running locally would silently drop the
+	// caller's intent. It has no effect unless AllowBYOK is also true.
+	PreferRemote bool
 }
 
 // Selection is the selector's verdict for one operation.
@@ -221,7 +226,9 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 	out := make([]Selection, 0, len(ranked))
 	for _, m := range ranked {
 		sel := r.buildSelection(m, req)
-		if !sel.GPUViable {
+		// A remote model uses no local GPU, so a local VRAM shortfall is not a
+		// caution about it.
+		if !sel.GPUViable && m.Backend != BackendOpenRouter {
 			shortfall := Fit(m, req.Host).VRAMShortfallGB
 			if worstShortfall > shortfall {
 				shortfall = worstShortfall
@@ -245,6 +252,11 @@ func (r *Registry) rankCandidates(runnable []Model, req SelectRequest) []Model {
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
+		if req.PreferRemote && req.AllowBYOK {
+			if ra, rb := a.m.Backend == BackendOpenRouter, b.m.Backend == BackendOpenRouter; ra != rb {
+				return ra // a named gateway role runs on the gateway
+			}
+		}
 		if req.QualityPolicy == "fast" {
 			if da, db := a.m.IsDefaultFor(req.Operation), b.m.IsDefaultFor(req.Operation); da != db {
 				return da

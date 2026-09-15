@@ -577,18 +577,17 @@ func (s *Supervisor) prepareServiceDirs(svc manifest.Service) error {
 			return fmt.Errorf("create data dir for %s: %w", svc.ID, err)
 		}
 	}
-	if svc.LogDir != "" {
-		logPath := manifest.ResolvePath(s.appData, svc.LogDir)
-		if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
-			return fmt.Errorf("prepare log dir: %w", err)
-		}
-		// Touch the log file to ensure it exists.
-		f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
-		if err != nil {
-			return fmt.Errorf("prepare log file: %w", err)
-		}
-		_ = f.Close()
+	logPath := serviceLogPath(s.appData, svc)
+	if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return fmt.Errorf("prepare log dir: %w", err)
 	}
+	// Touch the log file to ensure it exists. Every declared service gets a
+	// conventional log even when log_dir is omitted from the manifest.
+	f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
+	if err != nil {
+		return fmt.Errorf("prepare log file: %w", err)
+	}
+	_ = f.Close()
 	return nil
 }
 
@@ -597,15 +596,22 @@ var fileCreateAppend = os.O_CREATE | os.O_WRONLY | os.O_APPEND
 
 // logWriter creates a log file writer for a service.
 func (s *Supervisor) logWriter(svc manifest.Service) (File, string, error) {
-	if svc.LogDir == "" {
-		return nil, "", nil
+	logPath := serviceLogPath(s.appData, svc)
+	if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return nil, "", fmt.Errorf("prepare log dir: %w", err)
 	}
-	logPath := manifest.ResolvePath(s.appData, svc.LogDir)
 	f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
 	if err != nil {
 		return nil, "", fmt.Errorf("open log file: %w", err)
 	}
 	return f, logPath, nil
+}
+
+func serviceLogPath(appData string, svc manifest.Service) string {
+	if svc.LogDir != "" {
+		return manifest.ResolvePath(appData, svc.LogDir)
+	}
+	return filepath.Join(appData, "resources", svc.ID, "logs", "service.log")
 }
 
 // LogWriter implements migrations.LogProvider.

@@ -403,3 +403,23 @@ class MergeMachinesResponse(_message.Message):
     machine: Machine
     archived_machine_id: str
     def __init__(self, machine: _Optional[_Union[Machine, _Mapping]] = ..., archived_machine_id: _Optional[str] = ...) -> None: ...
+
+class RotateMachineCredentialStoreRequest(_message.Message):
+    __slots__ = ("machine_id",)
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+
+class RotateMachineCredentialStoreResponse(_message.Message):
+    __slots__ = ("machine_id", "node_id", "resumed", "agent_unlock", "detail")
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    RESUMED_FIELD_NUMBER: _ClassVar[int]
+    AGENT_UNLOCK_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    node_id: str
+    resumed: bool
+    agent_unlock: str
+    detail: str
+    def __init__(self, machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., resumed: _Optional[bool] = ..., agent_unlock: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...

@@ -950,7 +950,10 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		_ = os.Rename(logFile, logFile+".bak") //nolint:forbidigo // intentional log rotation
 	}
 
-	file, err := config.OpenOwnedFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, tuning.PermFile)
+	// O_APPEND lets the runtime supervisor's log bound (process.BoundLogs)
+	// truncate this file while the detached process still writes to it: an
+	// append writer continues at the new end of file instead of its old offset.
+	file, err := config.OpenOwnedFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}

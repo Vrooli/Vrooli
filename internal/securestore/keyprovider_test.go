@@ -187,7 +187,10 @@ func (fake *fakeSystemdCreds) run(args []string, stdin []byte) ([]byte, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w: systemd-creds decrypt: unknown blob", errKeyProviderUnavailable)
 		}
-		return plaintext, nil
+		// A real subprocess hands back fresh bytes every time. Returning the
+		// stored slice would let a caller zeroing its data key erase the fake's
+		// only copy.
+		return append([]byte(nil), plaintext...), nil
 	default:
 		return nil, fmt.Errorf("unexpected systemd-creds verb %q", args[0])
 	}

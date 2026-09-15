@@ -100,6 +100,11 @@ type AdoptionPolicy struct {
 }
 
 type LifecyclePolicy struct {
+	// Requires names governed packages (under packages/) whose build must be
+	// provisioned before this package's build because this build consumes
+	// their generated outputs. The lifecycle adds them even when a scenario
+	// depends only on this package.
+	Requires []string      `json:"requires,omitempty"`
 	Generate []CommandSpec `json:"generate,omitempty"`
 	Build    []CommandSpec `json:"build,omitempty"`
 	Test     []CommandSpec `json:"test,omitempty"`

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -597,6 +598,12 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+	if err := ensureManagedServiceRunAsUser(manifest, env, path); err != nil {
+		return err
+	}
+	if manifest.ManagedService != nil && strings.TrimSpace(manifest.ManagedService.RunAsUser) != "" {
+		env = valuehelpers.SetEnv(env, "VROOLI_MANAGED_SERVICE_RUN_AS_USER", strings.TrimSpace(manifest.ManagedService.RunAsUser))
+	}
 	// Expose only the verified artifact directory to the supervised process.
 	// Resources such as Ollama ship a native executable alongside runtime
 	// libraries; the manifest may point the service at that sibling directory
@@ -1019,11 +1026,29 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 		if err := os.WriteFile(passwordPath, []byte(password+"\n"), tuning.PermSecret); err != nil {
 			return fmt.Errorf("write managed-service bootstrap secret: %w", err)
 		}
+		if name := strings.TrimSpace(manifest.ManagedService.RunAsUser); name != "" && os.Geteuid() == 0 {
+			account, lookupErr := user.Lookup(name)
+			if lookupErr != nil {
+				return fmt.Errorf("look up managed-service user %q: %w", name, lookupErr)
+			}
+			uid, uidErr := strconv.Atoi(account.Uid)
+			gid, gidErr := strconv.Atoi(account.Gid)
+			if uidErr != nil || gidErr != nil {
+				return fmt.Errorf("parse managed-service user %q identity", name)
+			}
+			if err := os.Chown(passwordPath, uid, gid); err != nil {
+				return fmt.Errorf("assign managed-service bootstrap secret to %s: %w", name, err)
+			}
+		}
 		defer os.Remove(passwordPath)
 	}
 	executable := filepath.Join(artifactRoot, filepath.FromSlash(bootstrap.Executable))
 	arguments := renderManagedServiceValues(bootstrap.Arguments, bootstrapEnv)
 	command := shell.NewCommandContext(ctx, executable, arguments...)
+	if userName := strings.TrimSpace(manifest.ManagedService.RunAsUser); userName != "" && os.Geteuid() == 0 {
+		runAsArgs := managedServiceRunAsArgs("runuser", userName, executable, arguments, bootstrapEnv)
+		command = shell.NewCommandContext(ctx, "runuser", runAsArgs...)
+	}
 	command.Dir = artifactRoot
 	command.Env = bootstrapEnv
 	output, err := command.CombinedOutput()
@@ -1034,6 +1059,99 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 		return fmt.Errorf("managed-service bootstrap for %s completed without marker %s: %w", manifest.Name, bootstrap.Marker, err)
 	}
 	return nil
+}
+
+func ensureManagedServiceRunAsUser(manifest ResourceManifest, env []string, artifactPath string) error {
+	if manifest.ManagedService == nil || os.Geteuid() != 0 {
+		return nil
+	}
+	name := strings.TrimSpace(manifest.ManagedService.RunAsUser)
+	if name == "" {
+		return nil
+	}
+	if _, err := user.Lookup(name); err != nil {
+		if _, unknown := err.(user.UnknownUserError); !unknown {
+			return fmt.Errorf("look up managed-service user %q: %w", name, err)
+		}
+		cmd := shell.NewCommand("useradd", "--system", "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", name)
+		if output, runErr := cmd.CombinedOutput(); runErr != nil {
+			return fmt.Errorf("create managed-service user %q: %w: %s", name, runErr, strings.TrimSpace(string(output)))
+		}
+	}
+	values := managedServiceEnvValues(env)
+	for _, path := range []string{artifactPath, values["RESOURCE_DATA_DIR"], values["RESOURCE_CONFIG_DIR"], values["RESOURCE_STATE_DIR"], values["RESOURCE_LOG_DIR"]} {
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+		if err := ensureManagedServiceTraversal(path); err != nil {
+			return fmt.Errorf("prepare managed-service path %s for %s: %w", path, name, err)
+		}
+		uid, gid, err := lookupUserIDs(name)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("inspect managed-service path %s: %w", path, err)
+		}
+		if err := filepath.Walk(path, func(current string, info os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			return os.Lchown(current, uid, gid)
+		}); err != nil {
+			return fmt.Errorf("assign managed-service path %s to %s: %w", path, name, err)
+		}
+	}
+	return nil
+}
+
+// A root-run control plane commonly keeps its runtime home below /root, whose
+// default 0700 mode prevents a declared non-root managed service from reaching
+// its own artifact and state. Grant search-only access on the ancestor chain;
+// the managed-service tree itself remains owned and permissioned separately.
+func ensureManagedServiceTraversal(path string) error {
+	current := filepath.Clean(path)
+	for {
+		info, err := os.Stat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				current = filepath.Dir(current)
+				if current == filepath.Dir(current) {
+					return nil
+				}
+				continue
+			}
+			return err
+		}
+		if info.IsDir() && info.Mode().Perm()&0001 == 0 {
+			if err := os.Chmod(current, info.Mode().Perm()|0001); err != nil {
+				return err
+			}
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return nil
+		}
+		current = parent
+	}
+}
+
+func lookupUserIDs(name string) (int, int, error) {
+	entry, err := user.Lookup(name)
+	if err != nil {
+		return 0, 0, err
+	}
+	uid, err := strconv.Atoi(entry.Uid)
+	if err != nil {
+		return 0, 0, err
+	}
+	gid, err := strconv.Atoi(entry.Gid)
+	if err != nil {
+		return 0, 0, err
+	}
+	return uid, gid, nil
 }
 
 func renderManagedServiceValues(arguments, env []string) []string {

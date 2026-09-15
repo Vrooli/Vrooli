@@ -689,6 +689,80 @@ func writeUnattendedStatus(out io.Writer, status securestore.UnattendedStatus) {
 	}
 }
 
+// StoreAddPassphrase adds a passphrase wrap to a store that opens only through
+// unattended wraps. The passphrase is read from standard input and never
+// prompted for: its caller is a control plane escrowing a recovery secret for
+// a node it manages.
+func (app *Service) StoreAddPassphrase(ctx context.Context, out io.Writer, format string, input io.Reader) error {
+	format, err := storeFormat(format)
+	if err != nil {
+		return err
+	}
+	passphrase, err := pipedStorePassphrase(input, "add-passphrase")
+	if err != nil {
+		return err
+	}
+	check, err := securestore.AddPassphraseWrap(passphrase)
+	if err != nil {
+		return err
+	}
+	if format == string(cliout.FormatJSON) {
+		return cliout.WriteJSONValue(out, map[string]any{"added": true, "generation": check.Generation})
+	}
+	_, err = fmt.Fprintln(out, "Added a passphrase wrap. The existing wraps and every stored value are unchanged.")
+	return err
+}
+
+// StoreVerifyPassphrase checks a piped passphrase against the store's
+// passphrase wrap only. The result is printed before the exit code is chosen,
+// so a caller reading JSON learns "wrong passphrase" distinctly from "could
+// not check".
+func (app *Service) StoreVerifyPassphrase(ctx context.Context, out io.Writer, format string, input io.Reader) error {
+	format, err := storeFormat(format)
+	if err != nil {
+		return err
+	}
+	passphrase, err := pipedStorePassphrase(input, "verify-passphrase")
+	if err != nil {
+		return err
+	}
+	check, err := securestore.VerifyPassphrase(passphrase)
+	if err != nil {
+		return err
+	}
+	if format == string(cliout.FormatJSON) {
+		if encodeErr := cliout.WriteJSONValue(out, check); encodeErr != nil {
+			return encodeErr
+		}
+	} else if check.Valid {
+		fmt.Fprintln(out, "The passphrase opens this credential store's passphrase wrap.")
+	}
+	if !check.Valid {
+		return fmt.Errorf("the passphrase does not open this credential store's passphrase wrap")
+	}
+	return nil
+}
+
+// pipedStorePassphrase reads one passphrase from standard input and refuses a
+// terminal, for the control-plane-driven verbs that must never prompt.
+func pipedStorePassphrase(input io.Reader, verb string) (string, error) {
+	if input == nil {
+		return "", fmt.Errorf("credentials store %s reads a passphrase from standard input", verb)
+	}
+	if err := refuseInteractiveStdin(input, "provide the passphrase on standard input to vrooli credentials store "+verb); err != nil {
+		return "", err
+	}
+	value, err := io.ReadAll(io.LimitReader(input, credentialsStoreParameterC*credentialsStoreParameterA))
+	if err != nil {
+		return "", fmt.Errorf("read credential store passphrase: %w", err)
+	}
+	passphrase := strings.TrimSpace(string(value))
+	if passphrase == "" {
+		return "", fmt.Errorf("credentials store %s reads a passphrase from standard input", verb)
+	}
+	return passphrase, nil
+}
+
 func (app *Service) StoreChangePassphrase(ctx context.Context, out, errOut io.Writer, input io.Reader) error {
 	if file, ok := input.(*os.File); ok {
 		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {

@@ -366,6 +366,7 @@
       "POSTGRES_PASSWORD": "vrooli",
       "PGDATA": "${RESOURCE_DATA_DIR}/instances/main/data"
     },
+    "run_as_user": "postgres",
     "shutdown": {
       "signal": "interrupt"
     },

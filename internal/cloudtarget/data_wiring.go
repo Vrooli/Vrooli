@@ -3,6 +3,7 @@ package cloudtarget
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -70,10 +71,48 @@ func (d DataDeps) providers() recoverypoint.Registry {
 	if env == nil {
 		env = AuthorityPostgresEnv
 	}
+	postgres := recoverypoint.Postgres{Runner: d.runner(), CredentialEnv: env}
+	if toolDir := postgresToolDir(); toolDir != "" {
+		postgres.ToolDir = toolDir
+		// The bundled client is dynamically linked against libpq shipped by
+		// the same resource. The provider gives the child an explicit
+		// environment, so include that library directory instead of relying on
+		// a host-wide linker configuration.
+		postgres.CredentialEnv = func(ctx context.Context, b recoverypoint.Binding) ([]string, error) {
+			values, err := env(ctx, b)
+			if err != nil {
+				return nil, err
+			}
+			return append(values, "LD_LIBRARY_PATH="+filepath.Dir(filepath.Dir(filepath.Dir(toolDir)))+"/x86_64-linux-gnu"), nil
+		}
+	}
 	return recoverypoint.Registry{
 		recoverypoint.ProviderObjectStore: recoverypoint.ObjectStore{},
-		recoverypoint.ProviderPostgres:    recoverypoint.Postgres{Runner: d.runner(), CredentialEnv: env},
+		recoverypoint.ProviderPostgres:    postgres,
 	}
+}
+
+// postgresToolDir locates the resource-owned client tools on a bundled target.
+// VPS images intentionally do not need a system PostgreSQL client: the
+// postgres resource already carries pg_dump/pg_restore/psql beside its server.
+// Keep PATH untouched and pass the absolute tool directory to the provider so
+// backup behavior is deterministic on minimal hosts.
+func postgresToolDir() string {
+	home := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+	if home == "" {
+		home = "/root/.vrooli"
+	}
+	patterns := []string{
+		filepath.Join(home, "artifacts", "postgres", "*", "postgres_*", "usr", "lib", "postgresql", "*", "bin"),
+		filepath.Join(home, "artifacts", "postgres", "*", "postgres_*", "usr", "lib", "postgresql", "bin"),
+	}
+	for _, pattern := range patterns {
+		matches, _ := filepath.Glob(pattern)
+		if len(matches) > 0 {
+			return matches[len(matches)-1]
+		}
+	}
+	return ""
 }
 
 // EnvRunner executes argv with an explicit environment through the shared

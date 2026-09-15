@@ -10,6 +10,7 @@ import (
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 func latestStartOperation(t *testing.T, home, scenario string) scenarioruntime.StartOperation {
@@ -328,6 +329,28 @@ func TestInFlightSummaryReportsRunningOperationOnly(t *testing.T) {
 	dead := runningOperationFixture(now.Add(-time.Minute))
 	if summary := EvaluateStartOperation(dead, func(int) bool { return false }, now, nil).InFlightSummary(); summary != "" {
 		t.Fatalf("dead-initiator record rendered in-flight summary %q", summary)
+	}
+}
+
+func TestEvaluateStartOperationClassifiesLiveStall(t *testing.T) {
+	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
+	op := runningOperationFixture(now.Add(-10 * time.Minute))
+	op.UpdatedAt = now.Add(-tuning.SetupProgressStaleThreshold())
+	view := EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
+	if !view.Stalled {
+		t.Fatal("live operation without recent progress was not classified as stalled")
+	}
+	if !strings.Contains(view.StallReason, "no lifecycle progress") {
+		t.Fatalf("stall reason = %q", view.StallReason)
+	}
+	if !strings.Contains(view.InFlightSummary(), "stalled:") {
+		t.Fatalf("summary = %q, want stalled detail", view.InFlightSummary())
+	}
+
+	op.UpdatedAt = now.Add(-tuning.SetupProgressStaleThreshold() + time.Second)
+	view = EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
+	if view.Stalled {
+		t.Fatal("recently updated operation was classified as stalled")
 	}
 }
 

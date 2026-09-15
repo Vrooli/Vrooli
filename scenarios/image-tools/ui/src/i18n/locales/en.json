@@ -135,7 +135,8 @@
     "lane": {
       "unspecified": "Unspecified",
       "gpu": "GPU",
-      "cpu": "CPU"
+      "cpu": "CPU",
+      "network": "Cloud"
     },
     "state": {
       "unspecified": "Unspecified",

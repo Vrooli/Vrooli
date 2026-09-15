@@ -408,44 +408,11 @@ func (m *Manager) allocateFromBand(key scenarioruntime.InstanceKey, portSummary 
 // role-ambiguous falls back to the canonical band its own value sits in (e.g. a
 // constant of 21241 -> the UI band), and finally to the reserved headroom band.
 func fallbackBandForFixedPort(portSummary scenario.PortSummary) (int, int) {
-	if role := roleFromPortName(portSummary.EnvVar, portSummary.Name); role != portspec.RoleUnknown {
-		return bandRangeForRole(role)
-	}
 	fixed := 0
 	if portSummary.FixedPort != nil {
 		fixed = *portSummary.FixedPort
 	}
-	if role, ok := portspec.CanonicalBand(fixed); ok {
-		return bandRangeForRole(role)
-	}
-	return portspec.ReservedHeadroomStart, portspec.ReservedHeadroomEnd
-}
-
-func bandRangeForRole(role portspec.CanonicalRole) (int, int) {
-	switch role {
-	case portspec.RoleAPI:
-		return portspec.APIRangeStart, portspec.APIRangeEnd
-	case portspec.RoleUI:
-		return portspec.UIRangeStart, portspec.UIRangeEnd
-	case portspec.RoleWS:
-		return portspec.WSRangeStart, portspec.WSRangeEnd
-	default:
-		return portspec.ReservedHeadroomStart, portspec.ReservedHeadroomEnd
-	}
-}
-
-func roleFromPortName(envVar, name string) portspec.CanonicalRole {
-	s := strings.ToLower(envVar + " " + name)
-	switch {
-	case strings.Contains(s, "ws") || strings.Contains(s, "websocket"):
-		return portspec.RoleWS
-	case strings.Contains(s, "ui"):
-		return portspec.RoleUI
-	case strings.Contains(s, "api"):
-		return portspec.RoleAPI
-	default:
-		return portspec.RoleUnknown
-	}
+	return portspec.DesktopBandForFixedPort(portSummary.EnvVar, portSummary.Name, fixed)
 }
 
 func (m *Manager) acquireRuntimePortClaim(key scenarioruntime.InstanceKey, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions, fixed bool) (scenarioruntime.PortClaim, bool, error) {

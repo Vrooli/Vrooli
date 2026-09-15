@@ -7,7 +7,7 @@ Managed Redis cache and event-bus runtime for local scenario workflows.
 - Resource ID: `redis`
 - Category: `storage`
 - Driver: `managed-service`
-- Portability tier: `Linux native; Windows amd64 build-verified; macOS unsupported`
+- Portability tier: `Linux native; macOS amd64 native (hardware-verified), macOS arm64 checksum-verified; Windows amd64 build-verified`
 
 ## Use Cases
 
@@ -20,7 +20,12 @@ Managed Redis cache and event-bus runtime for local scenario workflows.
 This resource uses the managed-service structure. Linux bytes are extracted
 from a digest-pinned official OCI image without a container runtime. Windows
 amd64 uses the checksum-pinned Redis 8.10.0 MSYS2 archive from the Redis Windows
-release channel; Windows ARM and macOS remain explicit unsupported targets.
+release channel; Windows ARM remains an explicit unsupported target. macOS
+stages only `bin/redis-server` (Redis 7.4.1) from the official Redis Ltd
+`redis-stack-server-7.4.0-v1` archive; it links nothing but
+`/usr/lib/libSystem.B.dylib`, so no Homebrew or bundled library is involved.
+The macOS server is older than the Linux 8.2.1 server, so an RDB copied from
+Linux will not load on macOS.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, health, exports, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.

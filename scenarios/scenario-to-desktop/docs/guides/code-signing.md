@@ -142,6 +142,25 @@ scenario. Pass `--force` only to rotate a key deliberately; rotation creates a
 new fingerprint, so every other scenario that names the identity must update its
 `gpg_key_id` before it can sign again.
 
+**Automatic signing (default)**
+
+Every desktop app generated from a scenario is signed with the shared publisher
+key automatically when it is available. During generation, when the scenario has
+no `signing.json`, `scenario-to-desktop` resolves `vrooli/desktop-signing` from
+the credential authority, writes the scenario's `signing.json`, and wires the
+Linux artifact-signer hook. No per-scenario command is required.
+
+- An existing `signing.json` is respected unchanged.
+- An explicit `signing.json` with `"enabled": false` is an opt-out; it is not
+  overridden.
+- If the shared key is absent or the authority is unavailable, generation
+  proceeds unsigned and records the reason in the build log. Provision the key
+  with `scenario-to-desktop signing generate-key <scenario> --name <publisher>
+  --email <email> --logical-id vrooli/desktop-signing` and regenerate.
+
+The hook and switch are written at generation time, so an app whose desktop
+project predates automatic signing must be regenerated once to pick it up.
+
 The generated `signing.json` records a `managed_key` block:
 
 ```json

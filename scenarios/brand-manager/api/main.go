@@ -126,7 +126,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("styles seed failed: %v", err)
 	}
-	candidatesSvc, assetsSvc, brandsSvc := buildCandidatesService(db, schedule.System(), assetsDir, log.Default())
+	candidatesSvc, assetsSvc, brandsSvc := buildCandidatesService(db, schedule.System(), assetsDir, log.Default(), stylesSvc)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},

@@ -3336,8 +3336,15 @@ type ExplainResolutionRequest struct {
 	// quality_policy tunes candidate ordering for dry-run resolution: "fast",
 	// "balanced", or "quality". Empty preserves the historical explain default.
 	QualityPolicy string `protobuf:"bytes,5,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// openrouter_role mirrors AIParams.openrouter_role: a named gateway role ranks
+	// the gateway model first when the cloud tier is permitted, exactly as submit
+	// does, so the dry run and the real run agree.
+	OpenrouterRole string `protobuf:"bytes,6,opt,name=openrouter_role,json=openrouterRole,proto3" json:"openrouter_role,omitempty"`
+	// fallback_policy mirrors AIParams.fallback_policy: local_only forbids the
+	// cloud tier, cloud_allowed permits it, any leaves allow_byok as sent.
+	FallbackPolicy string `protobuf:"bytes,7,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ExplainResolutionRequest) Reset() {
@@ -3401,6 +3408,20 @@ func (x *ExplainResolutionRequest) GetAdapters() []*AdapterRef {
 func (x *ExplainResolutionRequest) GetQualityPolicy() string {
 	if x != nil {
 		return x.QualityPolicy
+	}
+	return ""
+}
+
+func (x *ExplainResolutionRequest) GetOpenrouterRole() string {
+	if x != nil {
+		return x.OpenrouterRole
+	}
+	return ""
+}
+
+func (x *ExplainResolutionRequest) GetFallbackPolicy() string {
+	if x != nil {
+		return x.FallbackPolicy
 	}
 	return ""
 }
@@ -4223,14 +4244,16 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x05scale\x18\x05 \x01(\x01R\x05scale\x12\x16\n" +
 	"\x06weight\x18\x06 \x01(\tR\x06weight\x12\"\n" +
 	"\fpreprocessor\x18\a \x01(\tR\fpreprocessor\x124\n" +
-	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\"\xdf\x01\n" +
+	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\"\xb1\x02\n" +
 	"\x18ExplainResolutionRequest\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
 	"\bmodel_id\x18\x02 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
 	"allow_byok\x18\x03 \x01(\bR\tallowByok\x12D\n" +
 	"\badapters\x18\x04 \x03(\v2(.vrooli.image_tools.v1.models.AdapterRefR\badapters\x12%\n" +
-	"\x0equality_policy\x18\x05 \x01(\tR\rqualityPolicy\"e\n" +
+	"\x0equality_policy\x18\x05 \x01(\tR\rqualityPolicy\x12'\n" +
+	"\x0fopenrouter_role\x18\x06 \x01(\tR\x0eopenrouterRole\x12'\n" +
+	"\x0ffallback_policy\x18\a \x01(\tR\x0efallbackPolicy\"e\n" +
 	"\x19ExplainResolutionResponse\x12H\n" +
 	"\n" +
 	"resolution\x18\x01 \x01(\v2(.vrooli.image_tools.v1.models.ResolutionR\n" +

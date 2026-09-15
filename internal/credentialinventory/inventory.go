@@ -119,17 +119,34 @@ func ManagedSystemEntries(root string) []SystemEntry {
 	})
 	if refs, err := securestore.ListEntryRefs(); err == nil {
 		for _, ref := range refs {
-			if ref.Service != "vrooli.credentials.v1" || !strings.HasPrefix(ref.Key, "device-control/") {
+			if ref.Service != "vrooli.credentials.v1" {
 				continue
 			}
 			separator := strings.LastIndex(ref.Key, ":")
 			if separator <= 0 || separator == len(ref.Key)-1 {
 				continue
 			}
-			add("device-control", ref.Key[:separator], ref.Key[separator+1:], credentialspec.Consumer{
-				AddressPattern: "device-control/{name}", Kind: "dynamic",
-				Consumer: "device-control credential resolver", SourceRef: filepath.Join(root, "scenarios", "device-control", "api", "internal", "auth", "auth.go"), Required: true,
-			})
+			logicalID := ref.Key[:separator]
+			field := ref.Key[separator+1:]
+			switch {
+			case strings.HasPrefix(logicalID, "device-control/"):
+				add("device-control", logicalID, field, credentialspec.Consumer{
+					AddressPattern: "device-control/{name}", Kind: "dynamic",
+					Consumer: "device-control credential resolver", SourceRef: filepath.Join(root, "scenarios", "device-control", "api", "internal", "auth", "auth.go"), Required: true,
+				})
+			case isManagedDesktopSigningIdentity(logicalID):
+				// Scenario-to-desktop custodies its managed GPG signing key
+				// under a dynamic logical identity (a shared publisher identity
+				// or the per-scenario default). Both halves are generated
+				// material the recovery bundle must capture, so declare them
+				// even though no static descriptor names this instance.
+				if isManagedDesktopSigningField(field) {
+					add("scenario-to-desktop", logicalID, field, credentialspec.Consumer{
+						Kind: "dynamic", Consumer: "scenario-to-desktop managed signing key",
+						SourceRef: filepath.Join(root, "scenarios", "scenario-to-desktop", "api", "signing", "keygen.go"), Required: true,
+					})
+				}
+			}
 		}
 	}
 	entries := make([]SystemEntry, 0, len(seen))
@@ -142,6 +159,23 @@ func ManagedSystemEntries(root string) []SystemEntry {
 		return left < right
 	})
 	return entries
+}
+
+// isManagedDesktopSigningIdentity reports whether a logical identity holds a
+// scenario-to-desktop managed GPG signing key. Custody uses a shared publisher
+// identity under the vrooli/desktop-signing namespace (for example
+// vrooli/desktop-signing or vrooli/desktop-signing-e2e) or the per-scenario
+// default vrooli/scenario-to-desktop/<scenario>.
+func isManagedDesktopSigningIdentity(logicalID string) bool {
+	if strings.HasPrefix(logicalID, "vrooli/scenario-to-desktop/") {
+		return true
+	}
+	return logicalID == "vrooli/desktop-signing" || strings.HasPrefix(logicalID, "vrooli/desktop-signing/") || strings.HasPrefix(logicalID, "vrooli/desktop-signing-")
+}
+
+// isManagedDesktopSigningField limits discovery to the fields keygen writes.
+func isManagedDesktopSigningField(field string) bool {
+	return field == "gpg-private-key" || field == "gpg-passphrase"
 }
 
 // Collect returns configured credential addresses and the required addresses

@@ -65,7 +65,19 @@ func (a Activation) Env() []string {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	env := make([]string, 0, len(names))
+	env := make([]string, 0, len(names)+3)
+	// SSH transports can forward operator Vrooli variables. Pin the lifecycle
+	// process to the target's durable roots so release activation never touches
+	// an operator filesystem path.
+	if len(names) > 0 {
+		env = append(env, "VROOLI_ROOT=/root/Vrooli", "VROOLI_HOME=/root/.vrooli")
+	}
+	// Activation consumes an immutable, prebuilt release. Tell the lifecycle
+	// owner to use artifact start semantics so it does not rebuild the release
+	// on the target (which may intentionally have no frontend toolchain).
+	if len(names) > 0 {
+		env = append(env, "VROOLI_CLI_ARTIFACT_MODE=1")
+	}
 	for _, name := range names {
 		env = append(env, PortEnvName(name)+"="+fmt.Sprint(a.Ports[name]))
 	}
@@ -79,7 +91,8 @@ func PortEnvName(name string) string {
 }
 
 // RuntimeActivator (re)starts the workload on a release tree. The default
-// delegates to `vrooli scenario restart` so process naming, ports, health
+// delegates to `vrooli scenario start` so first activation establishes the
+// authoritative lifecycle claim; process naming, ports, health
 // checks and demand leases stay with the lifecycle owner.
 type RuntimeActivator interface {
 	Activate(ctx context.Context, activation Activation) error
@@ -103,10 +116,10 @@ func (OSEnvRunner) RunEnv(ctx context.Context, env []string, name string, args .
 }
 
 // ScenarioRestartActivator runs the lifecycle owner through argv. Each
-// scenario is restarted from its directory inside the release tree via
+// scenario is started from its directory inside the release tree via
 // `--path`, so the runtime resolves the scenario root from the immutable
 // release rather than from a mutable checkout. Readiness is the lifecycle
-// owner's verdict: `vrooli scenario restart` exits non-zero when the scenario
+// owner's verdict: `vrooli scenario start` exits non-zero when the scenario
 // does not become healthy, and the active pointer is committed only after
 // the activator returned nil.
 type ScenarioRestartActivator struct {
@@ -144,8 +157,8 @@ func (a ScenarioRestartActivator) Activate(ctx context.Context, activation Activ
 	}
 	for _, scenario := range activation.Scenarios {
 		scenarioDir := filepath.Join(activation.ReleaseDir, "scenarios", scenario)
-		if out, err := a.run(ctx, env, executable, "scenario", "restart", scenario, "--path", scenarioDir, "--json"); err != nil {
-			return fmt.Errorf("restart %s from %s: %v: %s", scenario, scenarioDir, err, strings.TrimSpace(string(out)))
+		if out, err := a.run(ctx, env, executable, "scenario", "start", scenario, "--path", scenarioDir, "--json"); err != nil {
+			return fmt.Errorf("start %s from %s: %v: %s", scenario, scenarioDir, err, strings.TrimSpace(string(out)))
 		}
 	}
 	return nil

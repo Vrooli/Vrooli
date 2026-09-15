@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -183,11 +182,7 @@ def main():
 func setPythonPath(tb testing.TB, extra string) {
 	tb.Helper()
 
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		tb.Fatal("resolve current file")
-	}
-	sidecarRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "sidecar", "py"))
+	sidecarRoot := packageRelative(tb, "..", "sidecar", "py")
 	parts := []string{extra, sidecarRoot}
 	if existing := os.Getenv("PYTHONPATH"); existing != "" {
 		parts = append(parts, existing)

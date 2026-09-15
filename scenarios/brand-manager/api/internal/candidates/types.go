@@ -75,5 +75,14 @@ type ExploreInput struct {
 	PreferVector   bool
 	QualityPolicy  string
 	FallbackPolicy string
-	AllowBYOK      bool
+	// AllowBYOK is accepted for older callers; the cloud tier is permitted unless
+	// FallbackPolicy is local_only (see generation.BrandImageAllowBYOK).
+	AllowBYOK bool
+	// Role overrides the OpenRouter role concepts render with.
+	Role string
+	// StyleReferenceBrand (id or slug) makes that brand's approved mark the style
+	// reference every concept is rendered to match.
+	StyleReferenceBrand string
+	// StyleReferenceAssetID uses one asset as the style reference instead.
+	StyleReferenceAssetID string
 }

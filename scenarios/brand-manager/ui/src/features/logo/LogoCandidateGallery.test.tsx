@@ -70,7 +70,7 @@ describe("LogoCandidateGallery", () => {
     const api = await import("../../api/candidates");
     renderGallery();
 
-    const firstCard = screen.getAllByTestId(selectors.logo.card)[0];
+    const firstCard = firstCandidateCard();
     await user.click(within(firstCard).getByTestId(selectors.logo.cardPick));
 
     expect(vi.mocked(api.pickCandidate)).toHaveBeenCalledWith("candidate-1");
@@ -82,10 +82,19 @@ describe("LogoCandidateGallery", () => {
     const api = await import("../../api/candidates");
     renderGallery();
 
-    const firstCard = screen.getAllByTestId(selectors.logo.card)[0];
+    const firstCard = firstCandidateCard();
     await user.click(within(firstCard).getByTestId(selectors.logo.cardReject));
 
     expect(vi.mocked(api.rejectCandidate)).toHaveBeenCalledWith("candidate-1", "");
     expect(within(firstCard).getByTestId(selectors.logo.cardStatus)).toHaveTextContent("Rejected");
   });
 });
+
+/** firstCandidateCard returns the gallery's first card, failing clearly when the gallery is empty. */
+function firstCandidateCard(): HTMLElement {
+  const [card] = screen.getAllByTestId(selectors.logo.card);
+  if (!card) {
+    throw new Error("the gallery rendered no candidate cards");
+  }
+  return card;
+}

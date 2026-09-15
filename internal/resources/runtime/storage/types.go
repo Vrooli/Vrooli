@@ -45,8 +45,9 @@ func (p Paths) ForClass(class Class) (string, error) {
 }
 
 type Options struct {
-	ResourceID   string
-	RootOverride string
+	ResourceID          string
+	RootOverride        string
+	AllowRootManagement bool
 }
 
 type ResolverConfig struct {

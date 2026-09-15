@@ -3,6 +3,7 @@ package privilegebroker
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,12 @@ func TestBrokerServiceCommandsRestartAfterInstall(t *testing.T) {
 
 func TestSocketPathUsesRuntimeDirectoryWhenConfigured(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(t.TempDir(), "runtime"))
+	if runtime.GOOS == "linux" {
+		if got := SocketPath(); got != DefaultSocketPath {
+			t.Fatalf("SocketPath() = %q, want system broker path %q", got, DefaultSocketPath)
+		}
+		return
+	}
 	want := filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "vrooli", "privilege-broker.sock")
 	if got := SocketPath(); got != want {
 		t.Fatalf("SocketPath() = %q, want %q", got, want)

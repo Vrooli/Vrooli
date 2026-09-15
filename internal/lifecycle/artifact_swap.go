@@ -16,6 +16,7 @@ import (
 )
 
 var artifactStageLocks sync.Map
+var artifactStageLockWaitTimeout = tuning.SetupExtendedOperationTimeout()
 
 func stageArtifact(target string, directory bool) (stageRoot, staged string, cleanup func(), err error) {
 	parent := filepath.Dir(target)
@@ -29,7 +30,7 @@ func stageArtifact(target string, directory bool) (stageRoot, staged string, cle
 		return "", "", func() {}, err
 	}
 	var releaseFile func()
-	if err := AwaitContext(context.Background(), AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: tuning.DailyRetentionWindow(), Interval: tuning.FastHealthPollInterval()}, func() (bool, error) {
+	if err := AwaitContext(context.Background(), AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: artifactStageLockWaitTimeout, Interval: tuning.FastHealthPollInterval()}, func() (bool, error) {
 		releaseFile, err = lockFileFn(fileLock, true)
 		if errors.Is(err, platform.ErrLockUnavailable) {
 			return false, nil

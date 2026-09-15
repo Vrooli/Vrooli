@@ -185,6 +185,9 @@ type PlanRequest struct {
 	FallbackPolicy string
 	Priority       string
 	AllowReclaim   bool
+	// Role is the caller's OpenRouter role, if any. A named role ranks the gateway
+	// model first when the cloud tier is permitted.
+	Role string
 	// Adapters is the requested conditioning stack (resolved + validated here so an
 	// incompatible/not-Ready/uninstalled adapter is rejected before any job).
 	Adapters []adapters.AdapterRequest
@@ -233,6 +236,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		AllowBYOK:        req.AllowBYOK,
 		FallbackPolicy:   req.FallbackPolicy,
 		QualityPolicy:    req.QualityPolicy,
+		PreferRemote:     strings.TrimSpace(req.Role) != "",
 		IsEnabled:        enabled,
 		Adapters:         req.Adapters,
 		AdapterByID:      e.deps.AdapterByID,

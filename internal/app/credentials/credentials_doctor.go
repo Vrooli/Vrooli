@@ -289,7 +289,11 @@ func credentialLabelFor(entry credentialEntry) string {
 //nolint:gocyclo // credential diagnosis combines selection, provider, repair, and report-output branches.
 func (app *Service) Doctor(ctx context.Context, root string, out io.Writer, opts DoctorOptions) error {
 	format := strings.TrimSpace(opts.Format)
-	if format == "" {
+	// The CLI's default format is "text" (see credentialshandlers.outputFormat)
+	// while this report names its human form "human". Rejecting "text" made the
+	// bare `vrooli credentials doctor` fail with its own usage error — the one
+	// command operators are told to run when a credential cannot be read.
+	if format == "" || format == "text" {
 		format = string(cliout.FormatHuman)
 	}
 	checkWrites := opts.CheckWrites

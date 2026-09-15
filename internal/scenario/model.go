@@ -81,6 +81,16 @@ type ServiceManifest struct {
 	HostTools       []hostreqspec.Declaration              `json:"hostTools,omitempty"`
 	HostSafeguards  []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
 	TierFeasibility *TierFeasibility                       `json:"tier_feasibility,omitempty"`
+	// Branding names the brand-manager brand and target profiles this scenario
+	// ships. Absent means the scenario declares no branding; brand-manager apply
+	// and the declared-icon-targets rule then skip it.
+	Branding *Branding `json:"branding,omitempty"`
+}
+
+// Branding is the scenario's brand declaration.
+type Branding struct {
+	Brand   string   `json:"brand"`
+	Targets []string `json:"targets"`
 }
 
 // AuthenticationProfile is the non-secret identity-provider contract for a
@@ -276,6 +286,10 @@ type Dependency struct {
 	RuntimeOnly           bool   `json:"runtime_only,omitempty"`
 	RuntimeOnlyRationale  string `json:"runtime_only_rationale,omitempty"`
 	BundlePolicy          string `json:"bundle_policy,omitempty"`
+	// IncludeUI opts a dependency's user interface into a deployment. APIs,
+	// workers, and other runtime components remain included by the dependency
+	// edge; dependency UIs are otherwise omitted.
+	IncludeUI bool `json:"include_ui,omitempty"`
 
 	// Config holds dependency-specific keys that aren't modeled as typed fields.
 	// The declaring scenario and the dependency own the config schema together.
@@ -452,7 +466,10 @@ const (
 	// stale (a warning is emitted); no rebuild, no restart.
 	DependencyFreshnessPolicyReuseRunning = "reuse_running"
 	// DependencyFreshnessPolicyRebuildOnly rebuilds the artifact when stale but
-	// never restarts the running process.
+	// never restarts the running process. When arbitration reduces a default
+	// restart for a shared execution owner, an owner-maintenance refusal or a
+	// busy lifecycle lock reduces this policy again to reuse_running so the
+	// healthy serving process is not disrupted.
 	DependencyFreshnessPolicyRebuildOnly = "rebuild_only"
 )
 

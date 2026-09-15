@@ -450,7 +450,10 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 
 	// Execute
 	workDir := filepath.Dir(artifactPath)
-	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, smokeTimeout)
+	// Leave a small grace period after the app's readiness budget so it can
+	// report a bounded startup diagnostic (including bundled service logs)
+	// instead of being killed in the same tick as its deadline.
+	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, smokeTimeout+5*time.Second)
 
 	// Harvest process metrics.
 	s.harvestMonitor(monitor, smokeTestID)

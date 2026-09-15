@@ -214,10 +214,17 @@ func (c *Client) submitAndWait(ctx context.Context, operation string, file []byt
 	if err != nil {
 		return generation.ImageOutput{}, generation.ErrImageJobFailed{Operation: operation, Detail: "download result: " + err.Error()}
 	}
+	// Record the upstream model that actually rendered the image (for example
+	// "bytedance-seed/seedream-4.5") rather than image-tools' gateway model id
+	// ("openrouter-image"), so a candidate says which model drew it.
+	modelID := submit.GetModelId()
+	if upstream := job.GetResultMeta()["model"]; upstream != "" {
+		modelID = upstream
+	}
 	return generation.ImageOutput{
 		Data:     data,
 		MimeType: mime,
-		ModelID:  submit.GetModelId(),
+		ModelID:  modelID,
 		Tier:     submit.GetTier(),
 		Warnings: append([]string(nil), submit.GetWarnings()...),
 	}, nil

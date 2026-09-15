@@ -74,6 +74,51 @@ requirement statuses from `planned` to `complete`/`implemented` as each lands.
 **Refs:** `~/.vrooli/plans/brand-manager-regenerate-validation-as-test-genie-phase.md`;
 `/tmp/brand-manager-OLD-reference` (port source); `docs/internal/DECISIONS.md`.
 
+### 2026-09-15 — First live explore produced unusable candidates (fixed)
+
+**Symptom:** `candidates explore` for Vega returned muddy SD 1.5 images that ignored the prompts,
+then (re-run with the cloud model) flat geometric SVGs the operator called "extremely primitive".
+Every CLI call ended in `unavailable: unexpected EOF` after ~2 minutes, and only 6 of 10
+generations were stored.
+
+**Root cause:** (1) explore passed the caller's empty quality policy and `allow_byok=false`
+instead of the brand image defaults, so image-tools picked local SD 1.5; (2) the default role
+`image.generate.logo` maps to `recraft/recraft-v4.1-vector`, and the "mark only, flat vector line
+art" prompt stripped the rendering the approved Aquila concept had; (3) generations ran serially
+inside one RPC, past api-core's 30 s write deadline and the CLI's 120 s timeout, on the request
+context, so results after the disconnect were dropped.
+
+**Workaround:** none needed after the fix.
+
+**Real fix (landed 2026-09-15):** brand image defaults for explore and refine; illustration roles
+and a finished-icon prompt; `style_reference_brand`; parallel generation (4) on a detached context
+with a 15-minute budget; write deadline cleared for explore/refine/pick; a 20-minute CLI client for
+those RPCs; candidates `--json` emits the typed response; import is idempotent per asset. image-tools
+now ranks the gateway first when a role is named and BYOK is permitted, and `--explain` forwards
+quality, fallback and role. See `DECISIONS.md` 2026-09-15.
+
+**Owner:** brand-manager.
+
+**Refs:** `api/internal/candidates/service.go`, `handlers/candidates/module.go`,
+`scenarios/image-tools/api/internal/models/selector.go`.
+
+### 2026-09-15 — Duplicate Aquila candidate records
+
+**Symptom:** Aquila lists the round-1 constellation concept twice, and a rejected record shares
+the picked vector's asset id.
+
+**Root cause:** the plan executor imported the same assets twice before import was idempotent.
+
+**Workaround:** the duplicates are REJECTED and harmless; the PICKED candidate is correct.
+
+**Real fix:** a `candidates delete` (or merge) verb so history can be cleaned without editing the
+database. Import is now idempotent, so no new duplicates appear.
+
+**Owner:** unassigned.
+
+**Refs:** brand `2e797e31-c051-494d-bddd-aedce30cb4c4`; candidates `f40f0a6f…`/`2df85f26…`,
+`2bcb1db3…`/`c124f09c…`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

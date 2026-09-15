@@ -92,6 +92,7 @@ const literalSelectors = {
     briefInput: "logo-brief-input",
     conceptsInput: "logo-concepts-input",
     variationsInput: "logo-variations-input",
+    styleReferenceSelect: "logo-style-reference-select",
     exploreSubmit: "logo-explore-submit",
     refinePanel: "logo-refine-panel",
     instructionInput: "logo-instruction-input",

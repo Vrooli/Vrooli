@@ -214,7 +214,7 @@ func TestLogWriter(t *testing.T) {
 		wantError bool
 		setupDir  bool
 	}{
-		{"empty log dir", "", true, "", false, false},
+		{"empty log dir uses conventional service log", "", false, tmp + "/resources/api/logs/service.log", false, false},
 		{"valid log dir", "logs/api.log", false, tmp + "/logs/api.log", false, true},
 	}
 

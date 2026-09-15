@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"path/filepath"
 	"strings"
 )
@@ -35,6 +36,25 @@ var extMimeTypes = map[string]string{
 	".webp": "image/webp",
 	".gif":  "image/gif",
 	".ico":  "image/x-icon",
+}
+
+// sniffImageMime names a whitelisted image type from the leading bytes ("" when
+// unknown). SVG is text, which http.DetectContentType reports as text/xml or
+// text/plain, so it is recognised by its root element first.
+func sniffImageMime(content []byte) string {
+	head := content
+	if len(head) > 512 {
+		head = head[:512]
+	}
+	text := strings.ToLower(strings.TrimSpace(string(head)))
+	if strings.HasPrefix(text, "<svg") || (strings.HasPrefix(text, "<?xml") && strings.Contains(text, "<svg")) {
+		return "image/svg+xml"
+	}
+	detected := http.DetectContentType(content)
+	if allowedMimeTypes[detected] {
+		return detected
+	}
+	return ""
 }
 
 // Service is the application-layer surface the assets handlers depend on. Owns
@@ -100,7 +120,7 @@ func (s *service) Upload(ctx context.Context, in UploadInput) (Asset, error) {
 		return Asset{}, err
 	}
 
-	mimeType, err := resolveMime(in.MimeType, filename)
+	mimeType, err := resolveMime(in.MimeType, filename, in.Content)
 	if err != nil {
 		return Asset{}, err
 	}
@@ -195,14 +215,18 @@ func sanitizeFilename(in string) (string, error) {
 }
 
 // resolveMime returns the supplied mime type when set, else infers it from the
-// filename extension. The result must be in the image whitelist.
-func resolveMime(supplied, filename string) (string, error) {
+// filename extension, else sniffs the content. The result must be in the image
+// whitelist.
+func resolveMime(supplied, filename string, content []byte) (string, error) {
 	mimeType := strings.TrimSpace(strings.ToLower(supplied))
 	if mimeType == "" {
 		ext := strings.ToLower(filepath.Ext(filename))
 		inferred, ok := extMimeTypes[ext]
 		if !ok {
-			return "", ErrInvalidAsset{Field: "mime_type", Reason: "cannot infer type from filename; supply mime_type"}
+			inferred = sniffImageMime(content)
+		}
+		if inferred == "" {
+			return "", ErrInvalidAsset{Field: "mime_type", Reason: "cannot infer type from the filename or the content; supply mime_type"}
 		}
 		mimeType = inferred
 	}

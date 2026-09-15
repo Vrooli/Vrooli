@@ -1,6 +1,7 @@
 package securestore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/platform-go/credentialunlock"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -85,9 +87,47 @@ var credentialStorePath = func() (string, error) {
 // during a scenario start must not block on a terminal that may not exist.
 var passphraseSource = func() string {
 	passphraseMu.RLock()
-	defer passphraseMu.RUnlock()
-	return processPassphrase
+	value := processPassphrase
+	passphraseMu.RUnlock()
+	if value != "" {
+		return value
+	}
+	return nodeUnlockPassphrase()
 }
+
+// nodeUnlockPassphrase asks this node's Bridge agent for the store passphrase
+// when nothing else supplied one. On a Bridge-managed node the control plane
+// escrows the passphrase and the agent holds it in memory after every boot, so
+// a headless machine — a Mac whose login Keychain stays locked, a host with no
+// TPM — opens its store with nobody present. A host with no agent answers ""
+// immediately. A success is remembered for this process only. It is a
+// variable so tests pin it; production code never reassigns it.
+var nodeUnlockPassphrase = func() string {
+	nodeUnlockMu.Lock()
+	defer nodeUnlockMu.Unlock()
+	if nodeUnlockValue != "" {
+		return nodeUnlockValue
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	socket, err := credentialunlock.SocketPath(home)
+	if err != nil {
+		return ""
+	}
+	value, err := credentialunlock.RequestPassphrase(context.Background(), socket)
+	if err != nil {
+		return ""
+	}
+	nodeUnlockValue = value
+	return value
+}
+
+var (
+	nodeUnlockMu    sync.Mutex
+	nodeUnlockValue string
+)
 
 // processPassphrase is the passphrase this process was given, if any. It is the
 // operator surface's channel to the store: `credentials store init` and

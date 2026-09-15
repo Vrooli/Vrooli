@@ -3,20 +3,15 @@ package ai
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 )
 
-// serviceManifestPath locates the scenario service.json relative to this test
-// file (api/internal/ai → ../../../.vrooli/service.json).
+// serviceManifestPath locates the scenario service.json from the package
+// directory (api/internal/ai → ../../../.vrooli/service.json); see
+// packageRelative for why runtime.Caller is not used.
 func serviceManifestPath(t *testing.T) string {
 	t.Helper()
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot determine caller path")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", ".vrooli", "service.json"))
+	return packageRelative(t, "..", "..", "..", ".vrooli", "service.json")
 }
 
 func serviceHostToolNames(t *testing.T) map[string]bool {

@@ -215,14 +215,25 @@ image-tools ai generate --model sd-1.5 --prompt "a stone castle" \
 
 The `ai generate`, `img2img` and `edit` verbs accept `--role <role>` to route the
 request through the gateway with a specific role from
-`resources/openrouter/model-policy.json`. The role selects the model and its
-policy (for example `image.vector.default` requires SVG output, and
-`image.generate.logo` prefers a transparent mark). brand-manager's candidate
-explore uses these roles to ask for a mark rather than a finished tile.
+`resources/openrouter/model-policy.json`. The role selects the upstream model and
+its policy: `image.generate.default` is an illustration model (Seedream),
+`image.generate.quality` a premium one, `image.edit.default` a reference-capable
+edit model, and `image.vector.default` / `image.generate.logo` emit flat SVG.
+
+A named role expresses gateway intent, so when the cloud tier is permitted
+(`--byok` or `--fallback-policy cloud_allowed`) the gateway model ranks first
+under every quality policy. Without that permission the role is ignored and a
+warning says so. `--explain` forwards `--role`, `--quality-policy` and
+`--fallback-policy`, so the dry run matches the real submit.
+
+Vector roles return SVG. When `--out` names another format, the CLI writes the
+file with the correct extension (for example `mark.png` becomes `mark.svg`) and
+reports the path it wrote.
 
 ```bash
-image-tools ai generate --role image.vector.default --prompt "eagle line art, transparent background" --wait --out mark.svg
-image-tools ai edit in.png --role image.edit.identity --instruction "remove the shadow" --wait --out edited.png
+image-tools ai generate --role image.generate.default --byok --prompt "a finished app icon: a constellation lyre on a dark navy tile" --wait --out concept.png
+image-tools ai generate --role image.vector.default --byok --prompt "eagle line art" --explain
+image-tools ai edit in.png --role image.edit.identity --byok --instruction "remove the shadow" --wait --out edited.png
 ```
 
 ## Scenario commands — `models` (registry read + enable/disable)

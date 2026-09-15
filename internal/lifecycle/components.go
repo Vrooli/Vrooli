@@ -93,7 +93,7 @@ var builderRegistry = map[string]BuilderSpec{
 	},
 	"pnpm_vite": {
 		Kind:                     "pnpm_vite",
-		Inputs:                   []string{"{src}/**", "package.json", "vite.config.*", "tsconfig.json", "index.html"},
+		Inputs:                   []string{"{src}/**", "public/**", "package.json", "vite.config.*", "tsconfig.json", "index.html"},
 		KeyResolver:              "node",
 		DigestKeys:               []string{"NODE_ENV", "node_major", "build_mode"},
 		DefaultOutput:            "{dir}/dist/index.html",

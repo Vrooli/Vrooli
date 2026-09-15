@@ -81,10 +81,27 @@ message ExploreCandidatesRequest {
   string brief = 2;
   repeated string concepts = 3;
   int32 variations = 4; // 1..4 per concept
+  // prefer_vector renders concepts with the SVG-native role instead of the
+  // illustration role. Vector models draw flat, geometric marks; use it only for
+  // a deliberately flat direction.
   bool prefer_vector = 5;
   string quality_policy = 6;
   string fallback_policy = 7;
+  // allow_byok is kept for older callers. Explore permits the cloud tier unless
+  // fallback_policy is local_only, the same default as brand image generation.
   bool allow_byok = 8;
+  // role overrides the OpenRouter role concepts render with. Empty uses the
+  // illustration role (image.generate.default), or the edit role when a style
+  // reference is given.
+  string role = 9;
+  // style_reference_brand names another brand (id or slug) whose picked mark,
+  // composed in that brand's container style, is the style reference every
+  // concept is rendered to match. Use it to keep a product line consistent.
+  string style_reference_brand = 10;
+  // style_reference_asset_id names an asset used directly as the style
+  // reference. An SVG asset is rasterized first. Ignored when
+  // style_reference_brand is set.
+  string style_reference_asset_id = 11;
 }
 message ExploreCandidatesResponse {
   repeated LogoCandidate candidates = 1;

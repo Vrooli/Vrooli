@@ -2336,6 +2336,135 @@ func (x *MergeMachinesResponse) GetArchivedMachineId() string {
 	return ""
 }
 
+// Rotating replaces the passphrase of the machine's own encrypted credential
+// store with a fresh one generated and escrowed on this control plane, over
+// Bridge-managed SSH, then re-pushes the node agent's unlock grant. A re-run
+// finishes an interrupted rotation. The passphrase never appears in the
+// request, the response, or the audit record. Owner-gated.
+type RotateMachineCredentialStoreRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MachineId     string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateMachineCredentialStoreRequest) Reset() {
+	*x = RotateMachineCredentialStoreRequest{}
+	mi := &file_vrooli_bridge_v1_machines_machines_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateMachineCredentialStoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateMachineCredentialStoreRequest) ProtoMessage() {}
+
+func (x *RotateMachineCredentialStoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_machines_machines_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateMachineCredentialStoreRequest.ProtoReflect.Descriptor instead.
+func (*RotateMachineCredentialStoreRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_machines_machines_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *RotateMachineCredentialStoreRequest) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+type RotateMachineCredentialStoreResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MachineId string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId    string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// resumed is true when an earlier interrupted rotation was finished instead
+	// of starting a new one.
+	Resumed bool `protobuf:"varint,3,opt,name=resumed,proto3" json:"resumed,omitempty"`
+	// agent_unlock is "verified", "not_required" (the store opens through an
+	// unattended wrap at boot), or "unverified".
+	AgentUnlock   string `protobuf:"bytes,4,opt,name=agent_unlock,json=agentUnlock,proto3" json:"agent_unlock,omitempty"`
+	Detail        string `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateMachineCredentialStoreResponse) Reset() {
+	*x = RotateMachineCredentialStoreResponse{}
+	mi := &file_vrooli_bridge_v1_machines_machines_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateMachineCredentialStoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateMachineCredentialStoreResponse) ProtoMessage() {}
+
+func (x *RotateMachineCredentialStoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_machines_machines_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateMachineCredentialStoreResponse.ProtoReflect.Descriptor instead.
+func (*RotateMachineCredentialStoreResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_machines_machines_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RotateMachineCredentialStoreResponse) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *RotateMachineCredentialStoreResponse) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *RotateMachineCredentialStoreResponse) GetResumed() bool {
+	if x != nil {
+		return x.Resumed
+	}
+	return false
+}
+
+func (x *RotateMachineCredentialStoreResponse) GetAgentUnlock() string {
+	if x != nil {
+		return x.AgentUnlock
+	}
+	return ""
+}
+
+func (x *RotateMachineCredentialStoreResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_machines_machines_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
@@ -2521,7 +2650,17 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x0finto_machine_id\x18\x02 \x01(\tR\rintoMachineId\"\x8c\x01\n" +
 	"\x15MergeMachinesResponse\x12C\n" +
 	"\amachine\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.machines.MachineR\amachine\x12.\n" +
-	"\x13archived_machine_id\x18\x02 \x01(\tR\x11archivedMachineId2\xb6\x11\n" +
+	"\x13archived_machine_id\x18\x02 \x01(\tR\x11archivedMachineId\"D\n" +
+	"#RotateMachineCredentialStoreRequest\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\"\xb3\x01\n" +
+	"$RotateMachineCredentialStoreResponse\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x18\n" +
+	"\aresumed\x18\x03 \x01(\bR\aresumed\x12!\n" +
+	"\fagent_unlock\x18\x04 \x01(\tR\vagentUnlock\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail2\xe6\x12\n" +
 	"\x0eMachineService\x12\x80\x01\n" +
 	"\rCreateMachine\x126.vrooli.vrooli_bridge.v1.machines.CreateMachineRequest\x1a7.vrooli.vrooli_bridge.v1.machines.CreateMachineResponse\x12w\n" +
 	"\n" +
@@ -2539,7 +2678,8 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x0fGetMachineDrift\x123.vrooli.vrooli_bridge.v1.machines.GetMachineRequest\x1a4.vrooli.vrooli_bridge.v1.machines.GetMachineResponse\x12\x8c\x01\n" +
 	"\x11RevokeMachineNode\x12:.vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest\x1a;.vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse\x12\x80\x01\n" +
 	"\rRepairMachine\x126.vrooli.vrooli_bridge.v1.machines.RepairMachineRequest\x1a7.vrooli.vrooli_bridge.v1.machines.RepairMachineResponse\x12\x80\x01\n" +
-	"\rMergeMachines\x126.vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest\x1a7.vrooli.vrooli_bridge.v1.machines.MergeMachinesResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines;machines_v1b\x06proto3"
+	"\rMergeMachines\x126.vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest\x1a7.vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse\x12\xad\x01\n" +
+	"\x1cRotateMachineCredentialStore\x12E.vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreRequest\x1aF.vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines;machines_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_machines_machines_proto_rawDescOnce sync.Once
@@ -2553,63 +2693,65 @@ func file_vrooli_bridge_v1_machines_machines_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_machines_machines_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_machines_machines_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_vrooli_bridge_v1_machines_machines_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_vrooli_bridge_v1_machines_machines_proto_goTypes = []any{
-	(*ConnectionLocator)(nil),                // 0: vrooli.vrooli_bridge.v1.machines.ConnectionLocator
-	(*NodeLineage)(nil),                      // 1: vrooli.vrooli_bridge.v1.machines.NodeLineage
-	(*Machine)(nil),                          // 2: vrooli.vrooli_bridge.v1.machines.Machine
-	(*CreateMachineRequest)(nil),             // 3: vrooli.vrooli_bridge.v1.machines.CreateMachineRequest
-	(*CreateMachineResponse)(nil),            // 4: vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
-	(*GetMachineRequest)(nil),                // 5: vrooli.vrooli_bridge.v1.machines.GetMachineRequest
-	(*EnrollmentAttempt)(nil),                // 6: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt
-	(*CurrentNodeProjection)(nil),            // 7: vrooli.vrooli_bridge.v1.machines.CurrentNodeProjection
-	(*MachineAuditEvent)(nil),                // 8: vrooli.vrooli_bridge.v1.machines.MachineAuditEvent
-	(*MachineReadiness)(nil),                 // 9: vrooli.vrooli_bridge.v1.machines.MachineReadiness
-	(*MachineDrift)(nil),                     // 10: vrooli.vrooli_bridge.v1.machines.MachineDrift
-	(*GetMachineResponse)(nil),               // 11: vrooli.vrooli_bridge.v1.machines.GetMachineResponse
-	(*ListMachinesRequest)(nil),              // 12: vrooli.vrooli_bridge.v1.machines.ListMachinesRequest
-	(*ListMachinesResponse)(nil),             // 13: vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
-	(*ArchiveMachineRequest)(nil),            // 14: vrooli.vrooli_bridge.v1.machines.ArchiveMachineRequest
-	(*ArchiveMachineResponse)(nil),           // 15: vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
-	(*RemoveMachineRequest)(nil),             // 16: vrooli.vrooli_bridge.v1.machines.RemoveMachineRequest
-	(*RemoveMachineResponse)(nil),            // 17: vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
-	(*MachineTrust)(nil),                     // 18: vrooli.vrooli_bridge.v1.machines.MachineTrust
-	(*GetMachineTrustRequest)(nil),           // 19: vrooli.vrooli_bridge.v1.machines.GetMachineTrustRequest
-	(*GetMachineTrustResponse)(nil),          // 20: vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
-	(*ReviewMachineHostKeyRequest)(nil),      // 21: vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyRequest
-	(*ReviewMachineHostKeyResponse)(nil),     // 22: vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
-	(*MachineCleanup)(nil),                   // 23: vrooli.vrooli_bridge.v1.machines.MachineCleanup
-	(*RequestMachineSSHCleanupRequest)(nil),  // 24: vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupRequest
-	(*RequestMachineSSHCleanupResponse)(nil), // 25: vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
-	(*UpdateMachineCleanupRequest)(nil),      // 26: vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupRequest
-	(*UpdateMachineCleanupResponse)(nil),     // 27: vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
-	(*EffectivePolicy)(nil),                  // 28: vrooli.vrooli_bridge.v1.machines.EffectivePolicy
-	(*ApplyMachinePolicyRequest)(nil),        // 29: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest
-	(*ApplyMachinePolicyResponse)(nil),       // 30: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
-	(*RevokeMachineNodeRequest)(nil),         // 31: vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest
-	(*RevokeMachineNodeResponse)(nil),        // 32: vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
-	(*RepairMachineRequest)(nil),             // 33: vrooli.vrooli_bridge.v1.machines.RepairMachineRequest
-	(*RepairMachineResponse)(nil),            // 34: vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
-	(*MergeMachinesRequest)(nil),             // 35: vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest
-	(*MergeMachinesResponse)(nil),            // 36: vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
-	nil,                                      // 37: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.OverridesEntry
-	(*timestamppb.Timestamp)(nil),            // 38: google.protobuf.Timestamp
+	(*ConnectionLocator)(nil),                    // 0: vrooli.vrooli_bridge.v1.machines.ConnectionLocator
+	(*NodeLineage)(nil),                          // 1: vrooli.vrooli_bridge.v1.machines.NodeLineage
+	(*Machine)(nil),                              // 2: vrooli.vrooli_bridge.v1.machines.Machine
+	(*CreateMachineRequest)(nil),                 // 3: vrooli.vrooli_bridge.v1.machines.CreateMachineRequest
+	(*CreateMachineResponse)(nil),                // 4: vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
+	(*GetMachineRequest)(nil),                    // 5: vrooli.vrooli_bridge.v1.machines.GetMachineRequest
+	(*EnrollmentAttempt)(nil),                    // 6: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt
+	(*CurrentNodeProjection)(nil),                // 7: vrooli.vrooli_bridge.v1.machines.CurrentNodeProjection
+	(*MachineAuditEvent)(nil),                    // 8: vrooli.vrooli_bridge.v1.machines.MachineAuditEvent
+	(*MachineReadiness)(nil),                     // 9: vrooli.vrooli_bridge.v1.machines.MachineReadiness
+	(*MachineDrift)(nil),                         // 10: vrooli.vrooli_bridge.v1.machines.MachineDrift
+	(*GetMachineResponse)(nil),                   // 11: vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	(*ListMachinesRequest)(nil),                  // 12: vrooli.vrooli_bridge.v1.machines.ListMachinesRequest
+	(*ListMachinesResponse)(nil),                 // 13: vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
+	(*ArchiveMachineRequest)(nil),                // 14: vrooli.vrooli_bridge.v1.machines.ArchiveMachineRequest
+	(*ArchiveMachineResponse)(nil),               // 15: vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
+	(*RemoveMachineRequest)(nil),                 // 16: vrooli.vrooli_bridge.v1.machines.RemoveMachineRequest
+	(*RemoveMachineResponse)(nil),                // 17: vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
+	(*MachineTrust)(nil),                         // 18: vrooli.vrooli_bridge.v1.machines.MachineTrust
+	(*GetMachineTrustRequest)(nil),               // 19: vrooli.vrooli_bridge.v1.machines.GetMachineTrustRequest
+	(*GetMachineTrustResponse)(nil),              // 20: vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
+	(*ReviewMachineHostKeyRequest)(nil),          // 21: vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyRequest
+	(*ReviewMachineHostKeyResponse)(nil),         // 22: vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
+	(*MachineCleanup)(nil),                       // 23: vrooli.vrooli_bridge.v1.machines.MachineCleanup
+	(*RequestMachineSSHCleanupRequest)(nil),      // 24: vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupRequest
+	(*RequestMachineSSHCleanupResponse)(nil),     // 25: vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
+	(*UpdateMachineCleanupRequest)(nil),          // 26: vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupRequest
+	(*UpdateMachineCleanupResponse)(nil),         // 27: vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
+	(*EffectivePolicy)(nil),                      // 28: vrooli.vrooli_bridge.v1.machines.EffectivePolicy
+	(*ApplyMachinePolicyRequest)(nil),            // 29: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest
+	(*ApplyMachinePolicyResponse)(nil),           // 30: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
+	(*RevokeMachineNodeRequest)(nil),             // 31: vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest
+	(*RevokeMachineNodeResponse)(nil),            // 32: vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
+	(*RepairMachineRequest)(nil),                 // 33: vrooli.vrooli_bridge.v1.machines.RepairMachineRequest
+	(*RepairMachineResponse)(nil),                // 34: vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
+	(*MergeMachinesRequest)(nil),                 // 35: vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest
+	(*MergeMachinesResponse)(nil),                // 36: vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
+	(*RotateMachineCredentialStoreRequest)(nil),  // 37: vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreRequest
+	(*RotateMachineCredentialStoreResponse)(nil), // 38: vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreResponse
+	nil,                           // 39: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.OverridesEntry
+	(*timestamppb.Timestamp)(nil), // 40: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_machines_machines_proto_depIdxs = []int32{
-	38, // 0: vrooli.vrooli_bridge.v1.machines.NodeLineage.linked_at:type_name -> google.protobuf.Timestamp
-	38, // 1: vrooli.vrooli_bridge.v1.machines.NodeLineage.superseded_at:type_name -> google.protobuf.Timestamp
+	40, // 0: vrooli.vrooli_bridge.v1.machines.NodeLineage.linked_at:type_name -> google.protobuf.Timestamp
+	40, // 1: vrooli.vrooli_bridge.v1.machines.NodeLineage.superseded_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.vrooli_bridge.v1.machines.Machine.locators:type_name -> vrooli.vrooli_bridge.v1.machines.ConnectionLocator
 	1,  // 3: vrooli.vrooli_bridge.v1.machines.Machine.node_lineage:type_name -> vrooli.vrooli_bridge.v1.machines.NodeLineage
-	38, // 4: vrooli.vrooli_bridge.v1.machines.Machine.created_at:type_name -> google.protobuf.Timestamp
-	38, // 5: vrooli.vrooli_bridge.v1.machines.Machine.updated_at:type_name -> google.protobuf.Timestamp
-	38, // 6: vrooli.vrooli_bridge.v1.machines.Machine.archived_at:type_name -> google.protobuf.Timestamp
-	38, // 7: vrooli.vrooli_bridge.v1.machines.Machine.removed_at:type_name -> google.protobuf.Timestamp
-	38, // 8: vrooli.vrooli_bridge.v1.machines.Machine.applied_at:type_name -> google.protobuf.Timestamp
+	40, // 4: vrooli.vrooli_bridge.v1.machines.Machine.created_at:type_name -> google.protobuf.Timestamp
+	40, // 5: vrooli.vrooli_bridge.v1.machines.Machine.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 6: vrooli.vrooli_bridge.v1.machines.Machine.archived_at:type_name -> google.protobuf.Timestamp
+	40, // 7: vrooli.vrooli_bridge.v1.machines.Machine.removed_at:type_name -> google.protobuf.Timestamp
+	40, // 8: vrooli.vrooli_bridge.v1.machines.Machine.applied_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: vrooli.vrooli_bridge.v1.machines.CreateMachineRequest.locators:type_name -> vrooli.vrooli_bridge.v1.machines.ConnectionLocator
 	2,  // 10: vrooli.vrooli_bridge.v1.machines.CreateMachineResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
-	38, // 11: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt.created_at:type_name -> google.protobuf.Timestamp
-	38, // 12: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt.terminal_at:type_name -> google.protobuf.Timestamp
-	38, // 13: vrooli.vrooli_bridge.v1.machines.MachineAuditEvent.created_at:type_name -> google.protobuf.Timestamp
+	40, // 11: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt.created_at:type_name -> google.protobuf.Timestamp
+	40, // 12: vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt.terminal_at:type_name -> google.protobuf.Timestamp
+	40, // 13: vrooli.vrooli_bridge.v1.machines.MachineAuditEvent.created_at:type_name -> google.protobuf.Timestamp
 	2,  // 14: vrooli.vrooli_bridge.v1.machines.GetMachineResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
 	6,  // 15: vrooli.vrooli_bridge.v1.machines.GetMachineResponse.enrollment_attempts:type_name -> vrooli.vrooli_bridge.v1.machines.EnrollmentAttempt
 	7,  // 16: vrooli.vrooli_bridge.v1.machines.GetMachineResponse.current_node:type_name -> vrooli.vrooli_bridge.v1.machines.CurrentNodeProjection
@@ -2621,15 +2763,15 @@ var file_vrooli_bridge_v1_machines_machines_proto_depIdxs = []int32{
 	2,  // 22: vrooli.vrooli_bridge.v1.machines.ListMachinesResponse.machines:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
 	2,  // 23: vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
 	2,  // 24: vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
-	38, // 25: vrooli.vrooli_bridge.v1.machines.MachineTrust.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 25: vrooli.vrooli_bridge.v1.machines.MachineTrust.updated_at:type_name -> google.protobuf.Timestamp
 	18, // 26: vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse.trust:type_name -> vrooli.vrooli_bridge.v1.machines.MachineTrust
 	18, // 27: vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse.trust:type_name -> vrooli.vrooli_bridge.v1.machines.MachineTrust
-	38, // 28: vrooli.vrooli_bridge.v1.machines.MachineCleanup.created_at:type_name -> google.protobuf.Timestamp
-	38, // 29: vrooli.vrooli_bridge.v1.machines.MachineCleanup.updated_at:type_name -> google.protobuf.Timestamp
-	38, // 30: vrooli.vrooli_bridge.v1.machines.MachineCleanup.acknowledged_at:type_name -> google.protobuf.Timestamp
+	40, // 28: vrooli.vrooli_bridge.v1.machines.MachineCleanup.created_at:type_name -> google.protobuf.Timestamp
+	40, // 29: vrooli.vrooli_bridge.v1.machines.MachineCleanup.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 30: vrooli.vrooli_bridge.v1.machines.MachineCleanup.acknowledged_at:type_name -> google.protobuf.Timestamp
 	23, // 31: vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse.cleanup:type_name -> vrooli.vrooli_bridge.v1.machines.MachineCleanup
 	23, // 32: vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse.cleanup:type_name -> vrooli.vrooli_bridge.v1.machines.MachineCleanup
-	37, // 33: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.overrides:type_name -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.OverridesEntry
+	39, // 33: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.overrides:type_name -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest.OverridesEntry
 	2,  // 34: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
 	28, // 35: vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse.policy:type_name -> vrooli.vrooli_bridge.v1.machines.EffectivePolicy
 	2,  // 36: vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse.machine:type_name -> vrooli.vrooli_bridge.v1.machines.Machine
@@ -2651,24 +2793,26 @@ var file_vrooli_bridge_v1_machines_machines_proto_depIdxs = []int32{
 	31, // 52: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:input_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest
 	33, // 53: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:input_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineRequest
 	35, // 54: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:input_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest
-	4,  // 55: vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine:output_type -> vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
-	11, // 56: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachine:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
-	13, // 57: vrooli.vrooli_bridge.v1.machines.MachineService.ListMachines:output_type -> vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
-	15, // 58: vrooli.vrooli_bridge.v1.machines.MachineService.ArchiveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
-	17, // 59: vrooli.vrooli_bridge.v1.machines.MachineService.RemoveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
-	20, // 60: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineTrust:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
-	22, // 61: vrooli.vrooli_bridge.v1.machines.MachineService.ReviewMachineHostKey:output_type -> vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
-	25, // 62: vrooli.vrooli_bridge.v1.machines.MachineService.RequestMachineSSHCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
-	27, // 63: vrooli.vrooli_bridge.v1.machines.MachineService.UpdateMachineCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
-	30, // 64: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
-	11, // 65: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
-	30, // 66: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
-	11, // 67: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
-	32, // 68: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:output_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
-	34, // 69: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
-	36, // 70: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:output_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
-	55, // [55:71] is the sub-list for method output_type
-	39, // [39:55] is the sub-list for method input_type
+	37, // 55: vrooli.vrooli_bridge.v1.machines.MachineService.RotateMachineCredentialStore:input_type -> vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreRequest
+	4,  // 56: vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine:output_type -> vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
+	11, // 57: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachine:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	13, // 58: vrooli.vrooli_bridge.v1.machines.MachineService.ListMachines:output_type -> vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
+	15, // 59: vrooli.vrooli_bridge.v1.machines.MachineService.ArchiveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
+	17, // 60: vrooli.vrooli_bridge.v1.machines.MachineService.RemoveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
+	20, // 61: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineTrust:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
+	22, // 62: vrooli.vrooli_bridge.v1.machines.MachineService.ReviewMachineHostKey:output_type -> vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
+	25, // 63: vrooli.vrooli_bridge.v1.machines.MachineService.RequestMachineSSHCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
+	27, // 64: vrooli.vrooli_bridge.v1.machines.MachineService.UpdateMachineCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
+	30, // 65: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
+	11, // 66: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	30, // 67: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
+	11, // 68: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	32, // 69: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:output_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
+	34, // 70: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
+	36, // 71: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:output_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
+	38, // 72: vrooli.vrooli_bridge.v1.machines.MachineService.RotateMachineCredentialStore:output_type -> vrooli.vrooli_bridge.v1.machines.RotateMachineCredentialStoreResponse
+	56, // [56:73] is the sub-list for method output_type
+	39, // [39:56] is the sub-list for method input_type
 	39, // [39:39] is the sub-list for extension type_name
 	39, // [39:39] is the sub-list for extension extendee
 	0,  // [0:39] is the sub-list for field type_name
@@ -2685,7 +2829,7 @@ func file_vrooli_bridge_v1_machines_machines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_machines_machines_proto_rawDesc), len(file_vrooli_bridge_v1_machines_machines_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   38,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -269,5 +269,11 @@ func observeScopeProcesses(ctx context.Context) (map[int]processTableEntry, map[
 			return observed, identities, nil
 		}
 	}
-	return observed, identities, fmt.Errorf("process inventory changed throughout bounded observation")
+	// Host-wide process churn is normal on a development machine. The requested
+	// run identity, PID/group identity and birth-time checks below are the
+	// exclusion proof; requiring every unrelated host process to remain still
+	// makes maintenance permanently unavailable under ordinary scheduler/UI
+	// activity. Return the latest bounded snapshot and let matching evidence
+	// remain positive or unknown as appropriate.
+	return observed, identities, nil
 }

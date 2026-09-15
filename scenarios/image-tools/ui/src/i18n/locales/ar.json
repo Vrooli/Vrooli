@@ -133,7 +133,8 @@
     "lane": {
       "unspecified": "غير محدد",
       "gpu": "GPU",
-      "cpu": "CPU"
+      "cpu": "CPU",
+      "network": "سحابي"
     },
     "state": {
       "unspecified": "غير محدد",

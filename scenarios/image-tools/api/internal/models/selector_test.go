@@ -184,6 +184,32 @@ func TestSelectQualityPolicyPrefersBYOKBeforeDefault(t *testing.T) {
 	}
 }
 
+// A named gateway role must run on the gateway: a local model would silently
+// ignore the role (for example a logo role run by a local SD model).
+func TestSelectPreferRemoteRanksGatewayFirstUnderAnyPolicy(t *testing.T) {
+	r := testRegistry(t)
+	for _, policy := range []string{"", "balanced", "fast", "quality"} {
+		sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: policy, AllowBYOK: true, PreferRemote: true}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sel.Model.ID != "openrouter-image" {
+			t.Fatalf("policy %q with a named role = %q, want openrouter-image", policy, sel.Model.ID)
+		}
+	}
+}
+
+func TestSelectPreferRemoteNeverOverridesBYOKConsent(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), PreferRemote: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("named role without BYOK = %q, want local default", sel.Model.ID)
+	}
+}
+
 func TestSelectQualityPolicyExcludesBYOKWhenDisallowed(t *testing.T) {
 	r := testRegistry(t)
 	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality"}, nil)

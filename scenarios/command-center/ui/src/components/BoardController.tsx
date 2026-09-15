@@ -11,6 +11,8 @@ import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, remapProgre
 const IDLE_RESUME_MS = 20_000;
 /** A held beat waits at its end for at most this long before the cycle moves on regardless. */
 const MAX_HOLD_MS = 90_000;
+/** Backstop margin past a beat's reading time and the max hold, after which a stuck beat is released and skipped. */
+const BEAT_STALL_MARGIN_MS = 30_000;
 const CONTROLS_HIDE_MS = 4_000;
 const TRANSITION_MS = 900;
 
@@ -61,6 +63,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   const progressRef = useRef(0);
   const holdsRef = useRef(new Set<string>());
   const heldSinceRef = useRef<number | null>(null);
+  const beatStallRef = useRef({ index: -1, at: 0 });
 
   const showProgress = useCallback((value: number) => {
     progressRef.current = value;
@@ -196,6 +199,7 @@ export function BoardController({ children }: { children: ReactNode }) {
     restoringBeatRef.current = null;
     cycleStartedAt.current = Date.now();
     heldSinceRef.current = null;
+    beatStallRef.current = { index: -1, at: Date.now() };
     setHeld(false);
     showProgress(0);
   }, [location.pathname, showProgress]);
@@ -326,6 +330,22 @@ export function BoardController({ children }: { children: ReactNode }) {
         if (tick.held) cycleStartedAt.current = now - tick.progress * dwellMs;
         showProgress(tick.progress);
         setHeld(tick.held);
+        const displayIndex = beatDurations.length ? beatPositionAtProgress(tick.progress, beatDurations).index : 0;
+        if (displayIndex !== beatStallRef.current.index) {
+          beatStallRef.current = { index: displayIndex, at: now };
+        } else {
+          const beatMs = (beatDurations[displayIndex] ?? 0) * 1000;
+          if (now - beatStallRef.current.at > beatMs + MAX_HOLD_MS + BEAT_STALL_MARGIN_MS) {
+            // Whatever is holding it, a beat the viewer has been stuck on well
+            // past its reading time is released and skipped, not left frozen.
+            console.warn("[command-center] beat stalled; releasing and skipping", { index: displayIndex, holds: [...holdsRef.current] });
+            holdsRef.current.clear();
+            heldSinceRef.current = null;
+            beatStallRef.current = { index: -1, at: now };
+            if (beatDurations.length > 1) selectBeat((displayIndex + 1) % beatDurations.length);
+            else if (rooms.length) navigateRoom(1);
+          }
+        }
         if (tick.navigate && rooms.length && !document.hidden) {
           cycleStartedAt.current = now;
           navigateRoom(1);
@@ -335,7 +355,7 @@ export function BoardController({ children }: { children: ReactNode }) {
     };
     frame = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(frame);
-  }, [beatDurations, navigateRoom, pausedUntil, roomDwellSeconds, rooms.length, showProgress]);
+  }, [beatDurations, navigateRoom, pausedUntil, roomDwellSeconds, rooms.length, selectBeat, showProgress]);
 
   const paused = pausedUntil > Date.now();
   const beatIndex = beatPosition.index;

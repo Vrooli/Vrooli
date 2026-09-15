@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -541,12 +542,14 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if service.LogDir == "" {
-		http.Error(w, "service has no log_dir", http.StatusBadRequest)
-		return
+	logPath := ""
+	if service.LogDir != "" {
+		logPath = manifest.ResolvePath(s.runtime.AppDataDir(), service.LogDir)
+	} else {
+		// The bundled supervisor creates this conventional path for every
+		// declared service, even when the manifest omits log_dir.
+		logPath = filepath.Join(s.runtime.AppDataDir(), "resources", service.ID, "logs", "service.log")
 	}
-
-	logPath := manifest.ResolvePath(s.runtime.AppDataDir(), service.LogDir)
 	fs := s.runtime.FileSystem()
 
 	info, err := fs.Stat(logPath)

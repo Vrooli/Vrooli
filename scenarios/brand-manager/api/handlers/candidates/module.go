@@ -2,6 +2,8 @@ package candidates
 
 import (
 	"log"
+	"net/http"
+	"time"
 
 	internalcandidates "brand-manager/internal/candidates"
 	"brand-manager/internal/module"
@@ -15,13 +17,32 @@ import (
 	candsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/candidates/candidates_v1connect"
 )
 
+// imageJobDeadlineClearer removes the per-request server write deadline for the
+// three procedures that wait on image-tools jobs. api-core installs a 30 s
+// WriteTimeout, which is right for every ordinary request, but explore, refine
+// and pick run for as long as generation, vectorize and rasterize take: past
+// 30 s the finished response would be dropped and the client would see
+// "unavailable: unexpected EOF" even though the work succeeded. The service
+// bounds each explore round itself (exploreBudget).
+type imageJobDeadlineClearer struct{ next http.Handler }
+
+func (h imageJobDeadlineClearer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case candsconnect.CandidatesServiceExploreCandidatesProcedure,
+		candsconnect.CandidatesServiceRefineCandidateProcedure,
+		candsconnect.CandidatesServicePickCandidateProcedure:
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	}
+	h.next.ServeHTTP(w, r)
+}
+
 // Module returns the candidates domain's contribution to the API.
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, svc *internalcandidates.Service) module.Module {
 	connectPath, connectHandler := candsconnect.NewCandidatesServiceHandler(NewConnectHandler(Deps{Service: svc, Logger: logger}))
 	return module.Module{
 		Name: "candidates",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: imageJobDeadlineClearer{next: connectHandler}})
 		},
 		Endpoints: Endpoints,
 	}

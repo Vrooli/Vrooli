@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/logx"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
@@ -554,12 +556,14 @@ func (r *Runner) applyDependencyFreshnessPolicyContext(ctx context.Context, star
 		policy = scenario.DependencyFreshnessPolicyRestartWhenStale
 	}
 	reasonStr := strings.Join(freshnessReasons, "; ")
+	arbitrated := false
 
 	if policy == scenario.DependencyFreshnessPolicyRestartWhenStale &&
 		r.dependencyHasOtherLiveConsumers(ctx, dep.Slug, startingScenario) {
 		r.logInfo("Freshness arbitration: degrading restart to rebuild-only (shared dependency has other live consumers)",
 			logx.AttrScenario, dep.Slug, "freshness_reason", reasonStr)
 		policy = scenario.DependencyFreshnessPolicyRebuildOnly
+		arbitrated = true
 	}
 
 	switch policy {
@@ -573,6 +577,16 @@ func (r *Runner) applyDependencyFreshnessPolicyContext(ctx context.Context, star
 		r.logInfo("Rebuilding stale dependency without restart",
 			logx.AttrScenario, dep.Slug, "freshness_policy", scenario.DependencyFreshnessPolicyRebuildOnly, "freshness_reason", reasonStr)
 		if err := r.rebuildDependencyArtifactsContext(ctx, dep, view); err != nil {
+			if arbitrated && (errors.Is(err, ErrOwnerMaintenanceRequired) || errors.Is(err, ErrScenarioBusy)) {
+				reason := "execution owner admission open; serving stale build"
+				if errors.Is(err, ErrScenarioBusy) {
+					reason = "dependency lock busy; serving stale build"
+				}
+				r.publish(ProgressEvent{Kind: EventDependencyStalePolicy, Scenario: startingScenario, Dependency: dep.Slug, Policy: scenario.DependencyFreshnessPolicyReuseRunning, Reason: reason})
+				r.logWarn("Serving stale dependency because rebuild-only could not acquire maintenance",
+					logx.AttrScenario, dep.Slug, "freshness_policy", scenario.DependencyFreshnessPolicyReuseRunning, "reason", reason)
+				return true, nil
+			}
 			return false, err
 		}
 		return true, nil
@@ -791,6 +805,13 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 // continueOnFailure policy.
 func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, dependency scenario.Dependency, decision dependencyDecision) error {
 	if len(dependency.Config) == 0 && strings.TrimSpace(dependency.Database) == "" {
+		return nil
+	}
+	// A deployed release is already built and its resource was started by the
+	// deployment plan. Running source-oriented resource `ensure` here can pull
+	// development-only host requirements (for example protoc-gen-es) onto a
+	// minimal VPS and block an otherwise valid release start.
+	if os.Getenv(buildinfo.ArtifactModeEnvVar) == "1" {
 		return nil
 	}
 	deps := r.runtimeDeps()

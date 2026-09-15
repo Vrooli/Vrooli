@@ -79,8 +79,20 @@ const (
 	defaultDockerRuntimeOperationTimeout     = 2 * time.Minute
 	defaultResourceControlExtendedTimeout    = 2 * time.Minute
 	defaultSetupExtendedOperationTimeout     = 2 * time.Minute
-	defaultPrivilegeBrokerOperationTimeout   = 2 * time.Minute
-	defaultStructureProviderExtendedBudget   = 2 * time.Minute
+	// SharedPackageLockWaitTimeout bounds how long a scenario lifecycle waits for
+	// the cross-process shared-package lock (for example the Proto generation
+	// lock) held by a concurrent agent. It is deliberately generous: a peer's
+	// package build is an expected multi-minute operation, and failing a start
+	// immediately turns routine contention into a spurious blocker. The wait
+	// still ends, so a genuinely wedged holder is reported rather than waited on
+	// forever.
+	defaultSharedPackageLockWaitTimeout = 10 * time.Minute
+	// SharedPackageLockWaitLogInterval is how often a held lock re-emits a
+	// waiting event (with the current holder pid) so a long wait is diagnosable
+	// instead of looking like a hang.
+	defaultSharedPackageLockWaitLogInterval = 30 * time.Second
+	defaultPrivilegeBrokerOperationTimeout  = 2 * time.Minute
+	defaultStructureProviderExtendedBudget  = 2 * time.Minute
 	// ProviderBudget bounds a provider's work budget.
 	defaultProviderBudget                = 3 * time.Minute
 	defaultSupervisorRecoveryCooldown    = 5 * time.Minute
@@ -400,6 +412,18 @@ func ResourceControlExtendedTimeout() time.Duration {
 // SetupExtendedOperationTimeout controls setup extended operation timeout.
 func SetupExtendedOperationTimeout() time.Duration {
 	return Duration("SetupExtendedOperationTimeout", defaultSetupExtendedOperationTimeout)
+}
+
+// SharedPackageLockWaitTimeout bounds the lifecycle wait for a shared-package
+// build lock held by another process (e.g. the Proto generation lock).
+func SharedPackageLockWaitTimeout() time.Duration {
+	return Duration("SharedPackageLockWaitTimeout", defaultSharedPackageLockWaitTimeout)
+}
+
+// SharedPackageLockWaitLogInterval controls how often a held shared-package lock
+// re-emits a waiting event.
+func SharedPackageLockWaitLogInterval() time.Duration {
+	return Duration("SharedPackageLockWaitLogInterval", defaultSharedPackageLockWaitLogInterval)
 }
 
 // PrivilegeBrokerOperationTimeout controls privilege broker operation timeout.

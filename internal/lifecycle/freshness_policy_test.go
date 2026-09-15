@@ -174,3 +174,62 @@ func TestApplyFreshnessPolicyArbitrationDegradesToRebuildOnly(t *testing.T) {
 		t.Fatal("arbitration must degrade restart_when_stale to rebuild_only when a live consumer exists (handled=true)")
 	}
 }
+
+func TestApplyFreshnessPolicyArbitrationReusesWhenOwnerMaintenanceUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		busy   bool
+		reason string
+	}{
+		{name: "owner admission open", reason: "execution owner admission open; serving stale build"},
+		{name: "dependency lock busy", busy: true, reason: "dependency lock busy; serving stale build"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, home := t.TempDir(), t.TempDir()
+			gamma := lifecycleFixtureManifest("gamma")
+			gamma.Dependencies.Scenarios = map[string]scenario.Dependency{
+				"agent-manager": {Required: true, StartupPolicy: scenario.DependencyStartupPolicyMustStart},
+			}
+			writeLifecycleFixtureManifest(t, root, gamma)
+			writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+				Service:   scenario.ServiceMetadata{Name: "agent-manager"},
+				Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "setup-marker", Exec: []string{"bash", "-c", "printf setup >> setup.txt"}}}}},
+			})
+			store, err := scenarioruntime.NewSQLiteStore(t.Context(), scenarioruntime.Config{HomeDir: home})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.CreateInstance(t.Context(), scenarioruntime.Instance{Scenario: "gamma"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(); err != nil {
+				t.Fatal(err)
+			}
+			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+					return ownerMaintenanceStanding{Closed: false}, nil
+				}
+			})
+			capture := &captureSink{}
+			runner.WithProgressSink(capture)
+			var release func()
+			if tc.busy {
+				release, err = runner.acquireScenarioLock("agent-manager")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer release()
+			}
+			dep := scenario.Scenario{Slug: "agent-manager", Manifest: scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "agent-manager"}, Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "setup-marker", Exec: []string{"bash", "-c", "printf setup >> setup.txt"}}}}}}}
+			handled, err := runner.applyDependencyFreshnessPolicy("alpha", dep,
+				freshnessPolicyDecision(scenario.DependencyFreshnessPolicyRestartWhenStale),
+				registryRuntimeView{Instance: scenarioruntime.Instance{InstanceID: "agent-manager-1"}}, []string{"build is stale"})
+			if err != nil || !handled {
+				t.Fatalf("stale owner was not safely reused: handled=%t err=%v", handled, err)
+			}
+			if len(capture.events) == 0 || capture.events[len(capture.events)-1].Policy != scenario.DependencyFreshnessPolicyReuseRunning || capture.events[len(capture.events)-1].Reason != tc.reason {
+				t.Fatalf("unexpected stale-policy event: %+v", capture.events)
+			}
+		})
+	}
+}

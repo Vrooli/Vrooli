@@ -399,7 +399,7 @@ class BacklogFileOperationResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2_1.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation", "mode", "started_by", "confirm", "force", "execution_mode", "max_slices", "execution_preferences", "operator_note")
+    __slots__ = ("operation", "mode", "started_by", "confirm", "force", "execution_mode", "max_slices", "execution_preferences", "operator_note", "blocker_repair_policy")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
@@ -409,6 +409,7 @@ class QueueBacklogItemRequest(_message.Message):
     MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKER_REPAIR_POLICY_FIELD_NUMBER: _ClassVar[int]
     operation: str
     mode: str
     started_by: str
@@ -418,7 +419,8 @@ class QueueBacklogItemRequest(_message.Message):
     max_slices: int
     execution_preferences: _backlog_pb2.ExecutionPreferences
     operator_note: str
-    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ..., execution_mode: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., operator_note: _Optional[str] = ...) -> None: ...
+    blocker_repair_policy: str
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ..., execution_mode: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., operator_note: _Optional[str] = ..., blocker_repair_policy: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
     __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions", "advisories")

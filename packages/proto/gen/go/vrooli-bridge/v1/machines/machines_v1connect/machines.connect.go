@@ -81,6 +81,9 @@ const (
 	// MachineServiceMergeMachinesProcedure is the fully-qualified name of the MachineService's
 	// MergeMachines RPC.
 	MachineServiceMergeMachinesProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/MergeMachines"
+	// MachineServiceRotateMachineCredentialStoreProcedure is the fully-qualified name of the
+	// MachineService's RotateMachineCredentialStore RPC.
+	MachineServiceRotateMachineCredentialStoreProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/RotateMachineCredentialStore"
 )
 
 // MachineServiceClient is a client for the vrooli.vrooli_bridge.v1.machines.MachineService service.
@@ -101,6 +104,7 @@ type MachineServiceClient interface {
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
 	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
 	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
+	RotateMachineCredentialStore(context.Context, *connect.Request[machines.RotateMachineCredentialStoreRequest]) (*connect.Response[machines.RotateMachineCredentialStoreResponse], error)
 }
 
 // NewMachineServiceClient constructs a client for the
@@ -211,27 +215,34 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(machineServiceMethods.ByName("MergeMachines")),
 			connect.WithClientOptions(opts...),
 		),
+		rotateMachineCredentialStore: connect.NewClient[machines.RotateMachineCredentialStoreRequest, machines.RotateMachineCredentialStoreResponse](
+			httpClient,
+			baseURL+MachineServiceRotateMachineCredentialStoreProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("RotateMachineCredentialStore")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // machineServiceClient implements MachineServiceClient.
 type machineServiceClient struct {
-	createMachine             *connect.Client[machines.CreateMachineRequest, machines.CreateMachineResponse]
-	getMachine                *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
-	listMachines              *connect.Client[machines.ListMachinesRequest, machines.ListMachinesResponse]
-	archiveMachine            *connect.Client[machines.ArchiveMachineRequest, machines.ArchiveMachineResponse]
-	removeMachine             *connect.Client[machines.RemoveMachineRequest, machines.RemoveMachineResponse]
-	getMachineTrust           *connect.Client[machines.GetMachineTrustRequest, machines.GetMachineTrustResponse]
-	reviewMachineHostKey      *connect.Client[machines.ReviewMachineHostKeyRequest, machines.ReviewMachineHostKeyResponse]
-	requestMachineSSHCleanup  *connect.Client[machines.RequestMachineSSHCleanupRequest, machines.RequestMachineSSHCleanupResponse]
-	updateMachineCleanup      *connect.Client[machines.UpdateMachineCleanupRequest, machines.UpdateMachineCleanupResponse]
-	applyMachinePolicy        *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
-	getMachineConfiguration   *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
-	applyMachineConfiguration *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
-	getMachineDrift           *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
-	revokeMachineNode         *connect.Client[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse]
-	repairMachine             *connect.Client[machines.RepairMachineRequest, machines.RepairMachineResponse]
-	mergeMachines             *connect.Client[machines.MergeMachinesRequest, machines.MergeMachinesResponse]
+	createMachine                *connect.Client[machines.CreateMachineRequest, machines.CreateMachineResponse]
+	getMachine                   *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	listMachines                 *connect.Client[machines.ListMachinesRequest, machines.ListMachinesResponse]
+	archiveMachine               *connect.Client[machines.ArchiveMachineRequest, machines.ArchiveMachineResponse]
+	removeMachine                *connect.Client[machines.RemoveMachineRequest, machines.RemoveMachineResponse]
+	getMachineTrust              *connect.Client[machines.GetMachineTrustRequest, machines.GetMachineTrustResponse]
+	reviewMachineHostKey         *connect.Client[machines.ReviewMachineHostKeyRequest, machines.ReviewMachineHostKeyResponse]
+	requestMachineSSHCleanup     *connect.Client[machines.RequestMachineSSHCleanupRequest, machines.RequestMachineSSHCleanupResponse]
+	updateMachineCleanup         *connect.Client[machines.UpdateMachineCleanupRequest, machines.UpdateMachineCleanupResponse]
+	applyMachinePolicy           *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
+	getMachineConfiguration      *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	applyMachineConfiguration    *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
+	getMachineDrift              *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	revokeMachineNode            *connect.Client[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse]
+	repairMachine                *connect.Client[machines.RepairMachineRequest, machines.RepairMachineResponse]
+	mergeMachines                *connect.Client[machines.MergeMachinesRequest, machines.MergeMachinesResponse]
+	rotateMachineCredentialStore *connect.Client[machines.RotateMachineCredentialStoreRequest, machines.RotateMachineCredentialStoreResponse]
 }
 
 // CreateMachine calls vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine.
@@ -317,6 +328,12 @@ func (c *machineServiceClient) MergeMachines(ctx context.Context, req *connect.R
 	return c.mergeMachines.CallUnary(ctx, req)
 }
 
+// RotateMachineCredentialStore calls
+// vrooli.vrooli_bridge.v1.machines.MachineService.RotateMachineCredentialStore.
+func (c *machineServiceClient) RotateMachineCredentialStore(ctx context.Context, req *connect.Request[machines.RotateMachineCredentialStoreRequest]) (*connect.Response[machines.RotateMachineCredentialStoreResponse], error) {
+	return c.rotateMachineCredentialStore.CallUnary(ctx, req)
+}
+
 // MachineServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.machines.MachineService
 // service.
 type MachineServiceHandler interface {
@@ -336,6 +353,7 @@ type MachineServiceHandler interface {
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
 	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
 	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
+	RotateMachineCredentialStore(context.Context, *connect.Request[machines.RotateMachineCredentialStoreRequest]) (*connect.Response[machines.RotateMachineCredentialStoreResponse], error)
 }
 
 // NewMachineServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -441,6 +459,12 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 		connect.WithSchema(machineServiceMethods.ByName("MergeMachines")),
 		connect.WithHandlerOptions(opts...),
 	)
+	machineServiceRotateMachineCredentialStoreHandler := connect.NewUnaryHandler(
+		MachineServiceRotateMachineCredentialStoreProcedure,
+		svc.RotateMachineCredentialStore,
+		connect.WithSchema(machineServiceMethods.ByName("RotateMachineCredentialStore")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.machines.MachineService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MachineServiceCreateMachineProcedure:
@@ -475,6 +499,8 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 			machineServiceRepairMachineHandler.ServeHTTP(w, r)
 		case MachineServiceMergeMachinesProcedure:
 			machineServiceMergeMachinesHandler.ServeHTTP(w, r)
+		case MachineServiceRotateMachineCredentialStoreProcedure:
+			machineServiceRotateMachineCredentialStoreHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -546,4 +572,8 @@ func (UnimplementedMachineServiceHandler) RepairMachine(context.Context, *connec
 
 func (UnimplementedMachineServiceHandler) MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) RotateMachineCredentialStore(context.Context, *connect.Request[machines.RotateMachineCredentialStoreRequest]) (*connect.Response[machines.RotateMachineCredentialStoreResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.RotateMachineCredentialStore is not implemented"))
 }

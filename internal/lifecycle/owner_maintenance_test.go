@@ -263,6 +263,21 @@ func TestRecoveryFirstRestartAcceptsCompleteEmptyInventory(t *testing.T) {
 	}
 }
 
+func TestRecoveryFirstRestartAcceptsDetachedDurableRuns(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	state := drainedOwner(t)
+	state.Drained = false
+	state.Remaining = intPtr(1)
+	state.Inventory.Remaining = intPtr(1)
+	state.Inventory.Work = []json.RawMessage{json.RawMessage(`{"id":"run-1","kind":"run","status":"running"}`)}
+	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+		return state, nil
+	}}}
+	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
+		t.Fatalf("detached durable run refused: revision=%d err=%v", revision, err)
+	}
+}
+
 func TestRecoveryFirstRestartProtectsIdentifiedCurrentExecutor(t *testing.T) {
 	t.Setenv(cliutil.EnvIdentityToken, "identified-test-executor")
 	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
@@ -304,9 +319,9 @@ func TestRecoveryFirstRestartRejectsUnrelatedUnavailableOwner(t *testing.T) {
 	}
 }
 
-func TestOwnerMaintenanceBeforeLifecycleEffects(t *testing.T) {
+func TestOwnerMaintenanceStillProtectsNonRestartLifecycleEffects(t *testing.T) {
 	t.Setenv(cliutil.EnvIdentityToken, "")
-	for _, operation := range []string{"stop", "restart", "setup", "dependency_rebuild"} {
+	for _, operation := range []string{"setup", "dependency_rebuild"} {
 		t.Run(operation, func(t *testing.T) {
 			root, home := t.TempDir(), t.TempDir()
 			writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
@@ -357,6 +372,28 @@ func TestOwnerMaintenanceBeforeLifecycleEffects(t *testing.T) {
 	}
 }
 
+func TestAgentManagerRestartDoesNotRequireOwnerMaintenance(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service:   scenario.ServiceMetadata{Name: "agent-manager"},
+		Lifecycle: scenario.Lifecycle{Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "develop", Exec: []string{"bash", "-c", "true"}}}}},
+	})
+	reads := 0
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+			reads++
+			return ownerMaintenanceStanding{}, errors.New("owner maintenance must not be consulted for Agent Manager restart")
+		}
+	})
+	if _, err := runner.Restart("agent-manager", StartOptions{}); err != nil {
+		t.Fatalf("Agent Manager restart: %v", err)
+	}
+	if reads != 0 {
+		t.Fatalf("owner maintenance reads=%d, want 0", reads)
+	}
+}
+
 func TestOwnerMaintenanceHTTPContract(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -397,6 +434,7 @@ func TestOwnerMaintenanceHTTPContract(t *testing.T) {
 }
 
 func TestOwnerMaintenanceRestartDrainedAndRevisionRevalidated(t *testing.T) {
+	t.Skip("Agent Manager no longer self-fences during lifecycle restart")
 	t.Setenv(cliutil.EnvIdentityToken, "")
 	for _, changed := range []bool{false, true} {
 		t.Run(fmt.Sprintf("revision_changed_%t", changed), func(t *testing.T) {

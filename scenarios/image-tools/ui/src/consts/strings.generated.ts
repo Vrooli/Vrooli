@@ -148,6 +148,7 @@ export const strings = {
       unspecified: "jobs.lane.unspecified",
       gpu: "jobs.lane.gpu",
       cpu: "jobs.lane.cpu",
+      network: "jobs.lane.network",
     },
     state: {
       unspecified: "jobs.state.unspecified",

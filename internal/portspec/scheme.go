@@ -4,6 +4,8 @@
 // on this leaf package; keeping it dependency-free prevents an import cycle.
 package portspec
 
+import "strings"
+
 // Canonical port bands for scenario listeners.
 //
 // Every role sits below 32768 because Linux's default ephemeral range starts
@@ -57,6 +59,43 @@ func CanonicalBand(port int) (CanonicalRole, bool) {
 		return RoleHeadroom, true
 	default:
 		return RoleUnknown, false
+	}
+}
+
+// DesktopBandForFixedPort returns the role band that a non-live consumer
+// should use when a Tier 1 declaration contains a fixed port.  The declared
+// role is authoritative; an unlabelled value falls back to the canonical band
+// containing the fixed port, then to reserved headroom.
+func DesktopBandForFixedPort(envVar, name string, fixed int) (int, int) {
+	role := roleFromPortName(envVar, name)
+	if role == RoleUnknown {
+		if canonical, ok := CanonicalBand(fixed); ok {
+			role = canonical
+		}
+	}
+	switch role {
+	case RoleAPI:
+		return APIRangeStart, APIRangeEnd
+	case RoleUI:
+		return UIRangeStart, UIRangeEnd
+	case RoleWS:
+		return WSRangeStart, WSRangeEnd
+	default:
+		return ReservedHeadroomStart, ReservedHeadroomEnd
+	}
+}
+
+func roleFromPortName(envVar, name string) CanonicalRole {
+	s := strings.ToLower(envVar + " " + name)
+	switch {
+	case strings.Contains(s, "ws") || strings.Contains(s, "websocket"):
+		return RoleWS
+	case strings.Contains(s, "ui"):
+		return RoleUI
+	case strings.Contains(s, "api"):
+		return RoleAPI
+	default:
+		return RoleUnknown
 	}
 }
 

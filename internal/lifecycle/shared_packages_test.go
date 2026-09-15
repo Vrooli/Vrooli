@@ -34,6 +34,36 @@ func TestSharedPackageDependenciesDeriveGovernedFileDependencies(t *testing.T) {
 	}
 }
 
+// The component library's build type-checks against audio-capture-browser's
+// generated outputs, so a scenario that depends only on the library must get
+// audio-capture-browser provisioned first; each package is provisioned once.
+func TestSharedPackageRequirementsProvisionBeforeTheirDependents(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct, err := sharedPackageDependencies(repoRoot, filepath.Join(repoRoot, "scenarios", "vrooli-onboarding", "ui", "package.json"))
+	if err != nil {
+		t.Fatalf("sharedPackageDependencies: %v", err)
+	}
+	ordered, err := withRequiredPackages(repoRoot, direct)
+	if err != nil {
+		t.Fatalf("withRequiredPackages: %v", err)
+	}
+	index := make(map[string]int, len(ordered))
+	for i, dependency := range ordered {
+		if _, dup := index[dependency.Name]; dup {
+			t.Fatalf("%s is provisioned twice", dependency.Name)
+		}
+		index[dependency.Name] = i
+	}
+	library, hasLibrary := index["@vrooli/react-component-library"]
+	audio, hasAudio := index["@vrooli/audio-capture-browser"]
+	if !hasLibrary || !hasAudio || audio > library {
+		t.Fatalf("order = %v; want @vrooli/audio-capture-browser before @vrooli/react-component-library", index)
+	}
+}
+
 // helper: digest of the current declared-output path set.
 func outputsDigestFor(t *testing.T, root string, patterns []string) string {
 	t.Helper()

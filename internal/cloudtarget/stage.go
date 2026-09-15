@@ -190,7 +190,7 @@ func (s *Store) ListReleases(deploymentID string) (ReleaseListing, error) {
 			row.Role = "staging"
 		} else {
 			row.State = releaseState(path)
-			row.ReleaseFacts = releaseFacts(path)
+			row.ReleaseFacts = releaseFactsSummary(path)
 		}
 		if active != nil && row.State == ReleaseStateComplete {
 			switch row.Digest {

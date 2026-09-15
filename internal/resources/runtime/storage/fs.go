@@ -24,7 +24,7 @@ func EnsureAllDirs(r *Resolver, opts Options, perm os.FileMode) (Paths, error) {
 		return Paths{}, err
 	}
 	for _, dir := range []string{paths.ConfigDir, paths.DataDir, paths.CacheDir, paths.LogsDir, paths.StateDir} {
-		if err := requireExistingAncestorOwnedByCurrentUser(dir); err != nil {
+		if err := requireExistingAncestorOwnedByCurrentUser(dir, opts.AllowRootManagement); err != nil {
 			return Paths{}, err
 		}
 		created := missingStorageAncestors(dir)
@@ -34,7 +34,7 @@ func EnsureAllDirs(r *Resolver, opts Options, perm os.FileMode) (Paths, error) {
 		if err := restoreCreatedStorageOwnership(created); err != nil {
 			return Paths{}, err
 		}
-		if err := requirePathOwnedByCurrentUser(dir); err != nil {
+		if err := requirePathOwnedByCurrentUser(dir, opts.AllowRootManagement); err != nil {
 			return Paths{}, err
 		}
 	}
@@ -61,11 +61,11 @@ func missingStorageAncestors(dir string) []string {
 // user's XDG tree. MkdirAll otherwise succeeds whenever an ancestor is
 // traversable, permanently stranding the intended user behind foreign-owned
 // directories.
-func requireExistingAncestorOwnedByCurrentUser(path string) error {
+func requireExistingAncestorOwnedByCurrentUser(path string, allowRootManagement bool) error {
 	for candidate := filepath.Clean(path); ; candidate = filepath.Dir(candidate) {
 		info, err := os.Lstat(candidate)
 		if err == nil {
-			return requireFileInfoOwnedByCurrentUser(candidate, info)
+			return requireFileInfoOwnedByCurrentUser(candidate, info, allowRootManagement)
 		}
 		if !os.IsNotExist(err) {
 			return &Error{Kind: ErrResolve, Message: "inspect storage parent", Details: candidate, Err: err}
@@ -77,12 +77,12 @@ func requireExistingAncestorOwnedByCurrentUser(path string) error {
 	}
 }
 
-func requirePathOwnedByCurrentUser(path string) error {
+func requirePathOwnedByCurrentUser(path string, allowRootManagement bool) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return &Error{Kind: ErrResolve, Message: "inspect storage dir", Details: path, Err: err}
 	}
-	return requireFileInfoOwnedByCurrentUser(path, info)
+	return requireFileInfoOwnedByCurrentUser(path, info, allowRootManagement)
 }
 
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {

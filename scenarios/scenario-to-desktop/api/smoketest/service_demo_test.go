@@ -101,8 +101,8 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	if len(executor.ExecuteCalls) != 2 {
 		t.Fatalf("Expected 2 execute calls (headless + demo), got %d", len(executor.ExecuteCalls))
 	}
-	if executor.ExecuteCalls[0].Timeout != 60*time.Second {
-		t.Fatalf("bundled smoke timeout = %v, want 60s", executor.ExecuteCalls[0].Timeout)
+	if executor.ExecuteCalls[0].Timeout != 65*time.Second {
+		t.Fatalf("bundled smoke executor timeout = %v, want 65s", executor.ExecuteCalls[0].Timeout)
 	}
 	smokeEnvMap := make(map[string]string)
 	for _, e := range executor.ExecuteCalls[0].Env {

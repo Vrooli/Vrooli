@@ -25,7 +25,8 @@ const px = (value: string): number => {
  * across pages. Portrait shows every tile; the page scrolls there.
  */
 export const SupportingStrip = forwardRef<HTMLUListElement, { children: ReactElement[] }>(function SupportingStrip({ children }, forwardedRef) {
-  const id = useId();
+  const reactId = useId();
+  const id = `strip:${reactId}`;
   const hold = useBeatHold();
   const scale = useCycleScale();
   const landscape = useLandscapeRoom();

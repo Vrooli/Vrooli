@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -16,13 +18,24 @@ import (
 // GroupName is the command group name.
 const GroupName = "candidates"
 
+// longRPCTimeout covers explore, refine and pick, which wait on image
+// generation, vectorize and rasterize jobs. The server bounds an explore round
+// at 15 minutes and keeps every stored candidate even if this client gives up.
+const longRPCTimeout = 20 * time.Minute
+
 type handlers struct {
 	client candsconnect.CandidatesServiceClient
+	// long is the same service with longRPCTimeout, for the image-job RPCs.
+	long candsconnect.CandidatesServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: candsconnect.NewCandidatesServiceClient(httpClient, baseURL)}
+	longClient, longBase := cliapp.NewConnectHTTPClientWithTimeout(core, longRPCTimeout)
+	return &handlers{
+		client: candsconnect.NewCandidatesServiceClient(httpClient, baseURL),
+		long:   candsconnect.NewCandidatesServiceClient(longClient, longBase),
+	}
 }
 
 // Register builds the candidates command group.
@@ -41,10 +54,13 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				{Name: "brief", Description: "What the product is"},
 				{Name: "concept", Repeated: true, Description: "A concept to explore (repeatable)"},
 				{Name: "variations", Description: "Variations per concept (1-4)"},
-				{Name: "prefer-vector", Bool: true, Description: "Prefer the SVG-native role"},
-				{Name: "byok", Bool: true, Description: "Allow a paid cloud provider"},
-				{Name: "quality-policy", Description: "quality|balanced|fast"},
-				{Name: "fallback-policy", Description: "any|cloud_allowed|local_only"},
+				{Name: "style-reference-brand", Description: "Match this brand's approved mark (id or slug), e.g. the product line's first product"},
+				{Name: "style-reference-asset", Description: "Match this asset's style (ignored with --style-reference-brand)"},
+				{Name: "role", Description: "Override the OpenRouter role (default: illustration role; edit role with a style reference)"},
+				{Name: "prefer-vector", Bool: true, Description: "Render with the flat SVG-native role instead of the illustration role"},
+				{Name: "byok", Bool: true, Description: "Deprecated: the cloud tier is permitted unless --fallback-policy local_only"},
+				{Name: "quality-policy", Description: "quality|balanced|fast (default quality)"},
+				{Name: "fallback-policy", Description: "any|cloud_allowed|local_only (default any)"},
 			}, h.explore),
 			cmd("import", "Import an existing asset as a candidate", nil, []cliapp.Flag{
 				{Name: "brand-id", Required: true, Description: "Brand id"},
@@ -77,20 +93,27 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 }
 
 func (h *handlers) explore(ctx cliapp.RunContext) error {
-	resp, err := h.client.ExploreCandidates(context.Background(), connect.NewRequest(&candsv1.ExploreCandidatesRequest{
-		BrandId:        ctx.Flag("brand-id"),
-		Brief:          ctx.Flag("brief"),
-		Concepts:       ctx.FlagValues("concept"),
-		Variations:     int32(atoiOrZero(ctx.Flag("variations"))),
-		PreferVector:   ctx.BoolFlag("prefer-vector"),
-		AllowByok:      ctx.BoolFlag("byok"),
-		QualityPolicy:  ctx.Flag("quality-policy"),
-		FallbackPolicy: ctx.Flag("fallback-policy"),
+	resp, err := h.long.ExploreCandidates(context.Background(), connect.NewRequest(&candsv1.ExploreCandidatesRequest{
+		BrandId:               ctx.Flag("brand-id"),
+		Brief:                 ctx.Flag("brief"),
+		Concepts:              ctx.FlagValues("concept"),
+		Variations:            int32(atoiOrZero(ctx.Flag("variations"))),
+		PreferVector:          ctx.BoolFlag("prefer-vector"),
+		AllowByok:             ctx.BoolFlag("byok"),
+		QualityPolicy:         ctx.Flag("quality-policy"),
+		FallbackPolicy:        ctx.Flag("fallback-policy"),
+		Role:                  ctx.Flag("role"),
+		StyleReferenceBrand:   ctx.Flag("style-reference-brand"),
+		StyleReferenceAssetId: ctx.Flag("style-reference-asset"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("explore candidates", err, nil)
 	}
-	return renderCandidates(ctx, resp.Msg.GetCandidates())
+	report := candidatesReport(resp.Msg.GetCandidates())
+	for _, w := range resp.Msg.GetWarnings() {
+		report.Summary = append(report.Summary, "warning: "+w)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
 func (h *handlers) importCandidate(ctx cliapp.RunContext) error {
@@ -104,7 +127,7 @@ func (h *handlers) importCandidate(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("import candidate", err, nil)
 	}
-	return renderCandidates(ctx, []*candsv1.LogoCandidate{resp.Msg.GetCandidate()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, candidatesReport([]*candsv1.LogoCandidate{resp.Msg.GetCandidate()}))
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
@@ -117,7 +140,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("list candidates", err, nil)
 	}
-	return renderCandidates(ctx, resp.Msg.GetCandidates())
+	return cliapp.RenderProtoList(ctx, resp.Msg, candidatesReport(resp.Msg.GetCandidates()))
 }
 
 func (h *handlers) get(ctx cliapp.RunContext) error {
@@ -125,7 +148,18 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("get candidate", err, nil)
 	}
-	return renderCandidates(ctx, []*candsv1.LogoCandidate{resp.Msg.GetCandidate()})
+	c := resp.Msg.GetCandidate()
+	report := candidatesReport([]*candsv1.LogoCandidate{c})
+	report.Results = append(report.Results,
+		"  origin: "+c.GetOrigin().String(),
+		"  media: "+c.GetMediaType(),
+		"  role: "+c.GetRole(),
+		"  model: "+c.GetModel(),
+		"  parent: "+c.GetParentId(),
+		"  note: "+c.GetNote(),
+		"  prompt: "+c.GetPrompt(),
+	)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
 func (h *handlers) refine(ctx cliapp.RunContext) error {
@@ -145,19 +179,19 @@ func (h *handlers) refine(ctx cliapp.RunContext) error {
 	default:
 		req.Action = &candsv1.RefineCandidateRequest_Instruction{Instruction: ctx.Flag("instruction")}
 	}
-	resp, err := h.client.RefineCandidate(context.Background(), connect.NewRequest(req))
+	resp, err := h.long.RefineCandidate(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("refine candidate", err, nil)
 	}
-	return renderCandidates(ctx, []*candsv1.LogoCandidate{resp.Msg.GetCandidate()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, candidatesReport([]*candsv1.LogoCandidate{resp.Msg.GetCandidate()}))
 }
 
 func (h *handlers) pick(ctx cliapp.RunContext) error {
-	resp, err := h.client.PickCandidate(context.Background(), connect.NewRequest(&candsv1.PickCandidateRequest{CandidateId: ctx.Positional("candidate-id")}))
+	resp, err := h.long.PickCandidate(context.Background(), connect.NewRequest(&candsv1.PickCandidateRequest{CandidateId: ctx.Positional("candidate-id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("pick candidate", err, nil)
 	}
-	return ctx.RenderMutation(cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Picked candidate %s (mark asset %s)", resp.Msg.GetCandidate().GetId(), resp.Msg.GetMarkAssetId())},
 		Changes: []string{fmt.Sprintf("vectorized=%t", resp.Msg.GetVectorized())},
 	})
@@ -168,7 +202,7 @@ func (h *handlers) reject(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("reject candidate", err, nil)
 	}
-	return renderCandidates(ctx, []*candsv1.LogoCandidate{resp.Msg.GetCandidate()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, candidatesReport([]*candsv1.LogoCandidate{resp.Msg.GetCandidate()}))
 }
 
 func (h *handlers) restore(ctx cliapp.RunContext) error {
@@ -176,20 +210,31 @@ func (h *handlers) restore(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("restore candidate", err, nil)
 	}
-	return renderCandidates(ctx, []*candsv1.LogoCandidate{resp.Msg.GetCandidate()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, candidatesReport([]*candsv1.LogoCandidate{resp.Msg.GetCandidate()}))
 }
 
-func renderCandidates(ctx cliapp.RunContext, list []*candsv1.LogoCandidate) error {
+// candidatesReport is the human view; --json emits the typed response instead.
+func candidatesReport(list []*candsv1.LogoCandidate) cliapp.ListReport {
 	rows := make([]string, 0, len(list))
 	for _, c := range list {
-		rows = append(rows, fmt.Sprintf("%s  %-12s %-18s %s", c.GetId(), c.GetStatus(), c.GetConcept(), c.GetAssetId()))
+		status := strings.TrimPrefix(c.GetStatus().String(), "CANDIDATE_STATUS_")
+		origin := strings.TrimPrefix(c.GetOrigin().String(), "CANDIDATE_ORIGIN_")
+		rows = append(rows, fmt.Sprintf("%s  %-10s %-18s %-26s %s", c.GetId(), status, origin, truncate(c.GetConcept(), 26), c.GetModel()))
 	}
-	return ctx.RenderList(cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("%d candidate(s).", len(list))},
 		ResultsHeading: "Candidates",
 		Results:        rows,
-		RetrievalHints: []string{"`candidates pick <id>` — promote the chosen mark"},
-	})
+		RetrievalHints: []string{"`candidates get <id>` — prompt, role, model and lineage", "`candidates pick <id>` — promote the chosen mark"},
+	}
+}
+
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
 }
 
 func statusFromString(s string) candsv1.CandidateStatus {

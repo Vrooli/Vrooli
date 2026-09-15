@@ -53,6 +53,7 @@ li[data-readable="true"] .cc-source-dot { background: var(--color-primary); bord
 .cc-scene-layer, .cc-scene { position: absolute; inset: 0; }
 .cc-scene canvas { display: block; width: 100%; height: 100%; }
 .cc-scene-still { position: absolute; inset: 0; background: radial-gradient(60% 60% at 68% 50%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 70%), repeating-radial-gradient(circle at 68% 50%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0 1px, transparent 1px 42px); }
+.cc-room[data-composition="conversion-funnel"] .cc-scene-layer { opacity: .42; }
 @keyframes cc-beat-enter { from { opacity: 0; transform: translateY(0.45rem); } to { opacity: 1; transform: none; } }
 .cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto minmax(0, 1fr) auto; --strip-max: calc((100% - var(--viewport-pad) * 4.2 - 1.6rem) * 0.36); padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
 .cc-figure-layer > * { pointer-events: auto; }
@@ -228,6 +229,9 @@ li[data-readable="true"] .cc-source-dot { background: var(--color-primary); bord
 .cc-panel-readout__row--hollow { border-style: dashed; background: transparent; }
 .cc-panel-readout__row--dotted { border-style: dotted; opacity: .56; }
 .cc-panel-readout__empty { padding-top: .5rem; color: var(--color-muted-foreground); font-size: var(--text-micro, .68rem); letter-spacing: .08em; }
+.cc-panel-readout__empty { display: flex; flex-direction: column; gap: .45rem; max-width: 22rem; line-height: 1.45; }
+.cc-panel-readout__empty-mark, .cc-panel-tile__empty-mark { color: var(--color-primary); font-size: 1.35rem; line-height: 1; }
+.cc-panel-readout__empty small { color: color-mix(in srgb, var(--color-muted-foreground) 75%, transparent); font: inherit; letter-spacing: .04em; }
 .cc-funnel-readout, .cc-leaderboard-readout { width: min(42rem, 72vw); display: flex; flex-direction: column; gap: .7rem; }
 .cc-funnel-readout ol, .cc-leaderboard-readout ol { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .cc-funnel-readout li, .cc-leaderboard-readout li { display: grid; grid-template-columns: minmax(8rem, 1.4fr) auto auto; gap: .35rem .8rem; align-items: baseline; padding: .55rem .7rem; border-left: 2px solid var(--color-primary); background: color-mix(in srgb, var(--color-surface) 65%, transparent); }
@@ -339,6 +343,7 @@ li[data-readable="true"] .cc-source-dot { background: var(--color-primary); bord
 .cc-panel-tile__row > span:last-child { font-variant-numeric: tabular-nums; color: var(--color-foreground); }
 .cc-panel-tile[data-provenance="sample"] .cc-panel-tile__rows { padding-left: 0.4rem; border-left: 1.5px dotted currentColor; opacity: 0.6; }
 .cc-panel-tile__more, .cc-panel-tile__empty { margin-top: 0.2rem; font: 500 var(--text-micro) var(--font-mono); color: var(--color-muted-foreground); }
+.cc-panel-tile__empty { display: flex; flex-direction: column; gap: .35rem; line-height: 1.4; }
 
 /* ── Auto-scroll: a list that is tall by nature (UI-ARCHITECTURE §"Fitting a landscape room") ── */
 /* The wrapper owns the floor, so a squeezed list keeps two rows' height instead of spilling over what follows it. */

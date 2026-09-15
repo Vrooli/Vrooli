@@ -30,13 +30,18 @@ export async function listCandidates(
   return resp.candidates;
 }
 
-/** exploreCandidates fans out N concepts × M variations in one request. */
+/**
+ * exploreCandidates fans out N concepts × M variations in one request. A style
+ * reference brand (id or slug) renders every concept to match that brand's
+ * approved mark, which keeps a product line one family.
+ */
 export async function exploreCandidates(input: {
   brandId: string;
   brief: string;
   concepts: string[];
   variations: number;
   preferVector: boolean;
+  styleReferenceBrand?: string;
 }): Promise<ExploreCandidatesResponse> {
   return candidatesClient.exploreCandidates({
     brandId: input.brandId,
@@ -44,6 +49,7 @@ export async function exploreCandidates(input: {
     concepts: input.concepts,
     variations: input.variations,
     preferVector: input.preferVector,
+    styleReferenceBrand: input.styleReferenceBrand ?? "",
   });
 }
 

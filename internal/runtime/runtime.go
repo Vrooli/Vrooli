@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/clock"
@@ -577,7 +578,52 @@ func inspectRequirement(host Host, requirement hostreqspec.ResolvedRequirement) 
 	if h == nil {
 		return hostreqkit.UnsupportedRequirementStatus(requirement, "no native runtime handler registered")
 	}
-	return h.Inspect(host, requirement)
+	return honorDeclaredNotApplicable(host, requirement, h.Inspect(host, requirement))
+}
+
+// honorDeclaredNotApplicable keeps a safeguard handler from contradicting its
+// own manifest. A platform the manifest declares not_applicable is satisfied by
+// definition; a handler that reports unsupported there makes a required
+// safeguard fail `vrooli setup` on that platform. On 2026-09-15 two handlers
+// did exactly that and blocked every Mac from updating, and thirteen more
+// reported unsupported where their manifests said not_applicable.
+func honorDeclaredNotApplicable(host Host, requirement hostreqspec.ResolvedRequirement, status ItemStatus) ItemStatus {
+	if requirement.Kind != hostreqspec.KindSafeguard || status.ExecutionState != hostreqkit.ExecutionUnsupported {
+		return status
+	}
+	platform := string(hostreqspec.PlatformFromGOOS(host.OS))
+	if platform == "" || declaredSafeguardPlatformStatus(requirement.Name, platform) != "not_applicable" {
+		return status
+	}
+	status.SupportClass = hostreqkit.SupportNotApplicable
+	status.ExecutionState = hostreqkit.ExecutionNotApplicable
+	status.Notes = append(status.Notes, "the safeguard manifest declares "+platform+" not applicable")
+	return status
+}
+
+var (
+	declaredPlatformStatusOnce sync.Once
+	declaredPlatformStatus     map[string]map[string]string
+)
+
+// declaredSafeguardPlatformStatus returns the manifest's platform_status for one
+// safeguard ("" when undeclared or the catalog cannot be read).
+func declaredSafeguardPlatformStatus(name, platform string) string {
+	declaredPlatformStatusOnce.Do(func() {
+		declaredPlatformStatus = map[string]map[string]string{}
+		manifests, err := safeguardManifests()
+		if err != nil {
+			return
+		}
+		for _, manifest := range manifests {
+			byPlatform := make(map[string]string, len(manifest.PlatformStatus))
+			for key, declared := range manifest.PlatformStatus {
+				byPlatform[key] = declared.Status
+			}
+			declaredPlatformStatus[manifest.Name] = byPlatform
+		}
+	})
+	return declaredPlatformStatus[name][platform]
 }
 
 func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {

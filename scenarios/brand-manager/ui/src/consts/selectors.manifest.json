@@ -273,6 +273,10 @@
       "testId": "logo-variations-input",
       "selector": "[data-testid=\"logo-variations-input\"]"
     },
+    "logo.styleReferenceSelect": {
+      "testId": "logo-style-reference-select",
+      "selector": "[data-testid=\"logo-style-reference-select\"]"
+    },
     "logo.exploreSubmit": {
       "testId": "logo-explore-submit",
       "selector": "[data-testid=\"logo-explore-submit\"]"
@@ -596,7 +600,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "77fc98cb0345d21cbf14c2ea6509163b7374155d6bc3b031f41fc6d8e00e8550",
+    "ui/src/consts/selectors.ts": "2ab94924111f995458a18ce1c4ac6e476a06ea42e8f66c5f0c3855ac3bf99b70",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -148,3 +148,28 @@ func TestEnforceResourceHostRequirementsUsesControllerEnvironment(t *testing.T) 
 		t.Fatalf("Environment = %q, want production", captured.Environment)
 	}
 }
+
+func TestEnforceResourceHostRequirementsUsesProductionForCLIArtifact(t *testing.T) {
+	t.Setenv("VROOLI_CLI_ARTIFACT_MODE", "1")
+	prev := enforceHostRequirementsFn
+	var captured vrooliruntime.Options
+	enforceHostRequirementsFn = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
+		captured = opts
+		return vrooliruntime.Report{}, nil
+	}
+	t.Cleanup(func() { enforceHostRequirementsFn = prev })
+
+	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	deps := rootcli.HandlerDeps[testContext]{
+		Stdout: func(c testContext) io.Writer { return c.stdout },
+		Stderr: func(c testContext) io.Writer { return c.stderr },
+	}
+	controller := &resources.Controller{Root: "/root", Home: "/home", Environment: "development"}
+
+	if err := enforceResourceHostRequirements(ctx, deps, controller, "postgres", "start"); err != nil {
+		t.Fatalf("enforceResourceHostRequirements: %v", err)
+	}
+	if captured.Environment != "production" {
+		t.Fatalf("Environment = %q, want production", captured.Environment)
+	}
+}

@@ -22,7 +22,7 @@ var (
 	credentialStatusCommand = "status"
 	credentialRootNames     = []string{"doctor", "list", "delete", "provision", credentialStatusCommand}
 	credentialGroupNames    = map[string][]string{
-		"store":      {credentialStatusCommand, "init", "unlock", "lock", "rewrap", "change-passphrase"},
+		"store":      {credentialStatusCommand, "init", "unlock", "lock", "rewrap", "change-passphrase", "add-passphrase", "verify-passphrase"},
 		"keyring":    {credentialStatusCommand, "inspect", "repair", "unlock"},
 		"recovery":   {"export", "verify", "restore"},
 		"extensions": {"install", "uninstall", credentialStatusCommand},
@@ -246,6 +246,10 @@ func dispatchCredentialGroup(app *credentialsapp.Service, ctx *rootcli.CommandCo
 			return app.StoreRewrap(ctx.OperationContext(), ctx.Stdout, ctx.Stderr, format, ctx.Input())
 		case "change-passphrase":
 			return app.StoreChangePassphrase(ctx.OperationContext(), ctx.Stdout, ctx.Stderr, ctx.Input())
+		case "add-passphrase":
+			return app.StoreAddPassphrase(ctx.OperationContext(), ctx.Stdout, format, ctx.Input())
+		case "verify-passphrase":
+			return app.StoreVerifyPassphrase(ctx.OperationContext(), ctx.Stdout, format, ctx.Input())
 		}
 	case "keyring":
 		opts := credentialsapp.KeyringOptions{Path: flagValue(runCtx, "path"), Format: format}

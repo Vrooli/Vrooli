@@ -147,7 +147,14 @@ type Service struct {
 	// that appears after boot is seen as a transition rather than as a steady
 	// state.
 	acceleratorWatcher accel.ReadinessWatcher
+	// lastLogBound is when the scenario log size bound last ran; it runs at
+	// most once per logBoundInterval, not every renewal tick.
+	lastLogBound time.Time
 }
+
+// logBoundInterval spaces log bound sweeps. A runaway writer is caught within
+// this window; a sweep over an ordinary logs tree costs a directory walk.
+const logBoundInterval = 5 * time.Minute
 
 type TickReport struct {
 	SupervisorID string `json:"supervisor_id"`
@@ -166,6 +173,14 @@ type TickReport struct {
 	// Accelerator records what this tick decided about host accelerator
 	// readiness. Zero-valued when no accelerator probe is configured.
 	Accelerator AcceleratorReprobeReport `json:"accelerator"`
+	// LogBound reports the scenario log size bound when it ran this tick.
+	LogBound LogBoundReport `json:"log_bound"`
+}
+
+type LogBoundReport struct {
+	Ran            bool  `json:"ran"`
+	Trimmed        int   `json:"trimmed"`
+	ReclaimedBytes int64 `json:"reclaimed_bytes"`
 }
 
 type RecoveryReport struct {
@@ -458,8 +473,36 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	}
 	report.Recovery = recovery
 	report.Accelerator = s.reprobeAccelerators(ctx)
+	report.LogBound = s.boundLogs()
 	s.lastReport = report
 	return report, nil
+}
+
+// boundLogs keeps every scenario log under the runtime logs root within
+// process.DefaultLogFileLimit. Detached scenario processes write straight into
+// these files, so nothing else bounds them while a process runs for weeks.
+func (s *Service) boundLogs() LogBoundReport {
+	now := s.now()
+	if !s.lastLogBound.IsZero() && now.Sub(s.lastLogBound) < logBoundInterval {
+		return LogBoundReport{}
+	}
+	s.lastLogBound = now
+	root, err := process.LogsRoot(s.cfg.HomeDir)
+	if err != nil {
+		s.logf("log bound skipped: %v", err)
+		return LogBoundReport{}
+	}
+	result, err := process.BoundLogs(root, process.DefaultLogFileLimit, process.DefaultLogTailKeep)
+	if err != nil {
+		s.logf("log bound degraded: %v", err)
+	}
+	for _, problem := range result.Errors {
+		s.logf("log bound could not trim %s", problem)
+	}
+	if len(result.Trimmed) > 0 {
+		s.logf("log bound trimmed %d file(s), reclaimed %d bytes: %s", len(result.Trimmed), result.ReclaimedBytes, strings.Join(result.Trimmed, ", "))
+	}
+	return LogBoundReport{Ran: true, Trimmed: len(result.Trimmed), ReclaimedBytes: result.ReclaimedBytes}
 }
 
 func listenerEvidenceFromActiveClaims(claims []scenarioruntime.PortClaim, inspect PortListenerFunc) map[int]scenarioruntime.ListenerEvidence {

@@ -645,10 +645,15 @@ func runUnsupportedPlatform(t suiteT, c Case, unsupported string) {
 		return
 	}
 	t.Run("inspect_unsupported_platform", func(t suiteT) {
+		// A platform outside SupportedPlatforms must be refused before any
+		// probe: unsupported, or not_applicable when the manifest declares the
+		// requirement meaningless there. Which of the two is correct is the
+		// manifest's call, enforced fleet-wide by the runtime test
+		// TestSafeguardInspectHonorsDeclaredNotApplicablePlatforms.
 		h := c.NewHandler()
 		status := h.Inspect(hostreqkit.Host{OS: unsupported}, baseRequirement(c))
-		if status.SupportClass != hostreqkit.SupportUnsupported {
-			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
+		if status.SupportClass != hostreqkit.SupportUnsupported && status.SupportClass != hostreqkit.SupportNotApplicable {
+			t.Errorf("SupportClass = %q, want %q or %q", status.SupportClass, hostreqkit.SupportUnsupported, hostreqkit.SupportNotApplicable)
 		}
 	})
 }

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -29,7 +31,7 @@ var groupCommandNames = map[string][]string{
 	"receipt":    {"get"},
 	"release":    {"verify", "stage", "activate", "rollback", "list", "prune"},
 	"data":       {"inventory", "backup", "restore", "verify"},
-	"host":       {"observe", "repair"},
+	"host":       {"observe", "bootstrap", "repair"},
 	"credential": {"ingest", "acknowledge", "revoke"},
 	"edge":       {"route-apply", "route-rollback", "route-status"},
 }
@@ -157,6 +159,7 @@ func writeHelp(out io.Writer) error {
 		"  vrooli cloud-target data restore --deployment <id> --operation <id> --step <id> --fence <n> --recovery-point <id> --into <binding>=<locator>... [--binding <id>]...",
 		"  vrooli cloud-target data verify --deployment <id> --recovery-point <id> [--open] [--expect <json>]",
 		"  vrooli cloud-target host observe --kind <typed observation> [--arg <semantic argument>]...",
+		"  vrooli cloud-target host bootstrap   (install or restart the managed privilege broker)",
 		"  vrooli cloud-target host repair --action <privilege-broker action> [--subject <json>] [--deployment --operation --step --fence]",
 		"  vrooli cloud-target edge route apply --deployment <id> --operation <id> --step <id> --fence <n> (--spec <json> | --spec-file <path>)",
 		"  vrooli cloud-target edge route rollback --deployment <id> --operation <id> --step <id> --fence <n>",
@@ -358,6 +361,37 @@ func execute(ctx *rootcli.CommandContext, verbs Deps, verb string, runCtx cliapp
 			value["error"] = cloudtarget.AsError(err)
 		}
 		return value, err
+	case "host bootstrap":
+		executable, err := os.Executable()
+		if err != nil {
+			return nil, fmt.Errorf("resolve target CLI executable: %w", err)
+		}
+		repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+		// The managed artifact runner intentionally changes source-root
+		// environment variables. The durable repository contract beside the
+		// delivered CLI is the authoritative bootstrap anchor.
+		if candidate := filepath.Clean(filepath.Join(filepath.Dir(executable), "..", "..")); candidate != "." {
+			if _, statErr := os.Stat(filepath.Join(candidate, ".vrooli", "repo-contract.json")); statErr == nil {
+				repoRoot = candidate
+			}
+		}
+		if repoRoot == "" {
+			repoRoot, err = os.Getwd()
+			if err != nil {
+				return nil, fmt.Errorf("resolve target repository root: %w", err)
+			}
+		}
+		status, err := privilegebroker.DefaultInstallerForRepo(executable, repoRoot).Install(operationCtx)
+		if err == nil {
+			if userErr := ensureDeclaredServiceUsers(repoRoot); userErr != nil {
+				err = userErr
+			}
+		}
+		value := map[string]any{"result": status}
+		if err != nil {
+			value["error"] = cloudtarget.AsError(err)
+		}
+		return value, err
 	case "host observe":
 		result, err := cloudtarget.Observe(operationCtx, cloudtarget.ObservationRequest{Kind: runCtx.Flag("kind"), Args: runCtx.FlagValues("arg")}, verbs.Runner)
 		value := map[string]any{"result": result}
@@ -430,6 +464,56 @@ func execute(ctx *rootcli.CommandContext, verbs Deps, verb string, runCtx cliapp
 	default:
 		return nil, fmt.Errorf("cloud-target verb %q has no handler", verb)
 	}
+}
+
+// ensureDeclaredServiceUsers prepares the accounts declared by resource-owned
+// managed-service manifests. The target owner performs this once during host
+// bootstrap, before resource lifecycle commands are invoked under those
+// accounts.
+func ensureDeclaredServiceUsers(repoRoot string) error {
+	resourcesRoot := filepath.Join(repoRoot, "resources")
+	entries, err := os.ReadDir(resourcesRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read resource declarations: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(resourcesRoot, entry.Name(), "resource.json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("read resource declaration %s: %w", entry.Name(), err)
+		}
+		var raw struct {
+			ManagedService *struct {
+				RunAsUser string `json:"run_as_user"`
+			} `json:"managed_service"`
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return fmt.Errorf("parse resource declaration %s: %w", entry.Name(), err)
+		}
+		if raw.ManagedService == nil || strings.TrimSpace(raw.ManagedService.RunAsUser) == "" {
+			continue
+		}
+		name := strings.TrimSpace(raw.ManagedService.RunAsUser)
+		if _, err := user.Lookup(name); err == nil {
+			continue
+		} else if _, unknown := err.(user.UnknownUserError); !unknown {
+			return err
+		}
+		cmd := shell.Command(shell.Spec{Name: "useradd", Args: []string{"--system", "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", name}})
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("create service user %s: %w: %s", name, err, strings.TrimSpace(string(output)))
+		}
+	}
+	return nil
 }
 
 // JSONArgPrefix marks a base64url-encoded JSON flag value. Argv-only

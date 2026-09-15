@@ -544,6 +544,13 @@ func TestHandleLogs(t *testing.T) {
 		}
 		rt := testRuntime(t, m)
 		server := NewServer(rt, "test-token")
+		logPath := filepath.Join(rt.appDataDir, "resources", "api", "logs", "service.log")
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(logPath, []byte("bundled api log"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
 		w := httptest.NewRecorder()
@@ -555,13 +562,13 @@ func TestHandleLogs(t *testing.T) {
 		resp := w.Result()
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusOK)
 		}
 
 		body, _ := io.ReadAll(resp.Body)
-		if !strings.Contains(string(body), "no log_dir") {
-			t.Fatalf("handleLogs() expected missing log_dir message, got %q", string(body))
+		if !strings.Contains(string(body), "bundled api log") {
+			t.Fatalf("handleLogs() expected conventional service log, got %q", string(body))
 		}
 	})
 

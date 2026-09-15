@@ -3,20 +3,27 @@ package ai
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
-// backendsDocPath locates docs/reference/backends.md relative to this test file
-// (api/internal/ai → ../../../docs/reference/backends.md).
+// backendsDocPath locates docs/reference/backends.md from the package directory
+// (api/internal/ai → ../../../docs/reference/backends.md). go test runs each
+// package in its own directory; runtime.Caller is not used because -trimpath
+// (which test-genie passes) rewrites it to a module-relative path.
 func backendsDocPath(t *testing.T) string {
 	t.Helper()
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot determine caller path")
+	return packageRelative(t, "..", "..", "..", "docs", "reference", "backends.md")
+}
+
+// packageRelative joins parts onto the absolute package directory.
+func packageRelative(tb testing.TB, parts ...string) string {
+	tb.Helper()
+	dir, err := filepath.Abs(".")
+	if err != nil {
+		tb.Fatalf("resolve package directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "docs", "reference", "backends.md"))
+	return filepath.Clean(filepath.Join(append([]string{dir}, parts...)...))
 }
 
 func extractGeneratedSection(t *testing.T, doc string) string {

@@ -39,7 +39,7 @@ func runVerb(t *testing.T, store *cloudtarget.Store, args ...string) (map[string
 
 func TestRegisteredCommandPathsMatchManifestGroups(t *testing.T) {
 	paths := RegisteredCommandPaths()
-	want := []string{"cloud-target receipt get", "cloud-target release verify", "cloud-target release stage", "cloud-target release activate", "cloud-target release rollback", "cloud-target release list", "cloud-target release prune", "cloud-target data inventory", "cloud-target data backup", "cloud-target data restore", "cloud-target data verify", "cloud-target host observe", "cloud-target host repair", "cloud-target credential ingest", "cloud-target credential acknowledge", "cloud-target credential revoke", "cloud-target edge route-apply", "cloud-target edge route-rollback", "cloud-target edge route-status"}
+	want := []string{"cloud-target receipt get", "cloud-target release verify", "cloud-target release stage", "cloud-target release activate", "cloud-target release rollback", "cloud-target release list", "cloud-target release prune", "cloud-target data inventory", "cloud-target data backup", "cloud-target data restore", "cloud-target data verify", "cloud-target host observe", "cloud-target host bootstrap", "cloud-target host repair", "cloud-target credential ingest", "cloud-target credential acknowledge", "cloud-target credential revoke", "cloud-target edge route-apply", "cloud-target edge route-rollback", "cloud-target edge route-status"}
 	if strings.Join(paths, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("paths = %q", paths)
 	}

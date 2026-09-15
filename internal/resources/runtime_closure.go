@@ -154,6 +154,9 @@ func closureSearchDirs(artifactPath string, extraDirs []string) []string {
 // A Mach-O load command carries an absolute path or an @rpath-relative one; an
 // absolute path is checked where it points.
 func libraryResolves(library string, searched []string) bool {
+	if providedByDyldSharedCache(library, runtime.GOOS) {
+		return true
+	}
 	if strings.HasPrefix(library, "/") {
 		if _, err := os.Stat(library); err == nil {
 			return true
@@ -172,6 +175,18 @@ func libraryResolves(library string, searched []string) bool {
 		}
 	}
 	return false
+}
+
+// providedByDyldSharedCache reports whether a Mach-O dependency is an Apple
+// system library. Since macOS 11 those libraries are served from the dyld
+// shared cache and no longer exist as files, so os.Stat on
+// /usr/lib/libSystem.B.dylib fails on every Mac. SIP keeps third parties out of
+// both prefixes, so a load command naming them can only mean an OS library.
+func providedByDyldSharedCache(library, goos string) bool {
+	if goos != "darwin" {
+		return false
+	}
+	return strings.HasPrefix(library, "/usr/lib/") || strings.HasPrefix(library, "/System/Library/")
 }
 
 // declaredDependencies reads the binary's own headers. Nothing is executed.

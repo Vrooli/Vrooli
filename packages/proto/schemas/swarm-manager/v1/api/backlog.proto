@@ -540,6 +540,11 @@ message QueueBacklogItemRequest {
   }];
   optional domain.ExecutionPreferences execution_preferences = 9;
   optional string operator_note = 10;
+  // Operator-authorized response to a blocker outside the item's declared
+  // scope. Values are in_scope_only, investigate, or repair_and_continue.
+  optional string blocker_repair_policy = 11 [(buf.validate.field).string = {
+    in: ["in_scope_only", "investigate", "repair_and_continue"]
+  }];
 }
 
 // QueueBacklogItemResponse returns queue results.

@@ -19,6 +19,7 @@ const LANE_LABEL: Record<JobLane, (typeof strings.jobs.lane)[keyof typeof string
   [JobLane.UNSPECIFIED]: strings.jobs.lane.unspecified,
   [JobLane.GPU]: strings.jobs.lane.gpu,
   [JobLane.CPU]: strings.jobs.lane.cpu,
+  [JobLane.NETWORK]: strings.jobs.lane.network,
 };
 
 const STATE_LABEL: Record<JobState, (typeof strings.jobs.state)[keyof typeof strings.jobs.state]> = {

@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -110,6 +111,12 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 	}
 	healthTimeout := tuning.SetupOperationTimeout()
 	if !healthy {
+		// An unhealthy project API that still holds the port would make the
+		// fresh one fail to bind. minimouse kept one for 37 days, running from
+		// a deleted checkout and answering 503 to every CLI call.
+		for _, pid := range replaceUnhealthyProjectAPI(apiPort, defaultAPIProcessOps()) {
+			_, _ = fmt.Fprintf(stdout, "[INFO]    Stopped unhealthy vrooli-api (pid %d) holding port %d\n", pid, apiPort)
+		}
 		spec, err := buildAPILaunchSpec(root, home, env, apiPort)
 		if err != nil {
 			return err
@@ -262,6 +269,62 @@ func resolveAPIPort(values map[string]string) int {
 		}
 	}
 	return defaultAPIPort
+}
+
+// apiProcessOps are the host operations replaceUnhealthyProjectAPI needs.
+type apiProcessOps struct {
+	listeners func(port int) []int
+	exePath   func(pid int) (string, error)
+	kill      func(pid int, force bool) error
+	alive     func(pid int) bool
+	grace     time.Duration
+}
+
+func defaultAPIProcessOps() apiProcessOps {
+	return apiProcessOps{
+		listeners: func(port int) []int {
+			var pids []int
+			for _, listener := range network.CaptureTCPListenerSnapshot().Listening(port).Listeners {
+				if listener.PID > 0 {
+					pids = append(pids, listener.PID)
+				}
+			}
+			return pids
+		},
+		exePath: platform.ProcessExecutablePath,
+		kill:    platform.KillProcess,
+		alive:   platform.IsPIDRunning,
+		grace:   5 * time.Second,
+	}
+}
+
+// replaceUnhealthyProjectAPI stops every vrooli-api process listening on port
+// and returns their pids. Only the project API's own executable is touched: a
+// port held by any other program is left for the launch to report.
+func replaceUnhealthyProjectAPI(port int, ops apiProcessOps) []int {
+	var stopped []int
+	for _, pid := range ops.listeners(port) {
+		exe, err := ops.exePath(pid)
+		if err != nil {
+			continue
+		}
+		base := strings.TrimSuffix(filepath.Base(strings.TrimSuffix(exe, " (deleted)")), ".exe")
+		if base != "vrooli-api" {
+			continue
+		}
+		if ops.kill(pid, false) != nil {
+			continue
+		}
+		deadline := time.Now().Add(ops.grace)
+		for ops.alive(pid) && time.Now().Before(deadline) {
+			time.Sleep(100 * time.Millisecond)
+		}
+		if ops.alive(pid) {
+			_ = ops.kill(pid, true)
+		}
+		stopped = append(stopped, pid)
+	}
+	return stopped
 }
 
 func apiAlreadyHealthy(port int) (bool, error) {

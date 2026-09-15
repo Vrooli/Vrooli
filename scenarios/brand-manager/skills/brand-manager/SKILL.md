@@ -36,6 +36,8 @@ The pipeline concept and the exact target profiles live in
 | Create a brand | `brand-manager brands create --name <name> --display-name <name>` |
 | Link a brand's slug, mark, style and line | `brand-manager brands set-identity <id> --slug <slug> --mark-asset <asset> --container-style <style-id> --product-line <line-id>` |
 | Explore concepts | `brand-manager candidates explore --brand-id <id> --brief "<product>" --concept "<direction>" --variations 2` |
+| Explore in a product line's style | `brand-manager candidates explore --brand-id <id> --style-reference-brand <sibling-slug> --concept "<subject>" --variations 2` |
+| Inspect a candidate's prompt, role and model | `brand-manager candidates get <candidate-id>` |
 | Import an existing image | `brand-manager candidates import --brand-id <id> --asset-id <asset> --concept "<label>"` |
 | Refine a candidate | `brand-manager candidates refine <candidate-id> --instruction "…"` / `--mask-asset <asset>` / `--remove-background` / `--vectorize` |
 | Pick the mark | `brand-manager candidates pick <candidate-id>` |
@@ -46,24 +48,34 @@ The pipeline concept and the exact target profiles live in
 
 ### 2. The logo-refresh workflow
 
-1. **Explore when the direction is open.** `candidates explore` fans out one
-   generation per concept and variation. Ask for variations once a direction is
-   chosen, not before.
-2. **Write mark-only prompts.** Ask for the figure on a transparent background.
-   Never ask the model for the tile, frame, padding, shadow or text — the
-   container is composed deterministically from a `ContainerStyle`.
-3. **Show candidates on the Logo page.** The UI (`/logo`) is the operator
+1. **Explore when the direction is open.** `candidates explore` renders every
+   concept × variation in parallel with an illustration model
+   (`image.generate.default`). Ask for variations once a direction is chosen,
+   not before.
+2. **Match the product line.** For a brand in a line whose first product has an
+   approved mark, pass `--style-reference-brand <that-slug>`. Every concept is
+   then rendered from that brand's approved raster through the edit role, so the
+   new mark inherits the tile, glow, line weight and polish, and only the subject
+   changes. Describe only the subject in `--concept`.
+3. **Describe the subject, not the rendering.** explore writes the rendering
+   brief itself: a finished icon on the container style's tile, with its accent
+   and glow. Do not ask for "flat vector line art". The vector role
+   (`--prefer-vector`) draws flat geometric marks that look unfinished, so use it
+   only for a deliberately flat direction.
+4. **Show candidates on the Logo page.** The UI (`/logo`) is the operator
    surface: gallery, compare, pick/reject/restore, refine and the target preview
    sheet. CLI `candidates list` also lists them.
-4. **Pick deliberately.** `candidates pick` promotes one candidate to the
+5. **Pick deliberately.** `candidates pick` promotes one candidate to the
    brand's canonical mark. A raster pick is vectorized through image-tools first
-   and the VECTORIZED child is what is picked; the raster stays in history.
-5. **Apply.** The scenario declares its targets in `.vrooli/service.json`
+   (keeping white and the container accent, clipped to the tile) and the
+   VECTORIZED child is what is picked; the raster stays in history and becomes
+   the style reference for the next product in the line.
+6. **Apply.** The scenario declares its targets in `.vrooli/service.json`
    (`branding.brand` + `branding.targets`); `apply run --elements icons` writes
    every declared target to the `/public/*` layout, the marked `index.html`
    block, a relative-src `site.webmanifest`, the og/twitter meta, and the
    electron PNGs, `icon.ico` and `icon.icns`.
-6. **Validate and publish.** `provider validate <scenario>` proves the declared
+7. **Validate and publish.** `provider validate <scenario>` proves the declared
    targets; `vrooli scenario restart <scenario>` (use a UI-only restart when
    available) publishes the new assets.
 
@@ -84,7 +96,9 @@ The pipeline concept and the exact target profiles live in
 | Symptom | Cause and action |
 |---------|------------------|
 | `image-tools is not reachable` | Start it: `vrooli scenario start image-tools`. |
-| Generation falls back to raster | The SVG role may be unavailable; record `media_type` and rely on `candidates pick` vectorizing the raster. |
+| Concepts look flat, geometric or primitive | They came from a vector model. Check `candidates get <id>`: the role should be `image.generate.default` (or `image.edit.default` with a style reference) and the model an illustration model such as `bytedance-seed/seedream-4.5`. Drop `--prefer-vector` and any `--role image.*.vector`/`image.generate.logo`. |
+| Concepts look muddy or ignore the prompt; a "local model" warning | They rendered on local SD 1.5. Do not pass `--fallback-policy local_only`; explore permits the cloud tier by default. |
+| A new product does not look like its line | Re-run explore with `--style-reference-brand <first-product-slug>`. |
 | Vectorize parity is off | Tune `--keep-color`, `--inset-px` and `--tolerance-px`, or re-pick. |
 | UI still shows old icons after apply | Rebuild/restart the UI component; an icon-only change lives under `ui/public/**`, which the `pnpm_vite` builder treats as an input. |
 | `provider validate` reports `declared-icon-targets` | Run `apply run --elements icons` for the declared brand, then re-validate. |

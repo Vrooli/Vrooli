@@ -225,6 +225,8 @@ export const strings = {
     conceptsLabel: "logo.conceptsLabel",
     conceptsPlaceholder: "logo.conceptsPlaceholder",
     variationsLabel: "logo.variationsLabel",
+    styleReferenceLabel: "logo.styleReferenceLabel",
+    styleReferenceNone: "logo.styleReferenceNone",
     preferVectorLabel: "logo.preferVectorLabel",
     exploreSubmit: "logo.exploreSubmit",
     exploring: "logo.exploring",

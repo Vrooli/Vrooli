@@ -130,7 +130,8 @@
     "lane": {
       "unspecified": "未指定",
       "gpu": "GPU",
-      "cpu": "CPU"
+      "cpu": "CPU",
+      "network": "クラウド"
     },
     "state": {
       "unspecified": "未指定",

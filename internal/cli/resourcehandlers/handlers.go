@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -832,10 +833,18 @@ func enforceResourceHostRequirements[C any](ctx C, deps rootcli.HandlerDeps[C], 
 	if enforceHostRequirementsFn == nil {
 		return nil
 	}
+	environment := controller.Environment
+	// A staged production CLI is deliberately invoked from a sealed artifact
+	// root. Development-only host tools (for example protoc-gen-es) are not
+	// part of that contract. Keep the shared Controller default stable for
+	// workstation callers and select production only for this target path.
+	if os.Getenv("VROOLI_CLI_ARTIFACT_MODE") == "1" {
+		environment = "production"
+	}
 	if _, err := enforceHostRequirementsFn(vrooliruntime.Options{
 		Root:        controller.Root,
 		Home:        controller.Home,
-		Environment: hostreqspec.NormalizeEnvironment(controller.Environment),
+		Environment: hostreqspec.NormalizeEnvironment(environment),
 		When:        "develop",
 		Resources:   name,
 		Scenarios:   "none",

@@ -25,6 +25,7 @@ service MachineService {
   rpc RevokeMachineNode(RevokeMachineNodeRequest) returns (RevokeMachineNodeResponse);
   rpc RepairMachine(RepairMachineRequest) returns (RepairMachineResponse);
   rpc MergeMachines(MergeMachinesRequest) returns (MergeMachinesResponse);
+  rpc RotateMachineCredentialStore(RotateMachineCredentialStoreRequest) returns (RotateMachineCredentialStoreResponse);
 }
 
 message ConnectionLocator {
@@ -253,4 +254,24 @@ message MergeMachinesRequest {
 message MergeMachinesResponse {
   Machine machine = 1;
   string archived_machine_id = 2;
+}
+
+// Rotating replaces the passphrase of the machine's own encrypted credential
+// store with a fresh one generated and escrowed on this control plane, over
+// Bridge-managed SSH, then re-pushes the node agent's unlock grant. A re-run
+// finishes an interrupted rotation. The passphrase never appears in the
+// request, the response, or the audit record. Owner-gated.
+message RotateMachineCredentialStoreRequest {
+  string machine_id = 1;
+}
+message RotateMachineCredentialStoreResponse {
+  string machine_id = 1;
+  string node_id = 2;
+  // resumed is true when an earlier interrupted rotation was finished instead
+  // of starting a new one.
+  bool resumed = 3;
+  // agent_unlock is "verified", "not_required" (the store opens through an
+  // unattended wrap at boot), or "unverified".
+  string agent_unlock = 4;
+  string detail = 5;
 }

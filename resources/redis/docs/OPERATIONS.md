@@ -2,8 +2,10 @@
 
 `redis` is organized as a native `managed-service` resource. Linux uses the
 digest-pinned OCI tree without a container runtime, while Windows amd64 uses a
-checksum-pinned Redis 8.10.0 MSYS2 archive. macOS and Windows ARM remain
-explicitly unsupported until a matching native artifact is available.
+checksum-pinned Redis 8.10.0 MSYS2 archive, and macOS stages the plain
+`redis-server` (7.4.1) from the checksum-pinned official redis-stack-server
+7.4.0-v1 archive without loading its modules. Windows ARM remains explicitly
+unsupported until a matching native artifact is available.
 
 ## Architecture Boundary
 

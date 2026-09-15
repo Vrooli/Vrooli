@@ -256,6 +256,10 @@ func (s *PreflightStage) runPreflight(input *StageInput, result *StageResult) (*
 		BundleRoot:         bundleRoot,
 		Secrets:            input.Config.PreflightSecrets,
 		StartServices:      true,
+		// Preserve bounded service logs in the durable preflight result. This is
+		// especially important when a bundled service never reaches readiness
+		// and the temporary runtime is stopped after the gate.
+		LogTailLines: 80,
 	}
 
 	if input.Config.PreflightTimeoutSeconds > 0 {

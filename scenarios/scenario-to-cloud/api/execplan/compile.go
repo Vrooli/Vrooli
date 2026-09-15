@@ -124,6 +124,14 @@ type CompileInputs struct {
 // mirrors the privilege broker's apt allowlist.
 var HostPreparePackages = []string{"ca-certificates", "curl", "git", "gnupg", "jq", "lsb-release", "tar", "unzip"}
 
+func hostPreparePackages(edgeEnabled bool) []string {
+	packages := append([]string(nil), HostPreparePackages...)
+	if edgeEnabled {
+		packages = append(packages, "caddy")
+	}
+	return packages
+}
+
 // Directory names the legacy inventory heuristic treats as mutable data.
 var LegacyMutableDirNames = []string{"cache", "data", "files", "logs", "runtime", "state", "storage", "tmp", "uploads"}
 
@@ -466,7 +474,7 @@ func installActions(in CompileInputs) []Action {
 		Effect:             EffectHostWrite,
 		RequiredCapability: "privilegebroker:apt.packages.ensure",
 		Inputs: map[string]string{
-			"packages":   strings.Join(HostPreparePackages, ","),
+			"packages":   strings.Join(hostPreparePackages(in.Manifest.Edge.Caddy.Enabled || strings.TrimSpace(in.Manifest.Edge.Domain) != ""), ","),
 			"workdir":    lay.workdir,
 			"bundle_dir": lay.bundleDir,
 		},
@@ -679,7 +687,12 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		return actions
 	}
 	activateDeps := []string{OpCredentialsProvision, OpRuntimeStartDeps}
-	if len(bindings) > 0 || len(legacy) > 0 {
+	// A first install has no prior deployment data to preserve. Requiring a
+	// database-native backup client for that case makes a minimal target
+	// impossible to bootstrap, even when its database is empty. Updates and
+	// greenfield-with-data still take the backup before any destructive step.
+	needsBackup := migrationPosture(in, update) != domain.MigrationPostureGreenfield
+	if (len(bindings) > 0 || len(legacy) > 0) && needsBackup {
 		verification := "recovery_point_recorded"
 		precondition := ""
 		if update && in.Observations.DataSchemaVersion != "" {

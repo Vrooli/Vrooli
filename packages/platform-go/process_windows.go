@@ -119,8 +119,10 @@ func pidIsAlive(pid int) bool {
 }
 
 func readProcessEnvironment(int) (map[string]string, error) {
-	return nil, fmt.Errorf("platform: process environment inspection is not supported on Windows")
+	return nil, fmt.Errorf("platform: process environment inspection is not supported on Windows: %w", ErrUnsupported)
 }
+
+func processExecutablePath(int) (string, error) { return "", ErrUnsupported }
 
 // processCommandLine asks WMI through PowerShell, the supported way to read
 // another process's command line on Windows without a native query.

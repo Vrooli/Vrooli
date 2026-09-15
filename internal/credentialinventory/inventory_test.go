@@ -90,6 +90,30 @@ func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
 	}
 }
 
+func TestManagedDesktopSigningIdentityMatchesSharedAndScenarioNamespaces(t *testing.T) {
+	cases := map[string]bool{
+		"vrooli/desktop-signing":                   true,
+		"vrooli/desktop-signing-e2e":               true,
+		"vrooli/desktop-signing/prod":              true,
+		"vrooli/scenario-to-desktop/hello-desktop": true,
+		"vrooli/scenario-to-desktop":               false,
+		"vrooli/desktop-signingish":                false,
+		"device-control/android-1/unlock":          false,
+		"vrooli/release-authority":                 false,
+	}
+	for identity, want := range cases {
+		if got := isManagedDesktopSigningIdentity(identity); got != want {
+			t.Errorf("isManagedDesktopSigningIdentity(%q) = %v, want %v", identity, got, want)
+		}
+	}
+	if !isManagedDesktopSigningField("gpg-private-key") || !isManagedDesktopSigningField("gpg-passphrase") {
+		t.Error("expected both managed signing fields to match")
+	}
+	if isManagedDesktopSigningField("api-key") {
+		t.Error("unrelated field must not match")
+	}
+}
+
 func TestGeneratedCredentialIsInventoriedAndRecoverable(t *testing.T) {
 	store := testenv.NewCredentialStore(securestore.ErrNotFound)
 	authority, err := credentialauthority.NewAuthority(store)

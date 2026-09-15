@@ -342,6 +342,10 @@ const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || ""
 const smokeTestTimeoutMs = Number.isFinite(smokeTestTimeoutCandidate) && smokeTestTimeoutCandidate > 0
     ? smokeTestTimeoutCandidate
     : APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
+// The smoke orchestrator supplies a deployment-mode-specific budget (bundled
+// startup is slower than an already-running external server). Normal desktop
+// launches retain the baked-in server readiness timeout.
+const serverCheckTimeoutMs = isSmokeTest ? smokeTestTimeoutMs : APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
 // Demo mode: after the headless smoke test passes, the Go service launches
 // the app a second time WITHOUT --smoke-test to capture the real startup
 // experience (splash screen, window frame, natural positioning) on video.
@@ -1309,12 +1313,12 @@ async function startBundledRuntime(): Promise<string> {
     if (isSmokeTest) SmokeTestProtocol.stage.waitingForToken();
     updateSplashStatus("waiting-for-token", "Waiting for authentication token...", 40);
     console.log(`[Desktop App] Waiting for runtime auth token at: ${tokenPath}`);
-    await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await waitForFile(tokenPath, serverCheckTimeoutMs);
     await launchTrace.emit("runtime_token_available", "bundled-runtime", "bundled_runtime", { available: "true" });
 
     // The token is written before the control API binds, so the published port is
     // awaited separately rather than assumed to exist alongside it.
-    RUNTIME_CONTROL.PORT = await waitForRuntimeIpcPort(portPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    RUNTIME_CONTROL.PORT = await waitForRuntimeIpcPort(portPath, serverCheckTimeoutMs);
     console.log(`[Desktop App] Runtime IPC listening on ${RUNTIME_CONTROL.HOST}:${RUNTIME_CONTROL.PORT}`);
     await launchTrace.emit("runtime_ipc_port_published", "bundled-runtime", "bundled_runtime", { port: String(RUNTIME_CONTROL.PORT) });
 
@@ -1322,7 +1326,7 @@ async function startBundledRuntime(): Promise<string> {
 
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeHealthz();
     updateSplashStatus("checking-health", "Checking service health...", 50);
-    await runtimeControlClient!.waitForHealth(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await runtimeControlClient!.waitForHealth(serverCheckTimeoutMs);
     await launchTrace.emit("runtime_health_ready", "bundled-runtime", "bundled_runtime");
 
     await ensureRuntimeSecretsIfNeeded();
@@ -1331,7 +1335,7 @@ async function startBundledRuntime(): Promise<string> {
 
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeReadyz();
     updateSplashStatus("checking-ready", "Verifying services are ready...", 60);
-    const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
+    const readyDeadline = Date.now() + serverCheckTimeoutMs;
     let runtimeReady = false;
     while (Date.now() < readyDeadline) {
         try {
@@ -1344,8 +1348,18 @@ async function startBundledRuntime(): Promise<string> {
         await delay(350);
     }
     if (!runtimeReady) {
-        const error = `Bundled runtime did not become ready within ${APP_CONFIG.SERVER_CHECK_TIMEOUT_MS}ms`;
-        await launchTrace.emit("runtime_ready", "bundled-runtime", "bundled_runtime", { available: "false" }, "error");
+        const error = `Bundled runtime did not become ready within ${serverCheckTimeoutMs}ms`;
+        let apiLogTail = "";
+        try {
+            const logs = await runtimeControlClient!.request<{ content?: string } | string>("/logs/tail?serviceId=api&lines=80");
+            apiLogTail = (typeof logs === "string" ? logs : logs?.content || "").slice(-8000);
+        } catch (logError) {
+            apiLogTail = `log tail unavailable: ${String(logError)}`;
+        }
+        await launchTrace.emit("runtime_ready", "bundled-runtime", "bundled_runtime", {
+            available: "false",
+            ...(apiLogTail ? { api_log_tail: apiLogTail } : {}),
+        }, "error");
         throw new Error(error);
     }
     await launchTrace.emit("runtime_ready", "bundled-runtime", "bundled_runtime");
@@ -1857,7 +1871,7 @@ app.whenReady().then(async () => {
                 try {
                     await initializeRuntimeControlClient();
                     updateSplashStatus("checking-health");
-                    await runtimeControlClient!.waitForHealth(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+                    await runtimeControlClient!.waitForHealth(serverCheckTimeoutMs);
                     await ensureRuntimeSecretsIfNeeded();
                 } catch (secretError) {
                     await recordTelemetry("runtime_secrets_missing", { error: String(secretError) }, "error");
@@ -1879,7 +1893,7 @@ app.whenReady().then(async () => {
 
         updateSplashStatus("loading-ui", "Creating application window...");
         await createMainWindow();
-        if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) { updateSplashStatus("loading-ui", "Waiting for server..."); await checkServerReady(targetUrl, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS); }
+        if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) { updateSplashStatus("loading-ui", "Waiting for server..."); await checkServerReady(targetUrl, serverCheckTimeoutMs); }
         updateSplashStatus("loading-ui", "Loading application...", 95);
         await applyStartupDelay("MAIN_WINDOW_LOAD");
         if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) await mainWindow!.loadFile(path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH)); else await mainWindow!.loadURL(targetUrl);

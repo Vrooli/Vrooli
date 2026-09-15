@@ -45,7 +45,8 @@ const sameGeometry = (a: Geometry | null, b: Geometry): boolean =>
  * fits never moves, and in portrait the page scrolls instead.
  */
 export function AutoScroll({ children, rowSelector, countSelector, className, label, counter = true }: AutoScrollProps) {
-  const id = useId();
+  const reactId = useId();
+  const id = `${label ?? "autoscroll"}:${reactId}`;
   const hold = useBeatHold();
   const scale = useCycleScale();
   const landscape = useLandscapeRoom();
@@ -85,6 +86,14 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
   const last = geometry ? geometry.stops.length - 1 : 0;
   const overflowing = last > 0;
   const current = Math.min(stop, last);
+  // Geometry can churn while the pass runs. `last` is read from a ref so a
+  // re-measure cannot reset the step timer, which would stop the pass forever.
+  const lastRef = useRef(last);
+  const maxStopsRef = useRef(0);
+  useLayoutEffect(() => {
+    lastRef.current = last;
+    maxStopsRef.current = Math.max(maxStopsRef.current, last);
+  });
 
   useEffect(() => {
     hold(id, overflowing && !read);
@@ -114,11 +123,23 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
         setRead(true);
       }, fade);
     } else {
-      const delay = (current === 0 ? holdStartMs : current < last ? stepMs : holdEndMs) * scale;
-      timer = window.setTimeout(() => (current < last ? setStop(current + 1) : setPhase("fading")), delay);
+      const delay = (current === 0 ? holdStartMs : current < lastRef.current ? stepMs : holdEndMs) * scale;
+      timer = window.setTimeout(() => (current < lastRef.current ? setStop(current + 1) : setPhase("fading")), delay);
     }
     return () => window.clearTimeout(timer);
-  }, [current, last, overflowing, phase, read, reduced, scale]);
+  }, [current, overflowing, phase, read, reduced, scale]);
+
+  // Watchdog: however the geometry churns, a pass always releases the beat.
+  useEffect(() => {
+    if (!overflowing || read) {
+      maxStopsRef.current = 0;
+      return;
+    }
+    const { holdStartMs, stepMs, holdEndMs, fadeMs } = AUTOSCROLL_TIMING;
+    const bound = (holdStartMs + holdEndMs + 2 * fadeMs + Math.max(1, maxStopsRef.current) * stepMs) * scale + 3000;
+    const timer = window.setTimeout(() => setRead(true), bound);
+    return () => window.clearTimeout(timer);
+  }, [overflowing, read, scale]);
 
   const offset = overflowing && geometry ? geometry.stops[current] ?? 0 : 0;
   const end = overflowing && geometry ? geometry.stops[last] ?? 0 : 0;
@@ -130,6 +151,9 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
         className="cc-autoscroll__viewport"
         data-autoscroll-viewport
         data-phase={phase}
+        data-stop={current}
+        data-stops={geometry ? geometry.stops.length : undefined}
+        data-viewport-px={geometry ? geometry.viewport : undefined}
         data-more-above={offset > 0.5 || undefined}
         data-more-below={(overflowing && offset < end - 0.5) || undefined}
         aria-label={label}

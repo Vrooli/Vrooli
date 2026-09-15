@@ -148,7 +148,12 @@ func TestMaterialChangesChangeDigestAndInvalidateReview(t *testing.T) {
 
 // [REQ:STC-P0-016] No shell strings ride in typed inputs; the vocabulary is closed.
 func TestActionsCarryTypedInputsOnly(t *testing.T) {
-	plan := compile(t, baseInputs())
+	in := baseInputs()
+	// Exercise the update path so the plan includes its required recovery
+	// point before activation. A first greenfield install intentionally has no
+	// prior data to back up.
+	in.Observations.ActiveReleaseDigest = "sha256:prior-release"
+	plan := compile(t, in)
 	if len(plan.Actions) == 0 {
 		t.Fatal("expected actions")
 	}

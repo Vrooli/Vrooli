@@ -397,6 +397,13 @@ func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Repo
 			return vrooliruntime.Report{}, false, err
 		}
 		f.progress.CompletePhase()
+		// The remote deployment owner uses the privilege broker to apply the
+		// remaining host requirements. Install it as soon as the native CLI is
+		// available so a first setup cannot deadlock behind a later safeguard
+		// that needs source or services delivered by the deployment itself.
+		if _, err := f.service.deps.installPrivilegeBroker(context.Background(), resolved.executable); err != nil {
+			return vrooliruntime.Report{}, false, fmt.Errorf("install privilege broker before host requirements: %w", err)
+		}
 	}
 	f.progress.StartPhase(PhaseRequirements)
 	f.progress.Operation("Applying selected host requirements")

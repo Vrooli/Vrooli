@@ -585,7 +585,7 @@ func (r *recordingRunner) Run(_ context.Context, name string, args ...string) ([
 
 // The default activator delegates to the lifecycle owner through argv with
 // the release tree as the scenario path.
-func TestScenarioRestartActivatorUsesLifecycleArgv(t *testing.T) {
+func TestScenarioActivatorUsesLifecycleArgv(t *testing.T) {
 	runner := &recordingRunner{}
 	activator := ScenarioRestartActivator{Runner: runner, Executable: "/opt/vrooli/bin/vrooli"}
 	err := activator.Activate(context.Background(), Activation{ReleaseDir: "/home/deploy/.vrooli/cloud/deployments/d/releases/abc", Scenarios: []string{"landing-app"}, Strategy: StrategyMaintenance})
@@ -594,7 +594,7 @@ func TestScenarioRestartActivatorUsesLifecycleArgv(t *testing.T) {
 	}
 	want := [][]string{
 		{"/opt/vrooli/bin/vrooli", "scenario", "stop", "landing-app", "--json"},
-		{"/opt/vrooli/bin/vrooli", "scenario", "restart", "landing-app", "--path", "/home/deploy/.vrooli/cloud/deployments/d/releases/abc/scenarios/landing-app", "--json"},
+		{"/opt/vrooli/bin/vrooli", "scenario", "start", "landing-app", "--path", "/home/deploy/.vrooli/cloud/deployments/d/releases/abc/scenarios/landing-app", "--json"},
 	}
 	if mustJSON(t, runner.calls) != mustJSON(t, want) {
 		t.Fatalf("calls = %q", runner.calls)

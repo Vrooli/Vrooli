@@ -18,6 +18,9 @@ func (r *cloudRecordingExecutor) Run(_ context.Context, name string, args ...str
 	if name == "ufw" && len(args) > 0 && args[0] == "status" {
 		return []byte(r.status), nil
 	}
+	if name == "dpkg-query" {
+		return []byte(r.status), nil
+	}
 	return nil, nil
 }
 
@@ -29,8 +32,8 @@ func TestAptPolicyAcceptsOnlyAllowlistedPackages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AptArgs: %v", err)
 	}
-	wantUpdate := []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a", "apt-get", "update", "-qq"}
-	wantInstall := []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a", "apt-get", "install", "-y", "-qq", "--no-install-recommends", "curl", "jq"}
+	wantUpdate := []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a", "apt-get", "-o", "Acquire::ForceIPv4=true", "-o", "Acquire::Retries=3", "update", "-qq"}
+	wantInstall := []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a", "apt-get", "-o", "Dpkg::Options::=--force-confold", "install", "-y", "-qq", "--no-install-recommends", "curl", "jq"}
 	if !reflect.DeepEqual(update, wantUpdate) || !reflect.DeepEqual(install, wantInstall) {
 		t.Fatalf("argv = %q / %q", update, install)
 	}
@@ -63,13 +66,29 @@ func TestAptExecutionRunsUpdateThenInstallThroughArgvOnly(t *testing.T) {
 	if result.Status != "completed" || !result.Changed {
 		t.Fatalf("result = %+v", result)
 	}
-	if len(executor.calls) != 2 || executor.calls[0][0] != "env" || executor.calls[1][len(executor.calls[1])-1] != "caddy" {
+	if len(executor.calls) != 3 || executor.calls[0][0] != "dpkg-query" || executor.calls[1][0] != "env" || executor.calls[2][len(executor.calls[2])-1] != "caddy" {
 		t.Fatalf("calls = %q", executor.calls)
 	}
-	for _, call := range executor.calls {
+	for _, call := range executor.calls[1:] {
 		if strings.Contains(strings.Join(call, " "), "&&") {
 			t.Fatalf("argv carries a shell operator: %q", call)
 		}
+	}
+}
+
+func TestAptExecutionSkipsMirrorWhenPackagesAreInstalled(t *testing.T) {
+	executor := &cloudRecordingExecutor{}
+	// The fixture executor reports the exact dpkg status for this request.
+	executor.status = "install ok installed"
+	result := executeApt(context.Background(), executor, Request{
+		Version: ProtocolVersion, RequestID: "apt-installed", Action: ActionAptPackagesEnsure,
+		Apt: &AptSubject{Packages: []string{"curl", "jq"}},
+	})
+	if result.Status != "completed" || result.Changed {
+		t.Fatalf("result = %+v", result)
+	}
+	if len(executor.calls) != 2 || executor.calls[0][0] != "dpkg-query" || executor.calls[1][0] != "dpkg-query" {
+		t.Fatalf("calls = %q", executor.calls)
 	}
 }
 

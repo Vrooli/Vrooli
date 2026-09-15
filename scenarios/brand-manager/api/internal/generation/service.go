@@ -303,6 +303,19 @@ func (s *service) EditImage(ctx context.Context, in EditImageInput) (ImageResult
 	return s.storeImage(ctx, brandID, kindLogo, out, in.SetCanonical)
 }
 
+// BrandImageAllowBYOK, BrandImageQualityPolicy and BrandImageFallbackPolicy are
+// the brand-wide routing defaults for every brand image call (generation,
+// candidates explore and refine): cloud permitted unless local_only, quality
+// ordering, and the "any" tier ladder. One home keeps explore from silently
+// running on a weaker local model when a caller omits the policy.
+func BrandImageAllowBYOK(fallbackPolicy string) bool { return brandImageAllowBYOK(false, fallbackPolicy) }
+
+// BrandImageQualityPolicy normalizes a quality policy (default "quality").
+func BrandImageQualityPolicy(policy string) string { return brandImageQualityPolicy(policy) }
+
+// BrandImageFallbackPolicy normalizes a fallback policy (default "any").
+func BrandImageFallbackPolicy(policy string) string { return brandImageFallbackPolicy(policy) }
+
 func brandImageAllowBYOK(_ bool, fallbackPolicy string) bool {
 	if strings.EqualFold(strings.TrimSpace(fallbackPolicy), "local_only") {
 		return false

@@ -78,12 +78,35 @@ its source; it never mutates the source. Picking stores the mark on the brand. A
 raster pick is vectorized first, and the vectorized SVG becomes a child candidate
 that is the one actually picked.
 
-## Mark versus container
+## Concept, mark and container
 
-The pipeline stops asking the model for a tile. Generation requests a **mark
-only**, on a transparent background, preferring the SVG-native role
-`image.vector.default` and falling back to `image.generate.logo`. The container is
-data.
+Three artifacts, three owners:
+
+| Artifact | What it is | Produced by |
+|---|---|---|
+| Concept | A finished, rendered icon (tile, glow, line work) the operator judges | explore, with an illustration model |
+| Mark | The vector figure traced from the picked concept | pick, through image-tools `vectorize` |
+| Container | The tile every target is composed on | data: the brand's `ContainerStyle` |
+
+**Concepts are rendered, not drawn as vectors.** Explore uses the illustration
+role `image.generate.default` (falling back to `image.generate.quality`) and a
+prompt that describes a finished icon on the container style's tile, accent and
+glow. The operator judges the look they will actually get. The SVG-native roles
+(`image.vector.default`, `image.generate.logo`) draw flat geometric marks that
+read as unfinished next to a rendered concept; `prefer_vector` keeps them for a
+deliberately flat direction only (decision 2026-09-15).
+
+**A product line renders as one family.** `style_reference_brand` names a
+sibling brand; explore sends that brand's approved raster (the nearest raster
+ancestor of its picked candidate, else its mark composed and rasterized) to the
+edit role `image.edit.default` with a prompt that keeps the reference's
+rendering and changes only the subject.
+
+**Pick turns the concept into data.** A raster pick is vectorized with the
+brand's white and accent colours kept and the tile clipped away, so the mark is
+only the figure. Render recomposes it on the container, redrawing the glow as
+layered strokes. The container therefore stays identical across the line even
+though each concept was rendered with its own tile.
 
 ### Container style fields
 
@@ -198,7 +221,7 @@ target. Severities are WARNING except where noted; only `has-display-name`
 | Area | Status | Notes |
 |---|---|---|
 | Candidates | built | `candidates` domain: explore, import, refine with lineage, pick, reject, restore; one picked per brand enforced by a partial unique index. |
-| Marks vs containers | built | Mark-only generation with the vector roles; `styles` domain holds `ContainerStyle` and `ProductLine` records, seeded with `constellation-midnight` and the Star line. |
+| Concept, mark and container | built | Explore renders finished concepts with the illustration roles, in parallel, optionally conditioned on a sibling brand's approved mark (`style_reference_brand`); pick vectorizes; `styles` domain holds `ContainerStyle` and `ProductLine` records, seeded with `constellation-midnight` and the Star line. |
 | Vector source of truth | built | A raster pick is vectorized through image-tools; render composes the SVG and every raster derives from it. |
 | Target profiles | built | `internal/profiles` defines `web-public-v1` and `electron-v1`; declared in `service.json` `branding.targets`. |
 | Apply | built | `/public/*` layout, marked `index.html` block, relative-src `site.webmanifest`, og/twitter meta, electron PNGs + ICO/ICNS; the old root-layout writer and `derive-icons` are deleted. |

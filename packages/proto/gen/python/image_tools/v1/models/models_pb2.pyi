@@ -547,18 +547,22 @@ class ResolvedAdapter(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., scale: _Optional[float] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., conditioning_image_key: _Optional[str] = ...) -> None: ...
 
 class ExplainResolutionRequest(_message.Message):
-    __slots__ = ("operation", "model_id", "allow_byok", "adapters", "quality_policy")
+    __slots__ = ("operation", "model_id", "allow_byok", "adapters", "quality_policy", "openrouter_role", "fallback_policy")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
     ADAPTERS_FIELD_NUMBER: _ClassVar[int]
     QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
+    OPENROUTER_ROLE_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_POLICY_FIELD_NUMBER: _ClassVar[int]
     operation: str
     model_id: str
     allow_byok: bool
     adapters: _containers.RepeatedCompositeFieldContainer[AdapterRef]
     quality_policy: str
-    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ...) -> None: ...
+    openrouter_role: str
+    fallback_policy: str
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., openrouter_role: _Optional[str] = ..., fallback_policy: _Optional[str] = ...) -> None: ...
 
 class ExplainResolutionResponse(_message.Message):
     __slots__ = ("resolution",)

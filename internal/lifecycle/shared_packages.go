@@ -207,6 +207,10 @@ func (r *Runner) provisionSharedPackages(ctx context.Context, item scenario.Scen
 	if len(dependencies) == 0 {
 		return nil
 	}
+	dependencies, err := withRequiredPackages(r.Root, dependencies)
+	if err != nil {
+		return fmt.Errorf("resolve required shared packages for scenario %q: %w", item.Slug, err)
+	}
 
 	if provisioningDisabled(env) {
 		dep := dependencies[0]
@@ -313,6 +317,72 @@ func sharedPackageDependencies(repoRoot, uiPackageJSON string) ([]sharedPackageD
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result, nil
+}
+
+// withRequiredPackages orders shared packages so every package named in a
+// governed package's lifecycle `requires` is provisioned before it, adding
+// requirements the scenario does not depend on directly. A build that consumes
+// a sibling's gitignored outputs otherwise succeeds only on a machine that
+// already has them: on 2026-09-15 every fresh checkout, including a
+// re-onboarded Mac, failed the component library build on
+// "Cannot find module '@vrooli/audio-capture-browser'".
+func withRequiredPackages(repoRoot string, direct []sharedPackageDependency) ([]sharedPackageDependency, error) {
+	ordered := make([]sharedPackageDependency, 0, len(direct))
+	const visiting, done = 1, 2
+	state := make(map[string]int, len(direct))
+	var visit func(dependency sharedPackageDependency, chain []string) error
+	visit = func(dependency sharedPackageDependency, chain []string) error {
+		name := dependency.Package.Manifest.Package.Name
+		switch state[dependency.Root] {
+		case done:
+			return nil
+		case visiting:
+			return fmt.Errorf("governed packages require each other: %s", strings.Join(append(chain, name), " -> "))
+		}
+		state[dependency.Root] = visiting
+		for _, requiredName := range dependency.Package.Manifest.Package.Lifecycle.Requires {
+			required, err := requiredSharedPackage(repoRoot, requiredName)
+			if err != nil {
+				return fmt.Errorf("%s requires %q: %w", dependency.Name, requiredName, err)
+			}
+			if err := visit(required, append(chain, name)); err != nil {
+				return err
+			}
+		}
+		state[dependency.Root] = done
+		ordered = append(ordered, dependency)
+		return nil
+	}
+	for _, dependency := range direct {
+		if err := visit(dependency, nil); err != nil {
+			return nil, err
+		}
+	}
+	return ordered, nil
+}
+
+// requiredSharedPackage resolves a `requires` entry, which names a governed
+// package by its manifest name at packages/<name>.
+func requiredSharedPackage(repoRoot, name string) (sharedPackageDependency, error) {
+	name = strings.TrimSpace(name)
+	pkg, root, ok, err := loadGovernedPackage(repoRoot, filepath.Join(repoRoot, "packages", name))
+	if err != nil {
+		return sharedPackageDependency{}, err
+	}
+	if !ok || pkg.Manifest.Package.Name != name {
+		return sharedPackageDependency{}, fmt.Errorf("no governed package named %q under packages/", name)
+	}
+	display := name
+	if len(pkg.Manifest.Package.ModuleIdentifiers) > 0 {
+		display = pkg.Manifest.Package.ModuleIdentifiers[0]
+	}
+	return sharedPackageDependency{
+		Name:       display,
+		Root:       root,
+		Package:    pkg,
+		Generation: append([]packagegov.CommandSpec(nil), pkg.Manifest.Package.Lifecycle.Generate...),
+		Build:      append([]packagegov.CommandSpec(nil), pkg.Manifest.Package.Lifecycle.Build...),
+	}, nil
 }
 
 func loadGovernedPackage(repoRoot, dependencyRoot string) (packagegov.Package, string, bool, error) {

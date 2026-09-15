@@ -144,6 +144,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		FallbackPolicy: fallbackPolicyForParams(params),
 		Priority:       priorityForParams(params),
 		AllowReclaim:   allowReclaimForParams(params),
+		Role:           params.GetOpenrouterRole(),
 		Adapters:       adapterRequests(params),
 	})
 	if err != nil {

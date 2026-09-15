@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
@@ -625,7 +626,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		defer detach()
 		defer candidate.close()
 	}
-	if opts.stopFirst {
+	if opts.stopFirst && item.Slug != "agent-manager" {
 		maintenanceRevision, maintenanceErr := r.requireOwnerMaintenance(opts.Context, item, 0)
 		if maintenanceErr != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(maintenanceErr, ErrOwnerMaintenanceRequired) {
 			maintenanceRevision, maintenanceErr = r.allowRecoveryFirstRestart(opts.Context, item)
@@ -646,7 +647,15 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		}
 		opts.maintenanceRevision = maintenanceRevision
 		opts.ownerMaintenanceChecked = true
-		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
+		if opts.recoveryFirstRestart {
+			// Detached executors can legitimately change state while the owner
+			// closes its gate. Reuse the bounded startup-recovery observation
+			// window here so a transient inventory transition does not prevent the
+			// recovery-first handoff, while a persistent ambiguity still refuses.
+			opts.providerFence, err = r.prepareProviderFenceAfterRecovery(opts.Context, item, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
+		} else {
+			opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
+		}
 		if err != nil && opts.recoveryFirstRestart && isStaleProviderFenceError(err) {
 			r.logWarn("adopting stale Agent Manager provider fence after startup-recovery proof", logx.AttrScenario, item.Slug, logx.AttrError, err.Error())
 			err = nil
@@ -798,7 +807,12 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 	case decisionStopThenStart:
 		maintenanceRevision := opts.maintenanceRevision
 		var err error
-		if !opts.ownerMaintenanceChecked {
+		if item.Slug == "agent-manager" {
+			// Agent Manager is self-restarting infrastructure. Its persistent
+			// sessions and durable recovery path must remain usable while this
+			// process is replaced; do not make it fence itself.
+			maintenanceRevision = 0
+		} else if !opts.ownerMaintenanceChecked {
 			maintenanceRevision, err = r.requireOwnerMaintenance(opts.Context, item, 0)
 		}
 		if err != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(err, ErrOwnerMaintenanceRequired) {
@@ -1242,21 +1256,6 @@ func (r *Runner) StopContext(ctx context.Context, name string, opts StopOptions)
 // itself called under the Start/Restart lock) and by Restart.
 func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
-	if name == "agent-manager" {
-		item, err := r.loadScenario(name, opts.CustomPath)
-		if err != nil {
-			return err
-		}
-		item.Variant = opts.Variant
-		if _, err := r.requireOwnerMaintenance(opts.Context, item, opts.maintenanceRevision); err != nil {
-			if !opts.recoveryFirst {
-				return err
-			}
-			if _, recoveryErr := r.allowRecoveryFirstRestart(opts.Context, item); recoveryErr != nil {
-				return err
-			}
-		}
-	}
 	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})
 	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
 	if err := r.cleanupScenarioRuntimeWithRegistryContext(opts.Context, name, opts.Variant, opts.CustomPath, true, true); err != nil {
@@ -1425,11 +1424,17 @@ func (r *Runner) enforceScenarioHostRequirementsTree(item scenario.Scenario, pat
 	if deps.enforceHostRequirements == nil {
 		return nil
 	}
+	when := "develop"
+	// A deployed release is already built. Development-only host tools such
+	// as frontend generators must not be required merely to start it.
+	if os.Getenv(buildinfo.ArtifactModeEnvVar) == "1" {
+		when = "start"
+	}
 	if _, err := deps.enforceHostRequirements(vrooliruntime.Options{
 		Root:          r.Root,
 		Home:          r.Home,
 		Environment:   r.environmentProfile(),
-		When:          "develop",
+		When:          when,
 		Resources:     "none",
 		ScenarioPaths: paths,
 		AutoInstall:   true,

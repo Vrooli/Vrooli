@@ -152,7 +152,7 @@ func TestActivatorPinsPortsThroughEnvironmentAndRestartKeepsPredecessor(t *testi
 	if err := activator.Activate(context.Background(), Activation{ReleaseDir: "/rel", Scenarios: []string{testScenario}, Ports: map[string]int{"ui": 3000, "api": 3001}}); err != nil {
 		t.Fatal(err)
 	}
-	if len(runner.env) != 1 || strings.Join(runner.env[0], " ") != "API_PORT=3001 UI_PORT=3000" {
+	if len(runner.env) != 1 || strings.Join(runner.env[0], " ") != "VROOLI_ROOT=/root/Vrooli VROOLI_HOME=/root/.vrooli VROOLI_CLI_ARTIFACT_MODE=1 API_PORT=3001 UI_PORT=3000" {
 		t.Fatalf("env = %v", runner.env)
 	}
 	for _, call := range runner.calls {

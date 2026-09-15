@@ -88,7 +88,10 @@ type Request struct {
 	// Empty leaves AllowBYOK as the caller set it.
 	FallbackPolicy string
 	QualityPolicy  string
-	IsEnabled      models.EnabledFunc
+	// PreferRemote is true when the caller named an OpenRouter role; the gateway
+	// model then ranks first whenever the cloud tier is permitted.
+	PreferRemote bool
+	IsEnabled    models.EnabledFunc
 	// Adapters is the requested conditioning stack (LoRA / ControlNet / IP-Adapter).
 	// Empty for an unconditioned op.
 	Adapters []adapters.AdapterRequest
@@ -139,12 +142,16 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		OverrideID:    req.ModelOverride,
 		QualityPolicy: req.QualityPolicy,
 		AllowBYOK:     allowBYOK,
+		PreferRemote:  req.PreferRemote,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err
 	}
 
 	var skipped []string
+	if req.PreferRemote && !allowBYOK && req.ModelOverride == "" {
+		skipped = append(skipped, "the requested OpenRouter role is ignored because the cloud tier is not permitted (pass allow_byok or fallback_policy=cloud_allowed)")
+	}
 	var lastBackendErr error
 	for _, sel := range candidates {
 		res, err := r.resolutionForSelection(sel, req)

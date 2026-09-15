@@ -2,6 +2,7 @@ import type { PanelRow, Reading } from "../lib/api";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
 import { AutoScroll } from "./AutoScroll";
 import { qualify, resolveReading, figureValue } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { panelEmptyMessage } from "../lib/panelEmptyState";
 
 type Props = { reading: Reading; maxRows?: number };
 
@@ -21,7 +22,11 @@ export function PanelReadout({ reading, maxRows = MAX_ROWS }: Props) {
     <section className="cc-panel-readout" aria-label={reading.label} data-kind={reading.kind ?? "panel"} data-reading data-coverage={reading.coverage} data-trust={reading.trust} data-ink={resolution.ink} data-provenance={resolution.figure} data-qualifier={qualifier.text}>
       <div className="cc-panel-readout__heading">{reading.label}</div>
       {rows.length === 0 ? (
-        <div className="cc-panel-readout__empty" aria-label="No observations">{figureValue(reading, resolution) === null ? qualifier.text : "No rows available"}</div>
+        <div className="cc-panel-readout__empty" aria-label="No observations">
+          <span className="cc-panel-readout__empty-mark" aria-hidden="true">∅</span>
+          <span>{panelEmptyMessage(reading.id)}</span>
+          <small>{figureValue(reading, resolution) === null ? qualifier.text : "Waiting for the first observed breakdown."}</small>
+        </div>
       ) : (
         <AutoScroll className="cc-panel-readout__rows" rowSelector=".cc-panel-readout__row" label={`${reading.label} rows`}>
           {rows.map((row: PanelRow) => (

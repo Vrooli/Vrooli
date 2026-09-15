@@ -15,4 +15,10 @@ describe("PanelReadout", () => {
     expect(screen.getByText(/not answering/)).toBeInTheDocument();
     expect(container.querySelector(".cc-panel-readout__placeholder")).toBeNull();
   });
+
+  it("explains empty Broadcast activity panels", () => {
+    renderWithProviders(<PanelReadout reading={makeReading({ id: "credit_burn_by_app", label: "Credit burn by app", kind: "panel" })} />);
+    expect(screen.getByText(/No credit burn recorded by app/)).toBeInTheDocument();
+    expect(screen.getByText(/not answering/)).toBeInTheDocument();
+  });
 });

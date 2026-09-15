@@ -20,6 +20,18 @@ import (
 
 var sharedPackageLockPollInterval = tuning.FastHealthPollInterval()
 
+// A package lock protects one build, not retained state. Using the retention
+// window here allowed a wedged analyzer or generator to block every consumer
+// for a day. The wait is generous enough that a peer's multi-minute build is
+// routine contention, not a failure, while still ending so a genuinely wedged
+// holder is reported. Backoff caps the poll cadence so a long wait does not
+// hammer the filesystem.
+var (
+	sharedPackageLockWaitTimeout     = tuning.SharedPackageLockWaitTimeout()
+	sharedPackageLockWaitLogInterval = tuning.SharedPackageLockWaitLogInterval()
+	sharedPackageLockBackoffCap      = 15 * time.Second
+)
+
 var inProcessSharedPackageLocks sync.Map // map[home\x00canonical-root]*sync.Mutex
 
 // acquireSharedPackageLock serializes all lifecycle mutations of one governed
@@ -54,20 +66,22 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 	mu := sharedPackageMutex(key)
 	waitStarted := time.Now()
 	waitLogged := false
+	lastWaitLog := waitStarted
 	muLocked := false
 	lockErr := error(nil)
-	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: tuning.DailyRetentionWindow(), Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: sharedPackageLockWaitTimeout, Interval: sharedPackageLockPollInterval, MaxInterval: sharedPackageLockBackoffCap}, func() (bool, error) {
 		if mu.TryLock() {
 			muLocked = true
 			return true, nil
 		}
-		if !waitLogged {
+		if now := time.Now(); !waitLogged || now.Sub(lastWaitLog) >= sharedPackageLockWaitLogInterval {
 			writeSharedPackageLockEvent(logWriter, "waiting", packageName, canonicalRoot, 0, time.Since(waitStarted))
 			waitLogged = true
+			lastWaitLog = now
 		}
 		return false, nil
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("shared package lock in-process wait for %q: %w", packageName, err)
 	}
 	if !muLocked {
 		return nil, fmt.Errorf("shared package lock wait ended without ownership")
@@ -96,7 +110,7 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 	}
 
 	var release func()
-	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: tuning.DailyRetentionWindow(), Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: sharedPackageLockWaitTimeout, Interval: sharedPackageLockPollInterval, MaxInterval: sharedPackageLockBackoffCap}, func() (bool, error) {
 		releaseFile, err := lockFileFn(file, true)
 		if err == nil {
 			if _, err := file.Seek(0, 0); err == nil {
@@ -125,10 +139,11 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 			return false, err
 		}
 
-		if !waitLogged {
+		if now := time.Now(); !waitLogged || now.Sub(lastWaitLog) >= sharedPackageLockWaitLogInterval {
 			holder := readLockHolderPID(file)
 			writeSharedPackageLockEvent(logWriter, "waiting", packageName, canonicalRoot, holder, time.Since(waitStarted))
 			waitLogged = true
+			lastWaitLog = now
 		}
 		return false, nil
 	}); err != nil {
@@ -137,7 +152,7 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 		if lockErr != nil {
 			return nil, fmt.Errorf("acquire shared package lock %s: %w", lockPath, lockErr)
 		}
-		return nil, err
+		return nil, fmt.Errorf("shared package lock file wait for %q (%s): %w", packageName, lockPath, err)
 	}
 	return release, nil
 }

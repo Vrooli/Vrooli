@@ -207,3 +207,29 @@ func TestClosureSearchOrderPrefersTheArtifactsOwnDirectories(t *testing.T) {
 		seen[dir] = true
 	}
 }
+
+// Scenario: an Apple system library satisfies the closure although it is not a
+// file on disk.
+//
+// Since macOS 11 /usr/lib/libSystem.B.dylib lives only in the dyld shared
+// cache. The redis macOS artifact links nothing else, and the check rejected it
+// on a real Mac because os.Stat found no such file.
+func TestDyldSharedCacheProvidesAppleSystemLibraries(t *testing.T) {
+	// Given the load commands a macOS executable declares
+	for _, library := range []string{"/usr/lib/libSystem.B.dylib", "/System/Library/Frameworks/Security.framework/Versions/A/Security"} {
+		// Then darwin treats them as provided by the shared cache
+		if !providedByDyldSharedCache(library, "darwin") {
+			t.Errorf("providedByDyldSharedCache(%q, darwin) = false, want true", library)
+		}
+		// And no other platform claims them
+		if providedByDyldSharedCache(library, "linux") {
+			t.Errorf("providedByDyldSharedCache(%q, linux) = true, want false", library)
+		}
+	}
+	// And a third-party library is still checked on disk
+	for _, library := range []string{"/opt/homebrew/lib/libssl.3.dylib", "@rpath/libcrypto.3.dylib", "/usr/local/lib/libfoo.dylib"} {
+		if providedByDyldSharedCache(library, "darwin") {
+			t.Errorf("providedByDyldSharedCache(%q, darwin) = true, want false", library)
+		}
+	}
+}

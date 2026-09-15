@@ -82,9 +82,14 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 					fmt.Sprintf("wait: image-tools jobs wait %s", resp.JobId)),
 			})
 		}
-		job, werr := waitAndDownload(h.core, resp.JobId, out)
+		job, written, werr := waitAndDownload(h.core, resp.JobId, out)
 		if werr != nil {
 			return werr
+		}
+		warnings := resp.Warnings
+		if written != "" && written != out {
+			warnings = append(append([]string(nil), warnings...),
+				fmt.Sprintf("the result's format does not match %s; wrote %s instead", out, written))
 		}
 		if ctx.JSON() {
 			return cliapp.PrintJSON(ctx.Stdout(), struct {
@@ -96,14 +101,14 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 			}{
 				JobId:      job.GetId(),
 				State:      stateName(job.GetState()),
-				OutputPath: out,
+				OutputPath: written,
 				ResultRefs: job.GetResultRefs(),
-				Warnings:   resp.Warnings,
+				Warnings:   warnings,
 			})
 		}
-		changes := warnLines(resp.Warnings)
-		if out != "" {
-			changes = append(changes, fmt.Sprintf("wrote %s (job=%s)", out, job.GetId()))
+		changes := warnLines(warnings)
+		if written != "" {
+			changes = append(changes, fmt.Sprintf("wrote %s (job=%s)", written, job.GetId()))
 		}
 		return ctx.RenderMutation(cliapp.MutationReport{
 			Result:  []string{fmt.Sprintf("%s %s on %s/%s", operation, stateName(job.GetState()), resp.ModelId, resp.Tier)},
@@ -116,7 +121,15 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 // dry-run): which model/technique would run, native-vs-derived, tier, safety
 // weight — without submitting a job.
 func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) error {
-	r, err := explainResolution(h.core, operation, flagOr(ctx, "model"), boolOr(ctx, "byok"), explainAdapterRefs(ctx))
+	r, err := explainResolution(h.core, &modelsv1.ExplainResolutionRequest{
+		Operation:      operation,
+		ModelId:        flagOr(ctx, "model"),
+		AllowByok:      boolOr(ctx, "byok"),
+		Adapters:       explainAdapterRefs(ctx),
+		QualityPolicy:  flagOr(ctx, "quality-policy"),
+		OpenrouterRole: flagOr(ctx, "role"),
+		FallbackPolicy: flagOr(ctx, "fallback-policy"),
+	})
 	if err != nil {
 		return err
 	}

@@ -33,6 +33,14 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 	if emergency && len([]byte(strings.TrimSpace(overrideReason))) < 1 {
 		return nil, fmt.Errorf("lifecycle emergency override for %q requires a reason", item.Slug)
 	}
+	// Agent Manager is the execution owner, not a user workload provider. Its
+	// own persistent Web Console sessions and durable run recovery are designed
+	// to survive an Agent Manager process restart, so requiring Agent Manager to
+	// fence itself creates a circular lifecycle dependency. Other scenarios keep
+	// the ordinary provider-fence contract.
+	if item.Slug == "agent-manager" {
+		return nil, nil
+	}
 	view, err := r.lookupRegistryRuntime(ctx, item)
 	if err != nil {
 		return nil, fmt.Errorf("lifecycle provider for %q is not authoritative", item.Slug)

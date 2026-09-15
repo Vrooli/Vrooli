@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -59,6 +60,11 @@ type StartOperationView struct {
 	// terminal (stop checking), 30 when the ETA is unknown, otherwise the
 	// estimated remaining time clamped to [5, 60].
 	RecommendedNextCheckSeconds int `json:"recommended_next_check_seconds"`
+	// Stalled is true when the initiator is alive but the durable operation has
+	// not advanced for the bounded setup progress threshold. It is diagnostic;
+	// the live process and scenario lock remain authoritative for takeover.
+	Stalled     bool   `json:"stalled"`
+	StallReason string `json:"stall_reason,omitempty"`
 }
 
 // TransitionLine renders the one-line attach-side heartbeat for a step or
@@ -105,6 +111,9 @@ func (v StartOperationView) InFlightSummary() string {
 	line += fmt.Sprintf(", %ds elapsed", v.ElapsedSeconds)
 	if v.ETAKnown {
 		line += fmt.Sprintf(", ~%ds remaining", v.ETASeconds)
+	}
+	if v.Stalled {
+		line += ", stalled: " + v.StallReason
 	}
 	return line
 }
@@ -171,6 +180,11 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 	if view.Terminal() {
 		view.RecommendedNextCheckSeconds = 0
 		return view
+	}
+	if view.Status == scenarioruntime.StartOperationStatusRunning &&
+		!op.UpdatedAt.IsZero() && now.Sub(op.UpdatedAt) >= tuning.SetupProgressStaleThreshold() {
+		view.Stalled = true
+		view.StallReason = fmt.Sprintf("no lifecycle progress for %s", tuning.SetupProgressStaleThreshold())
 	}
 
 	remaining, known := estimateRemaining(view.Steps, op, now, estimates)

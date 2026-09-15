@@ -20,13 +20,13 @@ var (
 	invokingUserHomeDir = hostreqkit.InvokingUserHomeDir
 )
 
-func requireFileInfoOwnedByCurrentUser(path string, info fs.FileInfo) error {
+func requireFileInfoOwnedByCurrentUser(path string, info fs.FileInfo, allowRootManagement bool) error {
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
 		return &Error{Kind: ErrResolve, Message: "inspect storage ownership", Details: path, Err: fmt.Errorf("filesystem did not provide POSIX ownership metadata")}
 	}
 	expected, _, _ := expectedStorageOwner()
-	if stat.Uid != expected {
+	if stat.Uid != expected && !(allowRootManagement && os.Geteuid() == 0) {
 		return &Error{
 			Kind:    ErrOwnership,
 			Message: "refuse to create or use per-user resource storage owned by another account",

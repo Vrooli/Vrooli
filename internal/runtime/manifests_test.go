@@ -9,9 +9,45 @@ import (
 	"testing/fstest"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/tools"
 )
+
+// A safeguard whose manifest declares a platform not_applicable must be
+// satisfied there. A required safeguard that reports unsupported instead fails
+// `vrooli setup` on that platform: on 2026-09-15 keyring_daemon_limits and
+// agent_session_containment did exactly that and blocked every Mac from
+// updating, while both manifests already said macOS was not applicable.
+func TestSafeguardInspectHonorsDeclaredNotApplicablePlatforms(t *testing.T) {
+	manifests, err := safeguardManifests()
+	if err != nil {
+		t.Fatalf("load safeguard manifests: %v", err)
+	}
+	hostOS := map[string]string{"macos": "darwin", "windows": "windows"}
+	checked := 0
+	for _, manifest := range manifests {
+		if registered, lookupErr := HasHandler(hostreqspec.KindSafeguard, manifest.Name); lookupErr != nil || !registered {
+			continue // TestSafeguardManifestsReferenceRegisteredHandlers owns this.
+		}
+		for platform, declared := range manifest.PlatformStatus {
+			goos, ok := hostOS[platform]
+			if !ok || declared.Status != "not_applicable" {
+				continue
+			}
+			checked++
+			// inspectRequirement is the path `vrooli setup` takes, so the
+			// guard holds whether the handler or the runtime honors the manifest.
+			status := inspectRequirement(Host{OS: goos}, hostreqspec.ResolvedRequirement{Name: manifest.Name, Kind: hostreqspec.KindSafeguard, Required: true})
+			if !requirementSatisfied(status) {
+				t.Errorf("%s declares %s not_applicable but Inspect on %s reports support=%s state=%s; a required safeguard in that state fails setup", manifest.Name, platform, goos, status.SupportClass, status.ExecutionState)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no not_applicable platform declarations were checked; the guard is vacuous")
+	}
+}
 
 // TestToolManifestsReferenceRegisteredHandlers enforces the invariant that
 // every tool.json "handler" field under internal/tools/ has a matching entry

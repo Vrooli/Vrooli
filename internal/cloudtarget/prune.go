@@ -33,6 +33,25 @@ func releaseFacts(dir string) ReleaseFacts {
 		return nil
 	})
 	if raw, err := os.ReadFile(filepath.Join(dir, releaseManifestFile)); err == nil { //nolint:gosec // owner-written path
+		facts.SizeBytes = int64(len(raw))
+		if manifest, perr := cloudrelease.ParseManifest(raw); perr == nil {
+			facts.BundleSHA256 = manifest.BundleSHA256
+		}
+	}
+	return facts
+}
+
+// releaseFactsSummary is used by release list, which is a hot status path.
+// Walking an entire staged release there makes a large control-plane bundle
+// block workload startup. Retention planning still uses releaseFacts when it
+// needs the exact byte count.
+func releaseFactsSummary(dir string) ReleaseFacts {
+	facts := ReleaseFacts{}
+	if info, err := os.Stat(dir); err == nil {
+		facts.ModTime = info.ModTime().UTC().Format(time.RFC3339)
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, releaseManifestFile)); err == nil { //nolint:gosec // owner-written path
+		facts.SizeBytes = int64(len(raw))
 		if manifest, perr := cloudrelease.ParseManifest(raw); perr == nil {
 			facts.BundleSHA256 = manifest.BundleSHA256
 		}

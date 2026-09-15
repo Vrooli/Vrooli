@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,6 +26,28 @@ import (
 	"github.com/vrooli/vrooli/internal/values"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+// managedServiceRunAsArgs keeps loader variables intact across runuser. Linux
+// deliberately strips variables such as LD_PRELOAD before starting the target;
+// resource artifacts need those variables to load libraries shipped beside the
+// executable. Passing only loader configuration through env avoids putting the
+// complete (and potentially secret-bearing) service environment in argv.
+func managedServiceRunAsArgs(wrapper, userName, executable string, args []string, environment []string) []string {
+	values := managedServiceEnvValues(environment)
+	result := []string{"--preserve-environment", "--user", userName, "--", "/usr/bin/env"}
+	for _, key := range []string{"LD_PRELOAD", "LD_LIBRARY_PATH"} {
+		if value := strings.TrimSpace(values[key]); value != "" {
+			result = append(result, key+"="+value)
+		}
+	}
+	result = append(result, executable)
+	result = append(result, args...)
+	return result
+}
+
+func managedServiceRunAsCommand(wrapper, userName, executable string, args []string, environment []string) *exec.Cmd {
+	return shell.NewCommand(wrapper, managedServiceRunAsArgs(wrapper, userName, executable, args, environment)...)
+}
 
 const managedServiceStateFile = "managed-service.json"
 
@@ -129,7 +152,10 @@ func managedServiceSupervisorFor(resource string) (*ManagedServiceSupervisor, ru
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}
-	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: resource}, tuning.PermPrivateDir)
+	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{
+		ResourceID:          resource,
+		AllowRootManagement: os.Geteuid() == 0,
+	}, tuning.PermPrivateDir)
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}
@@ -185,6 +211,9 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 		return ManagedServiceState{}, err
 	}
 	cmd := shell.NewCommand(launchPath, args...)
+	if userName := strings.TrimSpace(managedServiceEnvValues(env)["VROOLI_MANAGED_SERVICE_RUN_AS_USER"]); userName != "" && os.Geteuid() == 0 {
+		cmd = managedServiceRunAsCommand("runuser", userName, launchPath, args, env)
+	}
 	cmd.Env = values.SetEnv(detachedResourceEnvironment(env), managedServiceOwnershipTokenEnv, ownershipToken)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
 		cmd.Dir = artifactPath
@@ -419,8 +448,13 @@ func newManagedServiceToken() (string, error) {
 }
 
 func verifyManagedServiceOwnership(state ManagedServiceState) error {
-	env, err := process.ReadEnvironment(state.PID)
+	env, err := readManagedServiceEnvironment(state.PID)
 	if err != nil {
+		// A host that cannot observe environments (not a denied or failed
+		// read) still has the executable-identity proof below.
+		if errors.Is(err, platform.ErrUnsupported) && managedServiceExecutableMatchesArtifact(state) {
+			return nil
+		}
 		return fmt.Errorf("verify managed-service process ownership: %w", err)
 	}
 	if managedServiceTokenHash(env[managedServiceOwnershipTokenEnv]) == state.OwnershipTokenHash {

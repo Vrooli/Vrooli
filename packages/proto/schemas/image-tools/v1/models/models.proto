@@ -616,6 +616,13 @@ message ExplainResolutionRequest {
   // quality_policy tunes candidate ordering for dry-run resolution: "fast",
   // "balanced", or "quality". Empty preserves the historical explain default.
   string quality_policy = 5;
+  // openrouter_role mirrors AIParams.openrouter_role: a named gateway role ranks
+  // the gateway model first when the cloud tier is permitted, exactly as submit
+  // does, so the dry run and the real run agree.
+  string openrouter_role = 6;
+  // fallback_policy mirrors AIParams.fallback_policy: local_only forbids the
+  // cloud tier, cloud_allowed permits it, any leaves allow_byok as sent.
+  string fallback_policy = 7;
 }
 
 message ExplainResolutionResponse {

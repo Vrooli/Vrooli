@@ -3,8 +3,10 @@ package lifecycle
 import (
 	"context"
 	"fmt"
+	"os"
 	"slices"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -27,6 +29,11 @@ func forceSetupFor(opts StartOptions, slug string) bool {
 
 // setupNeededCached returns component build freshness, memoized through cache.
 func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	// Release bundles contain their published component artifacts. Starting a
+	// release must never turn into a source build on a target host.
+	if os.Getenv(buildinfo.ArtifactModeEnvVar) == "1" && !force {
+		return false, nil, nil
+	}
 	ctx := context.Background()
 	if session != nil {
 		ctx = session.context()

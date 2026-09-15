@@ -93,15 +93,11 @@ func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, p
 // explainResolution calls ModelsService.ExplainResolution — the read-only
 // dry-run behind `--explain`: it returns the Resolution (which model/technique
 // would run, native-vs-derived, tier, safety weight) without submitting a job.
-func explainResolution(core *cliapp.ScenarioApp, operation, modelOverride string, allowBYOK bool, adapters []*modelsv1.AdapterRef) (*modelsv1.Resolution, error) {
+func explainResolution(core *cliapp.ScenarioApp, req *modelsv1.ExplainResolutionRequest) (*modelsv1.Resolution, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := modelsconnect.NewModelsServiceClient(httpClient, baseURL)
-	resp, err := client.ExplainResolution(context.Background(), connect.NewRequest(&modelsv1.ExplainResolutionRequest{
-		Operation: operation,
-		ModelId:   modelOverride,
-		AllowByok: allowBYOK,
-		Adapters:  adapters,
-	}))
+	operation := req.GetOperation()
+	resp, err := client.ExplainResolution(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", operation), err, nil)
 	}
@@ -125,49 +121,107 @@ func addFilePart(mw *multipart.Writer, field, path string) error {
 }
 
 // waitAndDownload blocks once on JobsService.WaitJob, then downloads the result
-// blob to outPath. It returns the terminal job for status reporting.
-func waitAndDownload(core *cliapp.ScenarioApp, jobID, outPath string) (*jobsv1.Job, error) {
+// blob to outPath. It returns the terminal job and the path actually written,
+// which differs from outPath when the result's format does not match its
+// extension (for example an SVG from a vector model requested as out.png).
+func waitAndDownload(core *cliapp.ScenarioApp, jobID, outPath string) (*jobsv1.Job, string, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := jobsconnect.NewJobsServiceClient(httpClient, baseURL)
 	resp, err := client.WaitJob(context.Background(), connect.NewRequest(&jobsv1.WaitJobRequest{Id: jobID}))
 	if err != nil {
-		return nil, cliapp.WrapAPIError("wait job", err, nil)
+		return nil, "", cliapp.WrapAPIError("wait job", err, nil)
 	}
 	job := resp.Msg.GetJob()
 	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
-		return job, fmt.Errorf("job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
+		return job, "", fmt.Errorf("job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
 	}
+	written := ""
 	if outPath != "" && job.GetResultRef() != "" {
-		if err := downloadBlob(core, job.GetResultRef(), outPath); err != nil {
-			return job, err
+		written, err = downloadBlob(core, job.GetResultRef(), outPath)
+		if err != nil {
+			return job, "", err
 		}
 	}
-	return job, nil
+	return job, written, nil
 }
 
-func downloadBlob(core *cliapp.ScenarioApp, ref, outPath string) error {
+// downloadBlob fetches a managed blob and writes it, correcting the extension
+// when the bytes are a different format than outPath names.
+func downloadBlob(core *cliapp.ScenarioApp, ref, outPath string) (string, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	url := strings.TrimRight(baseURL, "/") + "/api/v1/blobs/" + ref
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("download result: %w", err)
+		return "", fmt.Errorf("download result: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download result failed (%d)", resp.StatusCode)
+		return "", fmt.Errorf("download result failed (%d)", resp.StatusCode)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if err := os.WriteFile(outPath, data, 0o644); err != nil {
-		return fmt.Errorf("write output %q: %w", outPath, err)
+	target := pathForContent(outPath, data)
+	if err := os.WriteFile(target, data, 0o644); err != nil {
+		return "", fmt.Errorf("write output %q: %w", target, err)
 	}
-	return nil
+	return target, nil
+}
+
+// imageExtensions maps a sniffed image format to its canonical extension and the
+// extensions that already name it.
+var imageExtensions = map[string][]string{
+	"svg":  {".svg"},
+	"png":  {".png"},
+	"jpeg": {".jpg", ".jpeg"},
+	"webp": {".webp"},
+	"gif":  {".gif"},
+}
+
+// pathForContent returns outPath unchanged when its extension matches the
+// sniffed format (or the format is unknown), else outPath with the extension
+// replaced by the format's canonical one.
+func pathForContent(outPath string, data []byte) string {
+	format := sniffImageFormat(data)
+	exts, ok := imageExtensions[format]
+	if !ok {
+		return outPath
+	}
+	ext := strings.ToLower(filepath.Ext(outPath))
+	for _, e := range exts {
+		if ext == e {
+			return outPath
+		}
+	}
+	return strings.TrimSuffix(outPath, filepath.Ext(outPath)) + exts[0]
+}
+
+// sniffImageFormat names the image format of data ("" when unknown).
+func sniffImageFormat(data []byte) string {
+	head := data
+	if len(head) > 512 {
+		head = head[:512]
+	}
+	trimmed := strings.TrimSpace(strings.ToLower(string(head)))
+	if strings.HasPrefix(trimmed, "<svg") || (strings.HasPrefix(trimmed, "<?xml") && strings.Contains(trimmed, "<svg")) {
+		return "svg"
+	}
+	switch http.DetectContentType(data) {
+	case "image/png":
+		return "png"
+	case "image/jpeg":
+		return "jpeg"
+	case "image/webp":
+		return "webp"
+	case "image/gif":
+		return "gif"
+	}
+	return ""
 }
 
 func stateName(s jobsv1.JobState) string {

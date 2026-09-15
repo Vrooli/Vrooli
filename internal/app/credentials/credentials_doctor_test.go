@@ -167,6 +167,20 @@ func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
 	})
 }
 
+// TestCredentialsDoctorAcceptsTheCLIsDefaultTextFormat pins the self-refusal:
+// the CLI passes "text" when no format is given, and doctor rejected it with
+// "format must be text or json" — the command every credential failure tells
+// the operator to run could not run at all.
+func TestCredentialsDoctorAcceptsTheCLIsDefaultTextFormat(t *testing.T) {
+	useNoLiveCredentialInstances(t)
+	root := credentialFixtureRoot(t)
+	withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
+	output := runCredentials(t, root, "doctor", "--format", "text")
+	if !strings.Contains(output, "vrooli credentials provision --identity vrooli/openrouter --field api-key") {
+		t.Fatalf("doctor --format text did not render the human report:\n%s", output)
+	}
+}
+
 func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 	useNoLiveCredentialInstances(t)
 	withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))

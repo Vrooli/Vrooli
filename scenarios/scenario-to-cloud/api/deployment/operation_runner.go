@@ -147,6 +147,13 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		o.verifyAndPersistIdentity(ctx, dep.ID, manifest, canonicalIdentity)
 		return nil
 	}
+	// Retention is safety-critical cleanup, not a success-only epilogue.
+	// Failed staging and interrupted operations can otherwise leave complete
+	// release trees behind until the next successful deployment, which is
+	// exactly how a small VPS can fill while every individual operation fails
+	// safely. The target-side prune owner protects active, predecessor and
+	// in-flight releases before deleting anything.
+	o.enforceVPSBundleRetentionBestEffort(ctx, dep.ID, manifest)
 	// Control errors (cancel, unknown effect, recovery) pass through to the
 	// worker untouched; everything else is a failed change.
 	return execErr.Err

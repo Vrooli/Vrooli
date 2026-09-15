@@ -58,8 +58,12 @@ func AptArgs(req Request) (update, install []string, err error) {
 	}
 	sort.Strings(names)
 	prefix := []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a", "apt-get"}
-	update = append(append([]string{}, prefix...), "update", "-qq")
-	install = append(append(append([]string{}, prefix...), "install", "-y", "-qq", "--no-install-recommends"), names...)
+	// Small VPS hosts frequently have IPv6 DNS but no usable IPv6 route. Apt's
+	// default address selection can then fail before it tries IPv4, making a
+	// healthy target look unrepairable. Force IPv4 and retry transient fetches
+	// through the broker's fixed policy surface.
+	update = append(append([]string{}, prefix...), "-o", "Acquire::ForceIPv4=true", "-o", "Acquire::Retries=3", "update", "-qq")
+	install = append(append(append([]string{}, prefix...), "-o", "Dpkg::Options::=--force-confold", "install", "-y", "-qq", "--no-install-recommends"), names...)
 	return update, install, nil
 }
 
@@ -68,6 +72,9 @@ func executeApt(ctx context.Context, executor Executor, req Request) Result {
 	if err != nil {
 		return NewFailure(req.RequestID, req.Action, "action_not_allowed")
 	}
+	if aptPackagesInstalled(ctx, executor, req.Apt.Packages) {
+		return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", Changed: false}
+	}
 	if _, err := executor.Run(ctx, "env", update...); err != nil {
 		return NewFailure(req.RequestID, req.Action, "apt_update_failed")
 	}
@@ -75,4 +82,18 @@ func executeApt(ctx context.Context, executor Executor, req Request) Result {
 		return NewFailure(req.RequestID, req.Action, "apt_install_failed")
 	}
 	return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", Changed: true}
+}
+
+// aptPackagesInstalled keeps recovery independent of package mirror health
+// when the target already satisfies the requested host baseline. The broker
+// uses a fixed dpkg-query argv and only accepts Debian's exact installed
+// status; any probe error falls through to the normal update/install path.
+func aptPackagesInstalled(ctx context.Context, executor Executor, packages []string) bool {
+	for _, name := range packages {
+		out, err := executor.Run(ctx, "dpkg-query", "-W", "-f=${Status}", name)
+		if err != nil || strings.TrimSpace(string(out)) != "install ok installed" {
+			return false
+		}
+	}
+	return len(packages) > 0
 }

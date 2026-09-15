@@ -94,6 +94,17 @@ func readProcessEnvironment(pid int) (map[string]string, error) {
 	return parseEnvironmentEntries(data), nil
 }
 
+func processExecutablePath(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	path, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
+	if err != nil {
+		return "", fmt.Errorf("platform: read executable for pid %d: %w", pid, err)
+	}
+	return path, nil
+}
+
 // processCommandLine reads /proc/<pid>/cmdline, whose arguments are NUL
 // separated with a trailing NUL. A kernel thread has an empty cmdline; report
 // that as an error rather than an empty command so callers can tell "no

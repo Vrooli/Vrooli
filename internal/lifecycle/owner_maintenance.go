@@ -228,8 +228,29 @@ func (r *Runner) allowRecoveryFirstRestart(ctx context.Context, item scenario.Sc
 		return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
 	}
 	if len(inv.Executors) == 0 {
-		if *state.Remaining != 0 || !state.Drained || len(inv.Work) != 0 {
-			return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
+		if *state.Remaining == 0 {
+			if !state.Drained || len(inv.Work) != 0 {
+				return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
+			}
+			return state.Revision, nil
+		}
+		// A durable run without a physical executor is detached work, not
+		// evidence that the owner must stay up. Interactive/remote runs retain
+		// their durable identity and are reattached by AM startup recovery;
+		// workflows remain excluded because their executor/continuation proof is
+		// a different contract.
+		if len(inv.Work) != *state.Remaining {
+			return 0, fmt.Errorf("recovery-first restart requires complete detached-run accounting")
+		}
+		for _, raw := range inv.Work {
+			var work struct {
+				ID     string `json:"id"`
+				Kind   string `json:"kind"`
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(raw, &work); err != nil || strings.TrimSpace(work.ID) == "" || work.Kind != "run" || (work.Status != "running" && work.Status != "parked" && work.Status != "needs_review") {
+				return 0, fmt.Errorf("recovery-first restart requires detached run identities without active workflows")
+			}
 		}
 		return state.Revision, nil
 	}

@@ -38,6 +38,9 @@ const (
 	FingerprintPathsEnvVar = "VROOLI_FINGERPRINT_PATHS"
 	// BuildTargetEnvVar overrides the go build target used by RebuildAndReexec.
 	BuildTargetEnvVar = "VROOLI_BUILD_TARGET"
+	// ArtifactModeEnvVar marks an installed target CLI whose source-reduced
+	// release tree must not be treated as a development checkout.
+	ArtifactModeEnvVar = "VROOLI_CLI_ARTIFACT_MODE"
 	// RebuildLoopEnvVar records the fingerprint that triggered the last rebuild.
 	RebuildLoopEnvVar = "VROOLI_REBUILD_FINGERPRINT"
 	// FingerprintDebugEnvVar enables a per-file fingerprint dump to debugWriter
@@ -412,6 +415,9 @@ func CurrentFingerprint() (string, error) {
 // CurrentFingerprintReport computes the current binary's source fingerprint and
 // returns metadata about the source set used for the calculation.
 func CurrentFingerprintReport() (FingerprintReport, error) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(ArtifactModeEnvVar)), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(ArtifactModeEnvVar)), "true") {
+		return FingerprintReport{Fingerprint: strings.TrimSpace(Fingerprint)}, nil
+	}
 	root, err := ResolveSourceRoot()
 	if err != nil {
 		return FingerprintReport{}, err

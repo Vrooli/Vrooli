@@ -17,6 +17,8 @@ type Store interface {
 	List(ctx context.Context, brandID string, status Status, limit, offset int) ([]Candidate, error)
 	UpdateStatus(ctx context.Context, id string, status Status, note string) (Candidate, error)
 	SupersedePicked(ctx context.Context, brandID, exceptID string) error
+	// FindByAsset returns the brand's oldest candidate for an asset, if any.
+	FindByAsset(ctx context.Context, brandID, assetID string) (Candidate, bool, error)
 }
 
 // ErrNotFound is returned when no candidate matches.
@@ -118,6 +120,20 @@ func (s *sqliteStore) SupersedePicked(ctx context.Context, brandID, exceptID str
 		`UPDATE logo_candidates SET status='SUPERSEDED' WHERE brand_id=? AND status='PICKED' AND id<>?`,
 		brandID, exceptID)
 	return err
+}
+
+func (s *sqliteStore) FindByAsset(ctx context.Context, brandID, assetID string) (Candidate, bool, error) {
+	c, err := scanCandidate(s.db.QueryRowContext(ctx,
+		`SELECT `+candidateColumns+` FROM logo_candidates WHERE brand_id = ? AND asset_id = ? ORDER BY created_at ASC, id ASC LIMIT 1`,
+		brandID, assetID))
+	if err != nil {
+		var notFound ErrNotFound
+		if errors.As(err, &notFound) || errors.Is(err, sql.ErrNoRows) {
+			return Candidate{}, false, nil
+		}
+		return Candidate{}, false, err
+	}
+	return c, true, nil
 }
 
 type rowScanner interface{ Scan(dest ...any) error }

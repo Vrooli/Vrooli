@@ -3,7 +3,6 @@
 package platform
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -75,20 +74,6 @@ func gracefulStopProcess(process *os.Process) error {
 func processGroupID(pid int) (int, error) { return syscall.Getpgid(pid) }
 
 func terminationSignals() []os.Signal { return []os.Signal{os.Interrupt, syscall.SIGTERM} }
-
-func pidIsAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	if err := syscall.Kill(pid, 0); err != nil {
-		return errors.Is(err, syscall.EPERM)
-	}
-	return true
-}
-
-func readProcessEnvironment(int) (map[string]string, error) {
-	return nil, fmt.Errorf("platform: process environment inspection is not supported on this platform")
-}
 
 // processCommandLine shells ps, which is the only portable way to read another
 // process's argv on BSD-family hosts. Own-process callers should prefer

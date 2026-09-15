@@ -95,7 +95,7 @@ class LogoCandidate(_message.Message):
     def __init__(self, id: _Optional[str] = ..., brand_id: _Optional[str] = ..., asset_id: _Optional[str] = ..., media_type: _Optional[str] = ..., concept: _Optional[str] = ..., prompt: _Optional[str] = ..., role: _Optional[str] = ..., model: _Optional[str] = ..., seed: _Optional[int] = ..., origin: _Optional[_Union[CandidateOrigin, str]] = ..., parent_id: _Optional[str] = ..., status: _Optional[_Union[CandidateStatus, str]] = ..., note: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., thumbnail_url: _Optional[str] = ...) -> None: ...
 
 class ExploreCandidatesRequest(_message.Message):
-    __slots__ = ("brand_id", "brief", "concepts", "variations", "prefer_vector", "quality_policy", "fallback_policy", "allow_byok")
+    __slots__ = ("brand_id", "brief", "concepts", "variations", "prefer_vector", "quality_policy", "fallback_policy", "allow_byok", "role", "style_reference_brand", "style_reference_asset_id")
     BRAND_ID_FIELD_NUMBER: _ClassVar[int]
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     CONCEPTS_FIELD_NUMBER: _ClassVar[int]
@@ -104,6 +104,9 @@ class ExploreCandidatesRequest(_message.Message):
     QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_POLICY_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    STYLE_REFERENCE_BRAND_FIELD_NUMBER: _ClassVar[int]
+    STYLE_REFERENCE_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     brand_id: str
     brief: str
     concepts: _containers.RepeatedScalarFieldContainer[str]
@@ -112,7 +115,10 @@ class ExploreCandidatesRequest(_message.Message):
     quality_policy: str
     fallback_policy: str
     allow_byok: bool
-    def __init__(self, brand_id: _Optional[str] = ..., brief: _Optional[str] = ..., concepts: _Optional[_Iterable[str]] = ..., variations: _Optional[int] = ..., prefer_vector: _Optional[bool] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., allow_byok: _Optional[bool] = ...) -> None: ...
+    role: str
+    style_reference_brand: str
+    style_reference_asset_id: str
+    def __init__(self, brand_id: _Optional[str] = ..., brief: _Optional[str] = ..., concepts: _Optional[_Iterable[str]] = ..., variations: _Optional[int] = ..., prefer_vector: _Optional[bool] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., role: _Optional[str] = ..., style_reference_brand: _Optional[str] = ..., style_reference_asset_id: _Optional[str] = ...) -> None: ...
 
 class ExploreCandidatesResponse(_message.Message):
     __slots__ = ("candidates", "warnings")
