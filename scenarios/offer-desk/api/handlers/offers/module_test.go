@@ -27,6 +27,21 @@ func testOfferService(t *testing.T, clock *schedule.Fake) (*Service, context.Con
 	return &Service{store: store, logger: log.Default(), clock: clock}, ctx
 }
 
+// A consumer that requires producer time must be able to judge the ladder's
+// freshness, so both ladder projections carry the service clock's reading.
+func TestReleaseLadderProjectionsCarryProducerObservationTime(t *testing.T) { // [REQ:LADDER-011]
+	now := time.Date(2026, 9, 15, 5, 48, 0, 0, time.UTC)
+	s, ctx := testOfferService(t, schedule.NewFake(now))
+	ladder, err := s.GetReleaseLadder(ctx, connect.NewRequest(&offerspb.ReleaseLadderRequest{}))
+	require.NoError(t, err)
+	require.NotNil(t, ladder.Msg.GeneratedAt)
+	require.True(t, ladder.Msg.GeneratedAt.AsTime().Equal(now))
+	enabling, err := s.GetEnablingDeliverables(ctx, connect.NewRequest(&offerspb.ReleaseLadderRequest{}))
+	require.NoError(t, err)
+	require.NotNil(t, enabling.Msg.GeneratedAt)
+	require.True(t, enabling.Msg.GeneratedAt.AsTime().Equal(now))
+}
+
 func TestSchedulerPromotesSatisfiedCandidateWithoutManualEvaluate(t *testing.T) { // [REQ:GATE-003]
 	t.Setenv("OFFER_EVALUATION_INTERVAL", "1ms")
 	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))

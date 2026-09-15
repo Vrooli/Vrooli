@@ -140,6 +140,24 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	sort.Strings(roots)
 
 	excludes := append([]string(nil), resolvedProfile.Exclude...)
+	// Resource lifecycle owners need their cli/** directories on the target.
+	// The generic profile excludes CLI directories to keep application bundles
+	// small, but that rule must not remove resources/{id}/cli, which is the
+	// executable owner used by `vrooli resource start`.
+	filteredExcludes := excludes[:0]
+	for _, pattern := range excludes {
+		if pattern == "cli/**" {
+			continue
+		}
+		filteredExcludes = append(filteredExcludes, pattern)
+	}
+	for _, scenarioID := range scenarioIDs {
+		if scenarioID == "vrooli-autoheal" {
+			continue
+		}
+		filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/cli/**")
+	}
+	excludes = filteredExcludes
 	// Autoheal must be self-repairable on the target. Its CLI freshness
 	// contract includes cli/**, so the generic profile exclusion cannot apply
 	// to that selected maintenance scenario.

@@ -39,6 +39,58 @@ func testRegistry() *Registry {
 	}
 }
 
+func TestHandleRoom_PanoramaCarriesEveryOtherRoom(t *testing.T) {
+	missing := func(id string) MetricEntry {
+		return MetricEntry{ID: id, Label: id, Coverage: CoverageMissing, Sample: &Sample{Value: 5, Basis: "authored"}}
+	}
+	// Missing-coverage readings never reach an upstream, so the test needs no source bindings.
+	s := NewServer(&Registry{
+		Version: "1.0.0",
+		Dashboards: map[string][]MetricEntry{
+			"ledger":    {missing("churn")},
+			"broadcast": {missing("reach"), missing("churn")},
+			"panorama":  {missing("composite")},
+		},
+		Rooms: []Room{
+			{ID: "ledger", Title: "Ledger", Category: "ledger", MetricIDs: []string{"churn"}},
+			{ID: "broadcast", Title: "Broadcast", Category: "broadcast", MetricIDs: []string{"reach", "churn"}},
+			{ID: "panorama", Title: "Panorama", Category: "panorama", MetricIDs: []string{"composite"}},
+		},
+	})
+	get := func(path string) RoomReadings {
+		rr := httptest.NewRecorder()
+		s.router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+		}
+		var body RoomReadings
+		if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return body
+	}
+
+	body := get("/api/v1/rooms/panorama")
+	if len(body.Constellations) != 2 {
+		t.Fatalf("constellations=%d, want the two non-panorama rooms", len(body.Constellations))
+	}
+	if body.Constellations[0].Room.ID != "ledger" || body.Constellations[1].Room.ID != "broadcast" {
+		t.Fatalf("constellations must follow registry room order, got %s, %s", body.Constellations[0].Room.ID, body.Constellations[1].Room.ID)
+	}
+	if n := len(body.Constellations[1].Readings); n != 2 {
+		t.Fatalf("broadcast readings=%d, want every reading the room holds", n)
+	}
+	if body.Constellations[0].Readings[0].Sample == nil {
+		t.Fatal("mark mode must keep authored samples so illustrative stars can be drawn")
+	}
+	if hidden := get("/api/v1/rooms/panorama?samples=hide"); hidden.Constellations[0].Readings[0].Sample != nil {
+		t.Fatal("samples=hide must strip samples from constellation readings too")
+	}
+	if other := get("/api/v1/rooms/ledger"); other.Constellations != nil {
+		t.Fatal("only a panorama room carries constellations")
+	}
+}
+
 type staticUpstreamClient struct {
 	name string
 	body json.RawMessage

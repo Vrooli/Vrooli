@@ -4,6 +4,11 @@ import { createScenarioConnectTransport } from "@vrooli/api-base";
 import { IntegrationsService } from "@vrooli/proto-types/command-center/v1/integrations/integrations_pb";
 import type { ListIntegrationsResponse } from "@vrooli/proto-types/common/v1/integrations_pb";
 
+import type { LadderReading } from "./ladder";
+
+/** "wide" gives the hero both figure columns; the scene dims behind it. */
+export type BeatLayout = "standard" | "wide";
+
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const connectTransport = createScenarioConnectTransport({ baseUrl: resolveApiBase() });
 const integrationsClient = createClient(IntegrationsService, connectTransport);
@@ -34,6 +39,7 @@ export interface Sample {
   series: number[];
   basis: string;
   rows?: PanelRow[];
+  ladder?: LadderReading;
 }
 
 export interface Reading {
@@ -48,8 +54,9 @@ export interface Reading {
   trustReason?: string;
   empirical: Empirical;
   value: number | null;
-  kind?: "scalar" | "panel";
+  kind?: "scalar" | "panel" | "ladder";
   rows?: PanelRow[];
+  ladder?: LadderReading;
   observedAt: string | null;
   ttlSeconds: number;
   target: { direction: string; bar: number | null; barRef?: string } | null;
@@ -86,7 +93,7 @@ export interface BoardRoom {
   theme?: string;
   composition?: string;
   metricIds?: string[];
-  beats?: { hero: string; composition?: string; dwellSeconds?: number }[];
+  beats?: { hero: string; composition?: string; layout?: BeatLayout; dwellSeconds?: number }[];
 }
 
 export interface BoardSource {
@@ -110,10 +117,18 @@ export interface BoardResponse {
   sources: BoardSource[];
 }
 
+/** One room as the panorama sees it: every reading it holds. */
+export interface Constellation {
+  room: BoardRoom;
+  readings: Reading[];
+}
+
 export interface RoomResponse {
   room: BoardRoom;
   readings: Reading[];
   sources: Record<string, SourceMetadata>;
+  /** Set only for a panorama room: every other room, in registry order. */
+  constellations?: Constellation[];
 }
 
 export type FocusKind = "untrusted-reading" | "source-unavailable" | "no-instrument" | "no-pipeline" | "unregistered-outcome";

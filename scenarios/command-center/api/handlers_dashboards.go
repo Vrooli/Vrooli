@@ -95,6 +95,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		m := &out[i]
 		m.Value = nil
 		m.Rows = nil
+		m.Ladder = nil
 		m.ObservedAt = nil
 		m.Trend = nil
 		m.Trust = TrustUnavailable
@@ -147,7 +148,8 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		selectorID := first(m.Source.Selector, m.Source.Select)
 		pick, known := selectors[selectorID]
 		panelPick, panelKnown := panelSelectors[selectorID]
-		if !known && !panelKnown {
+		ladderPick, ladderKnown := ladderSelectors[selectorID]
+		if !known && !panelKnown && !ladderKnown {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "no selector named " + selectorID
 			continue
@@ -168,6 +170,24 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			m.TrustReason = "producer unit " + unit + " does not match expected " + first(m.Source.ExpectedUnit, m.Unit)
 			continue
 		}
+		if strings.EqualFold(m.Kind, "ladder") {
+			if !ladderKnown {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "no ladder selector named " + selectorID
+				continue
+			}
+			ladder, found := ladderPick(payload)
+			if !found {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "ladder selector " + selectorID + " found no plausible schedule in the source payload"
+				continue
+			}
+			m.Ladder = ladder
+			m.Rows = ladderRows(ladder)
+			m.Value = float64(len(ladder.Rungs))
+			m.trustFromProducerTime(env, err)
+			continue
+		}
 		if strings.EqualFold(m.Kind, "panel") {
 			if !panelKnown {
 				m.Trust = TrustUntrusted
@@ -186,27 +206,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 				continue
 			}
 			m.Rows = rows
-			if env.ObservationAt == nil {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "producer did not supply observation time"
-				continue
-			}
-			observed := env.ObservationAt.UTC()
-			m.ObservedAt = &observed
-			now := time.Now().UTC()
-			age := now.Sub(observed)
-			switch {
-			case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
-				m.Trust = TrustValid
-			case observed.After(now):
-				m.Trust = TrustUntrusted
-				m.TrustReason = "producer observation time is in the future"
-			case age <= time.Duration(m.TTLSeconds*2)*time.Second:
-				m.Trust = TrustCached
-			default:
-				m.Trust = TrustUnavailable
-				m.TrustReason = "producer observation is stale"
-			}
+			m.trustFromProducerTime(env, err)
 			continue
 		}
 		value, found := pick(payload)
@@ -258,6 +258,33 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	}
 	s.joinPredictions(out)
 	return out, sources
+}
+
+// trustFromProducerTime qualifies a structured reading (panel or ladder) by the
+// producer's observation time: valid inside its TTL, cached up to twice it,
+// unavailable after. A reading without producer time is never trusted.
+func (m *MetricEntry) trustFromProducerTime(env Envelope, err error) {
+	if env.ObservationAt == nil {
+		m.Trust = TrustUntrusted
+		m.TrustReason = "producer did not supply observation time"
+		return
+	}
+	observed := env.ObservationAt.UTC()
+	m.ObservedAt = &observed
+	now := time.Now().UTC()
+	age := now.Sub(observed)
+	switch {
+	case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
+		m.Trust = TrustValid
+	case observed.After(now):
+		m.Trust = TrustUntrusted
+		m.TrustReason = "producer observation time is in the future"
+	case age <= time.Duration(m.TTLSeconds*2)*time.Second:
+		m.Trust = TrustCached
+	default:
+		m.Trust = TrustUnavailable
+		m.TrustReason = "producer observation is stale"
+	}
 }
 
 func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {

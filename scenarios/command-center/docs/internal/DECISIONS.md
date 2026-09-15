@@ -4,6 +4,16 @@ Durable decisions for this scenario, newest first. A decision recorded here is b
 
 ---
 
+## 2026-09-15 — The release ladder is a structured reading, not a flattened panel
+
+**Decision.** Offer Desk's release ladder is read as its own reading kind, `ladder`, carrying every ranked rung with what it opens, the enabling work due by its rank, linked goals and readiness. It renders as Next Rung (standard beat), the Reach Map (a new `wide` beat layout) and a strip summary. Offer Desk stamps `generated_at` on the ladder so the reading is trusted on producer time.
+
+**Why.** The ladder was projected into panel rows: fourteen rungs broke the six-row panel cap, the response carried no producer time, and the rows dropped everything that makes the ladder worth showing. The room was blank, and the scene drew five identical unlabelled lines even when rows passed.
+
+**Alternatives rejected.** Raising the panel cap, which would still flatten the schedule. Stamping observation time in Command Center, which would break the producer-time contract every reading honours. A side rail for the summary, which the room layout does not have; the supporting strip already is that rail.
+
+---
+
 ## 2026-09-01 — Command Center becomes the Director Swarm instrument
 
 **Decision.** Command Center takes the full instrument shape defined in `path:docs/agent-system/TARGET_MODEL.md`: authored space joined live, a setpoint it reads but does not own, trust-qualified readings, one ranked surface, an open-loop self-report, and a describe endpoint. It becomes the team's single address, closing the `two addresses` deviation recorded in the team's own record on 2026-08-13.

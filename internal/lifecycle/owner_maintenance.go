@@ -224,8 +224,14 @@ func (r *Runner) allowRecoveryFirstRestart(ctx context.Context, item scenario.Sc
 		return 0, fmt.Errorf("recovery-first restart requires closed admission and complete remaining-work accounting")
 	}
 	inv := state.Inventory
-	if inv == nil || inv.Remaining == nil || *inv.Remaining != *state.Remaining || len(inv.Executors) == 0 || len(inv.Unknown) != 0 {
+	if inv == nil || inv.Remaining == nil || *inv.Remaining != *state.Remaining || len(inv.Unknown) != 0 {
 		return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
+	}
+	if len(inv.Executors) == 0 {
+		if *state.Remaining != 0 || !state.Drained || len(inv.Work) != 0 {
+			return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
+		}
+		return state.Revision, nil
 	}
 	for _, raw := range inv.Executors {
 		var executor struct {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Reading } from "../lib/api";
+import type { Constellation, Reading } from "../lib/api";
 import { createScene } from "../scenes";
 import { frameIsBlank, probeTier, type ProbeTier } from "../lib/sceneProbe";
 import { mulberry32, sceneData, seedFrom, type Frame, type Palette, type Rect, type SceneData, type SceneTier } from "../scenes/engine";
@@ -14,6 +14,8 @@ interface AmbientCanvasProps {
   /** Seed so adjacent displays never run in sync. */
   seed: string;
   focus?: string;
+  /** Every other room, when the room is a panorama. */
+  constellations?: Constellation[];
 }
 
 /**
@@ -52,12 +54,14 @@ const seedFor = (key: string): number => {
  * the theme ground paints beneath it and the figure layer composites above.
  * Still tier draws one composed frame; every tier checks its first frame.
  */
-export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus }: AmbientCanvasProps) {
+export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus, constellations }: AmbientCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"pending" | "ready" | "fallback">("pending");
   const [tier, setTier] = useState<ProbeTier>("still");
   const readingsRef = useRef(readings);
   readingsRef.current = readings;
+  const constellationsRef = useRef(constellations);
+  constellationsRef.current = constellations;
   const compositionRef = useRef(composition);
   const seedRef = useRef(seed);
   const focusRef = useRef(focus);
@@ -100,6 +104,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     let layoutReadAt = Number.NEGATIVE_INFINITY;
     let dataReadings: Reading[] | null = null;
     let dataFocus: string | undefined;
+    let dataConstellations: Constellation[] | undefined;
     let data: SceneData = sceneData([]);
 
     const refreshLayout = (nowMs: number) => {
@@ -117,10 +122,11 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
 
     /** Readings only change on a fetch; resolve them then, not per frame. */
     const currentData = (): SceneData => {
-      if (readingsRef.current !== dataReadings || focusRef.current !== dataFocus) {
+      if (readingsRef.current !== dataReadings || focusRef.current !== dataFocus || constellationsRef.current !== dataConstellations) {
         dataReadings = readingsRef.current;
         dataFocus = focusRef.current;
-        data = sceneData(dataReadings, dataFocus);
+        dataConstellations = constellationsRef.current;
+        data = sceneData(dataReadings, dataFocus, dataConstellations);
       }
       return data;
     };

@@ -909,6 +909,9 @@ func (r *resolver) collectScenarioListeners(closure *domain.Closure, decl *Scena
 			if declared.Port == name && declared.Readiness != nil {
 				readiness = declared.Readiness
 			}
+			if declared.Port == name {
+				listener.PathPrefix = declared.PathPrefix
+			}
 		}
 		if readiness == nil {
 			if declared, ok := decl.ComponentReadiness[name]; ok {

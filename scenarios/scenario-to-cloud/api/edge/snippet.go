@@ -33,11 +33,21 @@ func SnippetPath(deploymentID string) string {
 // is ever rendered.
 func RenderSnippet(spec domain.EdgeSpec) string {
 	routes := append([]domain.EdgeRoute(nil), spec.Routes...)
-	sort.Slice(routes, func(i, j int) bool { return routes[i].Host < routes[j].Host })
+	sort.Slice(routes, func(i, j int) bool {
+		if routes[i].Host != routes[j].Host {
+			return routes[i].Host < routes[j].Host
+		}
+		return routes[i].PathPrefix < routes[j].PathPrefix
+	})
 	var b strings.Builder
 	fmt.Fprintf(&b, "# vrooli deployment %s (edge spec %s); managed by scenario-to-cloud, do not edit\n", spec.DeploymentID, spec.Digest)
-	for _, route := range routes {
-		fmt.Fprintf(&b, "%s {\n", route.Host)
+	for i := 0; i < len(routes); {
+		host := routes[i].Host
+		j := i
+		for j < len(routes) && routes[j].Host == host {
+			j++
+		}
+		fmt.Fprintf(&b, "%s {\n", host)
 		if strings.TrimSpace(spec.ACMEEmail) != "" {
 			fmt.Fprintf(&b, "  tls %s {\n", strings.TrimSpace(spec.ACMEEmail))
 		} else {
@@ -48,8 +58,18 @@ func RenderSnippet(spec domain.EdgeSpec) string {
 			fmt.Fprintf(&b, "    dns %s {env.%s}\n", spec.DNSProvider.Provider, spec.DNSProvider.EnvVar)
 		}
 		b.WriteString("  }\n")
-		fmt.Fprintf(&b, "  reverse_proxy 127.0.0.1:%d\n", route.UpstreamPort)
+		for k := i; k < j; k++ {
+			route := routes[k]
+			if strings.TrimSpace(route.PathPrefix) != "" {
+				fmt.Fprintf(&b, "  handle %s* {\n", strings.TrimRight(route.PathPrefix, "/"))
+				fmt.Fprintf(&b, "    reverse_proxy 127.0.0.1:%d\n", route.UpstreamPort)
+				b.WriteString("  }\n")
+			} else {
+				fmt.Fprintf(&b, "  reverse_proxy 127.0.0.1:%d\n", route.UpstreamPort)
+			}
+		}
 		b.WriteString("}\n")
+		i = j
 	}
 	return b.String()
 }

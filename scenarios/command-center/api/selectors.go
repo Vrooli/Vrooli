@@ -65,7 +65,6 @@ var panelSelectors = map[string]panelSelector{
 	"traffic_devices":       trafficPanel,
 	"traffic_landing_paths": trafficPanel,
 	"traffic_variants":      trafficPanel,
-	"release_ladder":        releaseLadderPanel,
 	"goal_progress":         goalProgressPanel,
 	"deployment_readiness":  readinessPanel,
 }
@@ -98,41 +97,6 @@ func trafficPanel(payload any) ([]PanelRow, bool) {
 		rows = append(rows, PanelRow{Key: key, Label: label, Value: value, Share: share})
 	}
 	return rows, true
-}
-
-func releaseLadderPanel(payload any) ([]PanelRow, bool) {
-	root, ok := payload.(map[string]any)
-	if !ok {
-		return nil, false
-	}
-	entries, ok := root["entries"].([]any)
-	if !ok {
-		return nil, false
-	}
-	rows := make([]PanelRow, 0, len(entries))
-	share := 1 / float64(len(entries))
-	for _, item := range entries {
-		entry, ok := item.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		deliverable, ok := entry["deliverable"].(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		id, idOK := deliverable["id"].(string)
-		name, nameOK := deliverable["name"].(string)
-		rank, rankOK := deliverable["releaseRank"].(float64)
-		if !rankOK {
-			rank, rankOK = deliverable["release_rank"].(float64)
-		}
-		status, _ := deliverable["status"].(string)
-		if !idOK || !nameOK || !rankOK {
-			return nil, false
-		}
-		rows = append(rows, PanelRow{Key: id, Label: name, Value: rank, Share: share, Detail: status})
-	}
-	return rows, len(rows) > 0
 }
 
 func goalProgressPanel(payload any) ([]PanelRow, bool) {

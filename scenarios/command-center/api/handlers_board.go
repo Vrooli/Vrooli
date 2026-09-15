@@ -20,6 +20,16 @@ type RoomReadings struct {
 	Room     Room                      `json:"room"`
 	Readings []MetricEntry             `json:"readings"`
 	Sources  map[string]sourceMetadata `json:"sources"`
+	// Constellations is set only for a panorama room: every other room with
+	// all of its readings, so the whole board's coverage is drawn by the same
+	// resolver that draws each room.
+	Constellations []Constellation `json:"constellations,omitempty"`
+}
+
+// Constellation is one room as the panorama sees it.
+type Constellation struct {
+	Room     Room          `json:"room"`
+	Readings []MetricEntry `json:"readings"`
 }
 type FocusEntry struct {
 	Kind       string `json:"kind"`
@@ -69,13 +79,40 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 404, "room_not_found", "Unknown room: "+id, nil)
 		return
 	}
+	hide := r.URL.Query().Get("samples") == "hide"
 	readings, sources := s.readings(r.Context(), entries)
-	if r.URL.Query().Get("samples") == "hide" {
-		for i := range readings {
-			readings[i].Sample = nil
-		}
+	if hide {
+		stripSamples(readings)
 	}
-	writeJSON(w, 200, RoomReadings{Room: roomByID(s.registry, id), Readings: readings, Sources: sources})
+	room := roomByID(s.registry, id)
+	resp := RoomReadings{Room: room, Readings: readings, Sources: sources}
+	if room.Category == "panorama" {
+		resp.Constellations = s.constellations(r.Context(), hide)
+	}
+	writeJSON(w, 200, resp)
+}
+
+// constellations reads every room that is not itself a panorama. The room set
+// is the registry's, so a new room appears in the panorama with no code change.
+func (s *Server) constellations(ctx context.Context, hide bool) []Constellation {
+	out := []Constellation{}
+	for _, room := range s.registry.Rooms {
+		if room.Category == "panorama" {
+			continue
+		}
+		readings, _ := s.readings(ctx, s.registry.Dashboard(room.ID))
+		if hide {
+			stripSamples(readings)
+		}
+		out = append(out, Constellation{Room: room, Readings: readings})
+	}
+	return out
+}
+
+func stripSamples(readings []MetricEntry) {
+	for i := range readings {
+		readings[i].Sample = nil
+	}
 }
 
 func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {

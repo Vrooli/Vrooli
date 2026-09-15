@@ -17,6 +17,7 @@ const EdgeSpecSchemaVersion = 1
 // EdgeRoute is one public host routed to one loopback upstream.
 type EdgeRoute struct {
 	Host         string `json:"host"`
+	PathPrefix   string `json:"path_prefix,omitempty"`
 	UpstreamPort int    `json:"upstream_port"`
 	ListenerID   string `json:"listener_id"`
 }
@@ -74,15 +75,22 @@ func (spec EdgeRouteSpec) Validate() error {
 	default:
 		return refuse(CodeEdgeSpecInvalid, "edge spec acme_environment %q is not staging or production", spec.ACMEEnvironment)
 	}
+	routes := map[string]bool{}
 	hosts := map[string]bool{}
 	for _, route := range spec.Routes {
 		host := strings.ToLower(strings.TrimSpace(route.Host))
 		if !hostPattern.MatchString(host) {
 			return refuse(CodeEdgeSpecInvalid, "route host %q is not a valid public host name", route.Host)
 		}
-		if hosts[host] {
-			return refuse(CodeEdgeSpecInvalid, "route host %q is declared twice", host)
+		pathPrefix := strings.TrimSpace(route.PathPrefix)
+		if pathPrefix != "" && (!strings.HasPrefix(pathPrefix, "/") || strings.ContainsAny(pathPrefix, "{}\n\r")) {
+			return refuse(CodeEdgeSpecInvalid, "route %s path_prefix %q is invalid", host, route.PathPrefix)
 		}
+		key := host + "\x00" + pathPrefix
+		if routes[key] {
+			return refuse(CodeEdgeSpecInvalid, "route %s %q is declared twice", host, pathPrefix)
+		}
+		routes[key] = true
 		hosts[host] = true
 		if route.UpstreamPort < 1 || route.UpstreamPort > 65535 {
 			return refuse(CodeEdgeSpecInvalid, "route %s upstream port %d is out of range", host, route.UpstreamPort)
@@ -104,7 +112,12 @@ func (spec EdgeRouteSpec) Validate() error {
 // replay with a different route set is refused by the receipt input digest.
 func (spec EdgeRouteSpec) SpecDigest() (string, error) {
 	routes := append([]EdgeRoute(nil), spec.Routes...)
-	sort.Slice(routes, func(i, j int) bool { return routes[i].Host < routes[j].Host })
+	sort.Slice(routes, func(i, j int) bool {
+		if routes[i].Host != routes[j].Host {
+			return routes[i].Host < routes[j].Host
+		}
+		return routes[i].PathPrefix < routes[j].PathPrefix
+	})
 	return CanonicalDigest(map[string]any{
 		"schema_version":   spec.SchemaVersion,
 		"deployment_id":    spec.DeploymentID,
@@ -128,9 +141,13 @@ func checkSnippetScope(snippet string, routes []EdgeRoute) error {
 	if strings.TrimSpace(snippet) == "" {
 		return refuse(CodeEdgeSpecInvalid, "edge spec snippet is empty")
 	}
-	declared := map[string]int{}
+	declared := map[string]map[int]bool{}
 	for _, route := range routes {
-		declared[strings.ToLower(strings.TrimSpace(route.Host))] = route.UpstreamPort
+		host := strings.ToLower(strings.TrimSpace(route.Host))
+		if declared[host] == nil {
+			declared[host] = map[int]bool{}
+		}
+		declared[host][route.UpstreamPort] = true
 	}
 	seen := map[string]bool{}
 	depth := 0
@@ -173,7 +190,7 @@ func checkSnippetScope(snippet string, routes []EdgeRoute) error {
 			port, _ := strconv.Atoi(portPart)
 			allowed := false
 			for _, host := range currentHosts {
-				if declared[host] == port {
+				if declared[host][port] {
 					allowed = true
 				}
 			}

@@ -58,6 +58,9 @@ func TestOutcomeRegistrySelectorsAreDeclared(t *testing.T) {
 			if _, panelOK := panelSelectors[metric.Source.Selector]; panelOK {
 				continue
 			}
+			if _, ladderOK := ladderSelectors[metric.Source.Selector]; ladderOK {
+				continue
+			}
 			t.Errorf("metric %q names undeclared selector %q", metric.ID, metric.Source.Selector)
 		}
 	}

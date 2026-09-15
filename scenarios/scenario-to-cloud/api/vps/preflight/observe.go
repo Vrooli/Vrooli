@@ -33,7 +33,28 @@ func (o observer) observe(ctx context.Context, program string, args ...string) (
 		return reach.Result{}, err
 	}
 	cmd.Timeout = observationTimeout
-	return o.reach.Exec(ctx, o.target, cmd)
+	result, err := o.reach.Exec(ctx, o.target, cmd)
+	if err != nil {
+		return result, err
+	}
+	// SSH observations execute through the target-owned cloud-target command,
+	// which wraps the observed stdout/stderr and exit code in a JSON envelope.
+	// Decode that envelope here so preflight evaluates the host facts rather
+	// than the wrapper JSON. Raw results remain supported for test doubles and
+	// alternate transports.
+	var envelope struct {
+		Result *struct {
+			Stdout string `json:"stdout"`
+			Stderr string `json:"stderr"`
+			Exit   int    `json:"exit_code"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(result.Stdout), &envelope) == nil && envelope.Result != nil {
+		result.Stdout = envelope.Result.Stdout
+		result.Stderr = envelope.Result.Stderr
+		result.ExitCode = envelope.Result.Exit
+	}
+	return result, nil
 }
 
 // ok reports a probe that ran and exited zero.
@@ -97,7 +118,7 @@ func memTotalKB(res reach.Result) (int64, bool) {
 
 // toolDirs are the directories a bootstrap tool is looked for in; find
 // reports what is present in one observation.
-var toolDirs = []string{"/usr/bin", "/usr/local/bin", "/bin", "/usr/sbin", "/sbin", "/snap/bin"}
+var toolDirs = []string{"/usr/bin", "/usr/local/bin", "/usr/sbin"}
 
 // findTools reports which of the named programs exist in toolDirs, keyed by
 // name with the first path found.

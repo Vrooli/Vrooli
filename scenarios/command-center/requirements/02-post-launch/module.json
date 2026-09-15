@@ -265,6 +265,68 @@
           "notes": "Every theme defines the library token set and no --cc-* variable remains [REQ:CC-P1-014]."
         }
       ]
+    },
+    {
+      "id": "CC-P1-015",
+      "title": "The release ladder is a structured, producer-timed reading",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Offer Desk's release ladder reaches the room as a ladder reading: every ranked rung with what it opens, the enabling work due by its rank, linked goals and readiness, plus the rank at which each ramp, stream and audience first opens. It is trusted only on the producer's observation time and a plausible schedule (positive, unique ranks); otherwise it is UNTRUSTED with the reason named.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ladder_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A live-shaped fixture projects all 14 rungs, rung 1's four blockers, reach openings and the unscheduled product; missing producer time and duplicate ranks are refused [REQ:CC-P1-015]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P1-016",
+      "title": "The release ladder renders as Next Rung, Reach Map and a strip summary",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "A standard beat renders the ladder as Next Rung in the hero column, with labelled rungs drawn by the funnel-cascade scene beside it; a wide beat renders the Reach Map across both figure columns; the supporting strip summarises the ladder by its next release, and any ranked panel by its leading rows, instead of a dash. An authored sample is marked illustrative.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/NextRungReadout.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Next rung, its openings, blockers, goals, readiness gap and the rungs after it [REQ:CC-P1-016]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ReachMapReadout.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each unlock lights at its opening rung; unscheduled unlocks are named [REQ:CC-P1-016]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/LadderTile.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Strip tiles summarise ladder and panel readings [REQ:CC-P1-016]."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/forge-next-rung-beat.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The Forge ladder beat renders Next Rung [REQ:CC-P1-016]."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/hive-reach-beat.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The Hive wide beat renders the Reach Map [REQ:CC-P1-016]."
+        }
+      ]
     }
   ]
 }

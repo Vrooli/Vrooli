@@ -123,7 +123,7 @@ func Derive(in PolicyInputs) (domain.EdgeSpec, error) {
 				if isManagementPort(port) {
 					return domain.EdgeSpec{}, apierrors.New(CodeListenerPortUnknown, fmt.Sprintf("listener %s cannot be public: port %d is a management listener", listener.ID, port)).WithDetail("listener", listener.ID)
 				}
-				spec.Routes = append(spec.Routes, domain.EdgeRoute{Host: routeHost(domainName, listener.PortName), UpstreamPort: port, ListenerID: listener.ID})
+				spec.Routes = append(spec.Routes, domain.EdgeRoute{Host: routeHost(domainName, listener.PortName, listener.PathPrefix), PathPrefix: listener.PathPrefix, UpstreamPort: port, ListenerID: listener.ID})
 				routedPorts[listener.PortName] = true
 			default:
 				spec.PrivateListeners = append(spec.PrivateListeners, domain.EdgePrivateListener{ID: listener.ID, Owner: listener.Owner, PortName: listener.PortName, Port: port, Reason: privateReason(listener, public, in.DatabaseResources)})
@@ -181,8 +181,8 @@ func Digest(spec domain.EdgeSpec) (string, error) {
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
-func routeHost(domainName, portName string) string {
-	if portName == "ui" || portName == "" {
+func routeHost(domainName, portName, pathPrefix string) string {
+	if portName == "ui" || portName == "" || strings.TrimSpace(pathPrefix) != "" {
 		return domainName
 	}
 	return portName + "." + domainName

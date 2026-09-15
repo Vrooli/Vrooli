@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 
@@ -40,6 +41,21 @@ func TestRecentStatusEvidencePrefersRecentStatusPassages(t *testing.T) {
 	evidence := recentStatusEvidence(text, 700)
 
 	require.Contains(t, evidence, "phases 2-7 shipped and validated")
+}
+
+// Byte windows around a keyword and a byte-limited cut must never split a
+// multi-byte rune: the inference gateway refuses invalid UTF-8, and one bad
+// excerpt failed every later compaction pass.
+func TestRecentStatusEvidenceNeverSplitsARune(t *testing.T) {
+	wide := strings.Repeat("漢字—é ", 60)
+	text := wide + "İSTANBUL status: remaining work" + wide + "phases shipped and validated" + wide
+
+	for _, limit := range []int{700, 97, 13} {
+		evidence := recentStatusEvidence(text, limit)
+		require.True(t, utf8.ValidString(evidence), "limit %d produced invalid UTF-8", limit)
+	}
+	// A limit wide enough for both byte-heavy passages keeps the latest status.
+	require.Contains(t, recentStatusEvidence(text, 4000), "shipped and validated")
 }
 
 func TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves(t *testing.T) { // [REQ:VMEM-P0-001] [REQ:VMEM-P0-007]

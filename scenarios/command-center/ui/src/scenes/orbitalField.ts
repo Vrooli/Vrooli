@@ -2,11 +2,13 @@ import { drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine"
 
 interface Star { x: number; y: number; z: number; twinkle: number }
 interface Body { rx: number; ry: number; period: number; phase: number; tilt: number; size: number; healthy: boolean; trail: Array<[number, number]>; x: number; y: number; wobble: number }
+interface RingLayer { canvas: HTMLCanvasElement; key: string }
 
 /** Mission Control: every running scenario is a body on its own orbit; health is emission. */
 export function orbitalField(): Scene {
   let stars: Star[] = [];
   let bodies: Body[] = [];
+  let rings: RingLayer | null = null;
   return {
     init(frame) {
       const { rng, tier, data } = frame;
@@ -20,6 +22,7 @@ export function orbitalField(): Scene {
         const r = 0.14 + rng() ** 0.8 * 0.36;
         return { rx: r, ry: r * (0.28 + rng() * 0.4), period: 50 + r * 320 + rng() * 60, phase: rng() * Math.PI * 2, tilt: (rng() - 0.5) * 0.9, size: 1.6 + rng() * 2.2, healthy: (i + 1) % unhealthyEvery !== 0, trail: [], x: 0, y: 0, wobble: 0 };
       });
+      rings = null;
     },
     draw(frame) {
       const { ctx, w, h, t, palette, quiet, tier } = frame;
@@ -42,13 +45,7 @@ export function orbitalField(): Scene {
       drawGlow(frame, focal.x, focal.y, scale * 0.22, palette.primary, 0.35);
       drawGlow(frame, focal.x, focal.y, scale * 0.05, palette.accent, 0.9);
       ctx.globalCompositeOperation = "source-over";
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = rgba(ctx, palette.primary, 0.05);
-      for (const body of bodies) {
-        ctx.beginPath();
-        ctx.ellipse(focal.x, focal.y, body.rx * scale, body.ry * scale, body.tilt, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      rings = drawRings(ctx, bodies, focal, scale, rgba(ctx, palette.primary, 0.05), rings);
       ctx.globalCompositeOperation = "lighter";
       const trailCap = tier === "full" ? 26 : 12;
       for (const body of bodies) {
@@ -95,4 +92,48 @@ export function orbitalField(): Scene {
       ctx.globalCompositeOperation = "source-over";
     },
   };
+}
+
+/**
+ * The orbit rings stay put while the layout holds, yet stroking every full
+ * ellipse each frame was most of this scene's cost. They are drawn once into a
+ * layer in device pixels and copied at an integer offset, so the pixels match a
+ * direct stroke; the layer redraws when the focal point, scale, colour or
+ * backing transform changes.
+ */
+function drawRings(ctx: CanvasRenderingContext2D, bodies: Body[], focal: { x: number; y: number }, scale: number, color: string, cached: RingLayer | null): RingLayer | null {
+  const { a, d, e, f } = ctx.getTransform();
+  const radius = Math.max(0, ...bodies.map((body) => body.rx)) * scale + 2;
+  const left = Math.floor((focal.x - radius) * a + e);
+  const top = Math.floor((focal.y - radius) * d + f);
+  const key = `${focal.x},${focal.y},${scale},${a},${d},${e},${f},${color}`;
+  let layer = cached;
+  if (layer?.key !== key) {
+    const canvas = layer?.canvas ?? document.createElement("canvas");
+    canvas.width = Math.ceil(2 * radius * a) + 2;
+    canvas.height = Math.ceil(2 * radius * d) + 2;
+    const layerCtx = canvas.getContext("2d");
+    if (!layerCtx) {
+      strokeRings(ctx, bodies, focal, scale, color);
+      return null;
+    }
+    layerCtx.setTransform(a, 0, 0, d, e - left, f - top);
+    strokeRings(layerCtx, bodies, focal, scale, color);
+    layer = { canvas, key };
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(layer.canvas, left, top);
+  ctx.restore();
+  return layer;
+}
+
+function strokeRings(ctx: CanvasRenderingContext2D, bodies: Body[], focal: { x: number; y: number }, scale: number, color: string): void {
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = color;
+  for (const body of bodies) {
+    ctx.beginPath();
+    ctx.ellipse(focal.x, focal.y, body.rx * scale, body.ry * scale, body.tilt, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 }

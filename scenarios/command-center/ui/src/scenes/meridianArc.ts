@@ -13,7 +13,7 @@ if (WORLD_OBJECT?.type !== "GeometryCollection") throw new Error("world-atlas co
 // land outline plus every interior border. Stroking all country polygons
 // projected, clipped and rasterised each shared border twice per frame.
 const LAND = merge(WORLD_TOPOLOGY, WORLD_OBJECT.geometries as Array<Polygon | MultiPolygon>);
-const BORDERS = mesh(WORLD_TOPOLOGY, WORLD_OBJECT, (a, b) => a !== b);
+const BORDERS = mesh(WORLD_TOPOLOGY, WORLD_OBJECT as Parameters<typeof mesh>[1], (a, b) => a !== b);
 const GRATICULE = geoGraticule10();
 const VIRGINIA: GeoPoint = [-77.487, 39.043];
 const DESTINATIONS: GeoPoint[] = [
@@ -139,5 +139,5 @@ function drawGreatCircleRoute(
   ctx.moveTo(sourcePoint[0], sourcePoint[1]);
   ctx.quadraticCurveTo(control[0], control[1], target[0], target[1]);
   ctx.stroke();
-  if (target) drawGlow(frame, target[0], target[1], 3 + share * 8, palette.accent, 0.3 + share * 0.6);
+  drawGlow(frame, target[0], target[1], 3 + share * 8, palette.accent, 0.3 + share * 0.6);
 }

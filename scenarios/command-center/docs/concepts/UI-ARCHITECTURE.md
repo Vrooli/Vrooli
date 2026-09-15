@@ -72,7 +72,18 @@ Four input classes resolve to one intent vocabulary **before anything reacts** (
 
 Auto-cycle is a first-class behaviour, not a setting. Interaction pauses it; twenty seconds of inactivity resumes it. The cycle rail at the top edge visibly stops and restarts, so a paused board never reads as a frozen one (`CC-P1-008`).
 
-URL parameters seed the whole state so a kiosk boots configured with no interaction: `?room=forge&cycle=45&samples=mark&fullscreen=1`.
+URL parameters seed the whole state so a kiosk boots configured with no interaction: `?room=forge&cycle=45&samples=mark&fullscreen=1`. `?beat=N` opens a room on one beat.
+
+## Beats, layouts and list readings
+
+A beat features one reading as the hero. Its `layout` decides how much of the figure layer the hero takes:
+
+- **`standard`** (the default) — the hero holds the left column and the beat's composition owns the band beside it.
+- **`wide`** — the hero spans both figure columns and the scene steps back to 30% opacity. Use it only for a reading that is an axis, not a figure.
+
+The hero component follows the reading's `kind`: `scalar` renders the wall figure, `panel` renders ranked rows, and `ladder` renders **Next Rung** on a standard beat and the **Reach Map** on a wide one. The Forge shows Next Rung beside the funnel-cascade scene, which draws the actual next rungs with their names; the Hive shows the Reach Map.
+
+A supporting tile follows the same kind. A list reading has no single figure, so a `panel` tile shows its leading rows and a `ladder` tile shows the next release and one segment per rung, instead of a dash (`CC-P1-016`).
 
 Both topologies are supported from the first commit: one display cycling, and several displays each pinned to a room. That means the room is a pure URL parameter, ambient motion seeds per display so adjacent screens never run in sync, and nothing anywhere assumes exactly one room is live.
 

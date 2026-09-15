@@ -298,8 +298,18 @@ func (s *Service) GetReleaseLadder(ctx context.Context, r *connect.Request[offer
 	if err != nil {
 		return nil, internal(err)
 	}
+	ladder.GeneratedAt = s.observedAt()
 	s.attachGoalImpacts(ctx, ladder)
 	return connect.NewResponse(ladder), nil
+}
+
+// observedAt stamps a projection with the service clock so consumers can judge
+// its freshness from producer time rather than their own fetch time.
+func (s *Service) observedAt() *timestamppb.Timestamp {
+	if s.clock == nil {
+		return timestamppb.Now()
+	}
+	return timestamppb.New(s.clock.Now().UTC())
 }
 
 func (s *Service) attachGoalImpacts(ctx context.Context, ladder *offerspb.ReleaseLadderResponse) {
@@ -353,7 +363,7 @@ func (s *Service) GetEnablingDeliverables(ctx context.Context, r *connect.Reques
 	if err != nil {
 		return nil, internal(err)
 	}
-	return connect.NewResponse(&offerspb.ReleaseLadderResponse{Enabling: ladder.Enabling}), nil
+	return connect.NewResponse(&offerspb.ReleaseLadderResponse{Enabling: ladder.Enabling, GeneratedAt: s.observedAt()}), nil
 }
 
 func (s *Service) GetPrerequisites(ctx context.Context, r *connect.Request[offerspb.PrerequisiteWalkRequest]) (*connect.Response[offerspb.PrerequisiteWalkResponse], error) {

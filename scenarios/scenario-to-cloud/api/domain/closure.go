@@ -143,6 +143,7 @@ type ClosureListener struct {
 	Owner      string            `json:"owner"`
 	PortName   string            `json:"port_name"`
 	Visibility string            `json:"visibility"`
+	PathPrefix string            `json:"path_prefix,omitempty"`
 	Readiness  *ClosureReadiness `json:"readiness,omitempty"`
 }
 

@@ -1,4 +1,5 @@
-import type { Reading } from "../lib/api";
+import type { Constellation, Reading } from "../lib/api";
+import { skyState, type SkyState } from "../lib/sky";
 import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 
 export type SceneTier = "full" | "reduced";
@@ -24,7 +25,15 @@ export interface Palette {
 export interface SceneReading {
 	value: number | null;
 	ink: Ink;
-	rows?: Array<{ share: number; value: number }>;
+	/** Panel and ladder rows; ladder rows carry the rung name and its status as detail. */
+	rows?: Array<{ share: number; value: number; label?: string; detail?: string }>;
+}
+
+/** One room drawn by the panorama: its signals in registry order, each with where it stands. */
+export interface SceneGroup {
+  id: string;
+  title: string;
+  stars: Array<{ id: string; state: SkyState; cached: boolean }>;
 }
 
 export interface SceneData {
@@ -34,6 +43,8 @@ export interface SceneData {
   order: string[];
   /** Metric currently featured by the room beat, when one is authored. */
   focus?: string;
+  /** Every other room, when the room is a panorama. */
+  groups?: SceneGroup[];
 }
 
 export interface Frame {
@@ -57,11 +68,19 @@ export interface Scene {
   draw(frame: Frame): void;
 }
 
-export const sceneData = (readings: Reading[], focus?: string): SceneData => ({
+const sceneGroups = (constellations: Constellation[]): SceneGroup[] =>
+  constellations.map(({ room, readings }) => ({
+    id: room.id,
+    title: room.title,
+    stars: readings.map((reading) => ({ id: reading.id, state: skyState(reading), cached: reading.trust === "CACHED" })),
+  }));
+
+export const sceneData = (readings: Reading[], focus?: string, constellations?: Constellation[]): SceneData => ({
+  ...(constellations ? { groups: sceneGroups(constellations) } : {}),
   readings: Object.fromEntries(
     readings.map((reading) => {
       const resolution = resolveReading(reading);
-		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: reading.rows?.map((row) => ({ share: row.share, value: row.value })) }];
+		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: (reading.rows ?? reading.sample?.rows)?.map((row) => ({ share: row.share, value: row.value, label: row.label, detail: row.detail })) }];
     }),
   ),
   order: readings.map((reading) => reading.id),

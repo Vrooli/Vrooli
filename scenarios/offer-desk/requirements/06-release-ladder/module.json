@@ -10,6 +10,7 @@
     {"id":"LADDER-007","title":"An unranked marketed deliverable is reported, never hidden","status":"complete","category":"projection","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
     {"id":"LADDER-008","title":"Every audited catalog write records an actor","status":"complete","category":"audit","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
     {"id":"LADDER-009","title":"A node rename preserves edges and records the prior name","status":"complete","category":"identity","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
-    {"id":"LADDER-010","title":"Cumulative ramp accumulation is linear in schedule length","status":"complete","category":"performance","criticality":"P2","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]}
+    {"id":"LADDER-010","title":"Cumulative ramp accumulation is linear in schedule length","status":"complete","category":"performance","criticality":"P2","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-011","title":"Ladder projections carry the producer's observation time","status":"complete","category":"projection","criticality":"P1","description":"GetReleaseLadder and GetEnablingDeliverables stamp generated_at from the service clock, so a consumer that requires producer time can judge freshness instead of refusing the ladder.","validation":[{"type":"test","ref":"api/handlers/offers/module_test.go","status":"implemented"}]}
   ]
 }

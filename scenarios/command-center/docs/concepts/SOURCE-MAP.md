@@ -17,7 +17,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | Team | Instrument | Status | Archetype | What the board can read |
 |---|---|---|---|---|
 | `meta-optimization` | `meta-optimization-manager` | `live` | coverage-board | The reference case. One address, named projections, denominator-confidence, the two attestation axes. Readable cleanly, with confidence attached to every ratio. |
-| `monetization` | `offer-desk` | `live` | production-ledger | Live but ledger-shaped. The release ladder is readable; revenue and subscription attribution remain LPBS-owned projections. |
+| `monetization` | `offer-desk` | `live` | production-ledger | Live but ledger-shaped. The release ladder is read as a `ladder` reading timed by Offer Desk's `generated_at`; revenue and subscription attribution remain LPBS-owned projections. |
 | `infra-health` | `infrastructure-manager` | `partial` | coverage-board | Wired, with a long stated gap marker: setpoint confidence `SKETCH`, most peer sources untyped, capability availability history unavailable, and the team loop paused since 2026-07-24. Readable with confidence attached. |
 | `marketing-crew` | `landing-page-business-suite` | `partial` | production-ledger | LPBS provides dimensioned visitor, referrer, campaign, device, path, and variant projections. Social reach and SEO remain declared gaps. |
 | `director-swarm` | *two addresses* | `partial` | production-ledger | The team this board serves. `swarm-manager` holds portfolio state and is read as a source; this scenario becomes the address. |

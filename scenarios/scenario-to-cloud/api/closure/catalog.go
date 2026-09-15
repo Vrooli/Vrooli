@@ -107,6 +107,7 @@ type ListenerDeclaration struct {
 	ID         string                `json:"id"`
 	Port       string                `json:"port"`
 	Visibility string                `json:"visibility"`
+	PathPrefix string                `json:"path_prefix,omitempty"`
 	Readiness  *ReadinessDeclaration `json:"readiness,omitempty"`
 }
 

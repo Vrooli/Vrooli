@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/tuning"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -83,6 +84,42 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 		standing = drain.GetStanding()
 	}
 	return &providerFence{client: client, operationID: operationID, token: standing.GetFenceToken(), revision: standing.GetRevision(), active: true}, nil
+}
+
+func isStaleProviderFenceError(err error) bool {
+	return connect.CodeOf(err) == connect.CodeFailedPrecondition && strings.Contains(err.Error(), "another lifecycle operation is fenced")
+}
+
+func isStartupRecoveryUnavailableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Startup can report readiness before the first complete physical inventory
+	// exists. Treat that typed provider observation as retryable for the same
+	// bounded handoff window; a persistent ambiguity still fails closed.
+	return strings.Contains(err.Error(), "startup recovery is not ready") ||
+		strings.Contains(err.Error(), "physical executor inventory is incomplete")
+}
+
+func (r *Runner) prepareProviderFenceAfterRecovery(ctx context.Context, item scenario.Scenario, overrideReason, operationID string) (*providerFence, error) {
+	deadline := time.NewTimer(tuning.LifecycleExtendedOperationTimeout())
+	defer deadline.Stop()
+	for {
+		fence, err := r.prepareProviderFence(ctx, item, true, overrideReason, operationID)
+		if err == nil || !isStartupRecoveryUnavailableError(err) {
+			return fence, err
+		}
+		delay := time.NewTimer(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			delay.Stop()
+			return nil, ctx.Err()
+		case <-deadline.C:
+			delay.Stop()
+			return nil, err
+		case <-delay.C:
+		}
+	}
 }
 
 func (f *providerFence) resume(ctx context.Context) error {

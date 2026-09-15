@@ -53,6 +53,22 @@
       "testId": "loading",
       "selector": "[data-testid=\"loading\"]"
     },
+    "dashboard.ladderNextRung": {
+      "testId": "ladder-next-rung",
+      "selector": "[data-testid=\"ladder-next-rung\"]"
+    },
+    "dashboard.ladderReach": {
+      "testId": "ladder-reach",
+      "selector": "[data-testid=\"ladder-reach\"]"
+    },
+    "dashboard.ladderTile": {
+      "testId": "ladder-tile",
+      "selector": "[data-testid=\"ladder-tile\"]"
+    },
+    "dashboard.panelTile": {
+      "testId": "panel-tile",
+      "selector": "[data-testid=\"panel-tile\"]"
+    },
     "library.data-display.provenance-ink.root": {
       "testId": "data-display.provenance-ink",
       "selector": "[data-testid=\"data-display.provenance-ink\"]"
@@ -77,6 +93,6 @@
   "dynamicSelectors": {},
   "sources": {
     "ui/src/consts/selectors.library.ts": "ae9b05510fd7c419025407bb70a709d25ed2c86b6d41fc18a0cbe46fcf4a20c4",
-    "ui/src/consts/selectors.ts": "ee01982dbcb5447964d2c5ea3a7db372d322224ed000c59f6d5d933a00f16595"
+    "ui/src/consts/selectors.ts": "f4e57f008072d0e4daddd227e295db87077305be076de32bf50be6f07bfa5dc3"
   }
 }

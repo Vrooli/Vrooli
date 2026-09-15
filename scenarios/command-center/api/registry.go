@@ -58,10 +58,11 @@ const (
 )
 
 type Sample struct {
-	Value  any        `json:"value"`
-	Series []any      `json:"series"`
-	Rows   []PanelRow `json:"rows,omitempty"`
-	Basis  string     `json:"basis"`
+	Value  any            `json:"value"`
+	Series []any          `json:"series"`
+	Rows   []PanelRow     `json:"rows,omitempty"`
+	Ladder *LadderReading `json:"ladder,omitempty"`
+	Basis  string         `json:"basis"`
 }
 type SourceBinding struct {
 	Team                string `json:"team"`
@@ -110,6 +111,7 @@ type MetricEntry struct {
 	Empirical            Empirical        `json:"empirical"`
 	Value                any              `json:"value"`
 	Rows                 []PanelRow       `json:"rows,omitempty"`
+	Ladder               *LadderReading   `json:"ladder,omitempty"`
 	ObservedAt           *time.Time       `json:"observedAt"`
 	TTLSeconds           int              `json:"ttlSeconds"`
 	Target               *Target          `json:"target"`
@@ -139,11 +141,24 @@ type Room struct {
 	Beats         []Beat              `json:"beats,omitempty"`
 }
 
+// Beat features one reading. Layout "wide" gives the hero both figure columns
+// (the scene dims behind it); omitted or "standard" keeps the hero column and
+// leaves the right band to the composition.
 type Beat struct {
 	Hero         string  `json:"hero"`
 	Composition  string  `json:"composition,omitempty"`
+	Layout       string  `json:"layout,omitempty"`
 	DwellSeconds float64 `json:"dwellSeconds,omitempty"`
 }
+
+func validKind(kind string) bool {
+	return kind == "" || kind == "scalar" || kind == "panel" || kind == "ladder"
+}
+
+func validLayout(layout string) bool {
+	return layout == "" || layout == "standard" || layout == "wide"
+}
+
 type Tombstone struct {
 	ID           string `json:"id"`
 	Retired      string `json:"retired"`
@@ -206,6 +221,9 @@ func LoadRegistry(path string) (*Registry, error) {
 		if !validCoverage(m.Coverage) && m.Coverage != "" {
 			return nil, fmt.Errorf("metric %s has invalid coverage %q", m.ID, m.Coverage)
 		}
+		if !validKind(m.Kind) {
+			return nil, fmt.Errorf("metric %s has invalid kind %q", m.ID, m.Kind)
+		}
 		if m.Coverage == "" {
 			m.Coverage = CoverageNow
 		}
@@ -247,6 +265,13 @@ func LoadRegistry(path string) (*Registry, error) {
 		}
 		if m.Coverage != CoverageNow && m.Sample == nil {
 			return nil, fmt.Errorf("metric %s missing sample", m.ID)
+		}
+	}
+	for _, room := range reg.Rooms {
+		for _, beat := range room.Beats {
+			if !validLayout(beat.Layout) {
+				return nil, fmt.Errorf("room %s beat %s has invalid layout %q", room.ID, beat.Hero, beat.Layout)
+			}
 		}
 	}
 	if len(reg.Rooms) == 0 {

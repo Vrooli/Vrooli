@@ -37,6 +37,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
 
 	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
+	writeFile(t, repoRoot, "resources/postgres/cli/start.sh", "#!/usr/bin/env bash\necho start\n")
 	writeFile(t, repoRoot, "resources/redis/README.md", "redis\n")
 
 	m := domain.CloudManifest{
@@ -151,6 +152,9 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 	}
 	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected bundle metadata embedded in bundle")
+	}
+	if !manifest.Contains(entries, "resources/postgres/cli/start.sh") {
+		t.Fatalf("resource lifecycle CLI must be present in the deployment bundle")
 	}
 }
 

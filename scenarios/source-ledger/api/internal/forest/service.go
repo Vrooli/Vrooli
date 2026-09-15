@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"source-ledger/internal/inference"
 	"source-ledger/internal/policy"
@@ -181,6 +182,10 @@ func (s *Service) runLocked(ctx context.Context, config Config, maxClusters int)
 // summarize retries the provider's transient stream-termination failure before
 // the atomic write begins. A final error still leaves the forest untouched.
 func (s *Service) summarize(ctx context.Context, prompt string) (string, error) {
+	// Stored source text can already hold invalid UTF-8 (for example a summary
+	// cut mid-rune before this was fixed). The gateway's protobuf encoding
+	// refuses such strings, which failed every later compaction pass.
+	prompt = strings.ToValidUTF8(prompt, "�")
 	const maxAttempts = 2
 	for attempt := 0; ; attempt++ {
 		body, err := s.inference.Summarize(ctx, prompt)
@@ -392,7 +397,9 @@ func boundedSummaryInput(text string) string {
 
 func recentStatusEvidence(text string, limit int) string {
 	const radius = 180
-	lower := strings.ToLower(text)
+	// The keywords are ASCII, so an ASCII-only lowercase keeps byte offsets
+	// aligned with text; strings.ToLower can change a rune's byte length.
+	lower := asciiLower(text)
 	keywords := []string{"shipped", "complete", "completed", "done", "executed", "remaining", "not built", "not started", "status:"}
 	positions := make([]int, 0, len(keywords))
 	for _, keyword := range keywords {
@@ -404,6 +411,9 @@ func recentStatusEvidence(text string, limit int) string {
 	var builder strings.Builder
 	for _, position := range positions {
 		start, end := max(0, position-radius), min(len(text), position+len("completed")+radius)
+		// Cut on rune boundaries: a byte offset inside a multi-byte rune yields
+		// invalid UTF-8, which the inference gateway refuses to marshal.
+		start, end = runeFloor(text, start), runeCeil(text, end)
 		excerpt := strings.TrimSpace(text[start:end])
 		if excerpt == "" || strings.Contains(builder.String(), excerpt) {
 			continue
@@ -414,7 +424,7 @@ func recentStatusEvidence(text string, limit int) string {
 		if builder.Len()+len(excerpt) > limit {
 			remaining := limit - builder.Len()
 			if remaining > 0 {
-				builder.WriteString(excerpt[:remaining])
+				builder.WriteString(excerpt[:runeFloor(excerpt, remaining)])
 			}
 			break
 		}
@@ -424,6 +434,34 @@ func recentStatusEvidence(text string, limit int) string {
 		return "No explicit status-bearing passage was found; do not infer a current status."
 	}
 	return builder.String()
+}
+
+// asciiLower lowercases only ASCII letters, so byte offsets found in the
+// result index the same bytes in the original string.
+func asciiLower(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if 'A' <= c && c <= 'Z' {
+			b[i] = c + ('a' - 'A')
+		}
+	}
+	return string(b)
+}
+
+// runeFloor moves i back to the start of the rune that contains it.
+func runeFloor(s string, i int) int {
+	for i > 0 && i < len(s) && !utf8.RuneStart(s[i]) {
+		i--
+	}
+	return i
+}
+
+// runeCeil moves i forward to the next rune start.
+func runeCeil(s string, i int) int {
+	for i < len(s) && !utf8.RuneStart(s[i]) {
+		i++
+	}
+	return i
 }
 
 func min(a, b int) int {

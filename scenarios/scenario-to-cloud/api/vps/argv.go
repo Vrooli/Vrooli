@@ -194,7 +194,7 @@ func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand,
 		}
 		return out, nil
 	case execplan.OpConfigApply:
-		args := []string{"--yes", "yes", "--environment", in["environment"]}
+		args := []string{"--yes", "yes", "--environment", in["environment"], "--include-optional"}
 		if resources := strings.TrimSpace(in["resources"]); resources != "" {
 			args = append(args, "--resources", resources)
 		}

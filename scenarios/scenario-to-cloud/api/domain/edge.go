@@ -24,6 +24,7 @@ const (
 // loopback listener.
 type EdgeRoute struct {
 	Host         string `json:"host"`
+	PathPrefix   string `json:"path_prefix,omitempty"`
 	UpstreamPort int    `json:"upstream_port"`
 	ListenerID   string `json:"listener_id"`
 }

@@ -431,6 +431,14 @@ func buildAndInstallWatchdog(p paths) error {
 	if strings.TrimSpace(root) == "" {
 		return fmt.Errorf("Vrooli source root is empty")
 	}
+	// scenario-to-cloud may deliver a verified release-built watchdog before
+	// setup runs. Reuse it when it already matches this checkout; compiling the
+	// full root workspace on a small VPS can otherwise exhaust its memory.
+	if want, versionErr := expectedWatchdogVersion(root); versionErr == nil {
+		if got := installedWatchdogVersion(p.Binary); got == want {
+			return nil
+		}
+	}
 	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(p.Binary)}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("create watchdog install directory: %w", err)
 	}

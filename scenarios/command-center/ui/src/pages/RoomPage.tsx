@@ -11,6 +11,19 @@ import { fetchRoom, hasValue, type RoomResponse } from "../lib/api";
 import { pickHero } from "../lib/hero";
 import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { PanelReadout } from "../components/PanelReadout";
+import { NextRungReadout } from "../components/NextRungReadout";
+import { ReachMapReadout } from "../components/ReachMapReadout";
+import { LadderTile } from "../components/LadderTile";
+import { PanelTile } from "../components/PanelTile";
+import { SkyReadout } from "../components/SkyReadout";
+import type { Reading } from "../lib/api";
+
+/** A supporting reading takes the tile its shape calls for: a list reading has no single figure to show. */
+function SupportingTile({ reading, showTrend }: { reading: Reading; showTrend: boolean }) {
+  if (reading.kind === "ladder") return <LadderTile reading={reading} />;
+  if (reading.kind === "panel") return <PanelTile reading={reading} />;
+  return <ReadingTile reading={reading} showTrend={showTrend} />;
+}
 
 const THEMES: Record<string, string> = { "mission-control": "ground-control", hive: "bioluminescent", forge: "foundry", ledger: "vault", broadcast: "signal-tower", panorama: "cosmos" };
 
@@ -36,8 +49,11 @@ export default function RoomPage() {
   const theme = room.theme ?? THEMES[roomId] ?? "ground-control";
   const readings = useMemo(() => data?.readings ?? [], [data]);
   const visible = useMemo(() => (board.samples === "hide" ? readings.filter(hasValue) : readings), [board.samples, readings]);
-  const hero = pickHero(visible, beat?.hero);
+  const constellations = data?.constellations;
+  // A panorama's hero counts the whole board, so every one of its own readings (the rooms' headlines) supports.
+  const hero = constellations ? null : pickHero(visible, beat?.hero);
   const composition = beat?.composition ?? room.composition ?? "orbital-field";
+  const layout = beat?.layout === "wide" ? "wide" : "standard";
   useEffect(() => {
     if (board.samples !== "hide" || !beats.length || !beat || visible.length === 0) return;
     if (!visible.some((reading) => reading.id === beat.hero)) board.selectBeat((beatIndex + 1) % beats.length);
@@ -72,19 +88,19 @@ export default function RoomPage() {
         </ExperienceSurface>
       }
     >
-      <main className={`cc-room cc-room-${composition}`} data-testid="room-composition" data-composition={composition} data-room={roomId} data-beat={beatIndex} data-all-illustrative={allIllustrative || undefined}>
+      <main className={`cc-room cc-room-${composition}`} data-testid="room-composition" data-composition={composition} data-layout={layout} data-room={roomId} data-beat={beatIndex} data-all-illustrative={allIllustrative || undefined}>
         <ExperienceSurface surfaceId="scene" as="div" data-testid="room-scene" className="cc-scene-layer" state={isLoading ? "loading" : "ready"}>
-          {!isLoading ? <AmbientCanvas composition={composition} readings={visible} focus={hero?.id} forcedTier={searchParams.get("tier")} quietRefs={quietRefs} seed={`${roomId}:${beatIndex}:${searchParams.get("seed") ?? ""}`} /> : null}
+          {!isLoading ? <AmbientCanvas composition={composition} readings={visible} focus={hero?.id} forcedTier={searchParams.get("tier")} quietRefs={quietRefs} seed={`${roomId}:${beatIndex}:${searchParams.get("seed") ?? ""}`} constellations={constellations} /> : null}
         </ExperienceSurface>
         <div key={`${roomId}:${beatIndex}`} className="cc-figure-layer">
           {error ? <p className="cc-degraded" role="status" data-testid="error-banner">The room could not be read. Showing nothing rather than a stale composition.</p> : null}
           {allIllustrative ? <p className="cc-room-stamp" data-testid="room-all-illustrative">Entire room illustrative · nothing here has been measured</p> : null}
-          <ExperienceSurface surfaceId="hero" as="section" data-testid="room-hero" className="cc-hero-region" state={heroState} statusMessage={error ? "Unable to read this room." : undefined} data-provenance={hero ? resolveReading(hero).figure : "none"}>
-            {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={board.samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
-            <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>
+          <ExperienceSurface surfaceId="hero" as="section" data-testid="room-hero" className="cc-hero-region" state={heroState} statusMessage={error ? "Unable to read this room." : undefined} data-provenance={hero ? resolveReading(hero).figure : constellations ? "measured" : "none"}>
+            {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : constellations ? <SkyReadout ref={heroRef} constellations={constellations} /> : hero?.kind === "ladder" ? (layout === "wide" ? <ReachMapReadout ref={heroRef} reading={hero} /> : <NextRungReadout ref={heroRef} reading={hero} />) : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={board.samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
+            {constellations ? null : <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>}
           </ExperienceSurface>
           <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings">
-            {supporting.length > 0 ? <ul ref={supportingRef} className="cc-readings" data-testid="metric-list">{supporting.map((reading) => <ReadingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} />)}</ul> : !isLoading ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
+            {supporting.length > 0 ? <ul ref={supportingRef} className="cc-readings" data-testid="metric-list">{supporting.map((reading) => <SupportingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} />)}</ul> : !isLoading ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
           </ExperienceSurface>
         </div>
       </main>

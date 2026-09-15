@@ -90,6 +90,37 @@ func TestDeriveRoutesOnlyDeclaredPublicScenarioListeners(t *testing.T) {
 	}
 }
 
+func TestDeriveSupportsPathScopedAPIAlongsideHostFallback(t *testing.T) {
+	in := PolicyInputs{
+		DeploymentID: "dep-lpbs", ScenarioID: "landing-page-business-suite", Environment: "production", Domain: "vrooli.com",
+		Listeners: []domain.ClosureListener{
+			{ID: "landing-page-business-suite/ui", Owner: "scenario:landing-page-business-suite", PortName: "ui", Visibility: domain.EdgeVisibilityPublicViaEdge},
+			{ID: "landing-page-business-suite/api", Owner: "scenario:landing-page-business-suite", PortName: "api", PathPrefix: "/api", Visibility: domain.EdgeVisibilityPublicViaEdge},
+		},
+		Ports: domain.ManifestPorts{"ui": 20080, "api": 18080}, TargetHost: "138.197.95.182",
+	}
+	spec, err := Derive(in)
+	if err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if len(spec.Routes) != 2 || spec.Routes[0].Host != "vrooli.com" || spec.Routes[1].Host != "vrooli.com" {
+		t.Fatalf("routes = %+v", spec.Routes)
+	}
+	var apiRoute domain.EdgeRoute
+	for _, route := range spec.Routes {
+		if route.PathPrefix == "/api" {
+			apiRoute = route
+		}
+	}
+	if apiRoute.PathPrefix != "/api" || apiRoute.UpstreamPort != 18080 {
+		t.Fatalf("API route = %+v", apiRoute)
+	}
+	snippet := RenderSnippet(spec)
+	if !strings.Contains(snippet, "handle /api*") || !strings.Contains(snippet, "reverse_proxy 127.0.0.1:18080") || !strings.Contains(snippet, "reverse_proxy 127.0.0.1:20080") {
+		t.Fatalf("path-scoped snippet =\n%s", snippet)
+	}
+}
+
 func intsToStrings(in []int) []string {
 	out := make([]string, 0, len(in))
 	for _, v := range in {

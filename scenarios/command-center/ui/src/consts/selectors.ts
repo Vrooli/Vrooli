@@ -22,6 +22,10 @@ const literalSelectors = {
     shortcutHelp: "shortcut-help",
     errorBanner: "error-banner",
     loading: "loading",
+    ladderNextRung: "ladder-next-rung",
+    ladderReach: "ladder-reach",
+    ladderTile: "ladder-tile",
+    panelTile: "panel-tile",
   },
 } satisfies LiteralSelectorTree;
 

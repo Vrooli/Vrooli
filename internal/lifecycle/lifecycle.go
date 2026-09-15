@@ -338,6 +338,7 @@ type StartOptions struct {
 	lifecycleOperationID    string
 	maintenanceRevision     int64
 	ownerMaintenanceChecked bool
+	recoveryFirstRestart    bool
 	// AcceptCredentialLoss explicitly permits a generated credential to be
 	// replaced after its data-owned mint witness reports that the original was
 	// lost. The lifecycle passes this as a process-scoped environment marker;
@@ -369,6 +370,9 @@ type StopOptions struct {
 	// maintenanceRevision pins the preflight observation through replacement
 	// preparation. It is never a caller-supplied bypass of the owner read.
 	maintenanceRevision int64
+	// recoveryFirst preserves the explicit recovery-first owner proof through
+	// the internal stop phase when the owner is still reporting startup 503.
+	recoveryFirst bool
 }
 
 type PhaseOptions struct {
@@ -626,15 +630,27 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if maintenanceErr != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(maintenanceErr, ErrOwnerMaintenanceRequired) {
 			maintenanceRevision, maintenanceErr = r.allowRecoveryFirstRestart(opts.Context, item)
 			if maintenanceErr == nil {
+				opts.recoveryFirstRestart = true
 				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
 			}
 		}
 		if maintenanceErr != nil {
 			return Result{}, maintenanceErr
 		}
+		// Once the strict owner observation succeeds, an explicit Agent Manager
+		// force request may also recover an abandoned provider fence left by a
+		// prior failed Prepare. The observation remains the authority; this flag
+		// only preserves that proof through the replacement pipeline.
+		if opts.ForceLifecycle && item.Slug == "agent-manager" {
+			opts.recoveryFirstRestart = true
+		}
 		opts.maintenanceRevision = maintenanceRevision
 		opts.ownerMaintenanceChecked = true
 		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
+		if err != nil && opts.recoveryFirstRestart && isStaleProviderFenceError(err) {
+			r.logWarn("adopting stale Agent Manager provider fence after startup-recovery proof", logx.AttrScenario, item.Slug, logx.AttrError, err.Error())
+			err = nil
+		}
 		if err != nil {
 			return Result{}, err
 		}
@@ -669,6 +685,26 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
+	}
+	// A recovery-first replacement must never reuse the provider fence obtained
+	// from the process that was stopped. Re-negotiate against the new owner after
+	// it is serving; its lifecycle service can adopt the persisted closed gate
+	// and the normal resume below then reopens admission exactly once for the
+	// replacement operation. This also covers a successful initial Prepare; the
+	// old fence is invalid as soon as its provider process exits.
+	if opts.recoveryFirstRestart {
+		opts.providerFence = nil
+	}
+	if opts.recoveryFirstRestart && opts.providerFence == nil {
+		item, itemErr := r.loadScenario(name, opts.CustomPath)
+		if itemErr != nil {
+			return Result{}, itemErr
+		}
+		item.Variant = opts.Variant
+		opts.providerFence, err = r.prepareProviderFenceAfterRecovery(opts.Context, item, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
+		if err != nil {
+			return Result{}, fmt.Errorf("reacquire recovery-first provider fence for %q: %w", name, err)
+		}
 	}
 	if err := opts.providerFence.resume(opts.Context); err != nil {
 		return Result{}, fmt.Errorf("resume lifecycle fence for %q: %w", name, err)
@@ -771,6 +807,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			// recovery-first restart may proceed.
 			maintenanceRevision, err = r.allowRecoveryFirstRestart(opts.Context, item)
 			if err == nil {
+				opts.recoveryFirstRestart = true
 				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
 			}
 		}
@@ -799,7 +836,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 				return Result{}, err
 			}
 		}
-		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision, recoveryFirst: opts.recoveryFirstRestart}); err != nil {
 			return Result{}, err
 		}
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
@@ -1212,7 +1249,12 @@ func (r *Runner) stopLocked(name string, opts StopOptions) error {
 		}
 		item.Variant = opts.Variant
 		if _, err := r.requireOwnerMaintenance(opts.Context, item, opts.maintenanceRevision); err != nil {
-			return err
+			if !opts.recoveryFirst {
+				return err
+			}
+			if _, recoveryErr := r.allowRecoveryFirstRestart(opts.Context, item); recoveryErr != nil {
+				return err
+			}
 		}
 	}
 	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})

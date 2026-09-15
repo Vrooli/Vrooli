@@ -252,6 +252,17 @@ func TestRecoveryFirstRestartRequiresCompleteIdentifiedExecutorInventory(t *test
 	}
 }
 
+func TestRecoveryFirstRestartAcceptsCompleteEmptyInventory(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	state := drainedOwner(t)
+	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+		return state, nil
+	}}}
+	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
+		t.Fatalf("complete empty inventory refused: revision=%d err=%v, want revision %d", revision, err, state.Revision)
+	}
+}
+
 func TestRecoveryFirstRestartProtectsIdentifiedCurrentExecutor(t *testing.T) {
 	t.Setenv(cliutil.EnvIdentityToken, "identified-test-executor")
 	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {

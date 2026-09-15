@@ -80,6 +80,22 @@ func testOptions(requirements ScenarioRequirementsFetcher) RunOptions {
 	}
 }
 
+func TestObserverDecodesTargetObservationEnvelope(t *testing.T) {
+	t.Parallel()
+	host := &reachtest.Scripted{Strict: true, Answers: map[string]reachtest.Answer{
+		"cat /etc/os-release": {Result: reach.Result{Stdout: `{"result":{"exit_code":0,"stdout":"ID=ubuntu\nVERSION_ID=\"24.04\"\n"}}`}},
+	}}
+	manifest := testManifest()
+	obs := observer{reach: host, target: domain.TargetRefFromManifest(manifest)}
+	result, err := obs.observe(context.Background(), "cat", "/etc/os-release")
+	if err != nil {
+		t.Fatalf("observe returned error: %v", err)
+	}
+	if result.ExitCode != 0 || !strings.Contains(result.Stdout, "ID=ubuntu") {
+		t.Fatalf("decoded result = %+v, want raw target observation", result)
+	}
+}
+
 func runPreflight(t *testing.T, host *reachtest.Scripted, opts RunOptions) domain.PreflightResponse {
 	t.Helper()
 	manifest := testManifest()

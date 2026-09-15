@@ -65,7 +65,7 @@
         {"hero": "scenario_completeness", "dwellSeconds": 12},
         {"hero": "scenario_usage_frequency", "dwellSeconds": 12},
         {"hero": "scenario_health_detail", "dwellSeconds": 12},
-        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 16}
+        {"hero": "release_ladder", "layout": "wide", "dwellSeconds": 16}
       ]
     },
     {
@@ -95,7 +95,7 @@
         {"hero": "timing_stats", "dwellSeconds": 10},
         {"hero": "review_stats", "dwellSeconds": 10},
         {"hero": "goal_progress", "dwellSeconds": 16},
-        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 10},
+        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 14},
         {"hero": "deployment_readiness", "dwellSeconds": 10}
       ]
     },
@@ -921,10 +921,10 @@
     {
       "id": "release_ladder",
       "label": "Release ladder",
-      "description": "Ranked deliverables reported by Offer Desk.",
+      "description": "Offer Desk's release schedule: what ships next, what each release opens, and the enabling work it waits on.",
       "unit": "count",
       "format": "integer",
-      "kind": "panel",
+      "kind": "ladder",
       "source": {
         "team": "director-swarm",
         "binding": "scenario:offer-desk",
@@ -938,16 +938,38 @@
         "expectedUnit": "count",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "IN-REACH",
+      "coverage": "NOW",
       "sample": {
-        "value": 3,
-        "series": [3],
+        "value": 4,
+        "series": [4],
         "rows": [
-          {"key": "release-1", "label": "Foundation", "value": 1, "share": 0.3333, "detail": "ready"},
-          {"key": "release-2", "label": "Capability", "value": 2, "share": 0.3333, "detail": "active"},
-          {"key": "release-3", "label": "Polish", "value": 3, "share": 0.3334, "detail": "planned"}
+          {"key": "sample-1", "label": "first release", "value": 1, "share": 0.6, "detail": "TRIGGER_MET"},
+          {"key": "sample-2", "label": "second release", "value": 2, "share": 0.2, "detail": "IDEA"},
+          {"key": "sample-3", "label": "third release", "value": 3, "share": 0.2, "detail": "IDEA"},
+          {"key": "sample-4", "label": "fourth release", "value": 4, "share": 0.2, "detail": "IDEA"}
         ],
-        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+        "ladder": {
+          "rungs": [
+            {"rank": 1, "id": "sample-1", "name": "first release", "status": "TRIGGER_MET", "finishBar": "CUSTOMER_FACING", "ramps": ["desktop"], "streams": ["voice_minutes"], "audiences": ["developer"], "blockers": [{"name": "enabling work", "status": "IDEA", "urgency": 1, "direct": true}], "goals": [], "readiness": {"reported": false}},
+            {"rank": 2, "id": "sample-2", "name": "second release", "status": "IDEA", "finishBar": "CUSTOMER_FACING", "ramps": ["agent"], "streams": [], "audiences": ["developer"], "blockers": [], "goals": [], "readiness": {"reported": false}},
+            {"rank": 3, "id": "sample-3", "name": "third release", "status": "IDEA", "finishBar": "OPERATOR_FACING", "ramps": [], "streams": ["ai_credits"], "audiences": ["business"], "blockers": [], "goals": [], "readiness": {"reported": false}},
+            {"rank": 4, "id": "sample-4", "name": "fourth release", "status": "IDEA", "finishBar": "CUSTOMER_FACING", "ramps": ["mobile"], "streams": [], "audiences": ["personal"], "blockers": [], "goals": [], "readiness": {"reported": false}}
+          ],
+          "nextRank": 1,
+          "enabling": [{"name": "enabling work", "status": "IDEA", "urgency": 1}],
+          "unscheduled": [],
+          "reach": [
+            {"kind": "ramp", "name": "desktop", "opensAt": 1},
+            {"kind": "ramp", "name": "agent", "opensAt": 2},
+            {"kind": "ramp", "name": "mobile", "opensAt": 4},
+            {"kind": "stream", "name": "voice_minutes", "opensAt": 1},
+            {"kind": "stream", "name": "ai_credits", "opensAt": 3},
+            {"kind": "audience", "name": "developer", "opensAt": 1},
+            {"kind": "audience", "name": "business", "opensAt": 3},
+            {"kind": "audience", "name": "personal", "opensAt": 4}
+          ]
+        },
+        "basis": "hand-authored structural sample in Offer Desk vocabulary, reviewed 2026-09-15"
       }
     },
     {

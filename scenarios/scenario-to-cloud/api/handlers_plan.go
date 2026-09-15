@@ -346,7 +346,12 @@ func (s *Server) applyDeploymentPlan(ctx context.Context, deploymentID string, r
 		// admitted for reconciliation by whichever owner starts next.
 		return result, nil
 	}
-	s.operations.Submit(ctx, op.ID, operations.ExecuteOptions{RunPreflight: req.RunPreflight})
+	// Production full applies always observe capacity and host readiness before
+	// the first target mutation. The CLI flag remains useful for development
+	// and test deployments, but production safety cannot depend on a caller
+	// remembering --preflight.
+	runPreflight := req.RunPreflight || (compiled.Plan.Scope == execplan.ScopeFull && strings.EqualFold(compiled.Plan.Environment, "production"))
+	s.operations.Submit(ctx, op.ID, operations.ExecuteOptions{RunPreflight: runPreflight})
 	return result, nil
 }
 

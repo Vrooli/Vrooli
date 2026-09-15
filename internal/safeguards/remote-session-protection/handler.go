@@ -155,16 +155,20 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 	if !host.SupportsSystemd {
 		return nil
 	}
-	if !isDesktopInstalled() {
-		return nil
-	}
 
 	alloc, err := calculateMemory()
 	if err != nil {
-		return []string{"(unable to read host inventory memory)"}
+		return nil
 	}
 
 	var pending []string
+	currentSwapGB := readCurrentSwapGB()
+	if currentSwapGB < alloc.targetSwapGB {
+		pending = append(pending, swapFile)
+	}
+	if !isDesktopInstalled() {
+		return pending
+	}
 
 	// Desktop slice
 	want := desktopSliceContent(alloc)
@@ -175,12 +179,6 @@ func inspectDesktopProtection(host hostreqkit.Host) []string {
 	// Workload slice
 	if !hostreqkit.FileContentMatches(workloadSlicePath, workloadSliceContent()) {
 		pending = append(pending, workloadSlicePath)
-	}
-
-	// Swap sufficiency
-	currentSwapGB := readCurrentSwapGB()
-	if currentSwapGB < alloc.targetSwapGB {
-		pending = append(pending, swapFile)
 	}
 
 	// Docker config (only when Docker is installed)
@@ -225,11 +223,26 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	// Phase 2: desktop-aware memory protection (when GUI detected)
-	if host.SupportsSystemd && isDesktopInstalled() {
-		if err := applyDesktopProtection(host, opts); err != nil {
-			// Desktop protection is best-effort; don't fail the entire safeguard
-			status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
+	// Phase 2: memory protection. Swap is required on small headless hosts as
+	// well as desktops; without it, a deployment build can exhaust RAM before
+	// the watchdog or SSH server can respond. Desktop slices remain conditional.
+	if host.SupportsSystemd {
+		alloc, allocErr := calculateMemory()
+		if allocErr != nil {
+			if isDesktopInstalled() {
+				if err := applyDesktopProtection(host, opts); err != nil {
+					status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
+				}
+			} else {
+				status.Notes = append(status.Notes, "memory protection could not read host inventory: "+allocErr.Error())
+			}
+		} else if err := ensureSwap(alloc, opts); err != nil {
+			status.Notes = append(status.Notes, "swap protection could not be applied: "+err.Error())
+		} else if isDesktopInstalled() {
+			if err := applyDesktopProtection(host, opts); err != nil {
+				// Desktop protection is best-effort; don't fail the entire safeguard
+				status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
+			}
 		}
 	}
 
@@ -385,6 +398,9 @@ func calculateMemory() (memoryAllocation, error) {
 	wMax := memMB * workloadMaxPercent / percentDivisor
 
 	swapGB := memMB / miBPerGiB
+	if swapGB < 1 {
+		swapGB = 1
+	}
 	if swapGB > maxSwapGB {
 		swapGB = maxSwapGB
 	}

@@ -1,19 +1,115 @@
-import { clipOutsideQuiet, drawGlow, focalPoint, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, rgba, type Frame, type Scene } from "./engine";
 
-/** Release ladder: explicit ascending rungs make the delivery stages legible. */
-export function funnelCascade(): Scene { return { init() {}, draw(frame) {
-  const { ctx, w, h, palette, data } = frame; const focus = data.readings[data.focus ?? ""];
-  const rows = focus?.rows?.length ? focus.rows : [{ value: 1, share: 1 }, { value: 0.7, share: 0.7 }, { value: 0.4, share: 0.4 }];
-  const center = focalPoint(frame); const rungCount = Math.min(5, rows.length); const rungGap = Math.min(72, h * 0.13); const startY = center.y - ((rungCount - 1) * rungGap) / 2; const left = Math.max(w * 0.38, center.x - w * 0.28);
-  clipOutsideQuiet(frame);
-  ctx.strokeStyle = rgba(ctx, palette.accent, 0.48); ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(left, startY + 12); ctx.lineTo(left, startY + (rungCount - 1) * rungGap + 12); ctx.stroke();
-  rows.slice(0, rungCount).forEach((row, index) => {
-    const progress = Math.max(0.18, Math.min(1, row.share || row.value)); const y = startY + index * rungGap; const length = w * (0.2 + progress * 0.34); const x = left + index * Math.min(20, w * 0.018);
-    ctx.strokeStyle = rgba(ctx, palette.primary, 0.38 + progress * 0.45); ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + length, y); ctx.stroke();
-    drawGlow(frame, x + length, y, 5 + progress * 5, palette.accent, 0.28 + progress * 0.4);
-    ctx.fillStyle = palette.accent; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
-  });
-  ctx.restore();
-} }; }
+export interface SceneRung { rank: number; label: string; status: string; next: boolean }
+
+/**
+ * The rungs the scene draws: the last shipped rung for footing, then the next
+ * unshipped rung and those above it, at most `limit`. Rows arrive in rank order.
+ */
+export function visibleRungs(rows: Array<{ value: number; label?: string; detail?: string }>, limit = 7): { rungs: SceneRung[]; above: number } {
+  if (!rows.length) return { rungs: [], above: 0 };
+  const nextIndex = rows.findIndex((row) => row.detail !== "SHIPPED");
+  const start = nextIndex < 0 ? Math.max(0, rows.length - limit) : Math.max(0, nextIndex - 1);
+  const window = rows.slice(start, start + limit);
+  return {
+    rungs: window.map((row, index) => ({ rank: row.value, label: row.label ?? "", status: row.detail ?? "", next: start + index === nextIndex })),
+    above: Math.max(0, rows.length - start - window.length),
+  };
+}
+
+const LIT = new Set(["TRIGGER_MET", "PROPOSED", "ACTIVE"]);
+
+function drawUnlabelled(frame: Frame): void {
+  const { ctx, w, h, palette } = frame;
+  const center = focalPoint(frame);
+  const gap = Math.min(64, h * 0.12);
+  const left = center.x - Math.min(w * 0.14, 160);
+  ctx.strokeStyle = rgba(ctx, palette.primary, 0.3);
+  ctx.lineWidth = 1.5;
+  for (let index = 0; index < 3; index += 1) {
+    const y = center.y + gap - index * gap;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(left + Math.min(w * 0.28, 320), y);
+    ctx.stroke();
+  }
+}
+
+/** Release ladder: labelled rungs climbing from the next release, the one the hero names, lit at the foot. */
+export function funnelCascade(): Scene {
+  return {
+    init() {},
+    draw(frame) {
+      const { ctx, w, h, t, tier, palette, data } = frame;
+      const focus = data.readings[data.focus ?? ""];
+      const { rungs, above } = visibleRungs(focus?.rows ?? []);
+      clipOutsideQuiet(frame);
+      if (!rungs.length) {
+        drawUnlabelled(frame);
+        ctx.restore();
+        return;
+      }
+      const center = focalPoint(frame);
+      const fontPx = Math.round(Math.max(11, Math.min(16, h * 0.018)));
+      ctx.font = `500 ${fontPx}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.textBaseline = "middle";
+      const widest = Math.max(...rungs.map((rung) => ctx.measureText(`${rung.rank}  ${rung.label}`).width));
+      const railWidth = Math.min(w * 0.16, 190);
+      const gap = Math.min(66, (h * 0.62) / Math.max(rungs.length, 3));
+      let left = center.x - (railWidth + 16 + widest) / 2;
+      left = Math.min(left, w - 24 - widest - 16 - railWidth);
+      const right = left + railWidth;
+      const footY = center.y + ((rungs.length - 1) * gap) / 2;
+      const topY = footY - (rungs.length - 1) * gap;
+
+      for (const x of [left, right]) {
+        const rail = ctx.createLinearGradient(0, topY - gap, 0, footY + gap * 0.5);
+        rail.addColorStop(0, rgba(ctx, palette.primary, 0));
+        rail.addColorStop(0.25, rgba(ctx, palette.primary, 0.42));
+        rail.addColorStop(1, rgba(ctx, palette.primary, 0.42));
+        ctx.strokeStyle = rail;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x, topY - gap);
+        ctx.lineTo(x, footY + gap * 0.5);
+        ctx.stroke();
+      }
+
+      rungs.forEach((rung, index) => {
+        const y = footY - index * gap;
+        const shipped = rung.status === "SHIPPED";
+        const alpha = rung.next ? 0.95 : shipped ? 0.28 : 0.5;
+        ctx.strokeStyle = rgba(ctx, rung.next ? palette.primary : shipped ? palette.foreground : palette.primary, alpha);
+        ctx.lineWidth = rung.next ? 3 : 1.6;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        if (rung.next) {
+          const pulse = tier === "full" ? 0.5 + 0.5 * Math.sin(t * 1.4) : 0.6;
+          drawGlow(frame, left, y, 10 + pulse * 6, palette.primary, 0.35 + pulse * 0.25);
+          drawGlow(frame, right, y, 10 + pulse * 6, palette.primary, 0.35 + pulse * 0.25);
+        }
+        const dotX = left - 14;
+        ctx.beginPath();
+        ctx.arc(dotX, y, 4, 0, Math.PI * 2);
+        if (LIT.has(rung.status) || shipped) {
+          ctx.fillStyle = shipped ? rgba(ctx, palette.foreground, 0.5) : palette.accent;
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = rgba(ctx, palette.foreground, 0.5);
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+        ctx.fillStyle = rgba(ctx, palette.foreground, rung.next ? 1 : shipped ? 0.4 : 0.66);
+        ctx.fillText(`${rung.rank}  ${rung.label}`, right + 16, y);
+      });
+
+      if (above > 0) {
+        ctx.fillStyle = rgba(ctx, palette.foreground, 0.4);
+        ctx.fillText(`+${above} more above`, right + 16, topY - gap * 0.8);
+      }
+      ctx.restore();
+    },
+  };
+}

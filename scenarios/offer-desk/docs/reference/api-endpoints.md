@@ -96,7 +96,9 @@ edits, consistent with `OT-P0-007`.
 
 `ReleaseLadderService/GetReleaseLadder` returns marketed deliverables in rank
 order, reports unranked marketed deliverables as `unscheduled`, filters retired
-nodes by default, and exposes enabling deliverables separately. Enabling
+nodes by default, and exposes enabling deliverables separately. Both ladder
+projections stamp `generated_at` from the service clock, so consumers that
+require producer time (Command Center) can judge freshness. Enabling
 urgency is derived through `enables` closure and the earliest scheduled
 marketed opener of a ramp or stream; zero means no scheduled opener. `GetPrerequisites` walks
 incoming `unlocks` and `enables` edges transitively, with depth, path, finish
