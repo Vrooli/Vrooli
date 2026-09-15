@@ -77,6 +77,14 @@ Use `skill-set-authoring` when setup is absent and setup work is authorized.
 A missing instrument is work to perform, not another item by default. An undecided
 product target still requires an operator decision.
 
+Treat the setpoint board as an observer, not as the mechanism that creates
+evidence. For every required row, locate the owner-backed producer or
+qualification workflow that can emit a current receipt. If that producer,
+harness, fixture, resolver, or join is missing or broken and the active grant
+covers the local/simulated path, build or repair it and run it before declaring
+the row externally blocked. Only a genuinely excluded operation with no
+authorized substitute is an external blocker.
+
 Separate required outcomes from diagnostic ranking signals using the approved
 contract. An unavailable optional friction report does not prevent a known,
 authorized repair. An unavailable required measurement remains an unmet obligation.
@@ -133,7 +141,7 @@ contents. Do not change a floor or suppress a finding to manufacture success.
 | --- | --- |
 | In-scope outcomes remain and useful work is possible. | Continue; do not request approval for each repair. |
 | A specific action needs another target, grant, or budget. | Request amendment; continue independent authorized work. |
-| Owner operation pending. | Attach to its wait and preserve identity. |
+| Owner operation pending. | Attach to its wait and preserve identity; first verify that the operation is truly external and that an authorized producer cannot be built or run locally. |
 | Budget exhausted or authority revoked. | Stop new effects and return an honest checkpoint. |
 | Required outcomes have applicable evidence. | Return the assessment for the configured final disposition. |
 

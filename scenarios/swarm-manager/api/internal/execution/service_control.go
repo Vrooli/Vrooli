@@ -251,8 +251,8 @@ func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, 
 	// from durable state rather than re-deriving it.
 	if strings.TrimSpace(record.ContinuationOf) != "" && strings.TrimSpace(record.LastHandoff) != "" {
 		message += "\n\nEarlier handoff:\n" + record.LastHandoff
-		if len([]rune(message)) > GoalMessageMaxChars {
-			return Record{}, apierr.BadRequest("goal_message_too_long: resume message with handoff is %d characters, over the %d limit", len([]rune(message)), GoalMessageMaxChars)
+		if len([]rune(message)) > GoalPromptMaxChars {
+			return Record{}, apierr.BadRequest("goal_prompt_too_long: resume message with handoff is %d characters, over the %d limit", len([]rune(message)), GoalPromptMaxChars)
 		}
 	}
 	runReq := agentmanager.GoalRunRequest{
@@ -314,7 +314,11 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			return s.cancelPlanExecutionLocked(ctx, records, idx)
 		}
 	}
-	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview {
+	// A terminal goal verdict may still hold a reservation when the owner did
+	// not emit a usage receipt. Permit the operator to move that record through
+	// the normal cancellation/write-off path so a new accepted attempt cannot be
+	// stranded behind an unresolvable reservation.
+	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview || record.Status == StatusNeedsAttention {
 		correlation, correlationErr := s.transitionCorrelation(record)
 		if record.WorkflowGrant != nil || (correlationErr == nil && correlation.TransitionKey == "plan.execute") {
 			return s.cancelPlanExecutionLocked(ctx, records, idx)

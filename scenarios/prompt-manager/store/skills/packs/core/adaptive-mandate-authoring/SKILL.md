@@ -51,9 +51,12 @@ not in the plan.
 
 Precondition: the scenario has a documented target (PRD or START-HERE plus
 TESTING.md outcome inventory), a `<scenario>-improve` skill, and a
-`<scenario>.setpoint-read` program. When one is missing, the first plan is a
-bounded task or a phased plan that creates it. Do not author a mandate over an
-undocumented target.
+`<scenario>.setpoint-read` program. Also inventory the owner-backed producer or
+qualification path for each required row. A read-only board with no producer
+is an incomplete mandate, not a valid finished measurement contract. When a
+producer is missing and the grant covers its implementation, the mandate must
+say to build it; use a bounded task or phased plan only when setup is outside
+the mandate's authority. Do not author a mandate over an undocumented target.
 
 ### 1.1 Shape and runtime capability check
 
@@ -79,6 +82,7 @@ Write every section. Each one has one rule.
 |---|---|---|
 | **Target pointer** | Paths to the scenario docs that hold the design and the outcome rows. | Point; never paste a snapshot. A copied board is stale on arrival and outranks the live read for no reason. |
 | **Sensors** | The setpoint program by name, for example `program-runtime library run <scenario>.setpoint-read`, plus any named owner reads. | Name programs, not URLs or private scripts. The program contract owns row IDs and the wire vocabulary. |
+| **Evidence producers** | The owner command, program, or implementation path that can create current receipts for every required row. | A read-only sensor is not a completion path. If an authorized producer is missing or broken, building it is an in-scope intervention, not an external blocker. |
 | **Definition of done** | One band per outcome row: the row ID, the band predicate, and the validity rule (cohort, freshness, owner). | Every required row has a band. A row with no band is not required. The evidence audit passes: no band moved, no row hand-graded. |
 | **Scope and authority** | `acceptance_allow` narrowed to the scenario, its shared packages, its protos and its docs. `scope_policy: extend-with-record`. Effects that need a separate decision (paid spend, private data, product promises). | Narrow the allow list; let `plan-manager exec boundary-extend` record the rest. `acceptance_deny` still refuses. |
 | **Stop rules** | What counts as blocked. What is journaled instead of estimated. | Blocked means a decision, credential, or approval the agent lacks. A row that reads unavailable is journaled, not estimated. Friction the agent can diagnose is not blocked. |
@@ -114,6 +118,10 @@ and say so in the definition of done.
 | <OT-P0-002> | <predicate> | <rule> |
 Evidence audit: no band edited, no sensor edited to move a row, every required row read from the program, repeated as often as the outcome contract requires.
 
+## Evidence producers
+- Required row groups: <row or row group> — <owner command/program/path that emits a current receipt>
+- Missing producer policy: <build or repair the producer when acceptance authority covers it; otherwise name the exact excluded decision>
+
 ## Scope and authority
 - acceptance_allow: scenarios/<scenario>/**, packages/proto/schemas/<scenario>/**, packages/proto/gen/go/<scenario>/**, packages/proto/gen/typescript/<scenario>/**, packages/<shared-package>/**
 - scope_policy: extend-with-record
@@ -122,7 +130,7 @@ Evidence audit: no band edited, no sensor edited to move a row, every required r
 ## Stop rules
 - Blocked: a decision, credential, or approval the agent lacks. Name it.
 - Journaled, not estimated: a row that reads unavailable; a sensor that fails transport.
-- Not blocked: friction the agent can diagnose; an adjacent defect the agent can file.
+- Not blocked: friction the agent can diagnose; an adjacent defect it can repair; a missing or broken authorized evidence producer.
 
 ## Suggested arc
 understand → instrument → improve → validate. Reorderable. Re-enter any stop when evidence sends you there.

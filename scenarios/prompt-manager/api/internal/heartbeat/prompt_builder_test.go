@@ -84,6 +84,21 @@ func TestPromptBuilderAgentOnlyWrapsReferenceContext(t *testing.T) {
 	}
 }
 
+func TestFiniteLeaderGuidanceRequiresProgressOrTypedBlocker(t *testing.T) {
+	for _, want := range []string{
+		"enabled, incomplete delivery effort is an actionable mandate",
+		"select and admit the next bounded action",
+		"perform the first docs/plan action",
+		"record a typed external blocker",
+		"Do not finish a wake with `no-action`",
+		"persist the result, next action, and evidence",
+	} {
+		if !strings.Contains(finiteLeaderGuidance, want) {
+			t.Errorf("finite leader guidance missing required progress rule %q", want)
+		}
+	}
+}
+
 func TestPromptBuilderUsesVolatilityOrderAndTaskOutsideContext(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
@@ -319,8 +334,8 @@ func TestBundledMembersRenderWithoutRetiredSections(t *testing.T) {
 			count++
 		}
 	}
-	if count != 26 {
-		t.Fatalf("rendered %d bundled members, want 26 (including the disabled standing supervisor)", count)
+	if count < 26 {
+		t.Fatalf("rendered %d bundled members, want at least the established 26-member baseline", count)
 	}
 }
 

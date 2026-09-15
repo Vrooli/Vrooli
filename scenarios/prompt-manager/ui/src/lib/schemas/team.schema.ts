@@ -79,7 +79,7 @@ export const OperatingContractSchema = z.object({
       rationale: z.string().optional(),
       required: z.boolean().optional(),
       optionalReason: z.string().optional(),
-    })).optional().default([]),
+    })).nullable().optional().transform((val) => val ?? []),
     sharedState: z.array(z.object({
       id: z.string(),
       path: PathRefSchema,
@@ -87,7 +87,7 @@ export const OperatingContractSchema = z.object({
       kind: z.string(),
       required: z.boolean(),
       optionalReason: z.string().optional(),
-    })).optional().default([]),
+    })).nullable().optional().transform((val) => val ?? []),
   }),
   knowledgeTopics: z.record(z.string(), z.object({
     ownerMemberId: z.string(),

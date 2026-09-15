@@ -391,6 +391,18 @@ class EnrollEffortRequest(_message.Message):
     idempotency_key: str
     def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., expected_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
+class ReconcileEffortMetadataRequest(_message.Message):
+    __slots__ = ("enrollment", "expected_revision", "idempotency_key", "authority")
+    ENROLLMENT_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_FIELD_NUMBER: _ClassVar[int]
+    enrollment: EffortEnrollment
+    expected_revision: int
+    idempotency_key: str
+    authority: _watch_pb2.WatchAuthority
+    def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., expected_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., authority: _Optional[_Union[_watch_pb2.WatchAuthority, str]] = ...) -> None: ...
+
 class WithdrawEffortRequest(_message.Message):
     __slots__ = ("effort_ref", "expected_revision", "reason", "idempotency_key")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]

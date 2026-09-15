@@ -45,7 +45,22 @@ func (s *Service) ownerRunTerminal(ctx context.Context, record Record) bool {
 		return false
 	}
 	_, terminal, err := s.goalRunReader.GetGoalRunUsage(ctx, record.RunID)
-	return err == nil && terminal
+	if err == nil && terminal {
+		return true
+	}
+	// A run can be cancelled or fail before its first measurable turn. In that
+	// case Agent Manager has authoritative terminal state but no usage receipt;
+	// absence of usage must not make a stopped owner appear live forever.
+	state, stateErr := s.goalRunReader.GetGoalRunState(ctx, record.RunID)
+	if stateErr != nil {
+		return false
+	}
+	switch strings.TrimSpace(state.Status) {
+	case "RUN_STATUS_COMPLETE", "RUN_STATUS_FAILED", "RUN_STATUS_CANCELLED":
+		return true
+	default:
+		return false
+	}
 }
 
 // settledGoalUsage reads a goal run's owner accounting and returns it only when

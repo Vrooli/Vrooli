@@ -2,15 +2,14 @@ package testing
 
 import (
 	"context"
+	"errors"
 	"net/http"
-	"net/url"
-	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
 	testingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/testing"
 	testingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/testing/testing_v1connect"
 
-	"prompt-manager/handlers/transportbridge"
 	domain "prompt-manager/internal/testing"
 )
 
@@ -24,21 +23,52 @@ func NewConnectMount(legacy *domain.Handlers) (string, http.Handler) {
 }
 
 func (h *connectHandler) RunSkillTest(ctx context.Context, req *connect.Request[testingv1.RunSkillTestRequest]) (*connect.Response[testingv1.SkillTestResponse], error) {
-	body := map[string]any{"role": req.Msg.GetRole(), "variables": req.Msg.GetVariables()}
+	testRequest := domain.TestRequest{Role: req.Msg.GetRole(), Variables: req.Msg.GetVariables()}
 	if req.Msg.MaxTokens != nil {
-		body["maxTokens"] = req.Msg.GetMaxTokens()
+		value := int(req.Msg.GetMaxTokens())
+		testRequest.MaxTokens = &value
 	}
 	if req.Msg.Temperature != nil {
-		body["temperature"] = req.Msg.GetTemperature()
+		value := req.Msg.GetTemperature()
+		testRequest.Temperature = &value
 	}
-	vars := map[string]string{"id": req.Msg.GetSkillId()}
-	return transportbridge.InvokeJSON(ctx, req.Header(), h.legacy.Test, http.MethodPost, "/skills/"+url.PathEscape(req.Msg.GetSkillId())+"/test", body, vars, &testingv1.SkillTestResponse{})
+	result, err := h.legacy.RunTest(ctx, req.Msg.GetSkillId(), testRequest)
+	if err != nil {
+		return nil, testingError(err)
+	}
+	return connect.NewResponse(&testingv1.SkillTestResponse{TestId: result.TestID, Role: result.Role, Response: result.Response, ResponseTime: result.ResponseTime, TokenCount: int32(result.TokenCount), TestedAt: result.TestedAt.Format(time.RFC3339Nano)}), nil
 }
 
 func (h *connectHandler) ListSkillTestHistory(ctx context.Context, req *connect.Request[testingv1.ListSkillTestHistoryRequest]) (*connect.Response[testingv1.ListSkillTestHistoryResponse], error) {
-	target := "/skills/" + url.PathEscape(req.Msg.GetSkillId()) + "/test-history"
-	if req.Msg.GetLimit() > 0 {
-		target += "?limit=" + strconv.FormatInt(int64(req.Msg.GetLimit()), 10)
+	limit := int(req.Msg.GetLimit())
+	results, err := h.legacy.History(ctx, req.Msg.GetSkillId(), limit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return transportbridge.InvokeWrappedJSON(ctx, req.Header(), h.legacy.GetHistory, http.MethodGet, target, nil, map[string]string{"id": req.Msg.GetSkillId()}, "results", &testingv1.ListSkillTestHistoryResponse{})
+	out := &testingv1.ListSkillTestHistoryResponse{}
+	for _, result := range results {
+		item := &testingv1.SkillTestResult{Id: result.ID, SkillId: result.SkillID, Role: result.Role, InputVariables: result.InputVars, Response: result.Response, ResponseTime: result.ResponseTime, TestedAt: result.TestedAt.Format(time.RFC3339Nano)}
+		if result.TokenCount != nil {
+			value := int32(*result.TokenCount)
+			item.TokenCount = &value
+		}
+		if result.Rating != nil {
+			value := int32(*result.Rating)
+			item.Rating = &value
+		}
+		item.Notes = result.Notes
+		out.Results = append(out.Results, item)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func testingError(err error) error {
+	code := connect.CodeInternal
+	switch {
+	case errors.Is(err, domain.ErrTestingUnavailable):
+		code = connect.CodeUnavailable
+	case errors.Is(err, domain.ErrSkillNotFound):
+		code = connect.CodeNotFound
+	}
+	return connect.NewError(code, err)
 }

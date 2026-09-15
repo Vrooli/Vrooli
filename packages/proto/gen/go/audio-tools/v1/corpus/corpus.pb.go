@@ -72,21 +72,126 @@ func (ClipSource) EnumDescriptor() ([]byte, []int) {
 	return file_audio_tools_v1_corpus_corpus_proto_rawDescGZIP(), []int{0}
 }
 
+type CorpusSplit int32
+
+const (
+	CorpusSplit_CORPUS_SPLIT_UNSPECIFIED CorpusSplit = 0
+	CorpusSplit_CORPUS_SPLIT_DEV         CorpusSplit = 1
+	CorpusSplit_CORPUS_SPLIT_HELD_OUT    CorpusSplit = 2
+)
+
+// Enum value maps for CorpusSplit.
+var (
+	CorpusSplit_name = map[int32]string{
+		0: "CORPUS_SPLIT_UNSPECIFIED",
+		1: "CORPUS_SPLIT_DEV",
+		2: "CORPUS_SPLIT_HELD_OUT",
+	}
+	CorpusSplit_value = map[string]int32{
+		"CORPUS_SPLIT_UNSPECIFIED": 0,
+		"CORPUS_SPLIT_DEV":         1,
+		"CORPUS_SPLIT_HELD_OUT":    2,
+	}
+)
+
+func (x CorpusSplit) Enum() *CorpusSplit {
+	p := new(CorpusSplit)
+	*p = x
+	return p
+}
+
+func (x CorpusSplit) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CorpusSplit) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_corpus_corpus_proto_enumTypes[1].Descriptor()
+}
+
+func (CorpusSplit) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_corpus_corpus_proto_enumTypes[1]
+}
+
+func (x CorpusSplit) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CorpusSplit.Descriptor instead.
+func (CorpusSplit) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_corpus_corpus_proto_rawDescGZIP(), []int{1}
+}
+
+type NoiseCondition int32
+
+const (
+	NoiseCondition_NOISE_CONDITION_UNSPECIFIED NoiseCondition = 0
+	NoiseCondition_NOISE_CONDITION_CLEAN       NoiseCondition = 1
+	NoiseCondition_NOISE_CONDITION_NOISY       NoiseCondition = 2
+)
+
+// Enum value maps for NoiseCondition.
+var (
+	NoiseCondition_name = map[int32]string{
+		0: "NOISE_CONDITION_UNSPECIFIED",
+		1: "NOISE_CONDITION_CLEAN",
+		2: "NOISE_CONDITION_NOISY",
+	}
+	NoiseCondition_value = map[string]int32{
+		"NOISE_CONDITION_UNSPECIFIED": 0,
+		"NOISE_CONDITION_CLEAN":       1,
+		"NOISE_CONDITION_NOISY":       2,
+	}
+)
+
+func (x NoiseCondition) Enum() *NoiseCondition {
+	p := new(NoiseCondition)
+	*p = x
+	return p
+}
+
+func (x NoiseCondition) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NoiseCondition) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_corpus_corpus_proto_enumTypes[2].Descriptor()
+}
+
+func (NoiseCondition) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_corpus_corpus_proto_enumTypes[2]
+}
+
+func (x NoiseCondition) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NoiseCondition.Descriptor instead.
+func (NoiseCondition) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_corpus_corpus_proto_rawDescGZIP(), []int{2}
+}
+
 // Clip is one corpus item's metadata. Audio bytes are NOT carried here —
 // fetch them via GetClipAudio.
 type Clip struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ReferenceText string                 `protobuf:"bytes,2,opt,name=reference_text,json=referenceText,proto3" json:"reference_text,omitempty"`
-	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
-	DurationMs    int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	SampleRateHz  int32                  `protobuf:"varint,5,opt,name=sample_rate_hz,json=sampleRateHz,proto3" json:"sample_rate_hz,omitempty"`
-	Format        string                 `protobuf:"bytes,6,opt,name=format,proto3" json:"format,omitempty"` // audioformat hint, e.g. "pcm_s16le"
-	BlobKey       string                 `protobuf:"bytes,7,opt,name=blob_key,json=blobKey,proto3" json:"blob_key,omitempty"`
-	Source        ClipSource             `protobuf:"varint,8,opt,name=source,proto3,enum=vrooli.audio_tools.v1.corpus.ClipSource" json:"source,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ReferenceText    string                 `protobuf:"bytes,2,opt,name=reference_text,json=referenceText,proto3" json:"reference_text,omitempty"`
+	Tags             []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	DurationMs       int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	SampleRateHz     int32                  `protobuf:"varint,5,opt,name=sample_rate_hz,json=sampleRateHz,proto3" json:"sample_rate_hz,omitempty"`
+	Format           string                 `protobuf:"bytes,6,opt,name=format,proto3" json:"format,omitempty"` // audioformat hint, e.g. "pcm_s16le"
+	BlobKey          string                 `protobuf:"bytes,7,opt,name=blob_key,json=blobKey,proto3" json:"blob_key,omitempty"`
+	Source           ClipSource             `protobuf:"varint,8,opt,name=source,proto3,enum=vrooli.audio_tools.v1.corpus.ClipSource" json:"source,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CorpusRevision   string                 `protobuf:"bytes,10,opt,name=corpus_revision,json=corpusRevision,proto3" json:"corpus_revision,omitempty"`
+	LicenseReference string                 `protobuf:"bytes,11,opt,name=license_reference,json=licenseReference,proto3" json:"license_reference,omitempty"`
+	SpeakerPseudonym string                 `protobuf:"bytes,12,opt,name=speaker_pseudonym,json=speakerPseudonym,proto3" json:"speaker_pseudonym,omitempty"`
+	Split            CorpusSplit            `protobuf:"varint,13,opt,name=split,proto3,enum=vrooli.audio_tools.v1.corpus.CorpusSplit" json:"split,omitempty"`
+	NoiseCondition   NoiseCondition         `protobuf:"varint,14,opt,name=noise_condition,json=noiseCondition,proto3,enum=vrooli.audio_tools.v1.corpus.NoiseCondition" json:"noise_condition,omitempty"`
+	SnrDb            float64                `protobuf:"fixed64,15,opt,name=snr_db,json=snrDb,proto3" json:"snr_db,omitempty"`
+	ContentSha256    string                 `protobuf:"bytes,16,opt,name=content_sha256,json=contentSha256,proto3" json:"content_sha256,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Clip) Reset() {
@@ -182,17 +287,72 @@ func (x *Clip) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Clip) GetCorpusRevision() string {
+	if x != nil {
+		return x.CorpusRevision
+	}
+	return ""
+}
+
+func (x *Clip) GetLicenseReference() string {
+	if x != nil {
+		return x.LicenseReference
+	}
+	return ""
+}
+
+func (x *Clip) GetSpeakerPseudonym() string {
+	if x != nil {
+		return x.SpeakerPseudonym
+	}
+	return ""
+}
+
+func (x *Clip) GetSplit() CorpusSplit {
+	if x != nil {
+		return x.Split
+	}
+	return CorpusSplit_CORPUS_SPLIT_UNSPECIFIED
+}
+
+func (x *Clip) GetNoiseCondition() NoiseCondition {
+	if x != nil {
+		return x.NoiseCondition
+	}
+	return NoiseCondition_NOISE_CONDITION_UNSPECIFIED
+}
+
+func (x *Clip) GetSnrDb() float64 {
+	if x != nil {
+		return x.SnrDb
+	}
+	return 0
+}
+
+func (x *Clip) GetContentSha256() string {
+	if x != nil {
+		return x.ContentSha256
+	}
+	return ""
+}
+
 type CreateClipRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"` // raw bytes in `format`
-	ReferenceText string                 `protobuf:"bytes,2,opt,name=reference_text,json=referenceText,proto3" json:"reference_text,omitempty"`
-	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
-	DurationMs    int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	SampleRateHz  int32                  `protobuf:"varint,5,opt,name=sample_rate_hz,json=sampleRateHz,proto3" json:"sample_rate_hz,omitempty"`
-	Format        string                 `protobuf:"bytes,6,opt,name=format,proto3" json:"format,omitempty"`
-	Source        ClipSource             `protobuf:"varint,7,opt,name=source,proto3,enum=vrooli.audio_tools.v1.corpus.ClipSource" json:"source,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Audio            []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"` // raw bytes in `format`
+	ReferenceText    string                 `protobuf:"bytes,2,opt,name=reference_text,json=referenceText,proto3" json:"reference_text,omitempty"`
+	Tags             []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	DurationMs       int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	SampleRateHz     int32                  `protobuf:"varint,5,opt,name=sample_rate_hz,json=sampleRateHz,proto3" json:"sample_rate_hz,omitempty"`
+	Format           string                 `protobuf:"bytes,6,opt,name=format,proto3" json:"format,omitempty"`
+	Source           ClipSource             `protobuf:"varint,7,opt,name=source,proto3,enum=vrooli.audio_tools.v1.corpus.ClipSource" json:"source,omitempty"`
+	CorpusRevision   string                 `protobuf:"bytes,8,opt,name=corpus_revision,json=corpusRevision,proto3" json:"corpus_revision,omitempty"`
+	LicenseReference string                 `protobuf:"bytes,9,opt,name=license_reference,json=licenseReference,proto3" json:"license_reference,omitempty"`
+	SpeakerPseudonym string                 `protobuf:"bytes,10,opt,name=speaker_pseudonym,json=speakerPseudonym,proto3" json:"speaker_pseudonym,omitempty"`
+	Split            CorpusSplit            `protobuf:"varint,11,opt,name=split,proto3,enum=vrooli.audio_tools.v1.corpus.CorpusSplit" json:"split,omitempty"`
+	NoiseCondition   NoiseCondition         `protobuf:"varint,12,opt,name=noise_condition,json=noiseCondition,proto3,enum=vrooli.audio_tools.v1.corpus.NoiseCondition" json:"noise_condition,omitempty"`
+	SnrDb            float64                `protobuf:"fixed64,13,opt,name=snr_db,json=snrDb,proto3" json:"snr_db,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateClipRequest) Reset() {
@@ -272,6 +432,48 @@ func (x *CreateClipRequest) GetSource() ClipSource {
 		return x.Source
 	}
 	return ClipSource_CLIP_SOURCE_UNSPECIFIED
+}
+
+func (x *CreateClipRequest) GetCorpusRevision() string {
+	if x != nil {
+		return x.CorpusRevision
+	}
+	return ""
+}
+
+func (x *CreateClipRequest) GetLicenseReference() string {
+	if x != nil {
+		return x.LicenseReference
+	}
+	return ""
+}
+
+func (x *CreateClipRequest) GetSpeakerPseudonym() string {
+	if x != nil {
+		return x.SpeakerPseudonym
+	}
+	return ""
+}
+
+func (x *CreateClipRequest) GetSplit() CorpusSplit {
+	if x != nil {
+		return x.Split
+	}
+	return CorpusSplit_CORPUS_SPLIT_UNSPECIFIED
+}
+
+func (x *CreateClipRequest) GetNoiseCondition() NoiseCondition {
+	if x != nil {
+		return x.NoiseCondition
+	}
+	return NoiseCondition_NOISE_CONDITION_UNSPECIFIED
+}
+
+func (x *CreateClipRequest) GetSnrDb() float64 {
+	if x != nil {
+		return x.SnrDb
+	}
+	return 0
 }
 
 type CreateClipResponse struct {
@@ -690,7 +892,7 @@ var File_audio_tools_v1_corpus_corpus_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_corpus_corpus_proto_rawDesc = "" +
 	"\n" +
-	"\"audio-tools/v1/corpus/corpus.proto\x12\x1cvrooli.audio_tools.v1.corpus\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x02\n" +
+	"\"audio-tools/v1/corpus/corpus.proto\x12\x1cvrooli.audio_tools.v1.corpus\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa1\x05\n" +
 	"\x04Clip\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0ereference_text\x18\x02 \x01(\tR\rreferenceText\x12\x12\n" +
@@ -702,7 +904,15 @@ const file_audio_tools_v1_corpus_corpus_proto_rawDesc = "" +
 	"\bblob_key\x18\a \x01(\tR\ablobKey\x12@\n" +
 	"\x06source\x18\b \x01(\x0e2(.vrooli.audio_tools.v1.corpus.ClipSourceR\x06source\x129\n" +
 	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x85\x02\n" +
+	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12'\n" +
+	"\x0fcorpus_revision\x18\n" +
+	" \x01(\tR\x0ecorpusRevision\x12+\n" +
+	"\x11license_reference\x18\v \x01(\tR\x10licenseReference\x12+\n" +
+	"\x11speaker_pseudonym\x18\f \x01(\tR\x10speakerPseudonym\x12?\n" +
+	"\x05split\x18\r \x01(\x0e2).vrooli.audio_tools.v1.corpus.CorpusSplitR\x05split\x12U\n" +
+	"\x0fnoise_condition\x18\x0e \x01(\x0e2,.vrooli.audio_tools.v1.corpus.NoiseConditionR\x0enoiseCondition\x12\x15\n" +
+	"\x06snr_db\x18\x0f \x01(\x01R\x05snrDb\x12%\n" +
+	"\x0econtent_sha256\x18\x10 \x01(\tR\rcontentSha256\"\xb7\x04\n" +
 	"\x11CreateClipRequest\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12%\n" +
 	"\x0ereference_text\x18\x02 \x01(\tR\rreferenceText\x12\x12\n" +
@@ -711,7 +921,14 @@ const file_audio_tools_v1_corpus_corpus_proto_rawDesc = "" +
 	"durationMs\x12$\n" +
 	"\x0esample_rate_hz\x18\x05 \x01(\x05R\fsampleRateHz\x12\x16\n" +
 	"\x06format\x18\x06 \x01(\tR\x06format\x12@\n" +
-	"\x06source\x18\a \x01(\x0e2(.vrooli.audio_tools.v1.corpus.ClipSourceR\x06source\"L\n" +
+	"\x06source\x18\a \x01(\x0e2(.vrooli.audio_tools.v1.corpus.ClipSourceR\x06source\x12'\n" +
+	"\x0fcorpus_revision\x18\b \x01(\tR\x0ecorpusRevision\x12+\n" +
+	"\x11license_reference\x18\t \x01(\tR\x10licenseReference\x12+\n" +
+	"\x11speaker_pseudonym\x18\n" +
+	" \x01(\tR\x10speakerPseudonym\x12?\n" +
+	"\x05split\x18\v \x01(\x0e2).vrooli.audio_tools.v1.corpus.CorpusSplitR\x05split\x12U\n" +
+	"\x0fnoise_condition\x18\f \x01(\x0e2,.vrooli.audio_tools.v1.corpus.NoiseConditionR\x0enoiseCondition\x12\x15\n" +
+	"\x06snr_db\x18\r \x01(\x01R\x05snrDb\"L\n" +
 	"\x12CreateClipResponse\x126\n" +
 	"\x04clip\x18\x01 \x01(\v2\".vrooli.audio_tools.v1.corpus.ClipR\x04clip\"c\n" +
 	"\x10ListClipsRequest\x12!\n" +
@@ -736,7 +953,15 @@ const file_audio_tools_v1_corpus_corpus_proto_rawDesc = "" +
 	"ClipSource\x12\x1b\n" +
 	"\x17CLIP_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CLIP_SOURCE_FREE_FORM\x10\x01\x12\x18\n" +
-	"\x14CLIP_SOURCE_SCRIPTED\x10\x022\xbe\x04\n" +
+	"\x14CLIP_SOURCE_SCRIPTED\x10\x02*\\\n" +
+	"\vCorpusSplit\x12\x1c\n" +
+	"\x18CORPUS_SPLIT_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10CORPUS_SPLIT_DEV\x10\x01\x12\x19\n" +
+	"\x15CORPUS_SPLIT_HELD_OUT\x10\x02*g\n" +
+	"\x0eNoiseCondition\x12\x1f\n" +
+	"\x1bNOISE_CONDITION_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15NOISE_CONDITION_CLEAN\x10\x01\x12\x19\n" +
+	"\x15NOISE_CONDITION_NOISY\x10\x022\xbe\x04\n" +
 	"\rCorpusService\x12o\n" +
 	"\n" +
 	"CreateClip\x12/.vrooli.audio_tools.v1.corpus.CreateClipRequest\x1a0.vrooli.audio_tools.v1.corpus.CreateClipResponse\x12l\n" +
@@ -758,46 +983,52 @@ func file_audio_tools_v1_corpus_corpus_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_corpus_corpus_proto_rawDescData
 }
 
-var file_audio_tools_v1_corpus_corpus_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_audio_tools_v1_corpus_corpus_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_audio_tools_v1_corpus_corpus_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_audio_tools_v1_corpus_corpus_proto_goTypes = []any{
 	(ClipSource)(0),               // 0: vrooli.audio_tools.v1.corpus.ClipSource
-	(*Clip)(nil),                  // 1: vrooli.audio_tools.v1.corpus.Clip
-	(*CreateClipRequest)(nil),     // 2: vrooli.audio_tools.v1.corpus.CreateClipRequest
-	(*CreateClipResponse)(nil),    // 3: vrooli.audio_tools.v1.corpus.CreateClipResponse
-	(*ListClipsRequest)(nil),      // 4: vrooli.audio_tools.v1.corpus.ListClipsRequest
-	(*ListClipsResponse)(nil),     // 5: vrooli.audio_tools.v1.corpus.ListClipsResponse
-	(*GetClipRequest)(nil),        // 6: vrooli.audio_tools.v1.corpus.GetClipRequest
-	(*GetClipResponse)(nil),       // 7: vrooli.audio_tools.v1.corpus.GetClipResponse
-	(*GetClipAudioRequest)(nil),   // 8: vrooli.audio_tools.v1.corpus.GetClipAudioRequest
-	(*GetClipAudioResponse)(nil),  // 9: vrooli.audio_tools.v1.corpus.GetClipAudioResponse
-	(*DeleteClipRequest)(nil),     // 10: vrooli.audio_tools.v1.corpus.DeleteClipRequest
-	(*DeleteClipResponse)(nil),    // 11: vrooli.audio_tools.v1.corpus.DeleteClipResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(CorpusSplit)(0),              // 1: vrooli.audio_tools.v1.corpus.CorpusSplit
+	(NoiseCondition)(0),           // 2: vrooli.audio_tools.v1.corpus.NoiseCondition
+	(*Clip)(nil),                  // 3: vrooli.audio_tools.v1.corpus.Clip
+	(*CreateClipRequest)(nil),     // 4: vrooli.audio_tools.v1.corpus.CreateClipRequest
+	(*CreateClipResponse)(nil),    // 5: vrooli.audio_tools.v1.corpus.CreateClipResponse
+	(*ListClipsRequest)(nil),      // 6: vrooli.audio_tools.v1.corpus.ListClipsRequest
+	(*ListClipsResponse)(nil),     // 7: vrooli.audio_tools.v1.corpus.ListClipsResponse
+	(*GetClipRequest)(nil),        // 8: vrooli.audio_tools.v1.corpus.GetClipRequest
+	(*GetClipResponse)(nil),       // 9: vrooli.audio_tools.v1.corpus.GetClipResponse
+	(*GetClipAudioRequest)(nil),   // 10: vrooli.audio_tools.v1.corpus.GetClipAudioRequest
+	(*GetClipAudioResponse)(nil),  // 11: vrooli.audio_tools.v1.corpus.GetClipAudioResponse
+	(*DeleteClipRequest)(nil),     // 12: vrooli.audio_tools.v1.corpus.DeleteClipRequest
+	(*DeleteClipResponse)(nil),    // 13: vrooli.audio_tools.v1.corpus.DeleteClipResponse
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_audio_tools_v1_corpus_corpus_proto_depIdxs = []int32{
 	0,  // 0: vrooli.audio_tools.v1.corpus.Clip.source:type_name -> vrooli.audio_tools.v1.corpus.ClipSource
-	12, // 1: vrooli.audio_tools.v1.corpus.Clip.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: vrooli.audio_tools.v1.corpus.CreateClipRequest.source:type_name -> vrooli.audio_tools.v1.corpus.ClipSource
-	1,  // 3: vrooli.audio_tools.v1.corpus.CreateClipResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
-	1,  // 4: vrooli.audio_tools.v1.corpus.ListClipsResponse.clips:type_name -> vrooli.audio_tools.v1.corpus.Clip
-	1,  // 5: vrooli.audio_tools.v1.corpus.GetClipResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
-	1,  // 6: vrooli.audio_tools.v1.corpus.GetClipAudioResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
-	2,  // 7: vrooli.audio_tools.v1.corpus.CorpusService.CreateClip:input_type -> vrooli.audio_tools.v1.corpus.CreateClipRequest
-	4,  // 8: vrooli.audio_tools.v1.corpus.CorpusService.ListClips:input_type -> vrooli.audio_tools.v1.corpus.ListClipsRequest
-	6,  // 9: vrooli.audio_tools.v1.corpus.CorpusService.GetClip:input_type -> vrooli.audio_tools.v1.corpus.GetClipRequest
-	8,  // 10: vrooli.audio_tools.v1.corpus.CorpusService.GetClipAudio:input_type -> vrooli.audio_tools.v1.corpus.GetClipAudioRequest
-	10, // 11: vrooli.audio_tools.v1.corpus.CorpusService.DeleteClip:input_type -> vrooli.audio_tools.v1.corpus.DeleteClipRequest
-	3,  // 12: vrooli.audio_tools.v1.corpus.CorpusService.CreateClip:output_type -> vrooli.audio_tools.v1.corpus.CreateClipResponse
-	5,  // 13: vrooli.audio_tools.v1.corpus.CorpusService.ListClips:output_type -> vrooli.audio_tools.v1.corpus.ListClipsResponse
-	7,  // 14: vrooli.audio_tools.v1.corpus.CorpusService.GetClip:output_type -> vrooli.audio_tools.v1.corpus.GetClipResponse
-	9,  // 15: vrooli.audio_tools.v1.corpus.CorpusService.GetClipAudio:output_type -> vrooli.audio_tools.v1.corpus.GetClipAudioResponse
-	11, // 16: vrooli.audio_tools.v1.corpus.CorpusService.DeleteClip:output_type -> vrooli.audio_tools.v1.corpus.DeleteClipResponse
-	12, // [12:17] is the sub-list for method output_type
-	7,  // [7:12] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	14, // 1: vrooli.audio_tools.v1.corpus.Clip.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 2: vrooli.audio_tools.v1.corpus.Clip.split:type_name -> vrooli.audio_tools.v1.corpus.CorpusSplit
+	2,  // 3: vrooli.audio_tools.v1.corpus.Clip.noise_condition:type_name -> vrooli.audio_tools.v1.corpus.NoiseCondition
+	0,  // 4: vrooli.audio_tools.v1.corpus.CreateClipRequest.source:type_name -> vrooli.audio_tools.v1.corpus.ClipSource
+	1,  // 5: vrooli.audio_tools.v1.corpus.CreateClipRequest.split:type_name -> vrooli.audio_tools.v1.corpus.CorpusSplit
+	2,  // 6: vrooli.audio_tools.v1.corpus.CreateClipRequest.noise_condition:type_name -> vrooli.audio_tools.v1.corpus.NoiseCondition
+	3,  // 7: vrooli.audio_tools.v1.corpus.CreateClipResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
+	3,  // 8: vrooli.audio_tools.v1.corpus.ListClipsResponse.clips:type_name -> vrooli.audio_tools.v1.corpus.Clip
+	3,  // 9: vrooli.audio_tools.v1.corpus.GetClipResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
+	3,  // 10: vrooli.audio_tools.v1.corpus.GetClipAudioResponse.clip:type_name -> vrooli.audio_tools.v1.corpus.Clip
+	4,  // 11: vrooli.audio_tools.v1.corpus.CorpusService.CreateClip:input_type -> vrooli.audio_tools.v1.corpus.CreateClipRequest
+	6,  // 12: vrooli.audio_tools.v1.corpus.CorpusService.ListClips:input_type -> vrooli.audio_tools.v1.corpus.ListClipsRequest
+	8,  // 13: vrooli.audio_tools.v1.corpus.CorpusService.GetClip:input_type -> vrooli.audio_tools.v1.corpus.GetClipRequest
+	10, // 14: vrooli.audio_tools.v1.corpus.CorpusService.GetClipAudio:input_type -> vrooli.audio_tools.v1.corpus.GetClipAudioRequest
+	12, // 15: vrooli.audio_tools.v1.corpus.CorpusService.DeleteClip:input_type -> vrooli.audio_tools.v1.corpus.DeleteClipRequest
+	5,  // 16: vrooli.audio_tools.v1.corpus.CorpusService.CreateClip:output_type -> vrooli.audio_tools.v1.corpus.CreateClipResponse
+	7,  // 17: vrooli.audio_tools.v1.corpus.CorpusService.ListClips:output_type -> vrooli.audio_tools.v1.corpus.ListClipsResponse
+	9,  // 18: vrooli.audio_tools.v1.corpus.CorpusService.GetClip:output_type -> vrooli.audio_tools.v1.corpus.GetClipResponse
+	11, // 19: vrooli.audio_tools.v1.corpus.CorpusService.GetClipAudio:output_type -> vrooli.audio_tools.v1.corpus.GetClipAudioResponse
+	13, // 20: vrooli.audio_tools.v1.corpus.CorpusService.DeleteClip:output_type -> vrooli.audio_tools.v1.corpus.DeleteClipResponse
+	16, // [16:21] is the sub-list for method output_type
+	11, // [11:16] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_corpus_corpus_proto_init() }
@@ -810,7 +1041,7 @@ func file_audio_tools_v1_corpus_corpus_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_corpus_corpus_proto_rawDesc), len(file_audio_tools_v1_corpus_corpus_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      3,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,

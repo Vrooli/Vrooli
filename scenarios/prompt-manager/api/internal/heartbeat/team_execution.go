@@ -171,6 +171,9 @@ type TeamExecutionContext struct {
 	// clock supplies "now" for reset-eligibility timing. Tests inject a fake
 	// clock; production defaults to time.Now.
 	clock func() time.Time
+	// executionWG tracks the short-lived dispatch goroutines. Completion
+	// waiters themselves are owned and drained by Executor.
+	executionWG sync.WaitGroup
 }
 
 // newTeamExecutionContext creates a new TeamExecutionContext for a single team.
@@ -339,7 +342,9 @@ func (c *TeamExecutionContext) startExecutions(dispatches []queuedExecution) {
 }
 
 func (c *TeamExecutionContext) startExecution(agentID, profileKey string) {
+	c.executionWG.Add(1)
 	go func() {
+		defer c.executionWG.Done()
 		result, err := c.executor.Execute(context.Background(), c.teamID, agentID, profileKey)
 		if err != nil {
 			if IsDispatchUncertain(err) {
@@ -355,6 +360,11 @@ func (c *TeamExecutionContext) startExecution(agentID, profileKey string) {
 		}
 		log.Printf("team_execution: execution started for %s/%s, run ID: %s", c.teamID, agentID, result.RunID)
 	}()
+}
+
+// Shutdown waits for dispatch goroutines to finish their durable state update.
+func (c *TeamExecutionContext) Shutdown() {
+	c.executionWG.Wait()
 }
 
 // BeginDispatch records the durable dispatch intent (including the owner

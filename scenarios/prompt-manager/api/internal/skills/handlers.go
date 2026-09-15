@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -140,6 +141,42 @@ func (h *Handlers) triggerDeleteAsync(skillID string) {
 	}()
 }
 
+// ListSkills returns enriched skill records without crossing the HTTP
+// compatibility boundary. Connect and the legacy REST endpoint share this
+// implementation.
+func (h *Handlers) ListSkills(ctx context.Context, opts FilterOptions) ([]Response, error) {
+	store := h.storeFor(ctx)
+	items, err := store.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	items = Filter(items, opts)
+	responses := make([]Response, 0, len(items))
+	for _, item := range items {
+		responses = append(responses, h.toResponse(item))
+	}
+	return responses, nil
+}
+
+// GetSkill returns one enriched skill record without crossing the HTTP
+// compatibility boundary.
+func (h *Handlers) GetSkill(ctx context.Context, id string) (Response, error) {
+	store := h.storeFor(ctx)
+	skill, folder, err := store.FindByID(id)
+	if err != nil {
+		return Response{}, fmt.Errorf("Skill not found")
+	}
+	content, err := store.GetContent(folder, skill.File)
+	if err != nil {
+		return Response{}, fmt.Errorf("Failed to load skill content")
+	}
+	response := h.toResponse(*skill)
+	response.Content = content
+	response.Folder = folder
+	response.Variables = ExtractVariables(content)
+	return response, nil
+}
+
 // templateVariableKeys extracts the explicit {{variable}} contract from a
 // skill body. The Prompt Manager owns the durable skill store, so this generic
 // check protects every write path (CLI, API, and Swarm Manager proxy) instead
@@ -178,132 +215,89 @@ func removedTemplateVariables(previous, replacement string) []string {
 
 // List handles GET /skills - returns all skills with optional filtering.
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
 	tag := r.URL.Query().Get("tag")
 	folder := r.URL.Query().Get("folder")
 	modes := r.URL.Query()["modes"]
 	withoutProgrammaticHome := r.URL.Query().Get("withoutProgrammaticHome") == "true"
 
-	skills, err := store.GetAll()
+	skills, err := h.ListSkills(r.Context(), FilterOptions{
+		Tag: tag, Folder: folder, Modes: modes, WithoutProgrammaticHome: withoutProgrammaticHome,
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Apply domain filters
-	skills = Filter(skills, FilterOptions{
-		Tag:                     tag,
-		Folder:                  folder,
-		Modes:                   modes,
-		WithoutProgrammaticHome: withoutProgrammaticHome,
-	})
-
-	// Convert to response format with metrics
-	responses := make([]Response, 0, len(skills))
-	for _, p := range skills {
-		responses = append(responses, h.toResponse(p))
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(skills)
+}
+
+// SyncSkills builds the deterministic, content-bearing catalog used by
+// clients that need change detection. It is transport-neutral.
+func (h *Handlers) SyncSkills(ctx context.Context, tag string) (SyncResponse, error) {
+	store := h.storeFor(ctx)
+	items, err := store.GetAll()
+	if err != nil {
+		return SyncResponse{}, err
+	}
+	items = Filter(items, FilterOptions{Tag: tag})
+	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+
+	responses := make([]Response, 0, len(items))
+	var lastUpdated time.Time
+	for _, item := range items {
+		responses = append(responses, h.toResponseWithContent(store, item))
+		if updated, parseErr := time.Parse(time.RFC3339, item.UpdatedAt); parseErr == nil && updated.After(lastUpdated) {
+			lastUpdated = updated
+		}
+	}
+	hashData, _ := json.Marshal(responses)
+	hash := sha256.Sum256(hashData)
+	return SyncResponse{Skills: responses, LastUpdated: lastUpdated.Format(time.RFC3339), Hash: hex.EncodeToString(hash[:])}, nil
 }
 
 // Sync handles GET /skills/sync - returns skills with content for syncing.
 func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
 	tag := r.URL.Query().Get("tag")
-
-	skills, err := store.GetAll()
+	response, err := h.SyncSkills(r.Context(), tag)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Apply domain filters
-	skills = Filter(skills, FilterOptions{Tag: tag})
-
-	// Sort for consistent hashing
-	sort.Slice(skills, func(i, j int) bool {
-		return skills[i].ID < skills[j].ID
-	})
-
-	// Build response with content
-	var responses []Response
-	var lastUpdated time.Time
-
-	for _, p := range skills {
-		response := h.toResponseWithContent(store, p)
-		responses = append(responses, response)
-
-		// Track latest update time
-		if updated, err := time.Parse(time.RFC3339, p.UpdatedAt); err == nil {
-			if updated.After(lastUpdated) {
-				lastUpdated = updated
-			}
-		}
-	}
-
-	// Generate hash for change detection
-	hashData, _ := json.Marshal(responses)
-	hash := sha256.Sum256(hashData)
-	hashStr := hex.EncodeToString(hash[:])
-
-	syncResponse := SyncResponse{
-		Skills:      responses,
-		LastUpdated: lastUpdated.Format(time.RFC3339),
-		Hash:        hashStr,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(syncResponse)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Get handles GET /skills/{id} - returns a single skill.
 func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
-
-	skill, folder, err := store.FindByID(id)
+	response, err := h.GetSkill(r.Context(), id)
 	if err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
+		status := http.StatusInternalServerError
+		if err.Error() == "Skill not found" {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
-	// Load content
-	content, err := store.GetContent(folder, skill.File)
-	if err != nil {
-		http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
-		return
-	}
-
-	response := h.toResponse(*skill)
-	response.Content = content
-	response.Folder = folder
-	response.Variables = ExtractVariables(content)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Create handles POST /skills - creates a new skill.
-func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
+func (h *Handlers) CreateSkill(ctx context.Context, req CreateRequest) (Response, error) {
+	store := h.storeFor(ctx)
 	// Validate folder
 	if !IsWritableFolder(req.Folder) {
-		http.Error(w, "folder must be one of: local, drafts, core", http.StatusBadRequest)
-		return
+		return Response{}, fmt.Errorf("folder must be one of: local, drafts, core")
 	}
 
 	// Validate required fields
 	if req.Name == "" || req.Content == "" {
-		http.Error(w, "Name and content are required", http.StatusBadRequest)
-		return
+		return Response{}, fmt.Errorf("Name and content are required")
 	}
 
 	// Generate unique ID if not provided
@@ -315,15 +309,13 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 		uniqueID, err := GenerateUniqueID(req.Name, idExists)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
+			return Response{}, err
 		}
 		req.ID = uniqueID
 	} else {
 		// User provided explicit ID - check for conflict
 		if _, _, err := store.FindByID(req.ID); err == nil {
-			http.Error(w, "Skill with this ID already exists", http.StatusConflict)
-			return
+			return Response{}, fmt.Errorf("Skill with this ID already exists")
 		}
 	}
 
@@ -351,8 +343,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	// Load existing skills for the folder
 	skills, err := store.LoadMetadata(req.Folder)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return Response{}, err
 	}
 
 	// Add new skill
@@ -360,16 +351,14 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Save content file
 	if err := store.SaveContent(req.Folder, filename, req.Content); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return Response{}, err
 	}
 
 	// Save metadata
 	if err := store.SaveMetadata(req.Folder, skills); err != nil {
 		// Clean up content file on failure
 		_ = store.DeleteContent(req.Folder, filename)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return Response{}, err
 	}
 
 	response := h.toResponse(metadata)
@@ -379,6 +368,28 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	// Trigger async AI index update
 	h.triggerIndexAsync(req.ID)
 	h.invalidateGraph()
+	return response, nil
+}
+
+// Create handles POST /skills - creates a new skill.
+func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
+	var req CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	response, err := h.CreateSkill(r.Context(), req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "folder must be one of: local, drafts, core", "Name and content are required":
+			status = http.StatusBadRequest
+		case "Skill with this ID already exists":
+			status = http.StatusConflict
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -680,30 +691,24 @@ func (h *Handlers) moveVersionHistory(store SkillStore, skillID, fromFolder, toF
 	_ = store.SaveVersions(fromFolder, fromVersions)
 }
 
-// Delete handles DELETE /skills/{id} - deletes a skill.
-func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	metrics := h.metricsFor(r.Context())
-	vars := mux.Vars(r)
-	id := vars["id"]
-
+// DeleteSkill removes a writable skill and its associated metrics.
+func (h *Handlers) DeleteSkill(ctx context.Context, id string) error {
+	store := h.storeFor(ctx)
+	metrics := h.metricsFor(ctx)
 	skill, folder, err := store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
-		return
+		return fmt.Errorf("Skill not found")
 	}
 
 	// Only allow deletes from local/drafts
 	if !IsWritableFolder(folder) {
-		http.Error(w, "Cannot delete core skills", http.StatusForbidden)
-		return
+		return fmt.Errorf("Cannot delete core skills")
 	}
 
 	// Remove from metadata
 	skills, err := store.LoadMetadata(folder)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	var filtered []Metadata
@@ -714,8 +719,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := store.SaveMetadata(folder, filtered); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	// Delete content file (ignore error - best effort)
@@ -727,26 +731,54 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	// Trigger async AI index delete
 	h.triggerDeleteAsync(id)
 	h.invalidateGraph()
+	return nil
+}
+
+// Delete handles DELETE /skills/{id} - deletes a skill.
+func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	if err := h.DeleteSkill(r.Context(), vars["id"]); err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "Skill not found":
+			status = http.StatusNotFound
+		case "Cannot delete core skills":
+			status = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// RecordUsage handles POST /skills/{id}/use - records skill usage.
-func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	metrics := h.metricsFor(r.Context())
-	vars := mux.Vars(r)
-	id := vars["id"]
+// RecordSkillUsage records one use of a skill and returns the updated counters.
+func (h *Handlers) RecordSkillUsage(ctx context.Context, id string) (int, time.Time, error) {
+	store := h.storeFor(ctx)
+	metrics := h.metricsFor(ctx)
 
 	// Verify skill exists
 	if _, _, err := store.FindByID(id); err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
-		return
+		return 0, time.Time{}, fmt.Errorf("Skill not found")
 	}
 
 	usageCount, lastUsed, err := metrics.RecordUsage(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return 0, time.Time{}, err
+	}
+	return usageCount, lastUsed, nil
+}
+
+// RecordUsage handles POST /skills/{id}/use - records skill usage.
+func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	usageCount, lastUsed, err := h.RecordSkillUsage(r.Context(), vars["id"])
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "Skill not found" {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -758,13 +790,27 @@ func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// SetSkillRating updates a skill's effectiveness rating.
+func (h *Handlers) SetSkillRating(ctx context.Context, id string, rating int, notes *string) error {
+	store := h.storeFor(ctx)
+	metrics := h.metricsFor(ctx)
+
+	if rating < 1 || rating > 5 {
+		return fmt.Errorf("Rating must be between 1 and 5")
+	}
+
+	// Verify skill exists
+	if _, _, err := store.FindByID(id); err != nil {
+		return fmt.Errorf("Skill not found")
+	}
+
+	return metrics.SetRating(id, rating, notes)
+}
+
 // SetRating handles PUT /skills/{id}/rating - sets effectiveness rating.
 func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	metrics := h.metricsFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
-
 	var req struct {
 		Rating int     `json:"rating"`
 		Notes  *string `json:"notes,omitempty"`
@@ -774,19 +820,15 @@ func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Rating < 1 || req.Rating > 5 {
-		http.Error(w, "Rating must be between 1 and 5", http.StatusBadRequest)
-		return
-	}
-
-	// Verify skill exists
-	if _, _, err := store.FindByID(id); err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
-		return
-	}
-
-	if err := metrics.SetRating(id, req.Rating, req.Notes); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := h.SetSkillRating(r.Context(), id, req.Rating, req.Notes); err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "Rating must be between 1 and 5":
+			status = http.StatusBadRequest
+		case "Skill not found":
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -866,20 +908,12 @@ func (h *Handlers) toResponseWithContent(store SkillStore, p Metadata) Response 
 	return response
 }
 
-// GetVersions handles GET /skills/{id}/versions - returns version history.
-func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	vars := mux.Vars(r)
-	id := vars["id"]
-
+// ListSkillVersions returns version history for a skill.
+func (h *Handlers) ListSkillVersions(ctx context.Context, id string) (VersionsResponse, error) {
+	store := h.storeFor(ctx)
 	versions, err := store.GetVersions(id)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return VersionsResponse{}, err
 	}
 
 	// Determine current version
@@ -888,61 +922,59 @@ func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
 		current = versions[len(versions)-1].Version
 	}
 
-	response := VersionsResponse{
+	return VersionsResponse{
 		SkillID:  id,
 		Current:  current,
 		Versions: versions,
+	}, nil
+}
+
+// GetVersions handles GET /skills/{id}/versions - returns version history.
+func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	response, err := h.ListSkillVersions(r.Context(), vars["id"])
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// RevertToVersion handles POST /skills/{id}/revert/{version} - reverts to a version.
-func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	vars := mux.Vars(r)
-	id := vars["id"]
-	versionStr := vars["version"]
-
-	// Parse version number
-	var version int
-	if _, err := fmt.Sscanf(versionStr, "%d", &version); err != nil {
-		http.Error(w, "Invalid version number", http.StatusBadRequest)
-		return
-	}
-
+// RevertSkillVersion restores a skill version and creates a new current version.
+func (h *Handlers) RevertSkillVersion(ctx context.Context, id string, version int) (RevertResponse, error) {
+	store := h.storeFor(ctx)
 	skill, folder, err := store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
-		return
+		return RevertResponse{}, fmt.Errorf("Skill not found")
 	}
 
 	// Only allow reverts for writable folders
 	if !IsWritableFolder(folder) {
-		http.Error(w, "Cannot revert core skills", http.StatusForbidden)
-		return
+		return RevertResponse{}, fmt.Errorf("Cannot revert core skills")
 	}
 
 	// Get the version to revert to
 	targetVersion, err := store.GetVersionContent(id, version)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		return RevertResponse{}, err
 	}
 
 	// Save current state as a new version before reverting
 	currentContent, err := store.GetContent(folder, skill.File)
 	if err != nil {
-		http.Error(w, "Failed to read current content", http.StatusInternalServerError)
-		return
+		return RevertResponse{}, fmt.Errorf("Failed to read current content")
 	}
 	_ = store.SaveVersion(id, folder, skill, currentContent)
 
 	// Restore the old content
 	if err := store.SaveContent(folder, skill.File, targetVersion.Content); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return RevertResponse{}, err
 	}
 
 	// Update metadata timestamp
@@ -952,8 +984,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 	// Save metadata
 	skills, err := store.LoadMetadata(folder)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return RevertResponse{}, err
 	}
 	for i, p := range skills {
 		if p.ID == id {
@@ -962,8 +993,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := store.SaveMetadata(folder, skills); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return RevertResponse{}, err
 	}
 
 	// Get updated version list to determine new version number
@@ -975,11 +1005,33 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 
 	h.invalidateGraph()
 
-	response := RevertResponse{
+	return RevertResponse{
 		SkillID:    id,
 		RevertedTo: version,
 		NewVersion: newVersion,
 		RestoredAt: now,
+	}, nil
+}
+
+// RevertToVersion handles POST /skills/{id}/revert/{version} - reverts to a version.
+func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	version, err := strconv.Atoi(vars["version"])
+	if err != nil {
+		http.Error(w, "Invalid version number", http.StatusBadRequest)
+		return
+	}
+	response, err := h.RevertSkillVersion(r.Context(), vars["id"], version)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "Skill not found":
+			status = http.StatusNotFound
+		case "Cannot revert core skills":
+			status = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

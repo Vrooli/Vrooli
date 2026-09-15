@@ -42,6 +42,18 @@ enum ClipSource {
   CLIP_SOURCE_SCRIPTED = 2; // a scripted prompt read aloud
 }
 
+enum CorpusSplit {
+  CORPUS_SPLIT_UNSPECIFIED = 0;
+  CORPUS_SPLIT_DEV = 1;
+  CORPUS_SPLIT_HELD_OUT = 2;
+}
+
+enum NoiseCondition {
+  NOISE_CONDITION_UNSPECIFIED = 0;
+  NOISE_CONDITION_CLEAN = 1;
+  NOISE_CONDITION_NOISY = 2;
+}
+
 // Clip is one corpus item's metadata. Audio bytes are NOT carried here —
 // fetch them via GetClipAudio.
 message Clip {
@@ -54,6 +66,13 @@ message Clip {
   string blob_key = 7;
   ClipSource source = 8;
   google.protobuf.Timestamp created_at = 9;
+  string corpus_revision = 10;
+  string license_reference = 11;
+  string speaker_pseudonym = 12;
+  CorpusSplit split = 13;
+  NoiseCondition noise_condition = 14;
+  double snr_db = 15;
+  string content_sha256 = 16;
 }
 
 message CreateClipRequest {
@@ -64,6 +83,12 @@ message CreateClipRequest {
   int32 sample_rate_hz = 5;
   string format = 6;
   ClipSource source = 7;
+  string corpus_revision = 8;
+  string license_reference = 9;
+  string speaker_pseudonym = 10;
+  CorpusSplit split = 11;
+  NoiseCondition noise_condition = 12;
+  double snr_db = 13;
 }
 
 message CreateClipResponse {

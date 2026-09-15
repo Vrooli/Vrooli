@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review"
+	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
 )
 
 // ReviewClient calls git-control-tower's unified review API.
@@ -65,16 +67,6 @@ func resolveGitControlTowerBaseURL(ctx context.Context) (string, error) {
 	return strings.TrimRight(baseURL, "/"), nil
 }
 
-// reviewRunResponse mirrors git-control-tower's ReviewRunResponse.
-type reviewRunResponse struct {
-	JobID string `json:"jobId"`
-}
-
-type reviewRunConflictResponse struct {
-	Error string `json:"error"`
-	JobID string `json:"jobId,omitempty"`
-}
-
 // reviewJobStatus mirrors git-control-tower's ReviewJobStatus.
 type reviewJobStatus struct {
 	JobID     string                 `json:"jobId"`
@@ -105,47 +97,31 @@ func (c *HTTPReviewClient) TriggerReview(ctx context.Context, req ReviewRequest)
 }
 
 func (c *HTTPReviewClient) triggerReviewAtBaseURL(ctx context.Context, baseURL string, req ReviewRequest) (string, error) {
-	body, err := json.Marshal(req)
+	client := reviewconnect.NewReviewServiceClient(c.httpClient, strings.TrimRight(baseURL, "/"))
+	response, err := client.Start(ctx, connect.NewRequest(&reviewv1.StartReviewRequest{
+		// Zero means git-control-tower resolves its active/root repository.
+		ScenarioName: req.ScenarioName,
+		Thresholds:   reviewThresholdsProto(req.Thresholds),
+	}))
 	if err != nil {
-		return "", fmt.Errorf("marshal review request: %w", err)
+		return "", fmt.Errorf("start typed review: %w", err)
 	}
+	jobID := strings.TrimSpace(response.Msg.GetJobId())
+	if jobID == "" {
+		return "", fmt.Errorf("review response missing job id")
+	}
+	return jobID, nil
+}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/review/run", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create review request: %w", err)
+func reviewThresholdsProto(input *ReviewThresholds) *reviewv1.ReadinessThresholds {
+	if input == nil {
+		return nil
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("review request failed: %w", err)
+	return &reviewv1.ReadinessThresholds{
+		CodeQualityMinScore: input.CodeQualityMinScore, TestMinPassRate: input.TestMinPassRate,
+		MaxBlockingViolations: int32(input.MaxBlockingViolations), MaxWarnings: int32(input.MaxWarnings),
+		RequireScreenshots: input.RequireScreenshots, RequireTests: input.RequireTests,
 	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read review response: %w", err)
-	}
-	if resp.StatusCode == http.StatusConflict {
-		var conflict reviewRunConflictResponse
-		if json.Unmarshal(respBody, &conflict) == nil &&
-			strings.Contains(strings.ToLower(conflict.Error), "already in progress") &&
-			strings.TrimSpace(conflict.JobID) != "" {
-			return strings.TrimSpace(conflict.JobID), nil
-		}
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("review run returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result reviewRunResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return "", fmt.Errorf("unmarshal review response: %w", err)
-	}
-	if strings.TrimSpace(result.JobID) == "" {
-		return "", fmt.Errorf("review response missing jobId")
-	}
-	return result.JobID, nil
 }
 
 // PollReview checks review job status. Returns result, done flag, and error.

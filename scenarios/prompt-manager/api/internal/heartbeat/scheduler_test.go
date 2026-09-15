@@ -18,6 +18,59 @@ func (s *stubConfigStore) GetHeartbeatConfig(ctx context.Context, teamID, agentI
 	return s.config, s.err
 }
 
+type autoSupervisorStore struct {
+	team    *store.Team
+	configs []store.HeartbeatConfig
+	updates int
+}
+
+func (s *autoSupervisorStore) GetHeartbeatConfig(context.Context, string, string) (*store.HeartbeatConfig, error) {
+	return nil, nil
+}
+
+func (s *autoSupervisorStore) Get(context.Context, string) (*store.Team, error) {
+	return s.team, nil
+}
+
+func (s *autoSupervisorStore) Update(_ context.Context, id string, updates *store.Team) error {
+	if id != s.team.ID {
+		return nil
+	}
+	if updates.EnabledSet {
+		s.team.Enabled = updates.Enabled
+		s.updates++
+	}
+	return nil
+}
+
+func (s *autoSupervisorStore) ListHeartbeatConfigs(context.Context, string) ([]store.HeartbeatConfig, error) {
+	return append([]store.HeartbeatConfig(nil), s.configs...), nil
+}
+
+func TestEnsureStandingSupervisorStartedIsIdempotent(t *testing.T) {
+	store := &autoSupervisorStore{
+		team: &store.Team{ID: "effort-supervision"},
+		configs: []store.HeartbeatConfig{{
+			TeamID: "effort-supervision", AgentID: "effort-supervisor", Enabled: true, Schedule: "*/5 * * * *",
+		}},
+	}
+	scheduler := NewScheduler(nil, nil, store, nil)
+
+	if err := scheduler.EnsureStandingSupervisorStarted(context.Background()); err != nil {
+		t.Fatalf("first supervisor admission failed: %v", err)
+	}
+	if err := scheduler.EnsureStandingSupervisorStarted(context.Background()); err != nil {
+		t.Fatalf("second supervisor admission failed: %v", err)
+	}
+	if store.updates != 1 {
+		t.Fatalf("supervisor was enabled %d times, want exactly once", store.updates)
+	}
+	if got := len(scheduler.ListScheduled()); got != 1 {
+		t.Fatalf("scheduled %d supervisor heartbeats, want exactly one", got)
+	}
+	scheduler.Unschedule("effort-supervision", "effort-supervisor")
+}
+
 type captureExecutor struct {
 	calls []executionCall
 }

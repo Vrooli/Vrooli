@@ -1,11 +1,7 @@
 package aisearch
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -149,92 +145,4 @@ type MockBudgetConfigProvider struct {
 
 func (m *MockBudgetConfigProvider) Get(_ context.Context) (BudgetConfig, error) {
 	return m.cfg, m.err
-}
-
-func TestGetBudgetConfig_Handler(t *testing.T) {
-	dir := t.TempDir()
-	store := NewBudgetConfigStore(dir)
-
-	h := NewHandlers(&Service{})
-	h.SetBudgetConfigStore(store)
-
-	req, _ := http.NewRequest("GET", "/api/v1/config/budgets", nil)
-	rr := httptest.NewRecorder()
-
-	h.GetBudgetConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var cfg BudgetConfig
-	if err := json.NewDecoder(rr.Body).Decode(&cfg); err != nil {
-		t.Fatal(err)
-	}
-	if cfg != DefaultBudgetConfig() {
-		t.Errorf("expected defaults, got %+v", cfg)
-	}
-}
-
-func TestPutBudgetConfig_Handler(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "config"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	store := NewBudgetConfigStore(dir)
-	h := NewHandlers(&Service{})
-	h.SetBudgetConfigStore(store)
-
-	custom := BudgetConfig{Minor: 3000, Moderate: 6000, Major: 9000, Architectural: 15000}
-	body, _ := json.Marshal(custom)
-	req, _ := http.NewRequest("PUT", "/api/v1/config/budgets", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.PutBudgetConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var returned BudgetConfig
-	if err := json.NewDecoder(rr.Body).Decode(&returned); err != nil {
-		t.Fatal(err)
-	}
-	if returned != custom {
-		t.Errorf("expected %+v, got %+v", custom, returned)
-	}
-}
-
-func TestPutBudgetConfig_Handler_Invalid(t *testing.T) {
-	dir := t.TempDir()
-	store := NewBudgetConfigStore(dir)
-	h := NewHandlers(&Service{})
-	h.SetBudgetConfigStore(store)
-
-	invalid := BudgetConfig{Minor: -1, Moderate: 100, Major: 200, Architectural: 300}
-	body, _ := json.Marshal(invalid)
-	req, _ := http.NewRequest("PUT", "/api/v1/config/budgets", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.PutBudgetConfig(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rr.Code)
-	}
-}
-
-func TestGetBudgetConfig_Handler_NoStore(t *testing.T) {
-	h := NewHandlers(&Service{})
-
-	req, _ := http.NewRequest("GET", "/api/v1/config/budgets", nil)
-	rr := httptest.NewRecorder()
-
-	h.GetBudgetConfig(rr, req)
-
-	if rr.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected 503, got %d", rr.Code)
-	}
 }

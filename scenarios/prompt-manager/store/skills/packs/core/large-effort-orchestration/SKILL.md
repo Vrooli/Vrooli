@@ -64,6 +64,21 @@ The finite team's operating contract is the coordinator's recovery handoff. Team
 
 An approved destination permits in-scope implementation choices and repair; it does not approve new destinations. Record the actual session authorization or owner grant. Never invent a human approval receipt. For a planning/review request, create the skill, dossier and plans, but leave execution and recurring schedules inactive.
 
+For an autonomous delivery effort, fix a delivery-blocking capability before
+filing a passive report when the active authority covers the repair. This includes
+the agent-system core substrate: `agent-manager`, `prompt-manager`,
+`program-runtime`, `test-genie`, `plan-manager`, `swarm-manager`,
+`workspace-sandbox`, and `development-toolchain-validator`, including their
+scenario-owned skills and governed programs. Use the owning scenario's write and
+validation route, preserve its contract, and continue the original effort.
+The Promotion Ladder is not an approval gate for an authorized skill or program
+edit; it governs later stabilization, compression, and retirement.
+
+Route or report only when the repair exceeds the mandate, affects protected
+control files or another effort, or requires a new decision, credential,
+dependency, host mutation, global policy change, or production effect. Retain the
+repair's before/after evidence and account for its cost in the effort.
+
 Exit: another agent can recover the full destination and authority without this conversation. The user has one review entrypoint.
 
 ### 2. Qualify the path and select work shapes

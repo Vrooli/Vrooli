@@ -148,14 +148,15 @@ Through Swarm a mandate plan runs in goal mode; Swarm composes the goal message
 from this shape, the item and the plan, and appends the operator note verbatim.
 
 ```text
-/goal Every required setpoint row in <scenario>-improve is in band on run <scenario>.setpoint-read, read as often as the outcome contract requires, and the evidence audit passes; or the handoff names each out-of-band row with its blocker.
+/goal Bring every required row in <scenario>-improve in band on <scenario>.setpoint-read and pass the evidence audit. Build or repair the owner-backed evidence producer, qualification harness, sensors, resolvers, joins, and tests for every required row; run authorized local/simulated paths and emit current receipts before handoff. Continue while useful in-scope work remains.
 
 Authority: <plan slug or Swarm item> grants development inside <acceptance_allow>.
-Read first: goal-loop, scenario-improvement-campaign, <scenario>-improve, and the scenario docs (START-HERE, ARCHITECTURE, PROBLEMS). The docs are the target; where the intended design is missing from them, write it there before the code.
-Proof: paste the setpoint board after each intervention. Never move a row by editing its band or sensor.
-Iteration: one falsifiable intervention at a time, chosen from evidence, checkpointed through Plan Manager before the next.
+Read first: goal-loop, scenario-improvement-campaign, <scenario>-improve, and the scenario docs. Write missing design into the docs before code.
+Proof: show the board after each intervention; never edit a band or sensor to move a row.
+Iteration: one evidence-based falsifiable intervention at a time; checkpoint through Plan Manager.
 Adjacent defects in other scenarios: file them; repair at the owner only when the grant covers it.
-Blocked means a decision, credential, or approval you lack. A row reading unavailable is journaled, not estimated.
+Mandate lane: use authorized local and simulated qualification paths; do not block on excluded private data, physical devices, live keys, or paid access. Build the owner-backed fixtures and receipts needed by the board.
+Blocked means only missing decision, credential, approval, or external access. In-boundary gaps: build, instrument, validate, continue. Journal unavailable rows, then repair them when owned here.
 Budget: <tokens or time>; when reached, checkpoint and summarize remaining rows.
 ```
 

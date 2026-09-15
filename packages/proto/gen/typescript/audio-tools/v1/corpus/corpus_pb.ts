@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file audio-tools/v1/corpus/corpus.proto.
  */
 export const file_audio_tools_v1_corpus_corpus: GenFile = /*@__PURE__*/
-  fileDesc("CiJhdWRpby10b29scy92MS9jb3JwdXMvY29ycHVzLnByb3RvEhx2cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzIvEBCgRDbGlwEgoKAmlkGAEgASgJEhYKDnJlZmVyZW5jZV90ZXh0GAIgASgJEgwKBHRhZ3MYAyADKAkSEwoLZHVyYXRpb25fbXMYBCABKAMSFgoOc2FtcGxlX3JhdGVfaHoYBSABKAUSDgoGZm9ybWF0GAYgASgJEhAKCGJsb2Jfa2V5GAcgASgJEjgKBnNvdXJjZRgIIAEoDjIoLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ2xpcFNvdXJjZRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK/AQoRQ3JlYXRlQ2xpcFJlcXVlc3QSDQoFYXVkaW8YASABKAwSFgoOcmVmZXJlbmNlX3RleHQYAiABKAkSDAoEdGFncxgDIAMoCRITCgtkdXJhdGlvbl9tcxgEIAEoAxIWCg5zYW1wbGVfcmF0ZV9oehgFIAEoBRIOCgZmb3JtYXQYBiABKAkSOAoGc291cmNlGAcgASgOMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5DbGlwU291cmNlIkYKEkNyZWF0ZUNsaXBSZXNwb25zZRIwCgRjbGlwGAEgASgLMiIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5DbGlwIkcKEExpc3RDbGlwc1JlcXVlc3QSFAoMdGFnX2NvbnRhaW5zGAEgASgJEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJGChFMaXN0Q2xpcHNSZXNwb25zZRIxCgVjbGlwcxgBIAMoCzIiLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ2xpcCIcCg5HZXRDbGlwUmVxdWVzdBIKCgJpZBgBIAEoCSJDCg9HZXRDbGlwUmVzcG9uc2USMAoEY2xpcBgBIAEoCzIiLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ2xpcCIhChNHZXRDbGlwQXVkaW9SZXF1ZXN0EgoKAmlkGAEgASgJIlcKFEdldENsaXBBdWRpb1Jlc3BvbnNlEg0KBWF1ZGlvGAEgASgMEjAKBGNsaXAYAiABKAsyIi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNsaXAiHwoRRGVsZXRlQ2xpcFJlcXVlc3QSCgoCaWQYASABKAkiFAoSRGVsZXRlQ2xpcFJlc3BvbnNlKl4KCkNsaXBTb3VyY2USGwoXQ0xJUF9TT1VSQ0VfVU5TUEVDSUZJRUQQABIZChVDTElQX1NPVVJDRV9GUkVFX0ZPUk0QARIYChRDTElQX1NPVVJDRV9TQ1JJUFRFRBACMr4ECg1Db3JwdXNTZXJ2aWNlEm8KCkNyZWF0ZUNsaXASLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNyZWF0ZUNsaXBSZXF1ZXN0GjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5DcmVhdGVDbGlwUmVzcG9uc2USbAoJTGlzdENsaXBzEi4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5MaXN0Q2xpcHNSZXF1ZXN0Gi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5MaXN0Q2xpcHNSZXNwb25zZRJmCgdHZXRDbGlwEiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5HZXRDbGlwUmVxdWVzdBotLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuR2V0Q2xpcFJlc3BvbnNlEnUKDEdldENsaXBBdWRpbxIxLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuR2V0Q2xpcEF1ZGlvUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuR2V0Q2xpcEF1ZGlvUmVzcG9uc2USbwoKRGVsZXRlQ2xpcBIvLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuRGVsZXRlQ2xpcFJlcXVlc3QaMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkRlbGV0ZUNsaXBSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2NvcnB1cztjb3JwdXNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiJhdWRpby10b29scy92MS9jb3JwdXMvY29ycHVzLnByb3RvEhx2cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzIukDCgRDbGlwEgoKAmlkGAEgASgJEhYKDnJlZmVyZW5jZV90ZXh0GAIgASgJEgwKBHRhZ3MYAyADKAkSEwoLZHVyYXRpb25fbXMYBCABKAMSFgoOc2FtcGxlX3JhdGVfaHoYBSABKAUSDgoGZm9ybWF0GAYgASgJEhAKCGJsb2Jfa2V5GAcgASgJEjgKBnNvdXJjZRgIIAEoDjIoLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ2xpcFNvdXJjZRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9jb3JwdXNfcmV2aXNpb24YCiABKAkSGQoRbGljZW5zZV9yZWZlcmVuY2UYCyABKAkSGQoRc3BlYWtlcl9wc2V1ZG9ueW0YDCABKAkSOAoFc3BsaXQYDSABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNvcnB1c1NwbGl0EkUKD25vaXNlX2NvbmRpdGlvbhgOIAEoDjIsLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuTm9pc2VDb25kaXRpb24SDgoGc25yX2RiGA8gASgBEhYKDmNvbnRlbnRfc2hhMjU2GBAgASgJIp8DChFDcmVhdGVDbGlwUmVxdWVzdBINCgVhdWRpbxgBIAEoDBIWCg5yZWZlcmVuY2VfdGV4dBgCIAEoCRIMCgR0YWdzGAMgAygJEhMKC2R1cmF0aW9uX21zGAQgASgDEhYKDnNhbXBsZV9yYXRlX2h6GAUgASgFEg4KBmZvcm1hdBgGIAEoCRI4CgZzb3VyY2UYByABKA4yKC52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNsaXBTb3VyY2USFwoPY29ycHVzX3JldmlzaW9uGAggASgJEhkKEWxpY2Vuc2VfcmVmZXJlbmNlGAkgASgJEhkKEXNwZWFrZXJfcHNldWRvbnltGAogASgJEjgKBXNwbGl0GAsgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5Db3JwdXNTcGxpdBJFCg9ub2lzZV9jb25kaXRpb24YDCABKA4yLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLk5vaXNlQ29uZGl0aW9uEg4KBnNucl9kYhgNIAEoASJGChJDcmVhdGVDbGlwUmVzcG9uc2USMAoEY2xpcBgBIAEoCzIiLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ2xpcCJHChBMaXN0Q2xpcHNSZXF1ZXN0EhQKDHRhZ19jb250YWlucxgBIAEoCRINCgVsaW1pdBgCIAEoBRIOCgZvZmZzZXQYAyABKAUiRgoRTGlzdENsaXBzUmVzcG9uc2USMQoFY2xpcHMYASADKAsyIi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNsaXAiHAoOR2V0Q2xpcFJlcXVlc3QSCgoCaWQYASABKAkiQwoPR2V0Q2xpcFJlc3BvbnNlEjAKBGNsaXAYASABKAsyIi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNsaXAiIQoTR2V0Q2xpcEF1ZGlvUmVxdWVzdBIKCgJpZBgBIAEoCSJXChRHZXRDbGlwQXVkaW9SZXNwb25zZRINCgVhdWRpbxgBIAEoDBIwCgRjbGlwGAIgASgLMiIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5DbGlwIh8KEURlbGV0ZUNsaXBSZXF1ZXN0EgoKAmlkGAEgASgJIhQKEkRlbGV0ZUNsaXBSZXNwb25zZSpeCgpDbGlwU291cmNlEhsKF0NMSVBfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVQ0xJUF9TT1VSQ0VfRlJFRV9GT1JNEAESGAoUQ0xJUF9TT1VSQ0VfU0NSSVBURUQQAipcCgtDb3JwdXNTcGxpdBIcChhDT1JQVVNfU1BMSVRfVU5TUEVDSUZJRUQQABIUChBDT1JQVVNfU1BMSVRfREVWEAESGQoVQ09SUFVTX1NQTElUX0hFTERfT1VUEAIqZwoOTm9pc2VDb25kaXRpb24SHwobTk9JU0VfQ09ORElUSU9OX1VOU1BFQ0lGSUVEEAASGQoVTk9JU0VfQ09ORElUSU9OX0NMRUFOEAESGQoVTk9JU0VfQ09ORElUSU9OX05PSVNZEAIyvgQKDUNvcnB1c1NlcnZpY2USbwoKQ3JlYXRlQ2xpcBIvLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuQ3JlYXRlQ2xpcFJlcXVlc3QaMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkNyZWF0ZUNsaXBSZXNwb25zZRJsCglMaXN0Q2xpcHMSLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkxpc3RDbGlwc1JlcXVlc3QaLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkxpc3RDbGlwc1Jlc3BvbnNlEmYKB0dldENsaXASLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29ycHVzLkdldENsaXBSZXF1ZXN0Gi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5HZXRDbGlwUmVzcG9uc2USdQoMR2V0Q2xpcEF1ZGlvEjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5HZXRDbGlwQXVkaW9SZXF1ZXN0GjIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5HZXRDbGlwQXVkaW9SZXNwb25zZRJvCgpEZWxldGVDbGlwEi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvcnB1cy5EZWxldGVDbGlwUmVxdWVzdBowLnZyb29saS5hdWRpb190b29scy52MS5jb3JwdXMuRGVsZXRlQ2xpcFJlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXVkaW8tdG9vbHMvdjEvY29ycHVzO2NvcnB1c192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Clip is one corpus item's metadata. Audio bytes are NOT carried here —
@@ -67,6 +67,41 @@ export type Clip = Message<"vrooli.audio_tools.v1.corpus.Clip"> & {
    * @generated from field: google.protobuf.Timestamp created_at = 9;
    */
   createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string corpus_revision = 10;
+   */
+  corpusRevision: string;
+
+  /**
+   * @generated from field: string license_reference = 11;
+   */
+  licenseReference: string;
+
+  /**
+   * @generated from field: string speaker_pseudonym = 12;
+   */
+  speakerPseudonym: string;
+
+  /**
+   * @generated from field: vrooli.audio_tools.v1.corpus.CorpusSplit split = 13;
+   */
+  split: CorpusSplit;
+
+  /**
+   * @generated from field: vrooli.audio_tools.v1.corpus.NoiseCondition noise_condition = 14;
+   */
+  noiseCondition: NoiseCondition;
+
+  /**
+   * @generated from field: double snr_db = 15;
+   */
+  snrDb: number;
+
+  /**
+   * @generated from field: string content_sha256 = 16;
+   */
+  contentSha256: string;
 };
 
 /**
@@ -116,6 +151,36 @@ export type CreateClipRequest = Message<"vrooli.audio_tools.v1.corpus.CreateClip
    * @generated from field: vrooli.audio_tools.v1.corpus.ClipSource source = 7;
    */
   source: ClipSource;
+
+  /**
+   * @generated from field: string corpus_revision = 8;
+   */
+  corpusRevision: string;
+
+  /**
+   * @generated from field: string license_reference = 9;
+   */
+  licenseReference: string;
+
+  /**
+   * @generated from field: string speaker_pseudonym = 10;
+   */
+  speakerPseudonym: string;
+
+  /**
+   * @generated from field: vrooli.audio_tools.v1.corpus.CorpusSplit split = 11;
+   */
+  split: CorpusSplit;
+
+  /**
+   * @generated from field: vrooli.audio_tools.v1.corpus.NoiseCondition noise_condition = 12;
+   */
+  noiseCondition: NoiseCondition;
+
+  /**
+   * @generated from field: double snr_db = 13;
+   */
+  snrDb: number;
 };
 
 /**
@@ -324,6 +389,58 @@ export enum ClipSource {
  */
 export const ClipSourceSchema: GenEnum<ClipSource> = /*@__PURE__*/
   enumDesc(file_audio_tools_v1_corpus_corpus, 0);
+
+/**
+ * @generated from enum vrooli.audio_tools.v1.corpus.CorpusSplit
+ */
+export enum CorpusSplit {
+  /**
+   * @generated from enum value: CORPUS_SPLIT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CORPUS_SPLIT_DEV = 1;
+   */
+  DEV = 1,
+
+  /**
+   * @generated from enum value: CORPUS_SPLIT_HELD_OUT = 2;
+   */
+  HELD_OUT = 2,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.corpus.CorpusSplit.
+ */
+export const CorpusSplitSchema: GenEnum<CorpusSplit> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_corpus_corpus, 1);
+
+/**
+ * @generated from enum vrooli.audio_tools.v1.corpus.NoiseCondition
+ */
+export enum NoiseCondition {
+  /**
+   * @generated from enum value: NOISE_CONDITION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: NOISE_CONDITION_CLEAN = 1;
+   */
+  CLEAN = 1,
+
+  /**
+   * @generated from enum value: NOISE_CONDITION_NOISY = 2;
+   */
+  NOISY = 2,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.corpus.NoiseCondition.
+ */
+export const NoiseConditionSchema: GenEnum<NoiseCondition> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_corpus_corpus, 2);
 
 /**
  * @generated from service vrooli.audio_tools.v1.corpus.CorpusService

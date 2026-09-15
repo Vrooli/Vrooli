@@ -25,7 +25,8 @@ describe("WorkFeedList", () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith("/api/v1/reviews/1"));
     expect(screen.getByText("Evidence is sufficient.")).toBeInTheDocument();
     expect(screen.getByText("Correlation")).toBeInTheDocument();
-    expect(screen.getByText("execution_id: execution-1")).toBeInTheDocument();
+    expect(screen.getByText("execution-1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open execution" })).toHaveAttribute("href", "/executions/execution-1");
     expect(screen.getByRole("link", { name: "Open source detail" })).toHaveAttribute("href", "/reviews/1");
   });
 

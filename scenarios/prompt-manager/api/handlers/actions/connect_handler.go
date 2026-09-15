@@ -30,32 +30,38 @@ func NewConnectMount(legacy *domain.Handlers) (string, http.Handler) {
 }
 
 func (h *connectHandler) ListActions(ctx context.Context, req *connect.Request[actionsv1.ListActionsRequest]) (*connect.Response[actionsv1.ListActionsResponse], error) {
-	query := url.Values{}
-	query.Set("pack", req.Msg.GetPack())
-	query.Set("status", req.Msg.GetStatus())
-	query.Set("owner", req.Msg.GetOwner())
-	query.Set("tag", req.Msg.GetTag())
-	result, err := transportbridge.Invoke(ctx, req.Header(), h.legacy.List, http.MethodGet, "/actions?"+query.Encode(), nil, nil)
+	items, err := h.legacy.ListActions(ctx, domain.ListFilters{Pack: req.Msg.GetPack(), Status: req.Msg.GetStatus(), Owner: req.Msg.GetOwner(), Tag: req.Msg.GetTag()})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &actionsv1.ListActionsResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "actions", out); err != nil {
+	if err := decodeJSON(items, out, "actions"); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) GetAction(ctx context.Context, req *connect.Request[actionsv1.GetActionRequest]) (*connect.Response[actionsv1.GetActionResponse], error) {
-	result, err := transportbridge.Invoke(ctx, req.Header(), h.legacy.Get, http.MethodGet, "/actions/"+url.PathEscape(req.Msg.GetId()), nil, map[string]string{"id": req.Msg.GetId()})
+	item, err := h.legacy.GetAction(ctx, req.Msg.GetId())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	out := &actionsv1.GetActionResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "action", out); err != nil {
+	if err := decodeJSON(map[string]any{"action": item}, out, "action"); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(out), nil
+}
+
+func decodeJSON(value any, target proto.Message, field string) error {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("encode %s: %w", field, err))
+	}
+	if err := protojson.Unmarshal(payload, target); err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("decode %s: %w", field, err))
+	}
+	return nil
 }
 
 func (h *connectHandler) AuthorAction(ctx context.Context, req *connect.Request[actionsv1.AuthorActionRequest]) (*connect.Response[actionsv1.AuthorActionResponse], error) {

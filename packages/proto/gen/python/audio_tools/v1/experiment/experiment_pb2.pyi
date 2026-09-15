@@ -36,6 +36,7 @@ class QualificationEvidenceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrappe
     QUALIFICATION_EVIDENCE_KIND_FAULT: _ClassVar[QualificationEvidenceKind]
     QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH: _ClassVar[QualificationEvidenceKind]
     QUALIFICATION_EVIDENCE_KIND_DEVICE: _ClassVar[QualificationEvidenceKind]
+    QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY: _ClassVar[QualificationEvidenceKind]
 EXPERIMENT_STATUS_UNSPECIFIED: ExperimentStatus
 EXPERIMENT_STATUS_QUEUED: ExperimentStatus
 EXPERIMENT_STATUS_RUNNING: ExperimentStatus
@@ -52,6 +53,7 @@ QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY: QualificationEvidenceKind
 QUALIFICATION_EVIDENCE_KIND_FAULT: QualificationEvidenceKind
 QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH: QualificationEvidenceKind
 QUALIFICATION_EVIDENCE_KIND_DEVICE: QualificationEvidenceKind
+QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY: QualificationEvidenceKind
 
 class ExperimentRecipe(_message.Message):
     __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words", "latency_tail_seconds", "cells")

@@ -18,7 +18,7 @@
   "effortRefs": [
     "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887"
   ],
-  "enabled": false,
+  "enabled": true,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -50,6 +50,9 @@
           },
           {
             "kind": "handoff"
+          },
+          {
+            "kind": "task"
           }
         ],
         "safetyCriticalRules": [
@@ -65,10 +68,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 11,
+  "revision": 12,
   "runtime": {
     "mode": "single-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T17:47:44Z"
+  "updatedAt": "2026-09-14T21:30:50Z"
 }

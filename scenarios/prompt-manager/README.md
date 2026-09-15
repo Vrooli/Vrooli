@@ -8,7 +8,7 @@
 - **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, and heartbeat
 - **Teams**: Organizational units with roles, members, org chart, and shared docs
 - **3D World**: a diorama of the swarm where place is state (desks, team tables, commons), driven by the live run feed, with a HUD that makes the swarm actionable
-- **Multiple Interfaces**: Web UI, REST API, and command-line tool
+- **Multiple Interfaces**: Web UI, Connect API, and command-line tool
 - **Text-Only Skills**: Agents and teams reference skills directly in markdown
 - **Relations**: Team-member memberships
 - **Actions (Proposed)**: Typed execution wrappers that let agents discover and run deterministic Vrooli-controlled CLI operations
@@ -53,7 +53,7 @@
 
 ### Components
 
-- **Go API Server** (port allocated by lifecycle): RESTful backend with skills, agents, and teams management
+- **Go API Server** (port allocated by lifecycle): Connect-RPC backend with skills, agents, and teams management
 - **React UI** (port allocated by lifecycle): Web interface with pack navigation, skill editor, and 3D world
 - **Go CLI**: Command-line tool for quick operations
 - **File-based Store**: Primary entity storage (store/skills/, store/agents/, store/teams/)

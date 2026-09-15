@@ -107,6 +107,69 @@ func (s *Scheduler) SetEffortSupervisor(supervisor *StandingSupervisor) {
 	s.effortSupervisor = supervisor
 }
 
+// EnsureStandingSupervisorStarted arms the single standing supervisor team
+// after an eligible finite effort is enabled. It is idempotent and never
+// creates a per-effort supervisor loop. Empty discovery remains an idle
+// standing-service state; stopping requires an explicit lifecycle operation.
+func (s *Scheduler) EnsureStandingSupervisorStarted(ctx context.Context) error {
+	if s.teamStore == nil || s.configStore == nil {
+		return errors.New("standing supervisor auto-start dependencies unavailable")
+	}
+	team, err := s.teamStore.Get(ctx, "effort-supervision")
+	if err != nil {
+		return fmt.Errorf("load standing supervisor team: %w", err)
+	}
+	if team == nil || team.Archived {
+		return errors.New("standing supervisor team is unavailable or archived")
+	}
+	teamUpdater, canUpdate := s.configStore.(interface {
+		Update(context.Context, string, *store.Team) error
+	})
+	enabledByUs := false
+	if !team.Enabled {
+		if !canUpdate {
+			return errors.New("standing supervisor team store is not writable")
+		}
+		if err := teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: true, EnabledSet: true}); err != nil {
+			return fmt.Errorf("enable standing supervisor team: %w", err)
+		}
+		enabledByUs = true
+	}
+	configLister, ok := s.configStore.(interface {
+		ListHeartbeatConfigs(context.Context, string) ([]store.HeartbeatConfig, error)
+	})
+	if !ok {
+		if enabledByUs {
+			_ = teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: false, EnabledSet: true})
+		}
+		return errors.New("standing supervisor heartbeat store is not readable")
+	}
+	configs, err := configLister.ListHeartbeatConfigs(ctx, team.ID)
+	if err != nil {
+		if enabledByUs {
+			_ = teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: false, EnabledSet: true})
+		}
+		return fmt.Errorf("list standing supervisor heartbeats: %w", err)
+	}
+	scheduled := make([]store.HeartbeatConfig, 0, len(configs))
+	for _, config := range configs {
+		if !config.Enabled {
+			continue
+		}
+		if err := s.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+			for _, previous := range scheduled {
+				s.Unschedule(previous.TeamID, previous.AgentID)
+			}
+			if enabledByUs {
+				_ = teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: false, EnabledSet: true})
+			}
+			return fmt.Errorf("schedule standing supervisor %s/%s: %w", config.TeamID, config.AgentID, err)
+		}
+		scheduled = append(scheduled, config)
+	}
+	return nil
+}
+
 // Start begins the scheduler
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.mu.Lock()

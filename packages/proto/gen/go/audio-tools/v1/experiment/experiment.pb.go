@@ -148,6 +148,7 @@ const (
 	QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_FAULT                QualificationEvidenceKind = 3
 	QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH QualificationEvidenceKind = 4
 	QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_DEVICE               QualificationEvidenceKind = 5
+	QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY       QualificationEvidenceKind = 6
 )
 
 // Enum value maps for QualificationEvidenceKind.
@@ -159,6 +160,7 @@ var (
 		3: "QUALIFICATION_EVIDENCE_KIND_FAULT",
 		4: "QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH",
 		5: "QUALIFICATION_EVIDENCE_KIND_DEVICE",
+		6: "QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY",
 	}
 	QualificationEvidenceKind_value = map[string]int32{
 		"QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED":          0,
@@ -167,6 +169,7 @@ var (
 		"QUALIFICATION_EVIDENCE_KIND_FAULT":                3,
 		"QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH": 4,
 		"QUALIFICATION_EVIDENCE_KIND_DEVICE":               5,
+		"QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY":       6,
 	}
 )
 
@@ -2628,14 +2631,15 @@ const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\x17REPLAY_LANE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REPLAY_LANE_DETERMINISTIC\x10\x01\x12\x18\n" +
 	"\x14REPLAY_LANE_REALTIME\x10\x02\x12\x1c\n" +
-	"\x18REPLAY_LANE_PRODUCT_PATH\x10\x03*\xb4\x02\n" +
+	"\x18REPLAY_LANE_PRODUCT_PATH\x10\x03*\xe4\x02\n" +
 	"\x19QualificationEvidenceKind\x12+\n" +
 	"'QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED\x10\x00\x123\n" +
 	"/QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING\x10\x01\x120\n" +
 	",QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY\x10\x02\x12%\n" +
 	"!QUALIFICATION_EVIDENCE_KIND_FAULT\x10\x03\x124\n" +
 	"0QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH\x10\x04\x12&\n" +
-	"\"QUALIFICATION_EVIDENCE_KIND_DEVICE\x10\x052\xd2\f\n" +
+	"\"QUALIFICATION_EVIDENCE_KIND_DEVICE\x10\x05\x12.\n" +
+	"*QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY\x10\x062\xd2\f\n" +
 	"\x11ExperimentService\x12\x86\x01\n" +
 	"\x0fStartExperiment\x128.vrooli.audio_tools.v1.experiment.StartExperimentRequest\x1a9.vrooli.audio_tools.v1.experiment.StartExperimentResponse\x12\x80\x01\n" +
 	"\rGetExperiment\x126.vrooli.audio_tools.v1.experiment.GetExperimentRequest\x1a7.vrooli.audio_tools.v1.experiment.GetExperimentResponse\x12\x83\x01\n" +

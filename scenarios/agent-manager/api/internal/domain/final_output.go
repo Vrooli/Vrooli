@@ -8,11 +8,12 @@ import (
 const FinalOutputResolverVersion = "final-output/v2"
 
 const (
-	finalOutputRuleTerminal    = "unique_terminal_main_assistant"
-	finalOutputRuleComplete    = "unique_completed_main_assistant"
-	finalOutputRuleFallback    = "unique_main_assistant_fallback"
-	finalOutputRuleAmbiguous   = "multiple_equally_supported_candidates"
-	finalOutputRuleUnavailable = "no_viable_assistant_candidate"
+	finalOutputRuleTerminal     = "unique_terminal_main_assistant"
+	finalOutputRuleComplete     = "unique_completed_main_assistant"
+	finalOutputRuleFallback     = "unique_main_assistant_fallback"
+	finalOutputRuleGoalFallback = "typed_goal_terminal_main_assistant"
+	finalOutputRuleAmbiguous    = "multiple_equally_supported_candidates"
+	finalOutputRuleUnavailable  = "no_viable_assistant_candidate"
 )
 
 // ResolveRunResult is the single pure final-output resolver used by live and
@@ -104,7 +105,7 @@ func ResolveRunResult(events []*RunEvent, success bool, exitCode int, terminalRe
 			best = append(best, candidate)
 		}
 	}
-	if bestTier == 0 && len(best) == 1 {
+	if bestTier == 0 && len(best) == 1 && !isTypedGoalTerminal(terminalReason) {
 		result.Selection.Evidence = []string{"provider message lacks terminal or completion evidence"}
 		return result
 	}
@@ -132,11 +133,19 @@ func ResolveRunResult(events []*RunEvent, success bool, exitCode int, terminalRe
 		result.Selection.Rule = finalOutputRuleTerminal
 	case 2:
 		result.Selection.Rule = finalOutputRuleComplete
+	case 0:
+		result.Selection.Rule = finalOutputRuleGoalFallback
 	default:
 		result.Selection.Rule = finalOutputRuleFallback
 	}
 	result.Selection.Evidence = candidateEvidence(selected)
 	return result
+}
+
+func isTypedGoalTerminal(reason string) bool {
+	reason = strings.ToLower(strings.TrimSpace(reason))
+	return strings.HasPrefix(reason, "goal_") &&
+		(reason == "goal_complete" || reason == "goal_blocked" || reason == "goal_abstained")
 }
 
 // selectLatestDistinctProviderTurn resolves the expected shape of an

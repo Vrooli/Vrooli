@@ -2108,6 +2108,402 @@ func (*DeleteSharedFileResponse) Descriptor() ([]byte, []int) {
 	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{32}
 }
 
+type ListEffortWorkspacesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TeamId        string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffortWorkspacesRequest) Reset() {
+	*x = ListEffortWorkspacesRequest{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffortWorkspacesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffortWorkspacesRequest) ProtoMessage() {}
+
+func (x *ListEffortWorkspacesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffortWorkspacesRequest.ProtoReflect.Descriptor instead.
+func (*ListEffortWorkspacesRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ListEffortWorkspacesRequest) GetTeamId() string {
+	if x != nil {
+		return x.TeamId
+	}
+	return ""
+}
+
+type EffortWorkspaceFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	IsDir         bool                   `protobuf:"varint,2,opt,name=is_dir,json=isDir,proto3" json:"is_dir,omitempty"`
+	Size          int64                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortWorkspaceFile) Reset() {
+	*x = EffortWorkspaceFile{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortWorkspaceFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortWorkspaceFile) ProtoMessage() {}
+
+func (x *EffortWorkspaceFile) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortWorkspaceFile.ProtoReflect.Descriptor instead.
+func (*EffortWorkspaceFile) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *EffortWorkspaceFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceFile) GetIsDir() bool {
+	if x != nil {
+		return x.IsDir
+	}
+	return false
+}
+
+func (x *EffortWorkspaceFile) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type EffortWorkspace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Stage         string                 `protobuf:"bytes,3,opt,name=stage,proto3" json:"stage,omitempty"`
+	Files         []*EffortWorkspaceFile `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortWorkspace) Reset() {
+	*x = EffortWorkspace{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortWorkspace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortWorkspace) ProtoMessage() {}
+
+func (x *EffortWorkspace) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortWorkspace.ProtoReflect.Descriptor instead.
+func (*EffortWorkspace) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *EffortWorkspace) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *EffortWorkspace) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *EffortWorkspace) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+func (x *EffortWorkspace) GetFiles() []*EffortWorkspaceFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type EffortWorkspaceUnavailable struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortWorkspaceUnavailable) Reset() {
+	*x = EffortWorkspaceUnavailable{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortWorkspaceUnavailable) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortWorkspaceUnavailable) ProtoMessage() {}
+
+func (x *EffortWorkspaceUnavailable) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortWorkspaceUnavailable.ProtoReflect.Descriptor instead.
+func (*EffortWorkspaceUnavailable) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *EffortWorkspaceUnavailable) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceUnavailable) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type EffortWorkspaceListResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	TeamId        string                        `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	Workspaces    []*EffortWorkspace            `protobuf:"bytes,2,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
+	Unavailable   []*EffortWorkspaceUnavailable `protobuf:"bytes,3,rep,name=unavailable,proto3" json:"unavailable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortWorkspaceListResponse) Reset() {
+	*x = EffortWorkspaceListResponse{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortWorkspaceListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortWorkspaceListResponse) ProtoMessage() {}
+
+func (x *EffortWorkspaceListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortWorkspaceListResponse.ProtoReflect.Descriptor instead.
+func (*EffortWorkspaceListResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *EffortWorkspaceListResponse) GetTeamId() string {
+	if x != nil {
+		return x.TeamId
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceListResponse) GetWorkspaces() []*EffortWorkspace {
+	if x != nil {
+		return x.Workspaces
+	}
+	return nil
+}
+
+func (x *EffortWorkspaceListResponse) GetUnavailable() []*EffortWorkspaceUnavailable {
+	if x != nil {
+		return x.Unavailable
+	}
+	return nil
+}
+
+type GetEffortWorkspaceContentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEffortWorkspaceContentRequest) Reset() {
+	*x = GetEffortWorkspaceContentRequest{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEffortWorkspaceContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEffortWorkspaceContentRequest) ProtoMessage() {}
+
+func (x *GetEffortWorkspaceContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEffortWorkspaceContentRequest.ProtoReflect.Descriptor instead.
+func (*GetEffortWorkspaceContentRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetEffortWorkspaceContentRequest) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *GetEffortWorkspaceContentRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type EffortWorkspaceContent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortWorkspaceContent) Reset() {
+	*x = EffortWorkspaceContent{}
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortWorkspaceContent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortWorkspaceContent) ProtoMessage() {}
+
+func (x *EffortWorkspaceContent) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortWorkspaceContent.ProtoReflect.Descriptor instead.
+func (*EffortWorkspaceContent) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *EffortWorkspaceContent) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceContent) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceContent) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
 type OrgEdge struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ManagerAgentId string                 `protobuf:"bytes,1,opt,name=manager_agent_id,json=managerAgentId,proto3" json:"manager_agent_id,omitempty"`
@@ -2118,7 +2514,7 @@ type OrgEdge struct {
 
 func (x *OrgEdge) Reset() {
 	*x = OrgEdge{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[33]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2130,7 +2526,7 @@ func (x *OrgEdge) String() string {
 func (*OrgEdge) ProtoMessage() {}
 
 func (x *OrgEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[33]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2143,7 +2539,7 @@ func (x *OrgEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrgEdge.ProtoReflect.Descriptor instead.
 func (*OrgEdge) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{33}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *OrgEdge) GetManagerAgentId() string {
@@ -2173,7 +2569,7 @@ type ManagedTeamEdge struct {
 
 func (x *ManagedTeamEdge) Reset() {
 	*x = ManagedTeamEdge{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[34]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2185,7 +2581,7 @@ func (x *ManagedTeamEdge) String() string {
 func (*ManagedTeamEdge) ProtoMessage() {}
 
 func (x *ManagedTeamEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[34]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2198,7 +2594,7 @@ func (x *ManagedTeamEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagedTeamEdge.ProtoReflect.Descriptor instead.
 func (*ManagedTeamEdge) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{34}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ManagedTeamEdge) GetManagerTeamId() string {
@@ -2247,7 +2643,7 @@ type OrgChart struct {
 
 func (x *OrgChart) Reset() {
 	*x = OrgChart{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[35]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2259,7 +2655,7 @@ func (x *OrgChart) String() string {
 func (*OrgChart) ProtoMessage() {}
 
 func (x *OrgChart) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[35]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2272,7 +2668,7 @@ func (x *OrgChart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrgChart.ProtoReflect.Descriptor instead.
 func (*OrgChart) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{35}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *OrgChart) GetTeamId() string {
@@ -2305,7 +2701,7 @@ type GetOrgChartRequest struct {
 
 func (x *GetOrgChartRequest) Reset() {
 	*x = GetOrgChartRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[36]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2317,7 +2713,7 @@ func (x *GetOrgChartRequest) String() string {
 func (*GetOrgChartRequest) ProtoMessage() {}
 
 func (x *GetOrgChartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[36]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2330,7 +2726,7 @@ func (x *GetOrgChartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrgChartRequest.ProtoReflect.Descriptor instead.
 func (*GetOrgChartRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{36}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetOrgChartRequest) GetTeamId() string {
@@ -2351,7 +2747,7 @@ type SetOrgChartRequest struct {
 
 func (x *SetOrgChartRequest) Reset() {
 	*x = SetOrgChartRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[37]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2363,7 +2759,7 @@ func (x *SetOrgChartRequest) String() string {
 func (*SetOrgChartRequest) ProtoMessage() {}
 
 func (x *SetOrgChartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[37]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2376,7 +2772,7 @@ func (x *SetOrgChartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetOrgChartRequest.ProtoReflect.Descriptor instead.
 func (*SetOrgChartRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{37}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *SetOrgChartRequest) GetTeamId() string {
@@ -2411,7 +2807,7 @@ type UpdateOrgChartEdgeRequest struct {
 
 func (x *UpdateOrgChartEdgeRequest) Reset() {
 	*x = UpdateOrgChartEdgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[38]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2423,7 +2819,7 @@ func (x *UpdateOrgChartEdgeRequest) String() string {
 func (*UpdateOrgChartEdgeRequest) ProtoMessage() {}
 
 func (x *UpdateOrgChartEdgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[38]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2436,7 +2832,7 @@ func (x *UpdateOrgChartEdgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrgChartEdgeRequest.ProtoReflect.Descriptor instead.
 func (*UpdateOrgChartEdgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{38}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UpdateOrgChartEdgeRequest) GetTeamId() string {
@@ -2470,7 +2866,7 @@ type DeleteOrgChartEdgeRequest struct {
 
 func (x *DeleteOrgChartEdgeRequest) Reset() {
 	*x = DeleteOrgChartEdgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[39]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2482,7 +2878,7 @@ func (x *DeleteOrgChartEdgeRequest) String() string {
 func (*DeleteOrgChartEdgeRequest) ProtoMessage() {}
 
 func (x *DeleteOrgChartEdgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[39]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2495,7 +2891,7 @@ func (x *DeleteOrgChartEdgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrgChartEdgeRequest.ProtoReflect.Descriptor instead.
 func (*DeleteOrgChartEdgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{39}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *DeleteOrgChartEdgeRequest) GetTeamId() string {
@@ -2526,7 +2922,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[40]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2538,7 +2934,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[40]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2551,7 +2947,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{40}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *Message) GetId() string {
@@ -2607,7 +3003,7 @@ type Inbox struct {
 
 func (x *Inbox) Reset() {
 	*x = Inbox{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[41]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2619,7 +3015,7 @@ func (x *Inbox) String() string {
 func (*Inbox) ProtoMessage() {}
 
 func (x *Inbox) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[41]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2632,7 +3028,7 @@ func (x *Inbox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Inbox.ProtoReflect.Descriptor instead.
 func (*Inbox) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{41}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Inbox) GetTeamId() string {
@@ -2666,7 +3062,7 @@ type ListMessagesRequest struct {
 
 func (x *ListMessagesRequest) Reset() {
 	*x = ListMessagesRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[42]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2678,7 +3074,7 @@ func (x *ListMessagesRequest) String() string {
 func (*ListMessagesRequest) ProtoMessage() {}
 
 func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[42]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2691,7 +3087,7 @@ func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{42}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ListMessagesRequest) GetTeamId() string {
@@ -2720,7 +3116,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[43]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2732,7 +3128,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[43]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2745,7 +3141,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{43}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *SendMessageRequest) GetTeamId() string {
@@ -2786,7 +3182,7 @@ type ClearMessagesRequest struct {
 
 func (x *ClearMessagesRequest) Reset() {
 	*x = ClearMessagesRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[44]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2798,7 +3194,7 @@ func (x *ClearMessagesRequest) String() string {
 func (*ClearMessagesRequest) ProtoMessage() {}
 
 func (x *ClearMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[44]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2811,7 +3207,7 @@ func (x *ClearMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ClearMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{44}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ClearMessagesRequest) GetTeamId() string {
@@ -2836,7 +3232,7 @@ type ClearMessagesResponse struct {
 
 func (x *ClearMessagesResponse) Reset() {
 	*x = ClearMessagesResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[45]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2848,7 +3244,7 @@ func (x *ClearMessagesResponse) String() string {
 func (*ClearMessagesResponse) ProtoMessage() {}
 
 func (x *ClearMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[45]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2861,7 +3257,7 @@ func (x *ClearMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ClearMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{45}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{52}
 }
 
 type DeleteMessageRequest struct {
@@ -2875,7 +3271,7 @@ type DeleteMessageRequest struct {
 
 func (x *DeleteMessageRequest) Reset() {
 	*x = DeleteMessageRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[46]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2887,7 +3283,7 @@ func (x *DeleteMessageRequest) String() string {
 func (*DeleteMessageRequest) ProtoMessage() {}
 
 func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[46]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2900,7 +3296,7 @@ func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{46}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *DeleteMessageRequest) GetTeamId() string {
@@ -2932,7 +3328,7 @@ type DeleteMessageResponse struct {
 
 func (x *DeleteMessageResponse) Reset() {
 	*x = DeleteMessageResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[47]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2944,7 +3340,7 @@ func (x *DeleteMessageResponse) String() string {
 func (*DeleteMessageResponse) ProtoMessage() {}
 
 func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[47]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2957,7 +3353,7 @@ func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{47}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{54}
 }
 
 type AvailableClaudeCodeTeam struct {
@@ -2970,7 +3366,7 @@ type AvailableClaudeCodeTeam struct {
 
 func (x *AvailableClaudeCodeTeam) Reset() {
 	*x = AvailableClaudeCodeTeam{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[48]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2982,7 +3378,7 @@ func (x *AvailableClaudeCodeTeam) String() string {
 func (*AvailableClaudeCodeTeam) ProtoMessage() {}
 
 func (x *AvailableClaudeCodeTeam) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[48]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2995,7 +3391,7 @@ func (x *AvailableClaudeCodeTeam) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AvailableClaudeCodeTeam.ProtoReflect.Descriptor instead.
 func (*AvailableClaudeCodeTeam) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{48}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *AvailableClaudeCodeTeam) GetName() string {
@@ -3020,7 +3416,7 @@ type ListAvailableClaudeCodeTeamsRequest struct {
 
 func (x *ListAvailableClaudeCodeTeamsRequest) Reset() {
 	*x = ListAvailableClaudeCodeTeamsRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[49]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3032,7 +3428,7 @@ func (x *ListAvailableClaudeCodeTeamsRequest) String() string {
 func (*ListAvailableClaudeCodeTeamsRequest) ProtoMessage() {}
 
 func (x *ListAvailableClaudeCodeTeamsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[49]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3045,7 +3441,7 @@ func (x *ListAvailableClaudeCodeTeamsRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ListAvailableClaudeCodeTeamsRequest.ProtoReflect.Descriptor instead.
 func (*ListAvailableClaudeCodeTeamsRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{49}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{56}
 }
 
 type ListAvailableClaudeCodeTeamsResponse struct {
@@ -3057,7 +3453,7 @@ type ListAvailableClaudeCodeTeamsResponse struct {
 
 func (x *ListAvailableClaudeCodeTeamsResponse) Reset() {
 	*x = ListAvailableClaudeCodeTeamsResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[50]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3069,7 +3465,7 @@ func (x *ListAvailableClaudeCodeTeamsResponse) String() string {
 func (*ListAvailableClaudeCodeTeamsResponse) ProtoMessage() {}
 
 func (x *ListAvailableClaudeCodeTeamsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[50]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3082,7 +3478,7 @@ func (x *ListAvailableClaudeCodeTeamsResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ListAvailableClaudeCodeTeamsResponse.ProtoReflect.Descriptor instead.
 func (*ListAvailableClaudeCodeTeamsResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{50}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ListAvailableClaudeCodeTeamsResponse) GetTeams() []*AvailableClaudeCodeTeam {
@@ -3101,7 +3497,7 @@ type ImportClaudeCodeTeamRequest struct {
 
 func (x *ImportClaudeCodeTeamRequest) Reset() {
 	*x = ImportClaudeCodeTeamRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[51]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3113,7 +3509,7 @@ func (x *ImportClaudeCodeTeamRequest) String() string {
 func (*ImportClaudeCodeTeamRequest) ProtoMessage() {}
 
 func (x *ImportClaudeCodeTeamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[51]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3126,7 +3522,7 @@ func (x *ImportClaudeCodeTeamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportClaudeCodeTeamRequest.ProtoReflect.Descriptor instead.
 func (*ImportClaudeCodeTeamRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{51}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ImportClaudeCodeTeamRequest) GetTeamName() string {
@@ -3145,7 +3541,7 @@ type ExportClaudeCodeTeamRequest struct {
 
 func (x *ExportClaudeCodeTeamRequest) Reset() {
 	*x = ExportClaudeCodeTeamRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[52]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3157,7 +3553,7 @@ func (x *ExportClaudeCodeTeamRequest) String() string {
 func (*ExportClaudeCodeTeamRequest) ProtoMessage() {}
 
 func (x *ExportClaudeCodeTeamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[52]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3170,7 +3566,7 @@ func (x *ExportClaudeCodeTeamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportClaudeCodeTeamRequest.ProtoReflect.Descriptor instead.
 func (*ExportClaudeCodeTeamRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{52}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ExportClaudeCodeTeamRequest) GetTeamId() string {
@@ -3190,7 +3586,7 @@ type ExportClaudeCodeTeamResponse struct {
 
 func (x *ExportClaudeCodeTeamResponse) Reset() {
 	*x = ExportClaudeCodeTeamResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[53]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3202,7 +3598,7 @@ func (x *ExportClaudeCodeTeamResponse) String() string {
 func (*ExportClaudeCodeTeamResponse) ProtoMessage() {}
 
 func (x *ExportClaudeCodeTeamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[53]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3215,7 +3611,7 @@ func (x *ExportClaudeCodeTeamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportClaudeCodeTeamResponse.ProtoReflect.Descriptor instead.
 func (*ExportClaudeCodeTeamResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{53}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ExportClaudeCodeTeamResponse) GetTeamId() string {
@@ -3249,7 +3645,7 @@ type KnowledgeEntry struct {
 
 func (x *KnowledgeEntry) Reset() {
 	*x = KnowledgeEntry{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[54]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3261,7 +3657,7 @@ func (x *KnowledgeEntry) String() string {
 func (*KnowledgeEntry) ProtoMessage() {}
 
 func (x *KnowledgeEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[54]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3274,7 +3670,7 @@ func (x *KnowledgeEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KnowledgeEntry.ProtoReflect.Descriptor instead.
 func (*KnowledgeEntry) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{54}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *KnowledgeEntry) GetId() string {
@@ -3352,7 +3748,7 @@ type ListKnowledgeRequest struct {
 
 func (x *ListKnowledgeRequest) Reset() {
 	*x = ListKnowledgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[55]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3364,7 +3760,7 @@ func (x *ListKnowledgeRequest) String() string {
 func (*ListKnowledgeRequest) ProtoMessage() {}
 
 func (x *ListKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[55]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3377,7 +3773,7 @@ func (x *ListKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*ListKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{55}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ListKnowledgeRequest) GetTeamId() string {
@@ -3418,7 +3814,7 @@ type ListKnowledgeResponse struct {
 
 func (x *ListKnowledgeResponse) Reset() {
 	*x = ListKnowledgeResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[56]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3430,7 +3826,7 @@ func (x *ListKnowledgeResponse) String() string {
 func (*ListKnowledgeResponse) ProtoMessage() {}
 
 func (x *ListKnowledgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[56]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3443,7 +3839,7 @@ func (x *ListKnowledgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListKnowledgeResponse.ProtoReflect.Descriptor instead.
 func (*ListKnowledgeResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{56}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ListKnowledgeResponse) GetTeamId() string {
@@ -3474,7 +3870,7 @@ type AddKnowledgeRequest struct {
 
 func (x *AddKnowledgeRequest) Reset() {
 	*x = AddKnowledgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[57]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3486,7 +3882,7 @@ func (x *AddKnowledgeRequest) String() string {
 func (*AddKnowledgeRequest) ProtoMessage() {}
 
 func (x *AddKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[57]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3499,7 +3895,7 @@ func (x *AddKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*AddKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{57}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *AddKnowledgeRequest) GetTeamId() string {
@@ -3559,7 +3955,7 @@ type UpdateKnowledgeRequest struct {
 
 func (x *UpdateKnowledgeRequest) Reset() {
 	*x = UpdateKnowledgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[58]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3571,7 +3967,7 @@ func (x *UpdateKnowledgeRequest) String() string {
 func (*UpdateKnowledgeRequest) ProtoMessage() {}
 
 func (x *UpdateKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[58]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3584,7 +3980,7 @@ func (x *UpdateKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*UpdateKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{58}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *UpdateKnowledgeRequest) GetTeamId() string {
@@ -3646,7 +4042,7 @@ type DeleteKnowledgeRequest struct {
 
 func (x *DeleteKnowledgeRequest) Reset() {
 	*x = DeleteKnowledgeRequest{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[59]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3658,7 +4054,7 @@ func (x *DeleteKnowledgeRequest) String() string {
 func (*DeleteKnowledgeRequest) ProtoMessage() {}
 
 func (x *DeleteKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[59]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3671,7 +4067,7 @@ func (x *DeleteKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*DeleteKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{59}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *DeleteKnowledgeRequest) GetTeamId() string {
@@ -3696,7 +4092,7 @@ type DeleteKnowledgeResponse struct {
 
 func (x *DeleteKnowledgeResponse) Reset() {
 	*x = DeleteKnowledgeResponse{}
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[60]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3708,7 +4104,7 @@ func (x *DeleteKnowledgeResponse) String() string {
 func (*DeleteKnowledgeResponse) ProtoMessage() {}
 
 func (x *DeleteKnowledgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[60]
+	mi := &file_prompt_manager_v1_teams_teams_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3721,7 +4117,7 @@ func (x *DeleteKnowledgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteKnowledgeResponse.ProtoReflect.Descriptor instead.
 func (*DeleteKnowledgeResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{60}
+	return file_prompt_manager_v1_teams_teams_proto_rawDescGZIP(), []int{67}
 }
 
 var File_prompt_manager_v1_teams_teams_proto protoreflect.FileDescriptor
@@ -3885,7 +4281,38 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\x17DeleteSharedFileRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\"\x1a\n" +
-	"\x18DeleteSharedFileResponse\"[\n" +
+	"\x18DeleteSharedFileResponse\"6\n" +
+	"\x1bListEffortWorkspacesRequest\x12\x17\n" +
+	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"T\n" +
+	"\x13EffortWorkspaceFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x15\n" +
+	"\x06is_dir\x18\x02 \x01(\bR\x05isDir\x12\x12\n" +
+	"\x04size\x18\x03 \x01(\x03R\x04size\"\xa5\x01\n" +
+	"\x0fEffortWorkspace\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x14\n" +
+	"\x05stage\x18\x03 \x01(\tR\x05stage\x12I\n" +
+	"\x05files\x18\x04 \x03(\v23.vrooli.prompt_manager.v1.teams.EffortWorkspaceFileR\x05files\"S\n" +
+	"\x1aEffortWorkspaceUnavailable\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xe5\x01\n" +
+	"\x1bEffortWorkspaceListResponse\x12\x17\n" +
+	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12O\n" +
+	"\n" +
+	"workspaces\x18\x02 \x03(\v2/.vrooli.prompt_manager.v1.teams.EffortWorkspaceR\n" +
+	"workspaces\x12\\\n" +
+	"\vunavailable\x18\x03 \x03(\v2:.vrooli.prompt_manager.v1.teams.EffortWorkspaceUnavailableR\vunavailable\"U\n" +
+	" GetEffortWorkspaceContentRequest\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"e\n" +
+	"\x16EffortWorkspaceContent\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"[\n" +
 	"\aOrgEdge\x12(\n" +
 	"\x10manager_agent_id\x18\x01 \x01(\tR\x0emanagerAgentId\x12&\n" +
 	"\x0freport_agent_id\x18\x02 \x01(\tR\rreportAgentId\"\xc2\x01\n" +
@@ -4005,7 +4432,7 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\x16DeleteKnowledgeRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12!\n" +
 	"\fknowledge_id\x18\x02 \x01(\tR\vknowledgeId\"\x19\n" +
-	"\x17DeleteKnowledgeResponse2\xcf\x1e\n" +
+	"\x17DeleteKnowledgeResponse2\xfa \n" +
 	"\fTeamsService\x12p\n" +
 	"\tListTeams\x120.vrooli.prompt_manager.v1.teams.ListTeamsRequest\x1a1.vrooli.prompt_manager.v1.teams.ListTeamsResponse\x12f\n" +
 	"\aGetTeam\x12..vrooli.prompt_manager.v1.teams.GetTeamRequest\x1a+.vrooli.prompt_manager.v1.teams.TeamDetails\x12l\n" +
@@ -4026,7 +4453,9 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\rSetSharedFile\x124.vrooli.prompt_manager.v1.teams.SetSharedFileRequest\x1a1.vrooli.prompt_manager.v1.teams.SharedFileContent\x12~\n" +
 	"\x10CreateSharedFile\x127.vrooli.prompt_manager.v1.teams.CreateSharedFileRequest\x1a1.vrooli.prompt_manager.v1.teams.SharedFileContent\x12~\n" +
 	"\x10RenameSharedFile\x127.vrooli.prompt_manager.v1.teams.RenameSharedFileRequest\x1a1.vrooli.prompt_manager.v1.teams.SharedFileContent\x12\x85\x01\n" +
-	"\x10DeleteSharedFile\x127.vrooli.prompt_manager.v1.teams.DeleteSharedFileRequest\x1a8.vrooli.prompt_manager.v1.teams.DeleteSharedFileResponse\x12k\n" +
+	"\x10DeleteSharedFile\x127.vrooli.prompt_manager.v1.teams.DeleteSharedFileRequest\x1a8.vrooli.prompt_manager.v1.teams.DeleteSharedFileResponse\x12\x90\x01\n" +
+	"\x14ListEffortWorkspaces\x12;.vrooli.prompt_manager.v1.teams.ListEffortWorkspacesRequest\x1a;.vrooli.prompt_manager.v1.teams.EffortWorkspaceListResponse\x12\x95\x01\n" +
+	"\x19GetEffortWorkspaceContent\x12@.vrooli.prompt_manager.v1.teams.GetEffortWorkspaceContentRequest\x1a6.vrooli.prompt_manager.v1.teams.EffortWorkspaceContent\x12k\n" +
 	"\vGetOrgChart\x122.vrooli.prompt_manager.v1.teams.GetOrgChartRequest\x1a(.vrooli.prompt_manager.v1.teams.OrgChart\x12k\n" +
 	"\vSetOrgChart\x122.vrooli.prompt_manager.v1.teams.SetOrgChartRequest\x1a(.vrooli.prompt_manager.v1.teams.OrgChart\x12y\n" +
 	"\x12UpdateOrgChartEdge\x129.vrooli.prompt_manager.v1.teams.UpdateOrgChartEdgeRequest\x1a(.vrooli.prompt_manager.v1.teams.OrgChart\x12y\n" +
@@ -4055,7 +4484,7 @@ func file_prompt_manager_v1_teams_teams_proto_rawDescGZIP() []byte {
 	return file_prompt_manager_v1_teams_teams_proto_rawDescData
 }
 
-var file_prompt_manager_v1_teams_teams_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
+var file_prompt_manager_v1_teams_teams_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
 var file_prompt_manager_v1_teams_teams_proto_goTypes = []any{
 	(*ObjectiveDeclaration)(nil),                 // 0: vrooli.prompt_manager.v1.teams.ObjectiveDeclaration
 	(*Team)(nil),                                 // 1: vrooli.prompt_manager.v1.teams.Team
@@ -4090,143 +4519,157 @@ var file_prompt_manager_v1_teams_teams_proto_goTypes = []any{
 	(*RenameSharedFileRequest)(nil),              // 30: vrooli.prompt_manager.v1.teams.RenameSharedFileRequest
 	(*DeleteSharedFileRequest)(nil),              // 31: vrooli.prompt_manager.v1.teams.DeleteSharedFileRequest
 	(*DeleteSharedFileResponse)(nil),             // 32: vrooli.prompt_manager.v1.teams.DeleteSharedFileResponse
-	(*OrgEdge)(nil),                              // 33: vrooli.prompt_manager.v1.teams.OrgEdge
-	(*ManagedTeamEdge)(nil),                      // 34: vrooli.prompt_manager.v1.teams.ManagedTeamEdge
-	(*OrgChart)(nil),                             // 35: vrooli.prompt_manager.v1.teams.OrgChart
-	(*GetOrgChartRequest)(nil),                   // 36: vrooli.prompt_manager.v1.teams.GetOrgChartRequest
-	(*SetOrgChartRequest)(nil),                   // 37: vrooli.prompt_manager.v1.teams.SetOrgChartRequest
-	(*UpdateOrgChartEdgeRequest)(nil),            // 38: vrooli.prompt_manager.v1.teams.UpdateOrgChartEdgeRequest
-	(*DeleteOrgChartEdgeRequest)(nil),            // 39: vrooli.prompt_manager.v1.teams.DeleteOrgChartEdgeRequest
-	(*Message)(nil),                              // 40: vrooli.prompt_manager.v1.teams.Message
-	(*Inbox)(nil),                                // 41: vrooli.prompt_manager.v1.teams.Inbox
-	(*ListMessagesRequest)(nil),                  // 42: vrooli.prompt_manager.v1.teams.ListMessagesRequest
-	(*SendMessageRequest)(nil),                   // 43: vrooli.prompt_manager.v1.teams.SendMessageRequest
-	(*ClearMessagesRequest)(nil),                 // 44: vrooli.prompt_manager.v1.teams.ClearMessagesRequest
-	(*ClearMessagesResponse)(nil),                // 45: vrooli.prompt_manager.v1.teams.ClearMessagesResponse
-	(*DeleteMessageRequest)(nil),                 // 46: vrooli.prompt_manager.v1.teams.DeleteMessageRequest
-	(*DeleteMessageResponse)(nil),                // 47: vrooli.prompt_manager.v1.teams.DeleteMessageResponse
-	(*AvailableClaudeCodeTeam)(nil),              // 48: vrooli.prompt_manager.v1.teams.AvailableClaudeCodeTeam
-	(*ListAvailableClaudeCodeTeamsRequest)(nil),  // 49: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsRequest
-	(*ListAvailableClaudeCodeTeamsResponse)(nil), // 50: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse
-	(*ImportClaudeCodeTeamRequest)(nil),          // 51: vrooli.prompt_manager.v1.teams.ImportClaudeCodeTeamRequest
-	(*ExportClaudeCodeTeamRequest)(nil),          // 52: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamRequest
-	(*ExportClaudeCodeTeamResponse)(nil),         // 53: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse
-	(*KnowledgeEntry)(nil),                       // 54: vrooli.prompt_manager.v1.teams.KnowledgeEntry
-	(*ListKnowledgeRequest)(nil),                 // 55: vrooli.prompt_manager.v1.teams.ListKnowledgeRequest
-	(*ListKnowledgeResponse)(nil),                // 56: vrooli.prompt_manager.v1.teams.ListKnowledgeResponse
-	(*AddKnowledgeRequest)(nil),                  // 57: vrooli.prompt_manager.v1.teams.AddKnowledgeRequest
-	(*UpdateKnowledgeRequest)(nil),               // 58: vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest
-	(*DeleteKnowledgeRequest)(nil),               // 59: vrooli.prompt_manager.v1.teams.DeleteKnowledgeRequest
-	(*DeleteKnowledgeResponse)(nil),              // 60: vrooli.prompt_manager.v1.teams.DeleteKnowledgeResponse
-	(*structpb.Struct)(nil),                      // 61: google.protobuf.Struct
-	(*fieldmaskpb.FieldMask)(nil),                // 62: google.protobuf.FieldMask
+	(*ListEffortWorkspacesRequest)(nil),          // 33: vrooli.prompt_manager.v1.teams.ListEffortWorkspacesRequest
+	(*EffortWorkspaceFile)(nil),                  // 34: vrooli.prompt_manager.v1.teams.EffortWorkspaceFile
+	(*EffortWorkspace)(nil),                      // 35: vrooli.prompt_manager.v1.teams.EffortWorkspace
+	(*EffortWorkspaceUnavailable)(nil),           // 36: vrooli.prompt_manager.v1.teams.EffortWorkspaceUnavailable
+	(*EffortWorkspaceListResponse)(nil),          // 37: vrooli.prompt_manager.v1.teams.EffortWorkspaceListResponse
+	(*GetEffortWorkspaceContentRequest)(nil),     // 38: vrooli.prompt_manager.v1.teams.GetEffortWorkspaceContentRequest
+	(*EffortWorkspaceContent)(nil),               // 39: vrooli.prompt_manager.v1.teams.EffortWorkspaceContent
+	(*OrgEdge)(nil),                              // 40: vrooli.prompt_manager.v1.teams.OrgEdge
+	(*ManagedTeamEdge)(nil),                      // 41: vrooli.prompt_manager.v1.teams.ManagedTeamEdge
+	(*OrgChart)(nil),                             // 42: vrooli.prompt_manager.v1.teams.OrgChart
+	(*GetOrgChartRequest)(nil),                   // 43: vrooli.prompt_manager.v1.teams.GetOrgChartRequest
+	(*SetOrgChartRequest)(nil),                   // 44: vrooli.prompt_manager.v1.teams.SetOrgChartRequest
+	(*UpdateOrgChartEdgeRequest)(nil),            // 45: vrooli.prompt_manager.v1.teams.UpdateOrgChartEdgeRequest
+	(*DeleteOrgChartEdgeRequest)(nil),            // 46: vrooli.prompt_manager.v1.teams.DeleteOrgChartEdgeRequest
+	(*Message)(nil),                              // 47: vrooli.prompt_manager.v1.teams.Message
+	(*Inbox)(nil),                                // 48: vrooli.prompt_manager.v1.teams.Inbox
+	(*ListMessagesRequest)(nil),                  // 49: vrooli.prompt_manager.v1.teams.ListMessagesRequest
+	(*SendMessageRequest)(nil),                   // 50: vrooli.prompt_manager.v1.teams.SendMessageRequest
+	(*ClearMessagesRequest)(nil),                 // 51: vrooli.prompt_manager.v1.teams.ClearMessagesRequest
+	(*ClearMessagesResponse)(nil),                // 52: vrooli.prompt_manager.v1.teams.ClearMessagesResponse
+	(*DeleteMessageRequest)(nil),                 // 53: vrooli.prompt_manager.v1.teams.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),                // 54: vrooli.prompt_manager.v1.teams.DeleteMessageResponse
+	(*AvailableClaudeCodeTeam)(nil),              // 55: vrooli.prompt_manager.v1.teams.AvailableClaudeCodeTeam
+	(*ListAvailableClaudeCodeTeamsRequest)(nil),  // 56: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsRequest
+	(*ListAvailableClaudeCodeTeamsResponse)(nil), // 57: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse
+	(*ImportClaudeCodeTeamRequest)(nil),          // 58: vrooli.prompt_manager.v1.teams.ImportClaudeCodeTeamRequest
+	(*ExportClaudeCodeTeamRequest)(nil),          // 59: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamRequest
+	(*ExportClaudeCodeTeamResponse)(nil),         // 60: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse
+	(*KnowledgeEntry)(nil),                       // 61: vrooli.prompt_manager.v1.teams.KnowledgeEntry
+	(*ListKnowledgeRequest)(nil),                 // 62: vrooli.prompt_manager.v1.teams.ListKnowledgeRequest
+	(*ListKnowledgeResponse)(nil),                // 63: vrooli.prompt_manager.v1.teams.ListKnowledgeResponse
+	(*AddKnowledgeRequest)(nil),                  // 64: vrooli.prompt_manager.v1.teams.AddKnowledgeRequest
+	(*UpdateKnowledgeRequest)(nil),               // 65: vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest
+	(*DeleteKnowledgeRequest)(nil),               // 66: vrooli.prompt_manager.v1.teams.DeleteKnowledgeRequest
+	(*DeleteKnowledgeResponse)(nil),              // 67: vrooli.prompt_manager.v1.teams.DeleteKnowledgeResponse
+	(*structpb.Struct)(nil),                      // 68: google.protobuf.Struct
+	(*fieldmaskpb.FieldMask)(nil),                // 69: google.protobuf.FieldMask
 }
 var file_prompt_manager_v1_teams_teams_proto_depIdxs = []int32{
-	61, // 0: vrooli.prompt_manager.v1.teams.Team.runtime:type_name -> google.protobuf.Struct
-	61, // 1: vrooli.prompt_manager.v1.teams.Team.coordination:type_name -> google.protobuf.Struct
-	61, // 2: vrooli.prompt_manager.v1.teams.Team.execution:type_name -> google.protobuf.Struct
-	61, // 3: vrooli.prompt_manager.v1.teams.Team.operating_contract:type_name -> google.protobuf.Struct
-	61, // 4: vrooli.prompt_manager.v1.teams.Team.validation_findings:type_name -> google.protobuf.Struct
+	68, // 0: vrooli.prompt_manager.v1.teams.Team.runtime:type_name -> google.protobuf.Struct
+	68, // 1: vrooli.prompt_manager.v1.teams.Team.coordination:type_name -> google.protobuf.Struct
+	68, // 2: vrooli.prompt_manager.v1.teams.Team.execution:type_name -> google.protobuf.Struct
+	68, // 3: vrooli.prompt_manager.v1.teams.Team.operating_contract:type_name -> google.protobuf.Struct
+	68, // 4: vrooli.prompt_manager.v1.teams.Team.validation_findings:type_name -> google.protobuf.Struct
 	0,  // 5: vrooli.prompt_manager.v1.teams.Team.objectives_served:type_name -> vrooli.prompt_manager.v1.teams.ObjectiveDeclaration
-	61, // 6: vrooli.prompt_manager.v1.teams.TeamDetails.runtime:type_name -> google.protobuf.Struct
-	61, // 7: vrooli.prompt_manager.v1.teams.TeamDetails.coordination:type_name -> google.protobuf.Struct
-	61, // 8: vrooli.prompt_manager.v1.teams.TeamDetails.execution:type_name -> google.protobuf.Struct
-	61, // 9: vrooli.prompt_manager.v1.teams.TeamDetails.operating_contract:type_name -> google.protobuf.Struct
-	61, // 10: vrooli.prompt_manager.v1.teams.TeamDetails.validation_findings:type_name -> google.protobuf.Struct
+	68, // 6: vrooli.prompt_manager.v1.teams.TeamDetails.runtime:type_name -> google.protobuf.Struct
+	68, // 7: vrooli.prompt_manager.v1.teams.TeamDetails.coordination:type_name -> google.protobuf.Struct
+	68, // 8: vrooli.prompt_manager.v1.teams.TeamDetails.execution:type_name -> google.protobuf.Struct
+	68, // 9: vrooli.prompt_manager.v1.teams.TeamDetails.operating_contract:type_name -> google.protobuf.Struct
+	68, // 10: vrooli.prompt_manager.v1.teams.TeamDetails.validation_findings:type_name -> google.protobuf.Struct
 	2,  // 11: vrooli.prompt_manager.v1.teams.TeamDetails.roles:type_name -> vrooli.prompt_manager.v1.teams.Role
 	3,  // 12: vrooli.prompt_manager.v1.teams.TeamDetails.members:type_name -> vrooli.prompt_manager.v1.teams.Member
 	0,  // 13: vrooli.prompt_manager.v1.teams.TeamDetails.objectives_served:type_name -> vrooli.prompt_manager.v1.teams.ObjectiveDeclaration
-	61, // 14: vrooli.prompt_manager.v1.teams.TeamInput.runtime:type_name -> google.protobuf.Struct
-	61, // 15: vrooli.prompt_manager.v1.teams.TeamInput.coordination:type_name -> google.protobuf.Struct
-	61, // 16: vrooli.prompt_manager.v1.teams.TeamInput.execution:type_name -> google.protobuf.Struct
-	61, // 17: vrooli.prompt_manager.v1.teams.TeamInput.operating_contract:type_name -> google.protobuf.Struct
+	68, // 14: vrooli.prompt_manager.v1.teams.TeamInput.runtime:type_name -> google.protobuf.Struct
+	68, // 15: vrooli.prompt_manager.v1.teams.TeamInput.coordination:type_name -> google.protobuf.Struct
+	68, // 16: vrooli.prompt_manager.v1.teams.TeamInput.execution:type_name -> google.protobuf.Struct
+	68, // 17: vrooli.prompt_manager.v1.teams.TeamInput.operating_contract:type_name -> google.protobuf.Struct
 	1,  // 18: vrooli.prompt_manager.v1.teams.ListTeamsResponse.teams:type_name -> vrooli.prompt_manager.v1.teams.Team
 	5,  // 19: vrooli.prompt_manager.v1.teams.CreateTeamRequest.team:type_name -> vrooli.prompt_manager.v1.teams.TeamInput
 	5,  // 20: vrooli.prompt_manager.v1.teams.UpdateTeamRequest.team:type_name -> vrooli.prompt_manager.v1.teams.TeamInput
-	62, // 21: vrooli.prompt_manager.v1.teams.UpdateTeamRequest.update_mask:type_name -> google.protobuf.FieldMask
+	69, // 21: vrooli.prompt_manager.v1.teams.UpdateTeamRequest.update_mask:type_name -> google.protobuf.FieldMask
 	13, // 22: vrooli.prompt_manager.v1.teams.ExclusiveMembersResponse.members:type_name -> vrooli.prompt_manager.v1.teams.ExclusiveMember
 	2,  // 23: vrooli.prompt_manager.v1.teams.GetRolesResponse.roles:type_name -> vrooli.prompt_manager.v1.teams.Role
 	2,  // 24: vrooli.prompt_manager.v1.teams.SetRolesRequest.roles:type_name -> vrooli.prompt_manager.v1.teams.Role
 	23, // 25: vrooli.prompt_manager.v1.teams.ListSharedFilesResponse.files:type_name -> vrooli.prompt_manager.v1.teams.SharedFileEntry
-	33, // 26: vrooli.prompt_manager.v1.teams.OrgChart.edges:type_name -> vrooli.prompt_manager.v1.teams.OrgEdge
-	34, // 27: vrooli.prompt_manager.v1.teams.OrgChart.managed_team_edges:type_name -> vrooli.prompt_manager.v1.teams.ManagedTeamEdge
-	33, // 28: vrooli.prompt_manager.v1.teams.SetOrgChartRequest.edges:type_name -> vrooli.prompt_manager.v1.teams.OrgEdge
-	34, // 29: vrooli.prompt_manager.v1.teams.SetOrgChartRequest.managed_team_edges:type_name -> vrooli.prompt_manager.v1.teams.ManagedTeamEdge
-	40, // 30: vrooli.prompt_manager.v1.teams.Inbox.messages:type_name -> vrooli.prompt_manager.v1.teams.Message
-	48, // 31: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse.teams:type_name -> vrooli.prompt_manager.v1.teams.AvailableClaudeCodeTeam
-	61, // 32: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse.export:type_name -> google.protobuf.Struct
-	61, // 33: vrooli.prompt_manager.v1.teams.KnowledgeEntry.attribution:type_name -> google.protobuf.Struct
-	54, // 34: vrooli.prompt_manager.v1.teams.ListKnowledgeResponse.entries:type_name -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
-	62, // 35: vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest.update_mask:type_name -> google.protobuf.FieldMask
-	6,  // 36: vrooli.prompt_manager.v1.teams.TeamsService.ListTeams:input_type -> vrooli.prompt_manager.v1.teams.ListTeamsRequest
-	8,  // 37: vrooli.prompt_manager.v1.teams.TeamsService.GetTeam:input_type -> vrooli.prompt_manager.v1.teams.GetTeamRequest
-	9,  // 38: vrooli.prompt_manager.v1.teams.TeamsService.CreateTeam:input_type -> vrooli.prompt_manager.v1.teams.CreateTeamRequest
-	10, // 39: vrooli.prompt_manager.v1.teams.TeamsService.UpdateTeam:input_type -> vrooli.prompt_manager.v1.teams.UpdateTeamRequest
-	11, // 40: vrooli.prompt_manager.v1.teams.TeamsService.DeleteTeam:input_type -> vrooli.prompt_manager.v1.teams.DeleteTeamRequest
-	14, // 41: vrooli.prompt_manager.v1.teams.TeamsService.GetExclusiveMembers:input_type -> vrooli.prompt_manager.v1.teams.GetExclusiveMembersRequest
-	16, // 42: vrooli.prompt_manager.v1.teams.TeamsService.AddMember:input_type -> vrooli.prompt_manager.v1.teams.AddMemberRequest
-	17, // 43: vrooli.prompt_manager.v1.teams.TeamsService.UpdateMember:input_type -> vrooli.prompt_manager.v1.teams.UpdateMemberRequest
-	18, // 44: vrooli.prompt_manager.v1.teams.TeamsService.RemoveMember:input_type -> vrooli.prompt_manager.v1.teams.RemoveMemberRequest
-	20, // 45: vrooli.prompt_manager.v1.teams.TeamsService.GetRoles:input_type -> vrooli.prompt_manager.v1.teams.GetRolesRequest
-	22, // 46: vrooli.prompt_manager.v1.teams.TeamsService.SetRoles:input_type -> vrooli.prompt_manager.v1.teams.SetRolesRequest
-	24, // 47: vrooli.prompt_manager.v1.teams.TeamsService.ListSharedFiles:input_type -> vrooli.prompt_manager.v1.teams.ListSharedFilesRequest
-	27, // 48: vrooli.prompt_manager.v1.teams.TeamsService.GetSharedFile:input_type -> vrooli.prompt_manager.v1.teams.GetSharedFileRequest
-	28, // 49: vrooli.prompt_manager.v1.teams.TeamsService.SetSharedFile:input_type -> vrooli.prompt_manager.v1.teams.SetSharedFileRequest
-	29, // 50: vrooli.prompt_manager.v1.teams.TeamsService.CreateSharedFile:input_type -> vrooli.prompt_manager.v1.teams.CreateSharedFileRequest
-	30, // 51: vrooli.prompt_manager.v1.teams.TeamsService.RenameSharedFile:input_type -> vrooli.prompt_manager.v1.teams.RenameSharedFileRequest
-	31, // 52: vrooli.prompt_manager.v1.teams.TeamsService.DeleteSharedFile:input_type -> vrooli.prompt_manager.v1.teams.DeleteSharedFileRequest
-	36, // 53: vrooli.prompt_manager.v1.teams.TeamsService.GetOrgChart:input_type -> vrooli.prompt_manager.v1.teams.GetOrgChartRequest
-	37, // 54: vrooli.prompt_manager.v1.teams.TeamsService.SetOrgChart:input_type -> vrooli.prompt_manager.v1.teams.SetOrgChartRequest
-	38, // 55: vrooli.prompt_manager.v1.teams.TeamsService.UpdateOrgChartEdge:input_type -> vrooli.prompt_manager.v1.teams.UpdateOrgChartEdgeRequest
-	39, // 56: vrooli.prompt_manager.v1.teams.TeamsService.DeleteOrgChartEdge:input_type -> vrooli.prompt_manager.v1.teams.DeleteOrgChartEdgeRequest
-	42, // 57: vrooli.prompt_manager.v1.teams.TeamsService.ListMessages:input_type -> vrooli.prompt_manager.v1.teams.ListMessagesRequest
-	43, // 58: vrooli.prompt_manager.v1.teams.TeamsService.SendMessage:input_type -> vrooli.prompt_manager.v1.teams.SendMessageRequest
-	44, // 59: vrooli.prompt_manager.v1.teams.TeamsService.ClearMessages:input_type -> vrooli.prompt_manager.v1.teams.ClearMessagesRequest
-	46, // 60: vrooli.prompt_manager.v1.teams.TeamsService.DeleteMessage:input_type -> vrooli.prompt_manager.v1.teams.DeleteMessageRequest
-	49, // 61: vrooli.prompt_manager.v1.teams.TeamsService.ListAvailableClaudeCodeTeams:input_type -> vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsRequest
-	51, // 62: vrooli.prompt_manager.v1.teams.TeamsService.ImportClaudeCodeTeam:input_type -> vrooli.prompt_manager.v1.teams.ImportClaudeCodeTeamRequest
-	52, // 63: vrooli.prompt_manager.v1.teams.TeamsService.ExportClaudeCodeTeam:input_type -> vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamRequest
-	55, // 64: vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge:input_type -> vrooli.prompt_manager.v1.teams.ListKnowledgeRequest
-	57, // 65: vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge:input_type -> vrooli.prompt_manager.v1.teams.AddKnowledgeRequest
-	58, // 66: vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge:input_type -> vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest
-	59, // 67: vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge:input_type -> vrooli.prompt_manager.v1.teams.DeleteKnowledgeRequest
-	7,  // 68: vrooli.prompt_manager.v1.teams.TeamsService.ListTeams:output_type -> vrooli.prompt_manager.v1.teams.ListTeamsResponse
-	4,  // 69: vrooli.prompt_manager.v1.teams.TeamsService.GetTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
-	4,  // 70: vrooli.prompt_manager.v1.teams.TeamsService.CreateTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
-	4,  // 71: vrooli.prompt_manager.v1.teams.TeamsService.UpdateTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
-	12, // 72: vrooli.prompt_manager.v1.teams.TeamsService.DeleteTeam:output_type -> vrooli.prompt_manager.v1.teams.DeleteTeamResponse
-	15, // 73: vrooli.prompt_manager.v1.teams.TeamsService.GetExclusiveMembers:output_type -> vrooli.prompt_manager.v1.teams.ExclusiveMembersResponse
-	3,  // 74: vrooli.prompt_manager.v1.teams.TeamsService.AddMember:output_type -> vrooli.prompt_manager.v1.teams.Member
-	3,  // 75: vrooli.prompt_manager.v1.teams.TeamsService.UpdateMember:output_type -> vrooli.prompt_manager.v1.teams.Member
-	19, // 76: vrooli.prompt_manager.v1.teams.TeamsService.RemoveMember:output_type -> vrooli.prompt_manager.v1.teams.RemoveMemberResponse
-	21, // 77: vrooli.prompt_manager.v1.teams.TeamsService.GetRoles:output_type -> vrooli.prompt_manager.v1.teams.GetRolesResponse
-	21, // 78: vrooli.prompt_manager.v1.teams.TeamsService.SetRoles:output_type -> vrooli.prompt_manager.v1.teams.GetRolesResponse
-	25, // 79: vrooli.prompt_manager.v1.teams.TeamsService.ListSharedFiles:output_type -> vrooli.prompt_manager.v1.teams.ListSharedFilesResponse
-	26, // 80: vrooli.prompt_manager.v1.teams.TeamsService.GetSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
-	26, // 81: vrooli.prompt_manager.v1.teams.TeamsService.SetSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
-	26, // 82: vrooli.prompt_manager.v1.teams.TeamsService.CreateSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
-	26, // 83: vrooli.prompt_manager.v1.teams.TeamsService.RenameSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
-	32, // 84: vrooli.prompt_manager.v1.teams.TeamsService.DeleteSharedFile:output_type -> vrooli.prompt_manager.v1.teams.DeleteSharedFileResponse
-	35, // 85: vrooli.prompt_manager.v1.teams.TeamsService.GetOrgChart:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
-	35, // 86: vrooli.prompt_manager.v1.teams.TeamsService.SetOrgChart:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
-	35, // 87: vrooli.prompt_manager.v1.teams.TeamsService.UpdateOrgChartEdge:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
-	35, // 88: vrooli.prompt_manager.v1.teams.TeamsService.DeleteOrgChartEdge:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
-	41, // 89: vrooli.prompt_manager.v1.teams.TeamsService.ListMessages:output_type -> vrooli.prompt_manager.v1.teams.Inbox
-	40, // 90: vrooli.prompt_manager.v1.teams.TeamsService.SendMessage:output_type -> vrooli.prompt_manager.v1.teams.Message
-	45, // 91: vrooli.prompt_manager.v1.teams.TeamsService.ClearMessages:output_type -> vrooli.prompt_manager.v1.teams.ClearMessagesResponse
-	47, // 92: vrooli.prompt_manager.v1.teams.TeamsService.DeleteMessage:output_type -> vrooli.prompt_manager.v1.teams.DeleteMessageResponse
-	50, // 93: vrooli.prompt_manager.v1.teams.TeamsService.ListAvailableClaudeCodeTeams:output_type -> vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse
-	4,  // 94: vrooli.prompt_manager.v1.teams.TeamsService.ImportClaudeCodeTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
-	53, // 95: vrooli.prompt_manager.v1.teams.TeamsService.ExportClaudeCodeTeam:output_type -> vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse
-	56, // 96: vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge:output_type -> vrooli.prompt_manager.v1.teams.ListKnowledgeResponse
-	54, // 97: vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge:output_type -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
-	54, // 98: vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge:output_type -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
-	60, // 99: vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge:output_type -> vrooli.prompt_manager.v1.teams.DeleteKnowledgeResponse
-	68, // [68:100] is the sub-list for method output_type
-	36, // [36:68] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	34, // 26: vrooli.prompt_manager.v1.teams.EffortWorkspace.files:type_name -> vrooli.prompt_manager.v1.teams.EffortWorkspaceFile
+	35, // 27: vrooli.prompt_manager.v1.teams.EffortWorkspaceListResponse.workspaces:type_name -> vrooli.prompt_manager.v1.teams.EffortWorkspace
+	36, // 28: vrooli.prompt_manager.v1.teams.EffortWorkspaceListResponse.unavailable:type_name -> vrooli.prompt_manager.v1.teams.EffortWorkspaceUnavailable
+	40, // 29: vrooli.prompt_manager.v1.teams.OrgChart.edges:type_name -> vrooli.prompt_manager.v1.teams.OrgEdge
+	41, // 30: vrooli.prompt_manager.v1.teams.OrgChart.managed_team_edges:type_name -> vrooli.prompt_manager.v1.teams.ManagedTeamEdge
+	40, // 31: vrooli.prompt_manager.v1.teams.SetOrgChartRequest.edges:type_name -> vrooli.prompt_manager.v1.teams.OrgEdge
+	41, // 32: vrooli.prompt_manager.v1.teams.SetOrgChartRequest.managed_team_edges:type_name -> vrooli.prompt_manager.v1.teams.ManagedTeamEdge
+	47, // 33: vrooli.prompt_manager.v1.teams.Inbox.messages:type_name -> vrooli.prompt_manager.v1.teams.Message
+	55, // 34: vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse.teams:type_name -> vrooli.prompt_manager.v1.teams.AvailableClaudeCodeTeam
+	68, // 35: vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse.export:type_name -> google.protobuf.Struct
+	68, // 36: vrooli.prompt_manager.v1.teams.KnowledgeEntry.attribution:type_name -> google.protobuf.Struct
+	61, // 37: vrooli.prompt_manager.v1.teams.ListKnowledgeResponse.entries:type_name -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
+	69, // 38: vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest.update_mask:type_name -> google.protobuf.FieldMask
+	6,  // 39: vrooli.prompt_manager.v1.teams.TeamsService.ListTeams:input_type -> vrooli.prompt_manager.v1.teams.ListTeamsRequest
+	8,  // 40: vrooli.prompt_manager.v1.teams.TeamsService.GetTeam:input_type -> vrooli.prompt_manager.v1.teams.GetTeamRequest
+	9,  // 41: vrooli.prompt_manager.v1.teams.TeamsService.CreateTeam:input_type -> vrooli.prompt_manager.v1.teams.CreateTeamRequest
+	10, // 42: vrooli.prompt_manager.v1.teams.TeamsService.UpdateTeam:input_type -> vrooli.prompt_manager.v1.teams.UpdateTeamRequest
+	11, // 43: vrooli.prompt_manager.v1.teams.TeamsService.DeleteTeam:input_type -> vrooli.prompt_manager.v1.teams.DeleteTeamRequest
+	14, // 44: vrooli.prompt_manager.v1.teams.TeamsService.GetExclusiveMembers:input_type -> vrooli.prompt_manager.v1.teams.GetExclusiveMembersRequest
+	16, // 45: vrooli.prompt_manager.v1.teams.TeamsService.AddMember:input_type -> vrooli.prompt_manager.v1.teams.AddMemberRequest
+	17, // 46: vrooli.prompt_manager.v1.teams.TeamsService.UpdateMember:input_type -> vrooli.prompt_manager.v1.teams.UpdateMemberRequest
+	18, // 47: vrooli.prompt_manager.v1.teams.TeamsService.RemoveMember:input_type -> vrooli.prompt_manager.v1.teams.RemoveMemberRequest
+	20, // 48: vrooli.prompt_manager.v1.teams.TeamsService.GetRoles:input_type -> vrooli.prompt_manager.v1.teams.GetRolesRequest
+	22, // 49: vrooli.prompt_manager.v1.teams.TeamsService.SetRoles:input_type -> vrooli.prompt_manager.v1.teams.SetRolesRequest
+	24, // 50: vrooli.prompt_manager.v1.teams.TeamsService.ListSharedFiles:input_type -> vrooli.prompt_manager.v1.teams.ListSharedFilesRequest
+	27, // 51: vrooli.prompt_manager.v1.teams.TeamsService.GetSharedFile:input_type -> vrooli.prompt_manager.v1.teams.GetSharedFileRequest
+	28, // 52: vrooli.prompt_manager.v1.teams.TeamsService.SetSharedFile:input_type -> vrooli.prompt_manager.v1.teams.SetSharedFileRequest
+	29, // 53: vrooli.prompt_manager.v1.teams.TeamsService.CreateSharedFile:input_type -> vrooli.prompt_manager.v1.teams.CreateSharedFileRequest
+	30, // 54: vrooli.prompt_manager.v1.teams.TeamsService.RenameSharedFile:input_type -> vrooli.prompt_manager.v1.teams.RenameSharedFileRequest
+	31, // 55: vrooli.prompt_manager.v1.teams.TeamsService.DeleteSharedFile:input_type -> vrooli.prompt_manager.v1.teams.DeleteSharedFileRequest
+	33, // 56: vrooli.prompt_manager.v1.teams.TeamsService.ListEffortWorkspaces:input_type -> vrooli.prompt_manager.v1.teams.ListEffortWorkspacesRequest
+	38, // 57: vrooli.prompt_manager.v1.teams.TeamsService.GetEffortWorkspaceContent:input_type -> vrooli.prompt_manager.v1.teams.GetEffortWorkspaceContentRequest
+	43, // 58: vrooli.prompt_manager.v1.teams.TeamsService.GetOrgChart:input_type -> vrooli.prompt_manager.v1.teams.GetOrgChartRequest
+	44, // 59: vrooli.prompt_manager.v1.teams.TeamsService.SetOrgChart:input_type -> vrooli.prompt_manager.v1.teams.SetOrgChartRequest
+	45, // 60: vrooli.prompt_manager.v1.teams.TeamsService.UpdateOrgChartEdge:input_type -> vrooli.prompt_manager.v1.teams.UpdateOrgChartEdgeRequest
+	46, // 61: vrooli.prompt_manager.v1.teams.TeamsService.DeleteOrgChartEdge:input_type -> vrooli.prompt_manager.v1.teams.DeleteOrgChartEdgeRequest
+	49, // 62: vrooli.prompt_manager.v1.teams.TeamsService.ListMessages:input_type -> vrooli.prompt_manager.v1.teams.ListMessagesRequest
+	50, // 63: vrooli.prompt_manager.v1.teams.TeamsService.SendMessage:input_type -> vrooli.prompt_manager.v1.teams.SendMessageRequest
+	51, // 64: vrooli.prompt_manager.v1.teams.TeamsService.ClearMessages:input_type -> vrooli.prompt_manager.v1.teams.ClearMessagesRequest
+	53, // 65: vrooli.prompt_manager.v1.teams.TeamsService.DeleteMessage:input_type -> vrooli.prompt_manager.v1.teams.DeleteMessageRequest
+	56, // 66: vrooli.prompt_manager.v1.teams.TeamsService.ListAvailableClaudeCodeTeams:input_type -> vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsRequest
+	58, // 67: vrooli.prompt_manager.v1.teams.TeamsService.ImportClaudeCodeTeam:input_type -> vrooli.prompt_manager.v1.teams.ImportClaudeCodeTeamRequest
+	59, // 68: vrooli.prompt_manager.v1.teams.TeamsService.ExportClaudeCodeTeam:input_type -> vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamRequest
+	62, // 69: vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge:input_type -> vrooli.prompt_manager.v1.teams.ListKnowledgeRequest
+	64, // 70: vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge:input_type -> vrooli.prompt_manager.v1.teams.AddKnowledgeRequest
+	65, // 71: vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge:input_type -> vrooli.prompt_manager.v1.teams.UpdateKnowledgeRequest
+	66, // 72: vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge:input_type -> vrooli.prompt_manager.v1.teams.DeleteKnowledgeRequest
+	7,  // 73: vrooli.prompt_manager.v1.teams.TeamsService.ListTeams:output_type -> vrooli.prompt_manager.v1.teams.ListTeamsResponse
+	4,  // 74: vrooli.prompt_manager.v1.teams.TeamsService.GetTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
+	4,  // 75: vrooli.prompt_manager.v1.teams.TeamsService.CreateTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
+	4,  // 76: vrooli.prompt_manager.v1.teams.TeamsService.UpdateTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
+	12, // 77: vrooli.prompt_manager.v1.teams.TeamsService.DeleteTeam:output_type -> vrooli.prompt_manager.v1.teams.DeleteTeamResponse
+	15, // 78: vrooli.prompt_manager.v1.teams.TeamsService.GetExclusiveMembers:output_type -> vrooli.prompt_manager.v1.teams.ExclusiveMembersResponse
+	3,  // 79: vrooli.prompt_manager.v1.teams.TeamsService.AddMember:output_type -> vrooli.prompt_manager.v1.teams.Member
+	3,  // 80: vrooli.prompt_manager.v1.teams.TeamsService.UpdateMember:output_type -> vrooli.prompt_manager.v1.teams.Member
+	19, // 81: vrooli.prompt_manager.v1.teams.TeamsService.RemoveMember:output_type -> vrooli.prompt_manager.v1.teams.RemoveMemberResponse
+	21, // 82: vrooli.prompt_manager.v1.teams.TeamsService.GetRoles:output_type -> vrooli.prompt_manager.v1.teams.GetRolesResponse
+	21, // 83: vrooli.prompt_manager.v1.teams.TeamsService.SetRoles:output_type -> vrooli.prompt_manager.v1.teams.GetRolesResponse
+	25, // 84: vrooli.prompt_manager.v1.teams.TeamsService.ListSharedFiles:output_type -> vrooli.prompt_manager.v1.teams.ListSharedFilesResponse
+	26, // 85: vrooli.prompt_manager.v1.teams.TeamsService.GetSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
+	26, // 86: vrooli.prompt_manager.v1.teams.TeamsService.SetSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
+	26, // 87: vrooli.prompt_manager.v1.teams.TeamsService.CreateSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
+	26, // 88: vrooli.prompt_manager.v1.teams.TeamsService.RenameSharedFile:output_type -> vrooli.prompt_manager.v1.teams.SharedFileContent
+	32, // 89: vrooli.prompt_manager.v1.teams.TeamsService.DeleteSharedFile:output_type -> vrooli.prompt_manager.v1.teams.DeleteSharedFileResponse
+	37, // 90: vrooli.prompt_manager.v1.teams.TeamsService.ListEffortWorkspaces:output_type -> vrooli.prompt_manager.v1.teams.EffortWorkspaceListResponse
+	39, // 91: vrooli.prompt_manager.v1.teams.TeamsService.GetEffortWorkspaceContent:output_type -> vrooli.prompt_manager.v1.teams.EffortWorkspaceContent
+	42, // 92: vrooli.prompt_manager.v1.teams.TeamsService.GetOrgChart:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
+	42, // 93: vrooli.prompt_manager.v1.teams.TeamsService.SetOrgChart:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
+	42, // 94: vrooli.prompt_manager.v1.teams.TeamsService.UpdateOrgChartEdge:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
+	42, // 95: vrooli.prompt_manager.v1.teams.TeamsService.DeleteOrgChartEdge:output_type -> vrooli.prompt_manager.v1.teams.OrgChart
+	48, // 96: vrooli.prompt_manager.v1.teams.TeamsService.ListMessages:output_type -> vrooli.prompt_manager.v1.teams.Inbox
+	47, // 97: vrooli.prompt_manager.v1.teams.TeamsService.SendMessage:output_type -> vrooli.prompt_manager.v1.teams.Message
+	52, // 98: vrooli.prompt_manager.v1.teams.TeamsService.ClearMessages:output_type -> vrooli.prompt_manager.v1.teams.ClearMessagesResponse
+	54, // 99: vrooli.prompt_manager.v1.teams.TeamsService.DeleteMessage:output_type -> vrooli.prompt_manager.v1.teams.DeleteMessageResponse
+	57, // 100: vrooli.prompt_manager.v1.teams.TeamsService.ListAvailableClaudeCodeTeams:output_type -> vrooli.prompt_manager.v1.teams.ListAvailableClaudeCodeTeamsResponse
+	4,  // 101: vrooli.prompt_manager.v1.teams.TeamsService.ImportClaudeCodeTeam:output_type -> vrooli.prompt_manager.v1.teams.TeamDetails
+	60, // 102: vrooli.prompt_manager.v1.teams.TeamsService.ExportClaudeCodeTeam:output_type -> vrooli.prompt_manager.v1.teams.ExportClaudeCodeTeamResponse
+	63, // 103: vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge:output_type -> vrooli.prompt_manager.v1.teams.ListKnowledgeResponse
+	61, // 104: vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge:output_type -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
+	61, // 105: vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge:output_type -> vrooli.prompt_manager.v1.teams.KnowledgeEntry
+	67, // 106: vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge:output_type -> vrooli.prompt_manager.v1.teams.DeleteKnowledgeResponse
+	73, // [73:107] is the sub-list for method output_type
+	39, // [39:73] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_prompt_manager_v1_teams_teams_proto_init() }
@@ -4235,14 +4678,14 @@ func file_prompt_manager_v1_teams_teams_proto_init() {
 		return
 	}
 	file_prompt_manager_v1_teams_teams_proto_msgTypes[17].OneofWrappers = []any{}
-	file_prompt_manager_v1_teams_teams_proto_msgTypes[58].OneofWrappers = []any{}
+	file_prompt_manager_v1_teams_teams_proto_msgTypes[65].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prompt_manager_v1_teams_teams_proto_rawDesc), len(file_prompt_manager_v1_teams_teams_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   61,
+			NumMessages:   68,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

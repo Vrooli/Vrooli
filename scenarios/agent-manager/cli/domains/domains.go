@@ -114,13 +114,13 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 	group := support.SubcommandGroup("effort", "Observe and supervise arbitrary efforts", deps.Effort,
 		[2]string{"board", "Read the shared effort board"}, [2]string{"compact", "Read a compact joined owner observation"}, [2]string{"list", "List durable effort enrollments"},
 		[2]string{"discover", "Reconcile bounded discovery (operator authentication)"},
-		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
+		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"reconcile-metadata", "Reconcile owner-facing metadata with scoped authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
 		[2]string{"direct", "Request an authorized directive"}, [2]string{"directives", "Read delivery and assessment"},
 		[2]string{"update-directive", "Acknowledge, assess or supersede"}, [2]string{"assess", "Record a quiet, sampled or intervention assessment"},
 		[2]string{"issue-dispatch", "Issue bounded recurring supervisor authority"},
 		[2]string{"revoke-dispatch", "Revoke dispatcher authority and its child identities"})
 	group.DefaultSubcommand = "board"
-	types := map[string]string{"enroll": "EnrollEffortRequest", "withdraw": "WithdrawEffortRequest", "direct": "RequestEffortDirectiveRequest", "update-directive": "UpdateEffortDirectiveRequest", "assess": "RecordEffortAssessmentRequest", "issue-dispatch": "IssueSupervisorDispatchRequest", "revoke-dispatch": "RevokeSupervisorDispatchRequest"}
+	types := map[string]string{"enroll": "EnrollEffortRequest", "reconcile-metadata": "ReconcileEffortMetadataRequest", "withdraw": "WithdrawEffortRequest", "direct": "RequestEffortDirectiveRequest", "update-directive": "UpdateEffortDirectiveRequest", "assess": "RecordEffortAssessmentRequest", "issue-dispatch": "IssueSupervisorDispatchRequest", "revoke-dispatch": "RevokeSupervisorDispatchRequest"}
 	for i := range group.Subcommands {
 		command := &group.Subcommands[i]
 		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
@@ -132,9 +132,9 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local operator exchange; unavailable in identified agent runs"})
 		}
 		if message := types[command.Name]; message != "" {
-			command.Usage = "agent-manager effort " + command.Name + " --request-file request.json [--json]"
+			command.Usage = "agent-manager effort " + command.Name + " --request-file request.json [--json] [--local-owner]"
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "request-file", Required: true, LocalOnly: true, Description: "Proto JSON agent_manager.v1." + message})
-			command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/domain/effort.proto (" + message + "). Examples and authority: scenarios/agent-manager/docs/reference/effort-supervision.md. Authentication uses the configured owner token or run identity; request text cannot grant permission."
+			command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/domain/effort.proto (" + message + "). Examples and authority: scenarios/agent-manager/docs/reference/effort-supervision.md. Authentication uses the configured owner token or an explicitly scoped orchestrator run; request text cannot grant permission."
 			if command.Name == "issue-dispatch" || command.Name == "revoke-dispatch" {
 				command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/api/service.proto (" + message + "). See scenarios/agent-manager/docs/reference/effort-supervision.md. Requires current owner authority; returns metadata only."
 			}

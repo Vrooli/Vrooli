@@ -267,6 +267,7 @@ func TestExecute_TransportUncertainRetainsObligation(t *testing.T) {
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, mockClient)
+	t.Cleanup(teamExecStore.Shutdown)
 	executor.SetTeamExecStore(teamExecStore)
 
 	if _, err := teamExecStore.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {

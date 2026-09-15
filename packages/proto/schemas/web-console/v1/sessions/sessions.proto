@@ -109,6 +109,14 @@ message Session {
   // What the session's agent is doing now, as far as Web Console can tell.
   // Also pushed live on the event stream as the session_activity kind.
   SessionActivity activity = 20;
+  string launch_mode = 21; // terminal_pty | codex_app_server | native_api | unknown
+  string control_mode = 22; // transcript_only | native_capable | recovery_only | unknown
+  string native_owner = 23;
+  string native_transport = 24;
+  string provider_version = 25;
+  string native_thread_id = 26;
+  string last_verified_turn_id = 27;
+  string forked_from_native_session = 28;
 }
 
 // SessionActivityState is the projection of an agent session between messages.
@@ -188,6 +196,14 @@ message RecoverableSession {
   string pane_name = 16;
   string header_color = 17;
   string group_name = 18;
+  string launch_mode = 19;
+  string control_mode = 20;
+  string native_owner = 21;
+  string native_transport = 22;
+  string provider_version = 23;
+  string native_thread_id = 24;
+  string last_verified_turn_id = 25;
+  string forked_from_native_session = 26;
 }
 
 // -----------------------------------------------------------------------------
@@ -218,6 +234,10 @@ message CreateRequest {
   // For persistent sessions, choose whether tmux captures mouse input for
   // this pane. The default is false so ordinary scrolling stays local.
   bool tmux_mouse_mode = 15;
+  // Optional structured launch descriptor. The server persists it and only
+  // exposes native capability after a session-specific handshake verifies it.
+  string launch_mode = 16;
+  string launch_descriptor_json = 17;
 }
 
 message CreateResponse {

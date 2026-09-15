@@ -2,7 +2,7 @@
   "schemaVersion": "agent-profile/v1",
   "name": "prompt-manager-heartbeat",
   "profileKey": "prompt-manager/heartbeat-judgment",
-  "description": "Portable profile for Prompt Manager judgment heartbeats. Codex Luna at medium effort under the operator 2026-09-12 quota-conservation policy; no Astra or Sol and no Claude-pool fallback.",
+  "description": "Portable profile for Prompt Manager judgment heartbeats and autonomous supervisor dispatch. Codex Luna at medium effort under the operator 2026-09-12 quota-conservation policy; no Astra or Sol and no Claude-pool fallback.",
   "roleRef": "code.economy.judgment",
   "maxTurns": 50,
   "timeout": "600s",
@@ -10,6 +10,9 @@
     "read",
     "write",
     "shell"
+  ],
+  "declaredScopes": [
+    "agent-manager:supervise"
   ],
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,

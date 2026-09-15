@@ -27,3 +27,18 @@ to retain its expected progress, baseline, new owner evidence and verified or
 unresolved recovery. Preserve causal benefit as a separate judgment. Diagnose
 runtime defects without waiting for product acceptance evidence; keep actual
 repair and business permissions distinct.
+
+When a runtime or workflow defect blocks delivery, use a fix-first decision. If
+the affected path is inside an enrolled effort's authority or the agent-system
+core substrate (`agent-manager`, `prompt-manager`, `program-runtime`,
+`test-genie`, `plan-manager`, `swarm-manager`, `workspace-sandbox`, or
+`development-toolchain-validator`), investigate and repair it in the same
+engagement when the mandate permits the path. Scenario-owned skills and governed
+programs are valid repair targets; create or edit them without waiting for the
+Promotion Ladder. The ladder governs later stabilization and retirement.
+
+After the repair, run the smallest relevant validation, record before/after
+evidence and continue the original delivery. Route or file the issue only when
+the repair exceeds the mandate, affects a protected owner surface, or needs a
+missing decision, credential, dependency, host mutation, global policy change, or
+production effect. Do not edit another effort's active control files.

@@ -15,7 +15,7 @@
   },
   "createdAt": "2026-09-12T00:00:00Z",
   "displayName": "Effort Supervision",
-  "enabled": false,
+  "enabled": true,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -95,10 +95,11 @@
         ],
         "forbiddenWrites": [],
         "safetyCriticalRules": [
-            "Discovery supplies evidence only; a durable owner-issued autonomous supervision mandate supplies action authority.",
+          "Discovery supplies evidence only; a durable owner-issued autonomous supervision mandate supplies action authority.",
           "Retain the wake ID, exact effort references and shared accounting reference in the assessment.",
-            "Do not change accepted outcomes, owner grants, global heartbeat policy or paid fallback routes; repair delivery within the enrolled mandate.",
-            "Use large-effort-supervision and reuse Agent Manager identity, supervision-evaluate, supervision-observation-read and efficiency-report programs before inventing a workflow.",
+          "Do not change accepted outcomes, owner grants, global heartbeat policy or paid fallback routes; repair delivery within the enrolled mandate.",
+          "Within the mandate, repair effort-authorized surfaces and the agent-system core substrate (agent-manager, prompt-manager, program-runtime, test-genie, plan-manager, swarm-manager, workspace-sandbox and development-toolchain-validator), including their scenario-owned skills and governed programs; route only protected or ungranted work.",
+          "Use large-effort-supervision and reuse Agent Manager identity, supervision-evaluate, supervision-observation-read and efficiency-report programs before inventing a workflow.",
           "Finish each bounded wake with owner waits retained; the standing scheduler owns recurrence."
         ],
         "readOnlyModeBehavior": {
@@ -109,7 +110,7 @@
     }
   },
   "purpose": "supervision",
-  "revision": 5,
+  "revision": 6,
   "runtime": {
     "mode": "multi-process"
   },
@@ -118,5 +119,5 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "updatedAt": "2026-09-14T16:30:00Z"
+  "updatedAt": "2026-09-14T21:30:49Z"
 }

@@ -49,6 +49,21 @@ work and improve reusable methods. Preserve the accepted destination and quality
 floors. The owner mandate, not a predicted action list, determines whether the
 supervisor may act.
 
+The repair domain includes every surface authorized by the enrolled effort and
+the agent-system core substrate: `agent-manager`, `prompt-manager`,
+`program-runtime`, `test-genie`, `plan-manager`, `swarm-manager`,
+`workspace-sandbox`, and `development-toolchain-validator`. This includes their
+scenario-owned skills and governed programs. Within the active mandate, create
+or edit those artifacts when doing so removes a delivery blocker or recurring
+supervision cost. The Promotion Ladder describes later stabilization and
+retirement; it is not a precondition for an authorized skill or program edit.
+
+Do not change accepted outcomes, owner grants, global policy, secrets, production
+systems, paid services, unapproved dependencies, host-remediation implementations,
+or another effort's active control files. File or route a finding only when the
+repair is outside authority, protected by another owner, or requires a missing
+decision, credential, dependency, or effect grant.
+
 ### 1. Observe a recoverable evidence cut
 
 Entry: owner discovery or enrollment identifies an effort. Unknown mandate
@@ -140,6 +155,13 @@ Read its program and owning skill together. Diagnosis does not authorize repair.
 Prefer the smallest intervention that can satisfy the outcome; use a structural
 repair when the cause is duplicated responsibility or a missing shared invariant.
 Use `path:docs/agent-system/SWARM_MANAGER_WORK.md` for assignment shape.
+
+When the diagnosis identifies an authorized skill, governed program, CLI, or
+scenario capability gap, repair that capability in the same bounded engagement.
+Keep judgment in a skill, recurring typed composition in a governed program, and
+durable state, invariants, and stable operations in the owning scenario. Validate
+the changed capability before resuming delivery. Record before/after evidence and
+retire only the superseded workaround, not useful safety or judgment.
 
 Send steering through the owner directive channel to the orchestrator. Retain
 revision, evidence, expected result and stable request identity. Read delivery and

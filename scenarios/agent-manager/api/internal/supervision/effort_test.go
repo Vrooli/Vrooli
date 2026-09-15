@@ -296,6 +296,7 @@ func TestEffortSupersededUncertainDispatchNeverSendsAgain(t *testing.T) {
 		t.Fatal("supersession evidence lost")
 	}
 }
+
 func TestEffortContradictoryRunStateKeepsAccountingUnknown(t *testing.T) {
 	s, _, c := effortFixture(t)
 	e := grantFixture(t, s, c, domain.RunStatusRunning)
@@ -333,6 +334,7 @@ func (f effortRegistryFixture) List(_ context.Context, filter repository.RunList
 	}
 	return f.runs[filter.Offset:end], nil
 }
+
 func TestEffortRuntimeSupervisorJoinsAndSharedQuietAssessmentIsRetainedOnce(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()
@@ -416,10 +418,11 @@ func TestEffortActualScanClearsNotScannedButRetainsCurrentFailure(t *testing.T) 
 		}
 	}
 }
+
 func workspaceFixture(t *testing.T, root, name, ref string, changes map[string]any) {
 	t.Helper()
 	dir := filepath.Join(root, name)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	m := map[string]any{"schema_version": 1, "slug": name, "repository": "repo:test", "effort_ref": ref, "destination_ref": "doc:accepted-target", "target_revision": "accepted-1", "work_shape": "bounded_task", "owners": map[string]any{}}
@@ -430,10 +433,11 @@ func workspaceFixture(t *testing.T, root, name, ref string, changes map[string]a
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(filepath.Join(dir, "effort.json"), b, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(dir, "effort.json"), b, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
+
 func grantFixture(t *testing.T, s *EffortService, c *fakeActionController, status domain.RunStatus) *pb.EffortEnrollment {
 	t.Helper()
 	id := uuid.New()
@@ -447,6 +451,7 @@ func grantFixture(t *testing.T, s *EffortService, c *fakeActionController, statu
 	}
 	return got
 }
+
 func directiveFixture(s *EffortService, e *pb.EffortEnrollment) *pb.RequestEffortDirectiveRequest {
 	return &pb.RequestEffortDirectiveRequest{ExpectedEnrollmentRevision: e.Revision, Directive: &pb.EffortDirective{EffortRef: e.EffortRef, TargetRevision: e.TargetRevision, TargetRunId: e.Subjects[0].RunId, Kind: pb.WatchActionKind_WATCH_ACTION_KIND_NUDGE, Scope: "orchestrator assignment only", EvidenceRefs: []string{"owner:validation-failure"}, Adjustment: "Reconcile the failed acceptance check with its assigned owner", ExpectedResult: "Evidence for the required outcome", ExpiresAt: timestamppb.New(s.now().Add(10 * time.Minute)), IdempotencyKey: uuid.NewString(), Hypothesis: "unchanged failing validation is avoidable", Comparison: "prior evidence cut versus owner repair result"}}
 }
@@ -495,6 +500,7 @@ func TestEffortDiscoveryRotatesAcrossRestartAndSuppressesUnchangedCuts(t *testin
 		t.Fatal("new arbitrary effort was not discovered", err)
 	}
 }
+
 func TestEffortDiscoveryPathSchemaConflictAndRemoval(t *testing.T) {
 	s, r, _ := effortFixture(t)
 	s.config.ScanLimit = 100
@@ -543,12 +549,13 @@ func TestEffortDiscoveryPathSchemaConflictAndRemoval(t *testing.T) {
 		t.Fatal("path escape accepted")
 	}
 }
+
 func TestEffortDiscoveryMissingAndMalformedNeverCompletes(t *testing.T) {
 	s, r, _ := effortFixture(t)
 	ctx := context.Background()
 	workspaceFixture(t, s.config.Root, "one", "effort:one", nil)
 	s.ReconcileDiscovery(ctx)
-	if err := os.WriteFile(filepath.Join(s.config.Root, "one", "effort.json"), []byte("{"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(s.config.Root, "one", "effort.json"), []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	s.ReconcileDiscovery(ctx)
@@ -565,6 +572,7 @@ func TestEffortDiscoveryMissingAndMalformedNeverCompletes(t *testing.T) {
 		t.Fatal("removal inferred successful completion", board, err)
 	}
 }
+
 func TestEffortBoardReadOnlyUnknownUsageAndDistinctOutcome(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()
@@ -594,6 +602,7 @@ func TestEffortBoardReadOnlyUnknownUsageAndDistinctOutcome(t *testing.T) {
 		t.Fatal("owner outage hid enrollment", board)
 	}
 }
+
 func TestEffortDirectiveDeliveryAcknowledgmentAndAssessmentAreSeparate(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()
@@ -640,6 +649,7 @@ func TestEffortDirectiveDeliveryAcknowledgmentAndAssessmentAreSeparate(t *testin
 		t.Fatal("assessment overwrote input cut or invented cost")
 	}
 }
+
 func TestEffortDirectiveAuthorityRevisionExpiryAndWithdrawal(t *testing.T) {
 	for _, which := range []string{"unknown_grant", "wrong_subject", "revision", "expiry", "withdrawal", "disabled"} {
 		t.Run(which, func(t *testing.T) {
@@ -689,6 +699,7 @@ func TestEffortDirectiveAuthorityRevisionExpiryAndWithdrawal(t *testing.T) {
 		})
 	}
 }
+
 func TestEffortEnrollmentIdempotencyScopeAndWithdrawalSurviveRediscovery(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()
@@ -720,12 +731,76 @@ func TestEffortEnrollmentIdempotencyScopeAndWithdrawalSurviveRediscovery(t *test
 		t.Fatal("rediscovery revived retired effort")
 	}
 }
+
+func TestEffortMetadataReconciliationIsScopedAndPreservesAuthority(t *testing.T) {
+	s, r, c := effortFixture(t)
+	ctx := context.Background()
+	e := grantFixture(t, s, c, domain.RunStatusRunning)
+	e.DispatchAuthorization = &pb.SupervisorDispatchAuthorization{AuthorizationId: "dispatch-1", TargetRevision: e.TargetRevision, MaximumRuns: 3}
+	_, observation, err := r.GetEffort(ctx, e.EffortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = r.SaveEffort(ctx, e, observation, e.Revision, "fixture-dispatch", "fixture-dispatch"); err != nil {
+		t.Fatal(err)
+	}
+
+	request := func(key string) *pb.ReconcileEffortMetadataRequest {
+		enrollment := proto.Clone(e).(*pb.EffortEnrollment)
+		// Metadata requests omit dispatch state; the server retains its stored
+		// authorization rather than accepting a caller-supplied replacement.
+		enrollment.DispatchAuthorization = nil
+		return &pb.ReconcileEffortMetadataRequest{
+			Enrollment:       enrollment,
+			ExpectedRevision: e.Revision,
+			IdempotencyKey:   key,
+		}
+	}
+	request("worker").Enrollment.DisplayName = "worker attempt"
+	if _, err = s.ReconcileMetadata(ctx, request("worker"), EffortActor{ID: uuid.NewString(), MetadataReconciler: true, Scopes: []string{EffortMetadataReconcileScope}}); err == nil {
+		t.Fatal("unrelated run reconciled effort metadata")
+	}
+
+	coordinator := EffortActor{ID: e.Subjects[0].RunId, MetadataReconciler: true, Scopes: []string{EffortMetadataReconcileScope}}
+	coordinatorRequest := request("coordinator")
+	coordinatorRequest.Enrollment.DisplayName = "reconciled metadata"
+	updated, err := s.ReconcileMetadata(ctx, coordinatorRequest, coordinator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.DisplayName != "reconciled metadata" || updated.Revision != e.Revision+1 || updated.DispatchAuthorization == nil || updated.DispatchAuthorization.AuthorizationId != "dispatch-1" {
+		t.Fatalf("metadata reconciliation lost retained state: %+v", updated)
+	}
+
+	replay, err := s.ReconcileMetadata(ctx, coordinatorRequest, coordinator)
+	if err != nil || replay.Revision != updated.Revision {
+		t.Fatalf("metadata reconciliation was not idempotent: revision=%d err=%v", replay.GetRevision(), err)
+	}
+
+	forged := request("forged-authority")
+	forged.Enrollment.AuthorityRef = "forged"
+	if _, err = s.ReconcileMetadata(ctx, forged, coordinator); err == nil {
+		t.Fatal("metadata reconciliation accepted an authority change")
+	}
+	retargeted := request("retargeted")
+	retargeted.Enrollment.TargetRevision = "accepted-2"
+	if _, err = s.ReconcileMetadata(ctx, retargeted, coordinator); err == nil {
+		t.Fatal("metadata reconciliation retargeted an actively supervised effort")
+	}
+
+	stale := request("stale")
+	stale.ExpectedRevision = e.Revision
+	if _, err = s.ReconcileMetadata(ctx, stale, EffortActor{ID: "owner", Operator: true}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale metadata reconciliation returned %v, want conflict", err)
+	}
+}
+
 func TestEffortDeclaredCheckpointKeepsIndependentBlocker(t *testing.T) {
 	s, _, _ := effortFixture(t)
 	workspaceFixture(t, s.config.Root, "mixed", "effort:mixed", map[string]any{"checkpoint": "handoffs/current.json"})
 	dir := filepath.Join(s.config.Root, "mixed", "handoffs")
-	os.Mkdir(dir, 0700)
-	os.WriteFile(filepath.Join(dir, "current.json"), []byte(`{"next_action":"investigate outcome B","rationale":"fresh acceptance failure","blockers":["outcome B failed"],"pending_operations":["test-genie:A"]}`), 0600)
+	os.Mkdir(dir, 0o700)
+	os.WriteFile(filepath.Join(dir, "current.json"), []byte(`{"next_action":"investigate outcome B","rationale":"fresh acceptance failure","blockers":["outcome B failed"],"pending_operations":["test-genie:A"]}`), 0o600)
 	if _, err := s.ReconcileDiscovery(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -738,11 +813,11 @@ func TestEffortDeclaredCheckpointKeepsIndependentBlocker(t *testing.T) {
 func legacyDriverFixture(t *testing.T, root, name, body string) string {
 	t.Helper()
 	dir := filepath.Join(root, name, "handoffs")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "state.json")
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -800,7 +875,7 @@ func TestEffortLegacyAdapterPrefersDeclaredCheckpointAndExactSubjects(t *testing
 	legacyDriverFixture(t, s.config.Root, "silver-orbit", `{"effort":"ignored fallback","next_action":"wrong action","loop_state":"wrong loop"}`)
 	declared := fmt.Sprintf(`{"effort":"declared driver","next_action":"declared action","orchestrator":{"loop_state":"declared wait"},"children":{"duplicate":{"run_id":%q}}}`, id)
 	path := filepath.Join(s.config.Root, "silver-orbit", "handoffs", "current.json")
-	if err := os.WriteFile(path, []byte(declared), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(declared), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.ReconcileDiscovery(context.Background()); err != nil {
@@ -896,7 +971,7 @@ func TestEffortLegacyAdapterBoundsAndManifestFailureAreNotBypassed(t *testing.T)
 			path := legacyDriverFixture(t, s.config.Root, "sandboxed", body)
 			if mode == "symlink" {
 				outside := filepath.Join(t.TempDir(), "credential-file")
-				if err := os.WriteFile(outside, []byte(body), 0600); err != nil {
+				if err := os.WriteFile(outside, []byte(body), 0o600); err != nil {
 					t.Fatal(err)
 				}
 				if err := os.Remove(path); err != nil {

@@ -130,6 +130,23 @@ describe('TeamDetailsSchema', () => {
     expect(result.roles).toEqual([])
     expect(result.members).toEqual([])
   })
+
+  it('normalizes legacy nullable operating-contract arrays so team lists remain readable', () => {
+    const result = TeamDetailsSchema.parse({
+      ...buildDefaultCreateTeamRequest('Legacy contract'),
+      id: 'legacy-contract',
+      operatingContract: {
+        ...buildDefaultCreateTeamRequest('Legacy contract').operatingContract,
+        documents: { planOfRecord: null, sharedState: null },
+      },
+      memberCount: 0,
+      createdAt: '2026-04-09T00:00:00Z',
+      updatedAt: '2026-04-09T00:00:00Z',
+    })
+
+    expect(result.operatingContract.documents.planOfRecord).toEqual([])
+    expect(result.operatingContract.documents.sharedState).toEqual([])
+  })
 })
 
 describe('TeamSharedFileListResponseSchema (proto int64 wire form)', () => {

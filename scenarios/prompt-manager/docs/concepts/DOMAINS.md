@@ -4,7 +4,7 @@ This is the execution contract for the proto/Connect re-platform. It was produce
 
 ## Audit snapshot
 
-- REST registrations: **201** at audit time; **4** currently live after transport slices retired 197 registrations. Connect mounts and the measures-go substrate are not counted as hand-written REST (the four are two health routes plus the two effort-workspace read routes).
+- REST registrations: **201** at audit time; **2** currently live after transport slices retired 199 registrations. Connect mounts and the measures-go substrate are not counted as hand-written REST (the two are health routes).
 - Composition root: **1,142** lines.
 - API Go source: **101,359** lines live (**101,338** at plan authoring).
 - Empty directories: **53**.

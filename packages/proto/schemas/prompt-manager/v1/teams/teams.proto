@@ -25,6 +25,8 @@ service TeamsService {
   rpc CreateSharedFile(CreateSharedFileRequest) returns (SharedFileContent);
   rpc RenameSharedFile(RenameSharedFileRequest) returns (SharedFileContent);
   rpc DeleteSharedFile(DeleteSharedFileRequest) returns (DeleteSharedFileResponse);
+  rpc ListEffortWorkspaces(ListEffortWorkspacesRequest) returns (EffortWorkspaceListResponse);
+  rpc GetEffortWorkspaceContent(GetEffortWorkspaceContentRequest) returns (EffortWorkspaceContent);
   rpc GetOrgChart(GetOrgChartRequest) returns (OrgChart);
   rpc SetOrgChart(SetOrgChartRequest) returns (OrgChart);
   rpc UpdateOrgChartEdge(UpdateOrgChartEdgeRequest) returns (OrgChart);
@@ -137,6 +139,17 @@ message CreateSharedFileRequest { string team_id = 1; string path = 2; string co
 message RenameSharedFileRequest { string team_id = 1; string from = 2; string to = 3; }
 message DeleteSharedFileRequest { string team_id = 1; string path = 2; }
 message DeleteSharedFileResponse {}
+message ListEffortWorkspacesRequest { string team_id = 1; }
+message EffortWorkspaceFile { string path = 1; bool is_dir = 2; int64 size = 3; }
+message EffortWorkspace { string effort_ref = 1; string slug = 2; string stage = 3; repeated EffortWorkspaceFile files = 4; }
+message EffortWorkspaceUnavailable { string effort_ref = 1; string reason = 2; }
+message EffortWorkspaceListResponse {
+  string team_id = 1;
+  repeated EffortWorkspace workspaces = 2;
+  repeated EffortWorkspaceUnavailable unavailable = 3;
+}
+message GetEffortWorkspaceContentRequest { string effort_ref = 1; string path = 2; }
+message EffortWorkspaceContent { string effort_ref = 1; string path = 2; string content = 3; }
 message OrgEdge { string manager_agent_id = 1; string report_agent_id = 2; }
 message ManagedTeamEdge {
   string manager_team_id = 1;

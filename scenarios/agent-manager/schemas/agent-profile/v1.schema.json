@@ -25,6 +25,12 @@
       "type": "array",
       "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
     },
+    "declaredScopes": {
+      "type": "array",
+      "description": "Explicit ceiling for delegated identity scopes. Supervisor dispatch requires agent-manager:supervise.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
     "toolRestrictionPolicy": { "enum": ["enforced", "advisory"] }
     ,"spawnPolicy": {
       "type": "object",

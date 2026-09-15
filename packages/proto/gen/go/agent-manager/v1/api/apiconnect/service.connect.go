@@ -43,6 +43,9 @@ const (
 	// AgentManagerServiceEnrollEffortProcedure is the fully-qualified name of the AgentManagerService's
 	// EnrollEffort RPC.
 	AgentManagerServiceEnrollEffortProcedure = "/agent_manager.v1.AgentManagerService/EnrollEffort"
+	// AgentManagerServiceReconcileEffortMetadataProcedure is the fully-qualified name of the
+	// AgentManagerService's ReconcileEffortMetadata RPC.
+	AgentManagerServiceReconcileEffortMetadataProcedure = "/agent_manager.v1.AgentManagerService/ReconcileEffortMetadata"
 	// AgentManagerServiceWithdrawEffortProcedure is the fully-qualified name of the
 	// AgentManagerService's WithdrawEffort RPC.
 	AgentManagerServiceWithdrawEffortProcedure = "/agent_manager.v1.AgentManagerService/WithdrawEffort"
@@ -354,6 +357,7 @@ type AgentManagerServiceClient interface {
 	ListEfforts(context.Context, *connect.Request[domain.ListEffortsRequest]) (*connect.Response[domain.ListEffortsResponse], error)
 	GetEffortBoard(context.Context, *connect.Request[domain.GetEffortBoardRequest]) (*connect.Response[domain.EffortBoard], error)
 	EnrollEffort(context.Context, *connect.Request[domain.EnrollEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
+	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
 	RequestEffortDirective(context.Context, *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
@@ -558,6 +562,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceEnrollEffortProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("EnrollEffort")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcileEffortMetadata: connect.NewClient[domain.ReconcileEffortMetadataRequest, domain.EffortEnrollment](
+			httpClient,
+			baseURL+AgentManagerServiceReconcileEffortMetadataProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortMetadata")),
 			connect.WithClientOptions(opts...),
 		),
 		withdrawEffort: connect.NewClient[domain.WithdrawEffortRequest, domain.EffortEnrollment](
@@ -1174,6 +1184,7 @@ type agentManagerServiceClient struct {
 	listEfforts                      *connect.Client[domain.ListEffortsRequest, domain.ListEffortsResponse]
 	getEffortBoard                   *connect.Client[domain.GetEffortBoardRequest, domain.EffortBoard]
 	enrollEffort                     *connect.Client[domain.EnrollEffortRequest, domain.EffortEnrollment]
+	reconcileEffortMetadata          *connect.Client[domain.ReconcileEffortMetadataRequest, domain.EffortEnrollment]
 	withdrawEffort                   *connect.Client[domain.WithdrawEffortRequest, domain.EffortEnrollment]
 	reconcileEffortDiscovery         *connect.Client[domain.ReconcileEffortDiscoveryRequest, domain.EffortDiscovery]
 	requestEffortDirective           *connect.Client[domain.RequestEffortDirectiveRequest, domain.EffortDirective]
@@ -1290,6 +1301,11 @@ func (c *agentManagerServiceClient) GetEffortBoard(ctx context.Context, req *con
 // EnrollEffort calls agent_manager.v1.AgentManagerService.EnrollEffort.
 func (c *agentManagerServiceClient) EnrollEffort(ctx context.Context, req *connect.Request[domain.EnrollEffortRequest]) (*connect.Response[domain.EffortEnrollment], error) {
 	return c.enrollEffort.CallUnary(ctx, req)
+}
+
+// ReconcileEffortMetadata calls agent_manager.v1.AgentManagerService.ReconcileEffortMetadata.
+func (c *agentManagerServiceClient) ReconcileEffortMetadata(ctx context.Context, req *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error) {
+	return c.reconcileEffortMetadata.CallUnary(ctx, req)
 }
 
 // WithdrawEffort calls agent_manager.v1.AgentManagerService.WithdrawEffort.
@@ -1809,6 +1825,7 @@ type AgentManagerServiceHandler interface {
 	ListEfforts(context.Context, *connect.Request[domain.ListEffortsRequest]) (*connect.Response[domain.ListEffortsResponse], error)
 	GetEffortBoard(context.Context, *connect.Request[domain.GetEffortBoardRequest]) (*connect.Response[domain.EffortBoard], error)
 	EnrollEffort(context.Context, *connect.Request[domain.EnrollEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
+	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
 	RequestEffortDirective(context.Context, *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
@@ -2009,6 +2026,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceEnrollEffortProcedure,
 		svc.EnrollEffort,
 		connect.WithSchema(agentManagerServiceMethods.ByName("EnrollEffort")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReconcileEffortMetadataHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReconcileEffortMetadataProcedure,
+		svc.ReconcileEffortMetadata,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortMetadata")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceWithdrawEffortHandler := connect.NewUnaryHandler(
@@ -2625,6 +2648,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetEffortBoardHandler.ServeHTTP(w, r)
 		case AgentManagerServiceEnrollEffortProcedure:
 			agentManagerServiceEnrollEffortHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReconcileEffortMetadataProcedure:
+			agentManagerServiceReconcileEffortMetadataHandler.ServeHTTP(w, r)
 		case AgentManagerServiceWithdrawEffortProcedure:
 			agentManagerServiceWithdrawEffortHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileEffortDiscoveryProcedure:
@@ -2846,6 +2871,10 @@ func (UnimplementedAgentManagerServiceHandler) GetEffortBoard(context.Context, *
 
 func (UnimplementedAgentManagerServiceHandler) EnrollEffort(context.Context, *connect.Request[domain.EnrollEffortRequest]) (*connect.Response[domain.EffortEnrollment], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.EnrollEffort is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileEffortMetadata is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error) {

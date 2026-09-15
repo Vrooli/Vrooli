@@ -29,6 +29,16 @@ type Handlers struct {
 	graphInvalidator GraphInvalidator
 }
 
+// ListActions and GetAction expose the action service without requiring an
+// HTTP request. They are shared by the Connect and legacy REST transports.
+func (h *Handlers) ListActions(ctx context.Context, filters ListFilters) ([]store.Action, error) {
+	return h.service.List(ctx, filters)
+}
+
+func (h *Handlers) GetAction(ctx context.Context, id string) (*store.Action, error) {
+	return h.service.Get(ctx, id)
+}
+
 func NewHandlers(service *Service) *Handlers {
 	return &Handlers{service: service}
 }
@@ -70,7 +80,7 @@ func (h *Handlers) triggerDeleteAsync(actionID string) {
 }
 
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
-	actions, err := h.service.List(r.Context(), ListFilters{
+	actions, err := h.ListActions(r.Context(), ListFilters{
 		Pack:   r.URL.Query().Get("pack"),
 		Status: r.URL.Query().Get("status"),
 		Owner:  r.URL.Query().Get("owner"),
@@ -84,7 +94,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
-	action, err := h.service.Get(r.Context(), mux.Vars(r)["id"])
+	action, err := h.GetAction(r.Context(), mux.Vars(r)["id"])
 	if err != nil {
 		writeActionError(w, err)
 		return

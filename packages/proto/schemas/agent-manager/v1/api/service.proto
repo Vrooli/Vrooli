@@ -52,6 +52,7 @@ service AgentManagerService {
   rpc ListEfforts(ListEffortsRequest) returns (ListEffortsResponse);
   rpc GetEffortBoard(GetEffortBoardRequest) returns (EffortBoard);
   rpc EnrollEffort(EnrollEffortRequest) returns (EffortEnrollment);
+  rpc ReconcileEffortMetadata(ReconcileEffortMetadataRequest) returns (EffortEnrollment);
   rpc WithdrawEffort(WithdrawEffortRequest) returns (EffortEnrollment);
   rpc ReconcileEffortDiscovery(ReconcileEffortDiscoveryRequest) returns (EffortDiscovery);
   rpc RequestEffortDirective(RequestEffortDirectiveRequest) returns (EffortDirective);

@@ -363,6 +363,70 @@ class DeleteSharedFileResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class ListEffortWorkspacesRequest(_message.Message):
+    __slots__ = ("team_id",)
+    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    team_id: str
+    def __init__(self, team_id: _Optional[str] = ...) -> None: ...
+
+class EffortWorkspaceFile(_message.Message):
+    __slots__ = ("path", "is_dir", "size")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    IS_DIR_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    is_dir: bool
+    size: int
+    def __init__(self, path: _Optional[str] = ..., is_dir: _Optional[bool] = ..., size: _Optional[int] = ...) -> None: ...
+
+class EffortWorkspace(_message.Message):
+    __slots__ = ("effort_ref", "slug", "stage", "files")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    slug: str
+    stage: str
+    files: _containers.RepeatedCompositeFieldContainer[EffortWorkspaceFile]
+    def __init__(self, effort_ref: _Optional[str] = ..., slug: _Optional[str] = ..., stage: _Optional[str] = ..., files: _Optional[_Iterable[_Union[EffortWorkspaceFile, _Mapping]]] = ...) -> None: ...
+
+class EffortWorkspaceUnavailable(_message.Message):
+    __slots__ = ("effort_ref", "reason")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    reason: str
+    def __init__(self, effort_ref: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class EffortWorkspaceListResponse(_message.Message):
+    __slots__ = ("team_id", "workspaces", "unavailable")
+    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACES_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    team_id: str
+    workspaces: _containers.RepeatedCompositeFieldContainer[EffortWorkspace]
+    unavailable: _containers.RepeatedCompositeFieldContainer[EffortWorkspaceUnavailable]
+    def __init__(self, team_id: _Optional[str] = ..., workspaces: _Optional[_Iterable[_Union[EffortWorkspace, _Mapping]]] = ..., unavailable: _Optional[_Iterable[_Union[EffortWorkspaceUnavailable, _Mapping]]] = ...) -> None: ...
+
+class GetEffortWorkspaceContentRequest(_message.Message):
+    __slots__ = ("effort_ref", "path")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    path: str
+    def __init__(self, effort_ref: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+
+class EffortWorkspaceContent(_message.Message):
+    __slots__ = ("effort_ref", "path", "content")
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    effort_ref: str
+    path: str
+    content: str
+    def __init__(self, effort_ref: _Optional[str] = ..., path: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+
 class OrgEdge(_message.Message):
     __slots__ = ("manager_agent_id", "report_agent_id")
     MANAGER_AGENT_ID_FIELD_NUMBER: _ClassVar[int]

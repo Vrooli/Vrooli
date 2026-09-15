@@ -52,6 +52,18 @@ available in the runtime environment.
 Only an AM response containing an assessment ID proves that the assessment was
 recorded. If a selected sample was not performed, report unknown with its reason;
 do not submit `sample` solely because the runtime selected one.
+
+For a delivery-blocking capability defect, repair before reporting when the active
+mandate covers the affected effort surface or the agent-system core substrate:
+`agent-manager`, `prompt-manager`, `program-runtime`, `test-genie`, `plan-manager`,
+`swarm-manager`, `workspace-sandbox`, or `development-toolchain-validator`.
+Scenario-owned skills and governed programs are included. Choose the smallest
+durable layer, validate it, retain before/after evidence, and resume delivery.
+The Promotion Ladder is not an approval gate for an authorized skill or program
+edit. Report or route only when the repair needs missing authority, a protected
+owner, a credential, a dependency, host mutation, global policy change, or
+production effect.
+
 ## Stop Conditions
 
 Finish this wake after recording its disposition. Stop with explicit unavailable

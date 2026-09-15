@@ -63,6 +63,12 @@ func TestResolveRunResultEvidenceRules(t *testing.T) {
 			status: FinalOutputSelectionUnavailable,
 		},
 		{
+			name:   "typed goal terminal preserves the single provider handoff",
+			events: []*RunEvent{event("blocked handoff", MessageEventData{ProviderOrigin: "codex"}, 1)},
+			status: FinalOutputSelectionSelected,
+			output: "blocked handoff",
+		},
+		{
 			name: "multiple provider messages without completion evidence are ambiguous",
 			events: []*RunEvent{
 				event("one", MessageEventData{ProviderOrigin: "codex"}, 1),
@@ -80,7 +86,11 @@ func TestResolveRunResultEvidenceRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveRunResult(tt.events, true, 0, "completed")
+			terminalReason := "completed"
+			if tt.name == "typed goal terminal preserves the single provider handoff" {
+				terminalReason = "goal_blocked"
+			}
+			result := ResolveRunResult(tt.events, true, 0, terminalReason)
 			if result.Selection.Status != tt.status {
 				t.Fatalf("status = %q, want %q", result.Selection.Status, tt.status)
 			}

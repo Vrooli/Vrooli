@@ -35,6 +35,19 @@ func NewTeamExecutionStore(teamStore *store.FileTeamStore, executor HeartbeatExe
 	}
 }
 
+// Shutdown waits for all context dispatch goroutines to finish.
+func (s *TeamExecutionStore) Shutdown() {
+	s.mu.RLock()
+	contexts := make([]*TeamExecutionContext, 0, len(s.contexts))
+	for _, ctx := range s.contexts {
+		contexts = append(contexts, ctx)
+	}
+	s.mu.RUnlock()
+	for _, ctx := range contexts {
+		ctx.Shutdown()
+	}
+}
+
 // GetOrCreate returns the TeamExecutionContext for the given team, creating one if needed.
 func (s *TeamExecutionStore) GetOrCreate(teamID string) *TeamExecutionContext {
 	s.mu.RLock()

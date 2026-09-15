@@ -12,6 +12,7 @@ TypeScript and Python messages use the same contract. No plan family is required
 | `effort list` | `ListEfforts` | `ListEffortsRequest` |
 | `effort discover` | `ReconcileEffortDiscovery` | `ReconcileEffortDiscoveryRequest` |
 | `effort enroll` | `EnrollEffort` | `EnrollEffortRequest` |
+| `effort reconcile-metadata` | `ReconcileEffortMetadata` | `ReconcileEffortMetadataRequest` |
 | `effort withdraw` | `WithdrawEffort` | `WithdrawEffortRequest` |
 | `effort direct` | `RequestEffortDirective` | `RequestEffortDirectiveRequest` |
 | `effort directives` | `ListEffortDirectives` | `ListEffortDirectivesRequest` |
@@ -128,12 +129,43 @@ action, expiry and cumulative allowance. Diagnostic authorization grants no
 repair-worker launch or business steering. Direct verified-run Create/Continue/
 Stop guards remain unchanged; authorized steering uses typed effort directives.
 
+Metadata reconciliation is intentionally a separate, lower-impact mutation. It
+may update the display name, destination, source revision, target revision,
+workspace and work shape when no active supervision grant depends on the
+destination or target revision. While supervision is granted, destination and
+target-revision changes remain operator enrollment amendments. It cannot change
+the effort reference, subjects, authority, actions, dispatch authorization or withdrawal state. It uses the
+same expected-revision and idempotency protections and preserves the stored
+dispatch authorization. Operators may call it with the owner credential; an
+identified family-parent run may call it only when its verified identity is an
+exact `orchestrator` subject on the effort and its attenuated claims contain
+`agent-manager:effort-reconcile`. Worker and supervisor identities are refused.
+The request must set `authority` to `WATCH_AUTHORITY_FAMILY_PARENT` for the run
+identity path. This capability is suitable for Prompt Manager coordinator
+wakes; it is not a general team or workspace permission.
+
+For a human-owned reconciliation, use the explicit local exchange when no
+configured owner token is available:
+
+```bash
+agent-manager effort reconcile-metadata --local-owner --request-file metadata.json --json
+```
+
+For a coordinator run, set `authority` to `WATCH_AUTHORITY_FAMILY_PARENT` in
+`metadata.json`; the inherited `VROOLI_AGENT_IDENTITY_TOKEN` is forwarded as
+the run credential and `--local-owner` must not be used.
+
 ## Durable dispatcher implementation contract
 
 `IssueSupervisorDispatch` requires the current enrollment owner, the exact
 supervisor owner/scope binding and a future expiry of at most 30 days. It selects
-one team/member/profile, 1–1000 cumulative run admissions and a 60–86400 second
-minimum interval. Rate and allowance survive AM/PM restarts. It saves server-owned typed
+one team/member/profile, 1–1000 run admissions per lease and a 60–86400 second
+minimum interval. Rate and allowance survive AM/PM restarts. For the canonical
+`service:standing-supervision` enrollment, Agent Manager automatically renews
+the lease before expiry or allowance exhaustion, preserving the authorization ID
+and rotating only the bearer and lease window. No per-renewal owner action is
+required; withdrawal or explicit revocation stops renewal and invalidates it.
+It saves server-owned typed
 authorization and a credential hash on the existing enrollment; the bearer goes
 directly to the canonical authority at
 `vrooli/prompt-manager/effort-supervision`, field `dispatcher`. Responses contain
@@ -227,7 +259,10 @@ agent-manager effort enroll --local-owner --request-file standing-enrollment.jso
 
 The uppercase strings are operator-selected values, not literal valid inputs.
 Issuance requires the verified enrollment owner and held supervision scope.
-The human credential authorizes this explicit future interval; PM never renews it.
+The human credential authorizes the standing enrollment once. Agent Manager's
+control plane renews that canonical standing lease while it remains active;
+Prompt Manager never mints or extends authority. The operator can revoke it at
+any time.
 
 ```bash
 agent-manager effort issue-dispatch --local-owner --request-file dispatch-grant.json --json

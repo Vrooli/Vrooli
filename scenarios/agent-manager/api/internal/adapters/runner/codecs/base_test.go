@@ -40,6 +40,16 @@ func TestBaseCodecAvailabilityAndProbeReflectFilesystemState(t *testing.T) {
 	}
 }
 
+func TestManagedRunnerBinaryBypassesOperatorShim(t *testing.T) {
+	if got := managedRunnerBinary("/home/operator/.vrooli/shims/codex", "codex"); got != "/usr/bin/codex" && got != "/bin/codex" {
+		t.Fatalf("managed runner path = %q, want an installed system codex binary", got)
+	}
+	path := filepath.Join(t.TempDir(), "codex")
+	if got := managedRunnerBinary(path, "codex"); got != path {
+		t.Fatalf("non-shim runner path = %q, want %q", got, path)
+	}
+}
+
 func TestBaseCodecIdentityAndBuildEnvironmentContracts(t *testing.T) {
 	id := uuid.New()
 	base := baseCodec{

@@ -1,10 +1,22 @@
 package effortworkspace
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func writeManifest(t *testing.T, path string, value manifest) {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestResolveAndReadUseCanonicalEffortReference(t *testing.T) {
 	root := t.TempDir()
@@ -12,9 +24,7 @@ func TestResolveAndReadUseCanonicalEffortReference(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(workspace, "sources"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspace, "effort.json"), []byte(`{"effort_ref":"effort:ux-1","slug":"ux-campaign","stage":"intake"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeManifest(t, filepath.Join(workspace, "effort.json"), manifest{EffortRef: "effort:ux-1", Slug: "ux-campaign", Stage: "intake"})
 	if err := os.WriteFile(filepath.Join(workspace, "sources", "intent.md"), []byte("accepted intent"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +52,7 @@ func TestResolveSupportsLegacyWorkspaceReferenceWhenManifestHasNoOpaqueRef(t *te
 	if err := os.MkdirAll(workspace, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspace, "effort.json"), []byte(`{"slug":"aquila-launch","stage":"execution"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeManifest(t, filepath.Join(workspace, "effort.json"), manifest{Slug: "aquila-launch", Stage: "execution"})
 
 	s := New(root, nil)
 	resolved, err := s.resolve("workspace:/repo#aquila-launch")
@@ -62,9 +70,7 @@ func TestReadRejectsTraversalAndSymlink(t *testing.T) {
 	if err := os.MkdirAll(workspace, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspace, "effort.json"), []byte(`{"effort_ref":"effort:safe"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeManifest(t, filepath.Join(workspace, "effort.json"), manifest{EffortRef: "effort:safe"})
 	outside := filepath.Join(root, "outside.txt")
 	if err := os.WriteFile(outside, []byte("secret"), 0o644); err != nil {
 		t.Fatal(err)

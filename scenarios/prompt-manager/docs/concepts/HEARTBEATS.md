@@ -98,6 +98,14 @@ operational qualification. The main implementation owner performs scoped pilot
 activation after focused fake-owner/time tests; this work does not enable global
 heartbeat policy or mutate existing teams.
 
+When an enabled finite delivery team with at least one `effortRef` is admitted,
+Prompt Manager automatically arms the canonical `effort-supervision` team
+through the same scheduler. This transition is idempotent and schedules only
+the configured standing supervisor member; it never creates one supervisor per
+effort. An empty effort board leaves the standing team in cheap discovery-only
+idle. Disabling the last effort team does not silently disable the standing
+service; explicit lifecycle withdrawal remains the stop operation.
+
 The AM adapter consumes generated `AgentManagerService.GetEffortBoard` pages
 (at most 100 rows). AM's existing supervision scheduler owns discovery scans.
 PM admits non-withdrawn rows with valid effort and evidence identities

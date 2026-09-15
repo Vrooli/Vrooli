@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/pricing"
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -20,10 +21,33 @@ import (
 // EffortActor is populated by the existing authenticated owner/run verifier.
 // Request text and workspace declarations never construct this authority.
 type EffortActor struct {
-	ID           string
-	Operator     bool
-	OwnerSubject string
-	Scopes       []string
+	ID                 string
+	Operator           bool
+	MetadataReconciler bool
+	OwnerSubject       string
+	Scopes             []string
+}
+
+const EffortMetadataReconcileScope = "agent-manager:effort-reconcile"
+
+func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
+	if a.Operator {
+		return a.ID != ""
+	}
+	if !a.MetadataReconciler || a.ID == "" || e == nil {
+		return false
+	}
+	for _, scope := range a.Scopes {
+		if scope != EffortMetadataReconcileScope {
+			continue
+		}
+		for _, subject := range e.Subjects {
+			if subject != nil && subject.RunId == a.ID && subject.Role == "orchestrator" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (a EffortActor) supervises(e *pb.EffortEnrollment) bool {
@@ -123,6 +147,7 @@ func quotaObservationsForRow(row *pb.EffortBoardRow, observations map[string][]*
 		}
 	}
 }
+
 func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time) error {
 	if e == nil || strings.TrimSpace(e.EffortRef) == "" || len(e.EffortRef) > 512 || len(e.Subjects) > 100 {
 		return errors.New("bounded effort reference and at most 100 subjects required")
@@ -178,6 +203,7 @@ func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time)
 	}
 	return nil
 }
+
 func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
 	if !actor.Operator || actor.ID == "" {
 		return nil, errors.New("authenticated operator authority required to enroll or amend")
@@ -220,6 +246,79 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 	}
 	return e, nil
 }
+
+// ReconcileMetadata updates only owner-facing effort metadata. It preserves
+// all authority, dispatch, subject and withdrawal fields so routine workspace
+// synchronization cannot renew, revoke or replace a grant.
+func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.ReconcileEffortMetadataRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
+		return nil, errors.New("enrollment and idempotency key required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old, observation, err := s.repo.GetEffort(ctx, req.Enrollment.EffortRef)
+	if err != nil {
+		return nil, err
+	}
+	if !actor.canReconcileMetadata(old) {
+		return nil, errors.New("explicit effort metadata reconciliation authority required")
+	}
+	key := "reconcile-metadata:" + req.IdempotencyKey
+	digest := effortDigest(req) + actor.ID
+	replay := &pb.EffortEnrollment{}
+	if ok, err := s.repo.ReplayEffortOperation(ctx, key, digest, replay); ok || err != nil {
+		return replay, err
+	}
+	if old.Revision != req.ExpectedRevision {
+		return nil, ErrConflict
+	}
+	if req.Enrollment.EffortRef != old.EffortRef {
+		return nil, errors.New("metadata reconciliation cannot change effort reference")
+	}
+	if req.Enrollment.DispatchAuthorization != nil {
+		return nil, errors.New("metadata reconciliation cannot change authority, subjects, actions or withdrawal state")
+	}
+	requestedImmutable := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
+	storedImmutable := proto.Clone(old).(*pb.EffortEnrollment)
+	for _, enrollment := range []*pb.EffortEnrollment{requestedImmutable, storedImmutable} {
+		enrollment.DisplayName = ""
+		enrollment.DestinationRef = ""
+		enrollment.TargetRevision = ""
+		enrollment.SourceRevision = ""
+		enrollment.Workspace = ""
+		enrollment.WorkShape = ""
+		enrollment.DispatchAuthorization = nil
+		enrollment.Revision = 0
+		enrollment.UpdatedAt = nil
+	}
+	if !proto.Equal(requestedImmutable, storedImmutable) {
+		return nil, errors.New("metadata reconciliation cannot change authority, subjects, actions or withdrawal state")
+	}
+	if (req.Enrollment.TargetRevision != old.TargetRevision || req.Enrollment.DestinationRef != old.DestinationRef) &&
+		(old.DispatchAuthorization != nil || old.AutonomousSupervision || len(old.PermittedActions) > 0) {
+		return nil, errors.New("target or destination changes require an operator enrollment amendment while supervision is granted")
+	}
+	next := proto.Clone(old).(*pb.EffortEnrollment)
+	next.DisplayName = req.Enrollment.DisplayName
+	next.DestinationRef = req.Enrollment.DestinationRef
+	next.TargetRevision = req.Enrollment.TargetRevision
+	next.SourceRevision = req.Enrollment.SourceRevision
+	next.Workspace = req.Enrollment.Workspace
+	next.WorkShape = req.Enrollment.WorkShape
+	// Validation sees the retained grant as an existing owner grant. This does
+	// not grant the caller any authority; it only prevents a valid enrollment
+	// from becoming invalid while metadata is reconciled.
+	if err := validateEffortEnrollment(next, true, s.now()); err != nil {
+		return nil, err
+	}
+	next.Revision++
+	next.UpdatedAt = timestamppb.New(s.now().UTC())
+	if err := s.repo.SaveEffort(ctx, next, observation, old.Revision, key, digest); err != nil {
+		return nil, err
+	}
+	return next, nil
+}
+
 func (s *EffortService) Withdraw(ctx context.Context, req *pb.WithdrawEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
 	if req == nil || req.IdempotencyKey == "" || req.Reason == "" {
 		return nil, errors.New("withdrawal reason and idempotency key required")
@@ -251,6 +350,7 @@ func (s *EffortService) Withdraw(ctx context.Context, req *pb.WithdrawEffortRequ
 	}
 	return e, nil
 }
+
 func effortPageSize(n uint32) int {
 	if n == 0 {
 		return 50
@@ -260,6 +360,7 @@ func effortPageSize(n uint32) int {
 	}
 	return int(n)
 }
+
 func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*pb.ListEffortsResponse, error) {
 	if req == nil {
 		req = &pb.ListEffortsRequest{}
@@ -286,6 +387,7 @@ func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*
 	}
 	return response, nil
 }
+
 func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest) (*pb.EffortBoard, error) {
 	if req == nil {
 		req = &pb.GetEffortBoardRequest{}
@@ -389,6 +491,7 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 	b.ChangeIdentity = bytesDigest([]byte(identity))
 	return b, nil
 }
+
 func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollment, ob *pb.EffortBoardRow, d *pb.EffortDiscovery) *pb.EffortBoardRow {
 	row := proto.Clone(ob).(*pb.EffortBoardRow)
 	row.Enrollment = e
@@ -664,6 +767,13 @@ func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
 func (s *EffortService) Tick(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// The standing supervisor is an operator-approved durable lease. Keep its
+	// authorization ID stable while rotating the signed bearer before either
+	// the time or dispatch allowance can strand an enabled supervisor.
+	var leaseErr error
+	if s.dispatchSecret != nil && s.dispatchProvision != nil && s.dispatchProfile != nil {
+		leaseErr = s.renewStandingDispatchLocked(ctx)
+	}
 	now := s.now()
 	var scanErr error
 	if !now.Before(s.nextScan) {
@@ -685,5 +795,53 @@ func (s *EffortService) Tick(ctx context.Context) error {
 			}
 		}
 	}
-	return scanErr
+	return errors.Join(leaseErr, scanErr)
+}
+
+const standingSupervisorEffortRef = "service:standing-supervision"
+
+// renewStandingDispatchLocked renews only the canonical standing supervisor
+// enrollment. It is deliberately not exposed as an API operation: the owner
+// grant is established once, then the Agent Manager control plane maintains
+// the lease while the enrollment remains active. The stable authorization ID
+// keeps Prompt Manager's binding valid across rotations.
+func (s *EffortService) renewStandingDispatchLocked(ctx context.Context) error {
+	e, observation, err := s.repo.GetEffort(ctx, standingSupervisorEffortRef)
+	if errors.Is(err, ErrNotFound) || err != nil || e == nil || e.Withdrawn || e.DispatchAuthorization == nil {
+		return nil
+	}
+	a := e.DispatchAuthorization
+	if e.AuthorizedBy == "" || e.SupervisorOwnerSubject != e.AuthorizedBy || e.SupervisorScope != SupervisorDispatchScope || a.OwnerSubject != e.AuthorizedBy || a.TeamId == "" || a.MemberId == "" || a.ProfileKey == "" {
+		return nil
+	}
+	if err := s.dispatchProfile(ctx, a.ProfileKey); err != nil {
+		return fmt.Errorf("standing supervisor lease profile unavailable: %w", err)
+	}
+	now := s.now().UTC()
+	needsRenewal := a.ExpiresAt == nil || !a.ExpiresAt.IsValid() || !a.ExpiresAt.AsTime().After(now.Add(7*24*time.Hour)) || (a.MaximumRuns > 0 && a.DispatchedRuns >= a.MaximumRuns)
+	if !needsRenewal {
+		return nil
+	}
+	nextExpiry := now.Add(30 * 24 * time.Hour)
+	next := proto.Clone(e).(*pb.EffortEnrollment)
+	next.DispatchAuthorization = proto.Clone(a).(*pb.SupervisorDispatchAuthorization)
+	next.DispatchAuthorization.ExpiresAt = timestamppb.New(nextExpiry)
+	next.DispatchAuthorization.DispatchedRuns = 0
+	next.DispatchAuthorization.LastDispatchedAt = nil
+	next.Revision = e.Revision + 1
+	next.UpdatedAt = timestamppb.New(now)
+	token, err := s.dispatchToken(next)
+	if err != nil {
+		return dispatchIssuanceRefusal("standing_lease_signing_failed")
+	}
+	// Provision first: if persistence fails, the old database hash remains
+	// authoritative and the newly provisioned bearer is rejected by AM.
+	if err := s.dispatchProvision(token); err != nil {
+		return fmt.Errorf("standing supervisor lease provisioning failed: %w", err)
+	}
+	next.DispatchAuthorization.CredentialHash = identity.HashToken(token)
+	if err := s.repo.SaveEffort(ctx, next, observation, e.Revision, "dispatch-renew:"+a.AuthorizationId+":"+now.Format("20060102T150405Z"), "standing-lease-renew:"+a.AuthorizationId+":"+now.Format(time.RFC3339)); err != nil {
+		return err
+	}
+	return nil
 }

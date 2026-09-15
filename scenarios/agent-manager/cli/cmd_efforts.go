@@ -77,6 +77,11 @@ func (a *App) cmdEffort(args []string) error {
 		request = &pb.EnrollEffortRequest{}
 		response = &pb.EffortEnrollment{}
 		mutation = true
+	case "reconcile-metadata":
+		path = apiconnect.AgentManagerServiceReconcileEffortMetadataProcedure
+		request = &pb.ReconcileEffortMetadataRequest{}
+		response = &pb.EffortEnrollment{}
+		mutation = true
 	case "withdraw":
 		path = apiconnect.AgentManagerServiceWithdrawEffortProcedure
 		request = &pb.WithdrawEffortRequest{}
@@ -272,11 +277,13 @@ func boundedEffortRefs(refs []string, limit int) []string {
 	}
 	return out
 }
+
 func printEffortPage(token string) {
 	if token != "" {
 		fmt.Printf("Next page: --page-token %q\n", token)
 	}
 }
+
 func printEffortDirective(d *pb.EffortDirective) {
 	fmt.Printf("%s effort=%s revision=%d delivery=%s acknowledgment=%s assessment=%s\n", d.DirectiveId, d.EffortRef, d.Revision, strings.TrimPrefix(d.Delivery.String(), "EFFORT_DIRECTIVE_DELIVERY_"), strings.TrimPrefix(d.Acknowledgment.String(), "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_"), d.Assessment)
 	if d.DeliveryReason != "" {
@@ -292,6 +299,7 @@ func printEffortDirective(d *pb.EffortDirective) {
 		}
 	}
 }
+
 func printEffortBoard(b *pb.EffortBoard) {
 	fmt.Printf("Efforts: %d active; discovery generation=%d; partial=%t\n", b.ActiveCount, b.GetDiscovery().GetGeneration(), b.Partial)
 	if b.ObservedAt != nil {

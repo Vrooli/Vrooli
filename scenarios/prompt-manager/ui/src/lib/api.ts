@@ -114,6 +114,10 @@ import {
   CreateSharedFileRequestSchema as CreateTeamSharedFileRequestProtoSchema,
   CreateTeamRequestSchema as CreateTeamRequestProtoSchema,
   DeleteSharedFileRequestSchema as DeleteTeamSharedFileRequestProtoSchema,
+  EffortWorkspaceListResponseSchema as EffortWorkspaceListResponseProtoSchema,
+  GetEffortWorkspaceContentRequestSchema,
+  ListEffortWorkspacesRequestSchema,
+  EffortWorkspaceContentSchema as EffortWorkspaceContentProtoSchema,
   DeleteTeamRequestSchema as DeleteTeamRequestProtoSchema,
   ExportClaudeCodeTeamRequestSchema as ExportClaudeCodeTeamRequestProtoSchema,
   ExportClaudeCodeTeamResponseSchema as ExportClaudeCodeTeamResponseProtoSchema,
@@ -1395,12 +1399,13 @@ class ApiClient {
   }
 
   async listEffortWorkspaces(teamId: string): Promise<EffortWorkspaceListResponse> {
-    return this.request(`/effort-workspaces?${new URLSearchParams({ teamId })}`, undefined, EffortWorkspaceListResponseSchema)
+    const response = await teamsClient.listEffortWorkspaces(create(ListEffortWorkspacesRequestSchema, { teamId }))
+    return parseOrThrow(EffortWorkspaceListResponseSchema, toJson(EffortWorkspaceListResponseProtoSchema, response), 'TeamsService.ListEffortWorkspaces')
   }
 
   async getEffortWorkspaceContent(effortRef: string, path: string): Promise<EffortWorkspaceContentResponse> {
-    const query = new URLSearchParams({ effortRef, path })
-    return this.request(`/effort-workspaces/content?${query}`, undefined, EffortWorkspaceContentResponseSchema)
+    const response = await teamsClient.getEffortWorkspaceContent(create(GetEffortWorkspaceContentRequestSchema, { effortRef, path }))
+    return parseOrThrow(EffortWorkspaceContentResponseSchema, toJson(EffortWorkspaceContentProtoSchema, response), 'TeamsService.GetEffortWorkspaceContent')
   }
 
   async setTeamSharedFileContent(teamId: string, path: string, content: string): Promise<void> {

@@ -27,6 +27,16 @@ type MockTeamStore struct {
 	err                   error                        // Inject errors for testing failure paths
 }
 
+type supervisorStarterStub struct {
+	err   error
+	calls int
+}
+
+func (s *supervisorStarterStub) EnsureStandingSupervisorStarted(context.Context) error {
+	s.calls++
+	return s.err
+}
+
 func NewMockTeamStore() *MockTeamStore {
 	return &MockTeamStore{
 		teams:                 make(map[string]*store.Team),
@@ -63,6 +73,59 @@ func TestEffectiveManagedTeamEdgesProjectsActiveDeliveryTeams(t *testing.T) {
 	edges := h.effectiveManagedTeamEdges(context.Background(), "effort-supervision")
 	if len(edges) != 1 || edges[0].ManagedTeamID != "delivery" || edges[0].AuthorityRef != "agent-manager:effort-board" {
 		t.Fatalf("unexpected projected edges: %#v", edges)
+	}
+}
+
+func TestEligibleFiniteEffortTeam(t *testing.T) {
+	cases := []struct {
+		name string
+		team *store.Team
+		want bool
+	}{
+		{
+			name: "finite delivery effort",
+			team: &store.Team{Enabled: true, Purpose: teamconfig.PurposeDelivery, Lifetime: teamconfig.LifetimeFinite, EffortRefs: []string{"effort:one"}},
+			want: true,
+		},
+		{name: "standing delivery", team: &store.Team{Enabled: true, Purpose: teamconfig.PurposeDelivery, Lifetime: teamconfig.LifetimeStanding, EffortRefs: []string{"effort:one"}}},
+		{name: "delivery without effort", team: &store.Team{Enabled: true, Purpose: teamconfig.PurposeDelivery, Lifetime: teamconfig.LifetimeFinite}},
+		{name: "supervision team", team: &store.Team{Enabled: true, Purpose: teamconfig.PurposeSupervision, Lifetime: teamconfig.LifetimeStanding, EffortRefs: []string{"effort:one"}}},
+		{name: "disabled effort", team: &store.Team{Purpose: teamconfig.PurposeDelivery, Lifetime: teamconfig.LifetimeFinite, EffortRefs: []string{"effort:one"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := eligibleFiniteEffortTeam(tc.team); got != tc.want {
+				t.Fatalf("eligibleFiniteEffortTeam() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUpdateFiniteEffortRollsBackWhenSupervisorAdmissionFails(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+	team := newIndependentTestTeam("effort-team", "Effort Team")
+	team.Purpose = teamconfig.PurposeDelivery
+	team.Lifetime = teamconfig.LifetimeFinite
+	team.EffortRefs = []string{"effort:one"}
+	teamStore.teams[team.ID] = team
+	starter := &supervisorStarterStub{err: fmt.Errorf("supervisor unavailable")}
+	handlers.SetEffortSupervisorStarter(starter)
+
+	enabled := true
+	body, _ := json.Marshal(UpdateRequest{Enabled: &enabled})
+	req := httptest.NewRequest(http.MethodPut, "/teams/effort-team", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "effort-team"})
+	recorder := httptest.NewRecorder()
+	handlers.Update(recorder, req)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusServiceUnavailable)
+	}
+	if teamStore.teams[team.ID].Enabled {
+		t.Fatal("effort team remained enabled after supervisor admission failure")
+	}
+	if starter.calls != 1 {
+		t.Fatalf("supervisor admission calls = %d, want 1", starter.calls)
 	}
 }
 

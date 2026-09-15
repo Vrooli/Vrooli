@@ -332,9 +332,17 @@ type Session struct {
 	Target *shared.Target `protobuf:"bytes,15,opt,name=target,proto3" json:"target,omitempty"`
 	// What the session's agent is doing now, as far as Web Console can tell.
 	// Also pushed live on the event stream as the session_activity kind.
-	Activity      *SessionActivity `protobuf:"bytes,20,opt,name=activity,proto3" json:"activity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Activity                *SessionActivity `protobuf:"bytes,20,opt,name=activity,proto3" json:"activity,omitempty"`
+	LaunchMode              string           `protobuf:"bytes,21,opt,name=launch_mode,json=launchMode,proto3" json:"launch_mode,omitempty"`    // terminal_pty | codex_app_server | native_api | unknown
+	ControlMode             string           `protobuf:"bytes,22,opt,name=control_mode,json=controlMode,proto3" json:"control_mode,omitempty"` // transcript_only | native_capable | recovery_only | unknown
+	NativeOwner             string           `protobuf:"bytes,23,opt,name=native_owner,json=nativeOwner,proto3" json:"native_owner,omitempty"`
+	NativeTransport         string           `protobuf:"bytes,24,opt,name=native_transport,json=nativeTransport,proto3" json:"native_transport,omitempty"`
+	ProviderVersion         string           `protobuf:"bytes,25,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
+	NativeThreadId          string           `protobuf:"bytes,26,opt,name=native_thread_id,json=nativeThreadId,proto3" json:"native_thread_id,omitempty"`
+	LastVerifiedTurnId      string           `protobuf:"bytes,27,opt,name=last_verified_turn_id,json=lastVerifiedTurnId,proto3" json:"last_verified_turn_id,omitempty"`
+	ForkedFromNativeSession string           `protobuf:"bytes,28,opt,name=forked_from_native_session,json=forkedFromNativeSession,proto3" json:"forked_from_native_session,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Session) Reset() {
@@ -470,6 +478,62 @@ func (x *Session) GetActivity() *SessionActivity {
 		return x.Activity
 	}
 	return nil
+}
+
+func (x *Session) GetLaunchMode() string {
+	if x != nil {
+		return x.LaunchMode
+	}
+	return ""
+}
+
+func (x *Session) GetControlMode() string {
+	if x != nil {
+		return x.ControlMode
+	}
+	return ""
+}
+
+func (x *Session) GetNativeOwner() string {
+	if x != nil {
+		return x.NativeOwner
+	}
+	return ""
+}
+
+func (x *Session) GetNativeTransport() string {
+	if x != nil {
+		return x.NativeTransport
+	}
+	return ""
+}
+
+func (x *Session) GetProviderVersion() string {
+	if x != nil {
+		return x.ProviderVersion
+	}
+	return ""
+}
+
+func (x *Session) GetNativeThreadId() string {
+	if x != nil {
+		return x.NativeThreadId
+	}
+	return ""
+}
+
+func (x *Session) GetLastVerifiedTurnId() string {
+	if x != nil {
+		return x.LastVerifiedTurnId
+	}
+	return ""
+}
+
+func (x *Session) GetForkedFromNativeSession() string {
+	if x != nil {
+		return x.ForkedFromNativeSession
+	}
+	return ""
 }
 
 // PromptOption is one choice in a prompt the agent is showing.
@@ -737,27 +801,35 @@ func (x *SessionActivity) GetHarnessVersion() string {
 
 // RecoverableSession describes an awaiting_recovery row.
 type RecoverableSession struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Backend              string                 `protobuf:"bytes,2,opt,name=backend,proto3" json:"backend,omitempty"`
-	Shell                string                 `protobuf:"bytes,3,opt,name=shell,proto3" json:"shell,omitempty"`
-	Cols                 int32                  `protobuf:"varint,4,opt,name=cols,proto3" json:"cols,omitempty"`
-	Rows                 int32                  `protobuf:"varint,5,opt,name=rows,proto3" json:"rows,omitempty"`
-	CreatedAt            string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	OrphanedAt           string                 `protobuf:"bytes,7,opt,name=orphaned_at,json=orphanedAt,proto3" json:"orphaned_at,omitempty"`
-	LastActivityAt       string                 `protobuf:"bytes,8,opt,name=last_activity_at,json=lastActivityAt,proto3" json:"last_activity_at,omitempty"`
-	AgentType            string                 `protobuf:"bytes,9,opt,name=agent_type,json=agentType,proto3" json:"agent_type,omitempty"` // "none" | "codex" | "claude"
-	AgentSessionId       string                 `protobuf:"bytes,10,opt,name=agent_session_id,json=agentSessionId,proto3" json:"agent_session_id,omitempty"`
-	LaunchCommand        string                 `protobuf:"bytes,11,opt,name=launch_command,json=launchCommand,proto3" json:"launch_command,omitempty"`
-	Cwd                  string                 `protobuf:"bytes,12,opt,name=cwd,proto3" json:"cwd,omitempty"`
-	LastRolloutPath      string                 `protobuf:"bytes,13,opt,name=last_rollout_path,json=lastRolloutPath,proto3" json:"last_rollout_path,omitempty"`
-	Recoverable          bool                   `protobuf:"varint,14,opt,name=recoverable,proto3" json:"recoverable,omitempty"`
-	NotRecoverableReason string                 `protobuf:"bytes,15,opt,name=not_recoverable_reason,json=notRecoverableReason,proto3" json:"not_recoverable_reason,omitempty"`
-	PaneName             string                 `protobuf:"bytes,16,opt,name=pane_name,json=paneName,proto3" json:"pane_name,omitempty"`
-	HeaderColor          string                 `protobuf:"bytes,17,opt,name=header_color,json=headerColor,proto3" json:"header_color,omitempty"`
-	GroupName            string                 `protobuf:"bytes,18,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Backend                 string                 `protobuf:"bytes,2,opt,name=backend,proto3" json:"backend,omitempty"`
+	Shell                   string                 `protobuf:"bytes,3,opt,name=shell,proto3" json:"shell,omitempty"`
+	Cols                    int32                  `protobuf:"varint,4,opt,name=cols,proto3" json:"cols,omitempty"`
+	Rows                    int32                  `protobuf:"varint,5,opt,name=rows,proto3" json:"rows,omitempty"`
+	CreatedAt               string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	OrphanedAt              string                 `protobuf:"bytes,7,opt,name=orphaned_at,json=orphanedAt,proto3" json:"orphaned_at,omitempty"`
+	LastActivityAt          string                 `protobuf:"bytes,8,opt,name=last_activity_at,json=lastActivityAt,proto3" json:"last_activity_at,omitempty"`
+	AgentType               string                 `protobuf:"bytes,9,opt,name=agent_type,json=agentType,proto3" json:"agent_type,omitempty"` // "none" | "codex" | "claude"
+	AgentSessionId          string                 `protobuf:"bytes,10,opt,name=agent_session_id,json=agentSessionId,proto3" json:"agent_session_id,omitempty"`
+	LaunchCommand           string                 `protobuf:"bytes,11,opt,name=launch_command,json=launchCommand,proto3" json:"launch_command,omitempty"`
+	Cwd                     string                 `protobuf:"bytes,12,opt,name=cwd,proto3" json:"cwd,omitempty"`
+	LastRolloutPath         string                 `protobuf:"bytes,13,opt,name=last_rollout_path,json=lastRolloutPath,proto3" json:"last_rollout_path,omitempty"`
+	Recoverable             bool                   `protobuf:"varint,14,opt,name=recoverable,proto3" json:"recoverable,omitempty"`
+	NotRecoverableReason    string                 `protobuf:"bytes,15,opt,name=not_recoverable_reason,json=notRecoverableReason,proto3" json:"not_recoverable_reason,omitempty"`
+	PaneName                string                 `protobuf:"bytes,16,opt,name=pane_name,json=paneName,proto3" json:"pane_name,omitempty"`
+	HeaderColor             string                 `protobuf:"bytes,17,opt,name=header_color,json=headerColor,proto3" json:"header_color,omitempty"`
+	GroupName               string                 `protobuf:"bytes,18,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	LaunchMode              string                 `protobuf:"bytes,19,opt,name=launch_mode,json=launchMode,proto3" json:"launch_mode,omitempty"`
+	ControlMode             string                 `protobuf:"bytes,20,opt,name=control_mode,json=controlMode,proto3" json:"control_mode,omitempty"`
+	NativeOwner             string                 `protobuf:"bytes,21,opt,name=native_owner,json=nativeOwner,proto3" json:"native_owner,omitempty"`
+	NativeTransport         string                 `protobuf:"bytes,22,opt,name=native_transport,json=nativeTransport,proto3" json:"native_transport,omitempty"`
+	ProviderVersion         string                 `protobuf:"bytes,23,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
+	NativeThreadId          string                 `protobuf:"bytes,24,opt,name=native_thread_id,json=nativeThreadId,proto3" json:"native_thread_id,omitempty"`
+	LastVerifiedTurnId      string                 `protobuf:"bytes,25,opt,name=last_verified_turn_id,json=lastVerifiedTurnId,proto3" json:"last_verified_turn_id,omitempty"`
+	ForkedFromNativeSession string                 `protobuf:"bytes,26,opt,name=forked_from_native_session,json=forkedFromNativeSession,proto3" json:"forked_from_native_session,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RecoverableSession) Reset() {
@@ -916,6 +988,62 @@ func (x *RecoverableSession) GetGroupName() string {
 	return ""
 }
 
+func (x *RecoverableSession) GetLaunchMode() string {
+	if x != nil {
+		return x.LaunchMode
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetControlMode() string {
+	if x != nil {
+		return x.ControlMode
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetNativeOwner() string {
+	if x != nil {
+		return x.NativeOwner
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetNativeTransport() string {
+	if x != nil {
+		return x.NativeTransport
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetProviderVersion() string {
+	if x != nil {
+		return x.ProviderVersion
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetNativeThreadId() string {
+	if x != nil {
+		return x.NativeThreadId
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetLastVerifiedTurnId() string {
+	if x != nil {
+		return x.LastVerifiedTurnId
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetForkedFromNativeSession() string {
+	if x != nil {
+		return x.ForkedFromNativeSession
+	}
+	return ""
+}
+
 type CreateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Shell         string                 `protobuf:"bytes,1,opt,name=shell,proto3" json:"shell,omitempty"`
@@ -941,8 +1069,12 @@ type CreateRequest struct {
 	// For persistent sessions, choose whether tmux captures mouse input for
 	// this pane. The default is false so ordinary scrolling stays local.
 	TmuxMouseMode bool `protobuf:"varint,15,opt,name=tmux_mouse_mode,json=tmuxMouseMode,proto3" json:"tmux_mouse_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Optional structured launch descriptor. The server persists it and only
+	// exposes native capability after a session-specific handshake verifies it.
+	LaunchMode           string `protobuf:"bytes,16,opt,name=launch_mode,json=launchMode,proto3" json:"launch_mode,omitempty"`
+	LaunchDescriptorJson string `protobuf:"bytes,17,opt,name=launch_descriptor_json,json=launchDescriptorJson,proto3" json:"launch_descriptor_json,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
@@ -1078,6 +1210,20 @@ func (x *CreateRequest) GetTmuxMouseMode() bool {
 		return x.TmuxMouseMode
 	}
 	return false
+}
+
+func (x *CreateRequest) GetLaunchMode() string {
+	if x != nil {
+		return x.LaunchMode
+	}
+	return ""
+}
+
+func (x *CreateRequest) GetLaunchDescriptorJson() string {
+	if x != nil {
+		return x.LaunchDescriptorJson
+	}
+	return ""
 }
 
 type CreateResponse struct {
@@ -2987,7 +3133,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\x1a\"web-console/v1/shared/target.proto\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xdd\x04\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\xb4\a\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -3005,7 +3151,16 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\rdisplay_label\x18\r \x01(\tR\fdisplayLabel\x12+\n" +
 	"\x11tracking_degraded\x18\x0e \x01(\bR\x10trackingDegraded\x12<\n" +
 	"\x06target\x18\x0f \x01(\v2$.vrooli.web_console.v1.shared.TargetR\x06target\x12K\n" +
-	"\bactivity\x18\x14 \x01(\v2/.vrooli.web_console.v1.sessions.SessionActivityR\bactivity\"R\n" +
+	"\bactivity\x18\x14 \x01(\v2/.vrooli.web_console.v1.sessions.SessionActivityR\bactivity\x12\x1f\n" +
+	"\vlaunch_mode\x18\x15 \x01(\tR\n" +
+	"launchMode\x12!\n" +
+	"\fcontrol_mode\x18\x16 \x01(\tR\vcontrolMode\x12!\n" +
+	"\fnative_owner\x18\x17 \x01(\tR\vnativeOwner\x12)\n" +
+	"\x10native_transport\x18\x18 \x01(\tR\x0fnativeTransport\x12)\n" +
+	"\x10provider_version\x18\x19 \x01(\tR\x0fproviderVersion\x12(\n" +
+	"\x10native_thread_id\x18\x1a \x01(\tR\x0enativeThreadId\x121\n" +
+	"\x15last_verified_turn_id\x18\x1b \x01(\tR\x12lastVerifiedTurnId\x12;\n" +
+	"\x1aforked_from_native_session\x18\x1c \x01(\tR\x17forkedFromNativeSession\"R\n" +
 	"\fPromptOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
@@ -3032,7 +3187,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x0elast_output_at\x18\x06 \x01(\tR\flastOutputAt\x12E\n" +
 	"\x06prompt\x18\a \x01(\v2-.vrooli.web_console.v1.sessions.PendingPromptR\x06prompt\x12\x18\n" +
 	"\aharness\x18\b \x01(\tR\aharness\x12'\n" +
-	"\x0fharness_version\x18\t \x01(\tR\x0eharnessVersion\"\xcb\x04\n" +
+	"\x0fharness_version\x18\t \x01(\tR\x0eharnessVersion\"\xa2\a\n" +
 	"\x12RecoverableSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\abackend\x18\x02 \x01(\tR\abackend\x12\x14\n" +
@@ -3056,7 +3211,16 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\tpane_name\x18\x10 \x01(\tR\bpaneName\x12!\n" +
 	"\fheader_color\x18\x11 \x01(\tR\vheaderColor\x12\x1d\n" +
 	"\n" +
-	"group_name\x18\x12 \x01(\tR\tgroupName\"\xb4\x04\n" +
+	"group_name\x18\x12 \x01(\tR\tgroupName\x12\x1f\n" +
+	"\vlaunch_mode\x18\x13 \x01(\tR\n" +
+	"launchMode\x12!\n" +
+	"\fcontrol_mode\x18\x14 \x01(\tR\vcontrolMode\x12!\n" +
+	"\fnative_owner\x18\x15 \x01(\tR\vnativeOwner\x12)\n" +
+	"\x10native_transport\x18\x16 \x01(\tR\x0fnativeTransport\x12)\n" +
+	"\x10provider_version\x18\x17 \x01(\tR\x0fproviderVersion\x12(\n" +
+	"\x10native_thread_id\x18\x18 \x01(\tR\x0enativeThreadId\x121\n" +
+	"\x15last_verified_turn_id\x18\x19 \x01(\tR\x12lastVerifiedTurnId\x12;\n" +
+	"\x1aforked_from_native_session\x18\x1a \x01(\tR\x17forkedFromNativeSession\"\x8b\x05\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -3076,7 +3240,10 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\ttarget_id\x18\r \x01(\tR\btargetId\x12\x1f\n" +
 	"\vworking_dir\x18\x0e \x01(\tR\n" +
 	"workingDir\x12&\n" +
-	"\x0ftmux_mouse_mode\x18\x0f \x01(\bR\rtmuxMouseMode\"S\n" +
+	"\x0ftmux_mouse_mode\x18\x0f \x01(\bR\rtmuxMouseMode\x12\x1f\n" +
+	"\vlaunch_mode\x18\x10 \x01(\tR\n" +
+	"launchMode\x124\n" +
+	"\x16launch_descriptor_json\x18\x11 \x01(\tR\x14launchDescriptorJson\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x9f\x01\n" +

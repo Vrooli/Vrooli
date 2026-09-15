@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -219,10 +220,33 @@ func resolveBinary(base baseCodec, cmd string) baseCodec {
 		base.message = base.binaryDesc + " not found in PATH"
 		return base
 	}
-	base.binaryPath = path
+	// Agent Manager is already the governed launch boundary. If PATH resolves
+	// a runner through Vrooli's operator-facing shim, launching that shim from
+	// a protected workspace creates a second launcher boundary: it attempts to
+	// write the host editor lease from inside the sandbox and then tries to
+	// create a host systemd scope. The sandbox must execute the real runner
+	// directly; `vrooli agent` remains the entry point for operator launches.
+	base.binaryPath = managedRunnerBinary(path, cmd)
 	base.available = true
 	base.message = base.binaryDesc + " available"
 	return base
+}
+
+func managedRunnerBinary(path, cmd string) string {
+	clean := filepath.Clean(path)
+	parts := strings.Split(filepath.ToSlash(clean), "/")
+	for i, part := range parts {
+		if part != ".vrooli" || i+1 >= len(parts) || parts[i+1] != "shims" {
+			continue
+		}
+		for _, candidate := range []string{filepath.Join("/usr/bin", cmd), filepath.Join("/bin", cmd)} {
+			if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+				return candidate
+			}
+		}
+		break
+	}
+	return path
 }
 
 // testBase derives the *ForTest variant of an identity base: a fake binary

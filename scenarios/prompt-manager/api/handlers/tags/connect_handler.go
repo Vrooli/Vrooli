@@ -8,46 +8,41 @@ import (
 	tagsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/tags"
 	tagsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/tags/tags_v1connect"
 
-	"prompt-manager/handlers/transportbridge"
 	domain "prompt-manager/internal/tags"
 )
 
 type connectHandler struct {
 	tagsconnect.UnimplementedTagsServiceHandler
-	legacy *domain.Handlers
+	repo domain.TagRepository
 }
 
-func NewConnectMount(legacy *domain.Handlers) (string, http.Handler) {
-	return tagsconnect.NewTagsServiceHandler(&connectHandler{legacy: legacy})
+func NewConnectMount(repo domain.TagRepository) (string, http.Handler) {
+	return tagsconnect.NewTagsServiceHandler(&connectHandler{repo: repo})
 }
 
 func (h *connectHandler) ListTags(ctx context.Context, req *connect.Request[tagsv1.ListTagsRequest]) (*connect.Response[tagsv1.ListTagsResponse], error) {
-	result, err := transportbridge.Invoke(ctx, req.Header(), h.legacy.List, http.MethodGet, "/tags", nil, nil)
+	items, err := domain.ListTags(ctx, h.repo)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &tagsv1.ListTagsResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "tags", out); err != nil {
-		return nil, err
+	for _, item := range items {
+		out.Tags = append(out.Tags, &tagsv1.Tag{Id: item.ID, Name: item.Name, Color: item.Color, Description: item.Description})
 	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) CreateTag(ctx context.Context, req *connect.Request[tagsv1.CreateTagRequest]) (*connect.Response[tagsv1.CreateTagResponse], error) {
-	payload := map[string]any{"name": req.Msg.GetName()}
-	if req.Msg.Color != nil {
-		payload["color"] = req.Msg.GetColor()
-	}
-	if req.Msg.Description != nil {
-		payload["description"] = req.Msg.GetDescription()
-	}
-	result, err := transportbridge.Invoke(ctx, req.Header(), h.legacy.Create, http.MethodPost, "/tags", payload, nil)
+	item, err := domain.CreateTag(ctx, h.repo, domain.Tag{Name: req.Msg.GetName(), Color: req.Msg.Color, Description: req.Msg.Description})
 	if err != nil {
-		return nil, err
+		code := connect.CodeInternal
+		if err == domain.ErrDuplicate {
+			code = connect.CodeAlreadyExists
+		}
+		if err.Error() == "Name is required" {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, err)
 	}
-	out := &tagsv1.CreateTagResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "tag", out); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(out), nil
+	return connect.NewResponse(&tagsv1.CreateTagResponse{Tag: &tagsv1.Tag{Id: item.ID, Name: item.Name, Color: item.Color, Description: item.Description}}), nil
 }

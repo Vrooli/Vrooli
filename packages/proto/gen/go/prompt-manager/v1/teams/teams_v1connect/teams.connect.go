@@ -76,6 +76,12 @@ const (
 	// TeamsServiceDeleteSharedFileProcedure is the fully-qualified name of the TeamsService's
 	// DeleteSharedFile RPC.
 	TeamsServiceDeleteSharedFileProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/DeleteSharedFile"
+	// TeamsServiceListEffortWorkspacesProcedure is the fully-qualified name of the TeamsService's
+	// ListEffortWorkspaces RPC.
+	TeamsServiceListEffortWorkspacesProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/ListEffortWorkspaces"
+	// TeamsServiceGetEffortWorkspaceContentProcedure is the fully-qualified name of the TeamsService's
+	// GetEffortWorkspaceContent RPC.
+	TeamsServiceGetEffortWorkspaceContentProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/GetEffortWorkspaceContent"
 	// TeamsServiceGetOrgChartProcedure is the fully-qualified name of the TeamsService's GetOrgChart
 	// RPC.
 	TeamsServiceGetOrgChartProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/GetOrgChart"
@@ -142,6 +148,8 @@ type TeamsServiceClient interface {
 	CreateSharedFile(context.Context, *connect.Request[teams.CreateSharedFileRequest]) (*connect.Response[teams.SharedFileContent], error)
 	RenameSharedFile(context.Context, *connect.Request[teams.RenameSharedFileRequest]) (*connect.Response[teams.SharedFileContent], error)
 	DeleteSharedFile(context.Context, *connect.Request[teams.DeleteSharedFileRequest]) (*connect.Response[teams.DeleteSharedFileResponse], error)
+	ListEffortWorkspaces(context.Context, *connect.Request[teams.ListEffortWorkspacesRequest]) (*connect.Response[teams.EffortWorkspaceListResponse], error)
+	GetEffortWorkspaceContent(context.Context, *connect.Request[teams.GetEffortWorkspaceContentRequest]) (*connect.Response[teams.EffortWorkspaceContent], error)
 	GetOrgChart(context.Context, *connect.Request[teams.GetOrgChartRequest]) (*connect.Response[teams.OrgChart], error)
 	SetOrgChart(context.Context, *connect.Request[teams.SetOrgChartRequest]) (*connect.Response[teams.OrgChart], error)
 	UpdateOrgChartEdge(context.Context, *connect.Request[teams.UpdateOrgChartEdgeRequest]) (*connect.Response[teams.OrgChart], error)
@@ -272,6 +280,18 @@ func NewTeamsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(teamsServiceMethods.ByName("DeleteSharedFile")),
 			connect.WithClientOptions(opts...),
 		),
+		listEffortWorkspaces: connect.NewClient[teams.ListEffortWorkspacesRequest, teams.EffortWorkspaceListResponse](
+			httpClient,
+			baseURL+TeamsServiceListEffortWorkspacesProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("ListEffortWorkspaces")),
+			connect.WithClientOptions(opts...),
+		),
+		getEffortWorkspaceContent: connect.NewClient[teams.GetEffortWorkspaceContentRequest, teams.EffortWorkspaceContent](
+			httpClient,
+			baseURL+TeamsServiceGetEffortWorkspaceContentProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("GetEffortWorkspaceContent")),
+			connect.WithClientOptions(opts...),
+		),
 		getOrgChart: connect.NewClient[teams.GetOrgChartRequest, teams.OrgChart](
 			httpClient,
 			baseURL+TeamsServiceGetOrgChartProcedure,
@@ -384,6 +404,8 @@ type teamsServiceClient struct {
 	createSharedFile             *connect.Client[teams.CreateSharedFileRequest, teams.SharedFileContent]
 	renameSharedFile             *connect.Client[teams.RenameSharedFileRequest, teams.SharedFileContent]
 	deleteSharedFile             *connect.Client[teams.DeleteSharedFileRequest, teams.DeleteSharedFileResponse]
+	listEffortWorkspaces         *connect.Client[teams.ListEffortWorkspacesRequest, teams.EffortWorkspaceListResponse]
+	getEffortWorkspaceContent    *connect.Client[teams.GetEffortWorkspaceContentRequest, teams.EffortWorkspaceContent]
 	getOrgChart                  *connect.Client[teams.GetOrgChartRequest, teams.OrgChart]
 	setOrgChart                  *connect.Client[teams.SetOrgChartRequest, teams.OrgChart]
 	updateOrgChartEdge           *connect.Client[teams.UpdateOrgChartEdgeRequest, teams.OrgChart]
@@ -486,6 +508,17 @@ func (c *teamsServiceClient) DeleteSharedFile(ctx context.Context, req *connect.
 	return c.deleteSharedFile.CallUnary(ctx, req)
 }
 
+// ListEffortWorkspaces calls vrooli.prompt_manager.v1.teams.TeamsService.ListEffortWorkspaces.
+func (c *teamsServiceClient) ListEffortWorkspaces(ctx context.Context, req *connect.Request[teams.ListEffortWorkspacesRequest]) (*connect.Response[teams.EffortWorkspaceListResponse], error) {
+	return c.listEffortWorkspaces.CallUnary(ctx, req)
+}
+
+// GetEffortWorkspaceContent calls
+// vrooli.prompt_manager.v1.teams.TeamsService.GetEffortWorkspaceContent.
+func (c *teamsServiceClient) GetEffortWorkspaceContent(ctx context.Context, req *connect.Request[teams.GetEffortWorkspaceContentRequest]) (*connect.Response[teams.EffortWorkspaceContent], error) {
+	return c.getEffortWorkspaceContent.CallUnary(ctx, req)
+}
+
 // GetOrgChart calls vrooli.prompt_manager.v1.teams.TeamsService.GetOrgChart.
 func (c *teamsServiceClient) GetOrgChart(ctx context.Context, req *connect.Request[teams.GetOrgChartRequest]) (*connect.Response[teams.OrgChart], error) {
 	return c.getOrgChart.CallUnary(ctx, req)
@@ -582,6 +615,8 @@ type TeamsServiceHandler interface {
 	CreateSharedFile(context.Context, *connect.Request[teams.CreateSharedFileRequest]) (*connect.Response[teams.SharedFileContent], error)
 	RenameSharedFile(context.Context, *connect.Request[teams.RenameSharedFileRequest]) (*connect.Response[teams.SharedFileContent], error)
 	DeleteSharedFile(context.Context, *connect.Request[teams.DeleteSharedFileRequest]) (*connect.Response[teams.DeleteSharedFileResponse], error)
+	ListEffortWorkspaces(context.Context, *connect.Request[teams.ListEffortWorkspacesRequest]) (*connect.Response[teams.EffortWorkspaceListResponse], error)
+	GetEffortWorkspaceContent(context.Context, *connect.Request[teams.GetEffortWorkspaceContentRequest]) (*connect.Response[teams.EffortWorkspaceContent], error)
 	GetOrgChart(context.Context, *connect.Request[teams.GetOrgChartRequest]) (*connect.Response[teams.OrgChart], error)
 	SetOrgChart(context.Context, *connect.Request[teams.SetOrgChartRequest]) (*connect.Response[teams.OrgChart], error)
 	UpdateOrgChartEdge(context.Context, *connect.Request[teams.UpdateOrgChartEdgeRequest]) (*connect.Response[teams.OrgChart], error)
@@ -706,6 +741,18 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 		TeamsServiceDeleteSharedFileProcedure,
 		svc.DeleteSharedFile,
 		connect.WithSchema(teamsServiceMethods.ByName("DeleteSharedFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	teamsServiceListEffortWorkspacesHandler := connect.NewUnaryHandler(
+		TeamsServiceListEffortWorkspacesProcedure,
+		svc.ListEffortWorkspaces,
+		connect.WithSchema(teamsServiceMethods.ByName("ListEffortWorkspaces")),
+		connect.WithHandlerOptions(opts...),
+	)
+	teamsServiceGetEffortWorkspaceContentHandler := connect.NewUnaryHandler(
+		TeamsServiceGetEffortWorkspaceContentProcedure,
+		svc.GetEffortWorkspaceContent,
+		connect.WithSchema(teamsServiceMethods.ByName("GetEffortWorkspaceContent")),
 		connect.WithHandlerOptions(opts...),
 	)
 	teamsServiceGetOrgChartHandler := connect.NewUnaryHandler(
@@ -834,6 +881,10 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 			teamsServiceRenameSharedFileHandler.ServeHTTP(w, r)
 		case TeamsServiceDeleteSharedFileProcedure:
 			teamsServiceDeleteSharedFileHandler.ServeHTTP(w, r)
+		case TeamsServiceListEffortWorkspacesProcedure:
+			teamsServiceListEffortWorkspacesHandler.ServeHTTP(w, r)
+		case TeamsServiceGetEffortWorkspaceContentProcedure:
+			teamsServiceGetEffortWorkspaceContentHandler.ServeHTTP(w, r)
 		case TeamsServiceGetOrgChartProcedure:
 			teamsServiceGetOrgChartHandler.ServeHTTP(w, r)
 		case TeamsServiceSetOrgChartProcedure:
@@ -939,6 +990,14 @@ func (UnimplementedTeamsServiceHandler) RenameSharedFile(context.Context, *conne
 
 func (UnimplementedTeamsServiceHandler) DeleteSharedFile(context.Context, *connect.Request[teams.DeleteSharedFileRequest]) (*connect.Response[teams.DeleteSharedFileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.DeleteSharedFile is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) ListEffortWorkspaces(context.Context, *connect.Request[teams.ListEffortWorkspacesRequest]) (*connect.Response[teams.EffortWorkspaceListResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.ListEffortWorkspaces is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) GetEffortWorkspaceContent(context.Context, *connect.Request[teams.GetEffortWorkspaceContentRequest]) (*connect.Response[teams.EffortWorkspaceContent], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.GetEffortWorkspaceContent is not implemented"))
 }
 
 func (UnimplementedTeamsServiceHandler) GetOrgChart(context.Context, *connect.Request[teams.GetOrgChartRequest]) (*connect.Response[teams.OrgChart], error) {

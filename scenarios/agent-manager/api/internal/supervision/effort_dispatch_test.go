@@ -49,6 +49,7 @@ func newDispatchFixture(t *testing.T) *dispatchFixture {
 	f.req = &api.IssueSupervisorDispatchRequest{EffortRef: f.e.EffortRef, ExpectedRevision: f.e.Revision, TeamId: "supervisors", MemberId: "leader", ProfileKey: "qualified", ExpiresAt: timestamppb.New(f.now.Add(time.Hour)), MaximumRuns: 3, MinimumIntervalSeconds: 60, IdempotencyKey: "issue"}
 	return f
 }
+
 func (f *dispatchFixture) issue(t *testing.T) {
 	t.Helper()
 	var err error
@@ -57,8 +58,38 @@ func (f *dispatchFixture) issue(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func (f *dispatchFixture) wake(key string) *api.CreateSupervisorRunRequest {
 	return &api.CreateSupervisorRunRequest{EffortRef: f.e.EffortRef, AuthorizationId: f.e.DispatchAuthorization.AuthorizationId, TeamId: "supervisors", MemberId: "leader", TaskId: uuid.NewString(), IdempotencyKey: key}
+}
+
+func TestStandingSupervisorDispatchRenewsWithoutOwnerCall(t *testing.T) {
+	f := newDispatchFixture(t)
+	f.issue(t)
+	before := proto.Clone(f.e).(*pb.EffortEnrollment)
+	f.now = before.DispatchAuthorization.ExpiresAt.AsTime().Add(-6 * 24 * time.Hour)
+	if err := f.s.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	after, _, err := f.r.GetEffort(t.Context(), f.e.EffortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.DispatchAuthorization.AuthorizationId != before.DispatchAuthorization.AuthorizationId {
+		t.Fatalf("standing renewal changed the binding identity: before=%q after=%q", before.DispatchAuthorization.AuthorizationId, after.DispatchAuthorization.AuthorizationId)
+	}
+	if !after.DispatchAuthorization.ExpiresAt.AsTime().After(before.DispatchAuthorization.ExpiresAt.AsTime()) {
+		t.Fatal("standing renewal did not extend the authorization expiry")
+	}
+	if after.DispatchAuthorization.DispatchedRuns != 0 || after.DispatchAuthorization.LastDispatchedAt != nil {
+		t.Fatal("standing renewal did not reset the bounded lease allowance")
+	}
+	if f.token == "" {
+		t.Fatal("standing renewal did not provision the rotated bearer")
+	}
+	if identity.HashToken(f.token) != after.DispatchAuthorization.CredentialHash {
+		t.Fatal("persisted credential hash does not match the rotated bearer")
+	}
 }
 
 func TestSupervisorDispatchAnchorDoesNotBecomeItsOwnEffort(t *testing.T) {
@@ -107,6 +138,7 @@ func TestSupervisorDispatchAnchorStaysOutOfSubjectSetAfterSupervisorAttribution(
 		t.Fatal("anchor was exposed as active supervision work after attribution", board, err)
 	}
 }
+
 func TestSupervisorDispatchPurposeProvisioningAndReplay(t *testing.T) {
 	f := newDispatchFixture(t)
 	f.provisionErr = errors.New("private-store-error")

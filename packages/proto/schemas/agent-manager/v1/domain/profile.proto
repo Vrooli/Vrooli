@@ -140,6 +140,10 @@ message AgentProfile {
   // Paths explicitly denied.
   repeated string denied_paths = 14;
 
+  // Explicit ceiling for delegated identity scopes. This must include
+  // agent-manager:supervise for a profile used by an autonomous supervisor.
+  repeated string declared_scopes = 38;
+
   // User or system that created this profile.
   string created_by = 15;
 

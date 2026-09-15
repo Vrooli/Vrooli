@@ -549,13 +549,12 @@ func main() {
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
 	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, roots.Config)
-	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
-	templateHandlers := templates.NewHandlers(templates.NewStore(roots.Config))
+	templateStore := templates.NewStore(roots.Config)
 	actionService := actions.NewService(fileStore.Actions(), actions.NewCLIHealthCommandResolver())
 	actionHandlers := actions.NewHandlers(actionService)
 	actionsConnectPath, actionsConnectHandler := actions.NewConnectMount(actionHandlers)
-	tagsConnectPath, tagsConnectHandler := tags.NewConnectMount(tagsHandlers)
+	tagsConnectPath, tagsConnectHandler := tags.NewConnectMount(tagsRepo)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
 	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), roots.Config, fileStore.Relations(), fileStore.Teams())
@@ -653,12 +652,10 @@ func main() {
 	// Budget config store
 	budgetConfigStore := aisearch.NewBudgetConfigStore(roots.Config)
 	aiSearchService.SetBudgetConfig(budgetConfigStore)
-	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
 
 	// Discover filter config store
 	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(roots.Config)
 	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
-	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
 
 	// Discover ranking config store (topic gate, high-confidence bar, caps).
 	// The topic gate must exceed the skill similarity threshold, so the store is
@@ -804,7 +801,7 @@ func main() {
 	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers, roots.RepoRoot)
 	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot)
 	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
-	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateHandlers)
+	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateStore)
 	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
 	metadataConnectPath, metadataConnectHandler := metadata.NewConnectMount(ogmetaHandlers)
 	router := mux.NewRouter()
@@ -878,9 +875,7 @@ func main() {
 
 	// Team services
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
-	effortWorkspaceHandlers := effortworkspace.NewHandlers(effortworkspace.New(roots.PlanArtifacts, fileStore.Teams()))
-	v1.HandleFunc("/effort-workspaces", effortWorkspaceHandlers.List).Methods("GET")
-	v1.HandleFunc("/effort-workspaces/content", effortWorkspaceHandlers.Read).Methods("GET")
+	effortWorkspaceStore := effortworkspace.New(roots.PlanArtifacts, fileStore.Teams())
 	teamHandlers.SetGraphInvalidator(graphIndex)
 	teamHandlers.SetAIIndexer(aiSearchService)
 	// Member-flow (per-member topics.json) routes — declares each member's
@@ -1119,17 +1114,20 @@ func main() {
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
 	// Teams knowledge is owned by the heartbeat handler because it enforces
 	// runtime attribution and the publication rules for the shared corpus.
-	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers)
+	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers, effortWorkspaceStore)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: heartbeatConnectPath, Handler: heartbeatConnectHandler})
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
+	teamHandlers.SetEffortSupervisorStarter(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
 	runRegistry.Recover(context.Background(), agentManagerClient)
 	teamExecStore.Recover(context.Background())
 
-	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
+	// Start scheduler. Ordinary heartbeats remain explicitly enabled; the
+	// standing supervisor is armed automatically when an eligible finite effort
+	// team is enabled.
 	go func() {
 		if err := heartbeatScheduler.Start(context.Background()); err != nil {
 			log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
@@ -1137,9 +1135,13 @@ func main() {
 
 		// Load enabled heartbeats from all teams
 		teams, _ := fileStore.Teams().List(context.Background())
+		hasEligibleEffort := false
 		for _, team := range teams {
 			if !team.Enabled {
 				continue
+			}
+			if team.Purpose == "delivery" && team.Lifetime == "finite" && len(team.EffortRefs) > 0 {
+				hasEligibleEffort = true
 			}
 			teamStore := fileStore.Teams().(*store.FileTeamStore)
 			if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
@@ -1153,6 +1155,11 @@ func main() {
 						log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
 					}
 				}
+			}
+		}
+		if hasEligibleEffort {
+			if err := heartbeatScheduler.EnsureStandingSupervisorStarted(context.Background()); err != nil {
+				log.Printf("Warning: Failed to auto-arm standing supervisor on startup: %v", err)
 			}
 		}
 	}()

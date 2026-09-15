@@ -1883,6 +1883,77 @@ func (x *EnrollEffortRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+// Metadata reconciliation deliberately excludes authority, dispatch and
+// withdrawal state. It lets an explicitly scoped effort coordinator keep the
+// owner projection current without renewing or revoking a grant.
+type ReconcileEffortMetadataRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Enrollment       *EffortEnrollment      `protobuf:"bytes,1,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	IdempotencyKey   string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Authority        WatchAuthority         `protobuf:"varint,4,opt,name=authority,proto3,enum=agent_manager.v1.WatchAuthority" json:"authority,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ReconcileEffortMetadataRequest) Reset() {
+	*x = ReconcileEffortMetadataRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileEffortMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileEffortMetadataRequest) ProtoMessage() {}
+
+func (x *ReconcileEffortMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileEffortMetadataRequest.ProtoReflect.Descriptor instead.
+func (*ReconcileEffortMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReconcileEffortMetadataRequest) GetEnrollment() *EffortEnrollment {
+	if x != nil {
+		return x.Enrollment
+	}
+	return nil
+}
+
+func (x *ReconcileEffortMetadataRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *ReconcileEffortMetadataRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *ReconcileEffortMetadataRequest) GetAuthority() WatchAuthority {
+	if x != nil {
+		return x.Authority
+	}
+	return WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED
+}
+
 type WithdrawEffortRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	EffortRef        string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
@@ -1895,7 +1966,7 @@ type WithdrawEffortRequest struct {
 
 func (x *WithdrawEffortRequest) Reset() {
 	*x = WithdrawEffortRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1907,7 +1978,7 @@ func (x *WithdrawEffortRequest) String() string {
 func (*WithdrawEffortRequest) ProtoMessage() {}
 
 func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1920,7 +1991,7 @@ func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawEffortRequest.ProtoReflect.Descriptor instead.
 func (*WithdrawEffortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *WithdrawEffortRequest) GetEffortRef() string {
@@ -1959,7 +2030,7 @@ type ReconcileEffortDiscoveryRequest struct {
 
 func (x *ReconcileEffortDiscoveryRequest) Reset() {
 	*x = ReconcileEffortDiscoveryRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1971,7 +2042,7 @@ func (x *ReconcileEffortDiscoveryRequest) String() string {
 func (*ReconcileEffortDiscoveryRequest) ProtoMessage() {}
 
 func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1984,7 +2055,7 @@ func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileEffortDiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileEffortDiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
 }
 
 // Immutable request plus independent delivery, acknowledgment, action and assessment.
@@ -2036,7 +2107,7 @@ type EffortDirective struct {
 
 func (x *EffortDirective) Reset() {
 	*x = EffortDirective{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2048,7 +2119,7 @@ func (x *EffortDirective) String() string {
 func (*EffortDirective) ProtoMessage() {}
 
 func (x *EffortDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2061,7 +2132,7 @@ func (x *EffortDirective) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDirective.ProtoReflect.Descriptor instead.
 func (*EffortDirective) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *EffortDirective) GetDirectiveId() string {
@@ -2310,7 +2381,7 @@ type EffortDirectiveAuthorityBinding struct {
 
 func (x *EffortDirectiveAuthorityBinding) Reset() {
 	*x = EffortDirectiveAuthorityBinding{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2322,7 +2393,7 @@ func (x *EffortDirectiveAuthorityBinding) String() string {
 func (*EffortDirectiveAuthorityBinding) ProtoMessage() {}
 
 func (x *EffortDirectiveAuthorityBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2335,7 +2406,7 @@ func (x *EffortDirectiveAuthorityBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDirectiveAuthorityBinding.ProtoReflect.Descriptor instead.
 func (*EffortDirectiveAuthorityBinding) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *EffortDirectiveAuthorityBinding) GetMode() string {
@@ -2372,7 +2443,7 @@ type EffortRecoveryExpectation struct {
 
 func (x *EffortRecoveryExpectation) Reset() {
 	*x = EffortRecoveryExpectation{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2384,7 +2455,7 @@ func (x *EffortRecoveryExpectation) String() string {
 func (*EffortRecoveryExpectation) ProtoMessage() {}
 
 func (x *EffortRecoveryExpectation) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2397,7 +2468,7 @@ func (x *EffortRecoveryExpectation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortRecoveryExpectation.ProtoReflect.Descriptor instead.
 func (*EffortRecoveryExpectation) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *EffortRecoveryExpectation) GetProgressCondition() string {
@@ -2435,7 +2506,7 @@ type EffortRecoveryVerification struct {
 
 func (x *EffortRecoveryVerification) Reset() {
 	*x = EffortRecoveryVerification{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2447,7 +2518,7 @@ func (x *EffortRecoveryVerification) String() string {
 func (*EffortRecoveryVerification) ProtoMessage() {}
 
 func (x *EffortRecoveryVerification) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2460,7 +2531,7 @@ func (x *EffortRecoveryVerification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortRecoveryVerification.ProtoReflect.Descriptor instead.
 func (*EffortRecoveryVerification) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *EffortRecoveryVerification) GetState() string {
@@ -2530,7 +2601,7 @@ type EffortRepairLink struct {
 
 func (x *EffortRepairLink) Reset() {
 	*x = EffortRepairLink{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2542,7 +2613,7 @@ func (x *EffortRepairLink) String() string {
 func (*EffortRepairLink) ProtoMessage() {}
 
 func (x *EffortRepairLink) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2555,7 +2626,7 @@ func (x *EffortRepairLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortRepairLink.ProtoReflect.Descriptor instead.
 func (*EffortRepairLink) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *EffortRepairLink) GetWorkRef() string {
@@ -2612,7 +2683,7 @@ type RequestEffortDirectiveRequest struct {
 
 func (x *RequestEffortDirectiveRequest) Reset() {
 	*x = RequestEffortDirectiveRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2624,7 +2695,7 @@ func (x *RequestEffortDirectiveRequest) String() string {
 func (*RequestEffortDirectiveRequest) ProtoMessage() {}
 
 func (x *RequestEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2637,7 +2708,7 @@ func (x *RequestEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestEffortDirectiveRequest.ProtoReflect.Descriptor instead.
 func (*RequestEffortDirectiveRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RequestEffortDirectiveRequest) GetDirective() *EffortDirective {
@@ -2672,7 +2743,7 @@ type ListEffortDirectivesRequest struct {
 
 func (x *ListEffortDirectivesRequest) Reset() {
 	*x = ListEffortDirectivesRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2684,7 +2755,7 @@ func (x *ListEffortDirectivesRequest) String() string {
 func (*ListEffortDirectivesRequest) ProtoMessage() {}
 
 func (x *ListEffortDirectivesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2697,7 +2768,7 @@ func (x *ListEffortDirectivesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortDirectivesRequest.ProtoReflect.Descriptor instead.
 func (*ListEffortDirectivesRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListEffortDirectivesRequest) GetEffortRef() string {
@@ -2731,7 +2802,7 @@ type ListEffortDirectivesResponse struct {
 
 func (x *ListEffortDirectivesResponse) Reset() {
 	*x = ListEffortDirectivesResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2743,7 +2814,7 @@ func (x *ListEffortDirectivesResponse) String() string {
 func (*ListEffortDirectivesResponse) ProtoMessage() {}
 
 func (x *ListEffortDirectivesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2756,7 +2827,7 @@ func (x *ListEffortDirectivesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortDirectivesResponse.ProtoReflect.Descriptor instead.
 func (*ListEffortDirectivesResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListEffortDirectivesResponse) GetDirectives() []*EffortDirective {
@@ -2799,7 +2870,7 @@ type UpdateEffortDirectiveRequest struct {
 
 func (x *UpdateEffortDirectiveRequest) Reset() {
 	*x = UpdateEffortDirectiveRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2811,7 +2882,7 @@ func (x *UpdateEffortDirectiveRequest) String() string {
 func (*UpdateEffortDirectiveRequest) ProtoMessage() {}
 
 func (x *UpdateEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2824,7 +2895,7 @@ func (x *UpdateEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEffortDirectiveRequest.ProtoReflect.Descriptor instead.
 func (*UpdateEffortDirectiveRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateEffortDirectiveRequest) GetDirectiveId() string {
@@ -2961,7 +3032,7 @@ type EffortAssessment struct {
 
 func (x *EffortAssessment) Reset() {
 	*x = EffortAssessment{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2973,7 +3044,7 @@ func (x *EffortAssessment) String() string {
 func (*EffortAssessment) ProtoMessage() {}
 
 func (x *EffortAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2986,7 +3057,7 @@ func (x *EffortAssessment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortAssessment.ProtoReflect.Descriptor instead.
 func (*EffortAssessment) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *EffortAssessment) GetAssessmentId() string {
@@ -3146,7 +3217,7 @@ type RecordEffortAssessmentRequest struct {
 
 func (x *RecordEffortAssessmentRequest) Reset() {
 	*x = RecordEffortAssessmentRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3158,7 +3229,7 @@ func (x *RecordEffortAssessmentRequest) String() string {
 func (*RecordEffortAssessmentRequest) ProtoMessage() {}
 
 func (x *RecordEffortAssessmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3171,7 +3242,7 @@ func (x *RecordEffortAssessmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordEffortAssessmentRequest.ProtoReflect.Descriptor instead.
 func (*RecordEffortAssessmentRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RecordEffortAssessmentRequest) GetAssessment() *EffortAssessment {
@@ -3392,7 +3463,14 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"enrollment\x18\x01 \x01(\v2\".agent_manager.v1.EffortEnrollmentR\n" +
 	"enrollment\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12'\n" +
-	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\xa4\x01\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\xfa\x01\n" +
+	"\x1eReconcileEffortMetadataRequest\x12B\n" +
+	"\n" +
+	"enrollment\x18\x01 \x01(\v2\".agent_manager.v1.EffortEnrollmentR\n" +
+	"enrollment\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12>\n" +
+	"\tauthority\x18\x04 \x01(\x0e2 .agent_manager.v1.WatchAuthorityR\tauthority\"\xa4\x01\n" +
 	"\x15WithdrawEffortRequest\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12+\n" +
@@ -3575,7 +3653,7 @@ func file_agent_manager_v1_domain_effort_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_effort_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
 	(EffortFreshness)(0),                    // 0: agent_manager.v1.EffortFreshness
 	(EffortDirectiveDelivery)(0),            // 1: agent_manager.v1.EffortDirectiveDelivery
@@ -3595,89 +3673,92 @@ var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
 	(*ListEffortsRequest)(nil),              // 15: agent_manager.v1.ListEffortsRequest
 	(*ListEffortsResponse)(nil),             // 16: agent_manager.v1.ListEffortsResponse
 	(*EnrollEffortRequest)(nil),             // 17: agent_manager.v1.EnrollEffortRequest
-	(*WithdrawEffortRequest)(nil),           // 18: agent_manager.v1.WithdrawEffortRequest
-	(*ReconcileEffortDiscoveryRequest)(nil), // 19: agent_manager.v1.ReconcileEffortDiscoveryRequest
-	(*EffortDirective)(nil),                 // 20: agent_manager.v1.EffortDirective
-	(*EffortDirectiveAuthorityBinding)(nil), // 21: agent_manager.v1.EffortDirectiveAuthorityBinding
-	(*EffortRecoveryExpectation)(nil),       // 22: agent_manager.v1.EffortRecoveryExpectation
-	(*EffortRecoveryVerification)(nil),      // 23: agent_manager.v1.EffortRecoveryVerification
-	(*EffortRepairLink)(nil),                // 24: agent_manager.v1.EffortRepairLink
-	(*RequestEffortDirectiveRequest)(nil),   // 25: agent_manager.v1.RequestEffortDirectiveRequest
-	(*ListEffortDirectivesRequest)(nil),     // 26: agent_manager.v1.ListEffortDirectivesRequest
-	(*ListEffortDirectivesResponse)(nil),    // 27: agent_manager.v1.ListEffortDirectivesResponse
-	(*UpdateEffortDirectiveRequest)(nil),    // 28: agent_manager.v1.UpdateEffortDirectiveRequest
-	(*EffortAssessment)(nil),                // 29: agent_manager.v1.EffortAssessment
-	(*RecordEffortAssessmentRequest)(nil),   // 30: agent_manager.v1.RecordEffortAssessmentRequest
-	nil,                                     // 31: agent_manager.v1.EffortAssessment.TargetRevisionsEntry
-	(WatchActionKind)(0),                    // 32: agent_manager.v1.WatchActionKind
-	(*timestamppb.Timestamp)(nil),           // 33: google.protobuf.Timestamp
-	(WatchAuthority)(0),                     // 34: agent_manager.v1.WatchAuthority
+	(*ReconcileEffortMetadataRequest)(nil),  // 18: agent_manager.v1.ReconcileEffortMetadataRequest
+	(*WithdrawEffortRequest)(nil),           // 19: agent_manager.v1.WithdrawEffortRequest
+	(*ReconcileEffortDiscoveryRequest)(nil), // 20: agent_manager.v1.ReconcileEffortDiscoveryRequest
+	(*EffortDirective)(nil),                 // 21: agent_manager.v1.EffortDirective
+	(*EffortDirectiveAuthorityBinding)(nil), // 22: agent_manager.v1.EffortDirectiveAuthorityBinding
+	(*EffortRecoveryExpectation)(nil),       // 23: agent_manager.v1.EffortRecoveryExpectation
+	(*EffortRecoveryVerification)(nil),      // 24: agent_manager.v1.EffortRecoveryVerification
+	(*EffortRepairLink)(nil),                // 25: agent_manager.v1.EffortRepairLink
+	(*RequestEffortDirectiveRequest)(nil),   // 26: agent_manager.v1.RequestEffortDirectiveRequest
+	(*ListEffortDirectivesRequest)(nil),     // 27: agent_manager.v1.ListEffortDirectivesRequest
+	(*ListEffortDirectivesResponse)(nil),    // 28: agent_manager.v1.ListEffortDirectivesResponse
+	(*UpdateEffortDirectiveRequest)(nil),    // 29: agent_manager.v1.UpdateEffortDirectiveRequest
+	(*EffortAssessment)(nil),                // 30: agent_manager.v1.EffortAssessment
+	(*RecordEffortAssessmentRequest)(nil),   // 31: agent_manager.v1.RecordEffortAssessmentRequest
+	nil,                                     // 32: agent_manager.v1.EffortAssessment.TargetRevisionsEntry
+	(WatchActionKind)(0),                    // 33: agent_manager.v1.WatchActionKind
+	(*timestamppb.Timestamp)(nil),           // 34: google.protobuf.Timestamp
+	(WatchAuthority)(0),                     // 35: agent_manager.v1.WatchAuthority
 }
 var file_agent_manager_v1_domain_effort_proto_depIdxs = []int32{
 	3,  // 0: agent_manager.v1.EffortEnrollment.subjects:type_name -> agent_manager.v1.EffortSubject
-	32, // 1: agent_manager.v1.EffortEnrollment.permitted_actions:type_name -> agent_manager.v1.WatchActionKind
-	33, // 2: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
-	33, // 3: agent_manager.v1.EffortEnrollment.authority_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 1: agent_manager.v1.EffortEnrollment.permitted_actions:type_name -> agent_manager.v1.WatchActionKind
+	34, // 2: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
+	34, // 3: agent_manager.v1.EffortEnrollment.authority_expires_at:type_name -> google.protobuf.Timestamp
 	5,  // 4: agent_manager.v1.EffortEnrollment.dispatch_authorization:type_name -> agent_manager.v1.SupervisorDispatchAuthorization
-	33, // 5: agent_manager.v1.SupervisorDispatchAuthorization.issued_at:type_name -> google.protobuf.Timestamp
-	33, // 6: agent_manager.v1.SupervisorDispatchAuthorization.expires_at:type_name -> google.protobuf.Timestamp
-	33, // 7: agent_manager.v1.SupervisorDispatchAuthorization.revoked_at:type_name -> google.protobuf.Timestamp
-	33, // 8: agent_manager.v1.SupervisorDispatchAuthorization.last_dispatched_at:type_name -> google.protobuf.Timestamp
-	33, // 9: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
-	33, // 10: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
+	34, // 5: agent_manager.v1.SupervisorDispatchAuthorization.issued_at:type_name -> google.protobuf.Timestamp
+	34, // 6: agent_manager.v1.SupervisorDispatchAuthorization.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 7: agent_manager.v1.SupervisorDispatchAuthorization.revoked_at:type_name -> google.protobuf.Timestamp
+	34, // 8: agent_manager.v1.SupervisorDispatchAuthorization.last_dispatched_at:type_name -> google.protobuf.Timestamp
+	34, // 9: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
+	34, // 10: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
 	6,  // 11: agent_manager.v1.EffortDiscovery.findings:type_name -> agent_manager.v1.EffortDiscoveryFinding
 	8,  // 12: agent_manager.v1.EffortDiscovery.standing_usage:type_name -> agent_manager.v1.EffortUsage
-	33, // 13: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
-	33, // 14: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
+	34, // 13: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
+	34, // 14: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
 	3,  // 15: agent_manager.v1.EffortAssignment.subject:type_name -> agent_manager.v1.EffortSubject
 	8,  // 16: agent_manager.v1.EffortAssignment.usage:type_name -> agent_manager.v1.EffortUsage
-	33, // 17: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
+	34, // 17: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
 	4,  // 18: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	33, // 19: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
+	34, // 19: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 20: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
 	11, // 21: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
 	10, // 22: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
 	8,  // 23: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
-	20, // 24: agent_manager.v1.EffortBoardRow.directives:type_name -> agent_manager.v1.EffortDirective
-	29, // 25: agent_manager.v1.EffortBoardRow.last_assessment:type_name -> agent_manager.v1.EffortAssessment
+	21, // 24: agent_manager.v1.EffortBoardRow.directives:type_name -> agent_manager.v1.EffortDirective
+	30, // 25: agent_manager.v1.EffortBoardRow.last_assessment:type_name -> agent_manager.v1.EffortAssessment
 	9,  // 26: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
 	12, // 27: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
 	7,  // 28: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
-	33, // 29: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
+	34, // 29: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
 	9,  // 30: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
 	4,  // 31: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
 	4,  // 32: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	32, // 33: agent_manager.v1.EffortDirective.kind:type_name -> agent_manager.v1.WatchActionKind
-	33, // 34: agent_manager.v1.EffortDirective.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 35: agent_manager.v1.EffortDirective.delivery:type_name -> agent_manager.v1.EffortDirectiveDelivery
-	2,  // 36: agent_manager.v1.EffortDirective.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
-	33, // 37: agent_manager.v1.EffortDirective.created_at:type_name -> google.protobuf.Timestamp
-	33, // 38: agent_manager.v1.EffortDirective.delivered_at:type_name -> google.protobuf.Timestamp
-	12, // 39: agent_manager.v1.EffortDirective.source_snapshot:type_name -> agent_manager.v1.EffortBoardRow
-	8,  // 40: agent_manager.v1.EffortDirective.supervision_usage:type_name -> agent_manager.v1.EffortUsage
-	22, // 41: agent_manager.v1.EffortDirective.recovery_expectation:type_name -> agent_manager.v1.EffortRecoveryExpectation
-	23, // 42: agent_manager.v1.EffortDirective.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
-	21, // 43: agent_manager.v1.EffortDirective.authority_binding:type_name -> agent_manager.v1.EffortDirectiveAuthorityBinding
-	33, // 44: agent_manager.v1.EffortRecoveryVerification.observed_at:type_name -> google.protobuf.Timestamp
-	20, // 45: agent_manager.v1.RequestEffortDirectiveRequest.directive:type_name -> agent_manager.v1.EffortDirective
-	34, // 46: agent_manager.v1.RequestEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	20, // 47: agent_manager.v1.ListEffortDirectivesResponse.directives:type_name -> agent_manager.v1.EffortDirective
-	34, // 48: agent_manager.v1.UpdateEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	2,  // 49: agent_manager.v1.UpdateEffortDirectiveRequest.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
-	8,  // 50: agent_manager.v1.UpdateEffortDirectiveRequest.supervision_usage:type_name -> agent_manager.v1.EffortUsage
-	23, // 51: agent_manager.v1.UpdateEffortDirectiveRequest.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
-	31, // 52: agent_manager.v1.EffortAssessment.target_revisions:type_name -> agent_manager.v1.EffortAssessment.TargetRevisionsEntry
-	8,  // 53: agent_manager.v1.EffortAssessment.observed_usage:type_name -> agent_manager.v1.EffortUsage
-	8,  // 54: agent_manager.v1.EffortAssessment.unallocated_usage:type_name -> agent_manager.v1.EffortUsage
-	33, // 55: agent_manager.v1.EffortAssessment.observed_at:type_name -> google.protobuf.Timestamp
-	24, // 56: agent_manager.v1.EffortAssessment.repair_links:type_name -> agent_manager.v1.EffortRepairLink
-	29, // 57: agent_manager.v1.RecordEffortAssessmentRequest.assessment:type_name -> agent_manager.v1.EffortAssessment
-	34, // 58: agent_manager.v1.RecordEffortAssessmentRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	4,  // 33: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	35, // 34: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	33, // 35: agent_manager.v1.EffortDirective.kind:type_name -> agent_manager.v1.WatchActionKind
+	34, // 36: agent_manager.v1.EffortDirective.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 37: agent_manager.v1.EffortDirective.delivery:type_name -> agent_manager.v1.EffortDirectiveDelivery
+	2,  // 38: agent_manager.v1.EffortDirective.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
+	34, // 39: agent_manager.v1.EffortDirective.created_at:type_name -> google.protobuf.Timestamp
+	34, // 40: agent_manager.v1.EffortDirective.delivered_at:type_name -> google.protobuf.Timestamp
+	12, // 41: agent_manager.v1.EffortDirective.source_snapshot:type_name -> agent_manager.v1.EffortBoardRow
+	8,  // 42: agent_manager.v1.EffortDirective.supervision_usage:type_name -> agent_manager.v1.EffortUsage
+	23, // 43: agent_manager.v1.EffortDirective.recovery_expectation:type_name -> agent_manager.v1.EffortRecoveryExpectation
+	24, // 44: agent_manager.v1.EffortDirective.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
+	22, // 45: agent_manager.v1.EffortDirective.authority_binding:type_name -> agent_manager.v1.EffortDirectiveAuthorityBinding
+	34, // 46: agent_manager.v1.EffortRecoveryVerification.observed_at:type_name -> google.protobuf.Timestamp
+	21, // 47: agent_manager.v1.RequestEffortDirectiveRequest.directive:type_name -> agent_manager.v1.EffortDirective
+	35, // 48: agent_manager.v1.RequestEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	21, // 49: agent_manager.v1.ListEffortDirectivesResponse.directives:type_name -> agent_manager.v1.EffortDirective
+	35, // 50: agent_manager.v1.UpdateEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	2,  // 51: agent_manager.v1.UpdateEffortDirectiveRequest.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
+	8,  // 52: agent_manager.v1.UpdateEffortDirectiveRequest.supervision_usage:type_name -> agent_manager.v1.EffortUsage
+	24, // 53: agent_manager.v1.UpdateEffortDirectiveRequest.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
+	32, // 54: agent_manager.v1.EffortAssessment.target_revisions:type_name -> agent_manager.v1.EffortAssessment.TargetRevisionsEntry
+	8,  // 55: agent_manager.v1.EffortAssessment.observed_usage:type_name -> agent_manager.v1.EffortUsage
+	8,  // 56: agent_manager.v1.EffortAssessment.unallocated_usage:type_name -> agent_manager.v1.EffortUsage
+	34, // 57: agent_manager.v1.EffortAssessment.observed_at:type_name -> google.protobuf.Timestamp
+	25, // 58: agent_manager.v1.EffortAssessment.repair_links:type_name -> agent_manager.v1.EffortRepairLink
+	30, // 59: agent_manager.v1.RecordEffortAssessmentRequest.assessment:type_name -> agent_manager.v1.EffortAssessment
+	35, // 60: agent_manager.v1.RecordEffortAssessmentRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	61, // [61:61] is the sub-list for method output_type
+	61, // [61:61] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_effort_proto_init() }
@@ -3695,7 +3776,7 @@ func file_agent_manager_v1_domain_effort_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_effort_proto_rawDesc), len(file_agent_manager_v1_domain_effort_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   29,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

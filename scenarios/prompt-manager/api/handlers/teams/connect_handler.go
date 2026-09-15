@@ -12,13 +12,15 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"prompt-manager/handlers/transportbridge"
+	workspace "prompt-manager/internal/effortworkspace"
 	domain "prompt-manager/internal/teams"
 )
 
 type connectHandler struct {
 	teamsconnect.UnimplementedTeamsServiceHandler
-	legacy    *domain.Handlers
-	knowledge knowledgeHandlers
+	legacy     *domain.Handlers
+	knowledge  knowledgeHandlers
+	workspaces *workspace.Store
 }
 
 type knowledgeHandlers interface {
@@ -28,12 +30,51 @@ type knowledgeHandlers interface {
 	DeleteTeamCorpusHandler(http.ResponseWriter, *http.Request)
 }
 
-func NewConnectMount(legacy *domain.Handlers, knowledge ...knowledgeHandlers) (string, http.Handler) {
+func NewConnectMount(legacy *domain.Handlers, extras ...any) (string, http.Handler) {
 	var kh knowledgeHandlers
-	if len(knowledge) > 0 {
-		kh = knowledge[0]
+	var ws *workspace.Store
+	for _, extra := range extras {
+		switch value := extra.(type) {
+		case knowledgeHandlers:
+			kh = value
+		case *workspace.Store:
+			ws = value
+		}
 	}
-	return teamsconnect.NewTeamsServiceHandler(&connectHandler{legacy: legacy, knowledge: kh})
+	return teamsconnect.NewTeamsServiceHandler(&connectHandler{legacy: legacy, knowledge: kh, workspaces: ws})
+}
+
+func (h *connectHandler) ListEffortWorkspaces(ctx context.Context, req *connect.Request[teamsv1.ListEffortWorkspacesRequest]) (*connect.Response[teamsv1.EffortWorkspaceListResponse], error) {
+	if h.workspaces == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("effort workspace store not configured"))
+	}
+	result, err := h.workspaces.List(ctx, req.Msg.GetTeamId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	out := &teamsv1.EffortWorkspaceListResponse{TeamId: result.TeamID}
+	for _, item := range result.Workspaces {
+		workspace := &teamsv1.EffortWorkspace{EffortRef: item.EffortRef, Slug: item.Slug, Stage: item.Stage}
+		for _, file := range item.Files {
+			workspace.Files = append(workspace.Files, &teamsv1.EffortWorkspaceFile{Path: file.Path, IsDir: file.IsDir, Size: file.Size})
+		}
+		out.Workspaces = append(out.Workspaces, workspace)
+	}
+	for _, item := range result.Unavailable {
+		out.Unavailable = append(out.Unavailable, &teamsv1.EffortWorkspaceUnavailable{EffortRef: item.EffortRef, Reason: item.Reason})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) GetEffortWorkspaceContent(ctx context.Context, req *connect.Request[teamsv1.GetEffortWorkspaceContentRequest]) (*connect.Response[teamsv1.EffortWorkspaceContent], error) {
+	if h.workspaces == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("effort workspace store not configured"))
+	}
+	result, err := h.workspaces.Read(ctx, req.Msg.GetEffortRef(), req.Msg.GetPath())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&teamsv1.EffortWorkspaceContent{EffortRef: result.EffortRef, Path: result.Path, Content: result.Content}), nil
 }
 
 func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[teamsv1.ListTeamsRequest]) (*connect.Response[teamsv1.ListTeamsResponse], error) {

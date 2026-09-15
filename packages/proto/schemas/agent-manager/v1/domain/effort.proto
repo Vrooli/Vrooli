@@ -233,6 +233,15 @@ message EnrollEffortRequest {
   uint64 expected_revision = 2;
   string idempotency_key = 3;
 }
+// Metadata reconciliation deliberately excludes authority, dispatch and
+// withdrawal state. It lets an explicitly scoped effort coordinator keep the
+// owner projection current without renewing or revoking a grant.
+message ReconcileEffortMetadataRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+  WatchAuthority authority = 4;
+}
 message WithdrawEffortRequest {
   string effort_ref = 1;
   uint64 expected_revision = 2;

@@ -1,12 +1,14 @@
 package handlers
 
 import (
-	"agent-manager/internal/supervision"
-	"connectrpc.com/connect"
 	"context"
 	"errors"
-	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"net/http"
+
+	"agent-manager/internal/supervision"
+	"connectrpc.com/connect"
+
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 type effortActionAuthorizer interface {
@@ -47,6 +49,7 @@ func (h *AgentManagerConnectHandler) RecordEffortAssessment(ctx context.Context,
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *AgentManagerConnectHandler) effortActor(ctx context.Context, token string, authority pb.WatchAuthority) (supervision.EffortActor, error) {
 	if h.watchActionAuth == nil {
 		return supervision.EffortActor{}, connect.NewError(connect.CodeUnavailable, errors.New("owner authorizer unavailable"))
@@ -117,6 +120,32 @@ func (h *AgentManagerConnectHandler) EnrollEffort(ctx context.Context, req *conn
 		return nil, err
 	}
 	out, err := s.Enroll(ctx, req.Msg, actor)
+	if err != nil {
+		return nil, watchConnectError(err)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *AgentManagerConnectHandler) ReconcileEffortMetadata(ctx context.Context, req *connect.Request[pb.ReconcileEffortMetadataRequest]) (*connect.Response[pb.EffortEnrollment], error) {
+	s, err := h.effortService()
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request required"))
+	}
+	authority := req.Msg.GetAuthority()
+	if authority == pb.WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED {
+		authority = pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR
+	}
+	actor, err := h.effortActor(ctx, effortToken(req.Header(), authority), authority)
+	if err != nil {
+		return nil, err
+	}
+	if authority == pb.WatchAuthority_WATCH_AUTHORITY_FAMILY_PARENT {
+		actor.MetadataReconciler = true
+	}
+	out, err := s.ReconcileMetadata(ctx, req.Msg, actor)
 	if err != nil {
 		return nil, watchConnectError(err)
 	}

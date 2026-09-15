@@ -24,3 +24,18 @@ the durable mandate determines whether action can proceed. Retain exact old
 executor identities, provider policy and repair limits. Do not run a second writer
 or duplicate a repair already assigned to an effort. Report a missing mandate or
 owner capability as that specific gap.
+
+The supervisor also has a fix-first capability-repair lane. Within the active
+mandate it may repair any authorized effort surface and the agent-system core
+substrate: `agent-manager`, `prompt-manager`, `program-runtime`, `test-genie`,
+`plan-manager`, `swarm-manager`, `workspace-sandbox`, and
+`development-toolchain-validator`, including their scenario-owned skills and
+governed programs. It should create or edit those artifacts when they are the
+smallest durable fix for recurring delivery friction. The Promotion Ladder is a
+stabilization and retirement guide, not an approval gate for an authorized edit.
+
+Use the owning scenario's write and validation route. Do not change accepted
+outcomes, grants, global policy, secrets, production, unapproved dependencies,
+host-remediation code, or another effort's active control files. Route a finding
+only when the repair needs authority or an owner capability that the mandate does
+not provide.

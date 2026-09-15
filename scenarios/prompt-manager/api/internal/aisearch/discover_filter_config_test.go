@@ -1,11 +1,7 @@
 package aisearch
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -143,80 +139,4 @@ type MockDiscoverFilterConfigProvider struct {
 
 func (m *MockDiscoverFilterConfigProvider) Get(_ context.Context) (DiscoverFilterConfig, error) {
 	return m.cfg, m.err
-}
-
-func TestGetDiscoverFilterConfig_Handler(t *testing.T) {
-	dir := t.TempDir()
-	store := NewDiscoverFilterConfigStore(dir)
-
-	h := NewHandlers(&Service{})
-	h.SetDiscoverFilterConfigStore(store)
-
-	req, _ := http.NewRequest("GET", "/api/v1/config/discover-filters", nil)
-	rr := httptest.NewRecorder()
-
-	h.GetDiscoverFilterConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var cfg DiscoverFilterConfig
-	if err := json.NewDecoder(rr.Body).Decode(&cfg); err != nil {
-		t.Fatal(err)
-	}
-	if cfg.IncludeDrafts {
-		t.Error("expected IncludeDrafts=false in defaults")
-	}
-	if len(cfg.ExcludeModes) != 1 || cfg.ExcludeModes[0] != "scope" {
-		t.Errorf("expected ExcludeModes=[scope], got %v", cfg.ExcludeModes)
-	}
-}
-
-func TestPutDiscoverFilterConfig_Handler(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "config"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	store := NewDiscoverFilterConfigStore(dir)
-	h := NewHandlers(&Service{})
-	h.SetDiscoverFilterConfigStore(store)
-
-	custom := DiscoverFilterConfig{
-		IncludeDrafts: true,
-		ExcludeModes:  []string{"tools"},
-		ExcludeIDs:    []string{"s1"},
-	}
-	body, _ := json.Marshal(custom)
-	req, _ := http.NewRequest("PUT", "/api/v1/config/discover-filters", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.PutDiscoverFilterConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var returned DiscoverFilterConfig
-	if err := json.NewDecoder(rr.Body).Decode(&returned); err != nil {
-		t.Fatal(err)
-	}
-	if !returned.IncludeDrafts {
-		t.Error("expected IncludeDrafts=true")
-	}
-}
-
-func TestGetDiscoverFilterConfig_Handler_NoStore(t *testing.T) {
-	h := NewHandlers(&Service{})
-
-	req, _ := http.NewRequest("GET", "/api/v1/config/discover-filters", nil)
-	rr := httptest.NewRecorder()
-
-	h.GetDiscoverFilterConfig(rr, req)
-
-	if rr.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected 503, got %d", rr.Code)
-	}
 }

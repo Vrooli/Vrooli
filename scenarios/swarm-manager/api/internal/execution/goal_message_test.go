@@ -41,8 +41,8 @@ func TestComposeGoalMessageShapeARendersSlotsAndNoteVerbatim(t *testing.T) {
 		}
 		last = idx
 	}
-	if len([]rune(message)) > GoalMessageMaxChars {
-		t.Fatalf("message exceeds the bound: %d", len([]rune(message)))
+	if len([]rune(message)) > GoalPromptMaxChars {
+		t.Fatalf("message exceeds the prompt bound: %d", len([]rune(message)))
 	}
 }
 
@@ -56,7 +56,7 @@ func TestComposeGoalMessageShapeBRendersMandate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(message, "Every required setpoint row in audio-tools-improve is in band") {
+	if !strings.Contains(message, "Bring every required row in audio-tools-improve in band") {
 		t.Fatalf("mandate destination missing: %q", message)
 	}
 	if strings.Contains(message, "{{") || strings.Contains(message, "<...>") {
@@ -109,10 +109,12 @@ func TestComposeGoalMessageMandateCarriesBoardProofAndImproveSkill(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Every required setpoint row in audio-tools-improve is in band on run audio-tools.setpoint-read",
-		"scenario-improvement-campaign audio-tools-improve",
-		"Proof: paste the setpoint board after each intervention. Never move a row by editing its band or sensor.",
+		"Bring every required row in audio-tools-improve in band on audio-tools.setpoint-read",
+		"scenario-improvement-campaign, audio-tools-improve",
+		"Evidence: use authorized local/simulated paths",
+		"Never edit bands, thresholds, sensors, receipts, or board logic",
 		"Authority: audio-tools-portable-voice-mandate grants development inside scenarios/audio-tools/**",
+		"Mandate lane: use local/simulated paths",
 	} {
 		if !strings.Contains(message, want) {
 			t.Fatalf("mandate message missing %q: %q", want, message)
@@ -124,22 +126,49 @@ func TestComposeGoalMessageMandateCarriesBoardProofAndImproveSkill(t *testing.T)
 	if !strings.HasSuffix(message, "Operator note: Run goal mode; one run.") {
 		t.Fatalf("operator note missing: %q", message)
 	}
-	if len([]rune(message)) > GoalMessageMaxChars {
-		t.Fatalf("message exceeds the bound: %d", len([]rune(message)))
+	if len([]rune(message)) > GoalPromptMaxChars {
+		t.Fatalf("message exceeds the prompt bound: %d", len([]rune(message)))
 	}
 }
 
-func TestComposeGoalMessageFailsLoudlyWhenTooLong(t *testing.T) {
+func TestComposeGoalMessageAllowsPromptLongerThanUntil(t *testing.T) {
+	message, err := ComposeGoalMessage(GoalMessageInput{
+		PlanShape:    "mandate",
+		ScenarioName: "audio-tools",
+		ProgramName:  "audio-tools-improve",
+		OperatorNote: strings.Repeat("x", GoalUntilMaxChars),
+	})
+	if err != nil {
+		t.Fatalf("long task prompt should be accepted independently of until: %v", err)
+	}
+	if len([]rune(message)) <= GoalUntilMaxChars {
+		t.Fatalf("test prompt did not exceed until limit: %d", len([]rune(message)))
+	}
+}
+
+func TestComposeGoalMessageFailsLoudlyWhenPromptTooLong(t *testing.T) {
 	_, err := ComposeGoalMessage(GoalMessageInput{
 		PlanShape:    "phased",
 		PlanSlug:     "big",
-		OperatorNote: strings.Repeat("x", GoalMessageMaxChars+1),
+		OperatorNote: strings.Repeat("x", GoalPromptMaxChars+1),
 	})
 	var tooLong *GoalMessageTooLongError
-	if err == nil || !strings.Contains(err.Error(), "over the 2048-character limit") {
+	if err == nil || !strings.Contains(err.Error(), "over the 16384-character limit") {
 		t.Fatalf("expected a typed overflow error, got %v", err)
 	}
 	if !errors.As(err, &tooLong) {
 		t.Fatalf("error is not *GoalMessageTooLongError: %T", err)
+	}
+}
+
+func TestRenderFinishLineIsShortAndExplicit(t *testing.T) {
+	line := RenderFinishLine(GoalMessageInput{PlanShape: "mandate", ScenarioName: "audio-tools"})
+	if len([]rune(line)) > GoalUntilMaxChars {
+		t.Fatalf("finish line exceeds Agent Manager until limit: %d", len([]rune(line)))
+	}
+	for _, want := range []string{"fresh owner-backed evidence", "exclusions are recorded", "evidence audit passes"} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("finish line missing %q: %q", want, line)
+		}
 	}
 }

@@ -4,6 +4,7 @@ package ogmeta
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -56,38 +57,44 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "url parameter is required", http.StatusBadRequest)
 		return
 	}
+	_, cacheHit := h.cache.get(targetURL)
 
-	// Validate URL
-	parsedURL, err := url.Parse(targetURL)
-	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		http.Error(w, "invalid URL: must be http or https", http.StatusBadRequest)
-		return
-	}
-
-	// Check cache
-	if cached, ok := h.cache.get(targetURL); ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("X-Cache", "HIT")
-		_ = json.NewEncoder(w).Encode(cached)
-		return
-	}
-
-	// Fetch and parse OG metadata
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	meta, err := h.fetchOGMeta(ctx, targetURL)
+	meta, err := h.Fetch(r.Context(), targetURL)
 	if err != nil {
-		http.Error(w, "failed to fetch metadata: "+err.Error(), http.StatusBadGateway)
+		status := http.StatusBadGateway
+		if strings.Contains(err.Error(), "invalid URL") {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
-
-	// Cache the result for 15 minutes
-	h.cache.set(targetURL, meta, 15*time.Minute)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Cache", "MISS")
+	if cacheHit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
+	}
 	_ = json.NewEncoder(w).Encode(meta)
+}
+
+// Fetch retrieves Open Graph metadata without coupling callers to HTTP.
+func (h *Handlers) Fetch(parent context.Context, targetURL string) (Response, error) {
+	parsedURL, err := url.Parse(targetURL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return Response{}, fmt.Errorf("invalid URL: must be http or https")
+	}
+	if cached, ok := h.cache.get(targetURL); ok {
+		return cached, nil
+	}
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
+	defer cancel()
+	meta, err := h.fetchOGMeta(ctx, targetURL)
+	if err != nil {
+		return Response{}, fmt.Errorf("failed to fetch metadata: %w", err)
+	}
+	h.cache.set(targetURL, meta, 15*time.Minute)
+	return meta, nil
 }
 
 // fetchOGMeta fetches and parses OG metadata from a URL.

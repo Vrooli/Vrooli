@@ -47,6 +47,7 @@ type Handlers struct {
 	relationStore      store.RelationStore
 	indexStore         store.IndexStore
 	heartbeatScheduler HeartbeatScheduler
+	effortSupervisor   EffortSupervisorStarter
 	graphInvalidator   GraphInvalidator
 	aiIndexer          AITeamIndexer
 	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
@@ -78,9 +79,20 @@ type HeartbeatScheduler interface {
 	Unschedule(teamID, agentID string)
 }
 
+// EffortSupervisorStarter arms the one standing supervision service when an
+// eligible finite effort team becomes active.
+type EffortSupervisorStarter interface {
+	EnsureStandingSupervisorStarted(ctx context.Context) error
+}
+
 // SetHeartbeatScheduler attaches a scheduler after handlers are constructed.
 func (h *Handlers) SetHeartbeatScheduler(scheduler HeartbeatScheduler) {
 	h.heartbeatScheduler = scheduler
+}
+
+// SetEffortSupervisorStarter attaches control-plane-owned supervisor admission.
+func (h *Handlers) SetEffortSupervisorStarter(starter EffortSupervisorStarter) {
+	h.effortSupervisor = starter
 }
 
 // SetGraphInvalidator sets the graph invalidator.
@@ -285,6 +297,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	previousEnabled := current.Enabled
 	merged := *current
 	if updates.PurposeSet {
 		merged.Purpose = updates.Purpose
@@ -353,6 +366,18 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	if req.Enabled != nil {
 		h.updateHeartbeatSchedules(ctx, id, *req.Enabled)
+		if *req.Enabled && eligibleFiniteEffortTeam(&merged) && h.effortSupervisor != nil {
+			if err := h.effortSupervisor.EnsureStandingSupervisorStarted(ctx); err != nil {
+				rollback := &store.Team{Enabled: previousEnabled, EnabledSet: true}
+				if rollbackErr := h.teamStore.Update(ctx, id, rollback); rollbackErr != nil {
+					log.Printf("automatic standing supervisor admission for %s failed and rollback failed: %v (admission: %v)", id, rollbackErr, err)
+				} else {
+					h.updateHeartbeatSchedules(ctx, id, previousEnabled)
+				}
+				http.Error(w, fmt.Sprintf("standing supervisor admission failed: %v", err), http.StatusServiceUnavailable)
+				return
+			}
+		}
 	}
 	if req.Archived != nil && *req.Archived {
 		h.updateHeartbeatSchedules(ctx, id, false)
@@ -363,6 +388,12 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+}
+
+func eligibleFiniteEffortTeam(team *store.Team) bool {
+	return team != nil && team.Enabled && !team.Archived &&
+		team.Purpose == teamconfig.PurposeDelivery &&
+		team.Lifetime == teamconfig.LifetimeFinite && len(team.EffortRefs) > 0
 }
 
 // Delete handles DELETE /teams/{id} - deletes a team.

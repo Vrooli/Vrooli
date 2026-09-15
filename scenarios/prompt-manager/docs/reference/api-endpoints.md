@@ -19,10 +19,10 @@ JSON. The API mounts these generated services:
 | actions | `ActionsService` | 7 | Action authoring, validation, CRUD, governed execution |
 | tags | `TagsService` | 2 | Persisted tag taxonomy |
 | search | `SearchService` | 6 | Deterministic entity/content search |
-| aisearch | `AISearchService` | 8 | Semantic search and index reconciliation |
+| aisearch | `AISearchService` | 12 | Semantic search, index reconciliation, and discovery configuration |
 | discovery | `DiscoveryService` | 4 | Capability discovery, gaps, telemetry, skill usage |
 | agents | `AgentsService` | 15 | Agent identity, soul, files, membership reads |
-| teams | `TeamsService` | 28 | Team aggregate, membership, roles, files, org, messages, exchange |
+| teams | `TeamsService` | 30 | Team aggregate, membership, roles, files, effort workspaces, org, messages, exchange |
 | topics | `TopicsService` | 8 | Topic taxonomy, matching, accumulated skills |
 | templates | `TemplatesService` | 1 | Agent-file templates |
 | testing | `TestingService` | 2 | Skill tests and durable history |
@@ -57,8 +57,8 @@ or telemetry service.
 
 ## Remaining HTTP compatibility routes
 
-Only four hand-written registrations remain: `/health`, `/api/v1/health`, and
-the two effort-workspace read routes. They are explicit compatibility seams.
+Only two hand-written registrations remain: `/health` and `/api/v1/health`.
+They are explicit health compatibility seams.
 Budget and discovery-filter configuration now use `AISearchService` Connect
 RPCs. All former domain REST registrations were retired after generated-client
 consumers migrated.

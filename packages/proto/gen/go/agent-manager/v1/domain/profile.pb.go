@@ -206,6 +206,9 @@ type AgentProfile struct {
 	AllowedPaths []string `protobuf:"bytes,13,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
 	// Paths explicitly denied.
 	DeniedPaths []string `protobuf:"bytes,14,rep,name=denied_paths,json=deniedPaths,proto3" json:"denied_paths,omitempty"`
+	// Explicit ceiling for delegated identity scopes. This must include
+	// agent-manager:supervise for a profile used by an autonomous supervisor.
+	DeclaredScopes []string `protobuf:"bytes,38,rep,name=declared_scopes,json=declaredScopes,proto3" json:"declared_scopes,omitempty"`
 	// User or system that created this profile.
 	CreatedBy string `protobuf:"bytes,15,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	// When the profile was created.
@@ -409,6 +412,13 @@ func (x *AgentProfile) GetAllowedPaths() []string {
 func (x *AgentProfile) GetDeniedPaths() []string {
 	if x != nil {
 		return x.DeniedPaths
+	}
+	return nil
+}
+
+func (x *AgentProfile) GetDeclaredScopes() []string {
+	if x != nil {
+		return x.DeclaredScopes
 	}
 	return nil
 }
@@ -2193,7 +2203,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa1\f\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\f\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -2226,7 +2236,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0elocal_override\x18\x1f \x01(\bR\rlocalOverride\x12F\n" +
 	"\x0esandbox_config\x18\x14 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\r \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\x0e \x03(\tR\vdeniedPaths\x12\x1d\n" +
+	"\fdenied_paths\x18\x0e \x03(\tR\vdeniedPaths\x12'\n" +
+	"\x0fdeclared_scopes\x18& \x03(\tR\x0edeclaredScopes\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\x0f \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
