@@ -6,6 +6,7 @@ import "google/protobuf/struct.proto";
 import "landing-page-business-suite/v1/shared/commerce.proto";
 import "landing-page-business-suite/v1/shared/downloads.proto";
 import "landing-page-business-suite/v1/shared/presentation.proto";
+import "landing-page-business-suite/v1/shared/product_presentation.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
@@ -84,6 +85,9 @@ message IntroOffer {
 message GetLandingConfigRequest {
   string variant_slug = 1;
   string visitor_id = 2;
+  // Product scope is explicit; an empty route means the bundle root.
+  string route = 3;
+  string locale = 4;
 }
 
 // LandingConfigResponse is the aggregated public landing payload.
@@ -100,6 +104,7 @@ message LandingConfigResponse {
   map<string, string> coupon_mappings = 8;
   // Public coupon details referenced by coupon_mappings.
   repeated IntroOffer intro_offers = 9;
+  vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation presentation = 10;
 }
 
 // LandingConfigService serves the aggregated public landing payload.

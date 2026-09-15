@@ -2,6 +2,7 @@ from google.protobuf import struct_pb2 as _struct_pb2
 from landing_page_business_suite.v1.shared import commerce_pb2 as _commerce_pb2
 from landing_page_business_suite.v1.shared import downloads_pb2 as _downloads_pb2
 from landing_page_business_suite.v1.shared import presentation_pb2 as _presentation_pb2
+from landing_page_business_suite.v1.shared import product_presentation_pb2 as _product_presentation_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -104,15 +105,19 @@ class IntroOffer(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., amount_off: _Optional[int] = ..., percent_off: _Optional[float] = ..., currency: _Optional[str] = ..., duration: _Optional[str] = ..., duration_in_months: _Optional[int] = ..., max_redemptions: _Optional[int] = ..., redeem_by: _Optional[int] = ..., times_redeemed: _Optional[int] = ..., valid: _Optional[bool] = ..., created: _Optional[int] = ..., is_intro_coupon: _Optional[bool] = ..., intro_tier: _Optional[str] = ...) -> None: ...
 
 class GetLandingConfigRequest(_message.Message):
-    __slots__ = ("variant_slug", "visitor_id")
+    __slots__ = ("variant_slug", "visitor_id", "route", "locale")
     VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
     VISITOR_ID_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_FIELD_NUMBER: _ClassVar[int]
+    LOCALE_FIELD_NUMBER: _ClassVar[int]
     variant_slug: str
     visitor_id: str
-    def __init__(self, variant_slug: _Optional[str] = ..., visitor_id: _Optional[str] = ...) -> None: ...
+    route: str
+    locale: str
+    def __init__(self, variant_slug: _Optional[str] = ..., visitor_id: _Optional[str] = ..., route: _Optional[str] = ..., locale: _Optional[str] = ...) -> None: ...
 
 class LandingConfigResponse(_message.Message):
-    __slots__ = ("variant", "sections", "pricing", "downloads", "header", "branding", "fallback", "coupon_mappings", "intro_offers")
+    __slots__ = ("variant", "sections", "pricing", "downloads", "header", "branding", "fallback", "coupon_mappings", "intro_offers", "presentation")
     class CouponMappingsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +134,7 @@ class LandingConfigResponse(_message.Message):
     FALLBACK_FIELD_NUMBER: _ClassVar[int]
     COUPON_MAPPINGS_FIELD_NUMBER: _ClassVar[int]
     INTRO_OFFERS_FIELD_NUMBER: _ClassVar[int]
+    PRESENTATION_FIELD_NUMBER: _ClassVar[int]
     variant: LandingVariantSummary
     sections: _containers.RepeatedCompositeFieldContainer[LandingSection]
     pricing: _commerce_pb2.PricingOverview
@@ -138,4 +144,5 @@ class LandingConfigResponse(_message.Message):
     fallback: bool
     coupon_mappings: _containers.ScalarMap[str, str]
     intro_offers: _containers.RepeatedCompositeFieldContainer[IntroOffer]
-    def __init__(self, variant: _Optional[_Union[LandingVariantSummary, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[LandingSection, _Mapping]]] = ..., pricing: _Optional[_Union[_commerce_pb2.PricingOverview, _Mapping]] = ..., downloads: _Optional[_Iterable[_Union[_downloads_pb2.DownloadApp, _Mapping]]] = ..., header: _Optional[_Union[_presentation_pb2.LandingHeaderConfig, _Mapping]] = ..., branding: _Optional[_Union[LandingBranding, _Mapping]] = ..., fallback: _Optional[bool] = ..., coupon_mappings: _Optional[_Mapping[str, str]] = ..., intro_offers: _Optional[_Iterable[_Union[IntroOffer, _Mapping]]] = ...) -> None: ...
+    presentation: _product_presentation_pb2.ResolvedProductPresentation
+    def __init__(self, variant: _Optional[_Union[LandingVariantSummary, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[LandingSection, _Mapping]]] = ..., pricing: _Optional[_Union[_commerce_pb2.PricingOverview, _Mapping]] = ..., downloads: _Optional[_Iterable[_Union[_downloads_pb2.DownloadApp, _Mapping]]] = ..., header: _Optional[_Union[_presentation_pb2.LandingHeaderConfig, _Mapping]] = ..., branding: _Optional[_Union[LandingBranding, _Mapping]] = ..., fallback: _Optional[bool] = ..., coupon_mappings: _Optional[_Mapping[str, str]] = ..., intro_offers: _Optional[_Iterable[_Union[IntroOffer, _Mapping]]] = ..., presentation: _Optional[_Union[_product_presentation_pb2.ResolvedProductPresentation, _Mapping]] = ...) -> None: ...

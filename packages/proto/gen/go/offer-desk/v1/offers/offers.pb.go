@@ -4051,6 +4051,8 @@ func (x *ReleaseLadderEntry) GetReadinessApprovedCommit() string {
 	return ""
 }
 
+// generated_at is the producer's observation time for this projection. Consumers
+// that require producer time (Command Center) refuse a ladder without it.
 type ReleaseLadderResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*ReleaseLadderEntry  `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -4060,6 +4062,7 @@ type ReleaseLadderResponse struct {
 	Enabling      []*PrerequisiteNode    `protobuf:"bytes,5,rep,name=enabling,proto3" json:"enabling,omitempty"`
 	Availability  []*Availability        `protobuf:"bytes,6,rep,name=availability,proto3" json:"availability,omitempty"`
 	Unscheduled   []*Node                `protobuf:"bytes,7,rep,name=unscheduled,proto3" json:"unscheduled,omitempty"`
+	GeneratedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4139,6 +4142,13 @@ func (x *ReleaseLadderResponse) GetAvailability() []*Availability {
 func (x *ReleaseLadderResponse) GetUnscheduled() []*Node {
 	if x != nil {
 		return x.Unscheduled
+	}
+	return nil
+}
+
+func (x *ReleaseLadderResponse) GetGeneratedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GeneratedAt
 	}
 	return nil
 }
@@ -5077,7 +5087,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x15readiness_goal_exists\x18\b \x01(\bR\x13readinessGoalExists\x122\n" +
 	"\x15readiness_goal_closed\x18\t \x01(\bR\x13readinessGoalClosed\x12:\n" +
 	"\x19readiness_approved_commit\x18\n" +
-	" \x01(\tR\x17readinessApprovedCommit\"\xf8\x03\n" +
+	" \x01(\tR\x17readinessApprovedCommit\"\xb7\x04\n" +
 	"\x15ReleaseLadderResponse\x12I\n" +
 	"\aentries\x18\x01 \x03(\v2/.vrooli.offer_desk.v1.offers.ReleaseLadderEntryR\aentries\x127\n" +
 	"\x05ramps\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x05ramps\x12;\n" +
@@ -5085,7 +5095,8 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\taudiences\x18\x04 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\taudiences\x12I\n" +
 	"\benabling\x18\x05 \x03(\v2-.vrooli.offer_desk.v1.offers.PrerequisiteNodeR\benabling\x12M\n" +
 	"\favailability\x18\x06 \x03(\v2).vrooli.offer_desk.v1.offers.AvailabilityR\favailability\x12C\n" +
-	"\vunscheduled\x18\a \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\vunscheduled\"\x81\x01\n" +
+	"\vunscheduled\x18\a \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\vunscheduled\x12=\n" +
+	"\fgenerated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\"\x81\x01\n" +
 	"\x15SetReleaseRankRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12!\n" +
 	"\frelease_rank\x18\x02 \x01(\x05R\vreleaseRank\x12\x14\n" +
@@ -5385,68 +5396,69 @@ var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
 	71,  // 70: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.enabling:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
 	16,  // 71: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
 	8,   // 72: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.unscheduled:type_name -> vrooli.offer_desk.v1.offers.Node
-	8,   // 73: vrooli.offer_desk.v1.offers.SetReleaseRankResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	5,   // 74: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.deliverable_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
-	6,   // 75: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
-	8,   // 76: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	5,   // 77: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
-	6,   // 78: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
-	68,  // 79: vrooli.offer_desk.v1.offers.MeterInventoryResponse.meters:type_name -> vrooli.offer_desk.v1.offers.MeterInventoryEntry
-	8,   // 80: vrooli.offer_desk.v1.offers.PrerequisiteNode.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	8,   // 81: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.deliverables:type_name -> vrooli.offer_desk.v1.offers.Node
-	8,   // 82: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.unshipped:type_name -> vrooli.offer_desk.v1.offers.Node
-	71,  // 83: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.tree:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
-	20,  // 84: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
-	22,  // 85: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
-	24,  // 86: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
-	28,  // 87: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	42,  // 88: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
-	45,  // 89: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	25,  // 90: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:input_type -> vrooli.offer_desk.v1.offers.MapAccountRequest
-	50,  // 91: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
-	52,  // 92: vrooli.offer_desk.v1.offers.CatalogService.RenameNode:input_type -> vrooli.offer_desk.v1.offers.RenameNodeRequest
-	54,  // 93: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
-	63,  // 94: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:input_type -> vrooli.offer_desk.v1.offers.SetReleaseRankRequest
-	65,  // 95: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:input_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassRequest
-	67,  // 96: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:input_type -> vrooli.offer_desk.v1.offers.MeterInventoryRequest
-	30,  // 97: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	32,  // 98: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
-	34,  // 99: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
-	36,  // 100: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
-	38,  // 101: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
-	44,  // 102: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	59,  // 103: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
-	59,  // 104: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
-	70,  // 105: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:input_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
-	44,  // 106: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	21,  // 107: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
-	23,  // 108: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
-	27,  // 109: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
-	29,  // 110: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	43,  // 111: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
-	49,  // 112: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	26,  // 113: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:output_type -> vrooli.offer_desk.v1.offers.MapAccountResponse
-	51,  // 114: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
-	53,  // 115: vrooli.offer_desk.v1.offers.CatalogService.RenameNode:output_type -> vrooli.offer_desk.v1.offers.RenameNodeResponse
-	56,  // 116: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
-	64,  // 117: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:output_type -> vrooli.offer_desk.v1.offers.SetReleaseRankResponse
-	66,  // 118: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:output_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassResponse
-	69,  // 119: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:output_type -> vrooli.offer_desk.v1.offers.MeterInventoryResponse
-	31,  // 120: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	33,  // 121: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
-	35,  // 122: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
-	37,  // 123: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
-	39,  // 124: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
-	19,  // 125: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
-	62,  // 126: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
-	62,  // 127: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
-	72,  // 128: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:output_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
-	58,  // 129: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
-	107, // [107:130] is the sub-list for method output_type
-	84,  // [84:107] is the sub-list for method input_type
-	84,  // [84:84] is the sub-list for extension type_name
-	84,  // [84:84] is the sub-list for extension extendee
-	0,   // [0:84] is the sub-list for field type_name
+	73,  // 73: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.generated_at:type_name -> google.protobuf.Timestamp
+	8,   // 74: vrooli.offer_desk.v1.offers.SetReleaseRankResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	5,   // 75: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.deliverable_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 76: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	8,   // 77: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	5,   // 78: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 79: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	68,  // 80: vrooli.offer_desk.v1.offers.MeterInventoryResponse.meters:type_name -> vrooli.offer_desk.v1.offers.MeterInventoryEntry
+	8,   // 81: vrooli.offer_desk.v1.offers.PrerequisiteNode.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 82: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.deliverables:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 83: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.unshipped:type_name -> vrooli.offer_desk.v1.offers.Node
+	71,  // 84: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.tree:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
+	20,  // 85: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
+	22,  // 86: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
+	24,  // 87: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
+	28,  // 88: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	42,  // 89: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
+	45,  // 90: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	25,  // 91: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:input_type -> vrooli.offer_desk.v1.offers.MapAccountRequest
+	50,  // 92: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
+	52,  // 93: vrooli.offer_desk.v1.offers.CatalogService.RenameNode:input_type -> vrooli.offer_desk.v1.offers.RenameNodeRequest
+	54,  // 94: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	63,  // 95: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:input_type -> vrooli.offer_desk.v1.offers.SetReleaseRankRequest
+	65,  // 96: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:input_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassRequest
+	67,  // 97: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:input_type -> vrooli.offer_desk.v1.offers.MeterInventoryRequest
+	30,  // 98: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	32,  // 99: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
+	34,  // 100: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
+	36,  // 101: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
+	38,  // 102: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
+	44,  // 103: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	59,  // 104: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
+	59,  // 105: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
+	70,  // 106: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:input_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
+	44,  // 107: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	21,  // 108: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
+	23,  // 109: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
+	27,  // 110: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
+	29,  // 111: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	43,  // 112: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
+	49,  // 113: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	26,  // 114: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:output_type -> vrooli.offer_desk.v1.offers.MapAccountResponse
+	51,  // 115: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
+	53,  // 116: vrooli.offer_desk.v1.offers.CatalogService.RenameNode:output_type -> vrooli.offer_desk.v1.offers.RenameNodeResponse
+	56,  // 117: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	64,  // 118: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:output_type -> vrooli.offer_desk.v1.offers.SetReleaseRankResponse
+	66,  // 119: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:output_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassResponse
+	69,  // 120: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:output_type -> vrooli.offer_desk.v1.offers.MeterInventoryResponse
+	31,  // 121: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	33,  // 122: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
+	35,  // 123: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
+	37,  // 124: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
+	39,  // 125: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
+	19,  // 126: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
+	62,  // 127: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
+	62,  // 128: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
+	72,  // 129: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:output_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
+	58,  // 130: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
+	108, // [108:131] is the sub-list for method output_type
+	85,  // [85:108] is the sub-list for method input_type
+	85,  // [85:85] is the sub-list for extension type_name
+	85,  // [85:85] is the sub-list for extension extendee
+	0,   // [0:85] is the sub-list for field type_name
 }
 
 func init() { file_offer_desk_v1_offers_offers_proto_init() }

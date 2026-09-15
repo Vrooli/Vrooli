@@ -197,7 +197,8 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 func registerDeployReadinessRoute(s *Server) {
 	deps := deploymenthttp.Dependencies{
 		Storage: s.downloadHosting, TestStorage: s.downloadHosting, Catalog: s.downloadService, RemoteProfiles: s.remoteProfileService,
-		BundleKey: s.planService.BundleKey,
+		StripeReadiness: s.stripeReadiness,
+		BundleKey:       s.planService.BundleKey,
 		WriteError: func(w http.ResponseWriter, status int, message, kind string) {
 			writeJSONError(w, status, message, kind)
 		},
@@ -310,6 +311,7 @@ func registerBillingRoutes(s *Server) {
 func registerAdminCoreRoutes(s *Server) {
 	// Admin authentication/reset are generated Connect services. Session cookies
 	// remain response headers and never enter protobuf payloads.
+	landinghttp.RegisterPresentationAdminRoutes(s.router, s.configStore, s.requireAdmin)
 	adminhttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logx.Error}, s.requireAdmin)
 	profileDeps := s.adminProfileDependencies()
 	adminhttp.RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdmin)

@@ -189,13 +189,15 @@ class PlanOption(_message.Message):
     def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[_Union[BillingInterval, str]] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[_Union[IntroPricingType, str]] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class PricingOverview(_message.Message):
-    __slots__ = ("bundle", "monthly", "yearly", "updated_at")
+    __slots__ = ("bundle", "monthly", "yearly", "updated_at", "credit_topups")
     BUNDLE_FIELD_NUMBER: _ClassVar[int]
     MONTHLY_FIELD_NUMBER: _ClassVar[int]
     YEARLY_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_TOPUPS_FIELD_NUMBER: _ClassVar[int]
     bundle: Bundle
     monthly: _containers.RepeatedCompositeFieldContainer[PlanOption]
     yearly: _containers.RepeatedCompositeFieldContainer[PlanOption]
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, bundle: _Optional[_Union[Bundle, _Mapping]] = ..., monthly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., yearly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    credit_topups: _containers.RepeatedCompositeFieldContainer[PlanOption]
+    def __init__(self, bundle: _Optional[_Union[Bundle, _Mapping]] = ..., monthly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., yearly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., credit_topups: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ...) -> None: ...

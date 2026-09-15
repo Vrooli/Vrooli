@@ -2,6 +2,7 @@ import { createClient } from '@connectrpc/connect';
 import { create, toJson, type JsonValue } from '@bufbuild/protobuf';
 import {
   PricingService,
+  GetPricingResponseSchema,
   type GetPricingResponse,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb';
 import {
@@ -10,14 +11,13 @@ import {
   LandingConfigService,
   type LandingConfigResponse as LandingConfigMessage,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/config_pb';
-import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 import { CONNECT_API_BASE } from './common';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
 import { isRecord } from '../lib/utils';
-import { LandingConfigResponseSchema, PlanOptionSchema, PricingOverviewSchema } from './schemas';
-import { parseOrNull, parseOrThrow, safeParse } from './safeParse';
+import { LandingConfigResponseSchema, PricingOverviewSchema } from './schemas';
+import { parseOrThrow } from './safeParse';
 
 const pricingClient = createClient(
   PricingService,
@@ -72,8 +72,39 @@ function normalizeStruct(value: unknown): JsonRecord {
   return isRecord(fields) ? fields : record;
 }
 
+// common.v1.JsonValue is not google.protobuf.Value: protobuf JSON retains
+// its typed oneof envelope. Decode that envelope after the generated codec.
+function metadataValue(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  for (const key of ['string_value', 'bool_value', 'double_value', 'bytes_value']) {
+    if (key in value) return value[key];
+  }
+  if ('null_value' in value) return null;
+  if ('int_value' in value) {
+    const number = Number(value.int_value);
+    return Number.isSafeInteger(number) ? number : value.int_value;
+  }
+  if (isRecord(value.object_value)) return normalizeMetadata(value.object_value.fields);
+  if (isRecord(value.list_value)) return arrayValue(value.list_value.values).map(metadataValue);
+  return value;
+}
+
+function normalizeMetadata(value: unknown): JsonRecord | undefined {
+  if (!isRecord(value)) return undefined;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, metadataValue(item)]));
+}
+
 function normalizePlanOption(value: unknown): PlanOption {
   const plan = asRecord(value);
+  // Monetary input must never become a plausible zero-price offer on a
+  // malformed response. Generated protobuf normally prevents this; retain a
+  // fail-closed check at the JSON normalization boundary as well.
+  for (const [snake, camel] of [['amount_cents', 'amountCents'], ['intro_amount_cents', 'introAmountCents']] as const) {
+    const amount = field(plan, snake, camel);
+    if (amount != null && (!Number.isSafeInteger(Number(amount)) || Number(amount) < 0 || amount === '')) {
+      throw new Error(`Invalid pricing amount: ${snake}`);
+    }
+  }
   const metadata = field(plan, 'metadata', 'metadata');
   const introType = normalizeEnum(field(plan, 'intro_type', 'introType'), 'INTRO_PRICING_TYPE');
   return {
@@ -97,7 +128,7 @@ function normalizePlanOption(value: unknown): PlanOption {
     display_enabled: booleanValue(field(plan, 'display_enabled', 'displayEnabled')),
     bundle_key: stringValue(field(plan, 'bundle_key', 'bundleKey')) || undefined,
     display_weight: numberValue(field(plan, 'display_weight', 'displayWeight')),
-    metadata: isRecord(metadata) ? metadata : undefined,
+    metadata: normalizeMetadata(metadata),
   };
 }
 
@@ -116,7 +147,7 @@ function normalizePricing(value: unknown): PricingOverview | undefined {
       display_credits_multiplier: numberValue(field(bundle, 'display_credits_multiplier', 'displayCreditsMultiplier')),
       display_credits_label: stringValue(field(bundle, 'display_credits_label', 'displayCreditsLabel'), 'credits'),
       environment: stringValue(field(bundle, 'environment', 'environment')) || undefined,
-      metadata: isRecord(field(bundle, 'metadata', 'metadata')) ? field(bundle, 'metadata', 'metadata') as JsonRecord : undefined,
+      metadata: normalizeMetadata(field(bundle, 'metadata', 'metadata')),
     },
     monthly: normalizePlans('monthly'),
     yearly: normalizePlans('yearly'),
@@ -305,140 +336,9 @@ export function getLandingConfig(variantSlug?: string, visitorId?: string) {
   });
 }
 
-export function getPlans() {
+export function getPlans(): Promise<PricingOverview> {
   return pricingClient.getPricing({}).then((message: GetPricingResponse) => {
-    const toObjectMap = (input?: Record<string, { toJson?: () => unknown }>) => {
-      if (!input) return undefined;
-      return Object.fromEntries(
-        Object.entries(input).map(([key, value]) => [key, value.toJson?.() ?? null])
-      );
-    };
-    const planKind = (kind?: PlanKind): PlanOption['kind'] => {
-      switch (kind) {
-        case PlanKind.CREDITS_TOPUP:
-          return 'credits_topup';
-        case PlanKind.SUPPORTER_CONTRIBUTION:
-          return 'supporter_contribution';
-        default:
-          return 'subscription';
-      }
-    };
-
-    const billingInterval = (interval?: BillingInterval): PlanOption['billing_interval'] => {
-      switch (interval) {
-        case BillingInterval.YEAR:
-          return 'year';
-        case BillingInterval.ONE_TIME:
-          return 'one_time';
-        default:
-          return 'month';
-      }
-    };
-
-    const introType = (type?: IntroPricingType): PlanOption['intro_type'] => {
-      switch (type) {
-        case IntroPricingType.PERCENTAGE:
-          return 'percentage';
-        case IntroPricingType.FLAT_AMOUNT:
-          return 'flat_amount';
-        default:
-          return undefined;
-      }
-    };
-
-    // Define the shape of raw protobuf plan data
-    interface RawPlan {
-      planName?: string;
-      planTier?: string;
-      billingInterval?: BillingInterval;
-      amountCents?: string | number;
-      currency?: string;
-      introEnabled?: boolean;
-      introType?: IntroPricingType;
-      introAmountCents?: string | number;
-      introPeriods?: string | number;
-      introPriceLookupKey?: string;
-      stripePriceId?: string;
-      monthlyIncludedCredits?: string | number;
-      oneTimeBonusCredits?: string | number;
-      planRank?: string | number;
-      bonusType?: string;
-      kind?: PlanKind;
-      isVariableAmount?: boolean;
-      displayEnabled?: boolean;
-      bundleKey?: string;
-      displayWeight?: string | number;
-      metadata?: Record<string, { toJson?: () => unknown }>;
-    }
-
-    const normalizePlan = (plan: RawPlan): PlanOption | null => {
-      const normalized: PlanOption = {
-        plan_name: plan.planName ?? '',
-        plan_tier: plan.planTier ?? '',
-        billing_interval: billingInterval(plan.billingInterval),
-        amount_cents: Number(plan.amountCents ?? 0),
-        currency: plan.currency ?? 'usd',
-        intro_enabled: Boolean(plan.introEnabled),
-        intro_type: introType(plan.introType),
-        intro_amount_cents: plan.introAmountCents != null ? Number(plan.introAmountCents) : undefined,
-        intro_periods: plan.introPeriods != null ? Number(plan.introPeriods) : undefined,
-        intro_price_lookup_key: plan.introPriceLookupKey,
-        stripe_price_id: plan.stripePriceId ?? '',
-        monthly_included_credits: Number(plan.monthlyIncludedCredits ?? 0),
-        one_time_bonus_credits: Number(plan.oneTimeBonusCredits ?? 0),
-        plan_rank: plan.planRank != null ? Number(plan.planRank) : undefined,
-        bonus_type: plan.bonusType,
-        kind: planKind(plan.kind),
-        is_variable_amount: Boolean(plan.isVariableAmount),
-        display_enabled: Boolean(plan.displayEnabled),
-        bundle_key: plan.bundleKey,
-        display_weight: Number(plan.displayWeight ?? 0),
-        metadata: toObjectMap(plan.metadata),
-      };
-
-      // Validate the normalized plan against the schema
-      const validated = parseOrNull(PlanOptionSchema, normalized, 'PlanOption');
-      if (!validated) return null;
-      return normalized;
-    };
-
-    const pricing = message.pricing;
-    const updatedAt = normalizeTimestampOrNow(pricing?.updatedAt);
-
-    // Normalize and filter out invalid plans
-    const monthlyPlans = (pricing?.monthly ?? [])
-      .map((p) => normalizePlan(p))
-      .filter((p): p is PlanOption => p !== null);
-    const yearlyPlans = (pricing?.yearly ?? [])
-      .map((p) => normalizePlan(p))
-      .filter((p): p is PlanOption => p !== null);
-    const creditTopupPlans = (pricing?.creditTopups ?? [])
-      .map((p) => normalizePlan(p))
-      .filter((p): p is PlanOption => p !== null);
-
-    const overview: PricingOverview = {
-      bundle: {
-        bundle_key: pricing?.bundle?.bundleKey ?? '',
-        name: pricing?.bundle?.name ?? '',
-        stripe_product_id: pricing?.bundle?.stripeProductId ?? '',
-        credits_per_usd: Number(pricing?.bundle?.creditsPerUsd ?? 0),
-        display_credits_multiplier: Number(pricing?.bundle?.displayCreditsMultiplier ?? 0),
-        display_credits_label: pricing?.bundle?.displayCreditsLabel ?? 'credits',
-        environment: pricing?.bundle?.environment ?? 'production',
-        metadata: toObjectMap(pricing?.bundle?.metadata),
-      },
-      monthly: monthlyPlans,
-      yearly: yearlyPlans,
-      credit_topups: creditTopupPlans,
-      updated_at: updatedAt,
-    };
-
-    // Validate the final overview
-    const validationResult = safeParse(PricingOverviewSchema, overview, 'PricingOverview');
-    if (!validationResult.success) {
-      console.warn('[getPlans] Pricing overview validation failed, returning as-is:', validationResult.error);
-    }
-
-    return overview;
+    const raw = asRecord(toJson(GetPricingResponseSchema, message, { useProtoFieldName: true }));
+    return parseOrThrow(PricingOverviewSchema, normalizePricing(raw.pricing), 'PricingOverview');
   });
 }

@@ -51,8 +51,12 @@ type Dependencies struct {
 	TestStorage    StorageTester
 	Catalog        CatalogService
 	RemoteProfiles RemoteProfileService
-	BundleKey      func() string
-	WriteError     func(http.ResponseWriter, int, string, string)
+	// StripeReadiness is intentionally injected at the composition root. The
+	// deployment package must report commerce readiness without owning Stripe
+	// credentials or provider clients.
+	StripeReadiness func(context.Context) Gate
+	BundleKey       func() string
+	WriteError      func(http.ResponseWriter, int, string, string)
 }
 
 func Readiness(deps Dependencies) http.HandlerFunc {
@@ -78,6 +82,9 @@ func Readiness(deps Dependencies) http.HandlerFunc {
 func CheckReadiness(ctx context.Context, deps Dependencies, request Request) Response {
 	bundleKey := deps.BundleKey()
 	gates := []Gate{storageGate(ctx, deps.Storage, deps.TestStorage, bundleKey)}
+	if deps.StripeReadiness != nil {
+		gates = append(gates, deps.StripeReadiness(ctx))
+	}
 	if strings.TrimSpace(request.AppKey) != "" {
 		gates = append(gates, appGate(deps.Catalog, bundleKey, request.AppKey))
 	}

@@ -63,6 +63,15 @@
 #### Landing Runtime & Fallback
 - [ ] OT-P0-031 | API-driven landing config + fallback | Public `/` renders ordered sections, pricing, and download CTAs from `LandingConfigService.GetLandingConfig` (with an optional `variant_slug`), and ships a baked fallback variant (sections + pricing copy) for API timeouts, auth failures, or admin misconfiguration.
 
+#### Configurable Product Presentation
+- [ ] OT-P0-035 | Product and bundle scope | When public bundle membership resolves, the runtime MUST render the configured empty page for zero apps, the complete app page for one app, and the bundle page for multiple apps using explicit publication, visibility, membership, and order.
+- [ ] OT-P0-036 | App detail parity and bounded spotlights | When an eligible app detail route resolves, the runtime MUST reuse its single-app composition; bundle pages MUST render at most the configured page-wide app spotlight cap with matching detail links and identified hero exhibits.
+- [ ] OT-P0-037 | Complete presentation authoring | The runtime MUST source public copy, accessible labels, assets, actions, capabilities, and block order from validated versioned configuration and MUST support authenticated draft editing, preview, atomic publication, and rollback without executing configured code.
+- [ ] OT-P0-038 | Product preservation and honest identity | The runtime MUST preserve recovered Browser Automation Studio material in a disabled editable app profile, identify web-console publicly as Aquila, and distinguish available capabilities from coming-soon remote-machine and device control.
+- [ ] OT-P0-039 | Released visual assets | When presentation assets reference Backdrop Studio, the runtime MUST resolve released surface-specific assets with provenance, dimensions, content hashes, and legibility evidence through public same-origin delivery.
+- [ ] OT-P0-040 | Scope-safe diagnostics and commerce | When presentation or delivery resolution fails, the runtime MUST report exact revision, variant, scope, and fallback diagnostics and MUST retain commerce-owned prices, entitlements, and installer availability without substituting another product.
+- [ ] OT-P0-041 | Trustworthy visual evidence | Evidence capture MUST bind assertions to the recorded page, prove desktop and mobile product journeys, and reject black, blank, frozen, mismatched, incomplete, or undecodable output with machine-readable reasons.
+
 #### Subscription, Credits, and Bundled Apps
 - [ ] OT-P0-032 | Subscription-aware pricing APIs | Backend parses Stripe metadata (products/prices/intro pricing) and exposes `GET /plans`, `POST /billing/create-checkout-session`, `POST /billing/create-credits-checkout-session`, and `GET /billing/portal-url` with correct tier/weight info for both monthly/yearly plans plus $1 intro logic.
 - [ ] OT-P0-033 | Credits + entitlements | Provide `GET /me/subscription`, `GET /me/credits`, and `GET /entitlements` endpoints that interpret `credits_per_usd`, `display_credits_multiplier`, intro grants, top-ups, donations, and return feature flags for bundled apps (with short-lived caches/offline fallback).

@@ -110,4 +110,7 @@ message PricingOverview {
   repeated PlanOption monthly = 2;
   repeated PlanOption yearly = 3;
   google.protobuf.Timestamp updated_at = 4;
+  // Fixed, one-time credit purchases exposed separately from subscriptions.
+  // Supporter contributions remain outside the customer credit-top-up rail.
+  repeated PlanOption credit_topups = 5;
 }

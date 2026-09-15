@@ -6,6 +6,7 @@ package landing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/logx"
+	"landing-page-business-suite-api/internal/presentation"
 )
 
 var (
@@ -579,6 +581,7 @@ type LandingConfigService struct {
 	exposureRecorder interface {
 		RecordExposure(string, string, string) error
 	}
+	presentationOwnerJoin func(context.Context, string) (*commerce.PricingOverview, []delivery.App, error)
 }
 
 func (s *LandingConfigService) UseExposureRecorder(recorder interface {
@@ -599,6 +602,7 @@ type LandingConfigResponse struct {
 	CouponMappings map[string]string                   `json:"coupon_mappings,omitempty"`
 	IntroOffers    []IntroOffer                        `json:"intro_offers,omitempty"`
 	Fallback       bool                                `json:"fallback"`
+	Presentation   *presentation.ResolveResult         `json:"presentation,omitempty"`
 }
 
 // LandingBranding contains public branding fields for the frontend.
@@ -672,7 +676,7 @@ func NewLandingConfigServiceWithConfigStore(
 	downloadService *delivery.CatalogService,
 	introOfferLookup IntroOfferLookup,
 ) *LandingConfigService {
-	return &LandingConfigService{
+	service := &LandingConfigService{
 		configStore:      configStore,
 		planService:      planService,
 		downloadService:  downloadService,
@@ -682,6 +686,8 @@ func NewLandingConfigServiceWithConfigStore(
 			logx.Printf("%s: %+v", message, fields)
 		},
 	}
+	service.presentationOwnerJoin = service.joinPresentationOwners
+	return service
 }
 
 // UseFallbackProvider overrides the source of fallback content (primarily for tests).
@@ -702,6 +708,137 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 		identity = visitorID[0]
 	}
 	return s.getLandingConfigFromConfigStore(ctx, variantSlug, identity)
+}
+
+// GetLandingConfigForRequest resolves the typed presentation path when an
+// immutable published revision exists. The legacy aggregator remains the
+// explicit pre-seed runtime fallback; once a revision is found, all route,
+// locale, and owner-join failures are returned instead of falling through to
+// mutable legacy marketing content.
+func (s *LandingConfigService) GetLandingConfigForRequest(ctx context.Context, variantSlug, route, locale, visitorID string) (*LandingConfigResponse, error) {
+	selectedVariant, variants := s.presentationVariant(variantSlug, visitorID)
+	if selectedVariant == "" {
+		return s.GetLandingConfig(ctx, variantSlug, visitorID)
+	}
+
+	loaded, err := s.configStore.GetPublishedPresentation(ctx, selectedVariant)
+	if err != nil {
+		if errors.Is(err, experimentation.ErrPresentationNotFound) {
+			return s.GetLandingConfig(ctx, variantSlug, visitorID)
+		}
+		return nil, err
+	}
+	if visitorID != "" && variantSlug == "" && s.exposureRecorder != nil {
+		if err := s.exposureRecorder.RecordExposure(visitorID, selectedVariant, experimentation.WeightFingerprint(variants)); err != nil {
+			return nil, fmt.Errorf("record presentation exposure: %w", err)
+		}
+	}
+
+	resolved, err := presentation.Resolve(loaded.Document, presentation.ResolveRequest{
+		Route: route, Locale: locale, Variant: selectedVariant,
+		ResolvedVariant: selectedVariant, ResolvedRevision: loaded.Revision,
+	})
+	if err != nil {
+		return nil, err
+	}
+	pricing, downloads, err := s.presentationOwners(ctx, loaded.Document.Bundle.Key)
+	if err != nil {
+		return nil, err
+	}
+	if err := validatePresentationActions(resolved, pricing, downloads); err != nil {
+		return nil, err
+	}
+	return &LandingConfigResponse{
+		Pricing: pricing, Downloads: downloads, Presentation: &resolved,
+		Fallback: false,
+	}, nil
+}
+
+func (s *LandingConfigService) presentationVariant(variantSlug, visitorID string) (string, []*experimentation.VariantSnapshot) {
+	if variantSlug != "" {
+		return variantSlug, nil
+	}
+	variants := s.configStore.ListVariants()
+	if len(variants) == 0 {
+		return "", variants
+	}
+	selected := experimentation.SelectVariantForVisitor(variants, visitorID)
+	if selected == nil {
+		return "", variants
+	}
+	return selected.Variant.Slug, variants
+}
+
+func (s *LandingConfigService) presentationOwners(ctx context.Context, bundleKey string) (*commerce.PricingOverview, []delivery.App, error) {
+	if s.presentationOwnerJoin == nil {
+		return nil, nil, fmt.Errorf("%w: commerce and delivery owner join is unavailable", presentation.ErrUnavailable)
+	}
+	return s.presentationOwnerJoin(ctx, bundleKey)
+}
+
+func (s *LandingConfigService) joinPresentationOwners(ctx context.Context, bundleKey string) (*commerce.PricingOverview, []delivery.App, error) {
+	if s.planService == nil || s.downloadService == nil {
+		return nil, nil, fmt.Errorf("%w: commerce and delivery owner join is unavailable", presentation.ErrUnavailable)
+	}
+	pricing, err := s.planService.GetPricingOverview()
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: pricing owner unavailable", presentation.ErrUnavailable)
+	}
+	downloads, err := s.downloadService.ListAppsContext(ctx, bundleKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: delivery owner unavailable", presentation.ErrUnavailable)
+	}
+	return pricing, downloads, nil
+}
+
+func validatePresentationActions(result presentation.ResolveResult, pricing *commerce.PricingOverview, downloads []delivery.App) error {
+	planRefs := map[string]bool{}
+	if pricing != nil {
+		for _, plan := range append(append(append([]*commerce.PlanOption{}, pricing.Monthly...), pricing.Yearly...), pricing.CreditTopups...) {
+			if plan != nil && plan.StripePriceId != "" {
+				planRefs[plan.StripePriceId] = true
+			}
+		}
+	}
+	downloadApps := map[string]bool{}
+	for _, app := range downloads {
+		if app.AppKey != "" {
+			downloadApps[app.AppKey] = true
+		}
+	}
+	for _, action := range presentationActions(result) {
+		switch action.Kind {
+		case presentation.ActionPurchase:
+			if !planRefs[action.PlanRef] {
+				return fmt.Errorf("%w: purchase plan %q is not present in the pricing owner", presentation.ErrUnavailable, action.PlanRef)
+			}
+		case presentation.ActionDownload:
+			if !downloadApps[action.AppKey] {
+				return fmt.Errorf("%w: download app %q is not present in the delivery owner", presentation.ErrUnavailable, action.AppKey)
+			}
+		}
+	}
+	return nil
+}
+
+func presentationActions(result presentation.ResolveResult) []presentation.Action {
+	actions := make([]presentation.Action, 0)
+	if header := result.Page.Display.Shell.HeaderAction; header != nil {
+		actions = append(actions, *header)
+	}
+	for _, block := range result.Page.Blocks {
+		switch content := block.Content.(type) {
+		case presentation.ProductHeroContent:
+			actions = append(actions, content.Actions...)
+		case presentation.BundleHeroContent:
+			actions = append(actions, content.Actions...)
+		case presentation.PricingContent:
+			actions = append(actions, content.Actions...)
+		case presentation.ClosingActionContent:
+			actions = append(actions, content.Actions...)
+		}
+	}
+	return actions
 }
 
 // getLandingConfigFromConfigStore uses ConfigStore to fetch landing config

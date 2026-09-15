@@ -99,6 +99,9 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", "cli"), filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", "cli"), "repo_autoheal_cli_source"); err != nil {
 				return "", err
 			}
+			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", "api"), filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", "api"), "repo_autoheal_api_source"); err != nil {
+				return "", err
+			}
 			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", "cli-core"), filepath.Join(e.rt.Target.Locator.Workdir, "packages", "cli-core"), "repo_cli_core_source"); err != nil {
 				return "", err
 			}

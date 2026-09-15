@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "landing-page-business-suite/v1/shared/product_presentation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// All methods require administrator authentication. Preview is deliberately
+// separate from the public config endpoint; callers cannot self-authorize it.
+service ProductPresentationAdminService {
+  rpc GetPresentation(GetPresentationRequest) returns (PresentationEditorResponse);
+  rpc SaveDraft(SavePresentationDraftRequest) returns (PresentationEditorResponse);
+  rpc Preview(PreviewPresentationRequest) returns (PreviewPresentationResponse);
+  rpc Publish(ActivatePresentationRequest) returns (PresentationEditorResponse);
+  rpc Rollback(ActivatePresentationRequest) returns (PresentationEditorResponse);
+}
+
+message PresentationRevisionState {
+  uint64 generation = 1;
+  string draft_revision = 2;
+  string active_revision = 3;
+  repeated string published_revisions = 4;
+}
+
+message GetPresentationRequest {
+  string variant_slug = 1;
+  // Empty selects the current draft. Explicit revisions are immutable.
+  string revision = 2;
+}
+
+message PresentationEditorResponse {
+  string variant_slug = 1;
+  PresentationRevisionState state = 2;
+  string revision = 3;
+  vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument document = 4;
+}
+
+message SavePresentationDraftRequest {
+  string variant_slug = 1;
+  uint64 expected_generation = 2;
+  vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument document = 3;
+}
+
+message PreviewPresentationRequest {
+  string variant_slug = 1;
+  string revision = 2;
+  string route = 3;
+  string locale = 4;
+}
+
+message PreviewPresentationResponse {
+  vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation presentation = 1;
+}
+
+message ActivatePresentationRequest {
+  string variant_slug = 1;
+  string revision = 2;
+  uint64 expected_generation = 3;
+}

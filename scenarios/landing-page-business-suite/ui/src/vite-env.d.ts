@@ -355,93 +355,6 @@ declare module '@vrooli/proto-types/landing-page-business-suite/v1/settings_pb' 
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-
-  export enum BillingInterval {
-    UNSPECIFIED = 0,
-    MONTH = 1,
-    YEAR = 2,
-    ONE_TIME = 3,
-  }
-
-  export enum IntroPricingType {
-    UNSPECIFIED = 0,
-    FLAT_AMOUNT = 1,
-    PERCENTAGE = 2,
-  }
-
-  export enum PlanKind {
-    UNSPECIFIED = 0,
-    SUBSCRIPTION = 1,
-    CREDITS_TOPUP = 2,
-    SUPPORTER_CONTRIBUTION = 3,
-  }
-
-  export interface PricingBundle {
-    bundleKey?: string;
-    name?: string;
-    stripeProductId?: string;
-    creditsPerUsd?: number | string;
-    displayCreditsMultiplier?: number | string;
-    displayCreditsLabel?: string;
-    environment?: string;
-    metadata?: Record<string, { toJson?: () => unknown }>;
-  }
-
-  export interface PricingPlan {
-    planName?: string;
-    planTier?: string;
-    billingInterval?: BillingInterval;
-    amountCents?: number | string;
-    currency?: string;
-    introEnabled?: boolean;
-    introType?: IntroPricingType;
-    introAmountCents?: number | string;
-    introPeriods?: number | string;
-    introPriceLookupKey?: string;
-    stripePriceId?: string;
-    monthlyIncludedCredits?: number | string;
-    oneTimeBonusCredits?: number | string;
-    planRank?: number | string;
-    bonusType?: string;
-    kind?: PlanKind;
-    isVariableAmount?: boolean;
-    displayEnabled?: boolean;
-    bundleKey?: string;
-    displayWeight?: number | string;
-    metadata?: Record<string, { toJson?: () => unknown }>;
-  }
-
-  export interface PricingPayload {
-    bundle?: PricingBundle;
-    monthly?: PricingPlan[];
-    yearly?: PricingPlan[];
-    updatedAt?: { toJsonString?: () => string } | string | { seconds?: number; nanos?: number };
-  }
-
-  export interface GetPricingRequest extends Message<'landing_page_business_suite.v1.GetPricingRequest'> {
-    bundleKey: string;
-    includeHidden: boolean;
-  }
-
-  export const GetPricingRequestSchema: GenMessage<GetPricingRequest>;
-
-  export interface GetPricingResponse extends Message<'landing_page_business_suite.v1.GetPricingResponse'> {
-    pricing?: PricingPayload;
-  }
-
-  export const GetPricingResponseSchema: GenMessage<GetPricingResponse>;
-  export const PricingService: GenService<{
-    getPricing: {
-      methodKind: 'unary';
-      input: typeof GetPricingRequestSchema;
-      output: typeof GetPricingResponseSchema;
-    };
-  }>;
-}
-
 declare module '@vrooli/proto-types/landing-page-business-suite/v1/variant_space_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
@@ -527,18 +440,6 @@ declare module '@vrooli/proto-types/landing-page-business-suite/v1/seo_pb' {
   export const SeoService: GenService<{
     getVariantSEO: { methodKind: 'unary'; input: typeof GetVariantSEORequestSchema; output: typeof SEOResponseSchema };
     updateVariantSEO: { methodKind: 'unary'; input: typeof UpdateVariantSEORequestSchema; output: typeof UpdateVariantSEOResponseSchema };
-  }>;
-}
-
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/config_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  export interface GetLandingConfigRequest extends Message<'landing_page_business_suite.v1.GetLandingConfigRequest'> { variantSlug: string; visitorId: string; }
-  export type LandingConfigResponse = Message<'landing_page_business_suite.v1.LandingConfigResponse'>;
-  export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest>;
-  export const LandingConfigResponseSchema: GenMessage<LandingConfigResponse>;
-  export const LandingConfigService: GenService<{
-    getLandingConfig: { methodKind: 'unary'; input: typeof GetLandingConfigRequestSchema; output: typeof LandingConfigResponseSchema };
   }>;
 }
 

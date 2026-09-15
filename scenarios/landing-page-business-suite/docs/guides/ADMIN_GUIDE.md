@@ -179,6 +179,13 @@ Use the Billing dashboard (`/admin/billing-home`) to:
 
 ### Stripe Settings
 
+Use **Billing → Stripe** (`/admin/billing`) for the non-secret Stripe settings
+and configuration status. Secret values are write-through authority values;
+provision them through Vrooli onboarding or the governed credential command,
+then use this page to confirm the active mode and redacted status. Deployment
+readiness is the authoritative check for missing mode-specific fields,
+catalog alignment, HTTPS origin, and public webhook reachability.
+
 The Stripe page (`/admin/billing`) configures:
 - Publishable key, secret key, and webhook secret.
 - Status indicators for each key.

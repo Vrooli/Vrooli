@@ -459,9 +459,12 @@ func (x *IntroOffer) GetIntroTier() string {
 // GetLandingConfigRequest requests the aggregated landing payload. An empty
 // variant_slug triggers weighted-random selection.
 type GetLandingConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VariantSlug   string                 `protobuf:"bytes,1,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
-	VisitorId     string                 `protobuf:"bytes,2,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	VariantSlug string                 `protobuf:"bytes,1,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
+	VisitorId   string                 `protobuf:"bytes,2,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
+	// Product scope is explicit; an empty route means the bundle root.
+	Route         string `protobuf:"bytes,3,opt,name=route,proto3" json:"route,omitempty"`
+	Locale        string `protobuf:"bytes,4,opt,name=locale,proto3" json:"locale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -510,6 +513,20 @@ func (x *GetLandingConfigRequest) GetVisitorId() string {
 	return ""
 }
 
+func (x *GetLandingConfigRequest) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *GetLandingConfigRequest) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
 // LandingConfigResponse is the aggregated public landing payload.
 type LandingConfigResponse struct {
 	state     protoimpl.MessageState      `protogen:"open.v1"`
@@ -524,7 +541,8 @@ type LandingConfigResponse struct {
 	// Maps a price ID to its currently applicable introductory coupon ID.
 	CouponMappings map[string]string `protobuf:"bytes,8,rep,name=coupon_mappings,json=couponMappings,proto3" json:"coupon_mappings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Public coupon details referenced by coupon_mappings.
-	IntroOffers   []*IntroOffer `protobuf:"bytes,9,rep,name=intro_offers,json=introOffers,proto3" json:"intro_offers,omitempty"`
+	IntroOffers   []*IntroOffer                       `protobuf:"bytes,9,rep,name=intro_offers,json=introOffers,proto3" json:"intro_offers,omitempty"`
+	Presentation  *shared.ResolvedProductPresentation `protobuf:"bytes,10,opt,name=presentation,proto3" json:"presentation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -622,11 +640,18 @@ func (x *LandingConfigResponse) GetIntroOffers() []*IntroOffer {
 	return nil
 }
 
+func (x *LandingConfigResponse) GetPresentation() *shared.ResolvedProductPresentation {
+	if x != nil {
+		return x.Presentation
+	}
+	return nil
+}
+
 var File_landing_page_business_suite_v1_config_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"+landing-page-business-suite/v1/config.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a4landing-page-business-suite/v1/shared/commerce.proto\x1a5landing-page-business-suite/v1/shared/downloads.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\"\xff\x01\n" +
+	"+landing-page-business-suite/v1/config.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a4landing-page-business-suite/v1/shared/commerce.proto\x1a5landing-page-business-suite/v1/shared/downloads.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\x1a@landing-page-business-suite/v1/shared/product_presentation.proto\"\xff\x01\n" +
 	"\x15LandingVariantSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
@@ -696,11 +721,13 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\x10_max_redemptionsB\f\n" +
 	"\n" +
 	"_redeem_byB\r\n" +
-	"\v_intro_tier\"[\n" +
+	"\v_intro_tier\"\x89\x01\n" +
 	"\x17GetLandingConfigRequest\x12!\n" +
 	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\x12\x1d\n" +
 	"\n" +
-	"visitor_id\x18\x02 \x01(\tR\tvisitorId\"\xc2\x06\n" +
+	"visitor_id\x18\x02 \x01(\tR\tvisitorId\x12\x14\n" +
+	"\x05route\x18\x03 \x01(\tR\x05route\x12\x16\n" +
+	"\x06locale\x18\x04 \x01(\tR\x06locale\"\xb1\a\n" +
 	"\x15LandingConfigResponse\x12O\n" +
 	"\avariant\x18\x01 \x01(\v25.landing_page_business_suite.v1.LandingVariantSummaryR\avariant\x12J\n" +
 	"\bsections\x18\x02 \x03(\v2..landing_page_business_suite.v1.LandingSectionR\bsections\x12W\n" +
@@ -710,7 +737,9 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\bbranding\x18\x06 \x01(\v2/.landing_page_business_suite.v1.LandingBrandingH\x00R\bbranding\x88\x01\x01\x12\x1a\n" +
 	"\bfallback\x18\a \x01(\bR\bfallback\x12r\n" +
 	"\x0fcoupon_mappings\x18\b \x03(\v2I.landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntryR\x0ecouponMappings\x12M\n" +
-	"\fintro_offers\x18\t \x03(\v2*.landing_page_business_suite.v1.IntroOfferR\vintroOffers\x1aA\n" +
+	"\fintro_offers\x18\t \x03(\v2*.landing_page_business_suite.v1.IntroOfferR\vintroOffers\x12m\n" +
+	"\fpresentation\x18\n" +
+	" \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentationR\fpresentation\x1aA\n" +
 	"\x13CouponMappingsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\v\n" +
@@ -732,18 +761,19 @@ func file_landing_page_business_suite_v1_config_proto_rawDescGZIP() []byte {
 
 var file_landing_page_business_suite_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_landing_page_business_suite_v1_config_proto_goTypes = []any{
-	(*LandingVariantSummary)(nil),      // 0: landing_page_business_suite.v1.LandingVariantSummary
-	(*LandingSection)(nil),             // 1: landing_page_business_suite.v1.LandingSection
-	(*LandingBranding)(nil),            // 2: landing_page_business_suite.v1.LandingBranding
-	(*IntroOffer)(nil),                 // 3: landing_page_business_suite.v1.IntroOffer
-	(*GetLandingConfigRequest)(nil),    // 4: landing_page_business_suite.v1.GetLandingConfigRequest
-	(*LandingConfigResponse)(nil),      // 5: landing_page_business_suite.v1.LandingConfigResponse
-	nil,                                // 6: landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
-	nil,                                // 7: landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntry
-	(*structpb.Struct)(nil),            // 8: google.protobuf.Struct
-	(*shared.PricingOverview)(nil),     // 9: vrooli.landing_page_business_suite.v1.shared.PricingOverview
-	(*shared.DownloadApp)(nil),         // 10: vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	(*shared.LandingHeaderConfig)(nil), // 11: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	(*LandingVariantSummary)(nil),              // 0: landing_page_business_suite.v1.LandingVariantSummary
+	(*LandingSection)(nil),                     // 1: landing_page_business_suite.v1.LandingSection
+	(*LandingBranding)(nil),                    // 2: landing_page_business_suite.v1.LandingBranding
+	(*IntroOffer)(nil),                         // 3: landing_page_business_suite.v1.IntroOffer
+	(*GetLandingConfigRequest)(nil),            // 4: landing_page_business_suite.v1.GetLandingConfigRequest
+	(*LandingConfigResponse)(nil),              // 5: landing_page_business_suite.v1.LandingConfigResponse
+	nil,                                        // 6: landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
+	nil,                                        // 7: landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntry
+	(*structpb.Struct)(nil),                    // 8: google.protobuf.Struct
+	(*shared.PricingOverview)(nil),             // 9: vrooli.landing_page_business_suite.v1.shared.PricingOverview
+	(*shared.DownloadApp)(nil),                 // 10: vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	(*shared.LandingHeaderConfig)(nil),         // 11: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	(*shared.ResolvedProductPresentation)(nil), // 12: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
 }
 var file_landing_page_business_suite_v1_config_proto_depIdxs = []int32{
 	6,  // 0: landing_page_business_suite.v1.LandingVariantSummary.axes:type_name -> landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
@@ -756,13 +786,14 @@ var file_landing_page_business_suite_v1_config_proto_depIdxs = []int32{
 	2,  // 7: landing_page_business_suite.v1.LandingConfigResponse.branding:type_name -> landing_page_business_suite.v1.LandingBranding
 	7,  // 8: landing_page_business_suite.v1.LandingConfigResponse.coupon_mappings:type_name -> landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntry
 	3,  // 9: landing_page_business_suite.v1.LandingConfigResponse.intro_offers:type_name -> landing_page_business_suite.v1.IntroOffer
-	4,  // 10: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:input_type -> landing_page_business_suite.v1.GetLandingConfigRequest
-	5,  // 11: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:output_type -> landing_page_business_suite.v1.LandingConfigResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 10: landing_page_business_suite.v1.LandingConfigResponse.presentation:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
+	4,  // 11: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:input_type -> landing_page_business_suite.v1.GetLandingConfigRequest
+	5,  // 12: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:output_type -> landing_page_business_suite.v1.LandingConfigResponse
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_config_proto_init() }

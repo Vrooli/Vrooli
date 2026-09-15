@@ -15,6 +15,8 @@ export interface AtlasFigure {
   title: string;
   stars: Point[];
   edges: Array<[number, number]>;
+  /** The widest a label may run before it meets the next constellation's. */
+  labelWidth: number;
 }
 
 interface Dust { angle: number; distance: number; size: number; alpha: number; phase: number }
@@ -60,7 +62,7 @@ export function layoutAtlas(groups: SceneGroup[], field: Rect, labelHeight: numb
     const cx = field.x + ((cols - inRow) * cellW) / 2 + cellW * (col + 0.5) + (rng() - 0.5) * cellW * 0.12;
     const cy = field.y + cellH * row + (cellH - labelHeight) / 2 + (rng() - 0.5) * cellH * 0.06;
     const stars = placeStars(group, cx, cy, radius);
-    return { id: group.id, title: group.title, stars, edges: spanningEdges(stars) };
+    return { id: group.id, title: group.title, stars, edges: spanningEdges(stars), labelWidth: cellW * 0.92 };
   });
 }
 
@@ -154,10 +156,14 @@ function drawStar(frame: Frame, x: number, y: number, size: number, star: SceneG
   }
   ctx.lineWidth = 1.3;
   if (star.state === "failing") {
-    // An open ring: the sensor exists and did not answer, or answered untrustworthily.
+    // A struck-through ring: the sensor exists and did not answer, or answered untrustworthily.
+    const ring = size * 1.4;
+    const strike = ring * Math.SQRT1_2;
     ctx.strokeStyle = rgba(ctx, palette.warning, 0.85);
     ctx.beginPath();
-    ctx.arc(x, y, size * 1.4, Math.PI * 0.2, Math.PI * 1.8);
+    ctx.arc(x, y, ring, 0, Math.PI * 2);
+    ctx.moveTo(x - strike, y + strike);
+    ctx.lineTo(x + strike, y - strike);
     ctx.stroke();
     return;
   }
@@ -306,10 +312,17 @@ export function panoramaConstellation(): Scene {
         const measured = group.stars.filter((star) => lit(star.state)).length;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
-        if ("letterSpacing" in ctx) ctx.letterSpacing = `${(titleSize * 0.22).toFixed(1)}px`;
-        ctx.font = `600 ${titleSize.toFixed(1)}px Inter, ui-sans-serif, system-ui, sans-serif`;
+        const title = figure.title.toUpperCase();
+        const setTitleFont = (size: number) => {
+          if ("letterSpacing" in ctx) ctx.letterSpacing = `${(size * 0.22).toFixed(1)}px`;
+          ctx.font = `600 ${size.toFixed(1)}px Inter, ui-sans-serif, system-ui, sans-serif`;
+        };
+        setTitleFont(titleSize);
+        // Narrow screens pack constellations close; a title shrinks to its cell rather than run into a neighbour's.
+        const titleWidth = ctx.measureText(title).width;
+        if (titleWidth > figure.labelWidth) setTitleFont(Math.max(7, (titleSize * figure.labelWidth) / titleWidth));
         ctx.fillStyle = rgba(ctx, palette.foreground, 0.9);
-        ctx.fillText(figure.title.toUpperCase(), centre, labelY);
+        ctx.fillText(title, centre, labelY);
         if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
         ctx.font = `500 ${countSize.toFixed(1)}px "JetBrains Mono", ui-monospace, monospace`;
         ctx.fillStyle = rgba(ctx, palette.foreground, 0.58);

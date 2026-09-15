@@ -80,6 +80,23 @@
       "range": "20000-24999"
     }
   },
+  "deployment": {
+    "listeners": [
+      {
+        "id": "ui",
+        "port": "ui",
+        "visibility": "public_via_edge",
+        "readiness": {"type": "http", "path": "/health"}
+      },
+      {
+        "id": "api",
+        "port": "api",
+        "path_prefix": "/api",
+        "visibility": "public_via_edge",
+        "readiness": {"type": "http", "path": "/health"}
+      }
+    ]
+  },
   "service": {
     "category": "business_tools",
     "description": "Generated landing page scenario from template 'landing-page-business-suite'",
@@ -281,9 +298,9 @@
         "logical_id": "vrooli/landing-page-business-suite",
     "field": "stripe-secret-key",
         "label": "Stripe restricted secret key",
-        "description": "Authenticates server-side Stripe API requests. Obtain it from the Stripe dashboard.",
+        "description": "Legacy migration fallback for live-mode server requests. Prefer stripe-live-secret-key.",
         "placeholder": "sk_live_a1b2c3d4e5f6...",
-        "required": true,
+        "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
@@ -295,9 +312,9 @@
         "logical_id": "vrooli/landing-page-business-suite",
     "field": "stripe-webhook-secret",
         "label": "Stripe webhook signing secret",
-        "description": "Verifies inbound Stripe webhook signatures. Obtain it from the Stripe dashboard.",
+        "description": "Legacy migration fallback for live-mode webhook verification. Prefer stripe-live-webhook-secret.",
         "placeholder": "whsec_a1b2c3d4e5f6...",
-        "required": true,
+        "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/webhooks",
         "tiers": [
@@ -310,9 +327,9 @@
         "field": "stripe-publishable-key",
         "env": "STRIPE_PUBLISHABLE_KEY",
         "label": "Stripe publishable key",
-        "description": "Public client key used by the browser checkout flow.",
+        "description": "Legacy migration fallback for live-mode browser checkout. Prefer stripe-live-publishable-key.",
         "placeholder": "pk_live_a1b2c3d4e5f6...",
-        "required": true,
+        "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
@@ -506,9 +523,15 @@
       {"logical_id":"vrooli/landing-page-business-suite","field":"admin-default-password","kind":"authority","consumer":"seeded administrator bootstrap","source_ref":"api/auth.go:79","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"magic-link mail delivery","source_ref":"api/email_service.go:70","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"smtp-password","kind":"authority","consumer":"feedback SMTP delivery","source_ref":"api/email_service.go:197","required":false},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-secret-key","kind":"authority","consumer":"Stripe API client","source_ref":"api/stripe_service.go:292","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-webhook-secret","kind":"authority","consumer":"Stripe webhook verifier","source_ref":"api/stripe_service.go:298","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-publishable-key","kind":"environment","consumer":"browser checkout configuration","source_ref":"api/stripe_service.go:286","required":true},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-secret-key","kind":"authority","consumer":"Stripe API migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:100","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-webhook-secret","kind":"authority","consumer":"Stripe webhook migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:103","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-publishable-key","kind":"environment","consumer":"browser checkout migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:101","required":false,"reason":"Legacy fallback only; active mode-specific credentials are authority-backed."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-secret-key","kind":"authority","consumer":"Stripe API client when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:88","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-webhook-secret","kind":"authority","consumer":"Stripe webhook verifier when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:90","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-test-publishable-key","kind":"authority","consumer":"browser checkout configuration when STRIPE_MODE=test","source_ref":"api/internal/commerce/payment_settings_service.go:88","required":true,"reason":"Required when STRIPE_MODE=test; never falls back to live or legacy fields."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-secret-key","kind":"authority","consumer":"Stripe API client when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:95","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-webhook-secret","kind":"authority","consumer":"Stripe webhook verifier when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:97","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-live-publishable-key","kind":"authority","consumer":"browser checkout configuration when STRIPE_MODE=live","source_ref":"api/internal/commerce/payment_settings_service.go:95","required":true,"reason":"Required when STRIPE_MODE=live; legacy fields are migration fallback only."},
       {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-access-key-id","kind":"provider_default","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:58","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-secret-access-key","kind":"provider_default","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:59","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"delivery-s3-session-token","kind":"provider_default","consumer":"download artifact S3 client","source_ref":"api/internal/delivery/s3.go:60","required":false},

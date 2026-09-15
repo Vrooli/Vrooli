@@ -2,6 +2,8 @@ package release
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 
@@ -42,11 +44,19 @@ func (h *handler) Release(_ context.Context, req *connect.Request[v1.ReleaseRequ
 
 func (h *handler) asset(w http.ResponseWriter, req *http.Request) {
 	b, err := h.store.Get(mux.Vars(req)["id"])
-	if err != nil || len(b.ImagePNG) == 0 {
+	if err != nil || len(b.ImagePNG) == 0 || b.MIMEType == "" || b.ContentHash == "" {
 		http.Error(w, "backdrop asset not found", http.StatusNotFound)
 		return
 	}
-	w.Header().Set("Content-Type", "image/png")
+	hash := sha256.Sum256(b.ImagePNG)
+	if hex.EncodeToString(hash[:]) != b.ContentHash {
+		http.Error(w, "backdrop asset integrity check failed", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", b.MIMEType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b.ImagePNG)))
+	w.Header().Set("ETag", fmt.Sprintf("\"%s\"", b.ContentHash))
+	w.Header().Set("X-Content-SHA256", b.ContentHash)
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	_, _ = w.Write(b.ImagePNG)
 }

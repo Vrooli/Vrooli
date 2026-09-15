@@ -162,6 +162,9 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
   .cc-supporting-region { grid-row: 3; align-self: start; padding-top: clamp(4rem, 24vh, 12rem); }
   .cc-readings { border-top: 0; padding-top: 0; }
   .cc-scene-layer::after { content: ""; position: absolute; right: 0; bottom: 0; left: 0; height: 46%; background: linear-gradient(to top, var(--color-background) 30%, transparent); pointer-events: none; }
+  /* Panorama's scene is the reading, not atmosphere: give the atlas a real band and keep the fade off it. */
+  .cc-room-panorama-constellation .cc-supporting-region { padding-top: clamp(14rem, 46vh, 26rem); }
+  .cc-room-panorama-constellation .cc-scene-layer::after { height: 14%; }
   .cc-readings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
   .cc-shell [data-rcl-figure="display"] { font-size: clamp(1.5rem, 8vw, 2.4rem); }
   .cc-eyebrow { flex-direction: column; gap: var(--space-2); padding-top: var(--space-4); }

@@ -778,11 +778,14 @@ func (x *PlanOption) GetMetadata() map[string]*v1.JsonValue {
 }
 
 type PricingOverview struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bundle        *Bundle                `protobuf:"bytes,1,opt,name=bundle,proto3" json:"bundle,omitempty"`
-	Monthly       []*PlanOption          `protobuf:"bytes,2,rep,name=monthly,proto3" json:"monthly,omitempty"`
-	Yearly        []*PlanOption          `protobuf:"bytes,3,rep,name=yearly,proto3" json:"yearly,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Bundle    *Bundle                `protobuf:"bytes,1,opt,name=bundle,proto3" json:"bundle,omitempty"`
+	Monthly   []*PlanOption          `protobuf:"bytes,2,rep,name=monthly,proto3" json:"monthly,omitempty"`
+	Yearly    []*PlanOption          `protobuf:"bytes,3,rep,name=yearly,proto3" json:"yearly,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Fixed, one-time credit purchases exposed separately from subscriptions.
+	// Supporter contributions remain outside the customer credit-top-up rail.
+	CreditTopups  []*PlanOption `protobuf:"bytes,5,rep,name=credit_topups,json=creditTopups,proto3" json:"credit_topups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -841,6 +844,13 @@ func (x *PricingOverview) GetYearly() []*PlanOption {
 func (x *PricingOverview) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *PricingOverview) GetCreditTopups() []*PlanOption {
+	if x != nil {
+		return x.CreditTopups
 	}
 	return nil
 }
@@ -928,13 +938,14 @@ const file_landing_page_business_suite_v1_shared_commerce_proto_rawDesc = "" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x15\n" +
-	"\x13_intro_amount_centsJ\x04\b\x15\x10\x16R\x10metadata_untyped\"\xc0\x02\n" +
+	"\x13_intro_amount_centsJ\x04\b\x15\x10\x16R\x10metadata_untyped\"\x9f\x03\n" +
 	"\x0fPricingOverview\x12L\n" +
 	"\x06bundle\x18\x01 \x01(\v24.vrooli.landing_page_business_suite.v1.shared.BundleR\x06bundle\x12R\n" +
 	"\amonthly\x18\x02 \x03(\v28.vrooli.landing_page_business_suite.v1.shared.PlanOptionR\amonthly\x12P\n" +
 	"\x06yearly\x18\x03 \x03(\v28.vrooli.landing_page_business_suite.v1.shared.PlanOptionR\x06yearly\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt*\xda\x01\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12]\n" +
+	"\rcredit_topups\x18\x05 \x03(\v28.vrooli.landing_page_business_suite.v1.shared.PlanOptionR\fcreditTopups*\xda\x01\n" +
 	"\x11SubscriptionState\x12\"\n" +
 	"\x1eSUBSCRIPTION_STATE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19SUBSCRIPTION_STATE_ACTIVE\x10\x01\x12\x1f\n" +
@@ -1004,14 +1015,15 @@ var file_landing_page_business_suite_v1_shared_commerce_proto_depIdxs = []int32{
 	8,  // 12: vrooli.landing_page_business_suite.v1.shared.PricingOverview.monthly:type_name -> vrooli.landing_page_business_suite.v1.shared.PlanOption
 	8,  // 13: vrooli.landing_page_business_suite.v1.shared.PricingOverview.yearly:type_name -> vrooli.landing_page_business_suite.v1.shared.PlanOption
 	13, // 14: vrooli.landing_page_business_suite.v1.shared.PricingOverview.updated_at:type_name -> google.protobuf.Timestamp
-	14, // 15: vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus.MetadataEntry.value:type_name -> common.v1.JsonValue
-	14, // 16: vrooli.landing_page_business_suite.v1.shared.Bundle.MetadataEntry.value:type_name -> common.v1.JsonValue
-	14, // 17: vrooli.landing_page_business_suite.v1.shared.PlanOption.MetadataEntry.value:type_name -> common.v1.JsonValue
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	8,  // 15: vrooli.landing_page_business_suite.v1.shared.PricingOverview.credit_topups:type_name -> vrooli.landing_page_business_suite.v1.shared.PlanOption
+	14, // 16: vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus.MetadataEntry.value:type_name -> common.v1.JsonValue
+	14, // 17: vrooli.landing_page_business_suite.v1.shared.Bundle.MetadataEntry.value:type_name -> common.v1.JsonValue
+	14, // 18: vrooli.landing_page_business_suite.v1.shared.PlanOption.MetadataEntry.value:type_name -> common.v1.JsonValue
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_shared_commerce_proto_init() }

@@ -26,6 +26,18 @@ class Handle:
     def filter(self, fn): return Handle([r for r in self.rows if fn(r)], self.metadata)
     def sort(self, key, reverse=False): return Handle(sorted(self.rows, key=lambda r:r.get(key,''), reverse=reverse), self.metadata)
 
+class Program:
+    """The kernel-bound `program` helper, reduced to what the walk uses (kernel/host/program_helper.py)."""
+    def __init__(self, environment): self._environment = environment
+    def inputs(self, default=None):
+        value = self._environment.get('inputs')
+        return value if isinstance(value, dict) else dict(default or {})
+    def guarded(self, call):
+        def run():
+            try: return call()
+            except Exception as exc: return exc
+        return run
+
 class WalkTests(unittest.TestCase):
     ROSTER = ['director-swarm','monetization','marketing-crew','meta-optimization','infra-health','scenario-qa']
 
@@ -67,6 +79,7 @@ class WalkTests(unittest.TestCase):
             'meta_optimization_manager':SimpleNamespace(focus=SimpleNamespace(next=invoke('meta',lambda _:Handle([])))),
             'infrastructure_manager':SimpleNamespace(focus=SimpleNamespace(next=invoke('infra',lambda _:Handle([])))),
             'source_ledger':SimpleNamespace(journal=SimpleNamespace(list=invoke('journal',journals)))}
+        ns['program']=Program(ns)
         out=io.StringIO()
         with redirect_stdout(out): exec(compile(SOURCE,'vision-walk-prep.py','exec'),ns)
         self.assertEqual(len(out.getvalue().splitlines()),1)

@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	"landing-page-business-suite-api/internal/landing"
@@ -25,9 +26,9 @@ func NewLandingConfigConnectHandler(service *landing.LandingConfigService) Landi
 }
 
 func (h LandingConfigConnectHandler) GetLandingConfig(ctx context.Context, request *connect.Request[lpbsv1.GetLandingConfigRequest]) (*connect.Response[lpbsv1.LandingConfigResponse], error) {
-	response, err := h.service.GetLandingConfig(ctx, request.Msg.GetVariantSlug(), request.Msg.GetVisitorId())
+	response, err := h.service.GetLandingConfigForRequest(ctx, request.Msg.GetVariantSlug(), request.Msg.GetRoute(), request.Msg.GetLocale(), request.Msg.GetVisitorId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load landing configuration: %w", err))
+		return nil, presentationConnectError(fmt.Errorf("load landing configuration: %w", err))
 	}
 	message, err := LandingConfigProto(response)
 	if err != nil {
@@ -62,7 +63,14 @@ func LandingConfigProto(response *landing.LandingConfigResponse) (*lpbsv1.Landin
 	if err != nil {
 		return nil, err
 	}
-	return &lpbsv1.LandingConfigResponse{Variant: &lpbsv1.LandingVariantSummary{Id: int64(response.Variant.ID), Slug: response.Variant.Slug, Name: response.Variant.Name, Description: response.Variant.Description, Axes: response.Variant.Axes}, Sections: sections, Pricing: response.Pricing, Downloads: downloads, Header: header, Branding: brandingProto(response.Branding), Fallback: response.Fallback, CouponMappings: response.CouponMappings, IntroOffers: offers}, nil
+	var presentationWire *shared.ResolvedProductPresentation
+	if response.Presentation != nil {
+		presentationWire, err = ResolvedPresentationProto(*response.Presentation)
+		if err != nil {
+			return nil, fmt.Errorf("presentation: %w", err)
+		}
+	}
+	return &lpbsv1.LandingConfigResponse{Variant: &lpbsv1.LandingVariantSummary{Id: int64(response.Variant.ID), Slug: response.Variant.Slug, Name: response.Variant.Name, Description: response.Variant.Description, Axes: response.Variant.Axes}, Sections: sections, Pricing: response.Pricing, Downloads: downloads, Header: header, Branding: brandingProto(response.Branding), Fallback: response.Fallback, CouponMappings: response.CouponMappings, IntroOffers: offers, Presentation: presentationWire}, nil
 }
 
 func brandingProto(branding *landing.LandingBranding) *lpbsv1.LandingBranding {

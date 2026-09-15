@@ -1,0 +1,718 @@
+{
+  "presentation": {
+    "schema_version": 1,
+    "mode": "single_app",
+    "scope": "app",
+    "app_key": "web-console",
+    "page": {
+      "id": "aquila-signal",
+      "locale": "en",
+      "title": "Aquila",
+      "description": "Organize your agent sessions. Talk, listen, and catch up. Explore the plans, pages, and evidence they create—all in one workspace.",
+      "theme": {
+        "variant": "signal",
+        "primary": "#202924",
+        "background": "#faf9f6",
+        "accent": "#b94721"
+      },
+      "navigation": {
+        "label": "Main navigation",
+        "items": [
+          {
+            "label": "The workspace",
+            "accessible_label": "The workspace",
+            "target": "#hero"
+          },
+          {
+            "label": "What it can do",
+            "accessible_label": "What it can do",
+            "target": "#artifacts"
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "id": "hero",
+          "kind": "product-hero",
+          "version": 1,
+          "variant": "centered",
+          "content": {
+            "product_hero": {
+              "app_key": "web-console",
+              "eyebrow": "A HOME FOR YOUR AI WORK",
+              "title": "All your agents. One clear view.",
+              "description": "Organize your agent sessions. Talk, listen, and catch up. Explore the plans, pages, and evidence they create—all in one workspace.",
+              "visual_ref": "",
+              "accessibility_label": "Illustrative product view · design concept",
+              "actions": [
+                {
+                  "kind": "download",
+                  "label": "Get Aquila",
+                  "accessible_label": "Get Aquila",
+                  "app_key": "web-console"
+                },
+                {
+                  "kind": "anchor",
+                  "label": "Explore what’s possible",
+                  "accessible_label": "Explore what’s possible",
+                  "target": "#artifacts"
+                }
+              ],
+              "fixture_ref": "workspace"
+            }
+          }
+        },
+        {
+          "id": "principles",
+          "kind": "capability-strip",
+          "version": 1,
+          "variant": "inline",
+          "content": {
+            "capability_strip": {
+              "heading": "Workspace capabilities",
+              "items": [
+                {
+                  "capability_id": "sessions",
+                  "label": "Organize your sessions",
+                  "description": ""
+                },
+                {
+                  "capability_id": "voice",
+                  "label": "Talk, listen & catch up",
+                  "description": ""
+                },
+                {
+                  "capability_id": "artifacts",
+                  "label": "See what your agents make",
+                  "description": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "artifacts",
+          "kind": "artifact-explorer",
+          "version": 1,
+          "variant": "tabs",
+          "content": {
+            "artifact_explorer": {
+              "heading": "Don’t just read the reply. See what it made.",
+              "capability_id": "artifacts",
+              "examples": [
+                {
+                  "id": "plan",
+                  "kind": "plan",
+                  "filename": "launch-plan.md",
+                  "caption": "Read the plan and its Mermaid diagrams, together.",
+                  "alt_text": "A clearer path to launch.",
+                  "width": 1440,
+                  "height": 720,
+                  "source_ref": "plan",
+                  "preview_ref": "plan",
+                  "title": "A clearer path to launch.",
+                  "body": "A focused refresh, from the first impression to the final review.",
+                  "steps": [
+                    "Shape the story",
+                    "Build the page",
+                    "Review the evidence"
+                  ],
+                  "checks": [
+                    "A product-led first impression",
+                    "A considered mobile experience",
+                    "Evidence attached to the handoff"
+                  ],
+                  "type": "MARKDOWN + MERMAID",
+                  "label": "The plan",
+                  "icon": "↳",
+                  "source": {
+                    "ref": "plan",
+                    "isolation": "structured-preview"
+                  }
+                },
+                {
+                  "id": "image",
+                  "kind": "image",
+                  "filename": "homepage-desktop.png",
+                  "caption": "Inspect screenshots and visual evidence without leaving the session.",
+                  "alt_text": "The first impression.",
+                  "width": 1440,
+                  "height": 720,
+                  "source_ref": "image",
+                  "preview_ref": "image",
+                  "title": "The first impression.",
+                  "body": "A visual direction, ready for review.",
+                  "asset_ref": "survey-relief",
+                  "type": "SCREENSHOT EVIDENCE",
+                  "label": "The screenshot",
+                  "icon": "◫",
+                  "source": {
+                    "ref": "image",
+                    "isolation": "structured-preview"
+                  }
+                },
+                {
+                  "id": "html",
+                  "kind": "html-preview",
+                  "filename": "homepage-concept.html",
+                  "caption": "Preview an HTML file as a page, not just a wall of source.",
+                  "alt_text": "A little room",
+                  "width": 1440,
+                  "height": 720,
+                  "source_ref": "html",
+                  "preview_ref": "html",
+                  "title": "A little room",
+                  "body": "An agent-generated page, brought into view.",
+                  "asset_ref": "pale-moon",
+                  "accent": "for possibility.",
+                  "brand": "STUDIO / 01",
+                  "type": "HTML PREVIEW",
+                  "label": "The HTML",
+                  "icon": "‹›",
+                  "source": {
+                    "ref": "html",
+                    "isolation": "structured-preview"
+                  }
+                },
+                {
+                  "id": "video",
+                  "kind": "video",
+                  "filename": "review-walkthrough.mp4",
+                  "caption": "Illustrative video storyboard. Aquila’s viewer supports video playback.",
+                  "alt_text": "The work, in motion.",
+                  "width": 1440,
+                  "height": 720,
+                  "source_ref": "video",
+                  "preview_ref": "video",
+                  "title": "The work, in motion.",
+                  "body": "Screen recordings belong beside the work they document.",
+                  "frames": [
+                    {
+                      "asset_ref": "survey-relief",
+                      "time": "00:00",
+                      "label": "The first impression"
+                    },
+                    {
+                      "asset_ref": "pale-moon",
+                      "time": "00:04",
+                      "label": "The product story"
+                    },
+                    {
+                      "asset_ref": "tidal-halftone",
+                      "time": "00:08",
+                      "label": "The final details"
+                    }
+                  ],
+                  "type": "VIDEO EVIDENCE",
+                  "label": "The recording",
+                  "icon": "▷",
+                  "source": {
+                    "ref": "video",
+                    "isolation": "structured-preview"
+                  }
+                }
+              ],
+              "selected_example_id": "plan"
+            }
+          }
+        },
+        {
+          "id": "voice",
+          "kind": "voice-story",
+          "version": 1,
+          "variant": "waveform",
+          "content": {
+            "voice_story": {
+              "heading": "Speak your mind. Hear the useful part.",
+              "transcript": "“Walk me through the changes, then tell me what needs a closer look.”",
+              "provider_qualification": "Local speech options. AI summaries use your configured model and provider.",
+              "waveform": [
+                0.125,
+                0.21875,
+                0.390625,
+                0.265625,
+                0.53125,
+                0.65625,
+                0.34375,
+                0.1875,
+                0.4375,
+                0.609375,
+                0.75,
+                0.484375,
+                0.296875,
+                0.5625,
+                0.671875,
+                0.359375,
+                0.203125,
+                0.46875,
+                0.71875,
+                0.59375,
+                0.3125,
+                0.1875,
+                0.40625,
+                0.609375,
+                0.734375,
+                0.5,
+                0.28125,
+                0.453125,
+                0.65625,
+                0.359375,
+                0.234375,
+                0.125
+              ],
+              "capability_ids": [
+                "voice"
+              ],
+              "eyebrow": "A LITTLE LESS TYPING. A LITTLE MORE FLOW.",
+              "body": "Dictate your next instruction, listen to a response, or let AI shorten a long reply before it is read aloud. Work with your agents in the way that suits the moment.",
+              "features": [
+                {
+                  "title": "Local speech-to-text",
+                  "description": "Turn a spoken thought into the next instruction.",
+                  "capability_id": "voice"
+                },
+                {
+                  "title": "Local text-to-speech",
+                  "description": "Listen to replies with a local voice.",
+                  "capability_id": "voice"
+                },
+                {
+                  "title": "AI summarization",
+                  "description": "Get a shorter version of a longer response.",
+                  "capability_id": "voice"
+                }
+              ],
+              "note": "Local speech options. AI summaries use your configured model and provider.",
+              "input_label": "YOUR VOICE → YOUR NEXT INSTRUCTION",
+              "summary_label": "AI RESPONSE SUMMARY",
+              "summary_title": "The short version.",
+              "summary_items": [
+                "The new hero puts the product first.",
+                "The mobile layout has room to breathe.",
+                "The updated preview is ready for your review."
+              ],
+              "output_label": "TEXT-TO-SPEECH · LOCAL VOICE",
+              "demo_note": "Illustrative voice and summary view · no microphone is used"
+            }
+          }
+        },
+        {
+          "id": "details",
+          "kind": "product-story",
+          "version": 1,
+          "variant": "three-column",
+          "content": {
+            "product_story": {
+              "heading": "Less window juggling. More forward motion.",
+              "body": "A place for the project you are deep in, the experiment on the side, and the conversation you will want to find again.",
+              "items": [
+                {
+                  "title": "See the work together.",
+                  "description": "Keep terminals and conversations side by side. Give a project its own group, and every agent a clear place in it."
+                },
+                {
+                  "title": "Find that conversation.",
+                  "description": "Search your sessions and retained transcripts. Get back to the decision, the useful answer, or the detail you remember."
+                },
+                {
+                  "title": "Clear the desk. Keep the work.",
+                  "description": "Archive sessions when you are done. Unarchive them when you need them again, with their retained history close at hand."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "mobile",
+          "kind": "device-story",
+          "version": 1,
+          "variant": "phone",
+          "content": {
+            "device_story": {
+              "heading": "Step away. Stay in the loop.",
+              "description": "Check in from your phone. Read a response, send the next instruction, and return to your desk with the thread intact.",
+              "device": "phone",
+              "visual_ref": "",
+              "alt_text": "Illustrative product view · design concept"
+            }
+          }
+        },
+        {
+          "id": "roadmap",
+          "kind": "capability-roadmap",
+          "version": 1,
+          "variant": "roadmap",
+          "content": {
+            "capability_roadmap": {
+              "heading": "Your workspace. Beyond one machine.",
+              "capability_ids": [
+                "remote-machines",
+                "android-control",
+                "iphone-control"
+              ],
+              "status_label": "COMING SOON",
+              "description": "The next chapter brings more of your computing world into Aquila. These capabilities are coming soon, not available today."
+            }
+          }
+        },
+        {
+          "id": "get-started",
+          "kind": "closing-action",
+          "version": 1,
+          "variant": "artwork",
+          "content": {
+            "closing_action": {
+              "heading": "Make yourself at home.",
+              "description": "Your agents. Your voice. Your work, all together.",
+              "actions": [
+                {
+                  "kind": "download",
+                  "label": "Get Aquila",
+                  "accessible_label": "Get Aquila",
+                  "app_key": "web-console"
+                }
+              ],
+              "visual_ref": "tidal-halftone"
+            }
+          }
+        }
+      ],
+      "footer": {
+        "label": "Footer",
+        "links": [
+          {
+            "label": "Explore the suite",
+            "accessible_label": "Explore the suite",
+            "target": "/"
+          },
+          {
+            "label": "Aquila",
+            "accessible_label": "Explore Aquila",
+            "target": "/apps/aquila"
+          }
+        ]
+      },
+      "display": {
+        "shell": {
+          "brand_name": "Aquila",
+          "brand_mark": "letter-a",
+          "brand_target": "/apps/aquila",
+          "skip_label": "Skip to content",
+          "menu_label": "Toggle navigation",
+          "footer_brand_name": "Vrooli",
+          "footer_brand_mark": "suite",
+          "footer_brand_target": "/",
+          "footer_tagline": "Tools for people with things to make.",
+          "copyright": "Vrooli © 2026",
+          "footer_note": "Design concept. Product UI and release availability require validation.",
+          "unavailable_reason": "Release availability is not connected in this preview.",
+          "preview_label": "Design fixture · illustrative product views; release actions are unavailable.",
+          "header_action": {
+            "kind": "download",
+            "label": "Get Aquila",
+            "accessible_label": "Get Aquila",
+            "app_key": "web-console"
+          }
+        },
+        "asset_labels": {
+          "survey-relief": {
+            "alt": "survey relief abstract art study"
+          },
+          "pale-moon": {
+            "alt": "pale moon abstract art study"
+          },
+          "tidal-halftone": {
+            "alt": "tidal halftone abstract art study"
+          }
+        },
+        "fixture_display": {
+          "workspace": {
+            "mark": "letter-a",
+            "avatar": "M",
+            "time": "9:41",
+            "tabs_label": "Explore the workspace",
+            "terminal_label": "Terminal",
+            "messages_label": "Conversation",
+            "file_changes": {
+              "Hero.tsx": "+24",
+              "ProductStory.tsx": "+48",
+              "design-tokens.css": "+16"
+            }
+          }
+        },
+        "blocks": {
+          "hero": {
+            "note": "Your agents. Your voice. Your work, all together.",
+            "accessibility_label": "Illustrative product view · design concept",
+            "heading_breaks": [
+              17
+            ]
+          },
+          "principles": {
+            "anchors": {
+              "sessions": "#details",
+              "voice": "#voice",
+              "artifacts": "#artifacts"
+            }
+          },
+          "artifacts": {
+            "eyebrow": "THE CONVERSATION IS ONLY HALF THE WORK",
+            "description": "The plan. The diagram. The page. The proof. Open the files your agents create and stay close to the work, without a trail of extra windows.",
+            "accessibility_label": "Explore example agent output",
+            "badge": "AQUILA · FILE VIEWER",
+            "note": "Illustrative artifacts · choose a file to explore",
+            "formats": [
+              "Markdown + Mermaid",
+              "HTML previews",
+              "Images + video",
+              "PDFs, audio, code & more"
+            ],
+            "mark": "letter-a",
+            "heading_breaks": [
+              27
+            ]
+          },
+          "details": {
+            "eyebrow": "ROOM TO DO YOUR BEST WORK",
+            "heading_breaks": [
+              22
+            ]
+          },
+          "mobile": {
+            "eyebrow": "A CHANGE OF SCENERY, NOT CONTEXT",
+            "note": "A focused mobile view, with terminal controls within reach.",
+            "heading_breaks": [
+              11
+            ],
+            "fixture_ref": "workspace"
+          },
+          "roadmap": {
+            "eyebrow": "A LITTLE FURTHER ON THE HORIZON",
+            "heading_breaks": [
+              16
+            ]
+          },
+          "get-started": {
+            "eyebrow": "YOUR NEXT GOOD IDEA NEEDS A PLACE"
+          },
+          "voice": {
+            "heading_breaks": [
+              17
+            ]
+          }
+        },
+        "apps": {
+          "web-console": {
+            "mark": "letter-a",
+            "tone": "amber",
+            "detail_label": "Explore Aquila",
+            "fixture_ref": "workspace"
+          }
+        }
+      }
+    },
+    "selected_app_keys": [
+      "web-console"
+    ],
+    "spotlights": [
+      {
+        "app_key": "web-console",
+        "slug": "aquila",
+        "name": "Aquila",
+        "tagline": "Bring your agents into focus.",
+        "description": "Organize your agent sessions. Talk, listen, and catch up with AI summaries. Open the plans, previews, and evidence they create.",
+        "detail_route": "/apps/aquila"
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "sessions",
+        "label": "Organize your sessions",
+        "benefits": [],
+        "status": "preview",
+        "status_label": "Design preview"
+      },
+      {
+        "id": "voice",
+        "label": "Talk, listen & catch up",
+        "benefits": [],
+        "status": "preview",
+        "status_label": "Design preview"
+      },
+      {
+        "id": "artifacts",
+        "label": "See what your agents make",
+        "benefits": [],
+        "status": "preview",
+        "status_label": "Design preview"
+      },
+      {
+        "id": "remote-machines",
+        "label": "Remote computers",
+        "benefits": [
+          "Connect to remote machines from your Aquila workspace."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      },
+      {
+        "id": "android-control",
+        "label": "Android devices",
+        "benefits": [
+          "Bring Android device control into the same place as your agent work."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      },
+      {
+        "id": "iphone-control",
+        "label": "iPhone control",
+        "benefits": [
+          "Extend the workspace to controlling your iPhone, too."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      }
+    ],
+    "diagnostics": {
+      "preview": true,
+      "noindex": true,
+      "no_store": true,
+      "resolved_revision": "design-review-v2-feature-depth",
+      "eligible_app_keys": [
+        "web-console"
+      ]
+    },
+    "assets": [
+      {
+        "id": "survey-relief",
+        "public_url": "/presentation/survey-relief.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-survey-relief",
+        "content_hash": "0f32434728ead47372779d04db03019b7370fbca3e9285fbd242083c8fb4d9ea",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "survey-relief"
+        },
+        "overlay_regions": []
+      },
+      {
+        "id": "pale-moon",
+        "public_url": "/presentation/pale-moon.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-pale-moon",
+        "content_hash": "05384e483727b34a647013d752fd80e657f887ec100420403e445b1c0f07a299",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "pale-moon"
+        },
+        "overlay_regions": []
+      },
+      {
+        "id": "tidal-halftone",
+        "public_url": "/presentation/tidal-halftone.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-tidal-halftone",
+        "content_hash": "ce4ba8c17a93fca4900dc38c443dfd743bd89631831cdfbf988298c4367639e4",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "tidal-halftone"
+        },
+        "overlay_regions": []
+      }
+    ],
+    "fixtures": [
+      {
+        "id": "workspace",
+        "kind": "workspace",
+        "workspace": {
+          "title": "Aquila",
+          "group": "Website refresh",
+          "group_label": "YOUR WORK",
+          "groups": [
+            "Website refresh",
+            "Side project",
+            "Notes & experiments"
+          ],
+          "sessions_label": "SESSIONS",
+          "sessions": [
+            "Build the experience",
+            "Review the changes",
+            "Run the checks"
+          ],
+          "role": "Builder",
+          "model": "Claude Code",
+          "reviewer": "Reviewer",
+          "reviewer_model": "Codex",
+          "branch": "website / main",
+          "prompt": "Let’s give the homepage a little more room to breathe.",
+          "answer": "I’ll simplify the layout, keep the product in focus, and make the mobile experience feel just as considered.",
+          "file_label": "CHANGES IN THIS SESSION",
+          "diff": [
+            "+  A clearer first impression",
+            "+  One story at every screen size",
+            "+  Space for the work to stand out"
+          ],
+          "command": "$ pnpm test homepage",
+          "checks": [
+            "✓ Hero content is visible",
+            "✓ Product links resolve",
+            "✓ Mobile layout fits the screen"
+          ],
+          "ready": "Ready for your review",
+          "composer": "What would you like to work on?",
+          "return_label": "AI RESPONSE SUMMARY",
+          "return_title": "The useful part, up front.",
+          "review_message": "The layout is updated. Mobile checks pass. The new product story is ready to review.",
+          "message_label": "YOU",
+          "reply_label": "CLAUDE CODE",
+          "status": "Session connected",
+          "today": "Today",
+          "keyboard": [
+            "esc",
+            "ctrl",
+            "tab",
+            "↑",
+            "↓",
+            "↵"
+          ],
+          "files": [
+            "Hero.tsx",
+            "ProductStory.tsx",
+            "design-tokens.css"
+          ]
+        }
+      }
+    ]
+  }
+}

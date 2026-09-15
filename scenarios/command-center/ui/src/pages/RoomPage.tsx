@@ -16,6 +16,7 @@ import { ReachMapReadout } from "../components/ReachMapReadout";
 import { LadderTile } from "../components/LadderTile";
 import { PanelTile } from "../components/PanelTile";
 import { SkyReadout } from "../components/SkyReadout";
+import { skyState } from "../lib/sky";
 import type { Reading } from "../lib/api";
 
 /** A supporting reading takes the tile its shape calls for: a list reading has no single figure to show. */
@@ -43,7 +44,7 @@ export default function RoomPage() {
     },
   });
   const room = board.rooms.find((entry) => entry.id === roomId) ?? data?.room ?? { id: roomId, title: roomId.replace(/-/g, " "), theme: THEMES[roomId], composition: "orbital-field" };
-  const beats = room.beats ?? [];
+  const beats = useMemo(() => room.beats ?? [], [room.beats]);
   const beatIndex = board.beatIndex;
   const beat = beats[beatIndex];
   const theme = room.theme ?? THEMES[roomId] ?? "ground-control";
@@ -60,7 +61,8 @@ export default function RoomPage() {
   }, [beat, beats, board, board.samples, visible, beatIndex]);
   const supporting = useMemo(() => visible.filter((reading) => reading.id !== hero?.id), [visible, hero]);
   const supportingTrendIDs = useMemo(() => new Set(supporting.filter((reading) => reading.trend?.state === "meaningful" || reading.trend?.state === "neutral").slice(0, 2).map((reading) => reading.id)), [supporting]);
-  const measured = visible.filter(hasValue).length;
+  // Measured means what the resolver draws as measured: an in-reach reading that returns a number still shows its illustration.
+  const measured = visible.filter((reading) => skyState(reading) === "measured").length;
   const allIllustrative = visible.length > 0 && measured === 0;
   const hasSamples = visible.some((reading) => resolveReading(reading).figure === "sample");
   const index = board.rooms.findIndex((entry) => entry.id === roomId);

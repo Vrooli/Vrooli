@@ -8,10 +8,10 @@ import (
 )
 
 func TestProceduralReleaseDerivesDisclosureAndRequiresAltText(t *testing.T) {
-	s := NewStore()
+	s := evidenceStore(t, authoritativeCandidate(t))
 	_, err := s.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "procedural", Width: 10, Height: 10, LegibilityPasses: true})
 	require.Error(t, err)
-	b, err := s.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "procedural", Width: 10, Height: 10, AltText: "ambient", LegibilityPasses: true})
+	b, err := s.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "procedural", AltText: "ambient", LegibilityPasses: true})
 	require.NoError(t, err)
 	require.False(t, b.AIGenerated)
 }
@@ -52,12 +52,14 @@ func guidedProvenance() fakeProvenance {
 }
 
 func modelBackedRequest() Request {
-	return Request{CandidateID: "c", StyleID: "s", Strategy: "guided", Width: 10, Height: 10, AltText: "a restrained field", LegibilityPasses: true, ContrastRatio: 5, ContrastThreshold: 4.5}
+	return Request{CandidateID: "c", StyleID: "s", Strategy: "guided", AltText: "a restrained field", LegibilityPasses: true, ContrastRatio: 5, ContrastThreshold: 4.5}
 }
 
 func TestModelBackedReleaseHandsOffToAssetStudio(t *testing.T) {
 	publisher := &fakePublisher{}
-	b, err := NewStoreWithPublisher(publisher, guidedProvenance()).Release(modelBackedRequest())
+	candidate := authoritativeCandidate(t)
+	candidate.Strategy = "guided"
+	b, err := NewStoreWithPublisher(publisher, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.NoError(t, err)
 	require.Equal(t, 1, publisher.calls)
 	require.Equal(t, "asset-123", b.AssetStudioRef)
@@ -75,7 +77,9 @@ func TestModelBackedReleaseHandsOffToAssetStudio(t *testing.T) {
 // into circulation.
 func TestModelBackedReleaseRefusesWithoutRecordedProvenance(t *testing.T) {
 	publisher := &fakePublisher{}
-	_, err := NewStoreWithPublisher(publisher, fakeProvenance{}).Release(modelBackedRequest())
+	candidate := authoritativeCandidate(t)
+	candidate.Strategy = "guided"
+	_, err := NewStoreWithPublisher(publisher, fakeProvenance{}, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.ErrorContains(t, err, "no recorded provenance")
 	require.Zero(t, publisher.calls)
 }
@@ -84,7 +88,9 @@ func TestModelBackedReleaseRefusesWithoutRecordedProvenance(t *testing.T) {
 // that existed before the ingress landed: a missing capability is named, and
 // nothing is published under a fabricated provenance.
 func TestModelBackedReleaseRefusesWhenAssetStudioIsAbsent(t *testing.T) {
-	_, err := NewStore().Release(modelBackedRequest())
+	candidate := authoritativeCandidate(t)
+	candidate.Strategy = "guided"
+	_, err := NewStoreWithPublisher(nil, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.ErrorContains(t, err, "asset-studio publisher capability")
 }
 
@@ -94,7 +100,9 @@ func TestModelBackedReleaseRefusesWhenAssetStudioIsAbsent(t *testing.T) {
 func TestReleaseRefusesAStrategyItsRenderDoesNotAgreeWith(t *testing.T) {
 	publisher := &fakePublisher{}
 	source := fakeProvenance{"c": {Strategy: "procedural-treated", ModelBacked: false}}
-	_, err := NewStoreWithPublisher(publisher, source).Release(modelBackedRequest())
-	require.ErrorContains(t, err, "recorded as procedural-treated")
+	candidate := authoritativeCandidate(t)
+	candidate.Strategy = "procedural-treated"
+	_, err := NewStoreWithPublisher(publisher, source, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
+	require.ErrorContains(t, err, "does not match candidate evidence")
 	require.Zero(t, publisher.calls)
 }

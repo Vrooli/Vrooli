@@ -4,6 +4,18 @@ Durable decisions for this scenario, newest first. A decision recorded here is b
 
 ---
 
+## 2026-09-15 — Panorama is a star atlas of the whole board
+
+**Decision.** Panorama answers its charter question, "what is the state of the whole, and what is unmeasurable?", instead of repeating one room's headline. The hero counts signals measured across every other room, with the total and a reason for each unmeasured signal (sensor failing, in reach, no substrate). The scene is a star atlas: each room is a constellation, each of its signals a star in the provenance material of where it stands, and a constellation line is solid only between two measured stars. The room's own readings, the five room headlines, all become supporting tiles. `GET /api/v1/rooms/{id}` carries `constellations` for a room of category `panorama`, built from the registry's room list.
+
+**Why.** The previous composition was five identical rings around a glow that stood for the retired composite score, with its room list hard-coded in the scene, and a hero ("healthy apps") already shown in The Hive. It encoded provenance and nothing else. Counting the whole board is the one thing no other room can show, and it is the board's own measurement, so it is solid ink.
+
+**Constraints kept.** Counts, never a ratio (production-ledger archetype, 2026-09-01). One classifier, `ui/src/lib/sky.ts`, over the shared ink resolver, used by both hero and scene; an `IN-REACH` reading that returns a number still counts as in reach, as the resolver draws it. Star positions are seeded by room and metric id, so a signal going live changes weight, never place. A new room appears in the atlas with no code change.
+
+**Alternatives rejected.** Polishing the constellation, which would still draw five circles that encode nothing. A wall of the five rooms' scenes, which repeats the cycle and runs several canvases on a kiosk. A WebGL scene, which reopens the three.js removal for no gain in meaning.
+
+---
+
 ## 2026-09-15 — The release ladder is a structured reading, not a flattened panel
 
 **Decision.** Offer Desk's release ladder is read as its own reading kind, `ladder`, carrying every ranked rung with what it opens, the enabling work due by its rank, linked goals and readiness. It renders as Next Rung (standard beat), the Reach Map (a new `wide` beat layout) and a strip summary. Offer Desk stamps `generated_at` on the ladder so the reading is trusted on producer time.

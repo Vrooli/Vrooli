@@ -585,16 +585,6 @@
               }
             },
             {
-              "name": "width",
-              "required": true,
-              "description": "Actual width"
-            },
-            {
-              "name": "height",
-              "required": true,
-              "description": "Actual height"
-            },
-            {
               "name": "placement",
               "required": true,
               "description": "Placement"

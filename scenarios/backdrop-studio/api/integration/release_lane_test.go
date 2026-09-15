@@ -5,7 +5,9 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -189,7 +191,7 @@ func TestProceduralReleaseNeedsNoAssetStudio(t *testing.T) {
 
 	var chosen integration.Style
 	for _, style := range styles {
-		if !style.ModelBacked() {
+		if !style.ModelBacked() && len(style.Regions) > 0 {
 			chosen = style
 			break
 		}
@@ -225,6 +227,69 @@ func TestProceduralReleaseNeedsNoAssetStudio(t *testing.T) {
 	require.False(t, released.Backdrop.AIGenerated, "a procedural backdrop must not be labelled AI-generated")
 	require.Empty(t, released.Backdrop.AssetStudioRef,
 		"a procedural backdrop must not acquire an Asset Studio reference: it is not synthetic media")
+}
+
+// TestReleaseURIServesTheQualifiedCandidate is the end-to-end regression for
+// the original defect: a release must not succeed from metadata alone and its
+// returned same-origin URI must serve the exact candidate it qualified.
+func TestReleaseURIServesTheQualifiedCandidate(t *testing.T) {
+	env, _ := newEnvironment(t)
+	ctx := context.Background()
+
+	styles, err := env.Styles(ctx)
+	require.NoError(t, err)
+	surfaces, err := env.Surfaces(ctx)
+	require.NoError(t, err)
+	var chosen integration.Style
+	for _, style := range styles {
+		if !style.ModelBacked() && len(style.Regions) > 0 {
+			chosen = style
+			break
+		}
+	}
+	require.NotEmpty(t, chosen.ID)
+	permitted := integration.PermittedSurfaces(chosen, surfaces)
+	require.NotEmpty(t, permitted)
+	surface := permitted[0]
+
+	job, err := env.Submit(ctx, integration.SubmitOptions{
+		StyleID: chosen.ID, Seed: 137, SurfaceID: surface.ID, Placement: chosen.Placements[0],
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, job.Candidates)
+	candidate := job.Candidates[0]
+
+	var released struct {
+		ID  string `json:"id"`
+		URI string `json:"uri"`
+	}
+	status, body := postJSON(t, env.BackdropURL+"/vrooli.backdrop_studio.v1.release.ReleaseService/Release", map[string]any{
+		"candidate_id": candidate.ID,
+		"style_id":     chosen.ID,
+		"strategy":     chosen.Strategy,
+		"surface_id":   surface.ID,
+		"placement":    chosen.Placements[0],
+		"alt_text":     "A controlled procedural backdrop fixture",
+	}, &released)
+	require.Equalf(t, http.StatusOK, status, "release failed without caller qualification fields: %s", body)
+	require.NotEmpty(t, released.ID)
+	require.True(t, strings.HasPrefix(released.URI, "/"), "release URI must be same-origin: %q", released.URI)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, env.BackdropURL+released.URI, nil)
+	require.NoError(t, err)
+	resp, err := (&http.Client{Timeout: time.Minute}).Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	served, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, candidate.ImagePNG, served)
+	require.Equal(t, "image/png", resp.Header.Get("Content-Type"))
+	require.Equal(t, fmt.Sprintf("%d", len(candidate.ImagePNG)), resp.Header.Get("Content-Length"))
+	require.Contains(t, resp.Header.Get("Cache-Control"), "immutable")
+	hash := sha256.Sum256(candidate.ImagePNG)
+	require.Equal(t, hex.EncodeToString(hash[:]), resp.Header.Get("X-Content-SHA256"))
+	require.NotEmpty(t, resp.Header.Get("ETag"))
 }
 
 // TestModelBackedReleaseGoesThroughAssetStudio is the payoff, and it is honest

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
 import { assertDefined, createFetchMock, installFetchMock, mockResponses } from '../test-utils/api-mocks';
+import { create, toJson } from '@bufbuild/protobuf';
+import { GetPricingResponseSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb';
 import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 
 const { pricingClient, landingConfigClient } = vi.hoisted(() => ({
@@ -370,32 +372,34 @@ describe('landing API', () => {
     });
 
     it('maps plan kinds, intervals, intros, and metadata from generated proto values', async () => {
-      const protoResponse = {
+      const protoResponse = create(GetPricingResponseSchema, {
         pricing: {
           bundle: {
             bundleKey: 'main',
             name: 'Main',
             stripeProductId: 'prod_123',
-            metadata: { source: { toJson: () => 'seeded' }, plain: {} },
+            metadata: { source: { kind: { case: 'stringValue', value: 'seeded' } }, plain: { kind: { case: 'nullValue', value: 0 } } },
           },
           monthly: [
             {
-              planName: 'Top up', planTier: 'credits', amountCents: '500', currency: 'usd',
+              planName: 'Top up', planTier: 'credits', amountCents: 500n, currency: 'usd',
               kind: PlanKind.CREDITS_TOPUP, planRank: 1,
               billingInterval: BillingInterval.ONE_TIME,
               introType: IntroPricingType.PERCENTAGE,
-              introAmountCents: '20', introPeriods: '2', metadata: { label: { toJson: () => 'popular' } },
+              introAmountCents: 20n, introPeriods: 2, metadata: { label: { kind: { case: 'stringValue', value: 'popular' } } },
             },
           ],
           yearly: [{
-            planName: 'Support', planTier: 'support', amountCents: 100, currency: 'usd',
+            planName: 'Support', planTier: 'support', amountCents: 100n, currency: 'usd',
             kind: PlanKind.SUPPORTER_CONTRIBUTION,
             billingInterval: BillingInterval.YEAR,
             introType: IntroPricingType.FLAT_AMOUNT,
           }],
         },
-      };
-      fetchMock.mockResolvedValue(mockResponses.success(protoResponse));
+      });
+      const actual = await vi.importActual<typeof import('@bufbuild/protobuf')>('@bufbuild/protobuf');
+      vi.mocked(toJson).mockImplementationOnce(actual.toJson);
+      pricingClient.getPricing.mockResolvedValue(protoResponse);
 
       const result = await getPlans();
 
@@ -409,7 +413,7 @@ describe('landing API', () => {
       expect(result.bundle.metadata).toEqual({ source: 'seeded', plain: null });
     });
 
-    it('filters malformed numeric plans instead of exposing invalid prices to checkout', async () => {
+    it('rejects malformed numeric plans instead of exposing invalid prices to checkout', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       fetchMock.mockResolvedValue(mockResponses.success({
@@ -420,21 +424,15 @@ describe('landing API', () => {
         },
       }));
 
-      const result = await getPlans();
-      expect(result.monthly).toEqual([]);
+      await expect(getPlans()).rejects.toThrow('Invalid pricing amount');
       warn.mockRestore();
       error.mockRestore();
     });
 
-    it('returns a safe empty overview when pricing is absent from an otherwise successful response', async () => {
+    it('rejects a successful response with missing pricing instead of inventing an offer', async () => {
       fetchMock.mockResolvedValue(mockResponses.success({}));
 
-      const result = await getPlans();
-      expect(result).toMatchObject({
-        bundle: { bundle_key: '', name: '', display_credits_label: 'credits', environment: 'production' },
-        monthly: [], yearly: [],
-      });
-      expect(result.updated_at).toBeTruthy();
+      await expect(getPlans()).rejects.toThrow('Invalid PricingOverview response');
     });
   });
 });

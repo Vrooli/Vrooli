@@ -279,6 +279,10 @@ func NewServer() (*Server, error) {
 	assetsService := NewAssetsService(db)
 	fileRoots := filerouting.New(runtimeStoragePaths(variantsDir, assetsService.GetUploadDir()))
 	assetsService.SetFileRoots(fileRoots)
+	// Presentation revisions share the lifecycle-routed config root. Publication
+	// remains fail-closed until the seed/qualification owner supplies an
+	// authorized read-only verifier; nil deliberately refuses auto-publication.
+	configStore.SetPresentationStorage(fileRoots, nil)
 	seoService := NewSEOService(configStore)
 	feedbackService := domainmetrics.NewFeedbackService(routedDB)
 	emailService := NewEmailService()

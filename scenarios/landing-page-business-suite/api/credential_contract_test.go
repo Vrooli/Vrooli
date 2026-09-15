@@ -20,6 +20,10 @@ func TestCredentialDescriptorsMatchRuntimeOwnership(t *testing.T) {
 				Required     bool   `json:"required"`
 				Provisioning string `json:"provisioning"`
 			} `json:"descriptors"`
+			Consumers []struct {
+				Field    string `json:"field"`
+				Required bool   `json:"required"`
+			} `json:"consumers"`
 		} `json:"credentials"`
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
@@ -57,6 +61,34 @@ func TestCredentialDescriptorsMatchRuntimeOwnership(t *testing.T) {
 		descriptor, ok := byField[field]
 		if !ok || descriptor.env != "" || descriptor.provisioning != "operator" {
 			t.Fatalf("Stripe server credential %q has wrong descriptor: %#v", field, descriptor)
+		}
+	}
+	for _, field := range []string{
+		"stripe-test-secret-key", "stripe-test-webhook-secret", "stripe-test-publishable-key",
+		"stripe-live-secret-key", "stripe-live-webhook-secret", "stripe-live-publishable-key",
+	} {
+		descriptor, ok := byField[field]
+		if !ok || descriptor.provisioning != "operator" {
+			t.Fatalf("mode-specific Stripe credential %q must be declared as operator-provisioned: %#v", field, descriptor)
+		}
+	}
+	consumerRequired := make(map[string]bool)
+	for _, consumer := range manifest.Credentials.Consumers {
+		if consumer.Field != "" {
+			consumerRequired[consumer.Field] = consumer.Required
+		}
+	}
+	for _, field := range []string{
+		"stripe-test-secret-key", "stripe-test-webhook-secret", "stripe-test-publishable-key",
+		"stripe-live-secret-key", "stripe-live-webhook-secret", "stripe-live-publishable-key",
+	} {
+		if required, ok := consumerRequired[field]; !ok || !required {
+			t.Fatalf("active mode-specific Stripe consumer %q must be required in its selected mode", field)
+		}
+	}
+	for _, field := range []string{"stripe-secret-key", "stripe-webhook-secret", "stripe-publishable-key"} {
+		if required := consumerRequired[field]; required {
+			t.Fatalf("legacy Stripe consumer %q must remain migration-only", field)
 		}
 	}
 	if stripe, ok := byField["stripe-publishable-key"]; !ok || stripe.env != "STRIPE_PUBLISHABLE_KEY" {

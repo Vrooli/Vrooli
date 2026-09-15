@@ -70,6 +70,9 @@ type Candidate struct {
 type Job struct {
 	ID, StyleID, Status, ExecutionPath string
 	SurfaceID                          string
+	Placement                          string
+	Regions                            []catalog.Region
+	ContrastThreshold                  float64
 	Seed                               int64
 	Candidates                         []Candidate
 	SelectedCandidateID, SelectedBy    string
@@ -171,7 +174,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		return Job{}, routeErr
 	}
 	jobID := id(style.ID, req.Surface.ID, seed, count)
-	job := &Job{ID: jobID, StyleID: style.ID, SurfaceID: req.Surface.ID, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
+	job := &Job{ID: jobID, StyleID: style.ID, SurfaceID: req.Surface.ID, Placement: req.Placement, Regions: append([]catalog.Region(nil), style.Regions...), ContrastThreshold: style.ContrastThreshold, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
 	for i := 0; i < count; i++ {
 		candidateSeed := seed + int64(i)
 		// The vector lane resolves its generator from its own table, so it never
@@ -1302,12 +1305,43 @@ func id(parts ...interface{}) string {
 
 func copyJob(job *Job) Job {
 	out := *job
+	out.Regions = append([]catalog.Region(nil), job.Regions...)
 	out.Candidates = make([]Candidate, len(job.Candidates))
 	for i, c := range job.Candidates {
 		out.Candidates[i] = c
 		out.Candidates[i].PNG = append([]byte(nil), c.PNG...)
 	}
 	return out
+}
+
+// CandidateEvidence resolves the authoritative release inputs for one
+// candidate. It is deliberately an internal release seam: the render store
+// owns the bytes, delivery surface, placement, reserved regions, and threshold
+// that the release store must qualify. A caller may request a candidate by ID,
+// but cannot replace those facts with request metadata.
+func (s *Store) CandidateEvidence(candidateID string) (release.CandidateEvidence, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, job := range s.jobs {
+		for _, candidate := range job.Candidates {
+			if candidate.ID != candidateID {
+				continue
+			}
+			return release.CandidateEvidence{
+				ID:                candidate.ID,
+				ImagePNG:          append([]byte(nil), candidate.PNG...),
+				Width:             candidate.Width,
+				Height:            candidate.Height,
+				StyleID:           job.StyleID,
+				Strategy:          candidate.Strategy,
+				SurfaceID:         job.SurfaceID,
+				Placement:         job.Placement,
+				Regions:           append([]catalog.Region(nil), job.Regions...),
+				ContrastThreshold: job.ContrastThreshold,
+			}, true
+		}
+	}
+	return release.CandidateEvidence{}, false
 }
 
 // CandidateProvenance resolves one candidate's disclosure facts by id.

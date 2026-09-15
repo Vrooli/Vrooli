@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"connectrpc.com/connect"
 
@@ -17,24 +16,17 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := connectv1.NewReleaseServiceClient(httpClient, baseURL)
 	release := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*v1.ReleasedBackdrop, error) {
-		w, e := positiveInt32(ctx.Flag("width"))
-		if e != nil {
-			return nil, e
-		}
-		h, e := positiveInt32(ctx.Flag("height"))
-		if e != nil {
-			return nil, e
-		}
 		decorative := false
 		if raw := ctx.Flag("decorative"); raw != "" {
-			decorative, e = strconv.ParseBool(raw)
-			if e != nil {
-				return nil, fmt.Errorf("release: invalid decorative value: %w", e)
+			parsed, err := strconv.ParseBool(raw)
+			if err != nil {
+				return nil, fmt.Errorf("release: invalid decorative value: %w", err)
 			}
+			decorative = parsed
 		}
-		resp, e := client.Release(context.Background(), connect.NewRequest(&v1.ReleaseRequest{CandidateId: ctx.Flag("candidate"), StyleId: ctx.Flag("style"), Strategy: ctx.Flag("strategy"), SurfaceId: ctx.Flag("surface"), Width: w, Height: h, ExpectedWidth: w, ExpectedHeight: h, Placement: ctx.Flag("placement"), AltText: ctx.Flag("alt-text"), Decorative: decorative, LegibilityPasses: true}))
-		if e != nil {
-			return nil, cliapp.WrapAPIError("release backdrop", e, nil)
+		resp, err := client.Release(context.Background(), connect.NewRequest(&v1.ReleaseRequest{CandidateId: ctx.Flag("candidate"), StyleId: ctx.Flag("style"), Strategy: ctx.Flag("strategy"), SurfaceId: ctx.Flag("surface"), Placement: ctx.Flag("placement"), AltText: ctx.Flag("alt-text"), Decorative: decorative}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("release backdrop", err, nil)
 		}
 		return resp.Msg, nil
 	}, func(_ cliapp.OperationContext, msg *v1.ReleasedBackdrop) cliapp.MutationReport {
@@ -54,12 +46,4 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		return cliapp.SubcommandGroup{}, fmt.Errorf("release: load manifest: %w", e)
 	}
 	return group, nil
-}
-
-func positiveInt32(raw string) (int32, error) {
-	n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 32)
-	if err != nil || n <= 0 {
-		return 0, fmt.Errorf("release: invalid positive int32 %q", raw)
-	}
-	return int32(n), nil
 }

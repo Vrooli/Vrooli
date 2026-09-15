@@ -98,7 +98,7 @@ func main() {
 	// The render store is the provenance source: a candidate's model, prompt
 	// and seed are read from the render that produced them, never from the
 	// caller asking for the release.
-	releaseStore := internalrelease.NewStoreWithPublisher(assetPublisher, renderStore)
+	releaseStore := internalrelease.NewStoreWithPublisher(assetPublisher, renderStore, renderStore)
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)

@@ -205,7 +205,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React Vite dashboard",
-      "port": 20002
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -284,7 +284,7 @@
       "scenario-authenticator": {
         "required": false,
         "version": "1.0.0",
-        "versionRange": ">=1.0.0",
+        "versionRange": "\u003e=1.0.0",
         "runtime_only": true,
         "runtime_only_rationale": "Secrets Manager resolves Scenario Authenticator by slug for browser sign-in and verifies its JWTs locally against the published JWKS.",
         "purpose": "Human owner authentication for the same-origin password-manager UI",

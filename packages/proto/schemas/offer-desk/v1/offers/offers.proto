@@ -130,7 +130,9 @@ message ReleaseLadderEntry {
   bool readiness_goal_closed = 9;
   string readiness_approved_commit = 10;
 }
-message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; repeated Node unscheduled = 7; }
+// generated_at is the producer's observation time for this projection. Consumers
+// that require producer time (Command Center) refuse a ladder without it.
+message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; repeated Node unscheduled = 7; google.protobuf.Timestamp generated_at = 8; }
 message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; string reason = 4; }
 message SetReleaseRankResponse { Node node = 1; int32 prior_release_rank = 2; }
 message SetDeliverableClassRequest { string node_id = 1; DeliverableClass deliverable_class = 2; FinishBar finish_bar = 3; string actor = 4; string reason = 5; }

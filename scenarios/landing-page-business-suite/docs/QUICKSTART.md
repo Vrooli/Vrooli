@@ -120,8 +120,14 @@ mode first:
 
 1. Set `STRIPE_MODE=test`.
 2. Provision the three `stripe-test-*` fields through the credential authority
-   or governed Billing → Stripe flow.
+   or governed Billing → Stripe flow. The canonical onboarding credential
+   workflow is documented in [`docs/configuration/secrets.md`](../../../docs/configuration/secrets.md);
+   the LPBS admin surface is **Billing → Stripe** at `/admin/billing`.
 3. Save and restart through `make restart`.
+
+Run deployment readiness after configuration. It reports the active mode, exact
+missing credential fields, catalog state, HTTPS-origin validity, and whether
+the public webhook route reaches LPBS. It never returns secret values.
 
 ### 3. Set Up Webhooks
 

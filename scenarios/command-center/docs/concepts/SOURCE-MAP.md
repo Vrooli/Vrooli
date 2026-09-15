@@ -32,7 +32,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | The Forge | `swarm-manager` | Fully `NOW`-capable. The only room whose sources are all live today. |
 | Ledger | `offer-desk`, `money-ledger`, `landing-page-business-suite` | The monetization instrument is `live` but exposes no revenue surface, so readings are `IN-REACH`, not `MISSING`. A pipeline, not a control loop, is what is absent. |
 | Broadcast | `landing-page-business-suite` | LPBS provides the traffic projections; unimplemented social and SEO capabilities remain explicit gaps. |
-| Panorama | Composed from the five above | Inherits the worst state of its inputs, per input. Cannot be more honest than what feeds it. |
+| Panorama | Composed from every other room in the registry | Inherits the worst state of its inputs, per input. Cannot be more honest than what feeds it. Counts each signal once, however many rooms show it. |
 
 ## Reading a source
 

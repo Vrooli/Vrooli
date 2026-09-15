@@ -6,6 +6,13 @@ This file tracks known issues and technical debt that need attention.
 
 ## Work ladder
 
+### Configurable product presentation
+
+- Rung: W0 amended; W1 validation pending, implementation not yet evidenced.
+- Evidence: operator request on 2026-09-15 authorizes the complete Aquila configurable-product-presentation effort. OT-P0-031 described sections/fallback but omitted app scope, membership, detail parity and publication. Added OT-P0-035–041 and the target contract in `docs/concepts/PRODUCT-PRESENTATION.md`; `requirements/11-product-presentation/module.json` retains planned acceptance procedures without claiming tests passed.
+- Boundary: Signal for Aquila, Studio for bundles, only Aquila public by default; retain technical `web-console` identity and disabled BAS. No production publication, real payment or PM team activation is authorized by this development work.
+- Measured: 2026-09-15.
+
 ### Stripe subscriptions and credits plan
 
 - Rung: W3 / implementation evidence

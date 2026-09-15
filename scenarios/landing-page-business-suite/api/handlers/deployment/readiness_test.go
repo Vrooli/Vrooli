@@ -45,6 +45,39 @@ func TestConnectReadinessUsesSharedWorkflow(t *testing.T) {
 	}
 }
 
+func TestReadinessIncludesStripeGateWhenConfigured(t *testing.T) {
+	handler := Readiness(Dependencies{
+		BundleKey: func() string { return "bundle" },
+		Storage:   readinessStorageWithSettings{},
+		StripeReadiness: func(context.Context) Gate {
+			return Gate{Name: "stripe_commerce", Message: "missing active Stripe credential fields: stripe-test-secret-key"}
+		},
+		WriteError: func(w http.ResponseWriter, status int, _, _ string) { w.WriteHeader(status) },
+	})
+
+	response := CheckReadiness(context.Background(), Dependencies{
+		BundleKey: func() string { return "bundle" },
+		Storage:   readinessStorageWithSettings{},
+		StripeReadiness: func(context.Context) Gate {
+			return Gate{Name: "stripe_commerce", Message: "missing active Stripe credential fields: stripe-test-secret-key"}
+		},
+	}, Request{})
+	if response.Ready || len(response.Gates) != 2 || response.Gates[1].Name != "stripe_commerce" {
+		t.Fatalf("expected Stripe readiness gate to block with its diagnostic, got %+v", response)
+	}
+	if !strings.Contains(response.Error, "stripe-test-secret-key") {
+		t.Fatalf("expected exact missing field in readiness error, got %q", response.Error)
+	}
+
+	// Exercise the HTTP adapter as well so callers receive a non-success status.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/deploy-readiness", strings.NewReader("{}"))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for blocked Stripe readiness, got %d", w.Code)
+	}
+}
+
 func TestReadinessUsesBoundedStorageProbeWhenProvided(t *testing.T) {
 	probe := readinessStorageProbe{err: fmt.Errorf("put object denied")}
 	handler := NewConnectHandler(Dependencies{

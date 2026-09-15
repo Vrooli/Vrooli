@@ -737,7 +737,7 @@ class ReleaseLadderEntry(_message.Message):
     def __init__(self, deliverable: _Optional[_Union[Node, _Mapping]] = ..., unlocked_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unlocked_streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., cumulative_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enablers: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., goal_impacts: _Optional[_Iterable[_Union[GoalImpact, _Mapping]]] = ..., readiness_goal_exists: _Optional[bool] = ..., readiness_goal_closed: _Optional[bool] = ..., readiness_approved_commit: _Optional[str] = ...) -> None: ...
 
 class ReleaseLadderResponse(_message.Message):
-    __slots__ = ("entries", "ramps", "streams", "audiences", "enabling", "availability", "unscheduled")
+    __slots__ = ("entries", "ramps", "streams", "audiences", "enabling", "availability", "unscheduled", "generated_at")
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     RAMPS_FIELD_NUMBER: _ClassVar[int]
     STREAMS_FIELD_NUMBER: _ClassVar[int]
@@ -745,6 +745,7 @@ class ReleaseLadderResponse(_message.Message):
     ENABLING_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
     UNSCHEDULED_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[ReleaseLadderEntry]
     ramps: _containers.RepeatedCompositeFieldContainer[Node]
     streams: _containers.RepeatedCompositeFieldContainer[Node]
@@ -752,7 +753,8 @@ class ReleaseLadderResponse(_message.Message):
     enabling: _containers.RepeatedCompositeFieldContainer[PrerequisiteNode]
     availability: _containers.RepeatedCompositeFieldContainer[Availability]
     unscheduled: _containers.RepeatedCompositeFieldContainer[Node]
-    def __init__(self, entries: _Optional[_Iterable[_Union[ReleaseLadderEntry, _Mapping]]] = ..., ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enabling: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ..., unscheduled: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...) -> None: ...
+    generated_at: _timestamp_pb2.Timestamp
+    def __init__(self, entries: _Optional[_Iterable[_Union[ReleaseLadderEntry, _Mapping]]] = ..., ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enabling: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ..., unscheduled: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class SetReleaseRankRequest(_message.Message):
     __slots__ = ("node_id", "release_rank", "actor", "reason")

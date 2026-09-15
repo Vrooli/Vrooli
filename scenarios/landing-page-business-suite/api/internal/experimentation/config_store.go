@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/filerouting"
 )
 
 var variantSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -59,14 +61,16 @@ var _ ConfigStorer = (*ConfigStore)(nil)
 // loaded from JSON files. It serves as the single source of truth for config,
 // replacing the previous database-backed variant/branding storage.
 type ConfigStore struct {
-	mu                sync.RWMutex
-	variants          map[string]*VariantSnapshot // slug -> full variant with sections
-	branding          *SiteBranding
-	variantsDir       string
-	brandingPath      string
-	space             *VariantSpace
-	log               func(event string, fields map[string]interface{})
-	migrateCredential func(key, value string) error
+	mu                   sync.RWMutex
+	variants             map[string]*VariantSnapshot // slug -> full variant with sections
+	branding             *SiteBranding
+	variantsDir          string
+	brandingPath         string
+	space                *VariantSpace
+	log                  func(event string, fields map[string]interface{})
+	migrateCredential    func(key, value string) error
+	presentationRoots    *filerouting.RoutedRoots
+	presentationVerifier PresentationPublicationVerifier
 }
 
 // NewConfigStore creates a new ConfigStore with paths to the JSON files.

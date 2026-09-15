@@ -1,5 +1,59 @@
 # Problems — Backdrop Studio
 
+## Work ladder
+
+- Rung: W3
+- Evidence: The release and backdrop-reference obligations already exist in
+  `PRD.md` (`OT-P0-012`, `OT-P0-015`, `OT-P0-021`, and `OT-P0-023`) and in
+  `requirements/06-release/module.json`. The defect is localized to
+  `cli/domains/release/register.go`, `api/internal/release/release.go`, and
+  `api/handlers/release/module.go`: caller-supplied legibility was accepted
+  without candidate bytes, and an empty release could be reported before its
+  asset endpoint returned 404. Focused release, handler, render, API, and CLI
+  tests are the affected W3 gate.
+- Blocker: none; no shared proto ownership is required for this repair.
+- Measured: 2026-09-15
+
+### 2026-09-15 — release qualification accepted metadata without a deliverable
+
+**Symptom:** The release CLI set `LegibilityPasses:true` without sending the
+candidate PNG or measured regions. The API/store could therefore create a
+release record with no bytes, after which `/api/v1/backdrops/{id}/asset` returned
+404. Caller-provided ratios, dimensions, regions, and the boolean were also
+treated as qualification inputs.
+
+**Hypotheses tested:**
+
+1. The CLI omitted the only deliverable bytes. Confirmed by the request built in
+   `cli/domains/release/register.go`; the CLI sent no `image_png` and no actual
+   measurement evidence.
+2. The release store trusted caller assertions instead of the render owner.
+   Confirmed by `api/internal/release/release.go`, which accepted the boolean
+   without decoding or measuring the candidate.
+3. The asset route alone was misregistered. Rejected by the handler regression:
+   when a qualified release contains bytes, the mounted route returns those
+   exact bytes and their integrity headers.
+
+**Root cause:** Release had no candidate-evidence source. The release request
+was simultaneously being used as a command, a copy of render output, and a
+qualification verdict. That allowed a successful metadata mutation to precede
+any proof that an image existed or could be served.
+
+**Fix:** The render store now exposes an internal candidate-evidence seam. The
+release owner resolves candidate bytes, surface, placement, reserved regions,
+threshold, strategy, and dimensions by candidate ID; decodes PNG bytes; derives
+MIME and SHA-256; recomputes worst-pixel legibility; and refuses missing,
+invalid, mismatched, or forged evidence. The CLI now requests release by
+candidate identity and no longer asserts dimensions or legibility. The asset
+route verifies the stored hash and returns same-origin bytes with MIME, length,
+ETag, and SHA-256 headers.
+
+**Prevention:** Keep candidate qualification owned by the render/release
+boundary. Do not add caller-controlled booleans as proof. The release contract
+tests cover exact byte return, forged legibility refusal, missing-byte refusal,
+dimension mismatch refusal, and route retrieval. The full Backdrop API and CLI
+suites pass; no real candidate was released.
+
 ## Remaining after the treatment-layer plan
 
 - `REL-006` remains unbuilt: sized-variant derivation with reserved-region

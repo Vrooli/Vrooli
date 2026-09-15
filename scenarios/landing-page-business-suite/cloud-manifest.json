@@ -4,7 +4,9 @@
   "target": {
     "type": "vps",
     "vps": {
-      "host": "UNSET_PENDING_OPERATOR",
+      "host": "138.197.95.182",
+      "port": 22,
+      "user": "root",
       "workdir": "/root/Vrooli"
     }
   },

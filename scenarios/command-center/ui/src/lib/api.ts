@@ -68,7 +68,8 @@ export interface Reading {
   prediction: { target: number; direction: string; remainingHorizonSeconds: number } | null;
   trend?: { state: "meaningful" | "neutral" | "insufficient_data" | "not_applicable"; movement?: "up" | "down" | "flat"; delta?: number; percent?: number; comparison?: string; polarity?: "favorable" | "unfavorable" };
   origin: string;
-  origin_env: "local" | "production" | string;
+  /** "local", "production", or another deployment's name. */
+  origin_env: string;
   origin_display: string;
 }
 

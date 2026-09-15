@@ -1,12 +1,41 @@
 package release
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"image"
+	_ "image/png"
 	"sync"
 
 	"backdrop-studio/internal/catalog"
+	"backdrop-studio/internal/legibility"
 )
+
+// CandidateEvidence is the release decision's view of one render result. It
+// comes from the render owner, never from the release request. Keeping this
+// internal avoids making the public wire contract carry a second, caller-
+// controlled copy of bytes and qualification measurements.
+type CandidateEvidence struct {
+	ID                string
+	ImagePNG          []byte
+	Width, Height     int
+	StyleID           string
+	Strategy          string
+	SurfaceID         string
+	Placement         string
+	Regions           []catalog.Region
+	ContrastThreshold float64
+}
+
+// CandidateSource resolves the bytes and qualification inputs that actually
+// came from a render. A release cannot be created without it: a metadata-only
+// candidate is not a deliverable asset.
+type CandidateSource interface {
+	CandidateEvidence(candidateID string) (CandidateEvidence, bool)
+}
 
 type Request struct {
 	CandidateID, StyleID, Strategy, SurfaceID, Placement, AltText string
@@ -23,6 +52,7 @@ type Backdrop struct {
 	ContrastRatio, ContrastThreshold                        float64
 	Regions                                                 []catalog.Region
 	ImagePNG                                                []byte
+	MIMEType, ContentHash                                   string
 	AssetStudioRef                                          string
 }
 
@@ -38,11 +68,16 @@ type Store struct {
 	items      map[string]Backdrop
 	publisher  AssetPublisher
 	provenance ProvenanceSource
+	candidates CandidateSource
 }
 
 func NewStore() *Store { return &Store{items: map[string]Backdrop{}} }
-func NewStoreWithPublisher(publisher AssetPublisher, provenance ProvenanceSource) *Store {
-	return &Store{items: map[string]Backdrop{}, publisher: publisher, provenance: provenance}
+func NewStoreWithPublisher(publisher AssetPublisher, provenance ProvenanceSource, candidates ...CandidateSource) *Store {
+	var source CandidateSource
+	if len(candidates) > 0 {
+		source = candidates[0]
+	}
+	return &Store{items: map[string]Backdrop{}, publisher: publisher, provenance: provenance, candidates: source}
 }
 
 func (s *Store) Release(r Request) (Backdrop, error) {
@@ -55,14 +90,98 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 	if !r.Decorative && r.AltText == "" {
 		return Backdrop{}, fmt.Errorf("release: alt_text is required, or set decorative=true")
 	}
-	if r.ExpectedWidth > 0 && (r.Width != r.ExpectedWidth || r.Height != r.ExpectedHeight) {
-		return Backdrop{}, fmt.Errorf("release: dimensions mismatch: expected %dx%d, got %dx%d", r.ExpectedWidth, r.ExpectedHeight, r.Width, r.Height)
+	if s.candidates == nil {
+		return Backdrop{}, fmt.Errorf("release: candidate evidence source is unavailable")
 	}
-	if !r.LegibilityPasses {
-		return Backdrop{}, fmt.Errorf("release: legibility verdict is absent or failing (ratio %.3f, threshold %.3f)", r.ContrastRatio, r.ContrastThreshold)
+	candidate, known := s.candidates.CandidateEvidence(r.CandidateID)
+	if !known {
+		return Backdrop{}, fmt.Errorf("release: candidate %q has no recorded candidate evidence", r.CandidateID)
 	}
+	if candidate.ID != r.CandidateID {
+		return Backdrop{}, fmt.Errorf("release: candidate evidence id %q does not match requested candidate %q", candidate.ID, r.CandidateID)
+	}
+	if len(candidate.ImagePNG) == 0 {
+		return Backdrop{}, fmt.Errorf("release: candidate bytes are missing")
+	}
+	actualWidth, actualHeight, format, err := pngMetadata(candidate.ImagePNG)
+	if err != nil {
+		return Backdrop{}, fmt.Errorf("release: candidate bytes are invalid: %w", err)
+	}
+	if format != "png" {
+		return Backdrop{}, fmt.Errorf("release: candidate MIME must be image/png, got image/%s", format)
+	}
+	if candidate.Width <= 0 || candidate.Height <= 0 || candidate.Width != actualWidth || candidate.Height != actualHeight {
+		return Backdrop{}, fmt.Errorf("release: candidate dimensions do not match bytes: recorded %dx%d, actual %dx%d", candidate.Width, candidate.Height, actualWidth, actualHeight)
+	}
+	if candidate.StyleID == "" || candidate.SurfaceID == "" || candidate.Placement == "" || candidate.Strategy == "" {
+		return Backdrop{}, fmt.Errorf("release: candidate evidence is missing style, strategy, surface, or placement provenance")
+	}
+	if r.StyleID != "" && r.StyleID != candidate.StyleID {
+		return Backdrop{}, fmt.Errorf("release: style_id %q does not match candidate evidence %q", r.StyleID, candidate.StyleID)
+	}
+	if r.Strategy != "" && r.Strategy != candidate.Strategy {
+		return Backdrop{}, fmt.Errorf("release: strategy %q does not match candidate evidence %q", r.Strategy, candidate.Strategy)
+	}
+	if r.SurfaceID != "" && r.SurfaceID != candidate.SurfaceID {
+		return Backdrop{}, fmt.Errorf("release: surface_id %q does not match candidate evidence %q", r.SurfaceID, candidate.SurfaceID)
+	}
+	if r.Placement != "" && r.Placement != candidate.Placement {
+		return Backdrop{}, fmt.Errorf("release: placement %q does not match candidate evidence %q", r.Placement, candidate.Placement)
+	}
+	if r.Width > 0 && (r.Width != actualWidth || r.Height != actualHeight) {
+		return Backdrop{}, fmt.Errorf("release: supplied dimensions %dx%d do not match candidate bytes %dx%d", r.Width, r.Height, actualWidth, actualHeight)
+	}
+	if r.ExpectedWidth > 0 && (actualWidth != r.ExpectedWidth || actualHeight != r.ExpectedHeight) {
+		return Backdrop{}, fmt.Errorf("release: dimensions mismatch: expected %dx%d, got %dx%d", r.ExpectedWidth, r.ExpectedHeight, actualWidth, actualHeight)
+	}
+
+	threshold := candidate.ContrastThreshold
+	if threshold <= 0 {
+		threshold = 4.5
+	}
+	regions := make([]legibility.Region, 0, len(candidate.Regions))
+	for _, region := range candidate.Regions {
+		regions = append(regions, legibility.Region{X: region.X, Y: region.Y, Width: region.Width, Height: region.Height, Kind: region.Kind, TextColor: region.TextColor})
+	}
+	if !r.Decorative && len(regions) == 0 {
+		return Backdrop{}, fmt.Errorf("release: candidate legibility regions are missing")
+	}
+	verdict, err := legibility.Measure(candidate.ImagePNG, regions, threshold, candidate.Placement)
+	if err != nil {
+		return Backdrop{}, fmt.Errorf("release: measure candidate legibility: %w", err)
+	}
+	if !verdict.Passes {
+		return Backdrop{}, fmt.Errorf("release: candidate legibility failed with measured ratio %.3f below threshold %.3f", verdict.MinimumRatio, verdict.Threshold)
+	}
+
+	// Replace caller-controlled qualification fields with the evidence that was
+	// just verified. This is also the exact payload handed to Asset Studio.
+	r.StyleID = candidate.StyleID
+	r.Strategy = candidate.Strategy
+	r.SurfaceID = candidate.SurfaceID
+	r.Placement = candidate.Placement
+	r.Width, r.Height = actualWidth, actualHeight
+	r.ContrastRatio, r.ContrastThreshold = verdict.MinimumRatio, verdict.Threshold
+	r.Regions = append([]catalog.Region(nil), candidate.Regions...)
+	r.ImagePNG = append([]byte(nil), candidate.ImagePNG...)
+	hash := sha256.Sum256(candidate.ImagePNG)
+	contentHash := hex.EncodeToString(hash[:])
 	aig := r.Strategy == "guided" || r.Strategy == "synthesized"
 	assetRef := ""
+	if s.provenance == nil {
+		return Backdrop{}, fmt.Errorf("release: candidate provenance source is unavailable")
+	}
+	p, known := s.provenance.CandidateProvenance(r.CandidateID)
+	if !known {
+		return Backdrop{}, fmt.Errorf("release: candidate %q has no recorded provenance", r.CandidateID)
+	}
+	expectedModelBacked := r.Strategy == "guided" || r.Strategy == "synthesized"
+	if p.Strategy != "" && p.Strategy != r.Strategy {
+		return Backdrop{}, fmt.Errorf("release: provenance strategy %q does not match candidate strategy %q", p.Strategy, r.Strategy)
+	}
+	if p.ModelBacked != expectedModelBacked {
+		return Backdrop{}, fmt.Errorf("release: provenance disclosure state does not match candidate strategy %q", r.Strategy)
+	}
 	if aig {
 		// The refusal below is the behaviour that must survive this capability
 		// landing. When Asset Studio is absent, a model-backed backdrop is not
@@ -72,19 +191,6 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 		if s.publisher == nil {
 			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires the asset-studio publisher capability, which is unavailable")
 		}
-		if s.provenance == nil {
-			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires a provenance source, which is unavailable")
-		}
-		p, known := s.provenance.CandidateProvenance(r.CandidateID)
-		if !known {
-			// A candidate this process did not render cannot be disclosed: the
-			// model and prompt exist nowhere else. Refusing is the only honest
-			// answer, and it is a different failure from "asset-studio is down".
-			return Backdrop{}, fmt.Errorf("release: candidate %q has no recorded provenance, so its disclosure cannot be written", r.CandidateID)
-		}
-		if !p.ModelBacked {
-			return Backdrop{}, fmt.Errorf("release: candidate %q is recorded as %s but is being released as model-backed", r.CandidateID, p.Strategy)
-		}
 		var err error
 		assetRef, err = s.publisher.Publish(context.Background(), r, p)
 		if err != nil {
@@ -92,7 +198,7 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 		}
 	}
 	id := fmt.Sprintf("backdrop-%s", r.CandidateID)
-	b := Backdrop{ID: id, CandidateID: r.CandidateID, StyleID: r.StyleID, SurfaceID: r.SurfaceID, Placement: r.Placement, AltText: r.AltText, Width: r.Width, Height: r.Height, Decorative: r.Decorative, AIGenerated: aig, ContrastRatio: r.ContrastRatio, ContrastThreshold: r.ContrastThreshold, Regions: append([]catalog.Region(nil), r.Regions...), ImagePNG: append([]byte(nil), r.ImagePNG...), AssetStudioRef: assetRef}
+	b := Backdrop{ID: id, CandidateID: r.CandidateID, StyleID: r.StyleID, SurfaceID: r.SurfaceID, Placement: r.Placement, AltText: r.AltText, Width: r.Width, Height: r.Height, Decorative: r.Decorative, AIGenerated: aig, ContrastRatio: r.ContrastRatio, ContrastThreshold: r.ContrastThreshold, Regions: append([]catalog.Region(nil), r.Regions...), ImagePNG: append([]byte(nil), r.ImagePNG...), MIMEType: "image/png", ContentHash: contentHash, AssetStudioRef: assetRef}
 	s.mu.Lock()
 	s.items[id] = b
 	s.mu.Unlock()
@@ -106,5 +212,15 @@ func (s *Store) Get(id string) (Backdrop, error) {
 	if !ok {
 		return Backdrop{}, fmt.Errorf("release: backdrop %q not found", id)
 	}
+	b.ImagePNG = append([]byte(nil), b.ImagePNG...)
+	b.Regions = append([]catalog.Region(nil), b.Regions...)
 	return b, nil
+}
+
+func pngMetadata(encoded []byte) (int, int, string, error) {
+	config, format, err := image.DecodeConfig(bytes.NewReader(encoded))
+	if err != nil {
+		return 0, 0, "", err
+	}
+	return config.Width, config.Height, format, nil
 }
