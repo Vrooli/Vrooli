@@ -39,11 +39,11 @@ which is the value the executor enforces and the run read APIs report.
 
 | JSON field | Unit | Default | Protects |
 |---|---:|---:|---|
-| `runExecution.runTimeoutMinutes` | minutes | 120 | Agent work duration for one turn; global wall-clock ceiling, sized to the largest declared fleet profile. |
+| `runExecution.runTimeoutMinutes` | minutes | 720 | Agent work duration for one turn; global wall-clock ceiling, sized to the largest declared goal-mode profile. Shorter profiles remain bounded by their own resolved timeout. |
 | `runExecution.maxTurns` | turns | 1000 | Agent autonomy; global conversation-turn ceiling, sized to the largest declared fleet profile. |
 | `healthDetection.heartbeatIntervalSeconds` | seconds | 60 | Executor liveness; timer-driven and independent of agent output. |
 | `healthDetection.staleThresholdSeconds` | seconds without an executor heartbeat | 1000 | Marks an executor stale before destructive recovery. |
-| `healthDetection.maxRecoveryAgeSeconds` | seconds without an executor heartbeat | 1100 | Reaps an unrecoverable live child process. This measured liveness threshold is not an agent work timeout. |
+| `healthDetection.maxRecoveryAgeSeconds` | seconds without an executor heartbeat | 1100 | Emits a recovery-owner diagnostic for a live detached child. It never kills a positively identified runner; explicit cancellation/destructive maintenance owns termination. This is not an agent work timeout. |
 | `healthDetection.reconcilerIntervalSeconds` | seconds | 30 | How frequently stale executor state is examined. |
 
 `heartbeatIntervalSeconds < staleThresholdSeconds < maxRecoveryAgeSeconds` is
@@ -243,6 +243,13 @@ Run-lifecycle cadence. The single home for the deferred-finalize teardown timeou
 ## Recovery
 
 Transcript-tail and resume-after-restart cadence. Drives `Reconciler.startTailer` and `RecoverInFlightRuns`.
+
+Run state is stored below the routed durable state root in `runs/<run-id>`.
+Agent Manager validates this root before admitting work: it must resolve to an
+absolute writable directory outside process-ephemeral filesystems (`/tmp`,
+`/var/tmp`, `/run`, and `/dev/shm`). A restart reopens existing metadata and
+cursors; it does not recreate them. Host power loss remains dependent on the
+durable storage provider and runner/session evidence.
 
 | Field | Default | What it controls |
 |---|---|---|

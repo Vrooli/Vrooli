@@ -281,8 +281,10 @@ type PublicBranding struct {
 	SupportChatUrl       string                 `protobuf:"bytes,8,opt,name=support_chat_url,json=supportChatUrl,proto3" json:"support_chat_url,omitempty"`
 	ComingSoonEnabled    bool                   `protobuf:"varint,9,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3" json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage    string                 `protobuf:"bytes,10,opt,name=coming_soon_message,json=comingSoonMessage,proto3" json:"coming_soon_message,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Configured canonical deployment base. Never inferred from request Host.
+	CanonicalBaseUrl string `protobuf:"bytes,11,opt,name=canonical_base_url,json=canonicalBaseUrl,proto3" json:"canonical_base_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PublicBranding) Reset() {
@@ -381,6 +383,13 @@ func (x *PublicBranding) GetComingSoonEnabled() bool {
 func (x *PublicBranding) GetComingSoonMessage() string {
 	if x != nil {
 		return x.ComingSoonMessage
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetCanonicalBaseUrl() string {
+	if x != nil {
+		return x.CanonicalBaseUrl
 	}
 	return ""
 }
@@ -880,7 +889,7 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"_smtp_fromB\x16\n" +
 	"\x14_coming_soon_enabledB\x16\n" +
-	"\x14_coming_soon_message\"\x97\x03\n" +
+	"\x14_coming_soon_message\"\xc5\x03\n" +
 	"\x0ePublicBranding\x12\x1b\n" +
 	"\tsite_name\x18\x01 \x01(\tR\bsiteName\x12\x18\n" +
 	"\atagline\x18\x02 \x01(\tR\atagline\x12\x19\n" +
@@ -893,7 +902,8 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\x10support_chat_url\x18\b \x01(\tR\x0esupportChatUrl\x12.\n" +
 	"\x13coming_soon_enabled\x18\t \x01(\bR\x11comingSoonEnabled\x12.\n" +
 	"\x13coming_soon_message\x18\n" +
-	" \x01(\tR\x11comingSoonMessage\"\x14\n" +
+	" \x01(\tR\x11comingSoonMessage\x12,\n" +
+	"\x12canonical_base_url\x18\v \x01(\tR\x10canonicalBaseUrl\"\x14\n" +
 	"\x12GetBrandingRequest\"\x1a\n" +
 	"\x18GetPublicBrandingRequest\"d\n" +
 	"\x16PublicBrandingResponse\x12J\n" +

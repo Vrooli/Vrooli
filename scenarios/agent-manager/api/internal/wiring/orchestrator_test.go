@@ -1,6 +1,8 @@
 package wiring
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"agent-manager/internal/adapters/database"
@@ -9,14 +11,33 @@ import (
 	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
+func testDurableRoots(t *testing.T) *filerouting.RoutedRoots {
+	t.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("resolve user home: %v", err)
+	}
+	base, err := os.MkdirTemp(home, "agent-manager-wiring-")
+	if err != nil {
+		t.Fatalf("create durable test root: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(base) })
+	return filerouting.New(corestorage.Paths{StateDir: filepath.Join(base, "state")})
+}
+
 func TestNewOrchestratorRejectsMissingRequiredCompositionDependencies(t *testing.T) {
-	if _, err := NewOrchestrator(nil, nil, logrus.New(), nil, nil); err == nil {
+	if _, err := NewOrchestrator(nil, nil, logrus.New(), nil, nil, testDurableRoots(t)); err == nil {
 		t.Fatal("nil database accepted")
 	}
-	if _, err := NewOrchestrator(&database.DB{}, nil, nil, nil, nil); err == nil {
+	if _, err := NewOrchestrator(&database.DB{}, nil, nil, nil, nil, testDurableRoots(t)); err == nil {
 		t.Fatal("nil logger accepted")
+	}
+	if _, err := NewOrchestrator(&database.DB{}, nil, logrus.New(), nil, nil); err == nil {
+		t.Fatal("missing durable file roots accepted")
 	}
 }
 
@@ -41,7 +62,7 @@ func TestNewOrchestratorBuildsCompleteGraphWithoutStartingWorkers(t *testing.T) 
 	db, cleanup := testutil.SetupTestDB(t)
 	defer cleanup()
 
-	deps, err := NewOrchestrator(db, nil, logrus.New(), nil, nil)
+	deps, err := NewOrchestrator(db, nil, logrus.New(), nil, nil, testDurableRoots(t))
 	if err != nil {
 		t.Fatalf("build orchestrator graph: %v", err)
 	}
@@ -65,7 +86,7 @@ func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {
 	defer cleanup()
 	levers := config.DefaultLevers()
 	levers.Workflow.NudgeWorkers = 1
-	deps, err := NewOrchestrator(db, nil, logrus.New(), nil, &levers)
+	deps, err := NewOrchestrator(db, nil, logrus.New(), nil, &levers, testDurableRoots(t))
 	if err != nil {
 		t.Fatalf("build orchestrator graph with levers: %v", err)
 	}

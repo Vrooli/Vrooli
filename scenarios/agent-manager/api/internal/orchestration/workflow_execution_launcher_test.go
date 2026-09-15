@@ -292,6 +292,26 @@ func TestChildStateFromRunPreservesTerminalAccountingAndReviewSemantics(t *testi
 	}
 }
 
+func TestChildStateFromRunWaitsForTypedResultAfterReviewTransition(t *testing.T) {
+	run := &domain.Run{
+		ID:     uuid.New(),
+		Status: domain.RunStatusNeedsReview,
+		ResolvedConfig: &domain.RunConfig{
+			ResultSpec: &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema},
+		},
+	}
+	state := childStateFromRun(run)
+	if state.Terminal {
+		t.Fatal("typed run became terminal before its durable result was available")
+	}
+
+	run.Result = &domain.RunResult{FinalOutput: "complete", Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess}}
+	state = childStateFromRun(run)
+	if !state.Terminal || state.Failed || state.Result != run.Result {
+		t.Fatalf("typed review run did not become consumable after result recovery: %+v", state)
+	}
+}
+
 func TestWorkflowChildLauncherCreatesDeterministicTaskBeforeRejectingUnknownProfile(t *testing.T) {
 	ctx := context.Background()
 	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())

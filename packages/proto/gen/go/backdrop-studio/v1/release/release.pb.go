@@ -263,6 +263,9 @@ type ReleasedBackdrop struct {
 	ReservedRegions   []*shared.ReservedRegion `protobuf:"bytes,13,rep,name=reserved_regions,json=reservedRegions,proto3" json:"reserved_regions,omitempty"`
 	Uri               string                   `protobuf:"bytes,14,opt,name=uri,proto3" json:"uri,omitempty"`
 	AssetStudioRef    string                   `protobuf:"bytes,15,opt,name=asset_studio_ref,json=assetStudioRef,proto3" json:"asset_studio_ref,omitempty"`
+	JobId             string                   `protobuf:"bytes,16,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	MimeType          string                   `protobuf:"bytes,17,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	ContentHash       string                   `protobuf:"bytes,18,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -402,6 +405,27 @@ func (x *ReleasedBackdrop) GetAssetStudioRef() string {
 	return ""
 }
 
+func (x *ReleasedBackdrop) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *ReleasedBackdrop) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *ReleasedBackdrop) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
 var File_backdrop_studio_v1_release_release_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_release_release_proto_rawDesc = "" +
@@ -431,7 +455,7 @@ const file_backdrop_studio_v1_release_release_proto_rawDesc = "" +
 	"\x10reserved_regions\x18\x11 \x03(\v20.vrooli.backdrop_studio.v1.shared.ReservedRegionR\x0freservedRegions\x12\x1b\n" +
 	"\timage_png\x18\x12 \x01(\fR\bimagePng\"%\n" +
 	"\x13GetReferenceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x98\x04\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xef\x04\n" +
 	"\x10ReleasedBackdrop\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x19\n" +
@@ -451,7 +475,10 @@ const file_backdrop_studio_v1_release_release_proto_rawDesc = "" +
 	"\x12contrast_threshold\x18\f \x01(\x01R\x11contrastThreshold\x12[\n" +
 	"\x10reserved_regions\x18\r \x03(\v20.vrooli.backdrop_studio.v1.shared.ReservedRegionR\x0freservedRegions\x12\x10\n" +
 	"\x03uri\x18\x0e \x01(\tR\x03uri\x12(\n" +
-	"\x10asset_studio_ref\x18\x0f \x01(\tR\x0eassetStudioRef2\x80\x02\n" +
+	"\x10asset_studio_ref\x18\x0f \x01(\tR\x0eassetStudioRef\x12\x15\n" +
+	"\x06job_id\x18\x10 \x01(\tR\x05jobId\x12\x1b\n" +
+	"\tmime_type\x18\x11 \x01(\tR\bmimeType\x12!\n" +
+	"\fcontent_hash\x18\x12 \x01(\tR\vcontentHash2\x80\x02\n" +
 	"\x0eReleaseService\x12q\n" +
 	"\aRelease\x121.vrooli.backdrop_studio.v1.release.ReleaseRequest\x1a3.vrooli.backdrop_studio.v1.release.ReleasedBackdrop\x12{\n" +
 	"\fGetReference\x126.vrooli.backdrop_studio.v1.release.GetReferenceRequest\x1a3.vrooli.backdrop_studio.v1.release.ReleasedBackdropBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release;release_v1b\x06proto3"

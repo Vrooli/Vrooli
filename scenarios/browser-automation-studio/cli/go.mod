@@ -3,7 +3,7 @@ module browser-automation-studio/cli
 go 1.25.0
 
 require (
-	github.com/vrooli/api-core v0.0.0 // indirect
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 )
 

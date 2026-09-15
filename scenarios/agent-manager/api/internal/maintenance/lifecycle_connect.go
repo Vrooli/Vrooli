@@ -45,17 +45,36 @@ func (s *LifecycleService) Prepare(ctx context.Context, req *connect.Request[com
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.operation != "" && s.operation != req.Msg.GetOperationId() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("another lifecycle operation is fenced"))
+		if !req.Msg.GetEmergencyOverride() {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("another lifecycle operation is fenced"))
+		}
+		// A prior lifecycle initiator may have disappeared after closing
+		// admission but before its provider fence was resumed. An explicitly
+		// audited emergency replacement may adopt that already-closed gate;
+		// it must not reopen admission or pretend the inventory is complete.
+		state, err := s.gate.Status(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if !state.Closed {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("stale lifecycle operation has no closed admission"))
+		}
+		standing, err := s.standingFrom(ctx, state, req.Msg.GetOperationId(), state.Revision)
+		if err != nil {
+			return nil, err
+		}
+		s.operation, s.revision = req.Msg.GetOperationId(), state.Revision
+		return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 	}
 	state, err := s.gate.Enter(ctx, "control-plane", req.Msg.GetReason())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	s.operation, s.revision = req.Msg.GetOperationId(), state.Revision
 	standing, err := s.standing(ctx, req.Msg.GetOperationId(), state.Revision)
 	if err != nil {
 		return nil, err
 	}
+	s.operation, s.revision = req.Msg.GetOperationId(), state.Revision
 	return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 }
 
@@ -101,7 +120,32 @@ func (s *LifecycleService) Resume(ctx context.Context, req *connect.Request[comm
 	s.operation, s.revision = "", 0
 	standing, err := s.standing(ctx, req.Msg.GetOperationId(), state.Revision)
 	if err != nil {
-		return nil, err
+		// Resume already reopened admission. Return an explicit open/unknown
+		// standing instead of reporting failure after the durable transition;
+		// otherwise callers can retry a successful resume and observe a stale
+		// fence while the provider is already open.
+		standing = &commonv1.LifecycleStanding{
+			Provider:           s.provider,
+			ProviderInstanceId: s.instance,
+			Scenario:           s.scenario,
+			InstanceId:         s.instance,
+			OperationId:        req.Msg.GetOperationId(),
+			FenceToken:         fmt.Sprintf("%d", state.Revision),
+			Revision:           state.Revision,
+			Phase:              commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_OPEN,
+			AdmissionClosed:    false,
+			Admitting:          0,
+			Remaining:          -1,
+			InventoryComplete:  false,
+			Drained:            false,
+			ObservedAt:         timestamppb.Now(),
+			Interlock:          ScenarioLockV1,
+			Blockers: []*commonv1.LifecycleBlocker{{
+				Code:        "INVENTORY_INCOMPLETE",
+				Message:     "durable or physical executor inventory is incomplete: " + err.Error(),
+				Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN,
+			}},
+		}
 	}
 	return connect.NewResponse(&commonv1.LifecycleResumeResponse{Standing: standing}), nil
 }

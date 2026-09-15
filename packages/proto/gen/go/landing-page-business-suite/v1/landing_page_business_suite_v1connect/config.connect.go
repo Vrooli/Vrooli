@@ -36,6 +36,9 @@ const (
 	// LandingConfigServiceGetLandingConfigProcedure is the fully-qualified name of the
 	// LandingConfigService's GetLandingConfig RPC.
 	LandingConfigServiceGetLandingConfigProcedure = "/landing_page_business_suite.v1.LandingConfigService/GetLandingConfig"
+	// LandingConfigServiceRecordPresentationExposureProcedure is the fully-qualified name of the
+	// LandingConfigService's RecordPresentationExposure RPC.
+	LandingConfigServiceRecordPresentationExposureProcedure = "/landing_page_business_suite.v1.LandingConfigService/RecordPresentationExposure"
 )
 
 // LandingConfigServiceClient is a client for the
@@ -43,6 +46,7 @@ const (
 type LandingConfigServiceClient interface {
 	// Returns the aggregated landing payload for a variant (or a selected one).
 	GetLandingConfig(context.Context, *connect.Request[v1.GetLandingConfigRequest]) (*connect.Response[v1.LandingConfigResponse], error)
+	RecordPresentationExposure(context.Context, *connect.Request[v1.RecordPresentationExposureRequest]) (*connect.Response[v1.RecordPresentationExposureResponse], error)
 }
 
 // NewLandingConfigServiceClient constructs a client for the
@@ -63,12 +67,19 @@ func NewLandingConfigServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(landingConfigServiceMethods.ByName("GetLandingConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		recordPresentationExposure: connect.NewClient[v1.RecordPresentationExposureRequest, v1.RecordPresentationExposureResponse](
+			httpClient,
+			baseURL+LandingConfigServiceRecordPresentationExposureProcedure,
+			connect.WithSchema(landingConfigServiceMethods.ByName("RecordPresentationExposure")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // landingConfigServiceClient implements LandingConfigServiceClient.
 type landingConfigServiceClient struct {
-	getLandingConfig *connect.Client[v1.GetLandingConfigRequest, v1.LandingConfigResponse]
+	getLandingConfig           *connect.Client[v1.GetLandingConfigRequest, v1.LandingConfigResponse]
+	recordPresentationExposure *connect.Client[v1.RecordPresentationExposureRequest, v1.RecordPresentationExposureResponse]
 }
 
 // GetLandingConfig calls landing_page_business_suite.v1.LandingConfigService.GetLandingConfig.
@@ -76,11 +87,18 @@ func (c *landingConfigServiceClient) GetLandingConfig(ctx context.Context, req *
 	return c.getLandingConfig.CallUnary(ctx, req)
 }
 
+// RecordPresentationExposure calls
+// landing_page_business_suite.v1.LandingConfigService.RecordPresentationExposure.
+func (c *landingConfigServiceClient) RecordPresentationExposure(ctx context.Context, req *connect.Request[v1.RecordPresentationExposureRequest]) (*connect.Response[v1.RecordPresentationExposureResponse], error) {
+	return c.recordPresentationExposure.CallUnary(ctx, req)
+}
+
 // LandingConfigServiceHandler is an implementation of the
 // landing_page_business_suite.v1.LandingConfigService service.
 type LandingConfigServiceHandler interface {
 	// Returns the aggregated landing payload for a variant (or a selected one).
 	GetLandingConfig(context.Context, *connect.Request[v1.GetLandingConfigRequest]) (*connect.Response[v1.LandingConfigResponse], error)
+	RecordPresentationExposure(context.Context, *connect.Request[v1.RecordPresentationExposureRequest]) (*connect.Response[v1.RecordPresentationExposureResponse], error)
 }
 
 // NewLandingConfigServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -96,10 +114,18 @@ func NewLandingConfigServiceHandler(svc LandingConfigServiceHandler, opts ...con
 		connect.WithSchema(landingConfigServiceMethods.ByName("GetLandingConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	landingConfigServiceRecordPresentationExposureHandler := connect.NewUnaryHandler(
+		LandingConfigServiceRecordPresentationExposureProcedure,
+		svc.RecordPresentationExposure,
+		connect.WithSchema(landingConfigServiceMethods.ByName("RecordPresentationExposure")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.LandingConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LandingConfigServiceGetLandingConfigProcedure:
 			landingConfigServiceGetLandingConfigHandler.ServeHTTP(w, r)
+		case LandingConfigServiceRecordPresentationExposureProcedure:
+			landingConfigServiceRecordPresentationExposureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -111,4 +137,8 @@ type UnimplementedLandingConfigServiceHandler struct{}
 
 func (UnimplementedLandingConfigServiceHandler) GetLandingConfig(context.Context, *connect.Request[v1.GetLandingConfigRequest]) (*connect.Response[v1.LandingConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingConfigService.GetLandingConfig is not implemented"))
+}
+
+func (UnimplementedLandingConfigServiceHandler) RecordPresentationExposure(context.Context, *connect.Request[v1.RecordPresentationExposureRequest]) (*connect.Response[v1.RecordPresentationExposureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingConfigService.RecordPresentationExposure is not implemented"))
 }

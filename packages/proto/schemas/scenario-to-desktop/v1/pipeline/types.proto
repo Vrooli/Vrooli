@@ -456,6 +456,11 @@ message PipelineGetRequest {
   string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
+message PipelineWaitRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  int32 timeout_seconds = 2;
+}
+
 message PipelineResumeRequest {
   string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
   PipelineConfig config = 2;
@@ -643,6 +648,7 @@ message GenerateResponse {
 service PipelineService {
   rpc Run(PipelineRunRequest) returns (PipelineRunResponse);
   rpc Get(PipelineGetRequest) returns (PipelineStatus);
+  rpc Wait(PipelineWaitRequest) returns (PipelineStatus);
   // GetReleaseGate returns the deployment approval state for a pipeline.
   // It is intentionally separate from Get: callers use it to make an
   // approval decision, rather than to render general pipeline progress.

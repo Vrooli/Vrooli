@@ -213,7 +213,9 @@ func TestApplyReverifiesLiveCgroup(t *testing.T) {
 
 func TestInspectOffLinuxReportsLauncherDefaults(t *testing.T) {
 	status := newTestHandler().Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported || !strings.Contains(strings.Join(status.Notes, "\n"), "rlimit shim") {
+	// Not applicable, never unsupported: this safeguard is required, and an
+	// unsupported required safeguard fails `vrooli setup` on every Mac.
+	if status.SupportClass != hostreqkit.SupportNotApplicable || status.ExecutionState != hostreqkit.ExecutionNotApplicable || !strings.Contains(strings.Join(status.Notes, "\n"), "rlimit shim") {
 		t.Fatalf("status = %+v", status)
 	}
 }

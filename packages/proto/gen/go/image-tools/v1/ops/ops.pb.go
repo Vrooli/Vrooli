@@ -221,6 +221,9 @@ type OpParams struct {
 	//	*OpParams_PixelSort
 	//	*OpParams_Displacement
 	//	*OpParams_Composite
+	//	*OpParams_Rasterize
+	//	*OpParams_Vectorize
+	//	*OpParams_IconContainer
 	Op isOpParams_Op `protobuf_oneof:"op"`
 	// Space no colour operation may print into, whichever one is selected above.
 	//
@@ -560,6 +563,33 @@ func (x *OpParams) GetComposite() *CompositeParams {
 	return nil
 }
 
+func (x *OpParams) GetRasterize() *RasterizeParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Rasterize); ok {
+			return x.Rasterize
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetVectorize() *VectorizeParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Vectorize); ok {
+			return x.Vectorize
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetIconContainer() *IconContainerParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_IconContainer); ok {
+			return x.IconContainer
+		}
+	}
+	return nil
+}
+
 func (x *OpParams) GetKnockout() *Knockout {
 	if x != nil {
 		return x.Knockout
@@ -699,6 +729,18 @@ type OpParams_Composite struct {
 	Composite *CompositeParams `protobuf:"bytes,32,opt,name=composite,proto3,oneof"`
 }
 
+type OpParams_Rasterize struct {
+	Rasterize *RasterizeParams `protobuf:"bytes,34,opt,name=rasterize,proto3,oneof"`
+}
+
+type OpParams_Vectorize struct {
+	Vectorize *VectorizeParams `protobuf:"bytes,35,opt,name=vectorize,proto3,oneof"`
+}
+
+type OpParams_IconContainer struct {
+	IconContainer *IconContainerParams `protobuf:"bytes,36,opt,name=icon_container,json=iconContainer,proto3,oneof"`
+}
+
 func (*OpParams_Resize) isOpParams_Op() {}
 
 func (*OpParams_Crop) isOpParams_Op() {}
@@ -762,6 +804,12 @@ func (*OpParams_PixelSort) isOpParams_Op() {}
 func (*OpParams_Displacement) isOpParams_Op() {}
 
 func (*OpParams_Composite) isOpParams_Op() {}
+
+func (*OpParams_Rasterize) isOpParams_Op() {}
+
+func (*OpParams_Vectorize) isOpParams_Op() {}
+
+func (*OpParams_IconContainer) isOpParams_Op() {}
 
 // Knockout reserves an area of the frame that must come out as paper.
 //
@@ -3140,6 +3188,227 @@ func (x *DisplacementParams) GetAmplitudeRel() float64 {
 	return 0
 }
 
+// RasterizeParams renders an SVG at an exact pixel size. background, when set,
+// flattens the result onto an opaque colour.
+type RasterizeParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Width         int32                  `protobuf:"varint,1,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	Background    string                 `protobuf:"bytes,3,opt,name=background,proto3" json:"background,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RasterizeParams) Reset() {
+	*x = RasterizeParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RasterizeParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RasterizeParams) ProtoMessage() {}
+
+func (x *RasterizeParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RasterizeParams.ProtoReflect.Descriptor instead.
+func (*RasterizeParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *RasterizeParams) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *RasterizeParams) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *RasterizeParams) GetBackground() string {
+	if x != nil {
+		return x.Background
+	}
+	return ""
+}
+
+// VectorizeParams traces a flat raster mark into an SVG. colors is the k-means
+// palette size (default 4) when keep_colors is empty; keep_colors pins the
+// palette to the listed hex colours within ΔE 12. drop_background_layers removes
+// the layer touching the image border. clip_to_largest_rounded_region clips the
+// kept layers to the convex hull of the enclosing tile, eroded by inset_px.
+type VectorizeParams struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	Colors                     int32                  `protobuf:"varint,1,opt,name=colors,proto3" json:"colors,omitempty"`
+	KeepColors                 []string               `protobuf:"bytes,2,rep,name=keep_colors,json=keepColors,proto3" json:"keep_colors,omitempty"`
+	DropBackgroundLayers       bool                   `protobuf:"varint,3,opt,name=drop_background_layers,json=dropBackgroundLayers,proto3" json:"drop_background_layers,omitempty"`
+	ClipToLargestRoundedRegion bool                   `protobuf:"varint,4,opt,name=clip_to_largest_rounded_region,json=clipToLargestRoundedRegion,proto3" json:"clip_to_largest_rounded_region,omitempty"`
+	InsetPx                    float64                `protobuf:"fixed64,5,opt,name=inset_px,json=insetPx,proto3" json:"inset_px,omitempty"`
+	TolerancePx                float64                `protobuf:"fixed64,6,opt,name=tolerance_px,json=tolerancePx,proto3" json:"tolerance_px,omitempty"`
+	Smoothing                  bool                   `protobuf:"varint,7,opt,name=smoothing,proto3" json:"smoothing,omitempty"`
+	MinAreaPx                  float64                `protobuf:"fixed64,8,opt,name=min_area_px,json=minAreaPx,proto3" json:"min_area_px,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *VectorizeParams) Reset() {
+	*x = VectorizeParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VectorizeParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VectorizeParams) ProtoMessage() {}
+
+func (x *VectorizeParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VectorizeParams.ProtoReflect.Descriptor instead.
+func (*VectorizeParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *VectorizeParams) GetColors() int32 {
+	if x != nil {
+		return x.Colors
+	}
+	return 0
+}
+
+func (x *VectorizeParams) GetKeepColors() []string {
+	if x != nil {
+		return x.KeepColors
+	}
+	return nil
+}
+
+func (x *VectorizeParams) GetDropBackgroundLayers() bool {
+	if x != nil {
+		return x.DropBackgroundLayers
+	}
+	return false
+}
+
+func (x *VectorizeParams) GetClipToLargestRoundedRegion() bool {
+	if x != nil {
+		return x.ClipToLargestRoundedRegion
+	}
+	return false
+}
+
+func (x *VectorizeParams) GetInsetPx() float64 {
+	if x != nil {
+		return x.InsetPx
+	}
+	return 0
+}
+
+func (x *VectorizeParams) GetTolerancePx() float64 {
+	if x != nil {
+		return x.TolerancePx
+	}
+	return 0
+}
+
+func (x *VectorizeParams) GetSmoothing() bool {
+	if x != nil {
+		return x.Smoothing
+	}
+	return false
+}
+
+func (x *VectorizeParams) GetMinAreaPx() float64 {
+	if x != nil {
+		return x.MinAreaPx
+	}
+	return 0
+}
+
+// IconContainerParams packs PNG renders of one source into an ICO or ICNS
+// container. format is "ico" or "icns"; sizes are the exact pixel sizes.
+type IconContainerParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Format        string                 `protobuf:"bytes,1,opt,name=format,proto3" json:"format,omitempty"`
+	Sizes         []int32                `protobuf:"varint,2,rep,packed,name=sizes,proto3" json:"sizes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IconContainerParams) Reset() {
+	*x = IconContainerParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IconContainerParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IconContainerParams) ProtoMessage() {}
+
+func (x *IconContainerParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IconContainerParams.ProtoReflect.Descriptor instead.
+func (*IconContainerParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *IconContainerParams) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *IconContainerParams) GetSizes() []int32 {
+	if x != nil {
+		return x.Sizes
+	}
+	return nil
+}
+
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob
 // key (or the caller-supplied local path) holding the output bytes.
 type OpResult struct {
@@ -3162,7 +3431,7 @@ type OpResult struct {
 
 func (x *OpResult) Reset() {
 	*x = OpResult{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3174,7 +3443,7 @@ func (x *OpResult) String() string {
 func (*OpResult) ProtoMessage() {}
 
 func (x *OpResult) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3187,7 +3456,7 @@ func (x *OpResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpResult.ProtoReflect.Descriptor instead.
 func (*OpResult) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{37}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *OpResult) GetRef() string {
@@ -3255,7 +3524,7 @@ type RunOpResponse struct {
 
 func (x *RunOpResponse) Reset() {
 	*x = RunOpResponse{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3267,7 +3536,7 @@ func (x *RunOpResponse) String() string {
 func (*RunOpResponse) ProtoMessage() {}
 
 func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3280,7 +3549,7 @@ func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOpResponse.ProtoReflect.Descriptor instead.
 func (*RunOpResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{38}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *RunOpResponse) GetJobId() string {
@@ -3312,7 +3581,7 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"operations\x18\x01 \x03(\v2(.vrooli.image_tools.v1.ops.OperationInfoR\n" +
 	"operations\x12+\n" +
 	"\x11decodable_formats\x18\x02 \x03(\tR\x10decodableFormats\x12+\n" +
-	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\xd2\x12\n" +
+	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\xc3\x14\n" +
 	"\bOpParams\x12A\n" +
 	"\x06resize\x18\x01 \x01(\v2'.vrooli.image_tools.v1.ops.ResizeParamsH\x00R\x06resize\x12;\n" +
 	"\x04crop\x18\x02 \x01(\v2%.vrooli.image_tools.v1.ops.CropParamsH\x00R\x04crop\x12A\n" +
@@ -3351,7 +3620,10 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\n" +
 	"pixel_sort\x18\x1e \x01(\v2*.vrooli.image_tools.v1.ops.PixelSortParamsH\x00R\tpixelSort\x12S\n" +
 	"\fdisplacement\x18\x1f \x01(\v2-.vrooli.image_tools.v1.ops.DisplacementParamsH\x00R\fdisplacement\x12J\n" +
-	"\tcomposite\x18  \x01(\v2*.vrooli.image_tools.v1.ops.CompositeParamsH\x00R\tcomposite\x12?\n" +
+	"\tcomposite\x18  \x01(\v2*.vrooli.image_tools.v1.ops.CompositeParamsH\x00R\tcomposite\x12J\n" +
+	"\trasterize\x18\" \x01(\v2*.vrooli.image_tools.v1.ops.RasterizeParamsH\x00R\trasterize\x12J\n" +
+	"\tvectorize\x18# \x01(\v2*.vrooli.image_tools.v1.ops.VectorizeParamsH\x00R\tvectorize\x12W\n" +
+	"\x0eicon_container\x18$ \x01(\v2..vrooli.image_tools.v1.ops.IconContainerParamsH\x00R\riconContainer\x12?\n" +
 	"\bknockout\x18! \x01(\v2#.vrooli.image_tools.v1.ops.KnockoutR\bknockoutB\x04\n" +
 	"\x02op\"\x84\x01\n" +
 	"\bKnockout\x12\f\n" +
@@ -3537,7 +3809,26 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\aspacing\x18\x03 \x01(\x01R\aspacing\x12\x1f\n" +
 	"\vspacing_rel\x18\x04 \x01(\x01R\n" +
 	"spacingRel\x12#\n" +
-	"\ramplitude_rel\x18\x05 \x01(\x01R\famplitudeRel\"\xba\x02\n" +
+	"\ramplitude_rel\x18\x05 \x01(\x01R\famplitudeRel\"_\n" +
+	"\x0fRasterizeParams\x12\x14\n" +
+	"\x05width\x18\x01 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x02 \x01(\x05R\x06height\x12\x1e\n" +
+	"\n" +
+	"background\x18\x03 \x01(\tR\n" +
+	"background\"\xc0\x02\n" +
+	"\x0fVectorizeParams\x12\x16\n" +
+	"\x06colors\x18\x01 \x01(\x05R\x06colors\x12\x1f\n" +
+	"\vkeep_colors\x18\x02 \x03(\tR\n" +
+	"keepColors\x124\n" +
+	"\x16drop_background_layers\x18\x03 \x01(\bR\x14dropBackgroundLayers\x12B\n" +
+	"\x1eclip_to_largest_rounded_region\x18\x04 \x01(\bR\x1aclipToLargestRoundedRegion\x12\x19\n" +
+	"\binset_px\x18\x05 \x01(\x01R\ainsetPx\x12!\n" +
+	"\ftolerance_px\x18\x06 \x01(\x01R\vtolerancePx\x12\x1c\n" +
+	"\tsmoothing\x18\a \x01(\bR\tsmoothing\x12\x1e\n" +
+	"\vmin_area_px\x18\b \x01(\x01R\tminAreaPx\"C\n" +
+	"\x13IconContainerParams\x12\x16\n" +
+	"\x06format\x18\x01 \x01(\tR\x06format\x12\x14\n" +
+	"\x05sizes\x18\x02 \x03(\x05R\x05sizes\"\xba\x02\n" +
 	"\bOpResult\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x12\n" +
@@ -3569,7 +3860,7 @@ func file_image_tools_v1_ops_ops_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ops_ops_proto_rawDescData
 }
 
-var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*OperationInfo)(nil),          // 0: vrooli.image_tools.v1.ops.OperationInfo
 	(*ListOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ops.ListOperationsRequest
@@ -3608,9 +3899,12 @@ var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*AsciiMosaicParams)(nil),      // 34: vrooli.image_tools.v1.ops.AsciiMosaicParams
 	(*PixelSortParams)(nil),        // 35: vrooli.image_tools.v1.ops.PixelSortParams
 	(*DisplacementParams)(nil),     // 36: vrooli.image_tools.v1.ops.DisplacementParams
-	(*OpResult)(nil),               // 37: vrooli.image_tools.v1.ops.OpResult
-	(*RunOpResponse)(nil),          // 38: vrooli.image_tools.v1.ops.RunOpResponse
-	nil,                            // 39: vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
+	(*RasterizeParams)(nil),        // 37: vrooli.image_tools.v1.ops.RasterizeParams
+	(*VectorizeParams)(nil),        // 38: vrooli.image_tools.v1.ops.VectorizeParams
+	(*IconContainerParams)(nil),    // 39: vrooli.image_tools.v1.ops.IconContainerParams
+	(*OpResult)(nil),               // 40: vrooli.image_tools.v1.ops.OpResult
+	(*RunOpResponse)(nil),          // 41: vrooli.image_tools.v1.ops.RunOpResponse
+	nil,                            // 42: vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
 }
 var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.ops.ListOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ops.OperationInfo
@@ -3646,17 +3940,20 @@ var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	35, // 30: vrooli.image_tools.v1.ops.OpParams.pixel_sort:type_name -> vrooli.image_tools.v1.ops.PixelSortParams
 	36, // 31: vrooli.image_tools.v1.ops.OpParams.displacement:type_name -> vrooli.image_tools.v1.ops.DisplacementParams
 	5,  // 32: vrooli.image_tools.v1.ops.OpParams.composite:type_name -> vrooli.image_tools.v1.ops.CompositeParams
-	4,  // 33: vrooli.image_tools.v1.ops.OpParams.knockout:type_name -> vrooli.image_tools.v1.ops.Knockout
-	6,  // 34: vrooli.image_tools.v1.ops.CompositeParams.plates:type_name -> vrooli.image_tools.v1.ops.Plate
-	39, // 35: vrooli.image_tools.v1.ops.OpResult.resolved_params:type_name -> vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
-	37, // 36: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
-	1,  // 37: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
-	2,  // 38: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
-	38, // [38:39] is the sub-list for method output_type
-	37, // [37:38] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	37, // 33: vrooli.image_tools.v1.ops.OpParams.rasterize:type_name -> vrooli.image_tools.v1.ops.RasterizeParams
+	38, // 34: vrooli.image_tools.v1.ops.OpParams.vectorize:type_name -> vrooli.image_tools.v1.ops.VectorizeParams
+	39, // 35: vrooli.image_tools.v1.ops.OpParams.icon_container:type_name -> vrooli.image_tools.v1.ops.IconContainerParams
+	4,  // 36: vrooli.image_tools.v1.ops.OpParams.knockout:type_name -> vrooli.image_tools.v1.ops.Knockout
+	6,  // 37: vrooli.image_tools.v1.ops.CompositeParams.plates:type_name -> vrooli.image_tools.v1.ops.Plate
+	42, // 38: vrooli.image_tools.v1.ops.OpResult.resolved_params:type_name -> vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
+	40, // 39: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
+	1,  // 40: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
+	2,  // 41: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
+	41, // [41:42] is the sub-list for method output_type
+	40, // [40:41] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ops_ops_proto_init() }
@@ -3697,6 +3994,9 @@ func file_image_tools_v1_ops_ops_proto_init() {
 		(*OpParams_PixelSort)(nil),
 		(*OpParams_Displacement)(nil),
 		(*OpParams_Composite)(nil),
+		(*OpParams_Rasterize)(nil),
+		(*OpParams_Vectorize)(nil),
+		(*OpParams_IconContainer)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3704,7 +4004,7 @@ func file_image_tools_v1_ops_ops_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ops_ops_proto_rawDesc), len(file_image_tools_v1_ops_ops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

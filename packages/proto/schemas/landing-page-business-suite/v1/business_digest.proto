@@ -1,0 +1,21 @@
+syntax = "proto3";
+package landing_page_business_suite.v1;
+import "google/protobuf/timestamp.proto";
+import "landing-page-business-suite/v1/shared.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+service BusinessDigestService { rpc GetBusinessDigest(GetBusinessDigestRequest) returns (BusinessDigest); }
+message GetBusinessDigestRequest { int32 window_days = 1; }
+message DigestWindow { google.protobuf.Timestamp start = 1; google.protobuf.Timestamp end = 2; int32 days = 3; }
+message FunnelStep { string key = 1; string label = 2; int64 value = 3; string denominator_key = 4; int64 denominator = 5; }
+message Funnel { repeated FunnelStep steps = 1; int64 unattributed_checkouts_started = 2; int64 unattributed_paid = 3; int64 paid_checkouts_total = 4; int64 paid_revenue_minor = 5; string currency = 6; }
+message Retention { google.protobuf.Timestamp cohort_start = 1; google.protobuf.Timestamp cohort_end = 2; int64 cohort_size = 3; int64 still_active = 4; }
+enum ExperimentVerdict { EXPERIMENT_VERDICT_UNSPECIFIED = 0; EXPERIMENT_VERDICT_CONTROL = 1; EXPERIMENT_VERDICT_INSUFFICIENT_DATA = 2; EXPERIMENT_VERDICT_INCONCLUSIVE = 3; EXPERIMENT_VERDICT_LEADING = 4; EXPERIMENT_VERDICT_TRAILING = 5; }
+message ArmMetric { int64 successes = 1; int64 trials = 2; double rate_percent = 3; double probability_beats_control = 4; ExperimentVerdict verdict = 5; }
+message ExperimentArm { string variant_slug = 1; string variant_name = 2; int32 weight = 3; bool is_control = 4; ArmMetric cta_click = 5; ArmMetric paid = 6; }
+message Experiment { repeated ExperimentArm arms = 1; string control_slug = 2; int64 minimum_trials = 3; int64 minimum_successes = 4; string weight_fingerprint = 5; google.protobuf.Timestamp fingerprint_since = 6; }
+message AppActivity { string bundle_key = 1; string app_key = 2; string app_name = 3; int64 downloads = 4; map<string,int64> downloads_by_platform = 5; int64 update_checks = 6; int64 update_downloads = 7; }
+message CreditUsageRow { string key = 1; string label = 2; int64 credits = 3; int64 operations = 4; }
+message CreditEconomy { int64 credits_burned = 1; int64 credits_purchased = 2; int64 operations = 3; int64 distinct_consumers = 4; repeated CreditUsageRow by_app = 5; repeated CreditUsageRow by_model = 6; }
+message Growth { int64 signups = 1; int64 waitlist_joins = 2; int64 new_paid_subscriptions = 3; int64 trials_started = 4; }
+message BusinessDigest { string contract_version = 1; google.protobuf.Timestamp observed_at = 2; DigestWindow window = 3; Funnel funnel = 4; Retention retention = 5; Experiment experiment = 6; repeated AppActivity apps = 7; CreditEconomy credits = 8; Growth growth = 9; TrafficExclusions exclusions = 10; int64 cta_clicks = 11; }

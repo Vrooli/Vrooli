@@ -76,6 +76,9 @@ const (
 	// EvidenceServiceDeleteAllEvidenceCapturesProcedure is the fully-qualified name of the
 	// EvidenceService's DeleteAllEvidenceCaptures RPC.
 	EvidenceServiceDeleteAllEvidenceCapturesProcedure = "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/DeleteAllEvidenceCaptures"
+	// EvidenceServiceVoidEvidenceCaptureProcedure is the fully-qualified name of the EvidenceService's
+	// VoidEvidenceCapture RPC.
+	EvidenceServiceVoidEvidenceCaptureProcedure = "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/VoidEvidenceCapture"
 )
 
 // EvidenceServiceClient is a client for the vrooli.scenario_to_desktop.v1.domain.EvidenceService
@@ -95,6 +98,7 @@ type EvidenceServiceClient interface {
 	GetEvidenceCapturesSummary(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error)
 	DeleteEvidenceCapture(context.Context, *connect.Request[domain.EvidenceCaptureRef]) (*connect.Response[emptypb.Empty], error)
 	DeleteAllEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error)
+	VoidEvidenceCapture(context.Context, *connect.Request[domain.VoidEvidenceCaptureRequest]) (*connect.Response[domain.EvidenceCapture], error)
 }
 
 // NewEvidenceServiceClient constructs a client for the
@@ -193,6 +197,12 @@ func NewEvidenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(evidenceServiceMethods.ByName("DeleteAllEvidenceCaptures")),
 			connect.WithClientOptions(opts...),
 		),
+		voidEvidenceCapture: connect.NewClient[domain.VoidEvidenceCaptureRequest, domain.EvidenceCapture](
+			httpClient,
+			baseURL+EvidenceServiceVoidEvidenceCaptureProcedure,
+			connect.WithSchema(evidenceServiceMethods.ByName("VoidEvidenceCapture")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -212,6 +222,7 @@ type evidenceServiceClient struct {
 	getEvidenceCapturesSummary *connect.Client[domain.ListEvidenceCapturesRequest, domain.EvidenceCapturesSummary]
 	deleteEvidenceCapture      *connect.Client[domain.EvidenceCaptureRef, emptypb.Empty]
 	deleteAllEvidenceCaptures  *connect.Client[domain.ListEvidenceCapturesRequest, emptypb.Empty]
+	voidEvidenceCapture        *connect.Client[domain.VoidEvidenceCaptureRequest, domain.EvidenceCapture]
 }
 
 // StartDesktopSession calls
@@ -293,6 +304,12 @@ func (c *evidenceServiceClient) DeleteAllEvidenceCaptures(ctx context.Context, r
 	return c.deleteAllEvidenceCaptures.CallUnary(ctx, req)
 }
 
+// VoidEvidenceCapture calls
+// vrooli.scenario_to_desktop.v1.domain.EvidenceService.VoidEvidenceCapture.
+func (c *evidenceServiceClient) VoidEvidenceCapture(ctx context.Context, req *connect.Request[domain.VoidEvidenceCaptureRequest]) (*connect.Response[domain.EvidenceCapture], error) {
+	return c.voidEvidenceCapture.CallUnary(ctx, req)
+}
+
 // EvidenceServiceHandler is an implementation of the
 // vrooli.scenario_to_desktop.v1.domain.EvidenceService service.
 type EvidenceServiceHandler interface {
@@ -310,6 +327,7 @@ type EvidenceServiceHandler interface {
 	GetEvidenceCapturesSummary(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error)
 	DeleteEvidenceCapture(context.Context, *connect.Request[domain.EvidenceCaptureRef]) (*connect.Response[emptypb.Empty], error)
 	DeleteAllEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error)
+	VoidEvidenceCapture(context.Context, *connect.Request[domain.VoidEvidenceCaptureRequest]) (*connect.Response[domain.EvidenceCapture], error)
 }
 
 // NewEvidenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -403,6 +421,12 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(evidenceServiceMethods.ByName("DeleteAllEvidenceCaptures")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evidenceServiceVoidEvidenceCaptureHandler := connect.NewUnaryHandler(
+		EvidenceServiceVoidEvidenceCaptureProcedure,
+		svc.VoidEvidenceCapture,
+		connect.WithSchema(evidenceServiceMethods.ByName("VoidEvidenceCapture")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EvidenceServiceStartDesktopSessionProcedure:
@@ -433,6 +457,8 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 			evidenceServiceDeleteEvidenceCaptureHandler.ServeHTTP(w, r)
 		case EvidenceServiceDeleteAllEvidenceCapturesProcedure:
 			evidenceServiceDeleteAllEvidenceCapturesHandler.ServeHTTP(w, r)
+		case EvidenceServiceVoidEvidenceCaptureProcedure:
+			evidenceServiceVoidEvidenceCaptureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -496,4 +522,8 @@ func (UnimplementedEvidenceServiceHandler) DeleteEvidenceCapture(context.Context
 
 func (UnimplementedEvidenceServiceHandler) DeleteAllEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteAllEvidenceCaptures is not implemented"))
+}
+
+func (UnimplementedEvidenceServiceHandler) VoidEvidenceCapture(context.Context, *connect.Request[domain.VoidEvidenceCaptureRequest]) (*connect.Response[domain.EvidenceCapture], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.domain.EvidenceService.VoidEvidenceCapture is not implemented"))
 }

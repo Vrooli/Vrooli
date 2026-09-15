@@ -748,6 +748,55 @@ func TestStop_SignalsRegisteredProcess(t *testing.T) {
 	<-done
 }
 
+func TestStop_CancelKillsProcessAndWatcherExitsAfterProcess(t *testing.T) {
+	codec := newFakeCodec()
+	allowExit := make(chan struct{})
+	launcher := &fakeLauncher{earlyExit: allowExit}
+	r := newRunnerForTest(t, codec, launcher)
+	runID := uuid.New()
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = r.Execute(context.Background(), newExecuteRequest(runID, "stop", &recordingSink{}))
+		close(done)
+	}()
+
+	deadline := time.Now().Add(time.Second)
+	for r.LaunchedProcess(runID) == nil && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	process, ok := r.LaunchedProcess(runID).(*fakeProcess)
+	if !ok || process == nil {
+		t.Fatalf("registered process = %T, want *fakeProcess", r.LaunchedProcess(runID))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := r.Stop(ctx, runID); err != nil {
+		t.Fatalf("Stop error: %v", err)
+	}
+	cancel()
+	deadline = time.Now().Add(time.Second)
+	for !processWasKilled(process) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !processWasKilled(process) {
+		t.Fatal("canceled stop did not kill the process")
+	}
+	close(allowExit)
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("runner did not finish after cancellation")
+	}
+}
+
+func processWasKilled(process *fakeProcess) bool {
+	process.mu.Lock()
+	defer process.mu.Unlock()
+	return process.killed
+}
+
 func TestRunner_TypeAndCapabilities(t *testing.T) {
 	codec := newFakeCodec()
 	r := newRunnerForTest(t, codec, &fakeLauncher{})
@@ -873,8 +922,11 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 				switch data := event.Data.(type) {
 				case *domain.UsageEventData:
 					usageCount++
-					if data.Model != "saved-model" || !data.ReconciliationAuthority || data.InputTokens != 11 || data.OutputTokens != 3 || data.CacheReadTokens != 2 || data.Turns != 1 {
+					if data.Model != "saved-model" || !data.ReconciliationAuthority || data.InputTokens != 9 || data.OutputTokens != 3 || data.CacheReadTokens != 2 || data.Turns != 1 {
 						t.Fatalf("lost terminal usage attribution: %+v", data)
+					}
+					if data.Charge == nil || data.Charge.Basis != domain.ChargeBasisSubscription || data.Charge.AmountMicroUSD == nil || *data.Charge.AmountMicroUSD != 0 {
+						t.Fatalf("lost terminal billing attribution: %+v", data.Charge)
 					}
 				case *domain.ChargeEventData:
 					chargeCount++

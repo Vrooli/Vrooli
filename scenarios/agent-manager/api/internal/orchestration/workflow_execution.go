@@ -196,8 +196,11 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 		// The agent turn finished and its result is durable; the pending review
 		// concerns applying the run's file changes, which is orthogonal to the
 		// workflow node being done. A manual-review profile (e.g. investigation)
-		// would otherwise strand its workflow at the run node forever.
-		state.Terminal = true
+		// would otherwise strand its workflow at the run node forever. Typed
+		// workflow nodes are different: until their result is durable, advancing
+		// would make a required output binding fail permanently before recovery
+		// can continue the same run.
+		state.Terminal = run.Result != nil || run.ResolvedConfig == nil || run.ResolvedConfig.ResultSpec == nil
 	case domain.RunStatusFailed, domain.RunStatusCancelled:
 		state.Terminal = true
 		state.Failed = true

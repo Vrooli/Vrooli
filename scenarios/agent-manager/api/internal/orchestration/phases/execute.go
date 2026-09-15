@@ -12,6 +12,7 @@ package phases
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -64,6 +65,12 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	out := ExecuteAgentOutput{RunState: in.RunState}
 
 	in.Run.Status = domain.RunStatusRunning
+	if in.Run.OwnerIdentity == "" {
+		in.Run.OwnerIdentity = fmt.Sprintf("agent-manager:%d", os.Getpid())
+	}
+	if in.Run.OwnerEpoch == 0 {
+		in.Run.OwnerEpoch = 1
+	}
 	in.Run.UpdatedAt = in.Deps.Now()
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
@@ -607,11 +614,9 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 			startedAt = in.Run.StartedAt.UTC()
 		}
 		s, err := runstate.Open(in.Run.ID, runstate.OpenOptions{
-			RootDir:    in.RunStateRoot,
-			RunnerType: in.Run.ResolvedConfig.RunnerType,
-			WorkingDir: in.WorkingDir,
-			StartedAt:  startedAt,
-			OnWrite:    in.RunStateWrite,
+			RootDir: in.RunStateRoot, RunnerType: in.Run.ResolvedConfig.RunnerType, WorkingDir: in.WorkingDir, StartedAt: startedAt,
+			RunnerIdentity: fmt.Sprintf("%s:%s:%d", in.Run.OwnerIdentity, in.Run.ID, in.Run.OwnerEpoch), OwnerEpoch: in.Run.OwnerEpoch,
+			OnWrite: in.RunStateWrite,
 		})
 		if err != nil {
 			return nil, nil, err

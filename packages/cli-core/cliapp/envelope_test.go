@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -44,6 +46,30 @@ func TestDecodeEnvelopeValid(t *testing.T) {
 	}
 	if env.Details["id"] != "42" {
 		t.Errorf("details: got %v", env.Details)
+	}
+}
+
+// A precondition refusal must read as itself; the sign-in hint is only for a
+// failure that could be a credential problem.
+func TestWrapAPIErrorWithAuthHintOnlyHintsCredentialFailures(t *testing.T) {
+	const hint = "set a token via `configure token`"
+	precondition := WrapAPIErrorWithAuthHint("sync node", hint, connect.NewError(connect.CodeFailedPrecondition, errors.New("node cannot be provisioned")), nil)
+	if strings.Contains(precondition.Error(), hint) {
+		t.Fatalf("precondition carried the auth hint: %v", precondition)
+	}
+	if !strings.Contains(precondition.Error(), "failed_precondition: node cannot be provisioned") {
+		t.Fatalf("precondition lost its own words: %v", precondition)
+	}
+	unauthenticated := WrapAPIErrorWithAuthHint("sync node", hint, connect.NewError(connect.CodeUnauthenticated, errors.New("no token")), nil)
+	if !strings.Contains(unauthenticated.Error(), hint) {
+		t.Fatalf("unauthenticated failure lost the hint: %v", unauthenticated)
+	}
+	transport := WrapAPIErrorWithAuthHint("sync node", hint, errors.New("connection refused"), nil)
+	if !strings.Contains(transport.Error(), hint) {
+		t.Fatalf("an unclassified failure keeps the hint: %v", transport)
+	}
+	if WrapAPIErrorWithAuthHint("sync node", hint, nil, nil) != nil {
+		t.Fatal("nil error must stay nil")
 	}
 }
 

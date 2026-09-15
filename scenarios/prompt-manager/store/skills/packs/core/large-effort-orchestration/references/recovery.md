@@ -32,7 +32,14 @@ A workaround record names affected requirements, route, owner issue, retained ev
 
 ## Dispatch fallback
 
-Preferred routes are qualified Swarm execution, declared Agent Manager workflow/family, and the control-plane coding-agent launcher. Direct harness execution is a last route only when the effort explicitly authorizes its reduced guarantees and the invocation is known. Scenario servers must still use the scenario lifecycle.
+Preferred routes for autonomous delivery are direct child-run delegation through
+Agent Manager, then a declared Agent Manager workflow/family. Swarm execution is
+only a route for effects that genuinely require a Swarm-owned grant or
+disposition; it is never a substitute for delivery execution or human plan
+workshop. The control-plane coding-agent launcher or direct harness execution is
+a fallback only when the effort explicitly authorizes its reduced guarantees
+and the invocation is known. Scenario servers must still use the scenario
+lifecycle.
 
 Fallback changes the execution route, not the selected work shape or the
 acceptance contract. A bounded task must not become a plan merely because its

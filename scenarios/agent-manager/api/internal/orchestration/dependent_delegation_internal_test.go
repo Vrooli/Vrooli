@@ -54,9 +54,11 @@ func TestDependentDelegationAdmissionError_ClosesOnMissingEvidence(t *testing.T)
 		{"nil parent", nil, matchingChildConfig()},
 		{"nil resolved config", &domain.Run{ID: uuid.New()}, matchingChildConfig()},
 		{"nil admission", &domain.Run{ID: uuid.New(), ResolvedConfig: &domain.RunConfig{}}, matchingChildConfig()},
-		{"nil receipt", func() *domain.Run {
+		{"nil receipt and no live identity", func() *domain.Run {
 			r := qualifiedParentRun()
 			r.ResolvedConfig.Admission.Receipt = nil
+			r.ResolvedConfig.Admission.RuntimeVersion = ""
+			r.ResolvedConfig.Admission.PassedControlArgs = nil
 			return r
 		}(), matchingChildConfig()},
 		{"nil child config", qualifiedParentRun(), nil},
@@ -67,6 +69,17 @@ func TestDependentDelegationAdmissionError_ClosesOnMissingEvidence(t *testing.T)
 				t.Fatal("expected dependent delegation to stay closed")
 			}
 		})
+	}
+}
+
+func TestDependentDelegationAdmissionError_AdmitsLiveCoordinatorBeforeTerminalReceipt(t *testing.T) {
+	parent := qualifiedParentRun()
+	parent.Status = domain.RunStatusRunning
+	parent.ResolvedConfig.Admission.Receipt = nil
+	parent.ResolvedConfig.Admission.RuntimeVersion = "codex-cli 0.153.4"
+	parent.ResolvedConfig.Admission.PassedControlArgs = []string{"-m", "opencode-go/deepseek-v4.1-flash"}
+	if err := dependentDelegationAdmissionError(parent, matchingChildConfig()); err != nil {
+		t.Fatalf("expected live coordinator identity to admit child before terminal receipt: %v", err)
 	}
 }
 

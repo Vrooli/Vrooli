@@ -2,13 +2,16 @@ package teams
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"connectrpc.com/connect"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"prompt-manager/handlers/transportbridge"
@@ -78,19 +81,69 @@ func (h *connectHandler) GetEffortWorkspaceContent(ctx context.Context, req *con
 }
 
 func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[teamsv1.ListTeamsRequest]) (*connect.Response[teamsv1.ListTeamsResponse], error) {
-	return transportbridge.InvokeWrappedJSON(ctx, req.Header(), h.legacy.List, http.MethodGet, "/teams", nil, nil, "teams", &teamsv1.ListTeamsResponse{})
+	result, err := h.legacy.ListTeams(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &teamsv1.ListTeamsResponse{}
+	payload, err := json.Marshal(map[string]any{"teams": result})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) GetTeam(ctx context.Context, req *connect.Request[teamsv1.GetTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
-	return teamCall(ctx, req.Header(), h.legacy.Get, http.MethodGet, req.Msg.GetId(), "", nil, nil, &teamsv1.TeamDetails{})
+	result, err := h.legacy.GetTeam(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	out := &teamsv1.TeamDetails{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) CreateTeam(ctx context.Context, req *connect.Request[teamsv1.CreateTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
-	body, err := transportbridge.ProtoBody(req.Msg.GetTeam())
-	if err != nil {
-		return nil, err
+	if req.Msg.GetTeam() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("team is required"))
 	}
-	return transportbridge.InvokeJSON(ctx, req.Header(), h.legacy.Create, http.MethodPost, "/teams", body, nil, &teamsv1.TeamDetails{})
+	raw, err := protojson.Marshal(req.Msg.GetTeam())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	var input domain.CreateRequest
+	if err := json.Unmarshal(raw, &input); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	result, err := h.legacy.CreateTeam(ctx, input)
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "displayName is required" {
+			code = connect.CodeInvalidArgument
+		}
+		if strings.Contains(err.Error(), "already exists") {
+			code = connect.CodeAlreadyExists
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.TeamDetails{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) UpdateTeam(ctx context.Context, req *connect.Request[teamsv1.UpdateTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
@@ -102,171 +155,405 @@ func (h *connectHandler) UpdateTeam(ctx context.Context, req *connect.Request[te
 }
 
 func (h *connectHandler) DeleteTeam(ctx context.Context, req *connect.Request[teamsv1.DeleteTeamRequest]) (*connect.Response[teamsv1.DeleteTeamResponse], error) {
-	_, err := invokeTeam(ctx, req.Header(), h.legacy.Delete, http.MethodDelete, req.Msg.GetId(), "", nil, nil)
-	if err != nil {
-		return nil, err
+	if err := h.legacy.DeleteTeam(ctx, req.Msg.GetId()); err != nil {
+		code := connect.CodeInternal
+		if strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
 	}
 	return connect.NewResponse(&teamsv1.DeleteTeamResponse{}), nil
 }
 
 func (h *connectHandler) GetExclusiveMembers(ctx context.Context, req *connect.Request[teamsv1.GetExclusiveMembersRequest]) (*connect.Response[teamsv1.ExclusiveMembersResponse], error) {
-	return teamCall(ctx, req.Header(), h.legacy.GetExclusiveMembers, http.MethodGet, req.Msg.GetTeamId(), "/exclusive-members", nil, nil, &teamsv1.ExclusiveMembersResponse{})
+	result, err := h.legacy.ListExclusiveMembers(ctx, req.Msg.GetTeamId())
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.ExclusiveMembersResponse{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) AddMember(ctx context.Context, req *connect.Request[teamsv1.AddMemberRequest]) (*connect.Response[teamsv1.Member], error) {
-	body := map[string]any{"agentId": req.Msg.GetAgentId(), "roles": req.Msg.GetRoles()}
-	return teamCall(ctx, req.Header(), h.legacy.AddMember, http.MethodPost, req.Msg.GetTeamId(), "/members", body, nil, &teamsv1.Member{})
+	result, err := h.legacy.AddTeamMember(ctx, req.Msg.GetTeamId(), domain.AddMemberRequest{AgentID: req.Msg.GetAgentId(), Roles: req.Msg.GetRoles()})
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "agentId is required" {
+			code = connect.CodeInvalidArgument
+		}
+		if err.Error() == "Team not found" || err.Error() == "Agent not found" {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.Member{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) UpdateMember(ctx context.Context, req *connect.Request[teamsv1.UpdateMemberRequest]) (*connect.Response[teamsv1.Member], error) {
-	body := map[string]any{"roles": req.Msg.GetRoles()}
-	if req.Msg.Status != nil {
-		body["status"] = req.Msg.GetStatus()
+	result, err := h.legacy.UpdateTeamMember(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId(), domain.UpdateMemberRequest{Roles: req.Msg.GetRoles(), Status: req.Msg.Status})
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Membership not found" || err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.HasPrefix(err.Error(), "cannot deactivate") {
+			code = connect.CodeAborted
+		}
+		return nil, connect.NewError(code, err)
 	}
-	vars := map[string]string{"agentId": req.Msg.GetAgentId()}
-	return teamCall(ctx, req.Header(), h.legacy.UpdateMember, http.MethodPut, req.Msg.GetTeamId(), "/members/"+url.PathEscape(req.Msg.GetAgentId()), body, vars, &teamsv1.Member{})
+	out := &teamsv1.Member{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) RemoveMember(ctx context.Context, req *connect.Request[teamsv1.RemoveMemberRequest]) (*connect.Response[teamsv1.RemoveMemberResponse], error) {
-	_, err := invokeTeam(ctx, req.Header(), h.legacy.RemoveMember, http.MethodDelete, req.Msg.GetTeamId(), "/members/"+url.PathEscape(req.Msg.GetAgentId()), nil, map[string]string{"agentId": req.Msg.GetAgentId()})
-	if err != nil {
-		return nil, err
+	if err := h.legacy.RemoveTeamMember(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId()); err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" || strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		if strings.HasPrefix(err.Error(), "cannot remove") {
+			code = connect.CodeAborted
+		}
+		return nil, connect.NewError(code, err)
 	}
 	return connect.NewResponse(&teamsv1.RemoveMemberResponse{}), nil
 }
 
 func (h *connectHandler) GetRoles(ctx context.Context, req *connect.Request[teamsv1.GetRolesRequest]) (*connect.Response[teamsv1.GetRolesResponse], error) {
-	result, err := invokeTeam(ctx, req.Header(), h.legacy.GetRoles, http.MethodGet, req.Msg.GetTeamId(), "/roles", nil, nil)
+	roles, err := h.legacy.ListTeamRoles(ctx, req.Msg.GetTeamId())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	out := &teamsv1.GetRolesResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "roles", out); err != nil {
-		return nil, err
+	for _, role := range roles {
+		out.Roles = append(out.Roles, &teamsv1.Role{Id: role.ID, Name: role.Name, Description: role.Description})
 	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) SetRoles(ctx context.Context, req *connect.Request[teamsv1.SetRolesRequest]) (*connect.Response[teamsv1.GetRolesResponse], error) {
-	roles := make([]map[string]string, 0, len(req.Msg.GetRoles()))
+	roles := make([]domain.RoleDTO, 0, len(req.Msg.GetRoles()))
 	for _, role := range req.Msg.GetRoles() {
-		roles = append(roles, map[string]string{"id": role.GetId(), "name": role.GetName(), "description": role.GetDescription()})
+		roles = append(roles, domain.RoleDTO{ID: role.GetId(), Name: role.GetName(), Description: role.GetDescription()})
 	}
-	body := map[string]any{"roles": roles}
-	result, err := invokeTeam(ctx, req.Header(), h.legacy.SetRoles, http.MethodPut, req.Msg.GetTeamId(), "/roles", body, nil)
+	result, err := h.legacy.SetTeamRoles(ctx, req.Msg.GetTeamId(), domain.SetRolesRequest{Roles: roles})
 	if err != nil {
-		return nil, err
+		code := connect.CodeInternal
+		if strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
 	}
 	out := &teamsv1.GetRolesResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "roles", out); err != nil {
-		return nil, err
+	for _, role := range result {
+		out.Roles = append(out.Roles, &teamsv1.Role{Id: role.ID, Name: role.Name, Description: role.Description})
 	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) ListSharedFiles(ctx context.Context, req *connect.Request[teamsv1.ListSharedFilesRequest]) (*connect.Response[teamsv1.ListSharedFilesResponse], error) {
-	return teamCall(ctx, req.Header(), h.legacy.ListSharedFiles, http.MethodGet, req.Msg.GetTeamId(), "/shared/files", nil, nil, &teamsv1.ListSharedFilesResponse{})
+	result, err := h.legacy.ListTeamSharedFiles(ctx, req.Msg.GetTeamId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &teamsv1.ListSharedFilesResponse{TeamId: result.TeamID}
+	for _, file := range result.Files {
+		out.Files = append(out.Files, &teamsv1.SharedFileEntry{Path: file.Path, IsDir: file.IsDir, Size: file.Size})
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) GetSharedFile(ctx context.Context, req *connect.Request[teamsv1.GetSharedFileRequest]) (*connect.Response[teamsv1.SharedFileContent], error) {
-	return teamCall(ctx, req.Header(), h.legacy.GetSharedFile, http.MethodGet, req.Msg.GetTeamId(), "/shared/files/content?path="+url.QueryEscape(req.Msg.GetPath()), nil, nil, &teamsv1.SharedFileContent{})
+	result, err := h.legacy.ReadTeamSharedFile(ctx, req.Msg.GetTeamId(), req.Msg.GetPath())
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "path is required" || strings.Contains(err.Error(), "invalid path") {
+			code = connect.CodeInvalidArgument
+		}
+		if err.Error() == "Team not found" || err.Error() == "File not found" {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&teamsv1.SharedFileContent{TeamId: result.TeamID, Path: result.Path, Content: result.Content}), nil
 }
 
 func (h *connectHandler) SetSharedFile(ctx context.Context, req *connect.Request[teamsv1.SetSharedFileRequest]) (*connect.Response[teamsv1.SharedFileContent], error) {
-	return teamCall(ctx, req.Header(), h.legacy.SetSharedFile, http.MethodPut, req.Msg.GetTeamId(), "/shared/files/content?path="+url.QueryEscape(req.Msg.GetPath()), map[string]string{"content": req.Msg.GetContent()}, nil, &teamsv1.SharedFileContent{})
+	if err := h.legacy.WriteTeamSharedFile(ctx, req.Msg.GetTeamId(), req.Msg.GetPath(), req.Msg.GetContent()); err != nil {
+		code := connect.CodeInvalidArgument
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "not supported") {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&teamsv1.SharedFileContent{TeamId: req.Msg.GetTeamId(), Path: req.Msg.GetPath(), Content: req.Msg.GetContent()}), nil
 }
 
 func (h *connectHandler) CreateSharedFile(ctx context.Context, req *connect.Request[teamsv1.CreateSharedFileRequest]) (*connect.Response[teamsv1.SharedFileContent], error) {
-	body := map[string]any{"path": req.Msg.GetPath(), "content": req.Msg.GetContent(), "isDir": req.Msg.GetIsDir()}
-	return teamCall(ctx, req.Header(), h.legacy.CreateSharedFile, http.MethodPost, req.Msg.GetTeamId(), "/shared/files", body, nil, &teamsv1.SharedFileContent{})
+	input := domain.TeamSharedFileCreateRequest{Path: req.Msg.GetPath(), Content: req.Msg.GetContent(), IsDir: req.Msg.GetIsDir()}
+	if err := h.legacy.CreateTeamSharedFile(ctx, req.Msg.GetTeamId(), input); err != nil {
+		code := connect.CodeInvalidArgument
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "not supported") {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&teamsv1.SharedFileContent{TeamId: req.Msg.GetTeamId(), Path: req.Msg.GetPath(), Content: req.Msg.GetContent()}), nil
 }
 
 func (h *connectHandler) RenameSharedFile(ctx context.Context, req *connect.Request[teamsv1.RenameSharedFileRequest]) (*connect.Response[teamsv1.SharedFileContent], error) {
-	body := map[string]string{"from": req.Msg.GetFrom(), "to": req.Msg.GetTo()}
-	return teamCall(ctx, req.Header(), h.legacy.RenameSharedFile, http.MethodPost, req.Msg.GetTeamId(), "/shared/files/rename", body, nil, &teamsv1.SharedFileContent{})
+	input := domain.TeamSharedFileRenameRequest{From: req.Msg.GetFrom(), To: req.Msg.GetTo()}
+	if err := h.legacy.RenameTeamSharedFile(ctx, req.Msg.GetTeamId(), input); err != nil {
+		code := connect.CodeInvalidArgument
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "not supported") {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&teamsv1.SharedFileContent{TeamId: req.Msg.GetTeamId(), Path: req.Msg.GetTo()}), nil
 }
 
 func (h *connectHandler) DeleteSharedFile(ctx context.Context, req *connect.Request[teamsv1.DeleteSharedFileRequest]) (*connect.Response[teamsv1.DeleteSharedFileResponse], error) {
-	_, err := invokeTeam(ctx, req.Header(), h.legacy.DeleteSharedFile, http.MethodDelete, req.Msg.GetTeamId(), "/shared/files?path="+url.QueryEscape(req.Msg.GetPath()), nil, nil)
-	if err != nil {
-		return nil, err
+	if err := h.legacy.DeleteTeamSharedFile(ctx, req.Msg.GetTeamId(), req.Msg.GetPath()); err != nil {
+		code := connect.CodeInvalidArgument
+		if err.Error() == "Team not found" || strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "not supported") {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
 	}
 	return connect.NewResponse(&teamsv1.DeleteSharedFileResponse{}), nil
 }
 
 func (h *connectHandler) GetOrgChart(ctx context.Context, req *connect.Request[teamsv1.GetOrgChartRequest]) (*connect.Response[teamsv1.OrgChart], error) {
-	return teamCall(ctx, req.Header(), h.legacy.GetOrgChart, http.MethodGet, req.Msg.GetTeamId(), "/org", nil, nil, &teamsv1.OrgChart{})
+	result, err := h.legacy.ReadOrgChart(ctx, req.Msg.GetTeamId())
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.OrgChart{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) SetOrgChart(ctx context.Context, req *connect.Request[teamsv1.SetOrgChartRequest]) (*connect.Response[teamsv1.OrgChart], error) {
-	edges := make([]map[string]string, 0, len(req.Msg.GetEdges()))
+	edges := make([]domain.OrgEdgeDTO, 0, len(req.Msg.GetEdges()))
 	for _, edge := range req.Msg.GetEdges() {
-		edges = append(edges, map[string]string{"managerAgentId": edge.GetManagerAgentId(), "reportAgentId": edge.GetReportAgentId()})
+		edges = append(edges, domain.OrgEdgeDTO{ManagerAgentID: edge.GetManagerAgentId(), ReportAgentID: edge.GetReportAgentId()})
 	}
-	managed := make([]map[string]string, 0, len(req.Msg.GetManagedTeamEdges()))
+	managed := make([]domain.ManagedTeamEdgeDTO, 0, len(req.Msg.GetManagedTeamEdges()))
 	for _, edge := range req.Msg.GetManagedTeamEdges() {
-		managed = append(managed, map[string]string{"managerTeamId": edge.GetManagerTeamId(), "managedTeamId": edge.GetManagedTeamId(), "relationship": edge.GetRelationship(), "authorityRef": edge.GetAuthorityRef(), "status": edge.GetStatus()})
+		managed = append(managed, domain.ManagedTeamEdgeDTO{ManagerTeamID: edge.GetManagerTeamId(), ManagedTeamID: edge.GetManagedTeamId(), Relationship: edge.GetRelationship(), AuthorityRef: edge.GetAuthorityRef(), Status: edge.GetStatus()})
 	}
-	return teamCall(ctx, req.Header(), h.legacy.SetOrgChart, http.MethodPut, req.Msg.GetTeamId(), "/org", map[string]any{"edges": edges, "managedTeamEdges": managed}, nil, &teamsv1.OrgChart{})
+	result, err := h.legacy.WriteOrgChart(ctx, req.Msg.GetTeamId(), domain.SetOrgChartRequest{Edges: edges, ManagedTeamEdges: managed})
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "cycle") || strings.Contains(err.Error(), "manager") || strings.Contains(err.Error(), "report") {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.OrgChart{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) UpdateOrgChartEdge(ctx context.Context, req *connect.Request[teamsv1.UpdateOrgChartEdgeRequest]) (*connect.Response[teamsv1.OrgChart], error) {
-	vars := map[string]string{"reportId": req.Msg.GetReportAgentId()}
-	body := map[string]string{"managerAgentId": req.Msg.GetManagerAgentId()}
-	return teamCall(ctx, req.Header(), h.legacy.UpdateOrgChartEdge, http.MethodPut, req.Msg.GetTeamId(), "/org/edges/"+url.PathEscape(req.Msg.GetReportAgentId()), body, vars, &teamsv1.OrgChart{})
+	result, err := h.legacy.UpdateOrgEdge(ctx, req.Msg.GetTeamId(), req.Msg.GetReportAgentId(), domain.UpdateOrgEdgeRequest{ManagerAgentID: req.Msg.GetManagerAgentId()})
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "cycle") {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.OrgChart{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) DeleteOrgChartEdge(ctx context.Context, req *connect.Request[teamsv1.DeleteOrgChartEdgeRequest]) (*connect.Response[teamsv1.OrgChart], error) {
-	vars := map[string]string{"reportId": req.Msg.GetReportAgentId()}
-	return teamCall(ctx, req.Header(), h.legacy.DeleteOrgChartEdge, http.MethodDelete, req.Msg.GetTeamId(), "/org/edges/"+url.PathEscape(req.Msg.GetReportAgentId()), nil, vars, &teamsv1.OrgChart{})
+	result, err := h.legacy.DeleteOrgEdge(ctx, req.Msg.GetTeamId(), req.Msg.GetReportAgentId())
+	if err != nil {
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" || strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "required") {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.OrgChart{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) ListMessages(ctx context.Context, req *connect.Request[teamsv1.ListMessagesRequest]) (*connect.Response[teamsv1.Inbox], error) {
-	vars := map[string]string{"agentId": req.Msg.GetAgentId()}
-	return teamCall(ctx, req.Header(), h.legacy.ListTeamMessages, http.MethodGet, req.Msg.GetTeamId(), "/members/"+url.PathEscape(req.Msg.GetAgentId())+"/messages", nil, vars, &teamsv1.Inbox{})
+	result, err := h.legacy.ReadTeamMessages(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out := &teamsv1.Inbox{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) SendMessage(ctx context.Context, req *connect.Request[teamsv1.SendMessageRequest]) (*connect.Response[teamsv1.Message], error) {
-	vars := map[string]string{"agentId": req.Msg.GetAgentId()}
-	body := map[string]string{"fromAgentId": req.Msg.GetFromAgentId(), "content": req.Msg.GetContent()}
-	return teamCall(ctx, req.Header(), h.legacy.SendTeamMessage, http.MethodPost, req.Msg.GetTeamId(), "/members/"+url.PathEscape(req.Msg.GetAgentId())+"/messages", body, vars, &teamsv1.Message{})
+	result, err := h.legacy.SendTeamMessageDirect(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId(), domain.SendTeamMessageRequest{FromAgentID: req.Msg.GetFromAgentId(), Content: req.Msg.GetContent()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&teamsv1.Message{Id: result.ID, TeamId: result.TeamID, FromAgentId: result.FromAgentID, ToAgentId: result.ToAgentID, Content: result.Content, CreatedAt: result.CreatedAt}), nil
 }
 
 func (h *connectHandler) ClearMessages(ctx context.Context, req *connect.Request[teamsv1.ClearMessagesRequest]) (*connect.Response[teamsv1.ClearMessagesResponse], error) {
-	vars := map[string]string{"agentId": req.Msg.GetAgentId()}
-	_, err := invokeTeam(ctx, req.Header(), h.legacy.ClearTeamMessages, http.MethodDelete, req.Msg.GetTeamId(), "/members/"+url.PathEscape(req.Msg.GetAgentId())+"/messages", nil, vars)
-	if err != nil {
-		return nil, err
+	if err := h.legacy.ClearTeamMessagesDirect(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&teamsv1.ClearMessagesResponse{}), nil
 }
 
 func (h *connectHandler) DeleteMessage(ctx context.Context, req *connect.Request[teamsv1.DeleteMessageRequest]) (*connect.Response[teamsv1.DeleteMessageResponse], error) {
-	vars := map[string]string{"agentId": req.Msg.GetAgentId(), "messageId": req.Msg.GetMessageId()}
-	suffix := "/members/" + url.PathEscape(req.Msg.GetAgentId()) + "/messages/" + url.PathEscape(req.Msg.GetMessageId())
-	_, err := invokeTeam(ctx, req.Header(), h.legacy.DeleteTeamMessage, http.MethodDelete, req.Msg.GetTeamId(), suffix, nil, vars)
-	if err != nil {
-		return nil, err
+	if err := h.legacy.DeleteTeamMessageDirect(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId(), req.Msg.GetMessageId()); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewResponse(&teamsv1.DeleteMessageResponse{}), nil
 }
 
 func (h *connectHandler) ListAvailableClaudeCodeTeams(ctx context.Context, req *connect.Request[teamsv1.ListAvailableClaudeCodeTeamsRequest]) (*connect.Response[teamsv1.ListAvailableClaudeCodeTeamsResponse], error) {
-	return transportbridge.InvokeWrappedJSON(ctx, req.Header(), h.legacy.ListAvailableCCTeams, http.MethodGet, "/teams/import/claude-code/available", nil, nil, "teams", &teamsv1.ListAvailableClaudeCodeTeamsResponse{})
+	items, err := h.legacy.ListAvailableClaudeCodeTeams(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &teamsv1.ListAvailableClaudeCodeTeamsResponse{}
+	for _, item := range items {
+		out.Teams = append(out.Teams, &teamsv1.AvailableClaudeCodeTeam{Name: item.Name, MemberCount: int32(item.MemberCount)})
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) ImportClaudeCodeTeam(ctx context.Context, req *connect.Request[teamsv1.ImportClaudeCodeTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
-	return transportbridge.InvokeJSON(ctx, req.Header(), h.legacy.ImportClaudeCode, http.MethodPost, "/teams/import/claude-code", map[string]string{"teamName": req.Msg.GetTeamName()}, nil, &teamsv1.TeamDetails{})
+	result, err := h.legacy.ImportClaudeCodeTeam(ctx, req.Msg.GetTeamName())
+	if err != nil {
+		code := connect.CodeInvalidArgument
+		if strings.Contains(err.Error(), "not found") {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "already exists") {
+			code = connect.CodeAlreadyExists
+		}
+		if strings.Contains(err.Error(), "failed to read") {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	out := &teamsv1.TeamDetails{}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) ExportClaudeCodeTeam(ctx context.Context, req *connect.Request[teamsv1.ExportClaudeCodeTeamRequest]) (*connect.Response[teamsv1.ExportClaudeCodeTeamResponse], error) {
-	result, err := invokeTeam(ctx, req.Header(), h.legacy.ExportClaudeCode, http.MethodGet, req.Msg.GetTeamId(), "/export/claude-code", nil, nil)
+	result, err := h.legacy.ExportClaudeCodeTeam(ctx, req.Msg.GetTeamId())
 	if err != nil {
-		return nil, err
+		code := connect.CodeInternal
+		if err.Error() == "Team not found" {
+			code = connect.CodeNotFound
+		}
+		if strings.Contains(err.Error(), "only supported") {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, err)
 	}
 	out := &teamsv1.ExportClaudeCodeTeamResponse{TeamId: req.Msg.GetTeamId()}
-	if err := transportbridge.DecodeWrapped(result.Body, "export", out); err != nil {
-		return nil, err
+	payload, err := json.Marshal(map[string]any{"teamId": req.Msg.GetTeamId(), "export": result})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := protojson.Unmarshal(payload, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(out), nil
 }

@@ -174,8 +174,8 @@ func TestStandingSupervisorGeneratedAMBoardContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if owner.request.PageSize != 3 || owner.request.PageToken != "page" || cut.NextCursor != "next" {
-		t.Fatal("typed pagination not preserved")
+	if owner.request.PageSize != 1 || owner.request.PageToken != "page" || cut.NextCursor != "next" {
+		t.Fatal("bounded typed pagination not preserved")
 	}
 	if !cut.Efforts[0].Eligible || cut.Efforts[0].WaitRef != "subject-wait" || !cut.Efforts[1].Retired || cut.Efforts[2].Eligible {
 		t.Fatal("owner eligibility/retirement/subject-wait semantics lost")

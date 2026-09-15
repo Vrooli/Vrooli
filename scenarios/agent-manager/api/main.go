@@ -364,22 +364,14 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 	if s.reconciler != nil {
 		add("in_flight_runs", s.reconciler.RecoverInFlightRuns)
 	}
-	if s.orchestrator != nil {
-		add("workflow_accounting", s.orchestrator.RecoverWorkflowExecutions)
-	}
 	repoRoot := os.Getenv("PROJECT_ROOT")
 	if repoRoot == "" {
 		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
 	}
 	if s.orchestrator != nil {
-		add("scenario_declarations", func(ctx context.Context) error {
-			summary := s.orchestrator.ReconcileDeclaringScenarios(ctx, repoRoot)
-			obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
-			if summary.Failed > 0 {
-				return fmt.Errorf("%d scenario declarations failed", summary.Failed)
-			}
-			return nil
-		})
+		// Register this service's own declarations before scanning retained
+		// historical projections. Historical work is non-critical and must not
+		// consume the recovery budget needed for ownership continuity.
 		add("self_declarations", func(ctx context.Context) error {
 			result, err := s.orchestrator.ReconcileSelfDeclarations(ctx, repoRoot)
 			if err != nil {
@@ -388,6 +380,19 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			obs.Logger().Info("agent-manager self-declaration registration complete", "profiles_created", result.ProfilesCreated, "profiles_updated", result.ProfilesUpdated, "workflows_created", result.WorkflowsCreated, "workflows_activated", result.WorkflowsActivated, "failed", result.ProfilesFailed+result.WorkflowsFailed)
 			if result.ProfilesFailed+result.WorkflowsFailed > 0 {
 				return fmt.Errorf("self-declaration registration incomplete")
+			}
+			return nil
+		})
+	}
+	if s.orchestrator != nil {
+		add("workflow_accounting", s.orchestrator.RecoverWorkflowExecutions)
+	}
+	if s.orchestrator != nil {
+		add("scenario_declarations", func(ctx context.Context) error {
+			summary := s.orchestrator.ReconcileDeclaringScenarios(ctx, repoRoot)
+			obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
+			if summary.Failed > 0 {
+				return fmt.Errorf("%d scenario declarations failed", summary.Failed)
 			}
 			return nil
 		})

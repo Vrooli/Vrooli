@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Brand(_message.Message):
-    __slots__ = ("id", "name", "description", "identity", "colors", "typography", "voice", "notes", "version", "created_at", "updated_at")
+    __slots__ = ("id", "name", "description", "identity", "colors", "typography", "voice", "notes", "version", "created_at", "updated_at", "slug", "mark_asset_id", "small_mark_asset_id", "container_style_id", "product_line_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +22,11 @@ class Brand(_message.Message):
     VERSION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SMALL_MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTAINER_STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_LINE_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -33,7 +38,12 @@ class Brand(_message.Message):
     version: int
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ..., notes: _Optional[str] = ..., version: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    slug: str
+    mark_asset_id: str
+    small_mark_asset_id: str
+    container_style_id: str
+    product_line_id: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ..., notes: _Optional[str] = ..., version: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., slug: _Optional[str] = ..., mark_asset_id: _Optional[str] = ..., small_mark_asset_id: _Optional[str] = ..., container_style_id: _Optional[str] = ..., product_line_id: _Optional[str] = ...) -> None: ...
 
 class Identity(_message.Message):
     __slots__ = ("display_name", "tagline", "logo_path", "favicon_path", "icon_path")
@@ -120,7 +130,7 @@ class ListBrandsResponse(_message.Message):
     def __init__(self, brands: _Optional[_Iterable[_Union[Brand, _Mapping]]] = ...) -> None: ...
 
 class CreateBrandRequest(_message.Message):
-    __slots__ = ("name", "description", "notes", "identity", "colors", "typography", "voice")
+    __slots__ = ("name", "description", "notes", "identity", "colors", "typography", "voice", "slug", "mark_asset_id", "small_mark_asset_id", "container_style_id", "product_line_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
@@ -128,6 +138,11 @@ class CreateBrandRequest(_message.Message):
     COLORS_FIELD_NUMBER: _ClassVar[int]
     TYPOGRAPHY_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SMALL_MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTAINER_STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_LINE_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     notes: str
@@ -135,7 +150,12 @@ class CreateBrandRequest(_message.Message):
     colors: Colors
     typography: Typography
     voice: Voice
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., notes: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ...) -> None: ...
+    slug: str
+    mark_asset_id: str
+    small_mark_asset_id: str
+    container_style_id: str
+    product_line_id: str
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., notes: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ..., slug: _Optional[str] = ..., mark_asset_id: _Optional[str] = ..., small_mark_asset_id: _Optional[str] = ..., container_style_id: _Optional[str] = ..., product_line_id: _Optional[str] = ...) -> None: ...
 
 class CreateBrandResponse(_message.Message):
     __slots__ = ("brand",)
@@ -156,7 +176,7 @@ class GetBrandResponse(_message.Message):
     def __init__(self, brand: _Optional[_Union[Brand, _Mapping]] = ...) -> None: ...
 
 class UpdateBrandRequest(_message.Message):
-    __slots__ = ("id", "name", "description", "notes", "identity", "colors", "typography", "voice", "expected_version")
+    __slots__ = ("id", "name", "description", "notes", "identity", "colors", "typography", "voice", "expected_version", "slug", "mark_asset_id", "small_mark_asset_id", "container_style_id", "product_line_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -166,6 +186,11 @@ class UpdateBrandRequest(_message.Message):
     TYPOGRAPHY_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SMALL_MARK_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTAINER_STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_LINE_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -175,7 +200,12 @@ class UpdateBrandRequest(_message.Message):
     typography: Typography
     voice: Voice
     expected_version: int
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., notes: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ..., expected_version: _Optional[int] = ...) -> None: ...
+    slug: str
+    mark_asset_id: str
+    small_mark_asset_id: str
+    container_style_id: str
+    product_line_id: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., notes: _Optional[str] = ..., identity: _Optional[_Union[Identity, _Mapping]] = ..., colors: _Optional[_Union[Colors, _Mapping]] = ..., typography: _Optional[_Union[Typography, _Mapping]] = ..., voice: _Optional[_Union[Voice, _Mapping]] = ..., expected_version: _Optional[int] = ..., slug: _Optional[str] = ..., mark_asset_id: _Optional[str] = ..., small_mark_asset_id: _Optional[str] = ..., container_style_id: _Optional[str] = ..., product_line_id: _Optional[str] = ...) -> None: ...
 
 class UpdateBrandResponse(_message.Message):
     __slots__ = ("brand",)

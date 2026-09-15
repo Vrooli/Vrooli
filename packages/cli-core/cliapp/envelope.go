@@ -78,3 +78,19 @@ func WrapAPIError(action string, err error, body []byte) error {
 	}
 	return fmt.Errorf("%s: %w", action, err)
 }
+
+// WrapAPIErrorWithAuthHint is WrapAPIError plus a sign-in hint that is only
+// attached when the failure could be a credential problem. A server refusal
+// with any other code keeps its own words, so a precondition such as "this node
+// cannot be provisioned" is never misread as an authentication failure.
+func WrapAPIErrorWithAuthHint(action, authHint string, err error, body []byte) error {
+	wrapped := WrapAPIError(action, err, body)
+	if wrapped == nil || strings.TrimSpace(authHint) == "" {
+		return wrapped
+	}
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) && connectErr.Code() != connect.CodeUnauthenticated && connectErr.Code() != connect.CodePermissionDenied {
+		return wrapped
+	}
+	return fmt.Errorf("%w (%s)", wrapped, authHint)
+}

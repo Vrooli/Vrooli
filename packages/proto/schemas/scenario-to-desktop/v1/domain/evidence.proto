@@ -147,6 +147,10 @@ message EvidenceCapture {
   google.protobuf.Timestamp created_at = 10;
   // SHA-256 checksum of the producer-held capture bytes.
   string checksum = 11;
+  optional string void_reason = 12;
+  optional google.protobuf.Timestamp voided_at = 13;
+  optional string superseded_by = 14;
+  string pipeline_id = 15;
 }
 
 message CaptureScreenshotResponse {
@@ -155,6 +159,9 @@ message CaptureScreenshotResponse {
 
 message ListEvidenceCapturesRequest {
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional string pipeline_id = 2;
+  optional string source_session_id = 3;
+  optional string kind = 4;
 }
 
 message ListEvidenceCapturesResponse {
@@ -179,6 +186,13 @@ message EvidenceCapturesSummary {
 message EvidenceCaptureRef {
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
   string capture_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message VoidEvidenceCaptureRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string capture_id = 2 [(buf.validate.field).string.min_len = 1];
+  string reason = 3 [(buf.validate.field).string.min_len = 1];
+  optional string superseded_by = 4;
 }
 
 message DesktopControlRequest {
@@ -206,4 +220,5 @@ service EvidenceService {
   rpc GetEvidenceCapturesSummary(ListEvidenceCapturesRequest) returns (EvidenceCapturesSummary);
   rpc DeleteEvidenceCapture(EvidenceCaptureRef) returns (google.protobuf.Empty);
   rpc DeleteAllEvidenceCaptures(ListEvidenceCapturesRequest) returns (google.protobuf.Empty);
+  rpc VoidEvidenceCapture(VoidEvidenceCaptureRequest) returns (EvidenceCapture);
 }

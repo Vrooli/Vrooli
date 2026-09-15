@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.candidates;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/candidates;candidates_v1";
+
+// =============================================================================
+// CANDIDATES DOMAIN — logo candidates with lineage and pick
+// =============================================================================
+//
+// A candidate is a durable record for one proposed mark. Explore fans out AI
+// generation; Import adopts an existing asset; Refine derives a new candidate
+// from a parent (instruction, masked removal, background removal, vectorize);
+// Pick promotes a candidate (vectorizing a raster pick first) to the brand's
+// canonical mark. Exactly one candidate per brand has status PICKED.
+// =============================================================================
+
+service CandidatesService {
+  rpc ExploreCandidates(ExploreCandidatesRequest) returns (ExploreCandidatesResponse);
+  rpc ImportCandidate(ImportCandidateRequest) returns (ImportCandidateResponse);
+  rpc ListCandidates(ListCandidatesRequest) returns (ListCandidatesResponse);
+  rpc GetCandidate(GetCandidateRequest) returns (GetCandidateResponse);
+  rpc RefineCandidate(RefineCandidateRequest) returns (RefineCandidateResponse);
+  rpc PickCandidate(PickCandidateRequest) returns (PickCandidateResponse);
+  rpc RejectCandidate(RejectCandidateRequest) returns (RejectCandidateResponse);
+  rpc RestoreCandidate(RestoreCandidateRequest) returns (RestoreCandidateResponse);
+}
+
+enum CandidateOrigin {
+  CANDIDATE_ORIGIN_UNSPECIFIED = 0;
+  CANDIDATE_ORIGIN_GENERATED = 1;
+  CANDIDATE_ORIGIN_IMPORTED = 2;
+  CANDIDATE_ORIGIN_EDITED = 3;
+  CANDIDATE_ORIGIN_OBJECT_REMOVED = 4;
+  CANDIDATE_ORIGIN_BACKGROUND_REMOVED = 5;
+  CANDIDATE_ORIGIN_VECTORIZED = 6;
+}
+
+enum CandidateStatus {
+  CANDIDATE_STATUS_UNSPECIFIED = 0;
+  CANDIDATE_STATUS_PROPOSED = 1;
+  CANDIDATE_STATUS_PICKED = 2;
+  CANDIDATE_STATUS_REJECTED = 3;
+  CANDIDATE_STATUS_SUPERSEDED = 4;
+}
+
+// VectorizeOptions mirrors the image-tools vectorize parameters.
+message VectorizeOptions {
+  int32 colors = 1;
+  repeated string keep_colors = 2;
+  bool drop_background_layers = 3;
+  bool clip_to_largest_rounded_region = 4;
+  double inset_px = 5;
+  double tolerance_px = 6;
+  bool smoothing = 7;
+  double min_area_px = 8;
+}
+
+message LogoCandidate {
+  string id = 1;
+  string brand_id = 2;
+  string asset_id = 3;
+  string media_type = 4;
+  string concept = 5;
+  string prompt = 6;
+  string role = 7;
+  string model = 8;
+  int64 seed = 9;
+  CandidateOrigin origin = 10;
+  string parent_id = 11;
+  CandidateStatus status = 12;
+  string note = 13;
+  google.protobuf.Timestamp created_at = 14;
+  string thumbnail_url = 15;
+}
+
+message ExploreCandidatesRequest {
+  string brand_id = 1;
+  string brief = 2;
+  repeated string concepts = 3;
+  int32 variations = 4; // 1..4 per concept
+  bool prefer_vector = 5;
+  string quality_policy = 6;
+  string fallback_policy = 7;
+  bool allow_byok = 8;
+}
+message ExploreCandidatesResponse {
+  repeated LogoCandidate candidates = 1;
+  repeated string warnings = 2;
+}
+
+message ImportCandidateRequest {
+  string brand_id = 1;
+  string asset_id = 2;
+  string concept = 3;
+  string parent_id = 4;
+  string note = 5;
+}
+message ImportCandidateResponse {
+  LogoCandidate candidate = 1;
+}
+
+message ListCandidatesRequest {
+  string brand_id = 1;
+  CandidateStatus status = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+message ListCandidatesResponse {
+  repeated LogoCandidate candidates = 1;
+}
+
+message GetCandidateRequest {
+  string id = 1;
+}
+message GetCandidateResponse {
+  LogoCandidate candidate = 1;
+}
+
+message RefineCandidateRequest {
+  string candidate_id = 1;
+  oneof action {
+    string instruction = 2;
+    string mask_asset_id = 3;
+    bool remove_background = 4;
+    VectorizeOptions vectorize = 5;
+  }
+}
+message RefineCandidateResponse {
+  LogoCandidate candidate = 1;
+}
+
+message PickCandidateRequest {
+  string candidate_id = 1;
+}
+message PickCandidateResponse {
+  LogoCandidate candidate = 1;
+  string mark_asset_id = 2;
+  bool vectorized = 3;
+}
+
+message RejectCandidateRequest {
+  string candidate_id = 1;
+  string note = 2;
+}
+message RejectCandidateResponse {
+  LogoCandidate candidate = 1;
+}
+
+message RestoreCandidateRequest {
+  string candidate_id = 1;
+}
+message RestoreCandidateResponse {
+  LogoCandidate candidate = 1;
+}

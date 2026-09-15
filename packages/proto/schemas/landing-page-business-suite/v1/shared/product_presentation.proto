@@ -268,6 +268,19 @@ message PresentationProductDemo {
   string poster_ref = 5;
   string media_ref = 6;
   string alt_text = 7;
+  PresentationPlayback playback = 8;
+}
+
+// PresentationPlayback is the finite external-player configuration for a
+// recorded product demo. The presentation domain validates the provider URL
+// and maps it to a privacy-enhanced embed only after user activation.
+message PresentationPlayback {
+  string provider = 1;
+  string external_url = 2;
+  string layout = 3;
+  string play_label = 4;
+  string caption = 5;
+  string unavailable_label = 6;
 }
 
 message PresentationAppSpotlights {
@@ -594,6 +607,9 @@ message PresentationDiagnostics {
   string block_digest = 17;
   repeated string asset_release_refs = 18;
   string commerce_snapshot_ref = 19;
+  // Aggregation-owned assignment facts; absent on pure/admin preview results.
+  string weight_fingerprint = 20;
+  string assignment_source = 21;
 }
 
 // These are display-safe owner observations, not authorization tokens.

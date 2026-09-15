@@ -228,8 +228,8 @@ func TestStandingSupervisorRequiresDelegatedReplayTaskIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Pending.RunID != "" || got.Pending.DispatchReplayAttempts != 1 || got.Pending.DispatchReplayError == "" {
-		t.Fatalf("empty delegated task identity was accepted: %+v", got.Pending)
+	if got.Pending != nil || len(got.UnresolvedWakes) != 1 || got.UnresolvedWakes[0].RunID != "" || got.UnresolvedWakes[0].DispatchReplayAttempts != 1 || got.UnresolvedWakes[0].DispatchReplayError == "" {
+		t.Fatalf("empty delegated task identity was accepted or lost: pending=%+v unresolved=%+v", got.Pending, got.UnresolvedWakes)
 	}
 }
 
@@ -252,10 +252,10 @@ func TestStandingSupervisorBoundsDelegatedReplayAfterOwnerUncertainty(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(agent.requests) != 1 || got.Pending.DispatchReplayAttempts != 1 || got.Pending.RunID != "" || got.Status != "uncertain" {
-		t.Fatalf("owner uncertainty was retried or released: state=%+v requests=%d", got.Pending, len(agent.requests))
+	if len(agent.requests) != 1 || got.Pending != nil || len(got.UnresolvedWakes) != 1 || got.UnresolvedWakes[0].DispatchReplayAttempts != 1 || got.UnresolvedWakes[0].RunID != "" || got.Status != "degraded" {
+		t.Fatalf("owner uncertainty was retried or lost: state=%+v unresolved=%+v requests=%d", got.Pending, got.UnresolvedWakes, len(agent.requests))
 	}
-	if got.Pending.DispatchReplayError == "" {
+	if got.UnresolvedWakes[0].DispatchReplayError == "" || got.UnresolvedWakes[0].Disposition != "recovery-required" {
 		t.Fatal("bounded replay did not retain the owner uncertainty")
 	}
 }

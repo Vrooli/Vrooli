@@ -179,9 +179,13 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 	if host.OS != string(hostreqspec.PlatformLinux) {
-		status.SupportClass = hostreqkit.SupportUnsupported
-		status.ExecutionState = hostreqkit.ExecutionUnsupported
-		status.Notes = append(status.Notes, "gnome-keyring-daemon limits apply to Linux desktops only")
+		// Not applicable, not unsupported: macOS Keychain and Windows Credential
+		// Manager have no per-daemon descriptor limit to wedge (safeguard.json
+		// platform_status). Reporting unsupported made this required safeguard
+		// fail `vrooli setup` on every Mac.
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
+		status.Notes = append(status.Notes, "gnome-keyring-daemon limits apply to Linux desktops only; this platform's credential store has no daemon descriptor limit")
 		return status
 	}
 	if !host.SupportsSystemd {

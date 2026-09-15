@@ -239,9 +239,17 @@ func (r *Runner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 	proc.Signal(config.DefaultLevers().Heartbeat.RunnerSignalGracePeriod)
 	if ctx != nil {
+		processDone := make(chan struct{})
 		go func() {
-			<-ctx.Done()
-			proc.Kill()
+			defer close(processDone)
+			_ = proc.Wait()
+		}()
+		go func() {
+			select {
+			case <-ctx.Done():
+				proc.Kill()
+			case <-processDone:
+			}
 		}()
 	}
 	return nil

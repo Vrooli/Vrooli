@@ -4,6 +4,7 @@ package landing_page_business_suite.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "landing-page-business-suite/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
@@ -44,6 +45,8 @@ message TrackEventRequest {
   string utm_campaign = 10;
   string landing_path = 11;
   string referrer = 12;
+  // Classification applied at ingest: human, bot, or internal.
+  string traffic_class = 13;
 }
 
 enum TrafficDimension {
@@ -55,12 +58,13 @@ enum TrafficDimension {
   DEVICE_CLASS = 5;
   LANDING_PATH = 6;
   VARIANT = 7;
+  UTM_MEDIUM = 8;
 }
 
 message TrafficBreakdownRow {
   string key = 1;
   string label = 2;
-  int64 sessions = 3;
+  int64 visitors = 3;
   int64 conversions = 4;
   int64 revenue_minor = 5;
   double share = 6;
@@ -71,14 +75,16 @@ message GetTrafficBreakdownRequest {
   string start_date = 2;
   string end_date = 3;
   int32 limit = 4;
+  int32 window_days = 5;
 }
 
 message GetTrafficBreakdownResponse {
   repeated TrafficBreakdownRow rows = 1;
-  int64 total_sessions = 2;
+  int64 total_visitors = 2;
   bool exhaustive = 3;
   string currency = 4;
   google.protobuf.Timestamp observed_at = 5;
+  int64 other_visitors = 6;
 }
 
 message TrafficSeriesPoint {
@@ -91,6 +97,7 @@ message GetTrafficSeriesRequest {
   string start_date = 2;
   string end_date = 3;
   string bucket = 4;
+  int32 window_days = 5;
 }
 
 message GetTrafficSeriesResponse {
@@ -116,10 +123,7 @@ message VariantStats {
   int64 downloads = 7;
   // conversions / exposures * 100 (0 when exposures == 0).
   double conversion_rate = 8;
-  // Reserved for future trend rendering; not currently populated.
-  optional double trend = 9;
-  // Reserved for future scroll-depth rollups; not currently populated.
-  optional double avg_scroll_depth = 10;
+  reserved 9, 10;
   // Number of first exposures used as the conversion-rate denominator.
   int64 exposures = 11;
 }
@@ -135,7 +139,10 @@ message AnalyticsSummary {
   optional double top_cta_ctr = 5;
   // Time at which the producer completed this aggregate projection.
   google.protobuf.Timestamp observed_at = 6;
+  TrafficExclusions exclusions = 7;
+  string contract_version = 8;
 }
+
 
 // AdminRevenue is the producer-owned financial rollup. Monetary values are
 // expressed in the declared currency and unit, with sample_size counting the
@@ -196,6 +203,7 @@ message RevenueSummary {
 message GetAnalyticsSummaryRequest {
   string start_date = 1;
   string end_date = 2;
+  int32 window_days = 3;
 }
 
 // GetVariantStatsRequest requests per-variant funnel stats for a date window,
@@ -205,6 +213,7 @@ message GetVariantStatsRequest {
   string end_date = 2;
   // Optional variant slug filter; empty returns all active variants.
   string variant = 3;
+  int32 window_days = 4;
 }
 
 // GetVariantStatsResponse returns the resolved window and per-variant stats.

@@ -106,14 +106,14 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 				role = "unknown"
 				o.Limitations = append(o.Limitations, "runtime reference has no recognized assignment role; product runtime attribution remains unknown")
 			}
-			// New runtime subjects do not expand an existing mutation grant.
+			// New runtime subjects do not expand an existing mutation grant. The
+			// grant belongs to the authenticated supervisor owner and its exact
+			// effort/revision scope; coordinator and worker subjects are runtime
+			// observations. Do not revoke the supervisor grant merely because the
+			// finite coordinator advanced to a new run. Doing so creates a dead
+			// loop: every coordinator wake makes the standing supervisor require a
+			// new operator enrollment before it can recover that wake.
 			e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: run.ID.String(), RunId: run.ID.String(), Role: role})
-			if e.AuthorizedBy != "" && role == "orchestrator" {
-				e.AuthorizedBy = ""
-				e.PermittedActions = nil
-				e.AuthorityExpiresAt = nil
-				o.Limitations = append(o.Limitations, "runtime subject set changed; steering grant requires owner reconciliation")
-			}
 			e.Revision = expected + 1
 			e.UpdatedAt = timestamppb.New(s.now().UTC())
 			if e.Workspace == "" {

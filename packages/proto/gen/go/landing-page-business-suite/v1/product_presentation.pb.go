@@ -272,11 +272,12 @@ func (x *SavePresentationDraftRequest) GetDocument() *shared.ProductPresentation
 }
 
 type PreviewPresentationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VariantSlug   string                 `protobuf:"bytes,1,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
-	Revision      string                 `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Route         string                 `protobuf:"bytes,3,opt,name=route,proto3" json:"route,omitempty"`
-	Locale        string                 `protobuf:"bytes,4,opt,name=locale,proto3" json:"locale,omitempty"`
+	state         protoimpl.MessageState              `protogen:"open.v1"`
+	VariantSlug   string                              `protobuf:"bytes,1,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
+	Revision      string                              `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Route         string                              `protobuf:"bytes,3,opt,name=route,proto3" json:"route,omitempty"`
+	Locale        string                              `protobuf:"bytes,4,opt,name=locale,proto3" json:"locale,omitempty"`
+	Document      *shared.ProductPresentationDocument `protobuf:"bytes,5,opt,name=document,proto3" json:"document,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -337,6 +338,13 @@ func (x *PreviewPresentationRequest) GetLocale() string {
 		return x.Locale
 	}
 	return ""
+}
+
+func (x *PreviewPresentationRequest) GetDocument() *shared.ProductPresentationDocument {
+	if x != nil {
+		return x.Document
+	}
+	return nil
 }
 
 type PreviewPresentationResponse struct {
@@ -466,12 +474,13 @@ const file_landing_page_business_suite_v1_product_presentation_proto_rawDesc = "
 	"\x1cSavePresentationDraftRequest\x12!\n" +
 	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\x12/\n" +
 	"\x13expected_generation\x18\x02 \x01(\x04R\x12expectedGeneration\x12e\n" +
-	"\bdocument\x18\x03 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocumentR\bdocument\"\x89\x01\n" +
+	"\bdocument\x18\x03 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocumentR\bdocument\"\xf0\x01\n" +
 	"\x1aPreviewPresentationRequest\x12!\n" +
 	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\tR\brevision\x12\x14\n" +
 	"\x05route\x18\x03 \x01(\tR\x05route\x12\x16\n" +
-	"\x06locale\x18\x04 \x01(\tR\x06locale\"\x8c\x01\n" +
+	"\x06locale\x18\x04 \x01(\tR\x06locale\x12e\n" +
+	"\bdocument\x18\x05 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocumentR\bdocument\"\x8c\x01\n" +
 	"\x1bPreviewPresentationResponse\x12m\n" +
 	"\fpresentation\x18\x01 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentationR\fpresentation\"\x8d\x01\n" +
 	"\x1bActivatePresentationRequest\x12!\n" +
@@ -510,25 +519,26 @@ var file_landing_page_business_suite_v1_product_presentation_proto_goTypes = []a
 	(*shared.ResolvedProductPresentation)(nil), // 8: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
 }
 var file_landing_page_business_suite_v1_product_presentation_proto_depIdxs = []int32{
-	0, // 0: landing_page_business_suite.v1.PresentationEditorResponse.state:type_name -> landing_page_business_suite.v1.PresentationRevisionState
-	7, // 1: landing_page_business_suite.v1.PresentationEditorResponse.document:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
-	7, // 2: landing_page_business_suite.v1.SavePresentationDraftRequest.document:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
-	8, // 3: landing_page_business_suite.v1.PreviewPresentationResponse.presentation:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
-	1, // 4: landing_page_business_suite.v1.ProductPresentationAdminService.GetPresentation:input_type -> landing_page_business_suite.v1.GetPresentationRequest
-	3, // 5: landing_page_business_suite.v1.ProductPresentationAdminService.SaveDraft:input_type -> landing_page_business_suite.v1.SavePresentationDraftRequest
-	4, // 6: landing_page_business_suite.v1.ProductPresentationAdminService.Preview:input_type -> landing_page_business_suite.v1.PreviewPresentationRequest
-	6, // 7: landing_page_business_suite.v1.ProductPresentationAdminService.Publish:input_type -> landing_page_business_suite.v1.ActivatePresentationRequest
-	6, // 8: landing_page_business_suite.v1.ProductPresentationAdminService.Rollback:input_type -> landing_page_business_suite.v1.ActivatePresentationRequest
-	2, // 9: landing_page_business_suite.v1.ProductPresentationAdminService.GetPresentation:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
-	2, // 10: landing_page_business_suite.v1.ProductPresentationAdminService.SaveDraft:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
-	5, // 11: landing_page_business_suite.v1.ProductPresentationAdminService.Preview:output_type -> landing_page_business_suite.v1.PreviewPresentationResponse
-	2, // 12: landing_page_business_suite.v1.ProductPresentationAdminService.Publish:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
-	2, // 13: landing_page_business_suite.v1.ProductPresentationAdminService.Rollback:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
-	9, // [9:14] is the sub-list for method output_type
-	4, // [4:9] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: landing_page_business_suite.v1.PresentationEditorResponse.state:type_name -> landing_page_business_suite.v1.PresentationRevisionState
+	7,  // 1: landing_page_business_suite.v1.PresentationEditorResponse.document:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
+	7,  // 2: landing_page_business_suite.v1.SavePresentationDraftRequest.document:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
+	7,  // 3: landing_page_business_suite.v1.PreviewPresentationRequest.document:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
+	8,  // 4: landing_page_business_suite.v1.PreviewPresentationResponse.presentation:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
+	1,  // 5: landing_page_business_suite.v1.ProductPresentationAdminService.GetPresentation:input_type -> landing_page_business_suite.v1.GetPresentationRequest
+	3,  // 6: landing_page_business_suite.v1.ProductPresentationAdminService.SaveDraft:input_type -> landing_page_business_suite.v1.SavePresentationDraftRequest
+	4,  // 7: landing_page_business_suite.v1.ProductPresentationAdminService.Preview:input_type -> landing_page_business_suite.v1.PreviewPresentationRequest
+	6,  // 8: landing_page_business_suite.v1.ProductPresentationAdminService.Publish:input_type -> landing_page_business_suite.v1.ActivatePresentationRequest
+	6,  // 9: landing_page_business_suite.v1.ProductPresentationAdminService.Rollback:input_type -> landing_page_business_suite.v1.ActivatePresentationRequest
+	2,  // 10: landing_page_business_suite.v1.ProductPresentationAdminService.GetPresentation:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
+	2,  // 11: landing_page_business_suite.v1.ProductPresentationAdminService.SaveDraft:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
+	5,  // 12: landing_page_business_suite.v1.ProductPresentationAdminService.Preview:output_type -> landing_page_business_suite.v1.PreviewPresentationResponse
+	2,  // 13: landing_page_business_suite.v1.ProductPresentationAdminService.Publish:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
+	2,  // 14: landing_page_business_suite.v1.ProductPresentationAdminService.Rollback:output_type -> landing_page_business_suite.v1.PresentationEditorResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_product_presentation_proto_init() }

@@ -35,6 +35,11 @@ type SupervisionState struct {
 	Sequence           uint64                         `json:"sequence"`
 	Efforts            map[string]SupervisedCut       `json:"efforts"`
 	Pending            *SupervisionWake               `json:"pending,omitempty"`
+	// UnresolvedWakes retain dispatches whose owner call was attempted but
+	// returned no run identity. They are not replayed automatically: retaining
+	// them preserves the audit trail while allowing standing supervision to
+	// continue for other efforts.
+	UnresolvedWakes []*SupervisionWake `json:"unresolvedWakes,omitempty"`
 }
 
 type SupervisedCut struct {

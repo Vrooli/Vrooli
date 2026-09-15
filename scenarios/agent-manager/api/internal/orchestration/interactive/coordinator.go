@@ -30,6 +30,9 @@ const (
 	// defaultSessionPoll is how often the mid-tail watcher confirms the
 	// web-console session still exists.
 	defaultSessionPoll = 5 * time.Second
+	// defaultInterruptionRecoveryDelay gives provider capacity and transient
+	// availability failures time to clear before a single automatic retry.
+	defaultInterruptionRecoveryDelay = 30 * time.Minute
 	// defaultSessionReattachWindow is how long a missing session is tolerated
 	// (with re-resolution) before the run is declared session_lost. A
 	// web-console restart can briefly hide a session that the persistent backend
@@ -75,6 +78,10 @@ func transcriptModel(run *domain.Run) string {
 // distinguish a vanished session (finalize the run) from a graceful shutdown
 // (leave the run for restart recovery).
 var ErrSessionGone = errors.New("web-console session no longer exists")
+
+// ErrResumableInterruption keeps a run active while its server-owned recovery
+// timer waits. It is intentionally not a terminal failure.
+var ErrResumableInterruption = errors.New("interactive provider interruption is resumable")
 
 // RunStore is the minimal persistence seam the coordinator needs.
 // repository.RunRepository satisfies it.
@@ -130,6 +137,9 @@ type CoordinatorDeps struct {
 	// SessionReattachWindow overrides how long a missing session is tolerated
 	// before failing the run (0 uses the default 3 minutes).
 	SessionReattachWindow time.Duration
+	// InterruptionRecoveryDelay controls the delayed retry after a resumable
+	// provider interruption. Zero uses the 30-minute production default.
+	InterruptionRecoveryDelay time.Duration
 	// Heartbeat overrides the live-path heartbeat cadence (0 uses the default;
 	// negative disables the heartbeat goroutine — used by the recovery path,
 	// which does not own the live run).
@@ -156,7 +166,12 @@ type Coordinator struct {
 	heartbeat    time.Duration
 	timeoutDrain time.Duration
 
-	sessionReattachWindow time.Duration
+	sessionReattachWindow   time.Duration
+	recoveryDelay           time.Duration
+	recoverableInterruption atomic.Bool
+	recoveryScheduled       atomic.Bool
+	recoveryReady           chan struct{}
+	recoverySucceeded       atomic.Bool
 }
 
 // NewCoordinator builds a Coordinator, applying defaults for any unset cadence.
@@ -170,12 +185,17 @@ func NewCoordinator(deps CoordinatorDeps) *Coordinator {
 		heartbeat:             deps.Heartbeat,
 		timeoutDrain:          deps.TimeoutDrainGrace,
 		sessionReattachWindow: deps.SessionReattachWindow,
+		recoveryDelay:         deps.InterruptionRecoveryDelay,
+		recoveryReady:         make(chan struct{}),
 	}
 	if c.timeoutDrain == 0 {
 		c.timeoutDrain = defaultTimeoutDrainGrace
 	}
 	if c.clock == nil {
 		c.clock = time.Now
+	}
+	if c.recoveryDelay == 0 {
+		c.recoveryDelay = defaultInterruptionRecoveryDelay
 	}
 	if c.debounce <= 0 {
 		c.debounce = defaultDebounceWindow
@@ -423,6 +443,21 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 			return firstTerminal(term, lastTerminal), ErrSessionGone
 		}
 		if err != nil {
+			if c.recoverableInterruption.Load() {
+				// The watcher cancelled the tail so the coordinator can wait for
+				// the delayed retry. Keep this coordinator attached; otherwise a
+				// successful retry would have nobody reading the next turn.
+				select {
+				case <-c.recoveryReady:
+					if c.recoverySucceeded.Load() {
+						c.recoverableInterruption.Store(false)
+						continue
+					}
+					return nil, ErrResumableInterruption
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
 			// The caller cancelled (shutdown); leave completion to recovery.
 			return firstTerminal(term, lastTerminal), err
 		}
@@ -545,6 +580,15 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 				_, err := c.deps.Sessions.GetSession(ctx, run.WebConsoleSessionID)
 				if !errors.Is(err, webconsole.ErrSessionNotFound) {
 					notFoundSince = time.Time{}
+					if err == nil {
+						if screen, screenErr := c.deps.Sessions.Screen(ctx, run.WebConsoleSessionID, true); screenErr == nil {
+							if interruption, detected := ClassifyScreenInterruption(screen); detected {
+								c.recoverableInterruption.Store(true)
+								c.scheduleInterruptionRecovery(run, interruption)
+								cancel()
+							}
+						}
+					}
 					continue
 				}
 				if notFoundSince.IsZero() {
@@ -566,6 +610,43 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 		defer mu.Unlock()
 		return gone
 	}
+}
+
+// scheduleInterruptionRecovery keeps a capacity-affected run alive while a
+// server-owned timer waits, then sends exactly one mode-aware continuation into
+// the existing Web Console session. Cancellation of the parent run cancels the
+// timer; repeated screen polls cannot duplicate the prompt.
+func (c *Coordinator) scheduleInterruptionRecovery(run *domain.Run, interruption ResumableInterruption) {
+	if run == nil || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer close(c.recoveryReady)
+		timer := time.NewTimer(c.recoveryDelay)
+		defer timer.Stop()
+		<-timer.C
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := c.deps.Sessions.GetSession(ctx, run.WebConsoleSessionID); err != nil {
+			return
+		}
+		if c.deps.NewSink != nil {
+			if events := c.deps.NewSink(run.ID); events != nil {
+				_ = events.Emit(domain.NewLogEvent(run.ID, "warn", fmt.Sprintf(
+					"resumable interactive interruption detected (%s: %s); attempting delayed recovery",
+					interruption.Kind, interruption.Message)))
+				_ = events.Close()
+			}
+		}
+		if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
+			if err := c.deps.Sessions.SendText(ctx, run.WebConsoleSessionID, "/goal resume\n", interactiveSource(run)); err != nil {
+				return
+			}
+		} else if err := c.deps.Sessions.SendPrompt(ctx, run.WebConsoleSessionID, "continue", interactiveSource(run)); err != nil {
+			return
+		}
+		c.recoverySucceeded.Store(true)
+	}()
 }
 
 // VerifySession reports whether the run's web-console session still exists. A
@@ -596,6 +677,9 @@ func (c *Coordinator) VerifySession(ctx context.Context, run *domain.Run) (bool,
 //   - A vanished session with no success terminal fails the run with an explicit
 //     reason so it is never left orphaned.
 func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal, tailErr error) error {
+	if errors.Is(tailErr, ErrResumableInterruption) {
+		return nil
+	}
 	if tailErr != nil && errors.Is(tailErr, context.Canceled) && !errors.Is(tailErr, ErrSessionGone) {
 		return nil
 	}

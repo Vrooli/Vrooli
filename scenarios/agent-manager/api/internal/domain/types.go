@@ -838,10 +838,16 @@ type RunCreationReceipt struct {
 type Run struct {
 	// LifecycleVersion fences snapshots from an earlier status/continuation.
 	// Repository-owned; heartbeat and stream updates do not advance it.
-	LifecycleVersion int64      `json:"-" db:"lifecycle_version"`
-	ID               uuid.UUID  `json:"id" db:"id"`
-	TaskID           uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
-	AgentProfileID   *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
+	LifecycleVersion int64 `json:"-" db:"lifecycle_version"`
+	// OwnerIdentity and OwnerEpoch identify the current Agent Manager process
+	// that may advance this run. OwnerEpoch is claimed transactionally during
+	// recovery so a replaced owner cannot continue writing with an old
+	// snapshot, even when the run status itself remains running.
+	OwnerIdentity  string     `json:"-" db:"owner_identity"`
+	OwnerEpoch     int64      `json:"-" db:"owner_epoch"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	TaskID         uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
+	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification

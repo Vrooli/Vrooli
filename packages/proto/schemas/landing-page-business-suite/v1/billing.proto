@@ -213,6 +213,11 @@ message CreateCheckoutSessionRequest {
   // be an authenticated member of the account; email is never sufficient to
   // select a commercial account.
   string business_account_id = 14;
+  // Anonymous attribution context; country and referrer are server-derived.
+  string session_id = 15;
+  string variant_slug = 16;
+  string landing_path = 17;
+  string device_class = 18;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.

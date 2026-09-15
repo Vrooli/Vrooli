@@ -231,6 +231,21 @@ type RunRecoveryAttacher interface {
 	AttachRecovery(ctx context.Context, id uuid.UUID, lifecycleVersion int64, at time.Time) (bool, error)
 }
 
+// RunRecoveryProcessIdentityClearer retires a runner PID/PGID from a terminal
+// run after recovery has positively established that the executor is absent.
+// The guarded write prevents a stale recovery observation from clearing a
+// newly attached executor.
+type RunRecoveryProcessIdentityClearer interface {
+	ClearTerminalRunnerProcessIdentity(ctx context.Context, id uuid.UUID, lifecycleVersion, ownerEpoch, runnerPID, runnerPGID int64) (bool, error)
+}
+
+// RunRecoveryOwnerClaimer atomically transfers the right to advance a live
+// run to a new Agent Manager owner. The returned epoch must be carried by all
+// subsequent lifecycle, stream, and finalization writes.
+type RunRecoveryOwnerClaimer interface {
+	ClaimRecoveryOwnership(ctx context.Context, id uuid.UUID, lifecycleVersion int64, ownerIdentity string, at time.Time) (int64, bool, error)
+}
+
 // RunFreshRecoveryClaimer consumes a source lifecycle exactly once before a
 // replacement may have effects. The request hash never expires or resets when
 // the replacement or the idempotency cache is deleted. Only a definitive

@@ -493,6 +493,14 @@ class PipelineGetRequest(_message.Message):
     pipeline_id: str
     def __init__(self, pipeline_id: _Optional[str] = ...) -> None: ...
 
+class PipelineWaitRequest(_message.Message):
+    __slots__ = ("pipeline_id", "timeout_seconds")
+    PIPELINE_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    pipeline_id: str
+    timeout_seconds: int
+    def __init__(self, pipeline_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
 class PipelineResumeRequest(_message.Message):
     __slots__ = ("pipeline_id", "config")
     PIPELINE_ID_FIELD_NUMBER: _ClassVar[int]

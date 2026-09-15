@@ -7,7 +7,7 @@
       "operation": "POST /vrooli.test_genie.v1.runs.RunsService/StartRun",
       "protocol": "connect",
       "responseType": "vrooli.test_genie.v1.runs.StartRunResponse",
-      "responseProjectionPaths": ["run_id", "scenario"],
+      "responseProjectionPaths": ["run_id", "target"],
       "retentionDays": 3650,
       "neverExercised": true,
       "readPrincipals": ["agent-manager"]

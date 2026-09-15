@@ -37,6 +37,7 @@ import (
 	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -151,10 +152,14 @@ func (c *OpenCode) ValidateContinuation(ctx context.Context, req runner.Continue
 	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String()
-	db, err := sql.Open("sqlite", dsn)
+	db, err := coredb.Connect(readCtx, coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err == nil {
 		defer db.Close()
-		db.SetMaxOpenConns(1)
 		var id string
 		err = db.QueryRowContext(readCtx, "SELECT id FROM session WHERE id = ?", req.SessionID).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {

@@ -396,56 +396,42 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// Update handles PUT /skills/{id} - updates an existing skill.
-func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
-	store := h.storeFor(r.Context())
-	metrics := h.metricsFor(r.Context())
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var req UpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
+// UpdateSkill updates an existing skill without crossing the HTTP compatibility boundary.
+// REST and Connect adapters share this transaction-preserving implementation.
+func (h *Handlers) UpdateSkill(ctx context.Context, id string, req UpdateRequest) (Response, error) {
+	store := h.storeFor(ctx)
+	metrics := h.metricsFor(ctx)
 	skill, folder, err := store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Skill not found", http.StatusNotFound)
-		return
+		return Response{}, fmt.Errorf("Skill not found")
 	}
 	if folder == "vendor" {
 		overlayPath := filepath.Join("vendor", id, "overlays")
 		if provider, ok := store.(interface{ ImportedSkillOverlayPath(string) string }); ok {
 			overlayPath = provider.ImportedSkillOverlayPath(id)
 		}
-		http.Error(w, "Cannot edit vendored skill in place; write an overlay under "+overlayPath, http.StatusForbidden)
-		return
+		return Response{}, fmt.Errorf("Cannot edit vendored skill in place; write an overlay under %s", overlayPath)
 	}
 	if req.Content != nil {
 		current, err := store.GetContent(folder, skill.File)
 		if err != nil {
-			http.Error(w, "Failed to read existing skill content", http.StatusInternalServerError)
-			return
+			return Response{}, fmt.Errorf("Failed to read existing skill content")
 		}
 		if missing := removedTemplateVariables(current, *req.Content); len(missing) > 0 {
-			http.Error(w, "content removes existing template variables: "+strings.Join(missing, ", "), http.StatusBadRequest)
-			return
+			return Response{}, fmt.Errorf("content removes existing template variables: %s", strings.Join(missing, ", "))
 		}
 	}
 
 	// Only allow updates to local/drafts skills
 	if !IsWritableFolder(folder) {
-		http.Error(w, "Cannot update core skills", http.StatusForbidden)
-		return
+		return Response{}, fmt.Errorf("Cannot update core skills")
 	}
 
 	// Determine target folder (may be moving to a new folder)
 	targetFolder := folder
 	if req.Folder != nil && *req.Folder != "" && *req.Folder != folder {
 		if !IsWritableFolder(*req.Folder) {
-			http.Error(w, "Cannot move skill to non-writable folder", http.StatusBadRequest)
-			return
+			return Response{}, fmt.Errorf("Cannot move skill to non-writable folder")
 		}
 		targetFolder = *req.Folder
 	}
@@ -469,15 +455,12 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 				// Check for known error types
 				errStr := err.Error()
 				if strings.Contains(errStr, "already exists") {
-					http.Error(w, errStr, http.StatusConflict)
-					return
+					return Response{}, fmt.Errorf("%s", errStr)
 				}
 				if strings.Contains(errStr, "invalid skill ID format") {
-					http.Error(w, errStr, http.StatusBadRequest)
-					return
+					return Response{}, fmt.Errorf("%s", errStr)
 				}
-				http.Error(w, errStr, http.StatusInternalServerError)
-				return
+				return Response{}, fmt.Errorf("%s", errStr)
 			}
 
 			// Update AI index: delete old, index new
@@ -545,8 +528,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		// Read current content
 		currentContent, err := store.GetContent(folder, oldFile)
 		if err != nil {
-			http.Error(w, "Failed to read existing content for move", http.StatusInternalServerError)
-			return
+			return Response{}, fmt.Errorf("Failed to read existing content for move")
 		}
 
 		// Use new content if provided, otherwise use current
@@ -557,8 +539,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 		// Save content to new folder
 		if err := store.SaveContent(targetFolder, skill.File, contentToSave); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 
 		// Remove from old folder's metadata
@@ -566,8 +547,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			// Rollback: delete from new folder
 			_ = store.DeleteContent(targetFolder, skill.File)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 		var filteredOld []Metadata
 		for _, p := range oldSkills {
@@ -577,21 +557,18 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := store.SaveMetadata(folder, filteredOld); err != nil {
 			_ = store.DeleteContent(targetFolder, skill.File)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 
 		// Add to new folder's metadata
 		newSkills, err := store.LoadMetadata(targetFolder)
 		if err != nil {
 			// Rollback is complex here, but proceed - metadata was already removed
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 		newSkills = append(newSkills, *skill)
 		if err := store.SaveMetadata(targetFolder, newSkills); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 
 		// Move version history
@@ -605,8 +582,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			// Read old content
 			oldContent, err := store.GetContent(folder, oldFile)
 			if err != nil {
-				http.Error(w, "Failed to read existing content for rename", http.StatusInternalServerError)
-				return
+				return Response{}, fmt.Errorf("Failed to read existing content for rename")
 			}
 			// Write to new file (use req.Content if provided, otherwise old content)
 			newContent := oldContent
@@ -614,24 +590,21 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 				newContent = *req.Content
 			}
 			if err := store.SaveContent(folder, skill.File, newContent); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+				return Response{}, err
 			}
 			// Delete old file
 			_ = store.DeleteContent(folder, oldFile)
 		} else if req.Content != nil {
 			// No rename, just update content
 			if err := store.SaveContent(folder, skill.File, *req.Content); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+				return Response{}, err
 			}
 		}
 
 		// Load all skills and update the matching one
 		skills, err := store.LoadMetadata(folder)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 
 		for i, p := range skills {
@@ -642,8 +615,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := store.SaveMetadata(folder, skills); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return Response{}, err
 		}
 	}
 
@@ -658,6 +630,37 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	// Trigger async AI index update
 	h.triggerIndexAsync(id)
 	h.invalidateGraph()
+
+	return response, nil
+}
+
+// Update handles PUT /skills/{id} - updates an existing skill.
+func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
+	var req UpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	response, err := h.UpdateSkill(r.Context(), mux.Vars(r)["id"], req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		message := err.Error()
+		switch {
+		case message == "Skill not found":
+			status = http.StatusNotFound
+		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills":
+			status = http.StatusForbidden
+		case message == "Cannot move skill to non-writable folder" || strings.HasPrefix(message, "content removes existing template variables:"):
+			status = http.StatusBadRequest
+		case strings.Contains(message, "already exists"):
+			status = http.StatusConflict
+		case strings.Contains(message, "invalid skill ID format"):
+			status = http.StatusBadRequest
+		}
+		http.Error(w, message, status)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)

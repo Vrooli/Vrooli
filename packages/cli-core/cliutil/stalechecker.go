@@ -52,8 +52,16 @@ const rebuildLoopEnvVar = "CLI_CORE_REBUILD_FINGERPRINT"
 // install-time vs run-time divergence can be identified file-by-file.
 const debugStaleEnvVar = "VROOLI_CLI_DEBUG_STALE"
 
+// artifactModeEnvVar marks a CLI invocation running from a source-reduced
+// deployment artifact. Such a CLI must not attempt a development rebuild from
+// the deployed tree; the release pipeline already verified the binary.
+const artifactModeEnvVar = "VROOLI_CLI_ARTIFACT_MODE"
+
 // CheckAndMaybeRebuild returns true when the process was restarted after a rebuild.
 func (c *StaleChecker) CheckAndMaybeRebuild() bool {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "true") {
+		return false
+	}
 	if c.BuildFingerprint == "" || c.BuildFingerprint == "unknown" {
 		return false
 	}

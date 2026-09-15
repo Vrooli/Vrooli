@@ -2,10 +2,8 @@ syntax = "proto3";
 
 package landing_page_business_suite.v1;
 
-import "google/protobuf/struct.proto";
 import "landing-page-business-suite/v1/shared/commerce.proto";
 import "landing-page-business-suite/v1/shared/downloads.proto";
-import "landing-page-business-suite/v1/shared/presentation.proto";
 import "landing-page-business-suite/v1/shared/product_presentation.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
@@ -16,72 +14,17 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 //
 // @stability beta
 //
-// The public landing config is the single aggregated payload the frontend
-// fetches to render a page: a selected (or requested) variant summary, its
-// ordered sections, pricing, downloads, header, and branding. When any critical
-// piece is missing or unrenderable (no sections, or no hero section), the
-// service returns a baked fallback with fallback=true.
+// The public landing config is the single typed aggregated payload the frontend
+// fetches to render a published presentation together with commerce-owned
+// pricing and downloads. Publication or resolution failure is fail-closed and
+// returns unavailable; it never substitutes a baked marketing document.
+// Locale fallback, when needed, stays within the same published document and
+// is reported by the presentation diagnostics and the top-level fallback flag.
 //
 // =============================================================================
 
-// LandingVariantSummary is the compact variant identity for the landing payload.
-message LandingVariantSummary {
-  int64 id = 1;
-  string slug = 2;
-  string name = 3;
-  string description = 4;
-  map<string, string> axes = 5;
-}
-
-// LandingSection is a rendered section (flattened content) for the payload.
-message LandingSection {
-  string section_type = 1;
-  google.protobuf.Struct content = 2;
-  int32 order = 3;
-  bool enabled = 4;
-  // Stable, variant-scoped identity used by the administrative section editor.
-  // Unlike the legacy numeric database ID, this remains valid for JSON snapshots.
-  string section_key = 5;
-}
-
-// LandingBranding is the branding subset embedded in the landing payload.
-message LandingBranding {
-  string site_name = 1;
-  optional string tagline = 2;
-  optional string logo_url = 3;
-  optional string logo_icon_url = 4;
-  optional string favicon_url = 5;
-  optional string theme_primary_color = 6;
-  optional string theme_background_color = 7;
-  optional string support_chat_url = 8;
-  optional string support_email = 9;
-  optional bool coming_soon_enabled = 10;
-  optional string coming_soon_message = 11;
-}
-
-// IntroOffer is the public, checkout-safe coupon data used to render
-// introductory pricing on the landing page. It deliberately excludes Stripe
-// dashboard metadata and credentials while retaining every field the existing
-// public landing payload exposes.
-message IntroOffer {
-  string id = 1;
-  optional string name = 2;
-  optional int64 amount_off = 3;
-  optional double percent_off = 4;
-  optional string currency = 5;
-  string duration = 6;
-  optional int32 duration_in_months = 7;
-  optional int32 max_redemptions = 8;
-  optional int64 redeem_by = 9;
-  int32 times_redeemed = 10;
-  bool valid = 11;
-  int64 created = 12;
-  bool is_intro_coupon = 13;
-  optional string intro_tier = 14;
-}
-
-// GetLandingConfigRequest requests the aggregated landing payload. An empty
-// variant_slug triggers weighted-random selection.
+// GetLandingConfigRequest is read-only. With an empty variant_slug, a visitor
+// receives a deterministic weighted assignment; an empty visitor is anonymous.
 message GetLandingConfigRequest {
   string variant_slug = 1;
   string visitor_id = 2;
@@ -90,20 +33,42 @@ message GetLandingConfigRequest {
   string locale = 4;
 }
 
+enum PresentationAssignmentSource {
+  PRESENTATION_ASSIGNMENT_SOURCE_UNSPECIFIED = 0;
+  PRESENTATION_ASSIGNMENT_SOURCE_WEIGHTED_VISITOR = 1;
+  PRESENTATION_ASSIGNMENT_SOURCE_EXPLICIT_URL = 2;
+}
+
+// An exposure is recorded only after the browser has displayed this exact
+// public page. The owner rechecks assignment, publication, locale and digest;
+// these display-safe fields are not authorization tokens. Explicit URL review
+// and protected draft previews never count as weighted-assignment exposures.
+message RecordPresentationExposureRequest {
+  string visitor_id = 1;
+  string variant_slug = 2;
+  string revision = 3;
+  string route = 4;
+  string locale = 5;
+  string block_digest = 6;
+  string weight_fingerprint = 7;
+  PresentationAssignmentSource source = 8;
+}
+
+message RecordPresentationExposureResponse {
+  // False means an otherwise valid assignment was already recorded.
+  bool recorded = 1;
+}
+
 // LandingConfigResponse is the aggregated public landing payload.
 message LandingConfigResponse {
-  LandingVariantSummary variant = 1;
-  repeated LandingSection sections = 2;
+  reserved 1, 2, 5, 6, 8, 9;
+  reserved "variant", "sections", "header", "branding", "coupon_mappings", "intro_offers";
+
   vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 3;
   repeated vrooli.landing_page_business_suite.v1.shared.DownloadApp downloads = 4;
-  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header = 5;
-  optional LandingBranding branding = 6;
-  // True when the baked fallback payload was returned.
+  // True when the typed resolver used an explicit same-document fallback,
+  // such as a configured locale fallback. Missing publication is unavailable.
   bool fallback = 7;
-  // Maps a price ID to its currently applicable introductory coupon ID.
-  map<string, string> coupon_mappings = 8;
-  // Public coupon details referenced by coupon_mappings.
-  repeated IntroOffer intro_offers = 9;
   vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation presentation = 10;
 }
 
@@ -111,4 +76,5 @@ message LandingConfigResponse {
 service LandingConfigService {
   // Returns the aggregated landing payload for a variant (or a selected one).
   rpc GetLandingConfig(GetLandingConfigRequest) returns (LandingConfigResponse);
+  rpc RecordPresentationExposure(RecordPresentationExposureRequest) returns (RecordPresentationExposureResponse);
 }

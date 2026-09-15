@@ -95,17 +95,29 @@ class MacOSSigningConfig(_message.Message):
     provisioning_profile: str
     def __init__(self, enabled: _Optional[bool] = ..., identity: _Optional[str] = ..., team_id: _Optional[str] = ..., notarize: _Optional[bool] = ..., apple_id: _Optional[str] = ..., apple_password_env: _Optional[str] = ..., entitlements_path: _Optional[str] = ..., hardened_runtime: _Optional[bool] = ..., keychain_profile: _Optional[str] = ..., provisioning_profile: _Optional[str] = ...) -> None: ...
 
+class ManagedSigningKey(_message.Message):
+    __slots__ = ("logical_id", "private_key_field", "passphrase_field")
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    PRIVATE_KEY_FIELD_FIELD_NUMBER: _ClassVar[int]
+    PASSPHRASE_FIELD_FIELD_NUMBER: _ClassVar[int]
+    logical_id: str
+    private_key_field: str
+    passphrase_field: str
+    def __init__(self, logical_id: _Optional[str] = ..., private_key_field: _Optional[str] = ..., passphrase_field: _Optional[str] = ...) -> None: ...
+
 class LinuxSigningConfig(_message.Message):
-    __slots__ = ("enabled", "gpg_key_id", "passphrase_env", "keyring_path")
+    __slots__ = ("enabled", "gpg_key_id", "passphrase_env", "keyring_path", "managed_key")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     GPG_KEY_ID_FIELD_NUMBER: _ClassVar[int]
     PASSPHRASE_ENV_FIELD_NUMBER: _ClassVar[int]
     KEYRING_PATH_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_KEY_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     gpg_key_id: str
     passphrase_env: str
     keyring_path: str
-    def __init__(self, enabled: _Optional[bool] = ..., gpg_key_id: _Optional[str] = ..., passphrase_env: _Optional[str] = ..., keyring_path: _Optional[str] = ...) -> None: ...
+    managed_key: ManagedSigningKey
+    def __init__(self, enabled: _Optional[bool] = ..., gpg_key_id: _Optional[str] = ..., passphrase_env: _Optional[str] = ..., keyring_path: _Optional[str] = ..., managed_key: _Optional[_Union[ManagedSigningKey, _Mapping]] = ...) -> None: ...
 
 class SigningConfig(_message.Message):
     __slots__ = ("enabled", "windows", "macos", "linux", "schema_version")
@@ -271,7 +283,7 @@ class DeleteSigningResponse(_message.Message):
     def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ...) -> None: ...
 
 class GenerateLinuxSigningKeyRequest(_message.Message):
-    __slots__ = ("scenario_name", "name", "email", "passphrase_env", "key_type", "expiry", "homedir", "force", "export_public")
+    __slots__ = ("scenario_name", "name", "email", "passphrase_env", "key_type", "expiry", "homedir", "force", "export_public", "logical_id")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
@@ -281,6 +293,7 @@ class GenerateLinuxSigningKeyRequest(_message.Message):
     HOMEDIR_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
     EXPORT_PUBLIC_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     name: str
     email: str
@@ -290,21 +303,26 @@ class GenerateLinuxSigningKeyRequest(_message.Message):
     homedir: str
     force: bool
     export_public: bool
-    def __init__(self, scenario_name: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., passphrase_env: _Optional[str] = ..., key_type: _Optional[str] = ..., expiry: _Optional[str] = ..., homedir: _Optional[str] = ..., force: _Optional[bool] = ..., export_public: _Optional[bool] = ...) -> None: ...
+    logical_id: str
+    def __init__(self, scenario_name: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., passphrase_env: _Optional[str] = ..., key_type: _Optional[str] = ..., expiry: _Optional[str] = ..., homedir: _Optional[str] = ..., force: _Optional[bool] = ..., export_public: _Optional[bool] = ..., logical_id: _Optional[str] = ...) -> None: ...
 
 class GenerateLinuxSigningKeyResponse(_message.Message):
-    __slots__ = ("key_id", "fingerprint", "homedir", "public_key", "public_key_path")
+    __slots__ = ("key_id", "fingerprint", "homedir", "public_key", "public_key_path", "logical_id", "message")
     KEY_ID_FIELD_NUMBER: _ClassVar[int]
     FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     HOMEDIR_FIELD_NUMBER: _ClassVar[int]
     PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
     PUBLIC_KEY_PATH_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
     key_id: str
     fingerprint: str
     homedir: str
     public_key: str
     public_key_path: str
-    def __init__(self, key_id: _Optional[str] = ..., fingerprint: _Optional[str] = ..., homedir: _Optional[str] = ..., public_key: _Optional[str] = ..., public_key_path: _Optional[str] = ...) -> None: ...
+    logical_id: str
+    message: str
+    def __init__(self, key_id: _Optional[str] = ..., fingerprint: _Optional[str] = ..., homedir: _Optional[str] = ..., public_key: _Optional[str] = ..., public_key_path: _Optional[str] = ..., logical_id: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class SigningToolStatus(_message.Message):
     __slots__ = ("platform", "tool", "installed", "path", "version", "diagnostic", "remediation")

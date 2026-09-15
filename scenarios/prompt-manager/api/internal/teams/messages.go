@@ -1,7 +1,9 @@
 package teams
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -12,6 +14,105 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+func (h *Handlers) messageInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
+	if agentID == "" {
+		return nil, fmt.Errorf("agentId is required")
+	}
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		return nil, fmt.Errorf("Team not found")
+	}
+	memberSet, err := h.teamMemberSet(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateMemberExists(memberSet, agentID, "agentId"); err != nil {
+		return nil, err
+	}
+	inbox, err := h.teamStore.GetInbox(ctx, teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	return inbox, nil
+}
+
+func (h *Handlers) ReadTeamMessages(ctx context.Context, teamID, agentID string) (TeamInboxResponse, error) {
+	inbox, err := h.messageInbox(ctx, teamID, agentID)
+	if err != nil {
+		return TeamInboxResponse{}, err
+	}
+	messages := make([]TeamMessageDTO, 0, len(inbox.Messages))
+	for _, message := range inbox.Messages {
+		messages = append(messages, storeMessageToDTO(message))
+	}
+	sort.SliceStable(messages, func(i, j int) bool { return messages[i].CreatedAt < messages[j].CreatedAt })
+	return TeamInboxResponse{TeamID: teamID, AgentID: agentID, Messages: messages}, nil
+}
+
+func (h *Handlers) SendTeamMessageDirect(ctx context.Context, teamID, agentID string, req SendTeamMessageRequest) (TeamMessageDTO, error) {
+	if agentID == "" {
+		return TeamMessageDTO{}, fmt.Errorf("agentId is required")
+	}
+	if req.FromAgentID == "" {
+		return TeamMessageDTO{}, fmt.Errorf("fromAgentId is required")
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		return TeamMessageDTO{}, fmt.Errorf("content is required")
+	}
+	if req.FromAgentID == agentID {
+		return TeamMessageDTO{}, fmt.Errorf("fromAgentId cannot equal agentId")
+	}
+	inbox, err := h.messageInbox(ctx, teamID, agentID)
+	if err != nil {
+		return TeamMessageDTO{}, err
+	}
+	members, err := h.teamMemberSet(ctx, teamID)
+	if err != nil {
+		return TeamMessageDTO{}, err
+	}
+	if err := validateMemberExists(members, req.FromAgentID, "fromAgentId"); err != nil {
+		return TeamMessageDTO{}, err
+	}
+	message := store.TeamMessage{ID: uuid.New().String(), TeamID: teamID, FromAgentID: req.FromAgentID, ToAgentID: agentID, Content: req.Content, CreatedAt: time.Now().UTC().Format(time.RFC3339)}
+	inbox.Messages = append(inbox.Messages, message)
+	if err := h.teamStore.SetInbox(ctx, teamID, agentID, inbox); err != nil {
+		return TeamMessageDTO{}, err
+	}
+	return storeMessageToDTO(message), nil
+}
+
+func (h *Handlers) ClearTeamMessagesDirect(ctx context.Context, teamID, agentID string) error {
+	inbox, err := h.messageInbox(ctx, teamID, agentID)
+	if err != nil {
+		return err
+	}
+	inbox.Messages = []store.TeamMessage{}
+	return h.teamStore.SetInbox(ctx, teamID, agentID, inbox)
+}
+
+func (h *Handlers) DeleteTeamMessageDirect(ctx context.Context, teamID, agentID, messageID string) error {
+	if messageID == "" {
+		return fmt.Errorf("agentId and messageId are required")
+	}
+	inbox, err := h.messageInbox(ctx, teamID, agentID)
+	if err != nil {
+		return err
+	}
+	updated := make([]store.TeamMessage, 0, len(inbox.Messages))
+	found := false
+	for _, message := range inbox.Messages {
+		if message.ID == messageID {
+			found = true
+			continue
+		}
+		updated = append(updated, message)
+	}
+	if !found {
+		return fmt.Errorf("message not found")
+	}
+	inbox.Messages = updated
+	return h.teamStore.SetInbox(ctx, teamID, agentID, inbox)
+}
 
 // ListTeamMessages handles GET /teams/{id}/members/{agentId}/messages.
 func (h *Handlers) ListTeamMessages(w http.ResponseWriter, r *http.Request) {

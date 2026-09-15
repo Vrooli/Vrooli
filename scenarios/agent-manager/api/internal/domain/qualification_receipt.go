@@ -217,3 +217,32 @@ func AdmitDependentDelegation(receipt *QualificationReceipt, req DependentDelega
 	}
 	return nil
 }
+
+// AdmitLiveDependentDelegation admits a child from a currently executing
+// parent whose runner identity has already been observed at launch. A
+// terminal qualification receipt cannot exist until the parent finishes, but
+// requiring that receipt here would deadlock every coordinator that delegates
+// while it is running. This check deliberately accepts only the live identity
+// layer; terminal runs still use AdmitDependentDelegation and require the
+// stronger accepted-output receipt.
+func AdmitLiveDependentDelegation(admission *RunAdmission, req DependentDelegationRequest) error {
+	if admission == nil {
+		return NewValidationError("qualification", "dependent delegation is closed: parent has no admission record")
+	}
+	if strings.TrimSpace(admission.RuntimeVersion) == "" {
+		return NewValidationError("qualification", "dependent delegation is closed: parent runner has no live runtime identity")
+	}
+	if len(admission.PassedControlArgs) == 0 {
+		return NewValidationError("qualification", "dependent delegation is closed: parent has no passed runner controls")
+	}
+	if admission.EffectiveRunner != strings.TrimSpace(req.Runner) {
+		return NewValidationError("runner", fmt.Sprintf("dependent delegation is closed: parent runner %q does not match requested %q", admission.EffectiveRunner, req.Runner))
+	}
+	if admission.EffectiveModel != strings.TrimSpace(req.Model) {
+		return NewValidationError("model", fmt.Sprintf("dependent delegation is closed: parent model %q does not match requested %q", admission.EffectiveModel, req.Model))
+	}
+	if strings.TrimSpace(admission.EffectiveEffort) != strings.TrimSpace(req.Effort) {
+		return NewValidationError("effort", fmt.Sprintf("dependent delegation is closed: parent effort %q does not match requested %q", admission.EffectiveEffort, req.Effort))
+	}
+	return nil
+}

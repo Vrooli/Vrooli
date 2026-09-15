@@ -144,6 +144,58 @@ func TestOperationReadinessSeparatesHeadlessAndVisualPrerequisites(t *testing.T)
 	}
 }
 
+// A reachable, dispatchable node is not necessarily updatable. Provisioning
+// readiness comes from the node's own report and its source, so an operator
+// sees "cannot be updated remotely" before a provisioning op fails on the node.
+func TestProvisioningReadinessRequiresTheNodesOwnReport(t *testing.T) {
+	now := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	base := func() Target {
+		return Target{
+			ID: "mac-node", OS: "darwin", DeviceKind: "bridge-node", Revision: "1911dc4aea6",
+			LastSeenAt:  now.Add(-time.Second),
+			Transport:   Transport{Kind: TransportBridge, Available: true},
+			BridgeTrust: &BridgeTrust{Registered: true, Online: true},
+			Scopes:      []string{"vrooli-bridge:write"},
+			Readiness: []ReadinessCheck{
+				ReadinessCheckFor(ReadinessRegistry, true, "registered"),
+				ReadinessCheckFor(ReadinessHeartbeat, true, "fresh"),
+				ReadinessCheckFor(ReadinessChannel, true, "held"),
+				ReadinessCheckFor(ReadinessProtocol, true, "compatible"),
+				ReadinessCheckFor(ReadinessDispatch, true, "dispatchable"),
+				ReadinessCheckFor(ReadinessBridgeScope, true, "approved"),
+			},
+		}
+	}
+
+	unreported := EvaluateOperationReadiness(base(), OperationProvisioning, now)
+	if unreported.Ready || unreported.State != ReadinessUnknown || unreported.ReasonCode != "provisioning_unreported" {
+		t.Fatalf("unreported provisioning = %+v, want unknown provisioning_unreported", unreported)
+	}
+
+	blocked := base()
+	blocked.Readiness = append(blocked.Readiness, CapabilityReadinessCheck(CapabilityBridgeProvisioner, "Remote updates", ReadinessMissing, "helper_not_installed: no helper", ""))
+	got := EvaluateOperationReadiness(blocked, OperationProvisioning, now)
+	if got.Ready || got.ReasonCode != "provisioning_unavailable" || !strings.Contains(got.Detail, "helper_not_installed") || !strings.Contains(got.RecoveryAction, "onboard connect") {
+		t.Fatalf("blocked provisioning = %+v, want missing with the agent's reason and a re-onboard recovery", got)
+	}
+	if headless := EvaluateOperationReadiness(blocked, OperationHeadlessExecution, now); !headless.Ready {
+		t.Fatalf("a provisioning blocker must not block sessions: %+v", headless)
+	}
+
+	workingTree := base()
+	workingTree.Revision = "8ec19147c85f+dirty"
+	workingTree.Readiness = append(workingTree.Readiness, CapabilityReadinessCheck(CapabilityBridgeProvisioner, "Remote updates", ReadinessReady, "", ""))
+	if got := EvaluateOperationReadiness(workingTree, OperationProvisioning, now); got.Ready || got.ReasonCode != "working_tree_source" {
+		t.Fatalf("working-tree provisioning = %+v, want working_tree_source", got)
+	}
+
+	ready := base()
+	ready.Readiness = append(ready.Readiness, CapabilityReadinessCheck(CapabilityBridgeProvisioner, "Remote updates", ReadinessReady, "", ""))
+	if got := EvaluateOperationReadiness(ready, OperationProvisioning, now); !got.Ready {
+		t.Fatalf("reported-ready provisioning = %+v, want ready", got)
+	}
+}
+
 func TestOperationReadinessRefusesStaleFactsAndReportsFreshness(t *testing.T) {
 	now := time.Date(2026, 9, 9, 23, 0, 0, 0, time.UTC)
 	target := Target{

@@ -32,6 +32,8 @@ var _ repository.RunRepository = (*runRepository)(nil)
 // runRow is the database row representation for runs.
 type runRow struct {
 	LifecycleVersion               int64              `db:"lifecycle_version"`
+	OwnerIdentity                  string             `db:"owner_identity"`
+	OwnerEpoch                     int64              `db:"owner_epoch"`
 	ID                             uuid.UUID          `db:"id"`
 	TaskID                         sql.NullString     `db:"task_id"`
 	AgentProfileID                 NullableUUID       `db:"agent_profile_id"`
@@ -128,6 +130,8 @@ func (row *runRow) toDomain() *domain.Run {
 	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
 		LifecycleVersion:               row.LifecycleVersion,
+		OwnerIdentity:                  row.OwnerIdentity,
+		OwnerEpoch:                     row.OwnerEpoch,
 		ID:                             row.ID,
 		TaskID:                         parseNullableUUID(row.TaskID),
 		AgentProfileID:                 row.AgentProfileID.ToPtr(),
@@ -253,6 +257,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		WebConsoleSessionID:            sql.NullString{String: r.WebConsoleSessionID, Valid: r.WebConsoleSessionID != ""},
 		Status:                         string(r.Status),
 		LifecycleVersion:               r.LifecycleVersion,
+		OwnerIdentity:                  r.OwnerIdentity,
+		OwnerEpoch:                     r.OwnerEpoch,
 		StartedAt:                      NewNullableTime(r.StartedAt),
 		InteractiveInvocationStartedAt: NewNullableTime(r.InteractiveInvocationStartedAt),
 		EndedAt:                        NewNullableTime(r.EndedAt),
@@ -417,6 +423,7 @@ func parseDispatchBinding(raw sql.NullString) *domain.DispatchBinding {
 	}
 	return &binding
 }
+
 func marshalDispatchBinding(binding *domain.DispatchBinding) sql.NullString {
 	if binding == nil {
 		return sql.NullString{}
@@ -516,7 +523,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, lifecycle_version, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 	started_at, interactive_invocation_started_at, ended_at, cancel_requested_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -535,7 +542,7 @@ const runColumns = `id, lifecycle_version, task_id, agent_profile_id, tag, label
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, lifecycle_version, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
+const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
 	execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 	started_at, interactive_invocation_started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -548,6 +555,8 @@ const listRunColumns = `id, lifecycle_version, task_id, agent_profile_id, tag, l
 // listRunLiteRow is the database row representation for the pruned list query.
 type listRunLiteRow struct {
 	LifecycleVersion               int64          `db:"lifecycle_version"`
+	OwnerIdentity                  string         `db:"owner_identity"`
+	OwnerEpoch                     int64          `db:"owner_epoch"`
 	ID                             uuid.UUID      `db:"id"`
 	TaskID                         sql.NullString `db:"task_id"`
 	AgentProfileID                 NullableUUID   `db:"agent_profile_id"`
@@ -619,6 +628,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
 		LifecycleVersion:               row.LifecycleVersion,
+		OwnerIdentity:                  row.OwnerIdentity,
+		OwnerEpoch:                     row.OwnerEpoch,
 		ID:                             row.ID,
 		TaskID:                         parseNullableUUID(row.TaskID),
 		AgentProfileID:                 row.AgentProfileID.ToPtr(),
@@ -694,7 +705,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+	query := `INSERT INTO runs (id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 			started_at, interactive_invocation_started_at, ended_at, cancel_requested_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -706,7 +717,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
-			VALUES (:id, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_expires_at, :dispatch_binding, :owner_scopes, :requested_scopes, :work_references, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
+			VALUES (:id, :lifecycle_version, :owner_identity, :owner_epoch, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_expires_at, :dispatch_binding, :owner_scopes, :requested_scopes, :work_references, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :harness_kind, :harness_session_id, :goal_delivery, :terminal_class, :stop_reason, :last_handoff, :web_console_session_id, :status,
 			:started_at, :interactive_invocation_started_at, :ended_at, :cancel_requested_at, :goal_id, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
@@ -846,6 +857,8 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 
 	query := `UPDATE runs SET lifecycle_version = lifecycle_version + CASE WHEN status = :status THEN 0 ELSE 1 END,
+			owner_identity = CASE WHEN :owner_identity <> '' THEN :owner_identity ELSE owner_identity END,
+			owner_epoch = CASE WHEN :owner_epoch > 0 THEN :owner_epoch ELSE owner_epoch END,
 			task_id = :task_id, agent_profile_id = :agent_profile_id,
 			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_expires_at = :owner_expires_at, dispatch_binding = :dispatch_binding, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
 			execution_mode = :execution_mode, harness_kind = :harness_kind, harness_session_id = :harness_session_id, goal_delivery = :goal_delivery, terminal_class = :terminal_class, stop_reason = :stop_reason, last_handoff = :last_handoff, web_console_session_id = :web_console_session_id, status = :status,
@@ -871,6 +884,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		requested_model = :requested_model, actual_model = :actual_model, canary_arm = :canary_arm,
 		updated_at = :updated_at
 		WHERE id = :id AND lifecycle_version = :lifecycle_version
+		  AND (owner_epoch = :owner_epoch OR (owner_epoch = 0 AND :owner_epoch = 1))
 		  AND (fresh_recovery_request_hash = '' OR status = :status)
 		RETURNING lifecycle_version`
 
@@ -990,11 +1004,12 @@ func (r *runRepository) UpdateRunnerStreamState(ctx context.Context, run *domain
 	const query = `UPDATE runs SET
 		session_id = ?, runner_pid = ?, runner_pgid = ?,
 		transcript_path = ?, transcript_cursor = MAX(transcript_cursor, ?), transcript_last_seq = MAX(transcript_last_seq, ?), updated_at = ?
-		WHERE id = ? AND status IN (?, ?) AND lifecycle_version = ?`
+		WHERE id = ? AND status IN (?, ?) AND lifecycle_version = ?
+		  AND owner_epoch = ?`
 	res, err := r.db.ExecContext(ctx, query,
 		row.SessionID, row.RunnerPID, row.RunnerPGID,
 		row.TranscriptPath, row.TranscriptCursor, row.TranscriptLastSeq, row.UpdatedAt,
-		run.ID, string(domain.RunStatusRunning), string(domain.RunStatusStarting), run.LifecycleVersion)
+		run.ID, string(domain.RunStatusRunning), string(domain.RunStatusStarting), run.LifecycleVersion, run.OwnerEpoch)
 	if err != nil {
 		return false, wrapDBError("update_runner_stream_state", "Run", run.ID.String(), err)
 	}
@@ -1025,6 +1040,55 @@ func (r *runRepository) AttachRecovery(ctx context.Context, id uuid.UUID, lifecy
 		return false, wrapDBError("attach_recovery", "Run", id.String(), err)
 	}
 	return count == 1, nil
+}
+
+// ClearTerminalRunnerProcessIdentity retires only the process identity from a
+// terminal run. Transcript/session identity and all outcome evidence remain
+// intact. The exact PID/PGID and owner epoch fence a stale observation from
+// clearing a replacement executor that raced the recovery check.
+func (r *runRepository) ClearTerminalRunnerProcessIdentity(ctx context.Context, id uuid.UUID, lifecycleVersion, ownerEpoch, runnerPID, runnerPGID int64) (bool, error) {
+	const query = `UPDATE runs SET runner_pid = 0, runner_pgid = 0, updated_at = ?
+		WHERE id = ? AND lifecycle_version = ? AND owner_epoch = ?
+		  AND runner_pid = ? AND runner_pgid = ?
+		  AND status IN (?, ?, ?)`
+	res, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now().UTC()), id, lifecycleVersion, ownerEpoch,
+		runnerPID, runnerPGID, string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
+	if err != nil {
+		return false, wrapDBError("clear_terminal_runner_process_identity", "Run", id.String(), err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("clear_terminal_runner_process_identity", "Run", id.String(), err)
+	}
+	return affected == 1, nil
+}
+
+// ClaimRecoveryOwnership advances the durable owner epoch before recovery
+// attaches a transcript tailer. A previous owner may still have a stale
+// in-memory snapshot, but every guarded writer using its old epoch will now
+// be rejected by the database.
+func (r *runRepository) ClaimRecoveryOwnership(ctx context.Context, id uuid.UUID, lifecycleVersion int64, ownerIdentity string, at time.Time) (int64, bool, error) {
+	ownerIdentity = strings.TrimSpace(ownerIdentity)
+	if ownerIdentity == "" {
+		return 0, false, domain.NewValidationError("ownerIdentity", "owner identity is required")
+	}
+	const query = `UPDATE runs SET owner_identity = ?, owner_epoch = owner_epoch + 1,
+		ended_at = NULL, error_msg = '', exit_code = NULL, terminal_class = '', stop_reason = '',
+		last_heartbeat = CASE WHEN last_heartbeat IS NULL OR last_heartbeat < ? THEN ? ELSE last_heartbeat END,
+		updated_at = ?
+		WHERE id = ? AND lifecycle_version = ? AND status IN (?, ?) AND cancel_requested_at IS NULL
+		RETURNING owner_epoch`
+	stamp := NewNullableTime(&at)
+	var epoch int64
+	err := r.db.QueryRowContext(ctx, query, ownerIdentity, stamp, stamp, SQLiteTime(time.Now().UTC()), id, lifecycleVersion,
+		string(domain.RunStatusRunning), string(domain.RunStatusStarting)).Scan(&epoch)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, wrapDBError("claim_recovery_ownership", "Run", id.String(), err)
+	}
+	return epoch, true, nil
 }
 
 // ClaimFreshRecovery fences both stale continuation writers and continuations

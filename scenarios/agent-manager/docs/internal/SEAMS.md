@@ -1383,7 +1383,7 @@ The control surface is the set of tunable parameters operators can adjust withou
 - `ScopeLockTTL` - Lock timeout (default: 30m)
 
 **Execution Levers**:
-- `DefaultTimeout` - Run timeout (default: 30m, range: 1m-4h)
+- `DefaultTimeout` - Run timeout (default: 30m, range: 1m-12h for the global goal-mode ceiling)
 - `DefaultMaxTurns` - Agent turns (default: 100, range: 1-1000)
 
 ### Profiles
@@ -2018,6 +2018,19 @@ observational until a pricing allocator is configured.
 [UI: ui/src/features/stats/components/measure/MeasureFrame.tsx]
 
 ## Related Documentation
+
+### Resumable interactive provider interruptions
+
+Interactive Agent Manager runs use the Web Console screen as a second liveness
+source in addition to transcript progress. `interactive.ClassifyScreenInterruption`
+normalizes provider-visible conditions such as model capacity, rate limiting,
+and temporary unavailability. A detected condition is not a goal blocker or a
+terminal failure: the coordinator keeps the run active, schedules one
+server-owned retry after the configured delay (30 minutes by default), and
+delivers `/goal resume` for goal runs or `continue` for ordinary sessions.
+The Web Console Messages view exposes the same observation and provides the
+operator with explicit recovery actions. The retry is idempotently suppressed
+per coordinator and naturally aborts when the persistent session is gone.
 
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start

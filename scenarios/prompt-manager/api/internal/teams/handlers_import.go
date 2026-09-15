@@ -1,6 +1,7 @@
 package teams
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,17 @@ import (
 type AvailableCCTeam struct {
 	Name        string `json:"name"`
 	MemberCount int    `json:"memberCount"`
+}
+
+func (h *Handlers) ListAvailableClaudeCodeTeams(ctx context.Context) ([]AvailableCCTeam, error) {
+	teams, err := h.listCCTeamDirs()
+	if os.IsNotExist(err) {
+		return []AvailableCCTeam{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to list CC teams: %w", err)
+	}
+	return teams, nil
 }
 
 // ListAvailableCCTeams handles GET /teams/import/claude-code/available - lists CC teams on disk.
@@ -79,6 +91,59 @@ func defaultListCCTeamDirs() ([]AvailableCCTeam, error) {
 // ImportCCRequest is the request body for importing a Claude Code team.
 type ImportCCRequest struct {
 	TeamName string `json:"teamName"`
+}
+
+func (h *Handlers) ImportClaudeCodeTeam(ctx context.Context, teamName string) (TeamDetailsResponse, error) {
+	if strings.TrimSpace(teamName) == "" {
+		return TeamDetailsResponse{}, fmt.Errorf("teamName is required")
+	}
+	data, err := h.readCCConfig(teamName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return TeamDetailsResponse{}, fmt.Errorf("Claude Code team %q not found", teamName)
+		}
+		return TeamDetailsResponse{}, fmt.Errorf("failed to read CC team config: %w", err)
+	}
+	toolConfig, err := interop.ParseCCConfig(data, teamName)
+	if err != nil {
+		return TeamDetailsResponse{}, err
+	}
+	converter := interop.ClaudeCodeConverter{}
+	pmImport, err := converter.ToPMTeam(toolConfig)
+	if err != nil {
+		return TeamDetailsResponse{}, fmt.Errorf("conversion failed: %w", err)
+	}
+	if err := h.teamStore.Create(ctx, &pmImport.Team); err != nil {
+		return TeamDetailsResponse{}, err
+	}
+	for i := range pmImport.Agents {
+		agent := &pmImport.Agents[i]
+		if existing, _ := h.agentStore.Get(ctx, agent.ID); existing != nil {
+			continue
+		}
+		if agent.ID == "" {
+			agent.ID = validation.Slugify(agent.DisplayName)
+		}
+		if err := h.agentStore.Create(ctx, agent); err != nil {
+			continue
+		}
+	}
+	for i := range pmImport.Members {
+		if err := h.relationStore.SetTeamMember(ctx, &pmImport.Members[i]); err != nil {
+			continue
+		}
+	}
+	if len(pmImport.OrgEdges) > 0 {
+		_ = h.teamStore.SetOrgChart(ctx, pmImport.Team.ID, &store.OrgChart{TeamID: pmImport.Team.ID, Edges: pmImport.OrgEdges})
+	}
+	if h.indexStore != nil {
+		_ = h.indexStore.RegenerateTeams(ctx)
+	}
+	team, err := h.teamStore.Get(ctx, pmImport.Team.ID)
+	if err != nil {
+		return TeamDetailsResponse{}, fmt.Errorf("team created but failed to fetch details")
+	}
+	return h.toDetailsResponse(ctx, team), nil
 }
 
 // ImportClaudeCode handles POST /teams/import/claude-code - imports a CC team.

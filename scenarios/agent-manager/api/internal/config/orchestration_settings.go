@@ -26,7 +26,8 @@ type RunExecutionSettings struct {
 	// RunTimeoutMinutes is the global wall-clock ceiling, in minutes, for one
 	// agent work turn. A profile or inline request may ask for less, but run
 	// creation refuses requests above this value rather than truncating them.
-	// Range: 1–9999. Default: 120.
+	// Range: 1–9999. Default: 720 (12h), allowing long goal-mode campaigns;
+	// shorter profiles continue to use their own resolved timeout.
 	RunTimeoutMinutes int `json:"runTimeoutMinutes"`
 
 	// MaxConcurrentRuns limits total simultaneous runs.

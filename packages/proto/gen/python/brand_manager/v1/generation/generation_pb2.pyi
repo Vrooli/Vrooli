@@ -177,25 +177,3 @@ class RemoveBrandImageBackgroundRequest(_message.Message):
     allow_byok: bool
     set_canonical: bool
     def __init__(self, brand_id: _Optional[str] = ..., source_asset_id: _Optional[str] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., set_canonical: _Optional[bool] = ...) -> None: ...
-
-class DeriveBrandIconsRequest(_message.Message):
-    __slots__ = ("brand_id", "source_asset_id", "include_maskable", "include_apple_touch", "include_favicon")
-    BRAND_ID_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_MASKABLE_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_APPLE_TOUCH_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_FAVICON_FIELD_NUMBER: _ClassVar[int]
-    brand_id: str
-    source_asset_id: str
-    include_maskable: bool
-    include_apple_touch: bool
-    include_favicon: bool
-    def __init__(self, brand_id: _Optional[str] = ..., source_asset_id: _Optional[str] = ..., include_maskable: _Optional[bool] = ..., include_apple_touch: _Optional[bool] = ..., include_favicon: _Optional[bool] = ...) -> None: ...
-
-class DeriveBrandIconsResponse(_message.Message):
-    __slots__ = ("icons", "warnings")
-    ICONS_FIELD_NUMBER: _ClassVar[int]
-    WARNINGS_FIELD_NUMBER: _ClassVar[int]
-    icons: _containers.RepeatedCompositeFieldContainer[BrandImageAsset]
-    warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, icons: _Optional[_Iterable[_Union[BrandImageAsset, _Mapping]]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...

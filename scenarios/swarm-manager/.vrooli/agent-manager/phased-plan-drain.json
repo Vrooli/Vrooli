@@ -584,8 +584,8 @@
     }
   ],
   "budgets": {
-    "wallTimeSeconds": 604800,
-    "maxTurns": 30720,
+    "wallTimeSeconds": 97200,
+    "maxTurns": 1000,
     "maxTokens": 7200000,
     "maxChargeMicroUsd": 30000000,
     "maxNodeAttempts": 48,

@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
     lifecycle_version INTEGER NOT NULL DEFAULT 0,
+    owner_identity TEXT NOT NULL DEFAULT '',
+    owner_epoch INTEGER NOT NULL DEFAULT 0,
     fresh_recovery_request_hash TEXT NOT NULL DEFAULT '',
     -- Attached operator sessions may intentionally have no task.
     task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,

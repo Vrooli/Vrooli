@@ -54,7 +54,7 @@ class GetReferenceRequest(_message.Message):
     def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class ReleasedBackdrop(_message.Message):
-    __slots__ = ("id", "candidate_id", "style_id", "surface_id", "placement", "width", "height", "alt_text", "decorative", "ai_generated", "contrast_ratio", "contrast_threshold", "reserved_regions", "uri", "asset_studio_ref")
+    __slots__ = ("id", "candidate_id", "style_id", "surface_id", "placement", "width", "height", "alt_text", "decorative", "ai_generated", "contrast_ratio", "contrast_threshold", "reserved_regions", "uri", "asset_studio_ref", "job_id", "mime_type", "content_hash")
     ID_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -70,6 +70,9 @@ class ReleasedBackdrop(_message.Message):
     RESERVED_REGIONS_FIELD_NUMBER: _ClassVar[int]
     URI_FIELD_NUMBER: _ClassVar[int]
     ASSET_STUDIO_REF_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
     id: str
     candidate_id: str
     style_id: str
@@ -85,4 +88,7 @@ class ReleasedBackdrop(_message.Message):
     reserved_regions: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ReservedRegion]
     uri: str
     asset_studio_ref: str
-    def __init__(self, id: _Optional[str] = ..., candidate_id: _Optional[str] = ..., style_id: _Optional[str] = ..., surface_id: _Optional[str] = ..., placement: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., alt_text: _Optional[str] = ..., decorative: _Optional[bool] = ..., ai_generated: _Optional[bool] = ..., contrast_ratio: _Optional[float] = ..., contrast_threshold: _Optional[float] = ..., reserved_regions: _Optional[_Iterable[_Union[_shared_pb2.ReservedRegion, _Mapping]]] = ..., uri: _Optional[str] = ..., asset_studio_ref: _Optional[str] = ...) -> None: ...
+    job_id: str
+    mime_type: str
+    content_hash: str
+    def __init__(self, id: _Optional[str] = ..., candidate_id: _Optional[str] = ..., style_id: _Optional[str] = ..., surface_id: _Optional[str] = ..., placement: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., alt_text: _Optional[str] = ..., decorative: _Optional[bool] = ..., ai_generated: _Optional[bool] = ..., contrast_ratio: _Optional[float] = ..., contrast_threshold: _Optional[float] = ..., reserved_regions: _Optional[_Iterable[_Union[_shared_pb2.ReservedRegion, _Mapping]]] = ..., uri: _Optional[str] = ..., asset_studio_ref: _Optional[str] = ..., job_id: _Optional[str] = ..., mime_type: _Optional[str] = ..., content_hash: _Optional[str] = ...) -> None: ...

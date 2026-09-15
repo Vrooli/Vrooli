@@ -62,6 +62,8 @@ message PublicBranding {
   string support_chat_url = 8;
   bool coming_soon_enabled = 9;
   string coming_soon_message = 10;
+  // Configured canonical deployment base. Never inferred from request Host.
+  string canonical_base_url = 11;
 }
 
 // GetBrandingRequest fetches the full branding singleton (admin).

@@ -52,4 +52,7 @@ message ReleasedBackdrop {
   repeated shared.ReservedRegion reserved_regions = 13;
   string uri = 14;
   string asset_studio_ref = 15;
+  string job_id = 16;
+  string mime_type = 17;
+  string content_hash = 18;
 }

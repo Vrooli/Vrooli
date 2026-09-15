@@ -9,6 +9,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 message AuthorizeDownloadRequest {
   string app = 1;
   string platform = 2;
+  // Exact delivery-catalog row selected by the user, not its managed artifact
+  // storage ID. Authorization still checks the configured bundle, app, platform
+  // and caller entitlement. An unknown/mismatched ID never selects another row.
+  optional int64 asset_id = 3;
 }
 message AuthorizeDownloadResponse {
   vrooli.landing_page_business_suite.v1.shared.DownloadAsset asset = 1;

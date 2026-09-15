@@ -47,6 +47,7 @@ message PreviewPresentationRequest {
   string revision = 2;
   string route = 3;
   string locale = 4;
+  vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument document = 5;
 }
 
 message PreviewPresentationResponse {

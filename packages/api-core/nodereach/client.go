@@ -45,6 +45,10 @@ const (
 	ErrNodeNotFound      ErrorKind = "node_not_found"
 	ErrNodeUnavailable   ErrorKind = "node_unavailable"
 	ErrMissingReauth     ErrorKind = "missing_reauth"
+	// ErrUnauthenticated means Bridge could not authenticate the caller's
+	// owner credential (absent, malformed, expired, or unknown enrollment).
+	// The caller's own credential plumbing is at fault, not the node's grants.
+	ErrUnauthenticated   ErrorKind = "unauthenticated"
 	ErrMissingScope      ErrorKind = "missing_scope"
 	ErrTransport         ErrorKind = "transport"
 	ErrStreaming         ErrorKind = "streaming_unavailable"
@@ -647,6 +651,10 @@ type Session struct {
 	header       http.Header
 	dialer       websocket.Dialer
 	timeout      time.Duration
+	// authorize re-resolves the owner credential for a reconnect. A locally
+	// minted owner session lives 15 minutes, so replaying the header captured
+	// at Open made every reconnect after that point fail authentication.
+	authorize func(context.Context) (string, error)
 }
 
 // TerminalStatus explains why the Bridge ended a session. It remains
@@ -720,9 +728,18 @@ func (c *Client) Open(ctx context.Context, req OpenRequest, timeout time.Duratio
 			kind := ErrTransport
 			switch response.StatusCode {
 			case http.StatusUnauthorized:
-				kind = ErrMissingReauth
+				// Bridge could not establish who the caller is at all: no
+				// credential arrived, or it failed verification. That is not an
+				// expired grant, and naming it one sent operators to the
+				// permissions screen for a problem only the caller can fix.
+				kind = ErrUnauthenticated
 			case http.StatusForbidden:
+				// Bridge rejects both a missing second factor and a missing
+				// grant with 403; its body is the only place the two differ.
 				kind = ErrMissingScope
+				if strings.Contains(strings.ToLower(reason), "re-authentication") {
+					kind = ErrMissingReauth
+				}
 			case http.StatusNotFound:
 				kind = ErrNodeNotFound
 			case http.StatusServiceUnavailable:
@@ -742,6 +759,9 @@ func (c *Client) Open(ctx context.Context, req OpenRequest, timeout time.Duratio
 	session := &Session{
 		conn: conn, readCh: make(chan []byte, 64), doneCh: make(chan struct{}), readyCh: make(chan error, 1),
 		reconnectCtx: reconnectCtx, cancel: reconnectCancel, endpoint: u.String(), header: header.Clone(), dialer: dialer, timeout: timeout,
+	}
+	if strings.TrimSpace(c.token) == "" && c.tokenProvider != nil {
+		session.authorize = c.tokenProvider
 	}
 	go session.readLoop()
 	select {
@@ -837,7 +857,14 @@ func (s *Session) reconnect() bool {
 			return false
 		}
 
-		conn, _, err := s.dialer.DialContext(s.reconnectCtx, s.endpoint, s.header)
+		header := s.header
+		if s.authorize != nil {
+			if token, tokenErr := s.authorize(s.reconnectCtx); tokenErr == nil && strings.TrimSpace(token) != "" {
+				header = s.header.Clone()
+				header.Set("Authorization", authHeader(strings.TrimSpace(token)))
+			}
+		}
+		conn, _, err := s.dialer.DialContext(s.reconnectCtx, s.endpoint, header)
 		if err == nil {
 			s.mu.Lock()
 			if s.closed {

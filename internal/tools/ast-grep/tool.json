@@ -13,11 +13,47 @@
   "versionArgs": [
     "--version"
   ],
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": { "os": "linux", "arch": "amd64" },
+        "url": "https://github.com/ast-grep/ast-grep/releases/download/0.39.5/app-x86_64-unknown-linux-gnu.zip",
+        "sha256": "9a1cab3e7916c98c6fe0079cc2c3b44d98832ba3bdb9db492d04a4e60e41fd0f",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "ast-grep"
+      },
+      {
+        "when": { "os": "linux", "arch": "arm64" },
+        "url": "https://github.com/ast-grep/ast-grep/releases/download/0.39.5/app-aarch64-unknown-linux-gnu.zip",
+        "sha256": "4b20d2032fec27d0863e9f58e2848861fd5b99bf71f56f271d636dc821056bbb",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "ast-grep"
+      },
+      {
+        "when": { "os": "darwin", "arch": "amd64" },
+        "url": "https://github.com/ast-grep/ast-grep/releases/download/0.39.5/app-x86_64-apple-darwin.zip",
+        "sha256": "569d1fe851c137f1edb29e83ce51fdea0845abfb6746b19d94c982904b0e5dac",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "ast-grep"
+      },
+      {
+        "when": { "os": "darwin", "arch": "arm64" },
+        "url": "https://github.com/ast-grep/ast-grep/releases/download/0.39.5/app-aarch64-apple-darwin.zip",
+        "sha256": "d672ef833d478423a54a57da6b937784e2fe9b768c89affa58d8ff6db3174d3d",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "ast-grep"
+      }
+    ]
+  },
   "packages": {
     "brew": "ast-grep"
   },
-  "installHint": "Install ast-grep from GitHub releases: https://github.com/ast-grep/ast-grep/releases — or via cargo install ast-grep, or npm install -g @ast-grep/cli",
-  "manual": true,
+  "installHint": "Setup installs the verified ast-grep release for Linux and macOS (amd64/arm64). Otherwise install it from https://github.com/ast-grep/ast-grep/releases, npm install -g @ast-grep/cli, or brew install ast-grep (Intel Macs may compile it and Rust from source, which takes over an hour).",
   "bundling": "host-required",
   "capability": "code-analysis",
   "capability_role": "primary",

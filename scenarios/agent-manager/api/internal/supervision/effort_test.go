@@ -162,6 +162,32 @@ func TestEffortSubjectTriggerExcludesOwnAssessmentAndFreshSupervisorButTracksWor
 	}
 }
 
+func TestEffortRegistryKeepsSupervisorGrantAcrossCoordinatorReplacement(t *testing.T) {
+	s, _, c := effortFixture(t)
+	ctx := context.Background()
+	e := grantFixture(t, s, c, domain.RunStatusRunning)
+	replacement := uuid.New()
+	c.runs[replacement] = &domain.Run{ID: replacement, Status: domain.RunStatusRunning, WorkReferences: []*eventpb.WorkReference{{
+		Kind: "effort", Id: e.EffortRef, Revision: e.TargetRevision, Relationship: "orchestrator", Verified: true,
+		Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State:      eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}}}
+	s.SetRunRegistry(effortRegistryFixture{runs: []*domain.Run{c.runs[replacement]}})
+	if _, err := s.ReconcileDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	current, _, err := s.repo.GetEffort(ctx, e.EffortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.AuthorizedBy == "" || len(current.PermittedActions) == 0 || current.AuthorityRef != e.AuthorityRef {
+		t.Fatalf("coordinator replacement revoked the standing supervisor grant: %+v", current)
+	}
+	if len(current.Subjects) != 2 || current.Subjects[1].RunId != replacement.String() {
+		t.Fatalf("replacement coordinator was not retained as runtime evidence: %+v", current.Subjects)
+	}
+}
+
 func TestEffortWorkspaceEvidenceTimestampAndDerivedJoinsStayStable(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()

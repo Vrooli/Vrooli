@@ -21,13 +21,15 @@ const (
 )
 
 type Meta struct {
-	RunID      string            `json:"run_id"`
-	RunnerType domain.RunnerType `json:"runner_type"`
-	RunnerPID  int               `json:"runner_pid,omitempty"`
-	RunnerPGID int               `json:"runner_pgid,omitempty"`
-	WorkingDir string            `json:"working_dir"`
-	StartedAt  time.Time         `json:"started_at"`
-	SessionID  string            `json:"session_id,omitempty"`
+	RunID          string            `json:"run_id"`
+	RunnerType     domain.RunnerType `json:"runner_type"`
+	RunnerPID      int               `json:"runner_pid,omitempty"`
+	RunnerPGID     int               `json:"runner_pgid,omitempty"`
+	RunnerIdentity string            `json:"runner_identity,omitempty"`
+	OwnerEpoch     int64             `json:"owner_epoch,omitempty"`
+	WorkingDir     string            `json:"working_dir"`
+	StartedAt      time.Time         `json:"started_at"`
+	SessionID      string            `json:"session_id,omitempty"`
 }
 
 type Cursor struct {
@@ -47,10 +49,12 @@ type Snapshot struct {
 }
 
 type OpenOptions struct {
-	RootDir    string
-	RunnerType domain.RunnerType
-	WorkingDir string
-	StartedAt  time.Time
+	RootDir        string
+	RunnerType     domain.RunnerType
+	WorkingDir     string
+	StartedAt      time.Time
+	RunnerIdentity string
+	OwnerEpoch     int64
 	// OnWrite is called after each successful durable state mutation.
 	OnWrite func()
 }
@@ -92,21 +96,40 @@ func Open(runID uuid.UUID, opts OpenOptions) (*State, error) {
 			TranscriptPath: filepath.Join(dir, transcriptFileName),
 			StderrPath:     filepath.Join(dir, stderrFileName),
 			CursorPath:     filepath.Join(dir, cursorFileName),
-			Meta: Meta{
-				RunID:      runID.String(),
-				RunnerType: opts.RunnerType,
-				WorkingDir: opts.WorkingDir,
-				StartedAt:  startedAt,
-			},
-			Cursor: Cursor{},
+			Meta:           Meta{RunID: runID.String(), RunnerType: opts.RunnerType, WorkingDir: opts.WorkingDir, StartedAt: startedAt, RunnerIdentity: opts.RunnerIdentity, OwnerEpoch: opts.OwnerEpoch},
+			Cursor:         Cursor{},
 		},
 	}
 
-	if err := atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta); err != nil {
-		return nil, fmt.Errorf("write meta.json: %w", err)
+	if data, err := os.ReadFile(s.snapshot.MetaPath); err == nil {
+		if err := json.Unmarshal(data, &s.snapshot.Meta); err != nil {
+			return nil, fmt.Errorf("read meta.json: %w", err)
+		}
+		// A new owner may refresh the epoch/identity, but recovery must never
+		// erase the durable binding when its options are intentionally empty.
+		if opts.OwnerEpoch != 0 {
+			s.snapshot.Meta.OwnerEpoch = opts.OwnerEpoch
+		}
+		if opts.RunnerIdentity != "" {
+			s.snapshot.Meta.RunnerIdentity = opts.RunnerIdentity
+		}
+	} else if os.IsNotExist(err) {
+		if err := atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta); err != nil {
+			return nil, fmt.Errorf("write meta.json: %w", err)
+		}
+	} else {
+		return nil, fmt.Errorf("read meta.json: %w", err)
 	}
-	if err := atomicWriteJSON(s.snapshot.CursorPath, s.snapshot.Cursor); err != nil {
-		return nil, fmt.Errorf("write cursor.json: %w", err)
+	if data, err := os.ReadFile(s.snapshot.CursorPath); err == nil {
+		if err := json.Unmarshal(data, &s.snapshot.Cursor); err != nil {
+			return nil, fmt.Errorf("read cursor.json: %w", err)
+		}
+	} else if os.IsNotExist(err) {
+		if err := atomicWriteJSON(s.snapshot.CursorPath, s.snapshot.Cursor); err != nil {
+			return nil, fmt.Errorf("write cursor.json: %w", err)
+		}
+	} else {
+		return nil, fmt.Errorf("read cursor.json: %w", err)
 	}
 
 	transcript, err := os.OpenFile(s.snapshot.TranscriptPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0o644)
@@ -240,5 +263,24 @@ func atomicWriteJSON(path string, value any) error {
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	file, err := os.OpenFile(tmp, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }

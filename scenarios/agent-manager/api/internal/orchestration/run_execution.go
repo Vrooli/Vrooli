@@ -589,6 +589,12 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 	if run == nil || run.ResolvedConfig == nil {
 		return nil, nil, nil
 	}
+	if run.OwnerIdentity == "" {
+		run.OwnerIdentity = o.runtimeOwnerIdentity
+	}
+	if run.OwnerEpoch == 0 {
+		run.OwnerEpoch = 1
+	}
 
 	startedAt := o.now().UTC()
 	if run.StartedAt != nil {
@@ -599,11 +605,9 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 		return nil, nil, err
 	}
 	state, err := runstate.Open(run.ID, runstate.OpenOptions{
-		RootDir:    runStateRoot,
-		RunnerType: run.ResolvedConfig.RunnerType,
-		WorkingDir: workDir,
-		StartedAt:  startedAt,
-		OnWrite:    func() { o.recordRunStateWrite(ctx) },
+		RootDir: runStateRoot, RunnerType: run.ResolvedConfig.RunnerType, WorkingDir: workDir, StartedAt: startedAt,
+		RunnerIdentity: fmt.Sprintf("%s:%s:%d", run.OwnerIdentity, run.ID, run.OwnerEpoch), OwnerEpoch: run.OwnerEpoch,
+		OnWrite: func() { o.recordRunStateWrite(ctx) },
 	})
 	if err != nil {
 		return nil, nil, err
@@ -865,6 +869,17 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	if result != nil && result.SessionID != "" {
 		run.SessionID = result.SessionID
 	}
+	if preservedPartialResult && o.events != nil {
+		preservedTurn := 1
+		if previousSummary != nil && previousSummary.TurnsUsed > 0 {
+			preservedTurn = previousSummary.TurnsUsed
+		}
+		// Persist the preservation evidence before publishing the terminal
+		// status. Readers must never observe a failed continuation without the
+		// event that explains which successful structured result was retained.
+		phases.EmitSystemEvent(ctx, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run.ID, "info",
+			fmt.Sprintf("continuation failed on turn %d; preserved structured result from successful turn %d", preservedTurn+1, preservedTurn))
+	}
 
 	// A continuation mints a fresh live credential at admission. Retire that
 	// generation with this terminal turn, just as the initial execution does.
@@ -879,14 +894,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		return
 	}
 	run = updatedRun
-	if preservedPartialResult && o.events != nil {
-		preservedTurn := 1
-		if previousSummary != nil && previousSummary.TurnsUsed > 0 {
-			preservedTurn = previousSummary.TurnsUsed
-		}
-		phases.EmitSystemEvent(ctx, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run.ID, "info",
-			fmt.Sprintf("continuation failed on turn %d; preserved structured result from successful turn %d", preservedTurn+1, preservedTurn))
-	}
 	o.checkpointContinuationTurn(ctx, run, result, execCtx.Err() == context.DeadlineExceeded)
 	if run.ResolvedConfig != nil {
 		runStateRoot, rootErr := o.resolveRunStateRoot(ctx)

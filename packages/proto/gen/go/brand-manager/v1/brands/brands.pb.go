@@ -47,7 +47,18 @@ type Brand struct {
 	// Server time the brand was first persisted.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Server time the brand was last persisted. Equals created_at on insert.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// slug is the stable machine name brand-manager apply matches against a
+	// scenario's branding.brand declaration.
+	Slug string `protobuf:"bytes,12,opt,name=slug,proto3" json:"slug,omitempty"`
+	// mark_asset_id is the brand's canonical vector mark asset (set by a pick).
+	MarkAssetId string `protobuf:"bytes,13,opt,name=mark_asset_id,json=markAssetId,proto3" json:"mark_asset_id,omitempty"`
+	// small_mark_asset_id is the optional simplified mark for 32 px and below.
+	SmallMarkAssetId string `protobuf:"bytes,14,opt,name=small_mark_asset_id,json=smallMarkAssetId,proto3" json:"small_mark_asset_id,omitempty"`
+	// container_style_id is the container style render composes the mark into.
+	ContainerStyleId string `protobuf:"bytes,15,opt,name=container_style_id,json=containerStyleId,proto3" json:"container_style_id,omitempty"`
+	// product_line_id is the product line the brand belongs to.
+	ProductLineId string `protobuf:"bytes,16,opt,name=product_line_id,json=productLineId,proto3" json:"product_line_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -157,6 +168,41 @@ func (x *Brand) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Brand) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *Brand) GetMarkAssetId() string {
+	if x != nil {
+		return x.MarkAssetId
+	}
+	return ""
+}
+
+func (x *Brand) GetSmallMarkAssetId() string {
+	if x != nil {
+		return x.SmallMarkAssetId
+	}
+	return ""
+}
+
+func (x *Brand) GetContainerStyleId() string {
+	if x != nil {
+		return x.ContainerStyleId
+	}
+	return ""
+}
+
+func (x *Brand) GetProductLineId() string {
+	if x != nil {
+		return x.ProductLineId
+	}
+	return ""
 }
 
 // Identity holds the visual-identity facets of a brand.
@@ -648,16 +694,21 @@ func (x *ListBrandsResponse) GetBrands() []*Brand {
 
 // CreateBrandRequest is the body accepted by BrandsService.CreateBrand.
 type CreateBrandRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Notes         string                 `protobuf:"bytes,3,opt,name=notes,proto3" json:"notes,omitempty"`
-	Identity      *Identity              `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
-	Colors        *Colors                `protobuf:"bytes,5,opt,name=colors,proto3" json:"colors,omitempty"`
-	Typography    *Typography            `protobuf:"bytes,6,opt,name=typography,proto3" json:"typography,omitempty"`
-	Voice         *Voice                 `protobuf:"bytes,7,opt,name=voice,proto3" json:"voice,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Notes            string                 `protobuf:"bytes,3,opt,name=notes,proto3" json:"notes,omitempty"`
+	Identity         *Identity              `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
+	Colors           *Colors                `protobuf:"bytes,5,opt,name=colors,proto3" json:"colors,omitempty"`
+	Typography       *Typography            `protobuf:"bytes,6,opt,name=typography,proto3" json:"typography,omitempty"`
+	Voice            *Voice                 `protobuf:"bytes,7,opt,name=voice,proto3" json:"voice,omitempty"`
+	Slug             string                 `protobuf:"bytes,8,opt,name=slug,proto3" json:"slug,omitempty"`
+	MarkAssetId      string                 `protobuf:"bytes,9,opt,name=mark_asset_id,json=markAssetId,proto3" json:"mark_asset_id,omitempty"`
+	SmallMarkAssetId string                 `protobuf:"bytes,10,opt,name=small_mark_asset_id,json=smallMarkAssetId,proto3" json:"small_mark_asset_id,omitempty"`
+	ContainerStyleId string                 `protobuf:"bytes,11,opt,name=container_style_id,json=containerStyleId,proto3" json:"container_style_id,omitempty"`
+	ProductLineId    string                 `protobuf:"bytes,12,opt,name=product_line_id,json=productLineId,proto3" json:"product_line_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateBrandRequest) Reset() {
@@ -737,6 +788,41 @@ func (x *CreateBrandRequest) GetVoice() *Voice {
 		return x.Voice
 	}
 	return nil
+}
+
+func (x *CreateBrandRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *CreateBrandRequest) GetMarkAssetId() string {
+	if x != nil {
+		return x.MarkAssetId
+	}
+	return ""
+}
+
+func (x *CreateBrandRequest) GetSmallMarkAssetId() string {
+	if x != nil {
+		return x.SmallMarkAssetId
+	}
+	return ""
+}
+
+func (x *CreateBrandRequest) GetContainerStyleId() string {
+	if x != nil {
+		return x.ContainerStyleId
+	}
+	return ""
+}
+
+func (x *CreateBrandRequest) GetProductLineId() string {
+	if x != nil {
+		return x.ProductLineId
+	}
+	return ""
 }
 
 // CreateBrandResponse returns the persisted brand (version 1).
@@ -889,9 +975,14 @@ type UpdateBrandRequest struct {
 	Voice       *Voice                 `protobuf:"bytes,8,opt,name=voice,proto3" json:"voice,omitempty"`
 	// expected_version: when > 0, reject with FAILED_PRECONDITION unless it equals
 	// the brand's current version (optimistic locking). 0 disables the check.
-	ExpectedVersion int32 `protobuf:"varint,9,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	ExpectedVersion  int32  `protobuf:"varint,9,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	Slug             string `protobuf:"bytes,10,opt,name=slug,proto3" json:"slug,omitempty"`
+	MarkAssetId      string `protobuf:"bytes,11,opt,name=mark_asset_id,json=markAssetId,proto3" json:"mark_asset_id,omitempty"`
+	SmallMarkAssetId string `protobuf:"bytes,12,opt,name=small_mark_asset_id,json=smallMarkAssetId,proto3" json:"small_mark_asset_id,omitempty"`
+	ContainerStyleId string `protobuf:"bytes,13,opt,name=container_style_id,json=containerStyleId,proto3" json:"container_style_id,omitempty"`
+	ProductLineId    string `protobuf:"bytes,14,opt,name=product_line_id,json=productLineId,proto3" json:"product_line_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateBrandRequest) Reset() {
@@ -985,6 +1076,41 @@ func (x *UpdateBrandRequest) GetExpectedVersion() int32 {
 		return x.ExpectedVersion
 	}
 	return 0
+}
+
+func (x *UpdateBrandRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *UpdateBrandRequest) GetMarkAssetId() string {
+	if x != nil {
+		return x.MarkAssetId
+	}
+	return ""
+}
+
+func (x *UpdateBrandRequest) GetSmallMarkAssetId() string {
+	if x != nil {
+		return x.SmallMarkAssetId
+	}
+	return ""
+}
+
+func (x *UpdateBrandRequest) GetContainerStyleId() string {
+	if x != nil {
+		return x.ContainerStyleId
+	}
+	return ""
+}
+
+func (x *UpdateBrandRequest) GetProductLineId() string {
+	if x != nil {
+		return x.ProductLineId
+	}
+	return ""
 }
 
 // UpdateBrandResponse returns the brand at its new version.
@@ -1349,7 +1475,7 @@ var File_brand_manager_v1_brands_brands_proto protoreflect.FileDescriptor
 
 const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"\n" +
-	"$brand-manager/v1/brands/brands.proto\x12\x1evrooli.brand_manager.v1.brands\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x04\n" +
+	"$brand-manager/v1/brands/brands.proto\x12\x1evrooli.brand_manager.v1.brands\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbf\x05\n" +
 	"\x05Brand\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1366,7 +1492,12 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa4\x01\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x12\n" +
+	"\x04slug\x18\f \x01(\tR\x04slug\x12\"\n" +
+	"\rmark_asset_id\x18\r \x01(\tR\vmarkAssetId\x12-\n" +
+	"\x13small_mark_asset_id\x18\x0e \x01(\tR\x10smallMarkAssetId\x12,\n" +
+	"\x12container_style_id\x18\x0f \x01(\tR\x10containerStyleId\x12&\n" +
+	"\x0fproduct_line_id\x18\x10 \x01(\tR\rproductLineId\"\xa4\x01\n" +
 	"\bIdentity\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x18\n" +
 	"\atagline\x18\x02 \x01(\tR\atagline\x12\x1b\n" +
@@ -1405,7 +1536,7 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"S\n" +
 	"\x12ListBrandsResponse\x12=\n" +
-	"\x06brands\x18\x01 \x03(\v2%.vrooli.brand_manager.v1.brands.BrandR\x06brands\"\xef\x02\n" +
+	"\x06brands\x18\x01 \x03(\v2%.vrooli.brand_manager.v1.brands.BrandR\x06brands\"\xac\x04\n" +
 	"\x12CreateBrandRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x14\n" +
@@ -1415,13 +1546,19 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"\n" +
 	"typography\x18\x06 \x01(\v2*.vrooli.brand_manager.v1.brands.TypographyR\n" +
 	"typography\x12;\n" +
-	"\x05voice\x18\a \x01(\v2%.vrooli.brand_manager.v1.brands.VoiceR\x05voice\"R\n" +
+	"\x05voice\x18\a \x01(\v2%.vrooli.brand_manager.v1.brands.VoiceR\x05voice\x12\x12\n" +
+	"\x04slug\x18\b \x01(\tR\x04slug\x12\"\n" +
+	"\rmark_asset_id\x18\t \x01(\tR\vmarkAssetId\x12-\n" +
+	"\x13small_mark_asset_id\x18\n" +
+	" \x01(\tR\x10smallMarkAssetId\x12,\n" +
+	"\x12container_style_id\x18\v \x01(\tR\x10containerStyleId\x12&\n" +
+	"\x0fproduct_line_id\x18\f \x01(\tR\rproductLineId\"R\n" +
 	"\x13CreateBrandResponse\x12;\n" +
 	"\x05brand\x18\x01 \x01(\v2%.vrooli.brand_manager.v1.brands.BrandR\x05brand\"!\n" +
 	"\x0fGetBrandRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"O\n" +
 	"\x10GetBrandResponse\x12;\n" +
-	"\x05brand\x18\x01 \x01(\v2%.vrooli.brand_manager.v1.brands.BrandR\x05brand\"\xaa\x03\n" +
+	"\x05brand\x18\x01 \x01(\v2%.vrooli.brand_manager.v1.brands.BrandR\x05brand\"\xe7\x04\n" +
 	"\x12UpdateBrandRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1433,7 +1570,13 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"typography\x18\a \x01(\v2*.vrooli.brand_manager.v1.brands.TypographyR\n" +
 	"typography\x12;\n" +
 	"\x05voice\x18\b \x01(\v2%.vrooli.brand_manager.v1.brands.VoiceR\x05voice\x12)\n" +
-	"\x10expected_version\x18\t \x01(\x05R\x0fexpectedVersion\"R\n" +
+	"\x10expected_version\x18\t \x01(\x05R\x0fexpectedVersion\x12\x12\n" +
+	"\x04slug\x18\n" +
+	" \x01(\tR\x04slug\x12\"\n" +
+	"\rmark_asset_id\x18\v \x01(\tR\vmarkAssetId\x12-\n" +
+	"\x13small_mark_asset_id\x18\f \x01(\tR\x10smallMarkAssetId\x12,\n" +
+	"\x12container_style_id\x18\r \x01(\tR\x10containerStyleId\x12&\n" +
+	"\x0fproduct_line_id\x18\x0e \x01(\tR\rproductLineId\"R\n" +
 	"\x13UpdateBrandResponse\x12;\n" +
 	"\x05brand\x18\x01 \x01(\v2%.vrooli.brand_manager.v1.brands.BrandR\x05brand\"$\n" +
 	"\x12DeleteBrandRequest\x12\x0e\n" +

@@ -385,6 +385,33 @@ func EvaluateOperationReadiness(t Target, operation string, now time.Time) Opera
 	if operation == OperationDeviceOperation && !hasReadyCapability(t, "device_adapter", "attached_device") {
 		return operationFailure(decision, ReadinessUnknown, "device_adapter_unknown", "attached-device adapter readiness has not been observed", "refresh the attached-device inventory before admission")
 	}
+	if operation == OperationProvisioning {
+		return provisioningReadiness(decision, t)
+	}
+	return operationReady(decision)
+}
+
+// CapabilityBridgeProvisioner is the node agent's heartbeat observation for
+// whether Bridge can update the node with `provision sync`. Keep in lockstep
+// with the Bridge agent's health.ProvisioningID.
+const CapabilityBridgeProvisioner = "bridge-provisioner"
+
+// provisioningReadiness judges remote updates from the node's own report. A
+// reachable node is not an updatable one: a tree shipped by working-tree
+// onboarding has no git revision to fetch, and an agent without its privileged
+// helper refuses every provisioning command.
+func provisioningReadiness(decision OperationReadiness, t Target) OperationReadiness {
+	const reonboard = "re-run `vrooli-bridge onboard connect` for this machine to update it"
+	if strings.HasSuffix(strings.TrimSpace(t.Revision), "+dirty") {
+		return operationFailure(decision, ReadinessMissing, "working_tree_source", "this machine runs a tree shipped by working-tree onboarding, which provisioning cannot update", reonboard)
+	}
+	fact, ok := readinessFact(t, ReadinessCapabilityPrefix+CapabilityBridgeProvisioner)
+	if !ok {
+		return operationFailure(decision, ReadinessUnknown, "provisioning_unreported", "the Bridge agent does not report whether its provisioning helper is installed", reonboard)
+	}
+	if fact.State != ReadinessReady || !fact.Passed {
+		return operationFailure(decision, ReadinessMissing, "provisioning_unavailable", nonEmpty(fact.Detail, "the Bridge agent reports provisioning is unavailable"), reonboard)
+	}
 	return operationReady(decision)
 }
 

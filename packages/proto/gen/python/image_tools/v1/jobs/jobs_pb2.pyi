@@ -24,6 +24,7 @@ class JobLane(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     JOB_LANE_UNSPECIFIED: _ClassVar[JobLane]
     JOB_LANE_GPU: _ClassVar[JobLane]
     JOB_LANE_CPU: _ClassVar[JobLane]
+    JOB_LANE_NETWORK: _ClassVar[JobLane]
 JOB_STATE_UNSPECIFIED: JobState
 JOB_STATE_QUEUED: JobState
 JOB_STATE_RUNNING: JobState
@@ -33,9 +34,10 @@ JOB_STATE_CANCELED: JobState
 JOB_LANE_UNSPECIFIED: JobLane
 JOB_LANE_GPU: JobLane
 JOB_LANE_CPU: JobLane
+JOB_LANE_NETWORK: JobLane
 
 class Job(_message.Message):
-    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at", "result_meta")
+    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at", "result_meta", "request", "result_refs")
     class ResultMetaEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +58,8 @@ class Job(_message.Message):
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     RESULT_META_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    RESULT_REFS_FIELD_NUMBER: _ClassVar[int]
     id: str
     operation: str
     lane: JobLane
@@ -69,7 +73,37 @@ class Job(_message.Message):
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
     result_meta: _containers.ScalarMap[str, str]
-    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_meta: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    request: JobRequest
+    result_refs: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_meta: _Optional[_Mapping[str, str]] = ..., request: _Optional[_Union[JobRequest, _Mapping]] = ..., result_refs: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class JobRequest(_message.Message):
+    __slots__ = ("operation", "model_id", "backend", "tier", "role", "prompt", "negative_prompt", "seed", "width", "height", "variations", "adapters")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SEED_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    VARIATIONS_FIELD_NUMBER: _ClassVar[int]
+    ADAPTERS_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    backend: str
+    tier: str
+    role: str
+    prompt: str
+    negative_prompt: str
+    seed: int
+    width: int
+    height: int
+    variations: int
+    adapters: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., backend: _Optional[str] = ..., tier: _Optional[str] = ..., role: _Optional[str] = ..., prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., variations: _Optional[int] = ..., adapters: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ProgressEvent(_message.Message):
     __slots__ = ("job_id", "state", "progress", "message", "at")

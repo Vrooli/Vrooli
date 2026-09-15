@@ -224,8 +224,8 @@ func TestRestartResume_DeadProcessNoTerminal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get run: %v", err)
 	}
-	if got.Status != domain.RunStatusFailed {
-		t.Fatalf("dead-process run with no terminal must be marked Failed, got %s", got.Status)
+	if got.Status != domain.RunStatusNeedsReview {
+		t.Fatalf("dead-process run with no terminal must remain recoverable, got %s", got.Status)
 	}
 	if got.SessionID != "thread-2" {
 		t.Errorf("session ID must still be captured even on failure, got %q", got.SessionID)

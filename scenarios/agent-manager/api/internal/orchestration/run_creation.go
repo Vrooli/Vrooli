@@ -731,10 +731,13 @@ func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *r
 	found := false
 	for _, candidate := range resolution.Candidates {
 		if !candidate.Available {
-			// Every candidate is part of the retained fallback contract. An
-			// unreadable resource policy cannot be silently omitted and later
-			// become an executable fallback.
-			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", candidate.Failure)
+			// Keep the selected/current candidate usable when its own policy was
+			// read successfully, but fence this candidate from fallback execution
+			// until its resource policy becomes readable again. The immutable run
+			// snapshot remains historical evidence; this marker is only a current
+			// admission overlay and is never persisted into that snapshot.
+			addExclusions(candidate.Runner, []string{domain.ModelPolicyUnavailable})
+			continue
 		}
 		if candidate.Runner == cfg.RunnerType {
 			found = true
@@ -764,7 +767,9 @@ func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *r
 			}
 			candidate, resolveErr := resolver.Resolve(ctx, historical.RunnerType, historicalRole)
 			if resolveErr != nil {
-				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", resolveErr.Error())
+				addExclusions(historical.RunnerType, []string{domain.ModelPolicyUnavailable})
+				observed[identity] = true
+				continue
 			}
 			observed[identity] = true
 			addExclusions(historical.RunnerType, candidate.ExcludedModels)
@@ -776,7 +781,8 @@ func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *r
 		// vocabulary, so resolve that runner directly with the retained role.
 		candidate, resolveErr := resolver.Resolve(ctx, cfg.RunnerType, role)
 		if resolveErr != nil {
-			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", resolveErr.Error())
+			addExclusions(cfg.RunnerType, []string{domain.ModelPolicyUnavailable})
+			return exclusions, nil
 		}
 		addExclusions(cfg.RunnerType, candidate.ExcludedModels)
 	}
@@ -987,11 +993,21 @@ func dependentDelegationAdmissionError(parent *domain.Run, cfg *domain.RunConfig
 	if cfg == nil {
 		return domain.NewValidationError("qualification", "dependent delegation is closed: resolved configuration is missing")
 	}
-	return domain.AdmitDependentDelegation(parent.ResolvedConfig.Admission.Receipt, domain.DependentDelegationRequest{
+	req := domain.DependentDelegationRequest{
 		Runner: string(cfg.RunnerType),
 		Model:  cfg.Model,
 		Effort: string(cfg.Effort),
-	})
+	}
+	if parent.ResolvedConfig.Admission.Receipt != nil {
+		return domain.AdmitDependentDelegation(parent.ResolvedConfig.Admission.Receipt, req)
+	}
+	if parent.Status != domain.RunStatusStarting && parent.Status != domain.RunStatusRunning {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: completed parent has no live qualification receipt")
+	}
+	// A live coordinator must be able to delegate before its own terminal
+	// seam can capture accepted output. Use the weaker launch-observed identity
+	// check for that case; terminal parents retain the receipt gate above.
+	return domain.AdmitLiveDependentDelegation(parent.ResolvedConfig.Admission, req)
 }
 
 // recordPassedInvocation records the runner-native control arguments the

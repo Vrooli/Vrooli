@@ -68,6 +68,17 @@ message Brand {
   google.protobuf.Timestamp created_at = 10;
   // Server time the brand was last persisted. Equals created_at on insert.
   google.protobuf.Timestamp updated_at = 11;
+  // slug is the stable machine name brand-manager apply matches against a
+  // scenario's branding.brand declaration.
+  string slug = 12;
+  // mark_asset_id is the brand's canonical vector mark asset (set by a pick).
+  string mark_asset_id = 13;
+  // small_mark_asset_id is the optional simplified mark for 32 px and below.
+  string small_mark_asset_id = 14;
+  // container_style_id is the container style render composes the mark into.
+  string container_style_id = 15;
+  // product_line_id is the product line the brand belongs to.
+  string product_line_id = 16;
 }
 
 // Identity holds the visual-identity facets of a brand.
@@ -139,6 +150,11 @@ message CreateBrandRequest {
   Colors colors = 5;
   Typography typography = 6;
   Voice voice = 7;
+  string slug = 8;
+  string mark_asset_id = 9;
+  string small_mark_asset_id = 10;
+  string container_style_id = 11;
+  string product_line_id = 12;
 }
 
 // CreateBrandResponse returns the persisted brand (version 1).
@@ -171,6 +187,11 @@ message UpdateBrandRequest {
   // expected_version: when > 0, reject with FAILED_PRECONDITION unless it equals
   // the brand's current version (optimistic locking). 0 disables the check.
   int32 expected_version = 9;
+  string slug = 10;
+  string mark_asset_id = 11;
+  string small_mark_asset_id = 12;
+  string container_style_id = 13;
+  string product_line_id = 14;
 }
 
 // UpdateBrandResponse returns the brand at its new version.

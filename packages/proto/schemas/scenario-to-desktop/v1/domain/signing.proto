@@ -182,6 +182,25 @@ message MacOSSigningConfig {
 // LINUX SIGNING
 // =============================================================================
 
+// ManagedSigningKey references signing key material held by the Vrooli
+// credential authority instead of a filesystem keyring. The authority owns
+// the private key and passphrase; the build resolves them in-process at
+// signing time. The same logical identity may be referenced by many
+// scenarios so one publisher key signs every desktop app.
+message ManagedSigningKey {
+  // Namespaced logical identity in the credential authority.
+  // @example "vrooli/desktop-signing"
+  string logical_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Field holding the ASCII-armored private key.
+  // @default "gpg-private-key"
+  optional string private_key_field = 2;
+
+  // Field holding the key passphrase.
+  // @default "gpg-passphrase"
+  optional string passphrase_field = 3;
+}
+
 // LinuxSigningConfig configures GPG signing for Linux packages.
 //
 message LinuxSigningConfig {
@@ -197,6 +216,10 @@ message LinuxSigningConfig {
   // Path to GPG keyring.
   // @format path
   optional string keyring_path = 4;
+
+  // Credential-authority custody for the signing key. When set, keyring_path
+  // is not used and the private key never persists in the repository.
+  optional ManagedSigningKey managed_key = 5;
 }
 
 // =============================================================================
@@ -393,7 +416,7 @@ message DeleteSigningResponse {
 }
 
 // GenerateLinuxSigningKeyRequest creates a signing key and persists only its
-// public identifier plus environment-variable references, never a passphrase.
+// public identifier plus a credential-authority reference, never a passphrase.
 message GenerateLinuxSigningKeyRequest {
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
   string name = 2 [(buf.validate.field).string.min_len = 1];
@@ -404,6 +427,9 @@ message GenerateLinuxSigningKeyRequest {
   optional string homedir = 7;
   bool force = 8;
   bool export_public = 9;
+  // Credential-authority logical identity to hold the generated key material.
+  // Defaults to "vrooli/scenario-to-desktop/<scenario_name>".
+  optional string logical_id = 10;
 }
 
 message GenerateLinuxSigningKeyResponse {
@@ -412,6 +438,11 @@ message GenerateLinuxSigningKeyResponse {
   string homedir = 3;
   optional string public_key = 4;
   optional string public_key_path = 5;
+  // Credential-authority logical identity now holding the key material.
+  optional string logical_id = 6;
+  // message reports a rotation's blast radius, naming scenarios that still
+  // reference a shared identity whose key was replaced.
+  optional string message = 7;
 }
 
 message SigningToolStatus {

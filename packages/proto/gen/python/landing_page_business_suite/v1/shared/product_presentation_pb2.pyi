@@ -535,7 +535,7 @@ class PresentationProductStory(_message.Message):
     def __init__(self, heading: _Optional[str] = ..., body: _Optional[str] = ..., items: _Optional[_Iterable[_Union[PresentationStoryItem, _Mapping]]] = ...) -> None: ...
 
 class PresentationProductDemo(_message.Message):
-    __slots__ = ("heading", "description", "renderer_ref", "fixture_ref", "poster_ref", "media_ref", "alt_text")
+    __slots__ = ("heading", "description", "renderer_ref", "fixture_ref", "poster_ref", "media_ref", "alt_text", "playback")
     HEADING_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     RENDERER_REF_FIELD_NUMBER: _ClassVar[int]
@@ -543,6 +543,7 @@ class PresentationProductDemo(_message.Message):
     POSTER_REF_FIELD_NUMBER: _ClassVar[int]
     MEDIA_REF_FIELD_NUMBER: _ClassVar[int]
     ALT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    PLAYBACK_FIELD_NUMBER: _ClassVar[int]
     heading: str
     description: str
     renderer_ref: str
@@ -550,7 +551,24 @@ class PresentationProductDemo(_message.Message):
     poster_ref: str
     media_ref: str
     alt_text: str
-    def __init__(self, heading: _Optional[str] = ..., description: _Optional[str] = ..., renderer_ref: _Optional[str] = ..., fixture_ref: _Optional[str] = ..., poster_ref: _Optional[str] = ..., media_ref: _Optional[str] = ..., alt_text: _Optional[str] = ...) -> None: ...
+    playback: PresentationPlayback
+    def __init__(self, heading: _Optional[str] = ..., description: _Optional[str] = ..., renderer_ref: _Optional[str] = ..., fixture_ref: _Optional[str] = ..., poster_ref: _Optional[str] = ..., media_ref: _Optional[str] = ..., alt_text: _Optional[str] = ..., playback: _Optional[_Union[PresentationPlayback, _Mapping]] = ...) -> None: ...
+
+class PresentationPlayback(_message.Message):
+    __slots__ = ("provider", "external_url", "layout", "play_label", "caption", "unavailable_label")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_URL_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_FIELD_NUMBER: _ClassVar[int]
+    PLAY_LABEL_FIELD_NUMBER: _ClassVar[int]
+    CAPTION_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_LABEL_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    external_url: str
+    layout: str
+    play_label: str
+    caption: str
+    unavailable_label: str
+    def __init__(self, provider: _Optional[str] = ..., external_url: _Optional[str] = ..., layout: _Optional[str] = ..., play_label: _Optional[str] = ..., caption: _Optional[str] = ..., unavailable_label: _Optional[str] = ...) -> None: ...
 
 class PresentationAppSpotlights(_message.Message):
     __slots__ = ("heading", "app_keys", "detail_link_label")
@@ -1095,7 +1113,7 @@ class ResolvedPresentationLegibility(_message.Message):
     def __init__(self, contrast_ratio: _Optional[float] = ..., minimum_contrast_ratio: _Optional[float] = ..., threshold: _Optional[float] = ..., verdict: _Optional[str] = ...) -> None: ...
 
 class PresentationDiagnostics(_message.Message):
-    __slots__ = ("requested_route", "resolved_route", "requested_variant", "resolved_variant", "requested_revision", "resolved_revision", "locale", "bundle_key", "app_key", "mode", "fallback", "fallback_reason", "preview", "noindex", "no_store", "eligible_app_keys", "block_digest", "asset_release_refs", "commerce_snapshot_ref")
+    __slots__ = ("requested_route", "resolved_route", "requested_variant", "resolved_variant", "requested_revision", "resolved_revision", "locale", "bundle_key", "app_key", "mode", "fallback", "fallback_reason", "preview", "noindex", "no_store", "eligible_app_keys", "block_digest", "asset_release_refs", "commerce_snapshot_ref", "weight_fingerprint", "assignment_source")
     REQUESTED_ROUTE_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_ROUTE_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_VARIANT_FIELD_NUMBER: _ClassVar[int]
@@ -1115,6 +1133,8 @@ class PresentationDiagnostics(_message.Message):
     BLOCK_DIGEST_FIELD_NUMBER: _ClassVar[int]
     ASSET_RELEASE_REFS_FIELD_NUMBER: _ClassVar[int]
     COMMERCE_SNAPSHOT_REF_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    ASSIGNMENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
     requested_route: str
     resolved_route: str
     requested_variant: str
@@ -1134,7 +1154,9 @@ class PresentationDiagnostics(_message.Message):
     block_digest: str
     asset_release_refs: _containers.RepeatedScalarFieldContainer[str]
     commerce_snapshot_ref: str
-    def __init__(self, requested_route: _Optional[str] = ..., resolved_route: _Optional[str] = ..., requested_variant: _Optional[str] = ..., resolved_variant: _Optional[str] = ..., requested_revision: _Optional[str] = ..., resolved_revision: _Optional[str] = ..., locale: _Optional[str] = ..., bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., mode: _Optional[str] = ..., fallback: _Optional[bool] = ..., fallback_reason: _Optional[str] = ..., preview: _Optional[bool] = ..., noindex: _Optional[bool] = ..., no_store: _Optional[bool] = ..., eligible_app_keys: _Optional[_Iterable[str]] = ..., block_digest: _Optional[str] = ..., asset_release_refs: _Optional[_Iterable[str]] = ..., commerce_snapshot_ref: _Optional[str] = ...) -> None: ...
+    weight_fingerprint: str
+    assignment_source: str
+    def __init__(self, requested_route: _Optional[str] = ..., resolved_route: _Optional[str] = ..., requested_variant: _Optional[str] = ..., resolved_variant: _Optional[str] = ..., requested_revision: _Optional[str] = ..., resolved_revision: _Optional[str] = ..., locale: _Optional[str] = ..., bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., mode: _Optional[str] = ..., fallback: _Optional[bool] = ..., fallback_reason: _Optional[str] = ..., preview: _Optional[bool] = ..., noindex: _Optional[bool] = ..., no_store: _Optional[bool] = ..., eligible_app_keys: _Optional[_Iterable[str]] = ..., block_digest: _Optional[str] = ..., asset_release_refs: _Optional[_Iterable[str]] = ..., commerce_snapshot_ref: _Optional[str] = ..., weight_fingerprint: _Optional[str] = ..., assignment_source: _Optional[str] = ...) -> None: ...
 
 class ResolvedPresentationAction(_message.Message):
     __slots__ = ("key", "status", "reason", "href", "app_key", "plan_ref")

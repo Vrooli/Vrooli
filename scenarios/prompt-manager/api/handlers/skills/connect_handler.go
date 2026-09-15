@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -180,37 +179,46 @@ func (h *connectHandler) CreateSkill(ctx context.Context, req *connect.Request[s
 }
 
 func (h *connectHandler) UpdateSkill(ctx context.Context, req *connect.Request[skillsv1.UpdateSkillRequest]) (*connect.Response[skillsv1.UpdateSkillResponse], error) {
-	payload := map[string]any{}
-	copyOptionalString(payload, "file", req.Msg.File)
-	copyOptionalString(payload, "name", req.Msg.Name)
-	copyOptionalString(payload, "description", req.Msg.Description)
-	copyOptionalString(payload, "content", req.Msg.Content)
+	update := domain.UpdateRequest{
+		File:                  req.Msg.File,
+		Name:                  req.Msg.Name,
+		Description:           req.Msg.Description,
+		Content:               req.Msg.Content,
+		Icon:                  req.Msg.Icon,
+		TargetToolID:          req.Msg.TargetToolId,
+		DefaultScope:          req.Msg.DefaultScope,
+		ProgrammaticHome:      req.Msg.ProgrammaticHome,
+		ClearProgrammaticHome: req.Msg.GetClearProgrammaticHome(),
+		Draft:                 req.Msg.Draft,
+		Folder:                req.Msg.Folder,
+	}
 	if req.Msg.GetReplaceModes() {
-		payload["modes"] = req.Msg.GetModes()
+		update.Modes = req.Msg.GetModes()
 	}
 	if req.Msg.GetReplaceTags() {
-		payload["tags"] = req.Msg.GetTags()
+		update.Tags = req.Msg.GetTags()
 	}
-	copyOptionalString(payload, "icon", req.Msg.Icon)
-	copyOptionalString(payload, "targetToolId", req.Msg.TargetToolId)
-	copyOptionalString(payload, "defaultScope", req.Msg.DefaultScope)
 	if req.Msg.GetReplaceTargetDimensions() {
-		payload["targetDimensions"] = req.Msg.GetTargetDimensions()
+		update.TargetDimensions = req.Msg.GetTargetDimensions()
 	}
-	copyOptionalString(payload, "programmaticHome", req.Msg.ProgrammaticHome)
-	if req.Msg.GetClearProgrammaticHome() {
-		payload["clearProgrammaticHome"] = true
-	}
-	if req.Msg.Draft != nil {
-		payload["draft"] = req.Msg.GetDraft()
-	}
-	copyOptionalString(payload, "folder", req.Msg.Folder)
-	result, err := transportbridge.Invoke(ctx, req.Header(), h.legacy.Update, http.MethodPut, "/skills/"+url.PathEscape(req.Msg.GetId()), payload, map[string]string{"id": req.Msg.GetId()})
+	result, err := h.legacy.UpdateSkill(ctx, req.Msg.GetId(), update)
 	if err != nil {
-		return nil, err
+		code := connect.CodeInternal
+		message := err.Error()
+		switch {
+		case message == "Skill not found":
+			code = connect.CodeNotFound
+		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills":
+			code = connect.CodePermissionDenied
+		case message == "Cannot move skill to non-writable folder" || strings.HasPrefix(message, "content removes existing template variables:") || strings.Contains(message, "invalid skill ID format"):
+			code = connect.CodeInvalidArgument
+		case strings.Contains(message, "already exists"):
+			code = connect.CodeAlreadyExists
+		}
+		return nil, connect.NewError(code, err)
 	}
 	out := &skillsv1.UpdateSkillResponse{}
-	if err := transportbridge.DecodeWrapped(result.Body, "skill", out); err != nil {
+	if err := decodeSkillJSON(map[string]any{"skill": result}, out); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(out), nil

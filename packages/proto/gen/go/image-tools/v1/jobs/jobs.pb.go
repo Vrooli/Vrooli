@@ -94,6 +94,8 @@ const (
 	JobLane_JOB_LANE_UNSPECIFIED JobLane = 0
 	JobLane_JOB_LANE_GPU         JobLane = 1
 	JobLane_JOB_LANE_CPU         JobLane = 2
+	// JOB_LANE_NETWORK carries remote-tier work on its own bounded pool.
+	JobLane_JOB_LANE_NETWORK JobLane = 3
 )
 
 // Enum value maps for JobLane.
@@ -102,11 +104,13 @@ var (
 		0: "JOB_LANE_UNSPECIFIED",
 		1: "JOB_LANE_GPU",
 		2: "JOB_LANE_CPU",
+		3: "JOB_LANE_NETWORK",
 	}
 	JobLane_value = map[string]int32{
 		"JOB_LANE_UNSPECIFIED": 0,
 		"JOB_LANE_GPU":         1,
 		"JOB_LANE_CPU":         2,
+		"JOB_LANE_NETWORK":     3,
 	}
 )
 
@@ -176,7 +180,15 @@ type Job struct {
 	// anywhere in the system. Present only on a succeeded job, and only for
 	// backends that report it: an empty map means "nobody reported", which is a
 	// different fact from a reported zero.
-	ResultMeta    map[string]string `protobuf:"bytes,13,rep,name=result_meta,json=resultMeta,proto3" json:"result_meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ResultMeta map[string]string `protobuf:"bytes,13,rep,name=result_meta,json=resultMeta,proto3" json:"result_meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// request echoes the parameters that produced the job, so a caller can tell
+	// which prompt/seed/role a result came from without the original submission.
+	// Populated from the stored payload.
+	Request *JobRequest `protobuf:"bytes,14,opt,name=request,proto3" json:"request,omitempty"`
+	// result_refs lists every output blob this job produced. result_ref stays the
+	// first entry for callers that only read one; a multi-variation run has one
+	// entry per variation.
+	ResultRefs    []string `protobuf:"bytes,15,rep,name=result_refs,json=resultRefs,proto3" json:"result_refs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -302,6 +314,153 @@ func (x *Job) GetResultMeta() map[string]string {
 	return nil
 }
 
+func (x *Job) GetRequest() *JobRequest {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *Job) GetResultRefs() []string {
+	if x != nil {
+		return x.ResultRefs
+	}
+	return nil
+}
+
+// JobRequest is the typed echo of the submitted request.
+type JobRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Operation      string                 `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
+	ModelId        string                 `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	Backend        string                 `protobuf:"bytes,3,opt,name=backend,proto3" json:"backend,omitempty"`
+	Tier           string                 `protobuf:"bytes,4,opt,name=tier,proto3" json:"tier,omitempty"`
+	Role           string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
+	Prompt         string                 `protobuf:"bytes,6,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	NegativePrompt string                 `protobuf:"bytes,7,opt,name=negative_prompt,json=negativePrompt,proto3" json:"negative_prompt,omitempty"`
+	Seed           int64                  `protobuf:"varint,8,opt,name=seed,proto3" json:"seed,omitempty"`
+	Width          int32                  `protobuf:"varint,9,opt,name=width,proto3" json:"width,omitempty"`
+	Height         int32                  `protobuf:"varint,10,opt,name=height,proto3" json:"height,omitempty"`
+	Variations     int32                  `protobuf:"varint,11,opt,name=variations,proto3" json:"variations,omitempty"`
+	Adapters       []string               `protobuf:"bytes,12,rep,name=adapters,proto3" json:"adapters,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *JobRequest) Reset() {
+	*x = JobRequest{}
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobRequest) ProtoMessage() {}
+
+func (x *JobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobRequest.ProtoReflect.Descriptor instead.
+func (*JobRequest) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *JobRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *JobRequest) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
+func (x *JobRequest) GetBackend() string {
+	if x != nil {
+		return x.Backend
+	}
+	return ""
+}
+
+func (x *JobRequest) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
+}
+
+func (x *JobRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *JobRequest) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *JobRequest) GetNegativePrompt() string {
+	if x != nil {
+		return x.NegativePrompt
+	}
+	return ""
+}
+
+func (x *JobRequest) GetSeed() int64 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+func (x *JobRequest) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *JobRequest) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *JobRequest) GetVariations() int32 {
+	if x != nil {
+		return x.Variations
+	}
+	return 0
+}
+
+func (x *JobRequest) GetAdapters() []string {
+	if x != nil {
+		return x.Adapters
+	}
+	return nil
+}
+
 // ProgressEvent is one progress update streamed by WatchJob.
 type ProgressEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -316,7 +475,7 @@ type ProgressEvent struct {
 
 func (x *ProgressEvent) Reset() {
 	*x = ProgressEvent{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[1]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -328,7 +487,7 @@ func (x *ProgressEvent) String() string {
 func (*ProgressEvent) ProtoMessage() {}
 
 func (x *ProgressEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[1]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +500,7 @@ func (x *ProgressEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressEvent.ProtoReflect.Descriptor instead.
 func (*ProgressEvent) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{1}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ProgressEvent) GetJobId() string {
@@ -388,7 +547,7 @@ type GetJobRequest struct {
 
 func (x *GetJobRequest) Reset() {
 	*x = GetJobRequest{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[2]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -400,7 +559,7 @@ func (x *GetJobRequest) String() string {
 func (*GetJobRequest) ProtoMessage() {}
 
 func (x *GetJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[2]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -413,7 +572,7 @@ func (x *GetJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobRequest.ProtoReflect.Descriptor instead.
 func (*GetJobRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{2}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetJobRequest) GetId() string {
@@ -432,7 +591,7 @@ type GetJobResponse struct {
 
 func (x *GetJobResponse) Reset() {
 	*x = GetJobResponse{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[3]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +603,7 @@ func (x *GetJobResponse) String() string {
 func (*GetJobResponse) ProtoMessage() {}
 
 func (x *GetJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[3]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +616,7 @@ func (x *GetJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobResponse.ProtoReflect.Descriptor instead.
 func (*GetJobResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{3}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetJobResponse) GetJob() *Job {
@@ -476,7 +635,7 @@ type WaitJobRequest struct {
 
 func (x *WaitJobRequest) Reset() {
 	*x = WaitJobRequest{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[4]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +647,7 @@ func (x *WaitJobRequest) String() string {
 func (*WaitJobRequest) ProtoMessage() {}
 
 func (x *WaitJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[4]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +660,7 @@ func (x *WaitJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitJobRequest.ProtoReflect.Descriptor instead.
 func (*WaitJobRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{4}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WaitJobRequest) GetId() string {
@@ -520,7 +679,7 @@ type WaitJobResponse struct {
 
 func (x *WaitJobResponse) Reset() {
 	*x = WaitJobResponse{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[5]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -532,7 +691,7 @@ func (x *WaitJobResponse) String() string {
 func (*WaitJobResponse) ProtoMessage() {}
 
 func (x *WaitJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[5]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -545,7 +704,7 @@ func (x *WaitJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitJobResponse.ProtoReflect.Descriptor instead.
 func (*WaitJobResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{5}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WaitJobResponse) GetJob() *Job {
@@ -566,7 +725,7 @@ type ListJobsRequest struct {
 
 func (x *ListJobsRequest) Reset() {
 	*x = ListJobsRequest{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[6]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +737,7 @@ func (x *ListJobsRequest) String() string {
 func (*ListJobsRequest) ProtoMessage() {}
 
 func (x *ListJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[6]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +750,7 @@ func (x *ListJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobsRequest.ProtoReflect.Descriptor instead.
 func (*ListJobsRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{6}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListJobsRequest) GetLimit() int32 {
@@ -610,7 +769,7 @@ type ListJobsResponse struct {
 
 func (x *ListJobsResponse) Reset() {
 	*x = ListJobsResponse{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[7]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +781,7 @@ func (x *ListJobsResponse) String() string {
 func (*ListJobsResponse) ProtoMessage() {}
 
 func (x *ListJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[7]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +794,7 @@ func (x *ListJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobsResponse.ProtoReflect.Descriptor instead.
 func (*ListJobsResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{7}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListJobsResponse) GetJobs() []*Job {
@@ -654,7 +813,7 @@ type CancelJobRequest struct {
 
 func (x *CancelJobRequest) Reset() {
 	*x = CancelJobRequest{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[8]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +825,7 @@ func (x *CancelJobRequest) String() string {
 func (*CancelJobRequest) ProtoMessage() {}
 
 func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[8]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +838,7 @@ func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobRequest.ProtoReflect.Descriptor instead.
 func (*CancelJobRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{8}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CancelJobRequest) GetId() string {
@@ -698,7 +857,7 @@ type CancelJobResponse struct {
 
 func (x *CancelJobResponse) Reset() {
 	*x = CancelJobResponse{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[9]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +869,7 @@ func (x *CancelJobResponse) String() string {
 func (*CancelJobResponse) ProtoMessage() {}
 
 func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[9]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +882,7 @@ func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobResponse.ProtoReflect.Descriptor instead.
 func (*CancelJobResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{9}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CancelJobResponse) GetJob() *Job {
@@ -742,7 +901,7 @@ type WatchJobRequest struct {
 
 func (x *WatchJobRequest) Reset() {
 	*x = WatchJobRequest{}
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[10]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +913,7 @@ func (x *WatchJobRequest) String() string {
 func (*WatchJobRequest) ProtoMessage() {}
 
 func (x *WatchJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[10]
+	mi := &file_image_tools_v1_jobs_jobs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +926,7 @@ func (x *WatchJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchJobRequest.ProtoReflect.Descriptor instead.
 func (*WatchJobRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{10}
+	return file_image_tools_v1_jobs_jobs_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WatchJobRequest) GetId() string {
@@ -781,7 +940,7 @@ var File_image_tools_v1_jobs_jobs_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x05\n" +
+	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe7\x05\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x127\n" +
@@ -801,10 +960,30 @@ const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\vfinished_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12P\n" +
 	"\vresult_meta\x18\r \x03(\v2/.vrooli.image_tools.v1.jobs.Job.ResultMetaEntryR\n" +
-	"resultMeta\x1a=\n" +
+	"resultMeta\x12@\n" +
+	"\arequest\x18\x0e \x01(\v2&.vrooli.image_tools.v1.jobs.JobRequestR\arequest\x12\x1f\n" +
+	"\vresult_refs\x18\x0f \x03(\tR\n" +
+	"resultRefs\x1a=\n" +
 	"\x0fResultMetaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc4\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc6\x02\n" +
+	"\n" +
+	"JobRequest\x12\x1c\n" +
+	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
+	"\bmodel_id\x18\x02 \x01(\tR\amodelId\x12\x18\n" +
+	"\abackend\x18\x03 \x01(\tR\abackend\x12\x12\n" +
+	"\x04tier\x18\x04 \x01(\tR\x04tier\x12\x12\n" +
+	"\x04role\x18\x05 \x01(\tR\x04role\x12\x16\n" +
+	"\x06prompt\x18\x06 \x01(\tR\x06prompt\x12'\n" +
+	"\x0fnegative_prompt\x18\a \x01(\tR\x0enegativePrompt\x12\x12\n" +
+	"\x04seed\x18\b \x01(\x03R\x04seed\x12\x14\n" +
+	"\x05width\x18\t \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\n" +
+	" \x01(\x05R\x06height\x12\x1e\n" +
+	"\n" +
+	"variations\x18\v \x01(\x05R\n" +
+	"variations\x12\x1a\n" +
+	"\badapters\x18\f \x03(\tR\badapters\"\xc4\x01\n" +
 	"\rProgressEvent\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12:\n" +
 	"\x05state\x18\x02 \x01(\x0e2$.vrooli.image_tools.v1.jobs.JobStateR\x05state\x12\x1a\n" +
@@ -835,11 +1014,12 @@ const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\x11JOB_STATE_RUNNING\x10\x02\x12\x17\n" +
 	"\x13JOB_STATE_SUCCEEDED\x10\x03\x12\x14\n" +
 	"\x10JOB_STATE_FAILED\x10\x04\x12\x16\n" +
-	"\x12JOB_STATE_CANCELED\x10\x05*G\n" +
+	"\x12JOB_STATE_CANCELED\x10\x05*]\n" +
 	"\aJobLane\x12\x18\n" +
 	"\x14JOB_LANE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fJOB_LANE_GPU\x10\x01\x12\x10\n" +
-	"\fJOB_LANE_CPU\x10\x022\x89\x04\n" +
+	"\fJOB_LANE_CPU\x10\x02\x12\x14\n" +
+	"\x10JOB_LANE_NETWORK\x10\x032\x89\x04\n" +
 	"\vJobsService\x12_\n" +
 	"\x06GetJob\x12).vrooli.image_tools.v1.jobs.GetJobRequest\x1a*.vrooli.image_tools.v1.jobs.GetJobResponse\x12b\n" +
 	"\aWaitJob\x12*.vrooli.image_tools.v1.jobs.WaitJobRequest\x1a+.vrooli.image_tools.v1.jobs.WaitJobResponse\x12e\n" +
@@ -860,52 +1040,54 @@ func file_image_tools_v1_jobs_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_image_tools_v1_jobs_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_image_tools_v1_jobs_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_image_tools_v1_jobs_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_image_tools_v1_jobs_jobs_proto_goTypes = []any{
 	(JobState)(0),                 // 0: vrooli.image_tools.v1.jobs.JobState
 	(JobLane)(0),                  // 1: vrooli.image_tools.v1.jobs.JobLane
 	(*Job)(nil),                   // 2: vrooli.image_tools.v1.jobs.Job
-	(*ProgressEvent)(nil),         // 3: vrooli.image_tools.v1.jobs.ProgressEvent
-	(*GetJobRequest)(nil),         // 4: vrooli.image_tools.v1.jobs.GetJobRequest
-	(*GetJobResponse)(nil),        // 5: vrooli.image_tools.v1.jobs.GetJobResponse
-	(*WaitJobRequest)(nil),        // 6: vrooli.image_tools.v1.jobs.WaitJobRequest
-	(*WaitJobResponse)(nil),       // 7: vrooli.image_tools.v1.jobs.WaitJobResponse
-	(*ListJobsRequest)(nil),       // 8: vrooli.image_tools.v1.jobs.ListJobsRequest
-	(*ListJobsResponse)(nil),      // 9: vrooli.image_tools.v1.jobs.ListJobsResponse
-	(*CancelJobRequest)(nil),      // 10: vrooli.image_tools.v1.jobs.CancelJobRequest
-	(*CancelJobResponse)(nil),     // 11: vrooli.image_tools.v1.jobs.CancelJobResponse
-	(*WatchJobRequest)(nil),       // 12: vrooli.image_tools.v1.jobs.WatchJobRequest
-	nil,                           // 13: vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(*JobRequest)(nil),            // 3: vrooli.image_tools.v1.jobs.JobRequest
+	(*ProgressEvent)(nil),         // 4: vrooli.image_tools.v1.jobs.ProgressEvent
+	(*GetJobRequest)(nil),         // 5: vrooli.image_tools.v1.jobs.GetJobRequest
+	(*GetJobResponse)(nil),        // 6: vrooli.image_tools.v1.jobs.GetJobResponse
+	(*WaitJobRequest)(nil),        // 7: vrooli.image_tools.v1.jobs.WaitJobRequest
+	(*WaitJobResponse)(nil),       // 8: vrooli.image_tools.v1.jobs.WaitJobResponse
+	(*ListJobsRequest)(nil),       // 9: vrooli.image_tools.v1.jobs.ListJobsRequest
+	(*ListJobsResponse)(nil),      // 10: vrooli.image_tools.v1.jobs.ListJobsResponse
+	(*CancelJobRequest)(nil),      // 11: vrooli.image_tools.v1.jobs.CancelJobRequest
+	(*CancelJobResponse)(nil),     // 12: vrooli.image_tools.v1.jobs.CancelJobResponse
+	(*WatchJobRequest)(nil),       // 13: vrooli.image_tools.v1.jobs.WatchJobRequest
+	nil,                           // 14: vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_image_tools_v1_jobs_jobs_proto_depIdxs = []int32{
 	1,  // 0: vrooli.image_tools.v1.jobs.Job.lane:type_name -> vrooli.image_tools.v1.jobs.JobLane
 	0,  // 1: vrooli.image_tools.v1.jobs.Job.state:type_name -> vrooli.image_tools.v1.jobs.JobState
-	14, // 2: vrooli.image_tools.v1.jobs.Job.created_at:type_name -> google.protobuf.Timestamp
-	14, // 3: vrooli.image_tools.v1.jobs.Job.started_at:type_name -> google.protobuf.Timestamp
-	14, // 4: vrooli.image_tools.v1.jobs.Job.finished_at:type_name -> google.protobuf.Timestamp
-	13, // 5: vrooli.image_tools.v1.jobs.Job.result_meta:type_name -> vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
-	0,  // 6: vrooli.image_tools.v1.jobs.ProgressEvent.state:type_name -> vrooli.image_tools.v1.jobs.JobState
-	14, // 7: vrooli.image_tools.v1.jobs.ProgressEvent.at:type_name -> google.protobuf.Timestamp
-	2,  // 8: vrooli.image_tools.v1.jobs.GetJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 9: vrooli.image_tools.v1.jobs.WaitJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 10: vrooli.image_tools.v1.jobs.ListJobsResponse.jobs:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 11: vrooli.image_tools.v1.jobs.CancelJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	4,  // 12: vrooli.image_tools.v1.jobs.JobsService.GetJob:input_type -> vrooli.image_tools.v1.jobs.GetJobRequest
-	6,  // 13: vrooli.image_tools.v1.jobs.JobsService.WaitJob:input_type -> vrooli.image_tools.v1.jobs.WaitJobRequest
-	8,  // 14: vrooli.image_tools.v1.jobs.JobsService.ListJobs:input_type -> vrooli.image_tools.v1.jobs.ListJobsRequest
-	10, // 15: vrooli.image_tools.v1.jobs.JobsService.CancelJob:input_type -> vrooli.image_tools.v1.jobs.CancelJobRequest
-	12, // 16: vrooli.image_tools.v1.jobs.JobsService.WatchJob:input_type -> vrooli.image_tools.v1.jobs.WatchJobRequest
-	5,  // 17: vrooli.image_tools.v1.jobs.JobsService.GetJob:output_type -> vrooli.image_tools.v1.jobs.GetJobResponse
-	7,  // 18: vrooli.image_tools.v1.jobs.JobsService.WaitJob:output_type -> vrooli.image_tools.v1.jobs.WaitJobResponse
-	9,  // 19: vrooli.image_tools.v1.jobs.JobsService.ListJobs:output_type -> vrooli.image_tools.v1.jobs.ListJobsResponse
-	11, // 20: vrooli.image_tools.v1.jobs.JobsService.CancelJob:output_type -> vrooli.image_tools.v1.jobs.CancelJobResponse
-	3,  // 21: vrooli.image_tools.v1.jobs.JobsService.WatchJob:output_type -> vrooli.image_tools.v1.jobs.ProgressEvent
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	15, // 2: vrooli.image_tools.v1.jobs.Job.created_at:type_name -> google.protobuf.Timestamp
+	15, // 3: vrooli.image_tools.v1.jobs.Job.started_at:type_name -> google.protobuf.Timestamp
+	15, // 4: vrooli.image_tools.v1.jobs.Job.finished_at:type_name -> google.protobuf.Timestamp
+	14, // 5: vrooli.image_tools.v1.jobs.Job.result_meta:type_name -> vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
+	3,  // 6: vrooli.image_tools.v1.jobs.Job.request:type_name -> vrooli.image_tools.v1.jobs.JobRequest
+	0,  // 7: vrooli.image_tools.v1.jobs.ProgressEvent.state:type_name -> vrooli.image_tools.v1.jobs.JobState
+	15, // 8: vrooli.image_tools.v1.jobs.ProgressEvent.at:type_name -> google.protobuf.Timestamp
+	2,  // 9: vrooli.image_tools.v1.jobs.GetJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 10: vrooli.image_tools.v1.jobs.WaitJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 11: vrooli.image_tools.v1.jobs.ListJobsResponse.jobs:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 12: vrooli.image_tools.v1.jobs.CancelJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	5,  // 13: vrooli.image_tools.v1.jobs.JobsService.GetJob:input_type -> vrooli.image_tools.v1.jobs.GetJobRequest
+	7,  // 14: vrooli.image_tools.v1.jobs.JobsService.WaitJob:input_type -> vrooli.image_tools.v1.jobs.WaitJobRequest
+	9,  // 15: vrooli.image_tools.v1.jobs.JobsService.ListJobs:input_type -> vrooli.image_tools.v1.jobs.ListJobsRequest
+	11, // 16: vrooli.image_tools.v1.jobs.JobsService.CancelJob:input_type -> vrooli.image_tools.v1.jobs.CancelJobRequest
+	13, // 17: vrooli.image_tools.v1.jobs.JobsService.WatchJob:input_type -> vrooli.image_tools.v1.jobs.WatchJobRequest
+	6,  // 18: vrooli.image_tools.v1.jobs.JobsService.GetJob:output_type -> vrooli.image_tools.v1.jobs.GetJobResponse
+	8,  // 19: vrooli.image_tools.v1.jobs.JobsService.WaitJob:output_type -> vrooli.image_tools.v1.jobs.WaitJobResponse
+	10, // 20: vrooli.image_tools.v1.jobs.JobsService.ListJobs:output_type -> vrooli.image_tools.v1.jobs.ListJobsResponse
+	12, // 21: vrooli.image_tools.v1.jobs.JobsService.CancelJob:output_type -> vrooli.image_tools.v1.jobs.CancelJobResponse
+	4,  // 22: vrooli.image_tools.v1.jobs.JobsService.WatchJob:output_type -> vrooli.image_tools.v1.jobs.ProgressEvent
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_jobs_jobs_proto_init() }
@@ -919,7 +1101,7 @@ func file_image_tools_v1_jobs_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_jobs_jobs_proto_rawDesc), len(file_image_tools_v1_jobs_jobs_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

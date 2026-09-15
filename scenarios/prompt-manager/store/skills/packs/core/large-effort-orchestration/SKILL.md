@@ -25,7 +25,7 @@ Turn a large request into a finite, recoverable effort without losing its intent
 
 This skill owns cross-round judgment, source preservation, and recovery policy. Plan Manager owns implementation plans and family admission. Agent Manager owns runs and supervision. Swarm Manager owns its work and grants when selected. The effort workspace joins those owners; it does not replace them.
 
-Use two agent responsibilities: planners own outcomes and decomposition; workers deliver bounded assignments. A planner may delegate a narrower planning branch. Keep process monitoring, dispatch admission, timers and retry accounting in deterministic owner code. A planning tree does not replace that runtime supervision tree.
+Use two agent responsibilities: planners own outcomes and decomposition; workers deliver bounded assignments. A planner may delegate a narrower planning branch. A finite team roster does not limit the coordinator's child-run capacity: an empty org beyond the coordinator still requires direct Agent Manager child delegation for bounded delivery. Keep process monitoring, dispatch admission, timers and retry accounting in deterministic owner code. A planning tree does not replace that runtime supervision tree.
 
 Choose each assignment's shape with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" and write the assignment with `prompt-manager skill read harness-goal-authoring`. Read `prompt-manager skill read implementation-plan-authoring plan-family-orchestration` when creating plans or a family. Read `prompt-manager skill read agent-manager-plan-family-supervision program-runtime` before managed dispatch. For an approved scenario improvement mandate, use `scenario-improvement-campaign` and the scenario's improve skill inside that mandate.
 
@@ -50,7 +50,7 @@ Entry: the user supplies a large outcome or an existing effort reference.
 1. Create or resume one finite delivery team and one protected effort workspace. Record purpose, finite lifetime, mission, exact effort reference, leader, operating contract, serialized execution policy and acceptance revision. Team metadata describes coordination; it does not grant authority.
 2. Register or verify the team's Source Ledger scope. Persist the coordinator goal and source references in the effort workspace; keep the workspace a recoverable index, never a second owner ledger.
 3. Qualify the exact team, runner, profile, model, owner route and recovery behavior with a disposable finite fixture. The fixture must exercise registration, contract validation, a disabled finite-leader binding, one controlled owner admission, identity/receipt reconciliation, lifecycle transitions and explicit recurrence/recovery limits.
-4. Provision the finite-leader binding disabled with exact effort, accepted revision, coordinator prompt and source references. A binding is not an execution grant. Request execution approval only after qualification evidence is reviewed; staging or a successful configuration read is not approval.
+4. Provision the finite-leader binding disabled with exact effort, accepted revision, coordinator prompt and source references. Obtain one explicit operator activation for that exact effort revision, then enable the finite team. An enabled binding is an ongoing execution mandate inside the accepted destination; it is not permission to expand scope. Do not insert a second approval gate for ordinary in-boundary implementation, UX, documentation, validation or handoff work.
 5. When approved, enable only the finite team and its qualified member, admit the first run through the governed team execution route, and reconcile the PM admission identity with the Agent Manager task/run and handoff. Keep the UX effort inactive until this sequence and its approval gate are complete.
 
 The finite team's operating contract is the coordinator's recovery handoff. Team registration, heartbeat provisioning, owner-run admission, continuation authority and accepted completion are separate states. A completed run is not accepted work; an explicit revision-checked completion receipt is required. Recurring continuation and fresh-run recovery are separate gates: a heartbeat tick may observe a retained owner wait or recovery condition, but it cannot invent a continuation edge, replacement run, grant or approval. Uncertain dispatch retains its exact identity until the owner reconciles it; it never authorizes a speculative retry.
@@ -112,19 +112,20 @@ Exit: each requirement is covered, deferred by an explicit user decision, or vis
 
 Entry: execution is authorized and the selected route is qualified.
 
-Use Swarm's declared workflow when it represents the effort's authority and
-autonomous continuation correctly. Otherwise select the authorized Agent
-Manager family/workflow route. If Swarm is unavailable, follow the qualified
-fallback in `references/recovery.md`; retain the original work identity,
-authority, scope, acceptance, budget and result contract. If the current Swarm
-implementation requires human approval only because it lacks an autonomous
-execution path for an assignment that is already explicitly authorized, use a
-qualified direct Agent Manager or harness route and record the missing Swarm
-receipt and reduced guarantees. If the effect genuinely requires a Swarm-owned
-grant—such as new scope, production access, paid spend, private data or an
-unapproved decision—pause that effect. Do not change a global autonomy setting
-to automate one effort. Preserve any owner-required human disposition
-separately from automatic evidence assessment.
+For autonomous delivery, use the qualified Agent Manager family/workflow route
+or direct child-run delegation as the default. The coordinator must spawn and
+manage bounded child agents, retain their parent/child identities, and advance
+the accepted effort without a human response. Swarm Manager is not the delivery
+runtime and must not be used to create backlog items, open a Plan Workshop,
+await human plan acceptance, or queue implementation for an already-authorized
+effort. Use Swarm only when the selected effect genuinely requires a
+Swarm-owned grant or disposition—such as new scope, production access, paid
+spend, private data or an unapproved decision. If a plan-shaped assignment
+needs Plan Manager, invoke its autonomous owner route directly; a missing plan
+is an agent responsibility to author through that route, not a reason to stop
+for a human. If the selected owner route is unavailable, use the qualified
+direct Agent Manager fallback and record the reduced guarantee; do not convert
+delivery into a human-in-the-loop backlog workflow.
 
 Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
 

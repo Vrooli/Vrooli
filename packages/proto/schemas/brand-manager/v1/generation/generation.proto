@@ -43,9 +43,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manage
 //     when set_canonical is true, OR automatically the first time a kind has no
 //     canonical yet — so a brand's first logo is usable immediately while an
 //     existing user logo is never silently overwritten.
-//   - DeriveBrandIcons is deterministic (resize/flatten via image-tools' ops
-//     domain), so its outputs use stable canonical icon filenames and re-running
-//     is idempotent (byte-identical).
 //
 // Idempotency / safety re-expressed Connect-native:
 //   - GenerateBrandElements applies generated facets via the brands domain's
@@ -72,7 +69,6 @@ service GenerationService {
   rpc GenerateBrandImage(GenerateBrandImageRequest) returns (BrandImageAsset);
   rpc EditBrandImage(EditBrandImageRequest) returns (BrandImageAsset);
   rpc RemoveBrandImageBackground(RemoveBrandImageBackgroundRequest) returns (BrandImageAsset);
-  rpc DeriveBrandIcons(DeriveBrandIconsRequest) returns (DeriveBrandIconsResponse);
 }
 
 // =============================================================================
@@ -298,34 +294,4 @@ message RemoveBrandImageBackgroundRequest {
   // Optional. Also write the transparent result as the canonical
   // "logo-transparent.png".
   bool set_canonical = 5;
-}
-
-// DeriveBrandIconsRequest produces a deterministic set of platform icon variants
-// from a source brand asset. Derivation uses image-tools' deterministic ops
-// (resize + solid-background flatten), NOT a model, so it is reproducible and
-// idempotent. The transparent mark is the preferred source for solid-background
-// variants; a transparent source is composited onto a brand-color background for
-// Apple-touch and maskable launcher icons, while favicons keep transparency.
-message DeriveBrandIconsRequest {
-  // Required. Must reference an existing brand.
-  string brand_id = 1;
-  // Required. The source asset (typically the transparent logo) to derive from.
-  string source_asset_id = 2;
-  // When NO include_* flag is set, every variant family is produced. When any is
-  // set, only the selected families are emitted.
-  // include_maskable: maskable launcher icons (192/512, solid brand-color bg).
-  bool include_maskable = 3;
-  // include_apple_touch: an opaque Apple-touch icon (180, solid background).
-  bool include_apple_touch = 4;
-  // include_favicon: transparent favicon PNGs (16/32/196).
-  bool include_favicon = 5;
-}
-
-// DeriveBrandIconsResponse returns each derived icon asset.
-message DeriveBrandIconsResponse {
-  // The derived icon assets (canonical filenames), in a stable order.
-  repeated BrandImageAsset icons = 1;
-  // Non-fatal cautions (e.g. a requested variant skipped because the source was
-  // too small).
-  repeated string warnings = 2;
 }

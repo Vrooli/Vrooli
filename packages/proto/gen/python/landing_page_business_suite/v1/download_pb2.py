@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from landing_page_business_suite.v1.shared import downloads_pb2 as landing__page__business__suite_dot_v1_dot_shared_dot_downloads__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-landing-page-business-suite/v1/download.proto\x12\x1elanding_page_business_suite.v1\x1a\x35landing-page-business-suite/v1/shared/downloads.proto\"H\n\x18\x41uthorizeDownloadRequest\x12\x10\n\x03\x61pp\x18\x01 \x01(\tR\x03\x61pp\x12\x1a\n\x08platform\x18\x02 \x01(\tR\x08platform\"n\n\x19\x41uthorizeDownloadResponse\x12Q\n\x05\x61sset\x18\x01 \x01(\x0b\x32;.vrooli.landing_page_business_suite.v1.shared.DownloadAssetR\x05\x61sset\"\x19\n\x17ListDownloadAppsRequest\"i\n\x18ListDownloadAppsResponse\x12M\n\x04\x61pps\x18\x01 \x03(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x04\x61pps\"~\n\x16SaveDownloadAppRequest\x12\x17\n\x07\x61pp_key\x18\x01 \x01(\tR\x06\x61ppKey\x12K\n\x03\x61pp\x18\x02 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"g\n\x18\x43reateDownloadAppRequest\x12K\n\x03\x61pp\x18\x01 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"b\n\x13\x44ownloadAppResponse\x12K\n\x03\x61pp\x18\x01 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"3\n\x18\x44\x65leteDownloadAppRequest\x12\x17\n\x07\x61pp_key\x18\x01 \x01(\tR\x06\x61ppKey\"\x1b\n\x19\x44\x65leteDownloadAppResponse2\xb4\x05\n\x0f\x44ownloadService\x12\x88\x01\n\x11\x41uthorizeDownload\x12\x38.landing_page_business_suite.v1.AuthorizeDownloadRequest\x1a\x39.landing_page_business_suite.v1.AuthorizeDownloadResponse\x12\x85\x01\n\x10ListDownloadApps\x12\x37.landing_page_business_suite.v1.ListDownloadAppsRequest\x1a\x38.landing_page_business_suite.v1.ListDownloadAppsResponse\x12\x82\x01\n\x11\x43reateDownloadApp\x12\x38.landing_page_business_suite.v1.CreateDownloadAppRequest\x1a\x33.landing_page_business_suite.v1.DownloadAppResponse\x12~\n\x0fSaveDownloadApp\x12\x36.landing_page_business_suite.v1.SaveDownloadAppRequest\x1a\x33.landing_page_business_suite.v1.DownloadAppResponse\x12\x88\x01\n\x11\x44\x65leteDownloadApp\x12\x38.landing_page_business_suite.v1.DeleteDownloadAppRequest\x1a\x39.landing_page_business_suite.v1.DeleteDownloadAppResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-landing-page-business-suite/v1/download.proto\x12\x1elanding_page_business_suite.v1\x1a\x35landing-page-business-suite/v1/shared/downloads.proto\"u\n\x18\x41uthorizeDownloadRequest\x12\x10\n\x03\x61pp\x18\x01 \x01(\tR\x03\x61pp\x12\x1a\n\x08platform\x18\x02 \x01(\tR\x08platform\x12\x1e\n\x08\x61sset_id\x18\x03 \x01(\x03H\x00R\x07\x61ssetId\x88\x01\x01\x42\x0b\n\t_asset_id\"n\n\x19\x41uthorizeDownloadResponse\x12Q\n\x05\x61sset\x18\x01 \x01(\x0b\x32;.vrooli.landing_page_business_suite.v1.shared.DownloadAssetR\x05\x61sset\"\x19\n\x17ListDownloadAppsRequest\"i\n\x18ListDownloadAppsResponse\x12M\n\x04\x61pps\x18\x01 \x03(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x04\x61pps\"~\n\x16SaveDownloadAppRequest\x12\x17\n\x07\x61pp_key\x18\x01 \x01(\tR\x06\x61ppKey\x12K\n\x03\x61pp\x18\x02 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"g\n\x18\x43reateDownloadAppRequest\x12K\n\x03\x61pp\x18\x01 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"b\n\x13\x44ownloadAppResponse\x12K\n\x03\x61pp\x18\x01 \x01(\x0b\x32\x39.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03\x61pp\"3\n\x18\x44\x65leteDownloadAppRequest\x12\x17\n\x07\x61pp_key\x18\x01 \x01(\tR\x06\x61ppKey\"\x1b\n\x19\x44\x65leteDownloadAppResponse2\xb4\x05\n\x0f\x44ownloadService\x12\x88\x01\n\x11\x41uthorizeDownload\x12\x38.landing_page_business_suite.v1.AuthorizeDownloadRequest\x1a\x39.landing_page_business_suite.v1.AuthorizeDownloadResponse\x12\x85\x01\n\x10ListDownloadApps\x12\x37.landing_page_business_suite.v1.ListDownloadAppsRequest\x1a\x38.landing_page_business_suite.v1.ListDownloadAppsResponse\x12\x82\x01\n\x11\x43reateDownloadApp\x12\x38.landing_page_business_suite.v1.CreateDownloadAppRequest\x1a\x33.landing_page_business_suite.v1.DownloadAppResponse\x12~\n\x0fSaveDownloadApp\x12\x36.landing_page_business_suite.v1.SaveDownloadAppRequest\x1a\x33.landing_page_business_suite.v1.DownloadAppResponse\x12\x88\x01\n\x11\x44\x65leteDownloadApp\x12\x38.landing_page_business_suite.v1.DeleteDownloadAppRequest\x1a\x39.landing_page_business_suite.v1.DeleteDownloadAppResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,23 +34,23 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1'
   _globals['_AUTHORIZEDOWNLOADREQUEST']._serialized_start=136
-  _globals['_AUTHORIZEDOWNLOADREQUEST']._serialized_end=208
-  _globals['_AUTHORIZEDOWNLOADRESPONSE']._serialized_start=210
-  _globals['_AUTHORIZEDOWNLOADRESPONSE']._serialized_end=320
-  _globals['_LISTDOWNLOADAPPSREQUEST']._serialized_start=322
-  _globals['_LISTDOWNLOADAPPSREQUEST']._serialized_end=347
-  _globals['_LISTDOWNLOADAPPSRESPONSE']._serialized_start=349
-  _globals['_LISTDOWNLOADAPPSRESPONSE']._serialized_end=454
-  _globals['_SAVEDOWNLOADAPPREQUEST']._serialized_start=456
-  _globals['_SAVEDOWNLOADAPPREQUEST']._serialized_end=582
-  _globals['_CREATEDOWNLOADAPPREQUEST']._serialized_start=584
-  _globals['_CREATEDOWNLOADAPPREQUEST']._serialized_end=687
-  _globals['_DOWNLOADAPPRESPONSE']._serialized_start=689
-  _globals['_DOWNLOADAPPRESPONSE']._serialized_end=787
-  _globals['_DELETEDOWNLOADAPPREQUEST']._serialized_start=789
-  _globals['_DELETEDOWNLOADAPPREQUEST']._serialized_end=840
-  _globals['_DELETEDOWNLOADAPPRESPONSE']._serialized_start=842
-  _globals['_DELETEDOWNLOADAPPRESPONSE']._serialized_end=869
-  _globals['_DOWNLOADSERVICE']._serialized_start=872
-  _globals['_DOWNLOADSERVICE']._serialized_end=1564
+  _globals['_AUTHORIZEDOWNLOADREQUEST']._serialized_end=253
+  _globals['_AUTHORIZEDOWNLOADRESPONSE']._serialized_start=255
+  _globals['_AUTHORIZEDOWNLOADRESPONSE']._serialized_end=365
+  _globals['_LISTDOWNLOADAPPSREQUEST']._serialized_start=367
+  _globals['_LISTDOWNLOADAPPSREQUEST']._serialized_end=392
+  _globals['_LISTDOWNLOADAPPSRESPONSE']._serialized_start=394
+  _globals['_LISTDOWNLOADAPPSRESPONSE']._serialized_end=499
+  _globals['_SAVEDOWNLOADAPPREQUEST']._serialized_start=501
+  _globals['_SAVEDOWNLOADAPPREQUEST']._serialized_end=627
+  _globals['_CREATEDOWNLOADAPPREQUEST']._serialized_start=629
+  _globals['_CREATEDOWNLOADAPPREQUEST']._serialized_end=732
+  _globals['_DOWNLOADAPPRESPONSE']._serialized_start=734
+  _globals['_DOWNLOADAPPRESPONSE']._serialized_end=832
+  _globals['_DELETEDOWNLOADAPPREQUEST']._serialized_start=834
+  _globals['_DELETEDOWNLOADAPPREQUEST']._serialized_end=885
+  _globals['_DELETEDOWNLOADAPPRESPONSE']._serialized_start=887
+  _globals['_DELETEDOWNLOADAPPRESPONSE']._serialized_end=914
+  _globals['_DOWNLOADSERVICE']._serialized_start=917
+  _globals['_DOWNLOADSERVICE']._serialized_end=1609
 # @@protoc_insertion_point(module_scope)

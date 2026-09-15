@@ -93,6 +93,26 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		}
 	}()
 	if !run.Status.LivenessPolicy().ExpectsProcess {
+		if run.RunnerPID > 0 || run.RunnerPGID > 0 {
+			// Terminal rows may retain historical process identity from a crash
+			// that happened after finalization. Do not let that stale identity
+			// keep lifecycle admission unknown, but never clear it while the
+			// exact tagged executor is still alive.
+			if r.isProcessAlive(ctx, run) {
+				return nil, fmt.Errorf("terminal run retains a live executor")
+			}
+			if clearer, ok := r.runs.(repository.RunRecoveryProcessIdentityClearer); ok {
+				cleared, err := clearer.ClearTerminalRunnerProcessIdentity(ctx, run.ID, run.LifecycleVersion, run.OwnerEpoch, int64(run.RunnerPID), int64(run.RunnerPGID))
+				if err != nil {
+					return nil, err
+				}
+				if cleared && r.events != nil {
+					if err := r.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "terminal_runner_identity_retired", fmt.Sprintf("retired absent runner pid=%d pgid=%d during recovery", run.RunnerPID, run.RunnerPGID))); err != nil {
+						r.log().Warn("terminal runner identity event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+					}
+				}
+			}
+		}
 		return &RecoverResult{Run: run, Idempotent: true, Message: "run no longer expects an executor"}, nil
 	}
 	// Interactive runs use a parallel recovery path: liveness is the web-console
@@ -198,7 +218,16 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 
 func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
 	now := r.now()
-	run.Status = domain.RunStatusFailed
+	// A dead executor without a terminal transcript is not evidence of an
+	// ordinary provider failure. Preserve the run as a resumable interruption
+	// so an operator/supervisor can reconcile the missing boundary and continue
+	// the same session. This is deliberately distinct from a terminal failure:
+	// the transcript may contain accepted progress or an external effect whose
+	// outcome was not observed by Agent Manager.
+	run.Status = domain.RunStatusNeedsReview
+	run.TerminalClass = domain.RunTerminalClassInterruption
+	run.StopReason = domain.RunStopReasonCrash
+	run.LastHandoff = message
 	run.ErrorMsg = message
 	run.EndedAt = &now
 	run.UpdatedAt = now
@@ -374,7 +403,18 @@ func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, tran
 	}
 	r.tailerOwners[run.ID] = ctx
 	attachedAt := r.now().UTC()
-	attached, err := attacher.AttachRecovery(ownerCtx, run.ID, run.LifecycleVersion, attachedAt)
+	var attached bool
+	var err error
+	if claimer, ok := r.runs.(repository.RunRecoveryOwnerClaimer); ok {
+		var epoch int64
+		epoch, attached, err = claimer.ClaimRecoveryOwnership(ownerCtx, run.ID, run.LifecycleVersion, r.ownerIdentity, attachedAt)
+		if err == nil && attached {
+			run.OwnerIdentity = r.ownerIdentity
+			run.OwnerEpoch = epoch
+		}
+	} else {
+		attached, err = attacher.AttachRecovery(ownerCtx, run.ID, run.LifecycleVersion, attachedAt)
+	}
 	if err != nil || !attached {
 		cancel()
 		delete(r.tailers, run.ID)

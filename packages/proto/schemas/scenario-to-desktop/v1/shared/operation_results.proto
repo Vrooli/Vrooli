@@ -106,6 +106,13 @@ message EvidenceReview {
   optional string readiness = 12;
   optional string fallback_decision = 13;
   optional string safe_route_class = 14;
+  optional CapabilitySelection capability_selection = 15;
+}
+
+message CapabilitySelection {
+  string capability = 1;
+  string reason = 2;
+  repeated string skipped = 3;
 }
 
 message PerformancePhase {

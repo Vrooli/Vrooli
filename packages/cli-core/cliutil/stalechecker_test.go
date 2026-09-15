@@ -36,6 +36,18 @@ func TestStaleCheckerSkipsWhenFingerprintUnknown(t *testing.T) {
 	}
 }
 
+func TestStaleCheckerSkipsInArtifactMode(t *testing.T) {
+	t.Setenv(artifactModeEnvVar, "1")
+	checker := NewStaleChecker("demo", "old", "ts", t.TempDir())
+	checker.FingerprintFunc = func(FreshnessSpec) (string, error) {
+		t.Fatal("artifact mode must not inspect or rebuild from source")
+		return "", errors.New("unreachable")
+	}
+	if checker.CheckAndMaybeRebuild() {
+		t.Fatal("artifact mode must not restart")
+	}
+}
+
 func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 	temp := t.TempDir()
 	repoRoot := temp

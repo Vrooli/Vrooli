@@ -439,15 +439,7 @@ func (s *Service) vacuumTo(ctx context.Context, target int64, budget time.Durati
 		held := s.opts.Clock()
 		// incremental_vacuum emits one result row per page moved; a caller
 		// that does not step every row returns a single page.
-		rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pages))
-		if err != nil {
-			return returned, fmt.Errorf("incremental vacuum: %w", err)
-		}
-		for rows.Next() {
-		}
-		err = rows.Err()
-		_ = rows.Close()
-		if err != nil {
+		if err := incrementalVacuum(ctx, db, pages); err != nil {
 			return returned, fmt.Errorf("incremental vacuum: %w", err)
 		}
 		if target := policy.BatchHoldTarget; target > 0 {
@@ -800,6 +792,21 @@ func quickCheck(ctx context.Context, conn *sql.Conn) (string, error) {
 		return "", err
 	}
 	return strings.Join(lines, "; "), nil
+}
+
+// incrementalVacuum steps every result and releases the cursor before the
+// caller starts its next bounded vacuum batch. Keeping the query and its close
+// in one helper makes the resource lifetime explicit to both reviewers and
+// static persistence-hygiene checks.
+func incrementalVacuum(ctx context.Context, db *sql.DB, pages int64) error {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pages))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+	}
+	return rows.Err()
 }
 
 func autoVacuumName(mode int64) string {

@@ -37,6 +37,8 @@ const (
 	PipelineServiceRunProcedure = "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Run"
 	// PipelineServiceGetProcedure is the fully-qualified name of the PipelineService's Get RPC.
 	PipelineServiceGetProcedure = "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Get"
+	// PipelineServiceWaitProcedure is the fully-qualified name of the PipelineService's Wait RPC.
+	PipelineServiceWaitProcedure = "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Wait"
 	// PipelineServiceGetReleaseGateProcedure is the fully-qualified name of the PipelineService's
 	// GetReleaseGate RPC.
 	PipelineServiceGetReleaseGateProcedure = "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/GetReleaseGate"
@@ -71,6 +73,7 @@ const (
 type PipelineServiceClient interface {
 	Run(context.Context, *connect.Request[pipeline.PipelineRunRequest]) (*connect.Response[pipeline.PipelineRunResponse], error)
 	Get(context.Context, *connect.Request[pipeline.PipelineGetRequest]) (*connect.Response[pipeline.PipelineStatus], error)
+	Wait(context.Context, *connect.Request[pipeline.PipelineWaitRequest]) (*connect.Response[pipeline.PipelineStatus], error)
 	// GetReleaseGate returns the deployment approval state for a pipeline.
 	// It is intentionally separate from Get: callers use it to make an
 	// approval decision, rather than to render general pipeline progress.
@@ -108,6 +111,12 @@ func NewPipelineServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+PipelineServiceGetProcedure,
 			connect.WithSchema(pipelineServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+		wait: connect.NewClient[pipeline.PipelineWaitRequest, pipeline.PipelineStatus](
+			httpClient,
+			baseURL+PipelineServiceWaitProcedure,
+			connect.WithSchema(pipelineServiceMethods.ByName("Wait")),
 			connect.WithClientOptions(opts...),
 		),
 		getReleaseGate: connect.NewClient[pipeline.PipelineGetRequest, pipeline.PipelineStatus](
@@ -177,6 +186,7 @@ func NewPipelineServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type pipelineServiceClient struct {
 	run            *connect.Client[pipeline.PipelineRunRequest, pipeline.PipelineRunResponse]
 	get            *connect.Client[pipeline.PipelineGetRequest, pipeline.PipelineStatus]
+	wait           *connect.Client[pipeline.PipelineWaitRequest, pipeline.PipelineStatus]
 	getReleaseGate *connect.Client[pipeline.PipelineGetRequest, pipeline.PipelineStatus]
 	resume         *connect.Client[pipeline.PipelineResumeRequest, pipeline.PipelineResumeResponse]
 	cancel         *connect.Client[pipeline.PipelineCancelRequest, pipeline.PipelineCancelResponse]
@@ -197,6 +207,11 @@ func (c *pipelineServiceClient) Run(ctx context.Context, req *connect.Request[pi
 // Get calls vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get.
 func (c *pipelineServiceClient) Get(ctx context.Context, req *connect.Request[pipeline.PipelineGetRequest]) (*connect.Response[pipeline.PipelineStatus], error) {
 	return c.get.CallUnary(ctx, req)
+}
+
+// Wait calls vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Wait.
+func (c *pipelineServiceClient) Wait(ctx context.Context, req *connect.Request[pipeline.PipelineWaitRequest]) (*connect.Response[pipeline.PipelineStatus], error) {
+	return c.wait.CallUnary(ctx, req)
 }
 
 // GetReleaseGate calls vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate.
@@ -254,6 +269,7 @@ func (c *pipelineServiceClient) CleanBundle(ctx context.Context, req *connect.Re
 type PipelineServiceHandler interface {
 	Run(context.Context, *connect.Request[pipeline.PipelineRunRequest]) (*connect.Response[pipeline.PipelineRunResponse], error)
 	Get(context.Context, *connect.Request[pipeline.PipelineGetRequest]) (*connect.Response[pipeline.PipelineStatus], error)
+	Wait(context.Context, *connect.Request[pipeline.PipelineWaitRequest]) (*connect.Response[pipeline.PipelineStatus], error)
 	// GetReleaseGate returns the deployment approval state for a pipeline.
 	// It is intentionally separate from Get: callers use it to make an
 	// approval decision, rather than to render general pipeline progress.
@@ -286,6 +302,12 @@ func NewPipelineServiceHandler(svc PipelineServiceHandler, opts ...connect.Handl
 		PipelineServiceGetProcedure,
 		svc.Get,
 		connect.WithSchema(pipelineServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	pipelineServiceWaitHandler := connect.NewUnaryHandler(
+		PipelineServiceWaitProcedure,
+		svc.Wait,
+		connect.WithSchema(pipelineServiceMethods.ByName("Wait")),
 		connect.WithHandlerOptions(opts...),
 	)
 	pipelineServiceGetReleaseGateHandler := connect.NewUnaryHandler(
@@ -354,6 +376,8 @@ func NewPipelineServiceHandler(svc PipelineServiceHandler, opts ...connect.Handl
 			pipelineServiceRunHandler.ServeHTTP(w, r)
 		case PipelineServiceGetProcedure:
 			pipelineServiceGetHandler.ServeHTTP(w, r)
+		case PipelineServiceWaitProcedure:
+			pipelineServiceWaitHandler.ServeHTTP(w, r)
 		case PipelineServiceGetReleaseGateProcedure:
 			pipelineServiceGetReleaseGateHandler.ServeHTTP(w, r)
 		case PipelineServiceResumeProcedure:
@@ -389,6 +413,10 @@ func (UnimplementedPipelineServiceHandler) Run(context.Context, *connect.Request
 
 func (UnimplementedPipelineServiceHandler) Get(context.Context, *connect.Request[pipeline.PipelineGetRequest]) (*connect.Response[pipeline.PipelineStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get is not implemented"))
+}
+
+func (UnimplementedPipelineServiceHandler) Wait(context.Context, *connect.Request[pipeline.PipelineWaitRequest]) (*connect.Response[pipeline.PipelineStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Wait is not implemented"))
 }
 
 func (UnimplementedPipelineServiceHandler) GetReleaseGate(context.Context, *connect.Request[pipeline.PipelineGetRequest]) (*connect.Response[pipeline.PipelineStatus], error) {

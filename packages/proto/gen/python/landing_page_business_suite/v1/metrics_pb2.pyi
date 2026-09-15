@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from landing_page_business_suite.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -21,6 +22,7 @@ class TrafficDimension(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DEVICE_CLASS: _ClassVar[TrafficDimension]
     LANDING_PATH: _ClassVar[TrafficDimension]
     VARIANT: _ClassVar[TrafficDimension]
+    UTM_MEDIUM: _ClassVar[TrafficDimension]
 TRAFFIC_DIMENSION_UNSPECIFIED: TrafficDimension
 COUNTRY: TrafficDimension
 REFERRER_KIND: TrafficDimension
@@ -29,9 +31,10 @@ UTM_CAMPAIGN: TrafficDimension
 DEVICE_CLASS: TrafficDimension
 LANDING_PATH: TrafficDimension
 VARIANT: TrafficDimension
+UTM_MEDIUM: TrafficDimension
 
 class TrackEventRequest(_message.Message):
-    __slots__ = ("event_type", "variant_id", "event_data", "session_id", "visitor_id", "event_id", "variant_slug", "utm_source", "utm_medium", "utm_campaign", "landing_path", "referrer")
+    __slots__ = ("event_type", "variant_id", "event_data", "session_id", "visitor_id", "event_id", "variant_slug", "utm_source", "utm_medium", "utm_campaign", "landing_path", "referrer", "traffic_class")
     EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     VARIANT_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +47,7 @@ class TrackEventRequest(_message.Message):
     UTM_CAMPAIGN_FIELD_NUMBER: _ClassVar[int]
     LANDING_PATH_FIELD_NUMBER: _ClassVar[int]
     REFERRER_FIELD_NUMBER: _ClassVar[int]
+    TRAFFIC_CLASS_FIELD_NUMBER: _ClassVar[int]
     event_type: str
     variant_id: int
     event_data: _struct_pb2.Struct
@@ -56,49 +60,54 @@ class TrackEventRequest(_message.Message):
     utm_campaign: str
     landing_path: str
     referrer: str
-    def __init__(self, event_type: _Optional[str] = ..., variant_id: _Optional[int] = ..., event_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_id: _Optional[str] = ..., visitor_id: _Optional[str] = ..., event_id: _Optional[str] = ..., variant_slug: _Optional[str] = ..., utm_source: _Optional[str] = ..., utm_medium: _Optional[str] = ..., utm_campaign: _Optional[str] = ..., landing_path: _Optional[str] = ..., referrer: _Optional[str] = ...) -> None: ...
+    traffic_class: str
+    def __init__(self, event_type: _Optional[str] = ..., variant_id: _Optional[int] = ..., event_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_id: _Optional[str] = ..., visitor_id: _Optional[str] = ..., event_id: _Optional[str] = ..., variant_slug: _Optional[str] = ..., utm_source: _Optional[str] = ..., utm_medium: _Optional[str] = ..., utm_campaign: _Optional[str] = ..., landing_path: _Optional[str] = ..., referrer: _Optional[str] = ..., traffic_class: _Optional[str] = ...) -> None: ...
 
 class TrafficBreakdownRow(_message.Message):
-    __slots__ = ("key", "label", "sessions", "conversions", "revenue_minor", "share")
+    __slots__ = ("key", "label", "visitors", "conversions", "revenue_minor", "share")
     KEY_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
-    SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    VISITORS_FIELD_NUMBER: _ClassVar[int]
     CONVERSIONS_FIELD_NUMBER: _ClassVar[int]
     REVENUE_MINOR_FIELD_NUMBER: _ClassVar[int]
     SHARE_FIELD_NUMBER: _ClassVar[int]
     key: str
     label: str
-    sessions: int
+    visitors: int
     conversions: int
     revenue_minor: int
     share: float
-    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., sessions: _Optional[int] = ..., conversions: _Optional[int] = ..., revenue_minor: _Optional[int] = ..., share: _Optional[float] = ...) -> None: ...
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., visitors: _Optional[int] = ..., conversions: _Optional[int] = ..., revenue_minor: _Optional[int] = ..., share: _Optional[float] = ...) -> None: ...
 
 class GetTrafficBreakdownRequest(_message.Message):
-    __slots__ = ("dimension", "start_date", "end_date", "limit")
+    __slots__ = ("dimension", "start_date", "end_date", "limit", "window_days")
     DIMENSION_FIELD_NUMBER: _ClassVar[int]
     START_DATE_FIELD_NUMBER: _ClassVar[int]
     END_DATE_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     dimension: TrafficDimension
     start_date: str
     end_date: str
     limit: int
-    def __init__(self, dimension: _Optional[_Union[TrafficDimension, str]] = ..., start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    window_days: int
+    def __init__(self, dimension: _Optional[_Union[TrafficDimension, str]] = ..., start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., limit: _Optional[int] = ..., window_days: _Optional[int] = ...) -> None: ...
 
 class GetTrafficBreakdownResponse(_message.Message):
-    __slots__ = ("rows", "total_sessions", "exhaustive", "currency", "observed_at")
+    __slots__ = ("rows", "total_visitors", "exhaustive", "currency", "observed_at", "other_visitors")
     ROWS_FIELD_NUMBER: _ClassVar[int]
-    TOTAL_SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_VISITORS_FIELD_NUMBER: _ClassVar[int]
     EXHAUSTIVE_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    OTHER_VISITORS_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[TrafficBreakdownRow]
-    total_sessions: int
+    total_visitors: int
     exhaustive: bool
     currency: str
     observed_at: _timestamp_pb2.Timestamp
-    def __init__(self, rows: _Optional[_Iterable[_Union[TrafficBreakdownRow, _Mapping]]] = ..., total_sessions: _Optional[int] = ..., exhaustive: _Optional[bool] = ..., currency: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    other_visitors: int
+    def __init__(self, rows: _Optional[_Iterable[_Union[TrafficBreakdownRow, _Mapping]]] = ..., total_visitors: _Optional[int] = ..., exhaustive: _Optional[bool] = ..., currency: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., other_visitors: _Optional[int] = ...) -> None: ...
 
 class TrafficSeriesPoint(_message.Message):
     __slots__ = ("bucket_start", "value")
@@ -109,16 +118,18 @@ class TrafficSeriesPoint(_message.Message):
     def __init__(self, bucket_start: _Optional[str] = ..., value: _Optional[float] = ...) -> None: ...
 
 class GetTrafficSeriesRequest(_message.Message):
-    __slots__ = ("metric", "start_date", "end_date", "bucket")
+    __slots__ = ("metric", "start_date", "end_date", "bucket", "window_days")
     METRIC_FIELD_NUMBER: _ClassVar[int]
     START_DATE_FIELD_NUMBER: _ClassVar[int]
     END_DATE_FIELD_NUMBER: _ClassVar[int]
     BUCKET_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     metric: str
     start_date: str
     end_date: str
     bucket: str
-    def __init__(self, metric: _Optional[str] = ..., start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., bucket: _Optional[str] = ...) -> None: ...
+    window_days: int
+    def __init__(self, metric: _Optional[str] = ..., start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., bucket: _Optional[str] = ..., window_days: _Optional[int] = ...) -> None: ...
 
 class GetTrafficSeriesResponse(_message.Message):
     __slots__ = ("points", "unit", "observed_at")
@@ -139,7 +150,7 @@ class TrackEventResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class VariantStats(_message.Message):
-    __slots__ = ("variant_id", "variant_slug", "variant_name", "views", "cta_clicks", "conversions", "downloads", "conversion_rate", "trend", "avg_scroll_depth", "exposures")
+    __slots__ = ("variant_id", "variant_slug", "variant_name", "views", "cta_clicks", "conversions", "downloads", "conversion_rate", "exposures")
     VARIANT_ID_FIELD_NUMBER: _ClassVar[int]
     VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
     VARIANT_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -148,8 +159,6 @@ class VariantStats(_message.Message):
     CONVERSIONS_FIELD_NUMBER: _ClassVar[int]
     DOWNLOADS_FIELD_NUMBER: _ClassVar[int]
     CONVERSION_RATE_FIELD_NUMBER: _ClassVar[int]
-    TREND_FIELD_NUMBER: _ClassVar[int]
-    AVG_SCROLL_DEPTH_FIELD_NUMBER: _ClassVar[int]
     EXPOSURES_FIELD_NUMBER: _ClassVar[int]
     variant_id: int
     variant_slug: str
@@ -159,26 +168,28 @@ class VariantStats(_message.Message):
     conversions: int
     downloads: int
     conversion_rate: float
-    trend: float
-    avg_scroll_depth: float
     exposures: int
-    def __init__(self, variant_id: _Optional[int] = ..., variant_slug: _Optional[str] = ..., variant_name: _Optional[str] = ..., views: _Optional[int] = ..., cta_clicks: _Optional[int] = ..., conversions: _Optional[int] = ..., downloads: _Optional[int] = ..., conversion_rate: _Optional[float] = ..., trend: _Optional[float] = ..., avg_scroll_depth: _Optional[float] = ..., exposures: _Optional[int] = ...) -> None: ...
+    def __init__(self, variant_id: _Optional[int] = ..., variant_slug: _Optional[str] = ..., variant_name: _Optional[str] = ..., views: _Optional[int] = ..., cta_clicks: _Optional[int] = ..., conversions: _Optional[int] = ..., downloads: _Optional[int] = ..., conversion_rate: _Optional[float] = ..., exposures: _Optional[int] = ...) -> None: ...
 
 class AnalyticsSummary(_message.Message):
-    __slots__ = ("total_visitors", "total_downloads", "variant_stats", "top_cta", "top_cta_ctr", "observed_at")
+    __slots__ = ("total_visitors", "total_downloads", "variant_stats", "top_cta", "top_cta_ctr", "observed_at", "exclusions", "contract_version")
     TOTAL_VISITORS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_DOWNLOADS_FIELD_NUMBER: _ClassVar[int]
     VARIANT_STATS_FIELD_NUMBER: _ClassVar[int]
     TOP_CTA_FIELD_NUMBER: _ClassVar[int]
     TOP_CTA_CTR_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXCLUSIONS_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_VERSION_FIELD_NUMBER: _ClassVar[int]
     total_visitors: int
     total_downloads: int
     variant_stats: _containers.RepeatedCompositeFieldContainer[VariantStats]
     top_cta: str
     top_cta_ctr: float
     observed_at: _timestamp_pb2.Timestamp
-    def __init__(self, total_visitors: _Optional[int] = ..., total_downloads: _Optional[int] = ..., variant_stats: _Optional[_Iterable[_Union[VariantStats, _Mapping]]] = ..., top_cta: _Optional[str] = ..., top_cta_ctr: _Optional[float] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    exclusions: _shared_pb2.TrafficExclusions
+    contract_version: str
+    def __init__(self, total_visitors: _Optional[int] = ..., total_downloads: _Optional[int] = ..., variant_stats: _Optional[_Iterable[_Union[VariantStats, _Mapping]]] = ..., top_cta: _Optional[str] = ..., top_cta_ctr: _Optional[float] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., exclusions: _Optional[_Union[_shared_pb2.TrafficExclusions, _Mapping]] = ..., contract_version: _Optional[str] = ...) -> None: ...
 
 class AdminRevenue(_message.Message):
     __slots__ = ("mrr", "mrr_unit", "today", "today_unit", "currency", "sample_size", "observed_at")
@@ -239,22 +250,26 @@ class RevenueSummary(_message.Message):
     def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., currency: _Optional[str] = ..., mrr_minor: _Optional[int] = ..., revenue_today_minor: _Optional[int] = ..., revenue_window_minor: _Optional[int] = ..., active_subscriptions: _Optional[int] = ..., subscriptions_churned_window: _Optional[int] = ..., churn_rate_percent: _Optional[float] = ..., credit_balance_total: _Optional[int] = ..., credit_burned_window: _Optional[int] = ..., usage_records_window: _Optional[int] = ..., sample_size: _Optional[int] = ..., trials_without_payment_method: _Optional[int] = ..., mrr_unit: _Optional[str] = ..., revenue_today_unit: _Optional[str] = ..., revenue_window_unit: _Optional[str] = ..., credit_unit: _Optional[str] = ..., currency_excluded_count: _Optional[int] = ...) -> None: ...
 
 class GetAnalyticsSummaryRequest(_message.Message):
-    __slots__ = ("start_date", "end_date")
+    __slots__ = ("start_date", "end_date", "window_days")
     START_DATE_FIELD_NUMBER: _ClassVar[int]
     END_DATE_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     start_date: str
     end_date: str
-    def __init__(self, start_date: _Optional[str] = ..., end_date: _Optional[str] = ...) -> None: ...
+    window_days: int
+    def __init__(self, start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., window_days: _Optional[int] = ...) -> None: ...
 
 class GetVariantStatsRequest(_message.Message):
-    __slots__ = ("start_date", "end_date", "variant")
+    __slots__ = ("start_date", "end_date", "variant", "window_days")
     START_DATE_FIELD_NUMBER: _ClassVar[int]
     END_DATE_FIELD_NUMBER: _ClassVar[int]
     VARIANT_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     start_date: str
     end_date: str
     variant: str
-    def __init__(self, start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., variant: _Optional[str] = ...) -> None: ...
+    window_days: int
+    def __init__(self, start_date: _Optional[str] = ..., end_date: _Optional[str] = ..., variant: _Optional[str] = ..., window_days: _Optional[int] = ...) -> None: ...
 
 class GetVariantStatsResponse(_message.Message):
     __slots__ = ("start_date", "end_date", "stats")

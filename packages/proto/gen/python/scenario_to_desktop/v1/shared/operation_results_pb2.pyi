@@ -149,7 +149,7 @@ class EvidenceChapter(_message.Message):
     def __init__(self, id: _Optional[str] = ..., purpose: _Optional[str] = ..., action: _Optional[str] = ..., disposition: _Optional[str] = ..., assertion_id: _Optional[str] = ..., expected: _Optional[str] = ..., observed: _Optional[str] = ..., error: _Optional[str] = ..., video_start_offset_ms: _Optional[int] = ..., video_end_offset_ms: _Optional[int] = ..., evidence_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EvidenceReview(_message.Message):
-    __slots__ = ("schema_version", "capability", "plan_id", "profile", "disposition", "reason", "chapters", "event_count", "deployment_mode", "provider_tier", "service_identity", "readiness", "fallback_decision", "safe_route_class")
+    __slots__ = ("schema_version", "capability", "plan_id", "profile", "disposition", "reason", "chapters", "event_count", "deployment_mode", "provider_tier", "service_identity", "readiness", "fallback_decision", "safe_route_class", "capability_selection")
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -164,6 +164,7 @@ class EvidenceReview(_message.Message):
     READINESS_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_DECISION_FIELD_NUMBER: _ClassVar[int]
     SAFE_ROUTE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_SELECTION_FIELD_NUMBER: _ClassVar[int]
     schema_version: str
     capability: str
     plan_id: str
@@ -178,7 +179,18 @@ class EvidenceReview(_message.Message):
     readiness: str
     fallback_decision: str
     safe_route_class: str
-    def __init__(self, schema_version: _Optional[str] = ..., capability: _Optional[str] = ..., plan_id: _Optional[str] = ..., profile: _Optional[str] = ..., disposition: _Optional[str] = ..., reason: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[EvidenceChapter, _Mapping]]] = ..., event_count: _Optional[int] = ..., deployment_mode: _Optional[str] = ..., provider_tier: _Optional[str] = ..., service_identity: _Optional[str] = ..., readiness: _Optional[str] = ..., fallback_decision: _Optional[str] = ..., safe_route_class: _Optional[str] = ...) -> None: ...
+    capability_selection: CapabilitySelection
+    def __init__(self, schema_version: _Optional[str] = ..., capability: _Optional[str] = ..., plan_id: _Optional[str] = ..., profile: _Optional[str] = ..., disposition: _Optional[str] = ..., reason: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[EvidenceChapter, _Mapping]]] = ..., event_count: _Optional[int] = ..., deployment_mode: _Optional[str] = ..., provider_tier: _Optional[str] = ..., service_identity: _Optional[str] = ..., readiness: _Optional[str] = ..., fallback_decision: _Optional[str] = ..., safe_route_class: _Optional[str] = ..., capability_selection: _Optional[_Union[CapabilitySelection, _Mapping]] = ...) -> None: ...
+
+class CapabilitySelection(_message.Message):
+    __slots__ = ("capability", "reason", "skipped")
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    capability: str
+    reason: str
+    skipped: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, capability: _Optional[str] = ..., reason: _Optional[str] = ..., skipped: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PerformancePhase(_message.Message):
     __slots__ = ("name", "available", "duration_ms", "reason")

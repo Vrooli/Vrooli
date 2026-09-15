@@ -3,6 +3,7 @@ package teams
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"prompt-manager/internal/interop"
@@ -17,6 +18,49 @@ import (
 type teamDocReader interface {
 	GetResponsibilities(ctx context.Context, teamID, agentID string) (string, error)
 	GetHeartbeatInstructions(ctx context.Context, teamID, agentID string) (string, error)
+}
+
+func (h *Handlers) ExportClaudeCodeTeam(ctx context.Context, id string) (any, error) {
+	team, err := h.teamStore.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("Team not found")
+	}
+	if !teamconfig.UsesSingleProcessInterop(team.Contract()) {
+		return nil, fmt.Errorf("Claude Code export is only supported for leader-led single-process teams")
+	}
+	members, err := h.relationStore.ListTeamMembers(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load members")
+	}
+	snapshot := &interop.PMTeamSnapshot{Team: *team}
+	docReader, hasDocReader := h.teamStore.(teamDocReader)
+	for _, rel := range members {
+		pm := interop.PMTeamMember{Relation: rel}
+		if agent, err := h.agentStore.Get(ctx, rel.AgentID); err == nil {
+			pm.Agent = *agent
+		}
+		if hasDocReader {
+			if resp, err := docReader.GetResponsibilities(ctx, id, rel.AgentID); err == nil {
+				pm.Responsibilities = resp
+			}
+			if instr, err := docReader.GetHeartbeatInstructions(ctx, id, rel.AgentID); err == nil {
+				pm.HeartbeatInstr = instr
+			}
+		}
+		snapshot.Members = append(snapshot.Members, pm)
+	}
+	if roles, err := h.teamStore.GetRoles(ctx, id); err == nil {
+		snapshot.Roles = roles.Roles
+	}
+	if org, err := h.teamStore.GetOrgChart(ctx, id); err == nil {
+		snapshot.OrgEdges = org.Edges
+	}
+	converter := interop.ClaudeCodeConverter{}
+	config, err := converter.FromPMTeam(snapshot)
+	if err != nil {
+		return nil, fmt.Errorf("export conversion failed: %w", err)
+	}
+	return config, nil
 }
 
 // ExportClaudeCode handles GET /teams/{id}/export/claude-code - exports PM team as CC config.

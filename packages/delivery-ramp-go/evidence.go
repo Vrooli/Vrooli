@@ -80,18 +80,19 @@ type Provenance struct {
 }
 
 type TimelineSummary struct {
-	Version          string                     `json:"version"`
-	JourneyRef       string                     `json:"journey_ref"`
-	Capability       string                     `json:"capability,omitempty"`
-	ProviderTier     string                     `json:"provider_tier,omitempty"`
-	SafeRouteClass   string                     `json:"safe_route_class,omitempty"`
-	FallbackDecision string                     `json:"fallback_decision,omitempty"`
-	ChapterIDs       []string                   `json:"chapter_ids"`
-	EventCount       int                        `json:"event_count"`
-	Ordered          bool                       `json:"ordered"`
-	RedactionStatus  string                     `json:"redaction_status"`
-	WorkflowRequired bool                       `json:"workflow_required,omitempty"`
-	Workflow         *WorkflowManifestReference `json:"workflow,omitempty"`
+	Version             string                     `json:"version"`
+	JourneyRef          string                     `json:"journey_ref"`
+	Capability          string                     `json:"capability,omitempty"`
+	ProviderTier        string                     `json:"provider_tier,omitempty"`
+	SafeRouteClass      string                     `json:"safe_route_class,omitempty"`
+	FallbackDecision    string                     `json:"fallback_decision,omitempty"`
+	ChapterIDs          []string                   `json:"chapter_ids"`
+	EventCount          int                        `json:"event_count"`
+	Ordered             bool                       `json:"ordered"`
+	RedactionStatus     string                     `json:"redaction_status"`
+	ScreenContentSource string                     `json:"screen_content_source,omitempty"`
+	WorkflowRequired    bool                       `json:"workflow_required,omitempty"`
+	Workflow            *WorkflowManifestReference `json:"workflow,omitempty"`
 }
 
 type WorkflowManifestArtifact struct {
@@ -119,15 +120,16 @@ type WorkflowManifestReference struct {
 // The spine owns the presence/status contract; a ramp owns the shape of its
 // platform metrics without importing a process or graphics package here.
 type PerformanceEvidence struct {
-	Status          string          `json:"status"`
-	Reason          string          `json:"reason,omitempty"`
-	ProtocolSummary any             `json:"protocol_summary,omitempty"`
-	DemoSummary     any             `json:"demo_summary,omitempty"`
-	DemoProcessTree any             `json:"demo_process_tree,omitempty"`
-	ProtocolPhases  []PhaseDuration `json:"protocol_phases,omitempty"`
-	DemoPhases      []PhaseDuration `json:"demo_phases,omitempty"`
-	TraceRefs       []string        `json:"trace_refs,omitempty"`
-	ProfileRefs     []string        `json:"profile_refs,omitempty"`
+	Status              string          `json:"status"`
+	Reason              string          `json:"reason,omitempty"`
+	ProtocolSummary     any             `json:"protocol_summary,omitempty"`
+	ProtocolProcessTree any             `json:"protocol_process_tree,omitempty"`
+	DemoSummary         any             `json:"demo_summary,omitempty"`
+	DemoProcessTree     any             `json:"demo_process_tree,omitempty"`
+	ProtocolPhases      []PhaseDuration `json:"protocol_phases,omitempty"`
+	DemoPhases          []PhaseDuration `json:"demo_phases,omitempty"`
+	TraceRefs           []string        `json:"trace_refs,omitempty"`
+	ProfileRefs         []string        `json:"profile_refs,omitempty"`
 }
 
 type PhaseDuration struct {
@@ -222,8 +224,11 @@ func (m Manifest) Validate() error {
 		return fmt.Errorf("valid artifact digest and provenance timestamps are required")
 	}
 	if m.Profile != ProfileProtocol {
-		if m.Timeline.Version == "" || m.Timeline.JourneyRef == "" || len(m.Timeline.ChapterIDs) == 0 || !m.Timeline.Ordered || m.Timeline.RedactionStatus != "verified" {
+		if m.Timeline.Version == "" || m.Timeline.JourneyRef == "" || len(m.Timeline.ChapterIDs) == 0 || !m.Timeline.Ordered {
 			return fmt.Errorf("visual profiles require an ordered, verified timeline with chapters")
+		}
+		if m.State == StatePassed && (m.Timeline.RedactionStatus != "verified" || strings.TrimSpace(m.Timeline.ScreenContentSource) == "" || m.Timeline.ScreenContentSource == "unknown") {
+			return fmt.Errorf("passed visual profiles require verified redaction and known screen content")
 		}
 		if m.Timeline.WorkflowRequired && m.Timeline.Workflow == nil {
 			return fmt.Errorf("required workflow reference is missing")

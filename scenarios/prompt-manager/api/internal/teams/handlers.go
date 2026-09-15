@@ -54,6 +54,11 @@ type Handlers struct {
 	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
 }
 
+type createValidationError struct{ err error }
+
+func (e *createValidationError) Error() string { return e.err.Error() }
+func (e *createValidationError) Unwrap() error { return e.err }
+
 // NewHandlers creates a new teams handler.
 func NewHandlers(
 	teamStore store.TeamStore,
@@ -133,14 +138,11 @@ func (h *Handlers) asyncDeleteTeamFromIndex(ctx context.Context, teamID string) 
 	}()
 }
 
-// List handles GET /teams - returns all teams.
-func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
+// ListTeams returns all teams with their projected summary fields.
+func (h *Handlers) ListTeams(ctx context.Context) ([]Response, error) {
 	teams, err := h.teamStore.List(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	responses := make([]Response, 0, len(teams))
@@ -148,44 +150,26 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 		resp := h.toResponse(ctx, &t)
 		responses = append(responses, resp)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(responses)
+	return responses, nil
 }
 
-// Get handles GET /teams/{id} - returns a single team with details.
-func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
+// GetTeam returns one team with its projected details without crossing the
+// HTTP compatibility boundary. REST and Connect adapters share this path.
+func (h *Handlers) GetTeam(ctx context.Context, id string) (TeamDetailsResponse, error) {
 	team, err := h.teamStore.Get(ctx, id)
 	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
+		return TeamDetailsResponse{}, fmt.Errorf("Team not found")
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+	return h.toDetailsResponse(ctx, team), nil
 }
 
-// Create handles POST /teams - creates a new team.
-func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Validate required fields
+// CreateTeam validates and persists a team without crossing the HTTP
+// compatibility boundary. REST and Connect adapters share this operation.
+func (h *Handlers) CreateTeam(ctx context.Context, req CreateRequest) (TeamDetailsResponse, error) {
 	if req.DisplayName == "" {
-		http.Error(w, "displayName is required", http.StatusBadRequest)
-		return
+		return TeamDetailsResponse{}, fmt.Errorf("displayName is required")
 	}
 
-	// Generate ID if not provided
 	id := req.ID
 	if id == "" {
 		id = validation.Slugify(req.DisplayName)
@@ -206,33 +190,101 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		team.Enabled = false
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return TeamDetailsResponse{}, &createValidationError{err: err}
 	}
 	if err := h.validateEnabledTeamState(ctx, team); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return TeamDetailsResponse{}, &createValidationError{err: err}
 	}
-
 	if err := h.teamStore.Create(ctx, team); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return TeamDetailsResponse{}, err
 	}
 
-	// Regenerate index
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 	h.invalidateGraph()
 	h.asyncIndexTeam(context.Background(), team.ID)
+	return h.toDetailsResponse(ctx, team), nil
+}
+
+// DeleteTeam removes a team and its member relations without crossing the
+// HTTP compatibility boundary. REST and Connect adapters share this path.
+func (h *Handlers) DeleteTeam(ctx context.Context, id string) error {
+	h.updateHeartbeatSchedules(ctx, id, false)
+
+	if h.relationStore != nil {
+		members, _ := h.relationStore.ListTeamMembers(ctx, id)
+		for _, member := range members {
+			_ = h.relationStore.DeleteTeamMember(ctx, id, member.AgentID)
+		}
+	}
+
+	if err := h.teamStore.Delete(ctx, id); err != nil {
+		return err
+	}
+	if h.indexStore != nil {
+		_ = h.indexStore.RegenerateTeams(ctx)
+	}
+	h.invalidateGraph()
+	h.asyncDeleteTeamFromIndex(context.Background(), id)
+	return nil
+}
+
+// List handles GET /teams - returns all teams.
+func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
+	responses, err := h.ListTeams(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(responses)
+}
+
+// Get handles GET /teams/{id} - returns a single team with details.
+func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	team, err := h.GetTeam(ctx, id)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(team)
+}
+
+// Create handles POST /teams - creates a new team.
+func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	team, err := h.CreateTeam(ctx, req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		var validationErr *createValidationError
+		if err.Error() == "displayName is required" || errors.As(err, &validationErr) {
+			status = http.StatusBadRequest
+		}
+		if strings.Contains(err.Error(), "already exists") {
+			status = http.StatusConflict
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+	_ = json.NewEncoder(w).Encode(team)
 }
 
 // Update handles PUT /teams/{id} - updates an existing team.
@@ -402,17 +454,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	h.updateHeartbeatSchedules(ctx, id, false)
-
-	// Delete all team member relations first
-	if h.relationStore != nil {
-		members, _ := h.relationStore.ListTeamMembers(ctx, id)
-		for _, m := range members {
-			_ = h.relationStore.DeleteTeamMember(ctx, id, m.AgentID)
-		}
-	}
-
-	if err := h.teamStore.Delete(ctx, id); err != nil {
+	if err := h.DeleteTeam(ctx, id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -421,75 +463,78 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Regenerate index
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) AddTeamMember(ctx context.Context, teamID string, req AddMemberRequest) (MemberDTO, error) {
+	if req.AgentID == "" {
+		return MemberDTO{}, fmt.Errorf("agentId is required")
+	}
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		return MemberDTO{}, fmt.Errorf("Team not found")
+	}
+	if _, err := h.agentStore.Get(ctx, req.AgentID); err != nil {
+		return MemberDTO{}, fmt.Errorf("Agent not found")
+	}
+	rel := &store.TeamMemberRelation{TeamID: teamID, AgentID: req.AgentID, Roles: req.Roles, Status: store.MemberStatusActive}
+	if err := h.relationStore.SetTeamMember(ctx, rel); err != nil {
+		return MemberDTO{}, err
+	}
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
-	h.invalidateGraph()
-	h.asyncDeleteTeamFromIndex(context.Background(), id)
-
-	w.WriteHeader(http.StatusNoContent)
+	h.asyncIndexTeam(context.Background(), teamID)
+	agent, _ := h.agentStore.Get(ctx, req.AgentID)
+	return MemberDTO{AgentID: req.AgentID, DisplayName: agent.DisplayName, Roles: req.Roles, Status: store.MemberStatusActive}, nil
 }
 
 // AddMember handles POST /teams/{id}/members - adds a member to a team.
 func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	teamID := vars["id"]
-
 	var req AddMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	if req.AgentID == "" {
-		http.Error(w, "agentId is required", http.StatusBadRequest)
+	member, err := h.AddTeamMember(r.Context(), mux.Vars(r)["id"], req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "agentId is required" {
+			status = http.StatusBadRequest
+		}
+		if err.Error() == "Team not found" || err.Error() == "Agent not found" {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
-
-	// Verify team exists
-	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	// Verify agent exists
-	if _, err := h.agentStore.Get(ctx, req.AgentID); err != nil {
-		http.Error(w, "Agent not found", http.StatusNotFound)
-		return
-	}
-
-	rel := &store.TeamMemberRelation{
-		TeamID:  teamID,
-		AgentID: req.AgentID,
-		Roles:   req.Roles,
-		Status:  store.MemberStatusActive,
-	}
-
-	if err := h.relationStore.SetTeamMember(ctx, rel); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Regenerate index
-	if h.indexStore != nil {
-		_ = h.indexStore.RegenerateTeams(ctx)
-	}
-	h.asyncIndexTeam(context.Background(), teamID)
-
-	// Get agent for response
-	agent, _ := h.agentStore.Get(ctx, req.AgentID)
-	member := MemberDTO{
-		AgentID:     req.AgentID,
-		DisplayName: agent.DisplayName,
-		Roles:       req.Roles,
-		Status:      store.MemberStatusActive,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(member)
+}
+
+func (h *Handlers) UpdateTeamMember(ctx context.Context, teamID, agentID string, req UpdateMemberRequest) (MemberDTO, error) {
+	membership, err := h.relationStore.GetTeamMember(ctx, teamID, agentID)
+	if err != nil {
+		return MemberDTO{}, fmt.Errorf("Membership not found")
+	}
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return MemberDTO{}, fmt.Errorf("Team not found")
+	}
+	if req.Roles != nil {
+		membership.Roles = req.Roles
+	}
+	if req.Status != nil {
+		if h.isProtectedLeadMember(team, agentID) && *req.Status != store.MemberStatusActive {
+			return MemberDTO{}, fmt.Errorf("cannot deactivate the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first")
+		}
+		membership.Status = *req.Status
+	}
+	if err := h.relationStore.SetTeamMember(ctx, membership); err != nil {
+		return MemberDTO{}, err
+	}
+	agent, _ := h.agentStore.Get(ctx, agentID)
+	return MemberDTO{AgentID: agentID, DisplayName: agent.DisplayName, Roles: membership.Roles, Status: membership.Status}, nil
 }
 
 // UpdateMember handles PUT /teams/{id}/members/{agentId} - updates a team member.
@@ -505,46 +550,40 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing membership
-	membership, err := h.relationStore.GetTeamMember(ctx, teamID, agentID)
+	member, err := h.UpdateTeamMember(ctx, teamID, agentID, req)
 	if err != nil {
-		http.Error(w, "Membership not found", http.StatusNotFound)
-		return
-	}
-	team, err := h.teamStore.Get(ctx, teamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	// Apply updates
-	if req.Roles != nil {
-		membership.Roles = req.Roles
-	}
-	if req.Status != nil {
-		if h.isProtectedLeadMember(team, agentID) && *req.Status != store.MemberStatusActive {
-			http.Error(w, "cannot deactivate the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first", http.StatusConflict)
-			return
+		status := http.StatusInternalServerError
+		if err.Error() == "Membership not found" || err.Error() == "Team not found" {
+			status = http.StatusNotFound
 		}
-		membership.Status = *req.Status
-	}
-
-	if err := h.relationStore.SetTeamMember(ctx, membership); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if strings.HasPrefix(err.Error(), "cannot deactivate") {
+			status = http.StatusConflict
+		}
+		http.Error(w, err.Error(), status)
 		return
-	}
-
-	// Get agent for response
-	agent, _ := h.agentStore.Get(ctx, agentID)
-	member := MemberDTO{
-		AgentID:     agentID,
-		DisplayName: agent.DisplayName,
-		Roles:       membership.Roles,
-		Status:      membership.Status,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(member)
+}
+
+func (h *Handlers) RemoveTeamMember(ctx context.Context, teamID, agentID string) error {
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("Team not found")
+	}
+	if h.isProtectedLeadMember(team, agentID) {
+		return fmt.Errorf("cannot remove the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first")
+	}
+	h.cleanupMemberData(ctx, teamID, agentID)
+	if err := h.relationStore.DeleteTeamMember(ctx, teamID, agentID); err != nil {
+		return err
+	}
+	if h.indexStore != nil {
+		_ = h.indexStore.RegenerateTeams(ctx)
+	}
+	h.asyncIndexTeam(context.Background(), teamID)
+	return nil
 }
 
 // RemoveMember handles DELETE /teams/{id}/members/{agentId} - removes a member from a team.
@@ -553,19 +592,15 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
-	team, err := h.teamStore.Get(ctx, teamID)
-	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-	if h.isProtectedLeadMember(team, agentID) {
-		http.Error(w, "cannot remove the configured lead while the leader-led team is enabled; change coordination.leadAgentId or disable the team first", http.StatusConflict)
-		return
-	}
-
-	h.cleanupMemberData(ctx, teamID, agentID)
-
-	if err := h.relationStore.DeleteTeamMember(ctx, teamID, agentID); err != nil {
+	if err := h.RemoveTeamMember(ctx, teamID, agentID); err != nil {
+		if err.Error() == "Team not found" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if strings.HasPrefix(err.Error(), "cannot remove") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -574,27 +609,14 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Regenerate index
-	if h.indexStore != nil {
-		_ = h.indexStore.RegenerateTeams(ctx)
-	}
-	h.asyncIndexTeam(context.Background(), teamID)
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetRoles handles GET /teams/{id}/roles - returns team roles.
-func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
+func (h *Handlers) ListTeamRoles(ctx context.Context, id string) ([]RoleDTO, error) {
 	roles, err := h.teamStore.GetRoles(ctx, id)
 	if err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Team not found")
 	}
-
 	roleDTOs := make([]RoleDTO, 0, len(roles.Roles))
 	for _, role := range roles.Roles {
 		roleDTOs = append(roleDTOs, RoleDTO{
@@ -603,28 +625,24 @@ func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
 			Description: role.Description,
 		})
 	}
+	return roleDTOs, nil
+}
 
+// GetRoles handles GET /teams/{id}/roles - returns team roles.
+func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
+	roleDTOs, err := h.ListTeamRoles(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(roleDTOs)
 }
 
-// SetRoles handles PUT /teams/{id}/roles - sets team roles.
-func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var req SetRolesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
+func (h *Handlers) SetTeamRoles(ctx context.Context, id string, req SetRolesRequest) ([]RoleDTO, error) {
 	if _, err := h.teamStore.Get(ctx, id); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Team not found")
 	}
-
 	roles := &store.TeamRoles{
 		TeamID: id,
 		Roles:  make([]store.Role, 0, len(req.Roles)),
@@ -638,16 +656,29 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.teamStore.SetRoles(ctx, id, roles); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
+	}
+	return req.Roles, nil
+}
+
+// SetRoles handles PUT /teams/{id}/roles - sets team roles.
+func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
+	var req SetRolesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	roles, err := h.SetTeamRoles(r.Context(), mux.Vars(r)["id"], req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(req.Roles)
+	_ = json.NewEncoder(w).Encode(roles)
 }
 
 // GetOrgChart handles GET /teams/{id}/org - returns the org chart for a team.
@@ -755,6 +786,61 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handlers) ListTeamSharedFiles(ctx context.Context, id string) (TeamSharedFileListResponse, error) {
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return TeamSharedFileListResponse{}, fmt.Errorf("ListSharedFiles not supported")
+	}
+	files, err := fileStore.ListSharedFiles(ctx, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return TeamSharedFileListResponse{}, fmt.Errorf("Team not found")
+		}
+		return TeamSharedFileListResponse{}, err
+	}
+	mapped := make([]TeamSharedFileEntry, 0, len(files))
+	for _, entry := range files {
+		mapped = append(mapped, TeamSharedFileEntry{Path: entry.Path, IsDir: entry.IsDir, Size: entry.Size})
+	}
+	return TeamSharedFileListResponse{TeamID: id, Files: mapped}, nil
+}
+
+func (h *Handlers) ReadTeamSharedFile(ctx context.Context, id, path string) (TeamSharedFileContentResponse, error) {
+	if path == "" {
+		return TeamSharedFileContentResponse{}, fmt.Errorf("path is required")
+	}
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return TeamSharedFileContentResponse{}, fmt.Errorf("GetSharedFile not supported")
+	}
+	content, err := fileStore.ReadSharedFile(ctx, id, path)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return TeamSharedFileContentResponse{}, fmt.Errorf("Team not found")
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return TeamSharedFileContentResponse{}, fmt.Errorf("File not found")
+		}
+		return TeamSharedFileContentResponse{}, err
+	}
+	return TeamSharedFileContentResponse{TeamID: id, Path: path, Content: content}, nil
+}
+
+func (h *Handlers) WriteTeamSharedFile(ctx context.Context, id, path, content string) error {
+	if path == "" {
+		return fmt.Errorf("path is required")
+	}
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return fmt.Errorf("SetSharedFile not supported")
+	}
+	if err := fileStore.WriteSharedFile(ctx, id, path, content); err != nil {
+		return err
+	}
+	h.invalidateGraph()
+	return nil
 }
 
 // ListSharedFiles handles GET /teams/{id}/shared/files - lists files in team shared folder.
@@ -878,6 +964,51 @@ func (h *Handlers) SetSharedFile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handlers) CreateTeamSharedFile(ctx context.Context, id string, req TeamSharedFileCreateRequest) error {
+	if req.Path == "" {
+		return fmt.Errorf("path is required")
+	}
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return fmt.Errorf("CreateSharedFile not supported")
+	}
+	if err := fileStore.CreateSharedFile(ctx, id, req.Path, req.Content, req.IsDir); err != nil {
+		return err
+	}
+	h.invalidateGraph()
+	return nil
+}
+
+func (h *Handlers) RenameTeamSharedFile(ctx context.Context, id string, req TeamSharedFileRenameRequest) error {
+	if req.From == "" || req.To == "" {
+		return fmt.Errorf("from and to are required")
+	}
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return fmt.Errorf("RenameSharedFile not supported")
+	}
+	if err := fileStore.RenameSharedFile(ctx, id, req.From, req.To); err != nil {
+		return err
+	}
+	h.invalidateGraph()
+	return nil
+}
+
+func (h *Handlers) DeleteTeamSharedFile(ctx context.Context, id, path string) error {
+	if path == "" {
+		return fmt.Errorf("path is required")
+	}
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return fmt.Errorf("DeleteSharedFile not supported")
+	}
+	if err := fileStore.DeleteSharedFile(ctx, id, path); err != nil {
+		return err
+	}
+	h.invalidateGraph()
+	return nil
+}
+
 // CreateSharedFile handles POST /teams/{id}/shared/files - creates a new file or directory.
 func (h *Handlers) CreateSharedFile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -978,26 +1109,16 @@ func (h *Handlers) DeleteSharedFile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetExclusiveMembers handles GET /teams/{id}/exclusive-members - returns members only in this team.
-func (h *Handlers) GetExclusiveMembers(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Verify team exists
+func (h *Handlers) ListExclusiveMembers(ctx context.Context, id string) (ExclusiveMembersResponse, error) {
 	if _, err := h.teamStore.Get(ctx, id); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
+		return ExclusiveMembersResponse{}, fmt.Errorf("Team not found")
 	}
-
-	// Get this team's members
 	var members []store.TeamMemberRelation
 	if h.relationStore != nil {
 		var err error
 		members, err = h.relationStore.ListTeamMembers(ctx, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return ExclusiveMembersResponse{}, err
 		}
 	}
 
@@ -1021,9 +1142,19 @@ func (h *Handlers) GetExclusiveMembers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp := ExclusiveMembersResponse{
-		TeamID:  id,
-		Members: exclusive,
+	return ExclusiveMembersResponse{TeamID: id, Members: exclusive}, nil
+}
+
+// GetExclusiveMembers handles GET /teams/{id}/exclusive-members - returns members only in this team.
+func (h *Handlers) GetExclusiveMembers(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.ListExclusiveMembers(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "Team not found" {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

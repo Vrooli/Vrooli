@@ -65,7 +65,7 @@ class SiteBranding(_message.Message):
     def __init__(self, id: _Optional[int] = ..., site_name: _Optional[str] = ..., tagline: _Optional[str] = ..., logo_url: _Optional[str] = ..., logo_icon_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., apple_touch_icon_url: _Optional[str] = ..., default_title: _Optional[str] = ..., default_description: _Optional[str] = ..., default_og_image_url: _Optional[str] = ..., theme_primary_color: _Optional[str] = ..., theme_background_color: _Optional[str] = ..., canonical_base_url: _Optional[str] = ..., google_site_verification: _Optional[str] = ..., robots_txt: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., support_chat_url: _Optional[str] = ..., support_email: _Optional[str] = ..., smtp_host: _Optional[str] = ..., smtp_port: _Optional[int] = ..., smtp_username: _Optional[str] = ..., smtp_password: _Optional[str] = ..., smtp_from: _Optional[str] = ..., coming_soon_enabled: _Optional[bool] = ..., coming_soon_message: _Optional[str] = ...) -> None: ...
 
 class PublicBranding(_message.Message):
-    __slots__ = ("site_name", "tagline", "logo_url", "logo_icon_url", "favicon_url", "theme_primary_color", "theme_background_color", "support_chat_url", "coming_soon_enabled", "coming_soon_message")
+    __slots__ = ("site_name", "tagline", "logo_url", "logo_icon_url", "favicon_url", "theme_primary_color", "theme_background_color", "support_chat_url", "coming_soon_enabled", "coming_soon_message", "canonical_base_url")
     SITE_NAME_FIELD_NUMBER: _ClassVar[int]
     TAGLINE_FIELD_NUMBER: _ClassVar[int]
     LOGO_URL_FIELD_NUMBER: _ClassVar[int]
@@ -76,6 +76,7 @@ class PublicBranding(_message.Message):
     SUPPORT_CHAT_URL_FIELD_NUMBER: _ClassVar[int]
     COMING_SOON_ENABLED_FIELD_NUMBER: _ClassVar[int]
     COMING_SOON_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_BASE_URL_FIELD_NUMBER: _ClassVar[int]
     site_name: str
     tagline: str
     logo_url: str
@@ -86,7 +87,8 @@ class PublicBranding(_message.Message):
     support_chat_url: str
     coming_soon_enabled: bool
     coming_soon_message: str
-    def __init__(self, site_name: _Optional[str] = ..., tagline: _Optional[str] = ..., logo_url: _Optional[str] = ..., logo_icon_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., theme_primary_color: _Optional[str] = ..., theme_background_color: _Optional[str] = ..., support_chat_url: _Optional[str] = ..., coming_soon_enabled: _Optional[bool] = ..., coming_soon_message: _Optional[str] = ...) -> None: ...
+    canonical_base_url: str
+    def __init__(self, site_name: _Optional[str] = ..., tagline: _Optional[str] = ..., logo_url: _Optional[str] = ..., logo_icon_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., theme_primary_color: _Optional[str] = ..., theme_background_color: _Optional[str] = ..., support_chat_url: _Optional[str] = ..., coming_soon_enabled: _Optional[bool] = ..., coming_soon_message: _Optional[str] = ..., canonical_base_url: _Optional[str] = ...) -> None: ...
 
 class GetBrandingRequest(_message.Message):
     __slots__ = ()

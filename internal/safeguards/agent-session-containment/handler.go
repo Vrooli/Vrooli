@@ -415,9 +415,11 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	}
 	if !isLinux(host) {
 		// No slice off Linux; the launcher applies the ceilings per session
-		// and this safeguard only reports what they are.
-		status.SupportClass = hostreqkit.SupportUnsupported
-		status.ExecutionState = hostreqkit.ExecutionUnsupported
+		// and this safeguard only reports what they are. The slice itself is
+		// not applicable here — reporting unsupported made this required
+		// safeguard fail `vrooli setup` on every Mac.
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		status.Notes = append(status.Notes, fmt.Sprintf("no slice on %s; the launcher applies per-session ceilings (tasks %d, memory %d%% of physical) through the rlimit shim on macOS and a Job Object on Windows; fixture-verified", host.OS, s.TasksMax, s.MemoryMaxPercent))
 		return status
 	}

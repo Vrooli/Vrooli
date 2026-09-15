@@ -21,7 +21,11 @@ func (c *AgentManagerClient) DiscoverEfforts(ctx context.Context, limit int, cur
 		return nil, err
 	}
 	client := amconnect.NewAgentManagerServiceClient(c.httpClient, base)
-	response, err := client.GetEffortBoard(ctx, connect.NewRequest(&ampb.GetEffortBoardRequest{PageSize: uint32(limit), PageToken: cursor}))
+	// A board page projects owner telemetry for every row. Keep each standing
+	// read bounded to one enrollment so one pathological run cannot make the
+	// entire supervisor unavailable; cursors preserve eventual portfolio
+	// coverage across subsequent wakes.
+	response, err := client.GetEffortBoard(ctx, connect.NewRequest(&ampb.GetEffortBoardRequest{PageSize: 1, PageToken: cursor}))
 	if err != nil {
 		return nil, err
 	}

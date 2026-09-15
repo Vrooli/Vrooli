@@ -531,6 +531,14 @@ func setupScenarioThroughLifecycle(root, home string, opts hostreqkit.EnsureOpti
 		Binary: binary,
 		Args:   args,
 		Dir:    root,
+		// The autoheal rebuild is itself a host safeguard. Keep its repair
+		// workload bounded on small VPS hosts so a UI or Go rebuild cannot
+		// consume the memory needed by SSH, systemd, and the watchdogs.
+		Env: append(os.Environ(),
+			"GOMAXPROCS=1",
+			"GOFLAGS=-p=1",
+			"NODE_OPTIONS=--max-old-space-size=384",
+		),
 		Stdout: opts.Stdout,
 		Stderr: opts.Stderr,
 	})

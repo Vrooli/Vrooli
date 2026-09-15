@@ -333,6 +333,7 @@ type JourneyResult struct {
 	SmokeTestID                  string                      `json:"smoke_test_id"`
 	ScenarioName                 string                      `json:"scenario_name"`
 	Capability                   string                      `json:"capability"`
+	CapabilitySelection          *CapabilitySelection        `json:"capability_selection,omitempty"`
 	PlanID                       string                      `json:"plan_id"`
 	Profile                      string                      `json:"profile"`
 	Platform                     string                      `json:"platform"`
@@ -355,4 +356,10 @@ type JourneyResult struct {
 	Steps                        []JourneyStep               `json:"steps"`
 	CreatedAt                    time.Time                   `json:"created_at"`
 	CompletedAt                  time.Time                   `json:"completed_at,omitempty"`
+}
+
+type CapabilitySelection struct {
+	Capability string   `json:"capability"`
+	Reason     string   `json:"reason"`
+	Skipped    []string `json:"skipped,omitempty"`
 }

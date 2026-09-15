@@ -992,14 +992,21 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 			// aggregation, so the cached subset is consumed exactly once.
 			usageEvents := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel,
 				codexUsageDelta(streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens, streamEvent.Usage.CachedInputTokens, true), state.billing), state.turn)
+			var usageData *domain.UsageEventData
 			for _, event := range usageEvents {
 				if usage, ok := event.Data.(*domain.UsageEventData); ok {
+					usageData = usage
 					// exec --json reports this completed invocation's final
 					// usage here. A process stop alone has no such authority.
 					usage.ReconciliationAuthority = true
 					usage.Turns = state.turn
 				}
+				if charge, ok := event.Data.(*domain.ChargeEventData); ok && usageData != nil {
+					usageData.Charge = charge
+				}
 			}
+			// buildCostEvents keeps the charge as its own durable event while
+			// also attaching it to the authoritative terminal usage receipt.
 			events = append(events, usageEvents...)
 		}
 		return events

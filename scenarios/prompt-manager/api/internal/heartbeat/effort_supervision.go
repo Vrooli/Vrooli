@@ -180,9 +180,6 @@ func (s *StandingSupervisor) Tick(ctx context.Context, teamID, agentID string) (
 	}
 	scanCursor := state.NextCursor
 	state.AccountingRef = cfg.Supervision.DiagnosticAllowance.AccountingRef
-	if err := s.observe(ctx, cfg, state); err != nil {
-		return state, s.saveError(teamID, agentID, state, err)
-	}
 	if state.Pending != nil {
 		if err := s.reconcile(ctx, teamID, agentID, cfg, state); err != nil {
 			return state, s.saveError(teamID, agentID, state, err)
@@ -193,6 +190,11 @@ func (s *StandingSupervisor) Tick(ctx context.Context, teamID, agentID string) (
 			}
 			return state, s.State.Save(teamID, agentID, state)
 		}
+	}
+	// Reconcile an occupied wake before the portfolio scan. A slow or
+	// unavailable board must not prevent recovery of a durable dispatch fence.
+	if err := s.observe(ctx, cfg, state); err != nil {
+		return state, s.saveError(teamID, agentID, state, err)
 	}
 	queue := s.Queue.Status(teamID)
 	if memberOccupied(queue, agentID) {
@@ -497,6 +499,22 @@ func (s *StandingSupervisor) reconcile(ctx context.Context, teamID, agentID stri
 					return err
 				}
 				if wake.RunID == "" {
+					if wake.DispatchMode == "delegated" && wake.DispatchReplayAttempts > 0 {
+						// The replay fence has already been spent. Keeping this wake in
+						// Pending makes one lost/denied owner response permanently block
+						// the supervisor. Move it to an explicit durable recovery queue;
+						// this never retries the call or forgets the evidence.
+						wake.Disposition = "recovery-required"
+						state.UnresolvedWakes = append(state.UnresolvedWakes, wake)
+						state.LastWake = wake
+						state.Pending = nil
+						state.Status = "degraded"
+						if err := s.State.Save(teamID, agentID, state); err != nil {
+							return err
+						}
+						s.Queue.OnComplete(teamID, agentID)
+						return nil
+					}
 					state.Status = "uncertain"
 				}
 				return nil

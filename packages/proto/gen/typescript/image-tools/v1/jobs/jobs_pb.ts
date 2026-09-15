@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/jobs/jobs.proto.
  */
 export const file_image_tools_v1_jobs_jobs: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbWFnZS10b29scy92MS9qb2JzL2pvYnMucHJvdG8SGnZyb29saS5pbWFnZV90b29scy52MS5qb2JzIvcDCgNKb2ISCgoCaWQYASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEjEKBGxhbmUYAyABKA4yIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JMYW5lEjMKBXN0YXRlGAQgASgOMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iU3RhdGUSEAoIcHJvZ3Jlc3MYBSABKAUSDwoHbWVzc2FnZRgGIAEoCRINCgVlcnJvchgHIAEoCRISCgpyZXN1bHRfcmVmGAggASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAkgASgFEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJECgtyZXN1bHRfbWV0YRgNIAMoCzIvLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYi5SZXN1bHRNZXRhRW50cnkaMQoPUmVzdWx0TWV0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEinwEKDVByb2dyZXNzRXZlbnQSDgoGam9iX2lkGAEgASgJEjMKBXN0YXRlGAIgASgOMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iU3RhdGUSEAoIcHJvZ3Jlc3MYAyABKAUSDwoHbWVzc2FnZRgEIAEoCRImCgJhdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGwoNR2V0Sm9iUmVxdWVzdBIKCgJpZBgBIAEoCSI+Cg5HZXRKb2JSZXNwb25zZRIsCgNqb2IYASABKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiHAoOV2FpdEpvYlJlcXVlc3QSCgoCaWQYASABKAkiPwoPV2FpdEpvYlJlc3BvbnNlEiwKA2pvYhgBIAEoCzIfLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYiIgCg9MaXN0Sm9ic1JlcXVlc3QSDQoFbGltaXQYASABKAUiQQoQTGlzdEpvYnNSZXNwb25zZRItCgRqb2JzGAEgAygLMh8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iIh4KEENhbmNlbEpvYlJlcXVlc3QSCgoCaWQYASABKAkiQQoRQ2FuY2VsSm9iUmVzcG9uc2USLAoDam9iGAEgASgLMh8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iIh0KD1dhdGNoSm9iUmVxdWVzdBIKCgJpZBgBIAEoCSqZAQoISm9iU3RhdGUSGQoVSk9CX1NUQVRFX1VOU1BFQ0lGSUVEEAASFAoQSk9CX1NUQVRFX1FVRVVFRBABEhUKEUpPQl9TVEFURV9SVU5OSU5HEAISFwoTSk9CX1NUQVRFX1NVQ0NFRURFRBADEhQKEEpPQl9TVEFURV9GQUlMRUQQBBIWChJKT0JfU1RBVEVfQ0FOQ0VMRUQQBSpHCgdKb2JMYW5lEhgKFEpPQl9MQU5FX1VOU1BFQ0lGSUVEEAASEAoMSk9CX0xBTkVfR1BVEAESEAoMSk9CX0xBTkVfQ1BVEAIyiQQKC0pvYnNTZXJ2aWNlEl8KBkdldEpvYhIpLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkdldEpvYlJlcXVlc3QaKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5HZXRKb2JSZXNwb25zZRJiCgdXYWl0Sm9iEioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuV2FpdEpvYlJlcXVlc3QaKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5XYWl0Sm9iUmVzcG9uc2USZQoITGlzdEpvYnMSKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1JlcXVlc3QaLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1Jlc3BvbnNlEmgKCUNhbmNlbEpvYhIsLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkNhbmNlbEpvYlJlcXVlc3QaLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5DYW5jZWxKb2JSZXNwb25zZRJkCghXYXRjaEpvYhIrLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLldhdGNoSm9iUmVxdWVzdBopLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLlByb2dyZXNzRXZlbnQwAUJMWkpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2pvYnM7am9ic192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ch5pbWFnZS10b29scy92MS9qb2JzL2pvYnMucHJvdG8SGnZyb29saS5pbWFnZV90b29scy52MS5qb2JzIsUECgNKb2ISCgoCaWQYASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEjEKBGxhbmUYAyABKA4yIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JMYW5lEjMKBXN0YXRlGAQgASgOMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iU3RhdGUSEAoIcHJvZ3Jlc3MYBSABKAUSDwoHbWVzc2FnZRgGIAEoCRINCgVlcnJvchgHIAEoCRISCgpyZXN1bHRfcmVmGAggASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAkgASgFEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJECgtyZXN1bHRfbWV0YRgNIAMoCzIvLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYi5SZXN1bHRNZXRhRW50cnkSNwoHcmVxdWVzdBgOIAEoCzImLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYlJlcXVlc3QSEwoLcmVzdWx0X3JlZnMYDyADKAkaMQoPUmVzdWx0TWV0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi2gEKCkpvYlJlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJEg8KB2JhY2tlbmQYAyABKAkSDAoEdGllchgEIAEoCRIMCgRyb2xlGAUgASgJEg4KBnByb21wdBgGIAEoCRIXCg9uZWdhdGl2ZV9wcm9tcHQYByABKAkSDAoEc2VlZBgIIAEoAxINCgV3aWR0aBgJIAEoBRIOCgZoZWlnaHQYCiABKAUSEgoKdmFyaWF0aW9ucxgLIAEoBRIQCghhZGFwdGVycxgMIAMoCSKfAQoNUHJvZ3Jlc3NFdmVudBIOCgZqb2JfaWQYASABKAkSMwoFc3RhdGUYAiABKA4yJC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JTdGF0ZRIQCghwcm9ncmVzcxgDIAEoBRIPCgdtZXNzYWdlGAQgASgJEiYKAmF0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIbCg1HZXRKb2JSZXF1ZXN0EgoKAmlkGAEgASgJIj4KDkdldEpvYlJlc3BvbnNlEiwKA2pvYhgBIAEoCzIfLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYiIcCg5XYWl0Sm9iUmVxdWVzdBIKCgJpZBgBIAEoCSI/Cg9XYWl0Sm9iUmVzcG9uc2USLAoDam9iGAEgASgLMh8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iIiAKD0xpc3RKb2JzUmVxdWVzdBINCgVsaW1pdBgBIAEoBSJBChBMaXN0Sm9ic1Jlc3BvbnNlEi0KBGpvYnMYASADKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiHgoQQ2FuY2VsSm9iUmVxdWVzdBIKCgJpZBgBIAEoCSJBChFDYW5jZWxKb2JSZXNwb25zZRIsCgNqb2IYASABKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiHQoPV2F0Y2hKb2JSZXF1ZXN0EgoKAmlkGAEgASgJKpkBCghKb2JTdGF0ZRIZChVKT0JfU1RBVEVfVU5TUEVDSUZJRUQQABIUChBKT0JfU1RBVEVfUVVFVUVEEAESFQoRSk9CX1NUQVRFX1JVTk5JTkcQAhIXChNKT0JfU1RBVEVfU1VDQ0VFREVEEAMSFAoQSk9CX1NUQVRFX0ZBSUxFRBAEEhYKEkpPQl9TVEFURV9DQU5DRUxFRBAFKl0KB0pvYkxhbmUSGAoUSk9CX0xBTkVfVU5TUEVDSUZJRUQQABIQCgxKT0JfTEFORV9HUFUQARIQCgxKT0JfTEFORV9DUFUQAhIUChBKT0JfTEFORV9ORVRXT1JLEAMyiQQKC0pvYnNTZXJ2aWNlEl8KBkdldEpvYhIpLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkdldEpvYlJlcXVlc3QaKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5HZXRKb2JSZXNwb25zZRJiCgdXYWl0Sm9iEioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuV2FpdEpvYlJlcXVlc3QaKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5XYWl0Sm9iUmVzcG9uc2USZQoITGlzdEpvYnMSKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1JlcXVlc3QaLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1Jlc3BvbnNlEmgKCUNhbmNlbEpvYhIsLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkNhbmNlbEpvYlJlcXVlc3QaLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5DYW5jZWxKb2JSZXNwb25zZRJkCghXYXRjaEpvYhIrLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLldhdGNoSm9iUmVxdWVzdBopLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLlByb2dyZXNzRXZlbnQwAUJMWkpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2pvYnM7am9ic192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Job is the persisted, observable record of a submitted unit of work.
@@ -121,6 +121,24 @@ export type Job = Message<"vrooli.image_tools.v1.jobs.Job"> & {
    * @generated from field: map<string, string> result_meta = 13;
    */
   resultMeta: { [key: string]: string };
+
+  /**
+   * request echoes the parameters that produced the job, so a caller can tell
+   * which prompt/seed/role a result came from without the original submission.
+   * Populated from the stored payload.
+   *
+   * @generated from field: vrooli.image_tools.v1.jobs.JobRequest request = 14;
+   */
+  request?: JobRequest | undefined;
+
+  /**
+   * result_refs lists every output blob this job produced. result_ref stays the
+   * first entry for callers that only read one; a multi-variation run has one
+   * entry per variation.
+   *
+   * @generated from field: repeated string result_refs = 15;
+   */
+  resultRefs: string[];
 };
 
 /**
@@ -129,6 +147,80 @@ export type Job = Message<"vrooli.image_tools.v1.jobs.Job"> & {
  */
 export const JobSchema: GenMessage<Job> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_jobs_jobs, 0);
+
+/**
+ * JobRequest is the typed echo of the submitted request.
+ *
+ * @generated from message vrooli.image_tools.v1.jobs.JobRequest
+ */
+export type JobRequest = Message<"vrooli.image_tools.v1.jobs.JobRequest"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: string backend = 3;
+   */
+  backend: string;
+
+  /**
+   * @generated from field: string tier = 4;
+   */
+  tier: string;
+
+  /**
+   * @generated from field: string role = 5;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string prompt = 6;
+   */
+  prompt: string;
+
+  /**
+   * @generated from field: string negative_prompt = 7;
+   */
+  negativePrompt: string;
+
+  /**
+   * @generated from field: int64 seed = 8;
+   */
+  seed: bigint;
+
+  /**
+   * @generated from field: int32 width = 9;
+   */
+  width: number;
+
+  /**
+   * @generated from field: int32 height = 10;
+   */
+  height: number;
+
+  /**
+   * @generated from field: int32 variations = 11;
+   */
+  variations: number;
+
+  /**
+   * @generated from field: repeated string adapters = 12;
+   */
+  adapters: string[];
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.jobs.JobRequest.
+ * Use `create(JobRequestSchema)` to create a new message.
+ */
+export const JobRequestSchema: GenMessage<JobRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_jobs_jobs, 1);
 
 /**
  * ProgressEvent is one progress update streamed by WatchJob.
@@ -167,7 +259,7 @@ export type ProgressEvent = Message<"vrooli.image_tools.v1.jobs.ProgressEvent"> 
  * Use `create(ProgressEventSchema)` to create a new message.
  */
 export const ProgressEventSchema: GenMessage<ProgressEvent> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 1);
+  messageDesc(file_image_tools_v1_jobs_jobs, 2);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.GetJobRequest
@@ -184,7 +276,7 @@ export type GetJobRequest = Message<"vrooli.image_tools.v1.jobs.GetJobRequest"> 
  * Use `create(GetJobRequestSchema)` to create a new message.
  */
 export const GetJobRequestSchema: GenMessage<GetJobRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 2);
+  messageDesc(file_image_tools_v1_jobs_jobs, 3);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.GetJobResponse
@@ -201,7 +293,7 @@ export type GetJobResponse = Message<"vrooli.image_tools.v1.jobs.GetJobResponse"
  * Use `create(GetJobResponseSchema)` to create a new message.
  */
 export const GetJobResponseSchema: GenMessage<GetJobResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 3);
+  messageDesc(file_image_tools_v1_jobs_jobs, 4);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.WaitJobRequest
@@ -218,7 +310,7 @@ export type WaitJobRequest = Message<"vrooli.image_tools.v1.jobs.WaitJobRequest"
  * Use `create(WaitJobRequestSchema)` to create a new message.
  */
 export const WaitJobRequestSchema: GenMessage<WaitJobRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 4);
+  messageDesc(file_image_tools_v1_jobs_jobs, 5);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.WaitJobResponse
@@ -235,7 +327,7 @@ export type WaitJobResponse = Message<"vrooli.image_tools.v1.jobs.WaitJobRespons
  * Use `create(WaitJobResponseSchema)` to create a new message.
  */
 export const WaitJobResponseSchema: GenMessage<WaitJobResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 5);
+  messageDesc(file_image_tools_v1_jobs_jobs, 6);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.ListJobsRequest
@@ -255,7 +347,7 @@ export type ListJobsRequest = Message<"vrooli.image_tools.v1.jobs.ListJobsReques
  * Use `create(ListJobsRequestSchema)` to create a new message.
  */
 export const ListJobsRequestSchema: GenMessage<ListJobsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 6);
+  messageDesc(file_image_tools_v1_jobs_jobs, 7);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.ListJobsResponse
@@ -272,7 +364,7 @@ export type ListJobsResponse = Message<"vrooli.image_tools.v1.jobs.ListJobsRespo
  * Use `create(ListJobsResponseSchema)` to create a new message.
  */
 export const ListJobsResponseSchema: GenMessage<ListJobsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 7);
+  messageDesc(file_image_tools_v1_jobs_jobs, 8);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.CancelJobRequest
@@ -289,7 +381,7 @@ export type CancelJobRequest = Message<"vrooli.image_tools.v1.jobs.CancelJobRequ
  * Use `create(CancelJobRequestSchema)` to create a new message.
  */
 export const CancelJobRequestSchema: GenMessage<CancelJobRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 8);
+  messageDesc(file_image_tools_v1_jobs_jobs, 9);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.CancelJobResponse
@@ -306,7 +398,7 @@ export type CancelJobResponse = Message<"vrooli.image_tools.v1.jobs.CancelJobRes
  * Use `create(CancelJobResponseSchema)` to create a new message.
  */
 export const CancelJobResponseSchema: GenMessage<CancelJobResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 9);
+  messageDesc(file_image_tools_v1_jobs_jobs, 10);
 
 /**
  * @generated from message vrooli.image_tools.v1.jobs.WatchJobRequest
@@ -323,7 +415,7 @@ export type WatchJobRequest = Message<"vrooli.image_tools.v1.jobs.WatchJobReques
  * Use `create(WatchJobRequestSchema)` to create a new message.
  */
 export const WatchJobRequestSchema: GenMessage<WatchJobRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_jobs_jobs, 10);
+  messageDesc(file_image_tools_v1_jobs_jobs, 11);
 
 /**
  * JobState is a job's lifecycle state. Mirrors api/internal/jobs.State.
@@ -399,6 +491,13 @@ export enum JobLane {
    * @generated from enum value: JOB_LANE_CPU = 2;
    */
   CPU = 2,
+
+  /**
+   * JOB_LANE_NETWORK carries remote-tier work on its own bounded pool.
+   *
+   * @generated from enum value: JOB_LANE_NETWORK = 3;
+   */
+  NETWORK = 3,
 }
 
 /**

@@ -14,13 +14,15 @@ import (
 )
 
 // finiteLeaderGuidance is the durable leader doctrine appended to every finite
-// coordinator prompt. It grants no authority; it states how to hold a finite
-// effort across the owner boundary.
+// coordinator prompt. The active team binding is the result of operator
+// activation; this states how to hold that finite effort across the owner
+// boundary. It does not permit scope expansion.
 const finiteLeaderGuidance = "\n\nFinite effort coordinator guidance:\n" +
 	"- Prefer durable owner reads (files, journals, owner APIs) over re-deriving state; never invent a private outcome ledger.\n" +
 	"- An enabled, incomplete delivery effort is an actionable mandate, not a request for a status report. Every wake must advance or recover the effort: continue the exact active work, select and admit the next bounded action from the accepted sources, perform the first docs/plan action when the delivery route is not yet shaped, run required review/validation, or record a typed external blocker and notify supervision. Do not finish a wake with `no-action` merely because no child or owner handoff exists yet.\n" +
 	"- Start/resume in this order: read the effort workspace and accepted destination; reconcile the exact prior task/run/plan identity; select the highest-priority unfinished bounded action; execute or admit it through the owning API; then persist the result, next action, and evidence. A missing handoff is a condition to repair by creating the next bounded handoff when authorized, not evidence that the effort has no work.\n" +
-	"- If execution authority is genuinely absent, distinguish that from an empty backlog: retain the exact missing grant/approval reference, write the reopening condition, and surface it to the supervisor/operator. Never silently convert an incomplete effort into success or retirement.\n" +
+	"- For a bounded-task action, spawn the bounded worker directly through Agent Manager now; do not create a Swarm backlog item, open a Plan Workshop, or wait for human plan acceptance. No direct-report roster entry is required for this child: the coordinator is its Agent Manager parent. Use the autonomous Plan Manager owner route only when the action is genuinely plan-backed.\n" +
+	"- If the active team binding does not match the accepted effort revision, distinguish that from an empty backlog: retain the exact missing grant/approval reference, write the reopening condition, and surface it to the supervisor/operator. Do not invent a second approval gate for work already inside the accepted boundary. Never silently convert an incomplete effort into success or retirement.\n" +
 	"- Do not confuse a missing supervisor steering grant with a missing coordinator work route. Steering grants govern supervisor-issued directives and repair actions; they do not block ordinary bounded preparation already covered by the operator-approved effort, declared destination, workspace, and coordinator lane. Proceed with docs, plan shaping, task tracking, and evidence inside that boundary. Stop only the specific operation that truly requires the absent grant.\n" +
 	"- Do independent, verifiable work before waiting; never hold a child wait inside the run.\n" +
 	"- When delegated children are pending, obtain the verified parent ID with `agent-manager run identity --json`, create durable child lineage with `agent-manager run create --parent-run-id`, and create one Agent Manager cohort watch containing the exact child run IDs and this parent run ID.\n" +

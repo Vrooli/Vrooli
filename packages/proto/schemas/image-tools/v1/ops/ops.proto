@@ -103,6 +103,9 @@ message OpParams {
     PixelSortParams pixel_sort = 30;
     DisplacementParams displacement = 31;
     CompositeParams composite = 32;
+    RasterizeParams rasterize = 34;
+    VectorizeParams vectorize = 35;
+    IconContainerParams icon_container = 36;
   }
 
   // Space no colour operation may print into, whichever one is selected above.
@@ -496,6 +499,37 @@ message DisplacementParams {
   double spacing_rel = 4;
   // amplitude_rel is the peak displacement as a fraction of the short edge.
   double amplitude_rel = 5;
+}
+
+// RasterizeParams renders an SVG at an exact pixel size. background, when set,
+// flattens the result onto an opaque colour.
+message RasterizeParams {
+  int32 width = 1;
+  int32 height = 2;
+  string background = 3;
+}
+
+// VectorizeParams traces a flat raster mark into an SVG. colors is the k-means
+// palette size (default 4) when keep_colors is empty; keep_colors pins the
+// palette to the listed hex colours within ΔE 12. drop_background_layers removes
+// the layer touching the image border. clip_to_largest_rounded_region clips the
+// kept layers to the convex hull of the enclosing tile, eroded by inset_px.
+message VectorizeParams {
+  int32 colors = 1;
+  repeated string keep_colors = 2;
+  bool drop_background_layers = 3;
+  bool clip_to_largest_rounded_region = 4;
+  double inset_px = 5;
+  double tolerance_px = 6;
+  bool smoothing = 7;
+  double min_area_px = 8;
+}
+
+// IconContainerParams packs PNG renders of one source into an ICO or ICNS
+// container. format is "ico" or "icns"; sizes are the exact pixel sizes.
+message IconContainerParams {
+  string format = 1;
+  repeated int32 sizes = 2;
 }
 
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob

@@ -2375,6 +2375,58 @@ func (x *PipelineGetRequest) GetPipelineId() string {
 	return ""
 }
 
+type PipelineWaitRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId     string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PipelineWaitRequest) Reset() {
+	*x = PipelineWaitRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineWaitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineWaitRequest) ProtoMessage() {}
+
+func (x *PipelineWaitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineWaitRequest.ProtoReflect.Descriptor instead.
+func (*PipelineWaitRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PipelineWaitRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *PipelineWaitRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
 type PipelineResumeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
@@ -2385,7 +2437,7 @@ type PipelineResumeRequest struct {
 
 func (x *PipelineResumeRequest) Reset() {
 	*x = PipelineResumeRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2397,7 +2449,7 @@ func (x *PipelineResumeRequest) String() string {
 func (*PipelineResumeRequest) ProtoMessage() {}
 
 func (x *PipelineResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2410,7 +2462,7 @@ func (x *PipelineResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineResumeRequest.ProtoReflect.Descriptor instead.
 func (*PipelineResumeRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{23}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PipelineResumeRequest) GetPipelineId() string {
@@ -2436,7 +2488,7 @@ type PipelineCancelRequest struct {
 
 func (x *PipelineCancelRequest) Reset() {
 	*x = PipelineCancelRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2448,7 +2500,7 @@ func (x *PipelineCancelRequest) String() string {
 func (*PipelineCancelRequest) ProtoMessage() {}
 
 func (x *PipelineCancelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2461,7 +2513,7 @@ func (x *PipelineCancelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineCancelRequest.ProtoReflect.Descriptor instead.
 func (*PipelineCancelRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{24}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PipelineCancelRequest) GetPipelineId() string {
@@ -2480,7 +2532,7 @@ type PipelineListRequest struct {
 
 func (x *PipelineListRequest) Reset() {
 	*x = PipelineListRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2492,7 +2544,7 @@ func (x *PipelineListRequest) String() string {
 func (*PipelineListRequest) ProtoMessage() {}
 
 func (x *PipelineListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2505,7 +2557,7 @@ func (x *PipelineListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineListRequest.ProtoReflect.Descriptor instead.
 func (*PipelineListRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{25}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PipelineListRequest) GetScenarioName() string {
@@ -2528,7 +2580,7 @@ type PipelineCancelResponse struct {
 
 func (x *PipelineCancelResponse) Reset() {
 	*x = PipelineCancelResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2540,7 +2592,7 @@ func (x *PipelineCancelResponse) String() string {
 func (*PipelineCancelResponse) ProtoMessage() {}
 
 func (x *PipelineCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2553,7 +2605,7 @@ func (x *PipelineCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineCancelResponse.ProtoReflect.Descriptor instead.
 func (*PipelineCancelResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{26}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PipelineCancelResponse) GetStatus() string {
@@ -2589,7 +2641,7 @@ type PipelineResumeResponse struct {
 
 func (x *PipelineResumeResponse) Reset() {
 	*x = PipelineResumeResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2601,7 +2653,7 @@ func (x *PipelineResumeResponse) String() string {
 func (*PipelineResumeResponse) ProtoMessage() {}
 
 func (x *PipelineResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2614,7 +2666,7 @@ func (x *PipelineResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineResumeResponse.ProtoReflect.Descriptor instead.
 func (*PipelineResumeResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{27}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PipelineResumeResponse) GetPipelineId() string {
@@ -2673,7 +2725,7 @@ type PipelineListItem struct {
 
 func (x *PipelineListItem) Reset() {
 	*x = PipelineListItem{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2685,7 +2737,7 @@ func (x *PipelineListItem) String() string {
 func (*PipelineListItem) ProtoMessage() {}
 
 func (x *PipelineListItem) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2698,7 +2750,7 @@ func (x *PipelineListItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineListItem.ProtoReflect.Descriptor instead.
 func (*PipelineListItem) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{28}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PipelineListItem) GetPipelineId() string {
@@ -2777,7 +2829,7 @@ type PipelineListResponse struct {
 
 func (x *PipelineListResponse) Reset() {
 	*x = PipelineListResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2789,7 +2841,7 @@ func (x *PipelineListResponse) String() string {
 func (*PipelineListResponse) ProtoMessage() {}
 
 func (x *PipelineListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2802,7 +2854,7 @@ func (x *PipelineListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineListResponse.ProtoReflect.Descriptor instead.
 func (*PipelineListResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{29}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *PipelineListResponse) GetPipelines() []*PipelineListItem {
@@ -2830,7 +2882,7 @@ type ScenarioPipelineRequest struct {
 
 func (x *ScenarioPipelineRequest) Reset() {
 	*x = ScenarioPipelineRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2842,7 +2894,7 @@ func (x *ScenarioPipelineRequest) String() string {
 func (*ScenarioPipelineRequest) ProtoMessage() {}
 
 func (x *ScenarioPipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2855,7 +2907,7 @@ func (x *ScenarioPipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioPipelineRequest.ProtoReflect.Descriptor instead.
 func (*ScenarioPipelineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{30}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ScenarioPipelineRequest) GetScenarioName() string {
@@ -2876,7 +2928,7 @@ type GetActivePipelineRequest struct {
 
 func (x *GetActivePipelineRequest) Reset() {
 	*x = GetActivePipelineRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2888,7 +2940,7 @@ func (x *GetActivePipelineRequest) String() string {
 func (*GetActivePipelineRequest) ProtoMessage() {}
 
 func (x *GetActivePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2901,7 +2953,7 @@ func (x *GetActivePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActivePipelineRequest.ProtoReflect.Descriptor instead.
 func (*GetActivePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{31}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetActivePipelineRequest) GetScenarioName() string {
@@ -2928,7 +2980,7 @@ type ActivePipelineResponse struct {
 
 func (x *ActivePipelineResponse) Reset() {
 	*x = ActivePipelineResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2940,7 +2992,7 @@ func (x *ActivePipelineResponse) String() string {
 func (*ActivePipelineResponse) ProtoMessage() {}
 
 func (x *ActivePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2953,7 +3005,7 @@ func (x *ActivePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivePipelineResponse.ProtoReflect.Descriptor instead.
 func (*ActivePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{32}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ActivePipelineResponse) GetPipeline() *PipelineStatus {
@@ -2980,7 +3032,7 @@ type CreatePipelineRequest struct {
 
 func (x *CreatePipelineRequest) Reset() {
 	*x = CreatePipelineRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2992,7 +3044,7 @@ func (x *CreatePipelineRequest) String() string {
 func (*CreatePipelineRequest) ProtoMessage() {}
 
 func (x *CreatePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3005,7 +3057,7 @@ func (x *CreatePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{33}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CreatePipelineRequest) GetScenarioName() string {
@@ -3032,7 +3084,7 @@ type CreatePipelineResponse struct {
 
 func (x *CreatePipelineResponse) Reset() {
 	*x = CreatePipelineResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3044,7 +3096,7 @@ func (x *CreatePipelineResponse) String() string {
 func (*CreatePipelineResponse) ProtoMessage() {}
 
 func (x *CreatePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3057,7 +3109,7 @@ func (x *CreatePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineResponse.ProtoReflect.Descriptor instead.
 func (*CreatePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{34}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CreatePipelineResponse) GetPipeline() *PipelineStatus {
@@ -3084,7 +3136,7 @@ type ResetPipelineResponse struct {
 
 func (x *ResetPipelineResponse) Reset() {
 	*x = ResetPipelineResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3096,7 +3148,7 @@ func (x *ResetPipelineResponse) String() string {
 func (*ResetPipelineResponse) ProtoMessage() {}
 
 func (x *ResetPipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3109,7 +3161,7 @@ func (x *ResetPipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetPipelineResponse.ProtoReflect.Descriptor instead.
 func (*ResetPipelineResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{35}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ResetPipelineResponse) GetArchivedPipelineId() string {
@@ -3136,7 +3188,7 @@ type PipelineHistoryRequest struct {
 
 func (x *PipelineHistoryRequest) Reset() {
 	*x = PipelineHistoryRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3148,7 +3200,7 @@ func (x *PipelineHistoryRequest) String() string {
 func (*PipelineHistoryRequest) ProtoMessage() {}
 
 func (x *PipelineHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3161,7 +3213,7 @@ func (x *PipelineHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineHistoryRequest.ProtoReflect.Descriptor instead.
 func (*PipelineHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{36}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *PipelineHistoryRequest) GetScenarioName() string {
@@ -3188,7 +3240,7 @@ type PipelineHistoryResponse struct {
 
 func (x *PipelineHistoryResponse) Reset() {
 	*x = PipelineHistoryResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3200,7 +3252,7 @@ func (x *PipelineHistoryResponse) String() string {
 func (*PipelineHistoryResponse) ProtoMessage() {}
 
 func (x *PipelineHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3213,7 +3265,7 @@ func (x *PipelineHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineHistoryResponse.ProtoReflect.Descriptor instead.
 func (*PipelineHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{37}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PipelineHistoryResponse) GetPipelines() []*PipelineStatus {
@@ -3240,7 +3292,7 @@ type StartActivePipelineRequest struct {
 
 func (x *StartActivePipelineRequest) Reset() {
 	*x = StartActivePipelineRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3252,7 +3304,7 @@ func (x *StartActivePipelineRequest) String() string {
 func (*StartActivePipelineRequest) ProtoMessage() {}
 
 func (x *StartActivePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3265,7 +3317,7 @@ func (x *StartActivePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartActivePipelineRequest.ProtoReflect.Descriptor instead.
 func (*StartActivePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{38}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *StartActivePipelineRequest) GetScenarioName() string {
@@ -3293,7 +3345,7 @@ type StartActivePipelineResponse struct {
 
 func (x *StartActivePipelineResponse) Reset() {
 	*x = StartActivePipelineResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3305,7 +3357,7 @@ func (x *StartActivePipelineResponse) String() string {
 func (*StartActivePipelineResponse) ProtoMessage() {}
 
 func (x *StartActivePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3318,7 +3370,7 @@ func (x *StartActivePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartActivePipelineResponse.ProtoReflect.Descriptor instead.
 func (*StartActivePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{39}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StartActivePipelineResponse) GetPipeline() *PipelineStatus {
@@ -3349,7 +3401,7 @@ type BundleCleanRequest struct {
 
 func (x *BundleCleanRequest) Reset() {
 	*x = BundleCleanRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3361,7 +3413,7 @@ func (x *BundleCleanRequest) String() string {
 func (*BundleCleanRequest) ProtoMessage() {}
 
 func (x *BundleCleanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3374,7 +3426,7 @@ func (x *BundleCleanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BundleCleanRequest.ProtoReflect.Descriptor instead.
 func (*BundleCleanRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{40}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *BundleCleanRequest) GetScenarioName() string {
@@ -3411,7 +3463,7 @@ type BundleCleanResponse struct {
 
 func (x *BundleCleanResponse) Reset() {
 	*x = BundleCleanResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[41]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3423,7 +3475,7 @@ func (x *BundleCleanResponse) String() string {
 func (*BundleCleanResponse) ProtoMessage() {}
 
 func (x *BundleCleanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[41]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3436,7 +3488,7 @@ func (x *BundleCleanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BundleCleanResponse.ProtoReflect.Descriptor instead.
 func (*BundleCleanResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{41}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *BundleCleanResponse) GetScenarioName() string {
@@ -3499,7 +3551,7 @@ type GenerateResponse struct {
 
 func (x *GenerateResponse) Reset() {
 	*x = GenerateResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[42]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3511,7 +3563,7 @@ func (x *GenerateResponse) String() string {
 func (*GenerateResponse) ProtoMessage() {}
 
 func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[42]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3524,7 +3576,7 @@ func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateResponse.ProtoReflect.Descriptor instead.
 func (*GenerateResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{42}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GenerateResponse) GetPipelineId() string {
@@ -3873,7 +3925,11 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\b_message\">\n" +
 	"\x12PipelineGetRequest\x12(\n" +
 	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"pipelineId\"\x91\x01\n" +
+	"pipelineId\"h\n" +
+	"\x13PipelineWaitRequest\x12(\n" +
+	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"pipelineId\x12'\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"\x91\x01\n" +
 	"\x15PipelineResumeRequest\x12(\n" +
 	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"pipelineId\x12N\n" +
@@ -3983,10 +4039,11 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\r_desktop_pathB\x14\n" +
 	"\x12_detected_metadataB\x17\n" +
 	"\x15_install_instructionsB\x0f\n" +
-	"\r_test_command2\x8d\r\n" +
+	"\r_test_command2\x8a\x0e\n" +
 	"\x0fPipelineService\x12~\n" +
 	"\x03Run\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest\x1a;.vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse\x12y\n" +
-	"\x03Get\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12\x84\x01\n" +
+	"\x03Get\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12{\n" +
+	"\x04Wait\x12;.vrooli.scenario_to_desktop.v1.pipeline.PipelineWaitRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12\x84\x01\n" +
 	"\x0eGetReleaseGate\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12\x87\x01\n" +
 	"\x06Resume\x12=.vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse\x12\x87\x01\n" +
 	"\x06Cancel\x12=.vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse\x12\x81\x01\n" +
@@ -4011,7 +4068,7 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
+var file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
 	(*PipelineConfig)(nil),                  // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
 	(*DeployConfig)(nil),                    // 1: vrooli.scenario_to_desktop.v1.pipeline.DeployConfig
@@ -4036,71 +4093,72 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
 	(*PipelineRunRequest)(nil),              // 20: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
 	(*PipelineRunResponse)(nil),             // 21: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
 	(*PipelineGetRequest)(nil),              // 22: vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
-	(*PipelineResumeRequest)(nil),           // 23: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
-	(*PipelineCancelRequest)(nil),           // 24: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
-	(*PipelineListRequest)(nil),             // 25: vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
-	(*PipelineCancelResponse)(nil),          // 26: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
-	(*PipelineResumeResponse)(nil),          // 27: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
-	(*PipelineListItem)(nil),                // 28: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
-	(*PipelineListResponse)(nil),            // 29: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
-	(*ScenarioPipelineRequest)(nil),         // 30: vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
-	(*GetActivePipelineRequest)(nil),        // 31: vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
-	(*ActivePipelineResponse)(nil),          // 32: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
-	(*CreatePipelineRequest)(nil),           // 33: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
-	(*CreatePipelineResponse)(nil),          // 34: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
-	(*ResetPipelineResponse)(nil),           // 35: vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
-	(*PipelineHistoryRequest)(nil),          // 36: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
-	(*PipelineHistoryResponse)(nil),         // 37: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
-	(*StartActivePipelineRequest)(nil),      // 38: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
-	(*StartActivePipelineResponse)(nil),     // 39: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
-	(*BundleCleanRequest)(nil),              // 40: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
-	(*BundleCleanResponse)(nil),             // 41: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
-	(*GenerateResponse)(nil),                // 42: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
-	nil,                                     // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
-	nil,                                     // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.ExpectedArtifactDigestsEntry
-	nil,                                     // 45: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
-	nil,                                     // 46: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
-	nil,                                     // 47: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
-	nil,                                     // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
-	nil,                                     // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
-	(shared.Platform)(0),                    // 50: vrooli.scenario_to_desktop.v1.shared.Platform
-	(shared.DeploymentMode)(0),              // 51: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	(shared.Framework)(0),                   // 52: vrooli.scenario_to_desktop.v1.shared.Framework
-	(shared.TemplateType)(0),                // 53: vrooli.scenario_to_desktop.v1.shared.TemplateType
-	(shared.StageName)(0),                   // 54: vrooli.scenario_to_desktop.v1.shared.StageName
-	(*shared.UpdateConfig)(nil),             // 55: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
-	(*domain.NativeExtension)(nil),          // 56: vrooli.scenario_to_desktop.v1.domain.NativeExtension
-	(shared.StageStatus)(0),                 // 57: vrooli.scenario_to_desktop.v1.shared.StageStatus
-	(*timestamppb.Timestamp)(nil),           // 58: google.protobuf.Timestamp
-	(*shared.PreflightResponse)(nil),        // 59: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
-	(*shared.BuildStatusResponse)(nil),      // 60: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
-	(*shared.SmokeTestStatusResponse)(nil),  // 61: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
-	(*shared.ScenarioMetadata)(nil),         // 62: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	(*PipelineWaitRequest)(nil),             // 23: vrooli.scenario_to_desktop.v1.pipeline.PipelineWaitRequest
+	(*PipelineResumeRequest)(nil),           // 24: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
+	(*PipelineCancelRequest)(nil),           // 25: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
+	(*PipelineListRequest)(nil),             // 26: vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
+	(*PipelineCancelResponse)(nil),          // 27: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
+	(*PipelineResumeResponse)(nil),          // 28: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
+	(*PipelineListItem)(nil),                // 29: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
+	(*PipelineListResponse)(nil),            // 30: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
+	(*ScenarioPipelineRequest)(nil),         // 31: vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
+	(*GetActivePipelineRequest)(nil),        // 32: vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
+	(*ActivePipelineResponse)(nil),          // 33: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
+	(*CreatePipelineRequest)(nil),           // 34: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
+	(*CreatePipelineResponse)(nil),          // 35: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
+	(*ResetPipelineResponse)(nil),           // 36: vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
+	(*PipelineHistoryRequest)(nil),          // 37: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
+	(*PipelineHistoryResponse)(nil),         // 38: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
+	(*StartActivePipelineRequest)(nil),      // 39: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
+	(*StartActivePipelineResponse)(nil),     // 40: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
+	(*BundleCleanRequest)(nil),              // 41: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
+	(*BundleCleanResponse)(nil),             // 42: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
+	(*GenerateResponse)(nil),                // 43: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
+	nil,                                     // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
+	nil,                                     // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.ExpectedArtifactDigestsEntry
+	nil,                                     // 46: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
+	nil,                                     // 47: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
+	nil,                                     // 48: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
+	nil,                                     // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
+	nil,                                     // 50: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
+	(shared.Platform)(0),                    // 51: vrooli.scenario_to_desktop.v1.shared.Platform
+	(shared.DeploymentMode)(0),              // 52: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	(shared.Framework)(0),                   // 53: vrooli.scenario_to_desktop.v1.shared.Framework
+	(shared.TemplateType)(0),                // 54: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(shared.StageName)(0),                   // 55: vrooli.scenario_to_desktop.v1.shared.StageName
+	(*shared.UpdateConfig)(nil),             // 56: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	(*domain.NativeExtension)(nil),          // 57: vrooli.scenario_to_desktop.v1.domain.NativeExtension
+	(shared.StageStatus)(0),                 // 58: vrooli.scenario_to_desktop.v1.shared.StageStatus
+	(*timestamppb.Timestamp)(nil),           // 59: google.protobuf.Timestamp
+	(*shared.PreflightResponse)(nil),        // 60: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	(*shared.BuildStatusResponse)(nil),      // 61: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	(*shared.SmokeTestStatusResponse)(nil),  // 62: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	(*shared.ScenarioMetadata)(nil),         // 63: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
 }
 var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
-	50, // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	51, // 1: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	52, // 2: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
-	53, // 3: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	43, // 4: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.preflight_secrets:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
-	54, // 5: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stop_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	54, // 6: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	54, // 7: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stages:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	55, // 8: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.update_config:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
-	56, // 9: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.native_extension:type_name -> vrooli.scenario_to_desktop.v1.domain.NativeExtension
-	44, // 10: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.expected_artifact_digests:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.ExpectedArtifactDigestsEntry
+	51, // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	52, // 1: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	53, // 2: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	54, // 3: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	44, // 4: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.preflight_secrets:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
+	55, // 5: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stop_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	55, // 6: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	55, // 7: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stages:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	56, // 8: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.update_config:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	57, // 9: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.native_extension:type_name -> vrooli.scenario_to_desktop.v1.domain.NativeExtension
+	45, // 10: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.expected_artifact_digests:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.ExpectedArtifactDigestsEntry
 	1,  // 11: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.deploy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployConfig
-	54, // 12: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	57, // 13: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	58, // 14: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp
-	58, // 15: vrooli.scenario_to_desktop.v1.pipeline.StageResult.completed_at:type_name -> google.protobuf.Timestamp
+	55, // 12: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	58, // 13: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	59, // 14: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp
+	59, // 15: vrooli.scenario_to_desktop.v1.pipeline.StageResult.completed_at:type_name -> google.protobuf.Timestamp
 	3,  // 16: vrooli.scenario_to_desktop.v1.pipeline.StageResult.details:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageDetails
 	4,  // 17: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.resolve_deployment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan
 	14, // 18: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.bundle:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails
-	59, // 19: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.preflight:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
-	42, // 20: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.generate:type_name -> vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
-	60, // 21: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.build:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
-	61, // 22: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.smoke_test:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	60, // 19: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.preflight:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	43, // 20: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.generate:type_name -> vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
+	61, // 21: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.build:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	62, // 22: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.smoke_test:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
 	17, // 23: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.deploy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails
 	6,  // 24: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.resources:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem
 	5,  // 25: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.host_requirements:type_name -> vrooli.scenario_to_desktop.v1.pipeline.HostRequirementPlanItem
@@ -4108,69 +4166,71 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
 	8,  // 27: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
 	9,  // 28: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.service:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService
 	10, // 29: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.provider_policy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy
-	45, // 30: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.environment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
+	46, // 30: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.environment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
 	12, // 31: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.ports:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePort
 	13, // 32: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.health_checks:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheck
 	8,  // 33: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
 	11, // 34: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfig
-	46, // 35: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.target_defaults:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
-	47, // 36: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.runtime_binaries:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
+	47, // 35: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.target_defaults:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
+	48, // 36: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.runtime_binaries:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
 	15, // 37: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.size_warning:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning
 	16, // 38: vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning.large_files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFile
 	18, // 39: vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails.artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult
-	50, // 40: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	57, // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	54, // 42: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	48, // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stages:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
-	54, // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stage_order:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	51, // 40: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	58, // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	55, // 42: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	49, // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stages:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
+	55, // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stage_order:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	0,  // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	58, // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
-	58, // 47: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
-	49, // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.final_artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
-	54, // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stopped_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	59, // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
+	59, // 47: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
+	50, // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.final_artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
+	55, // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stopped_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	0,  // 50: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
 	0,  // 51: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	54, // 52: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	57, // 53: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	54, // 54: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	58, // 55: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
-	58, // 56: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
-	58, // 57: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
-	28, // 58: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
+	55, // 52: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	58, // 53: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	55, // 54: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	59, // 55: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
+	59, // 56: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
+	59, // 57: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
+	29, // 58: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
 	19, // 59: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
 	0,  // 60: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
 	19, // 61: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
 	19, // 62: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
 	0,  // 63: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest.config_overrides:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
 	19, // 64: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	62, // 65: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse.detected_metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	63, // 65: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse.detected_metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
 	2,  // 66: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry.value:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageResult
 	20, // 67: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
 	22, // 68: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
-	22, // 69: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
-	23, // 70: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
-	24, // 71: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
-	25, // 72: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
-	31, // 73: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
-	33, // 74: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
-	30, // 75: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
-	36, // 76: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
-	38, // 77: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
-	40, // 78: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:input_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
-	21, // 79: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
-	19, // 80: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	19, // 81: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	27, // 82: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
-	26, // 83: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
-	29, // 84: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
-	32, // 85: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
-	34, // 86: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
-	35, // 87: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
-	37, // 88: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
-	39, // 89: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
-	41, // 90: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:output_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
-	79, // [79:91] is the sub-list for method output_type
-	67, // [67:79] is the sub-list for method input_type
+	23, // 69: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Wait:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineWaitRequest
+	22, // 70: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	24, // 71: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
+	25, // 72: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
+	26, // 73: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
+	32, // 74: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
+	34, // 75: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
+	31, // 76: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
+	37, // 77: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
+	39, // 78: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
+	41, // 79: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:input_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
+	21, // 80: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
+	19, // 81: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	19, // 82: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Wait:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	19, // 83: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	28, // 84: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
+	27, // 85: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
+	30, // 86: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
+	33, // 87: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
+	35, // 88: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
+	36, // 89: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
+	38, // 90: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
+	40, // 91: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
+	42, // 92: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:output_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
+	80, // [80:93] is the sub-list for method output_type
+	67, // [67:80] is the sub-list for method input_type
 	67, // [67:67] is the sub-list for extension type_name
 	67, // [67:67] is the sub-list for extension extendee
 	0,  // [0:67] is the sub-list for field type_name
@@ -4199,28 +4259,28 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_init() {
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[17].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[19].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[21].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[41].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[42].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[43].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc), len(file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   50,
+			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

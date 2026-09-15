@@ -43,6 +43,11 @@ func IsPreEffectRefusal(err error) bool {
 	return errors.As(err, &refusal)
 }
 
+// ModelPolicyUnavailable is a reserved current-policy overlay marker. It is
+// never persisted in an execution snapshot; it prevents a fallback from
+// running when its resource policy could not be re-read during recovery.
+const ModelPolicyUnavailable = "__vrooli_model_policy_unavailable__"
+
 // IsModelExcluded applies a resource-owned, exact model deny list. Both the
 // runner-facing alias and its canonical pricing identity are checked so an
 // alias cannot bypass the same configured exclusion.
@@ -56,6 +61,9 @@ func IsModelExcluded(model, canonical string, excluded []string) bool {
 		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
+		}
+		if value == ModelPolicyUnavailable {
+			return true
 		}
 		if modelIdentityMatches(value, model) || modelIdentityMatches(value, canonical) {
 			return true

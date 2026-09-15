@@ -222,6 +222,23 @@ func TestSearchRegistrationStartsBeforeListener(t *testing.T) {
 	}
 }
 
+func TestRecoveryStepsPrioritizeSelfDeclarations(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	selfAt := strings.Index(text, `add("self_declarations"`)
+	workflowAt := strings.Index(text, `add("workflow_accounting"`)
+	otherAt := strings.Index(text, `add("scenario_declarations"`)
+	if selfAt < 0 || workflowAt < 0 || otherAt < 0 {
+		t.Fatalf("recovery steps missing self/workflow/scenario declarations")
+	}
+	if selfAt >= workflowAt || selfAt >= otherAt {
+		t.Fatalf("self declarations must precede historical reconciliation: self=%d workflow=%d scenario=%d", selfAt, workflowAt, otherAt)
+	}
+}
+
 func TestSearchControlTokensRejectEmptyAndRoundTripMintedToken(t *testing.T) {
 	tokens := newSearchControlTokens()
 	tokens.set("agent-manager.runs", "")

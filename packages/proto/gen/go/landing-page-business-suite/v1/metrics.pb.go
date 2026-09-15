@@ -34,6 +34,7 @@ const (
 	TrafficDimension_DEVICE_CLASS                  TrafficDimension = 5
 	TrafficDimension_LANDING_PATH                  TrafficDimension = 6
 	TrafficDimension_VARIANT                       TrafficDimension = 7
+	TrafficDimension_UTM_MEDIUM                    TrafficDimension = 8
 )
 
 // Enum value maps for TrafficDimension.
@@ -47,6 +48,7 @@ var (
 		5: "DEVICE_CLASS",
 		6: "LANDING_PATH",
 		7: "VARIANT",
+		8: "UTM_MEDIUM",
 	}
 	TrafficDimension_value = map[string]int32{
 		"TRAFFIC_DIMENSION_UNSPECIFIED": 0,
@@ -57,6 +59,7 @@ var (
 		"DEVICE_CLASS":                  5,
 		"LANDING_PATH":                  6,
 		"VARIANT":                       7,
+		"UTM_MEDIUM":                    8,
 	}
 )
 
@@ -107,12 +110,14 @@ type TrackEventRequest struct {
 	EventId string `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Variant slug used by the existing analytics store and public UI. Clients
 	// should supply this when they do not have the internal numeric variant id.
-	VariantSlug   string `protobuf:"bytes,7,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
-	UtmSource     string `protobuf:"bytes,8,opt,name=utm_source,json=utmSource,proto3" json:"utm_source,omitempty"`
-	UtmMedium     string `protobuf:"bytes,9,opt,name=utm_medium,json=utmMedium,proto3" json:"utm_medium,omitempty"`
-	UtmCampaign   string `protobuf:"bytes,10,opt,name=utm_campaign,json=utmCampaign,proto3" json:"utm_campaign,omitempty"`
-	LandingPath   string `protobuf:"bytes,11,opt,name=landing_path,json=landingPath,proto3" json:"landing_path,omitempty"`
-	Referrer      string `protobuf:"bytes,12,opt,name=referrer,proto3" json:"referrer,omitempty"`
+	VariantSlug string `protobuf:"bytes,7,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
+	UtmSource   string `protobuf:"bytes,8,opt,name=utm_source,json=utmSource,proto3" json:"utm_source,omitempty"`
+	UtmMedium   string `protobuf:"bytes,9,opt,name=utm_medium,json=utmMedium,proto3" json:"utm_medium,omitempty"`
+	UtmCampaign string `protobuf:"bytes,10,opt,name=utm_campaign,json=utmCampaign,proto3" json:"utm_campaign,omitempty"`
+	LandingPath string `protobuf:"bytes,11,opt,name=landing_path,json=landingPath,proto3" json:"landing_path,omitempty"`
+	Referrer    string `protobuf:"bytes,12,opt,name=referrer,proto3" json:"referrer,omitempty"`
+	// Classification applied at ingest: human, bot, or internal.
+	TrafficClass  string `protobuf:"bytes,13,opt,name=traffic_class,json=trafficClass,proto3" json:"traffic_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -231,11 +236,18 @@ func (x *TrackEventRequest) GetReferrer() string {
 	return ""
 }
 
+func (x *TrackEventRequest) GetTrafficClass() string {
+	if x != nil {
+		return x.TrafficClass
+	}
+	return ""
+}
+
 type TrafficBreakdownRow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	Sessions      int64                  `protobuf:"varint,3,opt,name=sessions,proto3" json:"sessions,omitempty"`
+	Visitors      int64                  `protobuf:"varint,3,opt,name=visitors,proto3" json:"visitors,omitempty"`
 	Conversions   int64                  `protobuf:"varint,4,opt,name=conversions,proto3" json:"conversions,omitempty"`
 	RevenueMinor  int64                  `protobuf:"varint,5,opt,name=revenue_minor,json=revenueMinor,proto3" json:"revenue_minor,omitempty"`
 	Share         float64                `protobuf:"fixed64,6,opt,name=share,proto3" json:"share,omitempty"`
@@ -287,9 +299,9 @@ func (x *TrafficBreakdownRow) GetLabel() string {
 	return ""
 }
 
-func (x *TrafficBreakdownRow) GetSessions() int64 {
+func (x *TrafficBreakdownRow) GetVisitors() int64 {
 	if x != nil {
-		return x.Sessions
+		return x.Visitors
 	}
 	return 0
 }
@@ -321,6 +333,7 @@ type GetTrafficBreakdownRequest struct {
 	StartDate     string                 `protobuf:"bytes,2,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate       string                 `protobuf:"bytes,3,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
 	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	WindowDays    int32                  `protobuf:"varint,5,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -383,13 +396,21 @@ func (x *GetTrafficBreakdownRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *GetTrafficBreakdownRequest) GetWindowDays() int32 {
+	if x != nil {
+		return x.WindowDays
+	}
+	return 0
+}
+
 type GetTrafficBreakdownResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rows          []*TrafficBreakdownRow `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
-	TotalSessions int64                  `protobuf:"varint,2,opt,name=total_sessions,json=totalSessions,proto3" json:"total_sessions,omitempty"`
+	TotalVisitors int64                  `protobuf:"varint,2,opt,name=total_visitors,json=totalVisitors,proto3" json:"total_visitors,omitempty"`
 	Exhaustive    bool                   `protobuf:"varint,3,opt,name=exhaustive,proto3" json:"exhaustive,omitempty"`
 	Currency      string                 `protobuf:"bytes,4,opt,name=currency,proto3" json:"currency,omitempty"`
 	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	OtherVisitors int64                  `protobuf:"varint,6,opt,name=other_visitors,json=otherVisitors,proto3" json:"other_visitors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -431,9 +452,9 @@ func (x *GetTrafficBreakdownResponse) GetRows() []*TrafficBreakdownRow {
 	return nil
 }
 
-func (x *GetTrafficBreakdownResponse) GetTotalSessions() int64 {
+func (x *GetTrafficBreakdownResponse) GetTotalVisitors() int64 {
 	if x != nil {
-		return x.TotalSessions
+		return x.TotalVisitors
 	}
 	return 0
 }
@@ -457,6 +478,13 @@ func (x *GetTrafficBreakdownResponse) GetObservedAt() *timestamppb.Timestamp {
 		return x.ObservedAt
 	}
 	return nil
+}
+
+func (x *GetTrafficBreakdownResponse) GetOtherVisitors() int64 {
+	if x != nil {
+		return x.OtherVisitors
+	}
+	return 0
 }
 
 type TrafficSeriesPoint struct {
@@ -517,6 +545,7 @@ type GetTrafficSeriesRequest struct {
 	StartDate     string                 `protobuf:"bytes,2,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate       string                 `protobuf:"bytes,3,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
 	Bucket        string                 `protobuf:"bytes,4,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	WindowDays    int32                  `protobuf:"varint,5,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -577,6 +606,13 @@ func (x *GetTrafficSeriesRequest) GetBucket() string {
 		return x.Bucket
 	}
 	return ""
+}
+
+func (x *GetTrafficSeriesRequest) GetWindowDays() int32 {
+	if x != nil {
+		return x.WindowDays
+	}
+	return 0
 }
 
 type GetTrafficSeriesResponse struct {
@@ -704,10 +740,6 @@ type VariantStats struct {
 	Downloads   int64                  `protobuf:"varint,7,opt,name=downloads,proto3" json:"downloads,omitempty"`
 	// conversions / exposures * 100 (0 when exposures == 0).
 	ConversionRate float64 `protobuf:"fixed64,8,opt,name=conversion_rate,json=conversionRate,proto3" json:"conversion_rate,omitempty"`
-	// Reserved for future trend rendering; not currently populated.
-	Trend *float64 `protobuf:"fixed64,9,opt,name=trend,proto3,oneof" json:"trend,omitempty"`
-	// Reserved for future scroll-depth rollups; not currently populated.
-	AvgScrollDepth *float64 `protobuf:"fixed64,10,opt,name=avg_scroll_depth,json=avgScrollDepth,proto3,oneof" json:"avg_scroll_depth,omitempty"`
 	// Number of first exposures used as the conversion-rate denominator.
 	Exposures     int64 `protobuf:"varint,11,opt,name=exposures,proto3" json:"exposures,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -800,20 +832,6 @@ func (x *VariantStats) GetConversionRate() float64 {
 	return 0
 }
 
-func (x *VariantStats) GetTrend() float64 {
-	if x != nil && x.Trend != nil {
-		return *x.Trend
-	}
-	return 0
-}
-
-func (x *VariantStats) GetAvgScrollDepth() float64 {
-	if x != nil && x.AvgScrollDepth != nil {
-		return *x.AvgScrollDepth
-	}
-	return 0
-}
-
 func (x *VariantStats) GetExposures() int64 {
 	if x != nil {
 		return x.Exposures
@@ -832,9 +850,11 @@ type AnalyticsSummary struct {
 	// Click-through rate for top_cta (clicks / views * 100).
 	TopCtaCtr *float64 `protobuf:"fixed64,5,opt,name=top_cta_ctr,json=topCtaCtr,proto3,oneof" json:"top_cta_ctr,omitempty"`
 	// Time at which the producer completed this aggregate projection.
-	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ObservedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Exclusions      *TrafficExclusions     `protobuf:"bytes,7,opt,name=exclusions,proto3" json:"exclusions,omitempty"`
+	ContractVersion string                 `protobuf:"bytes,8,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AnalyticsSummary) Reset() {
@@ -907,6 +927,20 @@ func (x *AnalyticsSummary) GetObservedAt() *timestamppb.Timestamp {
 		return x.ObservedAt
 	}
 	return nil
+}
+
+func (x *AnalyticsSummary) GetExclusions() *TrafficExclusions {
+	if x != nil {
+		return x.Exclusions
+	}
+	return nil
+}
+
+func (x *AnalyticsSummary) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
 }
 
 // AdminRevenue is the producer-owned financial rollup. Monetary values are
@@ -1210,6 +1244,7 @@ type GetAnalyticsSummaryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StartDate     string                 `protobuf:"bytes,1,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate       string                 `protobuf:"bytes,2,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
+	WindowDays    int32                  `protobuf:"varint,3,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1258,6 +1293,13 @@ func (x *GetAnalyticsSummaryRequest) GetEndDate() string {
 	return ""
 }
 
+func (x *GetAnalyticsSummaryRequest) GetWindowDays() int32 {
+	if x != nil {
+		return x.WindowDays
+	}
+	return 0
+}
+
 // GetVariantStatsRequest requests per-variant funnel stats for a date window,
 // optionally filtered to a single variant slug.
 type GetVariantStatsRequest struct {
@@ -1266,6 +1308,7 @@ type GetVariantStatsRequest struct {
 	EndDate   string                 `protobuf:"bytes,2,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
 	// Optional variant slug filter; empty returns all active variants.
 	Variant       string `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
+	WindowDays    int32  `protobuf:"varint,4,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1319,6 +1362,13 @@ func (x *GetVariantStatsRequest) GetVariant() string {
 		return x.Variant
 	}
 	return ""
+}
+
+func (x *GetVariantStatsRequest) GetWindowDays() int32 {
+	if x != nil {
+		return x.WindowDays
+	}
+	return 0
 }
 
 // GetVariantStatsResponse returns the resolved window and per-variant stats.
@@ -1458,7 +1508,7 @@ var File_landing_page_business_suite_v1_metrics_proto protoreflect.FileDescripto
 
 const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\x03\n" +
+	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a+landing-page-business-suite/v1/shared.proto\"\xca\x03\n" +
 	"\x11TrackEventRequest\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x01 \x01(\tR\teventType\x12\x1d\n" +
@@ -1479,38 +1529,44 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\futm_campaign\x18\n" +
 	" \x01(\tR\vutmCampaign\x12!\n" +
 	"\flanding_path\x18\v \x01(\tR\vlandingPath\x12\x1a\n" +
-	"\breferrer\x18\f \x01(\tR\breferrer\"\xb6\x01\n" +
+	"\breferrer\x18\f \x01(\tR\breferrer\x12#\n" +
+	"\rtraffic_class\x18\r \x01(\tR\ftrafficClass\"\xb6\x01\n" +
 	"\x13TrafficBreakdownRow\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
-	"\bsessions\x18\x03 \x01(\x03R\bsessions\x12 \n" +
+	"\bvisitors\x18\x03 \x01(\x03R\bvisitors\x12 \n" +
 	"\vconversions\x18\x04 \x01(\x03R\vconversions\x12#\n" +
 	"\rrevenue_minor\x18\x05 \x01(\x03R\frevenueMinor\x12\x14\n" +
-	"\x05share\x18\x06 \x01(\x01R\x05share\"\xbc\x01\n" +
+	"\x05share\x18\x06 \x01(\x01R\x05share\"\xdd\x01\n" +
 	"\x1aGetTrafficBreakdownRequest\x12N\n" +
 	"\tdimension\x18\x01 \x01(\x0e20.landing_page_business_suite.v1.TrafficDimensionR\tdimension\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x02 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x03 \x01(\tR\aendDate\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x86\x02\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x1f\n" +
+	"\vwindow_days\x18\x05 \x01(\x05R\n" +
+	"windowDays\"\xad\x02\n" +
 	"\x1bGetTrafficBreakdownResponse\x12G\n" +
 	"\x04rows\x18\x01 \x03(\v23.landing_page_business_suite.v1.TrafficBreakdownRowR\x04rows\x12%\n" +
-	"\x0etotal_sessions\x18\x02 \x01(\x03R\rtotalSessions\x12\x1e\n" +
+	"\x0etotal_visitors\x18\x02 \x01(\x03R\rtotalVisitors\x12\x1e\n" +
 	"\n" +
 	"exhaustive\x18\x03 \x01(\bR\n" +
 	"exhaustive\x12\x1a\n" +
 	"\bcurrency\x18\x04 \x01(\tR\bcurrency\x12;\n" +
 	"\vobserved_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\"M\n" +
+	"observedAt\x12%\n" +
+	"\x0eother_visitors\x18\x06 \x01(\x03R\rotherVisitors\"M\n" +
 	"\x12TrafficSeriesPoint\x12!\n" +
 	"\fbucket_start\x18\x01 \x01(\tR\vbucketStart\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value\"\x83\x01\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\"\xa4\x01\n" +
 	"\x17GetTrafficSeriesRequest\x12\x16\n" +
 	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x02 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x03 \x01(\tR\aendDate\x12\x16\n" +
-	"\x06bucket\x18\x04 \x01(\tR\x06bucket\"\xb7\x01\n" +
+	"\x06bucket\x18\x04 \x01(\tR\x06bucket\x12\x1f\n" +
+	"\vwindow_days\x18\x05 \x01(\x05R\n" +
+	"windowDays\"\xb7\x01\n" +
 	"\x18GetTrafficSeriesResponse\x12J\n" +
 	"\x06points\x18\x01 \x03(\v22.landing_page_business_suite.v1.TrafficSeriesPointR\x06points\x12\x12\n" +
 	"\x04unit\x18\x02 \x01(\tR\x04unit\x12;\n" +
@@ -1518,7 +1574,7 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"observedAt\"H\n" +
 	"\x12TrackEventResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x98\x03\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xbb\x02\n" +
 	"\fVariantStats\x12\x1d\n" +
 	"\n" +
 	"variant_id\x18\x01 \x01(\x03R\tvariantId\x12!\n" +
@@ -1529,13 +1585,10 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"cta_clicks\x18\x05 \x01(\x03R\tctaClicks\x12 \n" +
 	"\vconversions\x18\x06 \x01(\x03R\vconversions\x12\x1c\n" +
 	"\tdownloads\x18\a \x01(\x03R\tdownloads\x12'\n" +
-	"\x0fconversion_rate\x18\b \x01(\x01R\x0econversionRate\x12\x19\n" +
-	"\x05trend\x18\t \x01(\x01H\x00R\x05trend\x88\x01\x01\x12-\n" +
-	"\x10avg_scroll_depth\x18\n" +
-	" \x01(\x01H\x01R\x0eavgScrollDepth\x88\x01\x01\x12\x1c\n" +
-	"\texposures\x18\v \x01(\x03R\texposuresB\b\n" +
-	"\x06_trendB\x13\n" +
-	"\x11_avg_scroll_depth\"\xd1\x02\n" +
+	"\x0fconversion_rate\x18\b \x01(\x01R\x0econversionRate\x12\x1c\n" +
+	"\texposures\x18\v \x01(\x03R\texposuresJ\x04\b\t\x10\n" +
+	"J\x04\b\n" +
+	"\x10\v\"\xcf\x03\n" +
 	"\x10AnalyticsSummary\x12%\n" +
 	"\x0etotal_visitors\x18\x01 \x01(\x03R\rtotalVisitors\x12'\n" +
 	"\x0ftotal_downloads\x18\x02 \x01(\x03R\x0etotalDownloads\x12Q\n" +
@@ -1543,7 +1596,11 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\atop_cta\x18\x04 \x01(\tH\x00R\x06topCta\x88\x01\x01\x12#\n" +
 	"\vtop_cta_ctr\x18\x05 \x01(\x01H\x01R\ttopCtaCtr\x88\x01\x01\x12;\n" +
 	"\vobserved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAtB\n" +
+	"observedAt\x12Q\n" +
+	"\n" +
+	"exclusions\x18\a \x01(\v21.landing_page_business_suite.v1.TrafficExclusionsR\n" +
+	"exclusions\x12)\n" +
+	"\x10contract_version\x18\b \x01(\tR\x0fcontractVersionB\n" +
 	"\n" +
 	"\b_top_ctaB\x0e\n" +
 	"\f_top_cta_ctr\"\xea\x01\n" +
@@ -1580,23 +1637,27 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\x13revenue_window_unit\x18\x10 \x01(\tR\x11revenueWindowUnit\x12\x1f\n" +
 	"\vcredit_unit\x18\x11 \x01(\tR\n" +
 	"creditUnit\x126\n" +
-	"\x17currency_excluded_count\x18\x12 \x01(\x03R\x15currencyExcludedCount\"V\n" +
+	"\x17currency_excluded_count\x18\x12 \x01(\x03R\x15currencyExcludedCount\"w\n" +
 	"\x1aGetAnalyticsSummaryRequest\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x01 \x01(\tR\tstartDate\x12\x19\n" +
-	"\bend_date\x18\x02 \x01(\tR\aendDate\"l\n" +
+	"\bend_date\x18\x02 \x01(\tR\aendDate\x12\x1f\n" +
+	"\vwindow_days\x18\x03 \x01(\x05R\n" +
+	"windowDays\"\x8d\x01\n" +
 	"\x16GetVariantStatsRequest\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x01 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x02 \x01(\tR\aendDate\x12\x18\n" +
-	"\avariant\x18\x03 \x01(\tR\avariant\"\x97\x01\n" +
+	"\avariant\x18\x03 \x01(\tR\avariant\x12\x1f\n" +
+	"\vwindow_days\x18\x04 \x01(\x05R\n" +
+	"windowDays\"\x97\x01\n" +
 	"\x17GetVariantStatsResponse\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x01 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x02 \x01(\tR\aendDate\x12B\n" +
 	"\x05stats\x18\x03 \x03(\v2,.landing_page_business_suite.v1.VariantStatsR\x05stats\"\x18\n" +
 	"\x16GetAdminRevenueRequest\"\x1a\n" +
-	"\x18GetRevenueSummaryRequest*\xa8\x01\n" +
+	"\x18GetRevenueSummaryRequest*\xb8\x01\n" +
 	"\x10TrafficDimension\x12!\n" +
 	"\x1dTRAFFIC_DIMENSION_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aCOUNTRY\x10\x01\x12\x11\n" +
@@ -1606,7 +1667,9 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\fUTM_CAMPAIGN\x10\x04\x12\x10\n" +
 	"\fDEVICE_CLASS\x10\x05\x12\x10\n" +
 	"\fLANDING_PATH\x10\x06\x12\v\n" +
-	"\aVARIANT\x10\a2\xa9\x05\n" +
+	"\aVARIANT\x10\a\x12\x0e\n" +
+	"\n" +
+	"UTM_MEDIUM\x10\b2\xa9\x05\n" +
 	"\x0eMetricsService\x12s\n" +
 	"\n" +
 	"TrackEvent\x121.landing_page_business_suite.v1.TrackEventRequest\x1a2.landing_page_business_suite.v1.TrackEventResponse\x12\x83\x01\n" +
@@ -1654,6 +1717,7 @@ var file_landing_page_business_suite_v1_metrics_proto_goTypes = []any{
 	(*GetRevenueSummaryRequest)(nil),    // 17: landing_page_business_suite.v1.GetRevenueSummaryRequest
 	(*structpb.Struct)(nil),             // 18: google.protobuf.Struct
 	(*timestamppb.Timestamp)(nil),       // 19: google.protobuf.Timestamp
+	(*TrafficExclusions)(nil),           // 20: landing_page_business_suite.v1.TrafficExclusions
 }
 var file_landing_page_business_suite_v1_metrics_proto_depIdxs = []int32{
 	18, // 0: landing_page_business_suite.v1.TrackEventRequest.event_data:type_name -> google.protobuf.Struct
@@ -1664,28 +1728,29 @@ var file_landing_page_business_suite_v1_metrics_proto_depIdxs = []int32{
 	19, // 5: landing_page_business_suite.v1.GetTrafficSeriesResponse.observed_at:type_name -> google.protobuf.Timestamp
 	9,  // 6: landing_page_business_suite.v1.AnalyticsSummary.variant_stats:type_name -> landing_page_business_suite.v1.VariantStats
 	19, // 7: landing_page_business_suite.v1.AnalyticsSummary.observed_at:type_name -> google.protobuf.Timestamp
-	19, // 8: landing_page_business_suite.v1.AdminRevenue.observed_at:type_name -> google.protobuf.Timestamp
-	19, // 9: landing_page_business_suite.v1.RevenueSummary.observed_at:type_name -> google.protobuf.Timestamp
-	9,  // 10: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
-	1,  // 11: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
-	13, // 12: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
-	14, // 13: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
-	3,  // 14: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:input_type -> landing_page_business_suite.v1.GetTrafficBreakdownRequest
-	6,  // 15: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:input_type -> landing_page_business_suite.v1.GetTrafficSeriesRequest
-	16, // 16: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:input_type -> landing_page_business_suite.v1.GetAdminRevenueRequest
-	17, // 17: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:input_type -> landing_page_business_suite.v1.GetRevenueSummaryRequest
-	8,  // 18: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
-	10, // 19: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
-	15, // 20: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
-	4,  // 21: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:output_type -> landing_page_business_suite.v1.GetTrafficBreakdownResponse
-	7,  // 22: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:output_type -> landing_page_business_suite.v1.GetTrafficSeriesResponse
-	11, // 23: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:output_type -> landing_page_business_suite.v1.AdminRevenue
-	12, // 24: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:output_type -> landing_page_business_suite.v1.RevenueSummary
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	20, // 8: landing_page_business_suite.v1.AnalyticsSummary.exclusions:type_name -> landing_page_business_suite.v1.TrafficExclusions
+	19, // 9: landing_page_business_suite.v1.AdminRevenue.observed_at:type_name -> google.protobuf.Timestamp
+	19, // 10: landing_page_business_suite.v1.RevenueSummary.observed_at:type_name -> google.protobuf.Timestamp
+	9,  // 11: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
+	1,  // 12: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
+	13, // 13: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
+	14, // 14: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
+	3,  // 15: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:input_type -> landing_page_business_suite.v1.GetTrafficBreakdownRequest
+	6,  // 16: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:input_type -> landing_page_business_suite.v1.GetTrafficSeriesRequest
+	16, // 17: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:input_type -> landing_page_business_suite.v1.GetAdminRevenueRequest
+	17, // 18: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:input_type -> landing_page_business_suite.v1.GetRevenueSummaryRequest
+	8,  // 19: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
+	10, // 20: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
+	15, // 21: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
+	4,  // 22: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:output_type -> landing_page_business_suite.v1.GetTrafficBreakdownResponse
+	7,  // 23: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:output_type -> landing_page_business_suite.v1.GetTrafficSeriesResponse
+	11, // 24: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:output_type -> landing_page_business_suite.v1.AdminRevenue
+	12, // 25: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:output_type -> landing_page_business_suite.v1.RevenueSummary
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_metrics_proto_init() }
@@ -1693,7 +1758,7 @@ func file_landing_page_business_suite_v1_metrics_proto_init() {
 	if File_landing_page_business_suite_v1_metrics_proto != nil {
 		return
 	}
-	file_landing_page_business_suite_v1_metrics_proto_msgTypes[8].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_shared_proto_init()
 	file_landing_page_business_suite_v1_metrics_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

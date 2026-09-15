@@ -338,13 +338,30 @@ func selectPath(value any, path string) (any, bool) {
 	}
 	current := value
 	for _, part := range strings.Split(strings.TrimPrefix(path, "$."), ".") {
+		key := part
+		index := -1
+		if open := strings.LastIndex(part, "["); open >= 0 && strings.HasSuffix(part, "]") {
+			key = part[:open]
+			var parsed int
+			if _, err := fmt.Sscanf(part[open:], "[%d]", &parsed); err != nil || parsed < 0 {
+				return nil, false
+			}
+			index = parsed
+		}
 		object, ok := current.(map[string]any)
 		if !ok {
 			return nil, false
 		}
-		current, ok = object[part]
+		current, ok = object[key]
 		if !ok {
 			return nil, false
+		}
+		if index >= 0 {
+			items, ok := current.([]any)
+			if !ok || index >= len(items) {
+				return nil, false
+			}
+			current = items[index]
 		}
 	}
 	return current, true

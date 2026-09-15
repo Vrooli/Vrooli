@@ -3,6 +3,7 @@ package nodereach
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -125,28 +126,35 @@ func TestOpenClassifiesHandshakeRejectionAndKeepsBody(t *testing.T) {
 }
 
 func TestOpenClassifiesHandshakeHTTPStatuses(t *testing.T) {
+	// Bridge answers 401 when it cannot authenticate the caller at all, and
+	// 403 both for a missing grant and for a missing second factor; only the
+	// body tells the two 403s apart.
 	for _, tc := range []struct {
+		name   string
 		status int
+		body   string
 		kind   ErrorKind
 	}{
-		{http.StatusUnauthorized, ErrMissingReauth},
-		{http.StatusForbidden, ErrMissingScope},
-		{http.StatusNotFound, ErrNodeNotFound},
-		{http.StatusServiceUnavailable, ErrNodeUnavailable},
-		{http.StatusBadRequest, ErrTransport},
+		{"unauthenticated", http.StatusUnauthorized, "owner authentication required", ErrUnauthenticated},
+		{"missing grant", http.StatusForbidden, "owner authorization ceiling does not include vrooli-bridge:write", ErrMissingScope},
+		{"missing reauth", http.StatusForbidden, "owner re-authentication required", ErrMissingReauth},
+		{"rejected reauth", http.StatusForbidden, "owner re-authentication rejected", ErrMissingReauth},
+		{"not found", http.StatusNotFound, "node not found", ErrNodeNotFound},
+		{"unavailable", http.StatusServiceUnavailable, "node offline", ErrNodeUnavailable},
+		{"bad request", http.StatusBadRequest, "handshake diagnostic", ErrTransport},
 	} {
-		t.Run(http.StatusText(tc.status), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				http.Error(w, "handshake diagnostic", tc.status)
+				http.Error(w, tc.body, tc.status)
 			}))
 			defer server.Close()
 
 			client := New(Config{BridgeURL: server.URL})
 			_, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1"}, time.Second)
 			if !IsKind(err, tc.kind) {
-				t.Fatalf("status %d classified as %v, want %v (%v)", tc.status, err, tc.kind, err)
+				t.Fatalf("status %d (%q) classified as %v, want %v", tc.status, tc.body, err, tc.kind)
 			}
-			if !strings.Contains(err.Error(), "handshake diagnostic") {
+			if !strings.Contains(err.Error(), tc.body) {
 				t.Fatalf("status %d error = %v, want response body", tc.status, err)
 			}
 		})
@@ -227,6 +235,56 @@ func TestSessionReconnectsAndPreservesSessionID(t *testing.T) {
 	}
 	if string(buf) != "reconnected" {
 		t.Fatalf("read after reconnect = %q", buf)
+	}
+}
+
+// TestSessionReconnectMintsAFreshCredential pins the reconnect contract for
+// short-lived owner sessions: a reconnect must present a newly resolved
+// credential. Replaying the header captured at Open made every reconnect
+// after the 15-minute LocalSession lifetime fail with 401.
+func TestSessionReconnectMintsAFreshCredential(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	var connections atomic.Int32
+	headers := make(chan string, 4)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers <- r.Header.Get("Authorization")
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		open, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: "session-1"}}})
+		if err := conn.WriteMessage(websocket.BinaryMessage, open); err != nil {
+			t.Errorf("write open: %v", err)
+			return
+		}
+		if connections.Add(1) == 1 {
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		data, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Data{Data: &sessionv1.Data{Data: []byte("ok")}}})
+		_ = conn.WriteMessage(websocket.BinaryMessage, data)
+		select {}
+	}))
+	defer server.Close()
+
+	var minted atomic.Int32
+	client := New(Config{BridgeURL: server.URL, TokenProvider: func(context.Context) (string, error) {
+		return fmt.Sprintf("LocalSession token-%d", minted.Add(1)), nil
+	}})
+	sess, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1", SessionID: "session-1"}, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	buf := make([]byte, len("ok"))
+	if _, err := io.ReadFull(sess, buf); err != nil {
+		t.Fatalf("read after reconnect: %v", err)
+	}
+	first, second := <-headers, <-headers
+	if first == "" || second == "" || first == second {
+		t.Fatalf("reconnect Authorization = %q after open %q, want a newly minted credential", second, first)
 	}
 }
 

@@ -24,9 +24,13 @@ const (
 
 // Download owns authorization and catalog mutations; catalog value objects are shared.
 type AuthorizeDownloadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	App           string                 `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
-	Platform      string                 `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	App      string                 `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
+	Platform string                 `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
+	// Exact delivery-catalog row selected by the user, not its managed artifact
+	// storage ID. Authorization still checks the configured bundle, app, platform
+	// and caller entitlement. An unknown/mismatched ID never selects another row.
+	AssetId       *int64 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3,oneof" json:"asset_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,6 +77,13 @@ func (x *AuthorizeDownloadRequest) GetPlatform() string {
 		return x.Platform
 	}
 	return ""
+}
+
+func (x *AuthorizeDownloadRequest) GetAssetId() int64 {
+	if x != nil && x.AssetId != nil {
+		return *x.AssetId
+	}
+	return 0
 }
 
 type AuthorizeDownloadResponse struct {
@@ -423,10 +434,12 @@ var File_landing_page_business_suite_v1_download_proto protoreflect.FileDescript
 
 const file_landing_page_business_suite_v1_download_proto_rawDesc = "" +
 	"\n" +
-	"-landing-page-business-suite/v1/download.proto\x12\x1elanding_page_business_suite.v1\x1a5landing-page-business-suite/v1/shared/downloads.proto\"H\n" +
+	"-landing-page-business-suite/v1/download.proto\x12\x1elanding_page_business_suite.v1\x1a5landing-page-business-suite/v1/shared/downloads.proto\"u\n" +
 	"\x18AuthorizeDownloadRequest\x12\x10\n" +
 	"\x03app\x18\x01 \x01(\tR\x03app\x12\x1a\n" +
-	"\bplatform\x18\x02 \x01(\tR\bplatform\"n\n" +
+	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x1e\n" +
+	"\basset_id\x18\x03 \x01(\x03H\x00R\aassetId\x88\x01\x01B\v\n" +
+	"\t_asset_id\"n\n" +
 	"\x19AuthorizeDownloadResponse\x12Q\n" +
 	"\x05asset\x18\x01 \x01(\v2;.vrooli.landing_page_business_suite.v1.shared.DownloadAssetR\x05asset\"\x19\n" +
 	"\x17ListDownloadAppsRequest\"i\n" +
@@ -503,6 +516,7 @@ func file_landing_page_business_suite_v1_download_proto_init() {
 	if File_landing_page_business_suite_v1_download_proto != nil {
 		return
 	}
+	file_landing_page_business_suite_v1_download_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -118,6 +118,9 @@ func TestRestartRecoveryDoesNotTimeoutReattachedLegacyExecutor(t *testing.T) {
 	if got.Status != domain.RunStatusRunning || got.EndedAt != nil || got.ErrorMsg != "" {
 		t.Fatalf("healthy reattached process timed out: %+v", got)
 	}
+	if got.OwnerIdentity == "" || got.OwnerEpoch != 1 {
+		t.Fatalf("recovery did not durably claim the live executor: identity=%q epoch=%d", got.OwnerIdentity, got.OwnerEpoch)
+	}
 	if got.ExitCode != nil || got.TerminalClass != "" || got.StopReason != "" {
 		t.Fatal("reattached current turn retains stale terminal fields")
 	}
@@ -451,7 +454,7 @@ func TestRecoverRun_DeadProcessWithTerminalFailure(t *testing.T) {
 	}
 }
 
-func TestRecoverRun_DeadProcessWithoutTerminalEventMarksFailed(t *testing.T) {
+func TestRecoverRun_DeadProcessWithoutTerminalEventPreservesRecoverableInterruption(t *testing.T) {
 	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeClaudeCode)
 	run := createRecoveryTestRun(t, repos, domain.RunnerTypeClaudeCode)
 	run.TranscriptPath = writeRecoveryTranscript(t, "message:partial output only\n")
@@ -467,8 +470,11 @@ func TestRecoverRun_DeadProcessWithoutTerminalEventMarksFailed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get run: %v", err)
 	}
-	if got.Status != domain.RunStatusFailed {
-		t.Fatalf("status = %s, want %s", got.Status, domain.RunStatusFailed)
+	if got.Status != domain.RunStatusNeedsReview {
+		t.Fatalf("status = %s, want %s", got.Status, domain.RunStatusNeedsReview)
+	}
+	if got.TerminalClass != domain.RunTerminalClassInterruption || got.StopReason != domain.RunStopReasonCrash {
+		t.Fatalf("recovery classification = (%s,%s), want (%s,%s)", got.TerminalClass, got.StopReason, domain.RunTerminalClassInterruption, domain.RunStopReasonCrash)
 	}
 	if got.ErrorMsg != "runner exited before terminal event" {
 		t.Fatalf("error = %q, want %q", got.ErrorMsg, "runner exited before terminal event")

@@ -8,12 +8,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AuthorizeDownloadRequest(_message.Message):
-    __slots__ = ("app", "platform")
+    __slots__ = ("app", "platform", "asset_id")
     APP_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     app: str
     platform: str
-    def __init__(self, app: _Optional[str] = ..., platform: _Optional[str] = ...) -> None: ...
+    asset_id: int
+    def __init__(self, app: _Optional[str] = ..., platform: _Optional[str] = ..., asset_id: _Optional[int] = ...) -> None: ...
 
 class AuthorizeDownloadResponse(_message.Message):
     __slots__ = ("asset",)

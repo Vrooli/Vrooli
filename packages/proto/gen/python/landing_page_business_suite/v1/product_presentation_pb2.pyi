@@ -50,16 +50,18 @@ class SavePresentationDraftRequest(_message.Message):
     def __init__(self, variant_slug: _Optional[str] = ..., expected_generation: _Optional[int] = ..., document: _Optional[_Union[_product_presentation_pb2.ProductPresentationDocument, _Mapping]] = ...) -> None: ...
 
 class PreviewPresentationRequest(_message.Message):
-    __slots__ = ("variant_slug", "revision", "route", "locale")
+    __slots__ = ("variant_slug", "revision", "route", "locale", "document")
     VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
     ROUTE_FIELD_NUMBER: _ClassVar[int]
     LOCALE_FIELD_NUMBER: _ClassVar[int]
+    DOCUMENT_FIELD_NUMBER: _ClassVar[int]
     variant_slug: str
     revision: str
     route: str
     locale: str
-    def __init__(self, variant_slug: _Optional[str] = ..., revision: _Optional[str] = ..., route: _Optional[str] = ..., locale: _Optional[str] = ...) -> None: ...
+    document: _product_presentation_pb2.ProductPresentationDocument
+    def __init__(self, variant_slug: _Optional[str] = ..., revision: _Optional[str] = ..., route: _Optional[str] = ..., locale: _Optional[str] = ..., document: _Optional[_Union[_product_presentation_pb2.ProductPresentationDocument, _Mapping]] = ...) -> None: ...
 
 class PreviewPresentationResponse(_message.Message):
     __slots__ = ("presentation",)

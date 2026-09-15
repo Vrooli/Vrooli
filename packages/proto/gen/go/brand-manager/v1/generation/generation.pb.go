@@ -1081,151 +1081,6 @@ func (x *RemoveBrandImageBackgroundRequest) GetSetCanonical() bool {
 	return false
 }
 
-// DeriveBrandIconsRequest produces a deterministic set of platform icon variants
-// from a source brand asset. Derivation uses image-tools' deterministic ops
-// (resize + solid-background flatten), NOT a model, so it is reproducible and
-// idempotent. The transparent mark is the preferred source for solid-background
-// variants; a transparent source is composited onto a brand-color background for
-// Apple-touch and maskable launcher icons, while favicons keep transparency.
-type DeriveBrandIconsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Must reference an existing brand.
-	BrandId string `protobuf:"bytes,1,opt,name=brand_id,json=brandId,proto3" json:"brand_id,omitempty"`
-	// Required. The source asset (typically the transparent logo) to derive from.
-	SourceAssetId string `protobuf:"bytes,2,opt,name=source_asset_id,json=sourceAssetId,proto3" json:"source_asset_id,omitempty"`
-	// When NO include_* flag is set, every variant family is produced. When any is
-	// set, only the selected families are emitted.
-	// include_maskable: maskable launcher icons (192/512, solid brand-color bg).
-	IncludeMaskable bool `protobuf:"varint,3,opt,name=include_maskable,json=includeMaskable,proto3" json:"include_maskable,omitempty"`
-	// include_apple_touch: an opaque Apple-touch icon (180, solid background).
-	IncludeAppleTouch bool `protobuf:"varint,4,opt,name=include_apple_touch,json=includeAppleTouch,proto3" json:"include_apple_touch,omitempty"`
-	// include_favicon: transparent favicon PNGs (16/32/196).
-	IncludeFavicon bool `protobuf:"varint,5,opt,name=include_favicon,json=includeFavicon,proto3" json:"include_favicon,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *DeriveBrandIconsRequest) Reset() {
-	*x = DeriveBrandIconsRequest{}
-	mi := &file_brand_manager_v1_generation_generation_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeriveBrandIconsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeriveBrandIconsRequest) ProtoMessage() {}
-
-func (x *DeriveBrandIconsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_brand_manager_v1_generation_generation_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeriveBrandIconsRequest.ProtoReflect.Descriptor instead.
-func (*DeriveBrandIconsRequest) Descriptor() ([]byte, []int) {
-	return file_brand_manager_v1_generation_generation_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *DeriveBrandIconsRequest) GetBrandId() string {
-	if x != nil {
-		return x.BrandId
-	}
-	return ""
-}
-
-func (x *DeriveBrandIconsRequest) GetSourceAssetId() string {
-	if x != nil {
-		return x.SourceAssetId
-	}
-	return ""
-}
-
-func (x *DeriveBrandIconsRequest) GetIncludeMaskable() bool {
-	if x != nil {
-		return x.IncludeMaskable
-	}
-	return false
-}
-
-func (x *DeriveBrandIconsRequest) GetIncludeAppleTouch() bool {
-	if x != nil {
-		return x.IncludeAppleTouch
-	}
-	return false
-}
-
-func (x *DeriveBrandIconsRequest) GetIncludeFavicon() bool {
-	if x != nil {
-		return x.IncludeFavicon
-	}
-	return false
-}
-
-// DeriveBrandIconsResponse returns each derived icon asset.
-type DeriveBrandIconsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The derived icon assets (canonical filenames), in a stable order.
-	Icons []*BrandImageAsset `protobuf:"bytes,1,rep,name=icons,proto3" json:"icons,omitempty"`
-	// Non-fatal cautions (e.g. a requested variant skipped because the source was
-	// too small).
-	Warnings      []string `protobuf:"bytes,2,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeriveBrandIconsResponse) Reset() {
-	*x = DeriveBrandIconsResponse{}
-	mi := &file_brand_manager_v1_generation_generation_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeriveBrandIconsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeriveBrandIconsResponse) ProtoMessage() {}
-
-func (x *DeriveBrandIconsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_brand_manager_v1_generation_generation_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeriveBrandIconsResponse.ProtoReflect.Descriptor instead.
-func (*DeriveBrandIconsResponse) Descriptor() ([]byte, []int) {
-	return file_brand_manager_v1_generation_generation_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *DeriveBrandIconsResponse) GetIcons() []*BrandImageAsset {
-	if x != nil {
-		return x.Icons
-	}
-	return nil
-}
-
-func (x *DeriveBrandIconsResponse) GetWarnings() []string {
-	if x != nil {
-		return x.Warnings
-	}
-	return nil
-}
-
 var File_brand_manager_v1_generation_generation_proto protoreflect.FileDescriptor
 
 const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
@@ -1313,24 +1168,14 @@ const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
 	"\x0emodel_override\x18\x03 \x01(\tR\rmodelOverride\x12\x1d\n" +
 	"\n" +
 	"allow_byok\x18\x04 \x01(\bR\tallowByok\x12#\n" +
-	"\rset_canonical\x18\x05 \x01(\bR\fsetCanonical\"\xe0\x01\n" +
-	"\x17DeriveBrandIconsRequest\x12\x19\n" +
-	"\bbrand_id\x18\x01 \x01(\tR\abrandId\x12&\n" +
-	"\x0fsource_asset_id\x18\x02 \x01(\tR\rsourceAssetId\x12)\n" +
-	"\x10include_maskable\x18\x03 \x01(\bR\x0fincludeMaskable\x12.\n" +
-	"\x13include_apple_touch\x18\x04 \x01(\bR\x11includeAppleTouch\x12'\n" +
-	"\x0finclude_favicon\x18\x05 \x01(\bR\x0eincludeFavicon\"\x81\x01\n" +
-	"\x18DeriveBrandIconsResponse\x12I\n" +
-	"\x05icons\x18\x01 \x03(\v23.vrooli.brand_manager.v1.generation.BrandImageAssetR\x05icons\x12\x1a\n" +
-	"\bwarnings\x18\x02 \x03(\tR\bwarnings2\x9d\b\n" +
+	"\rset_canonical\x18\x05 \x01(\bR\fsetCanonical2\x8d\a\n" +
 	"\x11GenerationService\x12\x90\x01\n" +
 	"\x11GetProviderStatus\x12<.vrooli.brand_manager.v1.generation.GetProviderStatusRequest\x1a=.vrooli.brand_manager.v1.generation.GetProviderStatusResponse\x12\x9c\x01\n" +
 	"\x15GetImageBackendStatus\x12@.vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest\x1aA.vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse\x12\x9c\x01\n" +
 	"\x15GenerateBrandElements\x12@.vrooli.brand_manager.v1.generation.GenerateBrandElementsRequest\x1aA.vrooli.brand_manager.v1.generation.GenerateBrandElementsResponse\x12\x88\x01\n" +
 	"\x12GenerateBrandImage\x12=.vrooli.brand_manager.v1.generation.GenerateBrandImageRequest\x1a3.vrooli.brand_manager.v1.generation.BrandImageAsset\x12\x80\x01\n" +
 	"\x0eEditBrandImage\x129.vrooli.brand_manager.v1.generation.EditBrandImageRequest\x1a3.vrooli.brand_manager.v1.generation.BrandImageAsset\x12\x98\x01\n" +
-	"\x1aRemoveBrandImageBackground\x12E.vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest\x1a3.vrooli.brand_manager.v1.generation.BrandImageAsset\x12\x8d\x01\n" +
-	"\x10DeriveBrandIcons\x12;.vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest\x1a<.vrooli.brand_manager.v1.generation.DeriveBrandIconsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation;generation_v1b\x06proto3"
+	"\x1aRemoveBrandImageBackground\x12E.vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest\x1a3.vrooli.brand_manager.v1.generation.BrandImageAssetBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation;generation_v1b\x06proto3"
 
 var (
 	file_brand_manager_v1_generation_generation_proto_rawDescOnce sync.Once
@@ -1344,7 +1189,7 @@ func file_brand_manager_v1_generation_generation_proto_rawDescGZIP() []byte {
 	return file_brand_manager_v1_generation_generation_proto_rawDescData
 }
 
-var file_brand_manager_v1_generation_generation_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_brand_manager_v1_generation_generation_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_brand_manager_v1_generation_generation_proto_goTypes = []any{
 	(*ProviderStatus)(nil),                    // 0: vrooli.brand_manager.v1.generation.ProviderStatus
 	(*GetProviderStatusRequest)(nil),          // 1: vrooli.brand_manager.v1.generation.GetProviderStatusRequest
@@ -1359,33 +1204,28 @@ var file_brand_manager_v1_generation_generation_proto_goTypes = []any{
 	(*GenerateBrandImageRequest)(nil),         // 10: vrooli.brand_manager.v1.generation.GenerateBrandImageRequest
 	(*EditBrandImageRequest)(nil),             // 11: vrooli.brand_manager.v1.generation.EditBrandImageRequest
 	(*RemoveBrandImageBackgroundRequest)(nil), // 12: vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest
-	(*DeriveBrandIconsRequest)(nil),           // 13: vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest
-	(*DeriveBrandIconsResponse)(nil),          // 14: vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse
 }
 var file_brand_manager_v1_generation_generation_proto_depIdxs = []int32{
 	0,  // 0: vrooli.brand_manager.v1.generation.GetProviderStatusResponse.providers:type_name -> vrooli.brand_manager.v1.generation.ProviderStatus
 	4,  // 1: vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse.operations:type_name -> vrooli.brand_manager.v1.generation.ImageOperationStatus
 	7,  // 2: vrooli.brand_manager.v1.generation.GenerateBrandElementsResponse.results:type_name -> vrooli.brand_manager.v1.generation.ElementResult
-	9,  // 3: vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse.icons:type_name -> vrooli.brand_manager.v1.generation.BrandImageAsset
-	1,  // 4: vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus:input_type -> vrooli.brand_manager.v1.generation.GetProviderStatusRequest
-	3,  // 5: vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus:input_type -> vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest
-	6,  // 6: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements:input_type -> vrooli.brand_manager.v1.generation.GenerateBrandElementsRequest
-	10, // 7: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage:input_type -> vrooli.brand_manager.v1.generation.GenerateBrandImageRequest
-	11, // 8: vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage:input_type -> vrooli.brand_manager.v1.generation.EditBrandImageRequest
-	12, // 9: vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground:input_type -> vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest
-	13, // 10: vrooli.brand_manager.v1.generation.GenerationService.DeriveBrandIcons:input_type -> vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest
-	2,  // 11: vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus:output_type -> vrooli.brand_manager.v1.generation.GetProviderStatusResponse
-	5,  // 12: vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus:output_type -> vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse
-	8,  // 13: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements:output_type -> vrooli.brand_manager.v1.generation.GenerateBrandElementsResponse
-	9,  // 14: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
-	9,  // 15: vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
-	9,  // 16: vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
-	14, // 17: vrooli.brand_manager.v1.generation.GenerationService.DeriveBrandIcons:output_type -> vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	1,  // 3: vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus:input_type -> vrooli.brand_manager.v1.generation.GetProviderStatusRequest
+	3,  // 4: vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus:input_type -> vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest
+	6,  // 5: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements:input_type -> vrooli.brand_manager.v1.generation.GenerateBrandElementsRequest
+	10, // 6: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage:input_type -> vrooli.brand_manager.v1.generation.GenerateBrandImageRequest
+	11, // 7: vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage:input_type -> vrooli.brand_manager.v1.generation.EditBrandImageRequest
+	12, // 8: vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground:input_type -> vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest
+	2,  // 9: vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus:output_type -> vrooli.brand_manager.v1.generation.GetProviderStatusResponse
+	5,  // 10: vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus:output_type -> vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse
+	8,  // 11: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements:output_type -> vrooli.brand_manager.v1.generation.GenerateBrandElementsResponse
+	9,  // 12: vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
+	9,  // 13: vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
+	9,  // 14: vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground:output_type -> vrooli.brand_manager.v1.generation.BrandImageAsset
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_brand_manager_v1_generation_generation_proto_init() }
@@ -1401,7 +1241,7 @@ func file_brand_manager_v1_generation_generation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_brand_manager_v1_generation_generation_proto_rawDesc), len(file_brand_manager_v1_generation_generation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

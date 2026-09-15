@@ -94,10 +94,16 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		defaults := agentconfig.DefaultLevers()
 		levers = &defaults
 	}
+	if len(fileRoots) == 0 || fileRoots[0] == nil {
+		return OrchestratorDependencies{}, fmt.Errorf("durable file roots are required for Agent Manager startup")
+	}
 	bootLog := obs.Component("bootstrap")
 	var runStateResolver runstate.RootResolver
-	if len(fileRoots) > 0 && fileRoots[0] != nil {
-		runStateResolver = runstate.RoutedRoot{Roots: fileRoots[0]}
+	runStateResolver = runstate.RoutedRoot{Roots: fileRoots[0]}
+	if validator, ok := runStateResolver.(interface{ Validate(context.Context) error }); ok {
+		if err := validator.Validate(context.Background()); err != nil {
+			return OrchestratorDependencies{}, fmt.Errorf("validate durable run state root: %w", err)
+		}
 	}
 	bootLog.Info("using SQLite persistence")
 	repos := database.NewRepositories(db, logger)
@@ -218,6 +224,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	ownerIdentity := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{
 		Audience: strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE")),
 	})
+	runtimeOwnerIdentity := "agent-manager:" + uuid.NewString()
 	actionAuthorizer := watchActionAuthorizer{orchestrator: nil, owners: ownerIdentity}
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithQuotaObservationStore(quotaObservationStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
@@ -229,6 +236,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
 		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),
+		orchestration.WithRuntimeOwnerIdentity(runtimeOwnerIdentity),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
@@ -240,7 +248,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	reconcilerCfg := orchestration.DefaultReconcilerConfig()
 	if settingsStore != nil {
 		settings := settingsStore.Get()
-		reconcilerCfg = orchestration.ReconcilerConfig{Interval: time.Duration(settings.HealthDetection.ReconcilerIntervalSeconds) * time.Second, StaleThreshold: time.Duration(settings.HealthDetection.StaleThresholdSeconds) * time.Second, MaxRecoveryAge: time.Duration(settings.HealthDetection.MaxRecoveryAgeSeconds) * time.Second, OrphanGracePeriod: time.Duration(settings.ProcessTermination.OrphanGracePeriodSeconds) * time.Second, MaxStaleRuns: 10, PendingThreshold: 5 * time.Minute, KillOrphans: settings.ProcessTermination.KillOrphans, AutoRecover: true}
+		reconcilerCfg = orchestration.ReconcilerConfig{OwnerIdentity: runtimeOwnerIdentity, Interval: time.Duration(settings.HealthDetection.ReconcilerIntervalSeconds) * time.Second, StaleThreshold: time.Duration(settings.HealthDetection.StaleThresholdSeconds) * time.Second, MaxRecoveryAge: time.Duration(settings.HealthDetection.MaxRecoveryAgeSeconds) * time.Second, OrphanGracePeriod: time.Duration(settings.ProcessTermination.OrphanGracePeriodSeconds) * time.Second, MaxStaleRuns: 10, PendingThreshold: 5 * time.Minute, KillOrphans: settings.ProcessTermination.KillOrphans, AutoRecover: true}
 	}
 	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
 	if interactiveSessions != nil {

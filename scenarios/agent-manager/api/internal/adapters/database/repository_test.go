@@ -1132,8 +1132,10 @@ func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
 	}
 	old, now := time.Now().Add(-time.Hour).UTC(), time.Now().UTC()
 	exit := 0
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, StartedAt: &old, EndedAt: &old, LastHeartbeat: &old, ExitCode: &exit, ErrorMsg: "old", TerminalClass: domain.RunTerminalClassInterruption, StopReason: domain.RunStopReasonTimeout,
-		ProgressPercent: 42, TranscriptCursor: 87, RunnerPID: 12345, SessionID: "retained", Result: &domain.RunResult{FinalOutput: "prior evidence"}, Summary: &domain.RunSummary{TokensUsed: 123}}
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, StartedAt: &old, EndedAt: &old, LastHeartbeat: &old, ExitCode: &exit, ErrorMsg: "old", TerminalClass: domain.RunTerminalClassInterruption, StopReason: domain.RunStopReasonTimeout,
+		ProgressPercent: 42, TranscriptCursor: 87, RunnerPID: 12345, SessionID: "retained", Result: &domain.RunResult{FinalOutput: "prior evidence"}, Summary: &domain.RunSummary{TokensUsed: 123},
+	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatal(err)
 	}
@@ -1177,6 +1179,70 @@ func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
 	}
 	if changed, err := attacher.AttachRecovery(ctx, run.ID, got.LifecycleVersion, now); err != nil || changed {
 		t.Fatalf("terminal run reattached: %v %v", changed, err)
+	}
+}
+
+func TestRecoveryOwnershipEpochFencesReplacedOwnerWrites(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := t.Context()
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	claimer := repos.Runs.(repository.RunRecoveryOwnerClaimer)
+	firstEpoch, claimed, err := claimer.ClaimRecoveryOwnership(ctx, run.ID, run.LifecycleVersion, "owner-a", time.Now().UTC())
+	if err != nil || !claimed || firstEpoch != 1 {
+		t.Fatalf("first ownership claim = epoch %d claimed %v err %v, want epoch 1", firstEpoch, claimed, err)
+	}
+	secondEpoch, claimed, err := claimer.ClaimRecoveryOwnership(ctx, run.ID, run.LifecycleVersion, "owner-b", time.Now().UTC())
+	if err != nil || !claimed || secondEpoch != 2 {
+		t.Fatalf("replacement ownership claim = epoch %d claimed %v err %v, want epoch 2", secondEpoch, claimed, err)
+	}
+	old, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old.OwnerIdentity, old.OwnerEpoch, old.RunnerPID = "owner-a", firstEpoch, 111
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, old); err != nil || updated {
+		t.Fatalf("stale stream update = %v err %v, want rejected", updated, err)
+	}
+	current, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.OwnerIdentity, current.OwnerEpoch, current.RunnerPID = "owner-b", secondEpoch, 222
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, current); err != nil || !updated {
+		t.Fatalf("current stream update = %v err %v, want accepted", updated, err)
+	}
+	if got, err := repos.Runs.Get(ctx, run.ID); err != nil || got.OwnerIdentity != "owner-b" || got.OwnerEpoch != secondEpoch || got.RunnerPID != 222 {
+		t.Fatalf("persisted owner = %+v err %v", got, err)
+	}
+}
+
+func TestClearTerminalRunnerProcessIdentityIsGuarded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := t.Context()
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, RunMode: domain.RunModeInPlace, RunnerPID: 111, RunnerPGID: 222}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	clearer := repos.Runs.(repository.RunRecoveryProcessIdentityClearer)
+	if cleared, err := clearer.ClearTerminalRunnerProcessIdentity(ctx, run.ID, run.LifecycleVersion, run.OwnerEpoch, 999, 222); err != nil || cleared {
+		t.Fatalf("mismatched identity clear = %v err %v, want rejected", cleared, err)
+	}
+	if cleared, err := clearer.ClearTerminalRunnerProcessIdentity(ctx, run.ID, run.LifecycleVersion, run.OwnerEpoch, 111, 222); err != nil || !cleared {
+		t.Fatalf("exact identity clear = %v err %v, want accepted", cleared, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RunnerPID != 0 || got.RunnerPGID != 0 {
+		t.Fatalf("terminal runner identity remained: pid=%d pgid=%d", got.RunnerPID, got.RunnerPGID)
 	}
 }
 

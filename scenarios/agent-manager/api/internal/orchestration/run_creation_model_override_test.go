@@ -124,16 +124,57 @@ func TestCurrentPolicyRejectsUnknownNativeDefaultWhenDenyListIsPresent(t *testin
 }
 
 type recordingCurrentPolicyResolver struct {
-	roles map[domain.RunnerType]rolepolicy.ResolvedRole
-	calls map[domain.RunnerType]int
+	roles  map[domain.RunnerType]rolepolicy.ResolvedRole
+	calls  map[domain.RunnerType]int
+	errors map[domain.RunnerType]error
 }
 
 func (r *recordingCurrentPolicyResolver) Resolve(_ context.Context, runnerType domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
 	r.calls[runnerType]++
+	if err := r.errors[runnerType]; err != nil {
+		return rolepolicy.ResolvedRole{}, err
+	}
 	resolved := r.roles[runnerType]
 	resolved.Runner = runnerType
 	resolved.Role = role
 	return resolved, nil
+}
+
+func TestCurrentPolicyUnreadableFallbackDoesNotBlockReadableSelectedRunner(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "role-policy.json")
+	const catalog = `{"schemaVersion":1,"metadata":{"catalogId":"current-fallback-unavailable-test","updatedAt":"2026-07-13"},"defaultRole":"code.default","roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"},{"runner":"grok","resourceRole":"code.default"}]}}}`
+	if err := os.WriteFile(path, []byte(catalog), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state, err := rolepolicy.NewState(path, rolepolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := &recordingCurrentPolicyResolver{
+		roles: map[domain.RunnerType]rolepolicy.ResolvedRole{
+			domain.RunnerTypeCodex: {Model: "allowed-model"},
+		},
+		calls:  make(map[domain.RunnerType]int),
+		errors: map[domain.RunnerType]error{domain.RunnerTypeGrok: rolepolicy.ErrUnknownResourceRole},
+	}
+	o := &Orchestrator{rolePolicy: state, roleResolver: resolver}
+	cfg := &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex, RoleRef: "code.default", Model: "allowed-model",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{Candidates: []domain.ExecutionCandidate{
+			{RunnerType: domain.RunnerTypeCodex, ResourceRole: "code.default", Model: "allowed-model"},
+			{RunnerType: domain.RunnerTypeGrok, ResourceRole: "code.default", Model: "grok-build"},
+		}},
+	}
+	if err := o.validateCurrentExecutionModel(context.Background(), cfg); err != nil {
+		t.Fatalf("readable selected runner was blocked by unreadable fallback: %v", err)
+	}
+	exclusions, err := currentModelExclusions(context.Background(), cfg, state, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !domain.IsModelExcluded("grok-build", "", exclusions[domain.RunnerTypeGrok]) {
+		t.Fatalf("unreadable fallback was not fenced: %v", exclusions)
+	}
 }
 
 func TestCurrentPolicyReadsEveryRetainedFallbackRunner(t *testing.T) {

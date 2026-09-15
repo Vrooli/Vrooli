@@ -202,8 +202,8 @@ func TestRecoverInteractive_SessionGoneNoTerminal_FailsExplicitly(t *testing.T) 
 	if err != nil {
 		t.Fatalf("get run: %v", err)
 	}
-	if got.Status != domain.RunStatusFailed {
-		t.Fatalf("status = %s, want failed", got.Status)
+	if got.Status != domain.RunStatusNeedsReview {
+		t.Fatalf("status = %s, want recoverable needs_review", got.Status)
 	}
 	if !containsAll(got.ErrorMsg, "sess-gone", "no longer exists") {
 		t.Errorf("error msg = %q, want it to name the vanished session", got.ErrorMsg)

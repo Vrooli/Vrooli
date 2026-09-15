@@ -469,8 +469,13 @@ type CreateCheckoutSessionRequest struct {
 	// be an authenticated member of the account; email is never sufficient to
 	// select a commercial account.
 	BusinessAccountId string `protobuf:"bytes,14,opt,name=business_account_id,json=businessAccountId,proto3" json:"business_account_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Anonymous attribution context; country and referrer are server-derived.
+	SessionId     string `protobuf:"bytes,15,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	VariantSlug   string `protobuf:"bytes,16,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
+	LandingPath   string `protobuf:"bytes,17,opt,name=landing_path,json=landingPath,proto3" json:"landing_path,omitempty"`
+	DeviceClass   string `protobuf:"bytes,18,opt,name=device_class,json=deviceClass,proto3" json:"device_class,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateCheckoutSessionRequest) Reset() {
@@ -590,6 +595,34 @@ func (x *CreateCheckoutSessionRequest) GetCountryCode() string {
 func (x *CreateCheckoutSessionRequest) GetBusinessAccountId() string {
 	if x != nil {
 		return x.BusinessAccountId
+	}
+	return ""
+}
+
+func (x *CreateCheckoutSessionRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *CreateCheckoutSessionRequest) GetVariantSlug() string {
+	if x != nil {
+		return x.VariantSlug
+	}
+	return ""
+}
+
+func (x *CreateCheckoutSessionRequest) GetLandingPath() string {
+	if x != nil {
+		return x.LandingPath
+	}
+	return ""
+}
+
+func (x *CreateCheckoutSessionRequest) GetDeviceClass() string {
+	if x != nil {
+		return x.DeviceClass
 	}
 	return ""
 }
@@ -1111,7 +1144,7 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x14\n" +
 	"\x12_stripe_product_idB\x12\n" +
 	"\x10_subscription_idB\x0e\n" +
-	"\f_schedule_idJ\x04\b\x10\x10\x11R\x10metadata_untyped\"\xbb\x05\n" +
+	"\f_schedule_idJ\x04\b\x10\x10\x11R\x10metadata_untyped\"\xc3\x06\n" +
 	"\x1cCreateCheckoutSessionRequest\x12\x19\n" +
 	"\bprice_id\x18\x01 \x01(\tR\apriceId\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12\x1f\n" +
@@ -1131,7 +1164,12 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\futm_campaign\x18\v \x01(\tR\vutmCampaign\x12#\n" +
 	"\rreferrer_kind\x18\f \x01(\tR\freferrerKind\x12!\n" +
 	"\fcountry_code\x18\r \x01(\tR\vcountryCode\x12.\n" +
-	"\x13business_account_id\x18\x0e \x01(\tR\x11businessAccountId\x1aQ\n" +
+	"\x13business_account_id\x18\x0e \x01(\tR\x11businessAccountId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x0f \x01(\tR\tsessionId\x12!\n" +
+	"\fvariant_slug\x18\x10 \x01(\tR\vvariantSlug\x12!\n" +
+	"\flanding_path\x18\x11 \x01(\tR\vlandingPath\x12!\n" +
+	"\fdevice_class\x18\x12 \x01(\tR\vdeviceClass\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aR\x10metadata_untyped\"j\n" +

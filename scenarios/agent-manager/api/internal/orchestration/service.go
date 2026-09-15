@@ -712,6 +712,9 @@ type Orchestrator struct {
 
 	// Configuration
 	config OrchestratorConfig
+	// ownerIdentity names this Agent Manager owner lifetime for durable run
+	// stream and finalization fencing.
+	runtimeOwnerIdentity string
 
 	// clock is the wall-clock seam for orchestration state transitions. It is
 	// injected by deterministic tests and defaults to time.Now in production.
@@ -1314,14 +1317,15 @@ func New(
 	opts ...Option,
 ) *Orchestrator {
 	o := &Orchestrator{
-		profiles:           profiles,
-		tasks:              tasks,
-		runs:               runs,
-		config:             DefaultConfig(),
-		clock:              time.Now,
-		interactiveDrivers: newInteractiveDriverRegistry(),
-		structuredResults:  structuredresult.Resolver{},
-		workflowWaiters:    newWorkflowWaitRegistry(),
+		profiles:             profiles,
+		tasks:                tasks,
+		runs:                 runs,
+		config:               DefaultConfig(),
+		clock:                time.Now,
+		interactiveDrivers:   newInteractiveDriverRegistry(),
+		structuredResults:    structuredresult.Resolver{},
+		workflowWaiters:      newWorkflowWaitRegistry(),
+		runtimeOwnerIdentity: "agent-manager:" + uuid.NewString(),
 	}
 
 	for _, opt := range opts {
@@ -1347,6 +1351,17 @@ func New(
 	}
 
 	return o
+}
+
+// WithRuntimeOwnerIdentity installs the process-lifetime identity used for
+// durable run ownership. Tests and production wiring can share one identity
+// between orchestration and recovery components.
+func WithRuntimeOwnerIdentity(identity string) Option {
+	return func(o *Orchestrator) {
+		if strings.TrimSpace(identity) != "" {
+			o.runtimeOwnerIdentity = strings.TrimSpace(identity)
+		}
+	}
 }
 
 func (o *Orchestrator) now() time.Time {

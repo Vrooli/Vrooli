@@ -46,6 +46,10 @@ import (
 
 // ReconcilerConfig holds configuration for the reconciliation service.
 type ReconcilerConfig struct {
+	// OwnerIdentity is the process identity used when claiming recovered runs.
+	// It must be unique per Agent Manager owner lifetime.
+	OwnerIdentity string
+
 	// Interval is how often to run reconciliation
 	Interval time.Duration
 
@@ -78,15 +82,16 @@ type ReconcilerConfig struct {
 
 // DefaultReconcilerConfig returns sensible defaults.
 // StaleThreshold is 5 minutes to match executor config and allow for slow operations.
-// MaxRecoveryAge is 10 minutes — if the executor heartbeat has been absent that long
-// while the process is still alive, the executor is gone (e.g., agent-manager restarted)
-// and the process should be killed rather than perpetually recovered.
+// MaxRecoveryAge is 10 minutes — it is a diagnostic threshold for a live
+// executor whose owner has not reported. It never authorizes killing a healthy
+// detached process; explicit cancellation owns termination.
 // OrphanGracePeriod is 10 minutes to avoid killing newly started processes.
 func DefaultReconcilerConfig() ReconcilerConfig {
 	return ReconcilerConfig{
+		OwnerIdentity:     "agent-manager:" + uuid.NewString(),
 		Interval:          30 * time.Second,
 		StaleThreshold:    5 * time.Minute,  // More forgiving - allows for slow DB updates
-		MaxRecoveryAge:    10 * time.Minute, // Kill process if stale beyond this
+		MaxRecoveryAge:    10 * time.Minute, // Diagnostic threshold; never a kill authorization
 		OrphanGracePeriod: 10 * time.Minute, // Longer grace period for safety
 		MaxStaleRuns:      10,
 		PendingThreshold:  5 * time.Minute,
@@ -98,6 +103,7 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 // Reconciler manages orphan detection and stale run recovery.
 type Reconciler struct {
 	runs              repository.RunRepository
+	ownerIdentity     string
 	events            event.Store
 	runners           runner.Registry
 	sandbox           sandbox.Provider
@@ -228,6 +234,7 @@ func NewReconciler(
 ) *Reconciler {
 	r := &Reconciler{
 		runs:                  runs,
+		ownerIdentity:         "agent-manager:" + uuid.NewString(),
 		events:                nil,
 		runners:               runners,
 		config:                DefaultReconcilerConfig(),
@@ -244,6 +251,9 @@ func NewReconciler(
 	for _, opt := range opts {
 		opt(r)
 	}
+	if strings.TrimSpace(r.ownerIdentity) == "" {
+		r.ownerIdentity = "agent-manager:" + uuid.NewString()
+	}
 
 	return r
 }
@@ -255,6 +265,9 @@ type ReconcilerOption func(*Reconciler)
 func WithReconcilerConfig(cfg ReconcilerConfig) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.config = cfg
+		if strings.TrimSpace(cfg.OwnerIdentity) != "" {
+			r.ownerIdentity = strings.TrimSpace(cfg.OwnerIdentity)
+		}
 	}
 }
 
@@ -905,28 +918,24 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		"lastHeartbeat", formatTimePtr(run.LastHeartbeat),
 	)
 
-	// If the heartbeat has been absent beyond MaxRecoveryAge, the executor
-	// is gone. Kill the process and mark the run as failed rather than
-	// perpetually recovering it.
+	// MaxRecoveryAge is an observation threshold, not permission to terminate
+	// a positively identified detached runner. A control-plane restart can
+	// leave a healthy executor quiet while it is in a long provider call;
+	// killing it here would turn temporary ownership loss into data loss.
 	if r.config.MaxRecoveryAge > 0 && heartbeatAge > r.config.MaxRecoveryAge {
-		r.log().Warn("run exceeded max recovery age, killing process",
+		r.log().Warn("run exceeded recovery observation age; retaining live process for owner diagnosis",
 			obs.KeyRunID, run.ID.String(),
 			"tag", tag,
 			"heartbeatAge", heartbeatAge.Round(time.Second).String(),
 			"maxRecoveryAge", r.config.MaxRecoveryAge.String(),
 		)
-		r.killRunProcesses(ctx, run)
-		r.markRunFailed(ctx, run, fmt.Sprintf(
-			"executor heartbeat absent for %v (max recovery age %v exceeded) — process killed by reconciler (tag=%s)",
-			heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge, tag))
 		return
 	}
 
 	if r.config.AutoRecover {
 		// The process is alive but the executor heartbeat loop isn't updating.
-		// Don't reset LastHeartbeat here — we need heartbeat age to keep growing
-		// so MaxRecoveryAge can eventually trigger. Just count this as a recovery
-		// (i.e., "we chose not to kill it yet").
+		// Don't reset LastHeartbeat here: it remains useful evidence for the
+		// current owner diagnosis. Count the retained executor as recovered.
 		stats.RunsRecovered++
 	}
 }

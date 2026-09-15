@@ -221,7 +221,7 @@ class CaptureScreenshotRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ...) -> None: ...
 
 class EvidenceCapture(_message.Message):
-    __slots__ = ("capture_id", "scenario_name", "kind", "source_session_id", "filename", "file_size_bytes", "width", "height", "duration_ms", "created_at", "checksum")
+    __slots__ = ("capture_id", "scenario_name", "kind", "source_session_id", "filename", "file_size_bytes", "width", "height", "duration_ms", "created_at", "checksum", "void_reason", "voided_at", "superseded_by", "pipeline_id")
     CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -233,6 +233,10 @@ class EvidenceCapture(_message.Message):
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    VOID_REASON_FIELD_NUMBER: _ClassVar[int]
+    VOIDED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDED_BY_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_ID_FIELD_NUMBER: _ClassVar[int]
     capture_id: str
     scenario_name: str
     kind: str
@@ -244,7 +248,11 @@ class EvidenceCapture(_message.Message):
     duration_ms: int
     created_at: _timestamp_pb2.Timestamp
     checksum: str
-    def __init__(self, capture_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., kind: _Optional[str] = ..., source_session_id: _Optional[str] = ..., filename: _Optional[str] = ..., file_size_bytes: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., duration_ms: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., checksum: _Optional[str] = ...) -> None: ...
+    void_reason: str
+    voided_at: _timestamp_pb2.Timestamp
+    superseded_by: str
+    pipeline_id: str
+    def __init__(self, capture_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., kind: _Optional[str] = ..., source_session_id: _Optional[str] = ..., filename: _Optional[str] = ..., file_size_bytes: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., duration_ms: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., checksum: _Optional[str] = ..., void_reason: _Optional[str] = ..., voided_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., superseded_by: _Optional[str] = ..., pipeline_id: _Optional[str] = ...) -> None: ...
 
 class CaptureScreenshotResponse(_message.Message):
     __slots__ = ("capture",)
@@ -253,10 +261,16 @@ class CaptureScreenshotResponse(_message.Message):
     def __init__(self, capture: _Optional[_Union[EvidenceCapture, _Mapping]] = ...) -> None: ...
 
 class ListEvidenceCapturesRequest(_message.Message):
-    __slots__ = ("scenario_name",)
+    __slots__ = ("scenario_name", "pipeline_id", "source_session_id", "kind")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
-    def __init__(self, scenario_name: _Optional[str] = ...) -> None: ...
+    pipeline_id: str
+    source_session_id: str
+    kind: str
+    def __init__(self, scenario_name: _Optional[str] = ..., pipeline_id: _Optional[str] = ..., source_session_id: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class ListEvidenceCapturesResponse(_message.Message):
     __slots__ = ("captures",)
@@ -295,6 +309,18 @@ class EvidenceCaptureRef(_message.Message):
     scenario_name: str
     capture_id: str
     def __init__(self, scenario_name: _Optional[str] = ..., capture_id: _Optional[str] = ...) -> None: ...
+
+class VoidEvidenceCaptureRequest(_message.Message):
+    __slots__ = ("scenario_name", "capture_id", "reason", "superseded_by")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDED_BY_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    capture_id: str
+    reason: str
+    superseded_by: str
+    def __init__(self, scenario_name: _Optional[str] = ..., capture_id: _Optional[str] = ..., reason: _Optional[str] = ..., superseded_by: _Optional[str] = ...) -> None: ...
 
 class DesktopControlRequest(_message.Message):
     __slots__ = ("session_id", "action", "params")

@@ -2,265 +2,25 @@
 // @generated from file landing-page-business-suite/v1/config.proto (package landing_page_business_suite.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { PricingOverview } from "./shared/commerce_pb";
 import { file_landing_page_business_suite_v1_shared_commerce } from "./shared/commerce_pb";
 import type { DownloadApp } from "./shared/downloads_pb";
 import { file_landing_page_business_suite_v1_shared_downloads } from "./shared/downloads_pb";
-import type { LandingHeaderConfig } from "./shared/presentation_pb";
-import { file_landing_page_business_suite_v1_shared_presentation } from "./shared/presentation_pb";
 import type { ResolvedProductPresentation } from "./shared/product_presentation_pb";
 import { file_landing_page_business_suite_v1_shared_product_presentation } from "./shared/product_presentation_pb";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file landing-page-business-suite/v1/config.proto.
  */
 export const file_landing_page_business_suite_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("CitsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvY29uZmlnLnByb3RvEh5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEi0AEKFUxhbmRpbmdWYXJpYW50U3VtbWFyeRIKCgJpZBgBIAEoAxIMCgRzbHVnGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSTQoEYXhlcxgFIAMoCzI/LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nVmFyaWFudFN1bW1hcnkuQXhlc0VudHJ5GisKCUF4ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoUBCg5MYW5kaW5nU2VjdGlvbhIUCgxzZWN0aW9uX3R5cGUYASABKAkSKAoHY29udGVudBgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDQoFb3JkZXIYAyABKAUSDwoHZW5hYmxlZBgEIAEoCBITCgtzZWN0aW9uX2tleRgFIAEoCSKSBAoPTGFuZGluZ0JyYW5kaW5nEhEKCXNpdGVfbmFtZRgBIAEoCRIUCgd0YWdsaW5lGAIgASgJSACIAQESFQoIbG9nb191cmwYAyABKAlIAYgBARIaCg1sb2dvX2ljb25fdXJsGAQgASgJSAKIAQESGAoLZmF2aWNvbl91cmwYBSABKAlIA4gBARIgChN0aGVtZV9wcmltYXJ5X2NvbG9yGAYgASgJSASIAQESIwoWdGhlbWVfYmFja2dyb3VuZF9jb2xvchgHIAEoCUgFiAEBEh0KEHN1cHBvcnRfY2hhdF91cmwYCCABKAlIBogBARIaCg1zdXBwb3J0X2VtYWlsGAkgASgJSAeIAQESIAoTY29taW5nX3Nvb25fZW5hYmxlZBgKIAEoCEgIiAEBEiAKE2NvbWluZ19zb29uX21lc3NhZ2UYCyABKAlICYgBAUIKCghfdGFnbGluZUILCglfbG9nb191cmxCEAoOX2xvZ29faWNvbl91cmxCDgoMX2Zhdmljb25fdXJsQhYKFF90aGVtZV9wcmltYXJ5X2NvbG9yQhkKF190aGVtZV9iYWNrZ3JvdW5kX2NvbG9yQhMKEV9zdXBwb3J0X2NoYXRfdXJsQhAKDl9zdXBwb3J0X2VtYWlsQhYKFF9jb21pbmdfc29vbl9lbmFibGVkQhYKFF9jb21pbmdfc29vbl9tZXNzYWdlIsUDCgpJbnRyb09mZmVyEgoKAmlkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIXCgphbW91bnRfb2ZmGAMgASgDSAGIAQESGAoLcGVyY2VudF9vZmYYBCABKAFIAogBARIVCghjdXJyZW5jeRgFIAEoCUgDiAEBEhAKCGR1cmF0aW9uGAYgASgJEh8KEmR1cmF0aW9uX2luX21vbnRocxgHIAEoBUgEiAEBEhwKD21heF9yZWRlbXB0aW9ucxgIIAEoBUgFiAEBEhYKCXJlZGVlbV9ieRgJIAEoA0gGiAEBEhYKDnRpbWVzX3JlZGVlbWVkGAogASgFEg0KBXZhbGlkGAsgASgIEg8KB2NyZWF0ZWQYDCABKAMSFwoPaXNfaW50cm9fY291cG9uGA0gASgIEhcKCmludHJvX3RpZXIYDiABKAlIB4gBAUIHCgVfbmFtZUINCgtfYW1vdW50X29mZkIOCgxfcGVyY2VudF9vZmZCCwoJX2N1cnJlbmN5QhUKE19kdXJhdGlvbl9pbl9tb250aHNCEgoQX21heF9yZWRlbXB0aW9uc0IMCgpfcmVkZWVtX2J5Qg0KC19pbnRyb190aWVyImIKF0dldExhbmRpbmdDb25maWdSZXF1ZXN0EhQKDHZhcmlhbnRfc2x1ZxgBIAEoCRISCgp2aXNpdG9yX2lkGAIgASgJEg0KBXJvdXRlGAMgASgJEg4KBmxvY2FsZRgEIAEoCSK3BgoVTGFuZGluZ0NvbmZpZ1Jlc3BvbnNlEkYKB3ZhcmlhbnQYASABKAsyNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGFuZGluZ1ZhcmlhbnRTdW1tYXJ5EkAKCHNlY3Rpb25zGAIgAygLMi4ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxhbmRpbmdTZWN0aW9uEk4KB3ByaWNpbmcYAyABKAsyPS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5QcmljaW5nT3ZlcnZpZXcSTAoJZG93bmxvYWRzGAQgAygLMjkudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuRG93bmxvYWRBcHASUQoGaGVhZGVyGAUgASgLMkEudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuTGFuZGluZ0hlYWRlckNvbmZpZxJGCghicmFuZGluZxgGIAEoCzIvLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nQnJhbmRpbmdIAIgBARIQCghmYWxsYmFjaxgHIAEoCBJiCg9jb3Vwb25fbWFwcGluZ3MYCCADKAsySS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGFuZGluZ0NvbmZpZ1Jlc3BvbnNlLkNvdXBvbk1hcHBpbmdzRW50cnkSQAoMaW50cm9fb2ZmZXJzGAkgAygLMioubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkludHJvT2ZmZXISXwoMcHJlc2VudGF0aW9uGAogASgLMkkudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuUmVzb2x2ZWRQcm9kdWN0UHJlc2VudGF0aW9uGjUKE0NvdXBvbk1hcHBpbmdzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUILCglfYnJhbmRpbmcymwEKFExhbmRpbmdDb25maWdTZXJ2aWNlEoIBChBHZXRMYW5kaW5nQ29uZmlnEjcubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldExhbmRpbmdDb25maWdSZXF1ZXN0GjUubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxhbmRpbmdDb25maWdSZXNwb25zZUJuWmxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MTtsYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGVfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_landing_page_business_suite_v1_shared_commerce, file_landing_page_business_suite_v1_shared_downloads, file_landing_page_business_suite_v1_shared_presentation, file_landing_page_business_suite_v1_shared_product_presentation]);
+  fileDesc("CitsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvY29uZmlnLnByb3RvEh5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEiYgoXR2V0TGFuZGluZ0NvbmZpZ1JlcXVlc3QSFAoMdmFyaWFudF9zbHVnGAEgASgJEhIKCnZpc2l0b3JfaWQYAiABKAkSDQoFcm91dGUYAyABKAkSDgoGbG9jYWxlGAQgASgJIv4BCiFSZWNvcmRQcmVzZW50YXRpb25FeHBvc3VyZVJlcXVlc3QSEgoKdmlzaXRvcl9pZBgBIAEoCRIUCgx2YXJpYW50X3NsdWcYAiABKAkSEAoIcmV2aXNpb24YAyABKAkSDQoFcm91dGUYBCABKAkSDgoGbG9jYWxlGAUgASgJEhQKDGJsb2NrX2RpZ2VzdBgGIAEoCRIaChJ3ZWlnaHRfZmluZ2VycHJpbnQYByABKAkSTAoGc291cmNlGAggASgOMjwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlByZXNlbnRhdGlvbkFzc2lnbm1lbnRTb3VyY2UiNgoiUmVjb3JkUHJlc2VudGF0aW9uRXhwb3N1cmVSZXNwb25zZRIQCghyZWNvcmRlZBgBIAEoCCKQAwoVTGFuZGluZ0NvbmZpZ1Jlc3BvbnNlEk4KB3ByaWNpbmcYAyABKAsyPS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5QcmljaW5nT3ZlcnZpZXcSTAoJZG93bmxvYWRzGAQgAygLMjkudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuRG93bmxvYWRBcHASEAoIZmFsbGJhY2sYByABKAgSXwoMcHJlc2VudGF0aW9uGAogASgLMkkudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuUmVzb2x2ZWRQcm9kdWN0UHJlc2VudGF0aW9uSgQIARACSgQIAhADSgQIBRAGSgQIBhAHSgQICBAJSgQICRAKUgd2YXJpYW50UghzZWN0aW9uc1IGaGVhZGVyUghicmFuZGluZ1IPY291cG9uX21hcHBpbmdzUgxpbnRyb19vZmZlcnMqtAEKHFByZXNlbnRhdGlvbkFzc2lnbm1lbnRTb3VyY2USLgoqUFJFU0VOVEFUSU9OX0FTU0lHTk1FTlRfU09VUkNFX1VOU1BFQ0lGSUVEEAASMwovUFJFU0VOVEFUSU9OX0FTU0lHTk1FTlRfU09VUkNFX1dFSUdIVEVEX1ZJU0lUT1IQARIvCitQUkVTRU5UQVRJT05fQVNTSUdOTUVOVF9TT1VSQ0VfRVhQTElDSVRfVVJMEAIywQIKFExhbmRpbmdDb25maWdTZXJ2aWNlEoIBChBHZXRMYW5kaW5nQ29uZmlnEjcubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldExhbmRpbmdDb25maWdSZXF1ZXN0GjUubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxhbmRpbmdDb25maWdSZXNwb25zZRKjAQoaUmVjb3JkUHJlc2VudGF0aW9uRXhwb3N1cmUSQS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVjb3JkUHJlc2VudGF0aW9uRXhwb3N1cmVSZXF1ZXN0GkIubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlJlY29yZFByZXNlbnRhdGlvbkV4cG9zdXJlUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_landing_page_business_suite_v1_shared_commerce, file_landing_page_business_suite_v1_shared_downloads, file_landing_page_business_suite_v1_shared_product_presentation]);
 
 /**
- * LandingVariantSummary is the compact variant identity for the landing payload.
- *
- * @generated from message landing_page_business_suite.v1.LandingVariantSummary
- */
-export type LandingVariantSummary = Message<"landing_page_business_suite.v1.LandingVariantSummary"> & {
-  /**
-   * @generated from field: int64 id = 1;
-   */
-  id: bigint;
-
-  /**
-   * @generated from field: string slug = 2;
-   */
-  slug: string;
-
-  /**
-   * @generated from field: string name = 3;
-   */
-  name: string;
-
-  /**
-   * @generated from field: string description = 4;
-   */
-  description: string;
-
-  /**
-   * @generated from field: map<string, string> axes = 5;
-   */
-  axes: { [key: string]: string };
-};
-
-/**
- * Describes the message landing_page_business_suite.v1.LandingVariantSummary.
- * Use `create(LandingVariantSummarySchema)` to create a new message.
- */
-export const LandingVariantSummarySchema: GenMessage<LandingVariantSummary> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 0);
-
-/**
- * LandingSection is a rendered section (flattened content) for the payload.
- *
- * @generated from message landing_page_business_suite.v1.LandingSection
- */
-export type LandingSection = Message<"landing_page_business_suite.v1.LandingSection"> & {
-  /**
-   * @generated from field: string section_type = 1;
-   */
-  sectionType: string;
-
-  /**
-   * @generated from field: google.protobuf.Struct content = 2;
-   */
-  content?: JsonObject | undefined;
-
-  /**
-   * @generated from field: int32 order = 3;
-   */
-  order: number;
-
-  /**
-   * @generated from field: bool enabled = 4;
-   */
-  enabled: boolean;
-
-  /**
-   * Stable, variant-scoped identity used by the administrative section editor.
-   * Unlike the legacy numeric database ID, this remains valid for JSON snapshots.
-   *
-   * @generated from field: string section_key = 5;
-   */
-  sectionKey: string;
-};
-
-/**
- * Describes the message landing_page_business_suite.v1.LandingSection.
- * Use `create(LandingSectionSchema)` to create a new message.
- */
-export const LandingSectionSchema: GenMessage<LandingSection> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 1);
-
-/**
- * LandingBranding is the branding subset embedded in the landing payload.
- *
- * @generated from message landing_page_business_suite.v1.LandingBranding
- */
-export type LandingBranding = Message<"landing_page_business_suite.v1.LandingBranding"> & {
-  /**
-   * @generated from field: string site_name = 1;
-   */
-  siteName: string;
-
-  /**
-   * @generated from field: optional string tagline = 2;
-   */
-  tagline?: string | undefined;
-
-  /**
-   * @generated from field: optional string logo_url = 3;
-   */
-  logoUrl?: string | undefined;
-
-  /**
-   * @generated from field: optional string logo_icon_url = 4;
-   */
-  logoIconUrl?: string | undefined;
-
-  /**
-   * @generated from field: optional string favicon_url = 5;
-   */
-  faviconUrl?: string | undefined;
-
-  /**
-   * @generated from field: optional string theme_primary_color = 6;
-   */
-  themePrimaryColor?: string | undefined;
-
-  /**
-   * @generated from field: optional string theme_background_color = 7;
-   */
-  themeBackgroundColor?: string | undefined;
-
-  /**
-   * @generated from field: optional string support_chat_url = 8;
-   */
-  supportChatUrl?: string | undefined;
-
-  /**
-   * @generated from field: optional string support_email = 9;
-   */
-  supportEmail?: string | undefined;
-
-  /**
-   * @generated from field: optional bool coming_soon_enabled = 10;
-   */
-  comingSoonEnabled?: boolean | undefined;
-
-  /**
-   * @generated from field: optional string coming_soon_message = 11;
-   */
-  comingSoonMessage?: string | undefined;
-};
-
-/**
- * Describes the message landing_page_business_suite.v1.LandingBranding.
- * Use `create(LandingBrandingSchema)` to create a new message.
- */
-export const LandingBrandingSchema: GenMessage<LandingBranding> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 2);
-
-/**
- * IntroOffer is the public, checkout-safe coupon data used to render
- * introductory pricing on the landing page. It deliberately excludes Stripe
- * dashboard metadata and credentials while retaining every field the existing
- * public landing payload exposes.
- *
- * @generated from message landing_page_business_suite.v1.IntroOffer
- */
-export type IntroOffer = Message<"landing_page_business_suite.v1.IntroOffer"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: optional string name = 2;
-   */
-  name?: string | undefined;
-
-  /**
-   * @generated from field: optional int64 amount_off = 3;
-   */
-  amountOff?: bigint | undefined;
-
-  /**
-   * @generated from field: optional double percent_off = 4;
-   */
-  percentOff?: number | undefined;
-
-  /**
-   * @generated from field: optional string currency = 5;
-   */
-  currency?: string | undefined;
-
-  /**
-   * @generated from field: string duration = 6;
-   */
-  duration: string;
-
-  /**
-   * @generated from field: optional int32 duration_in_months = 7;
-   */
-  durationInMonths?: number | undefined;
-
-  /**
-   * @generated from field: optional int32 max_redemptions = 8;
-   */
-  maxRedemptions?: number | undefined;
-
-  /**
-   * @generated from field: optional int64 redeem_by = 9;
-   */
-  redeemBy?: bigint | undefined;
-
-  /**
-   * @generated from field: int32 times_redeemed = 10;
-   */
-  timesRedeemed: number;
-
-  /**
-   * @generated from field: bool valid = 11;
-   */
-  valid: boolean;
-
-  /**
-   * @generated from field: int64 created = 12;
-   */
-  created: bigint;
-
-  /**
-   * @generated from field: bool is_intro_coupon = 13;
-   */
-  isIntroCoupon: boolean;
-
-  /**
-   * @generated from field: optional string intro_tier = 14;
-   */
-  introTier?: string | undefined;
-};
-
-/**
- * Describes the message landing_page_business_suite.v1.IntroOffer.
- * Use `create(IntroOfferSchema)` to create a new message.
- */
-export const IntroOfferSchema: GenMessage<IntroOffer> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 3);
-
-/**
- * GetLandingConfigRequest requests the aggregated landing payload. An empty
- * variant_slug triggers weighted-random selection.
+ * GetLandingConfigRequest is read-only. With an empty variant_slug, a visitor
+ * receives a deterministic weighted assignment; an empty visitor is anonymous.
  *
  * @generated from message landing_page_business_suite.v1.GetLandingConfigRequest
  */
@@ -293,7 +53,83 @@ export type GetLandingConfigRequest = Message<"landing_page_business_suite.v1.Ge
  * Use `create(GetLandingConfigRequestSchema)` to create a new message.
  */
 export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 4);
+  messageDesc(file_landing_page_business_suite_v1_config, 0);
+
+/**
+ * An exposure is recorded only after the browser has displayed this exact
+ * public page. The owner rechecks assignment, publication, locale and digest;
+ * these display-safe fields are not authorization tokens. Explicit URL review
+ * and protected draft previews never count as weighted-assignment exposures.
+ *
+ * @generated from message landing_page_business_suite.v1.RecordPresentationExposureRequest
+ */
+export type RecordPresentationExposureRequest = Message<"landing_page_business_suite.v1.RecordPresentationExposureRequest"> & {
+  /**
+   * @generated from field: string visitor_id = 1;
+   */
+  visitorId: string;
+
+  /**
+   * @generated from field: string variant_slug = 2;
+   */
+  variantSlug: string;
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string route = 4;
+   */
+  route: string;
+
+  /**
+   * @generated from field: string locale = 5;
+   */
+  locale: string;
+
+  /**
+   * @generated from field: string block_digest = 6;
+   */
+  blockDigest: string;
+
+  /**
+   * @generated from field: string weight_fingerprint = 7;
+   */
+  weightFingerprint: string;
+
+  /**
+   * @generated from field: landing_page_business_suite.v1.PresentationAssignmentSource source = 8;
+   */
+  source: PresentationAssignmentSource;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RecordPresentationExposureRequest.
+ * Use `create(RecordPresentationExposureRequestSchema)` to create a new message.
+ */
+export const RecordPresentationExposureRequestSchema: GenMessage<RecordPresentationExposureRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_config, 1);
+
+/**
+ * @generated from message landing_page_business_suite.v1.RecordPresentationExposureResponse
+ */
+export type RecordPresentationExposureResponse = Message<"landing_page_business_suite.v1.RecordPresentationExposureResponse"> & {
+  /**
+   * False means an otherwise valid assignment was already recorded.
+   *
+   * @generated from field: bool recorded = 1;
+   */
+  recorded: boolean;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RecordPresentationExposureResponse.
+ * Use `create(RecordPresentationExposureResponseSchema)` to create a new message.
+ */
+export const RecordPresentationExposureResponseSchema: GenMessage<RecordPresentationExposureResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_config, 2);
 
 /**
  * LandingConfigResponse is the aggregated public landing payload.
@@ -301,16 +137,6 @@ export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest> 
  * @generated from message landing_page_business_suite.v1.LandingConfigResponse
  */
 export type LandingConfigResponse = Message<"landing_page_business_suite.v1.LandingConfigResponse"> & {
-  /**
-   * @generated from field: landing_page_business_suite.v1.LandingVariantSummary variant = 1;
-   */
-  variant?: LandingVariantSummary | undefined;
-
-  /**
-   * @generated from field: repeated landing_page_business_suite.v1.LandingSection sections = 2;
-   */
-  sections: LandingSection[];
-
   /**
    * @generated from field: vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 3;
    */
@@ -322,35 +148,12 @@ export type LandingConfigResponse = Message<"landing_page_business_suite.v1.Land
   downloads: DownloadApp[];
 
   /**
-   * @generated from field: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header = 5;
-   */
-  header?: LandingHeaderConfig | undefined;
-
-  /**
-   * @generated from field: optional landing_page_business_suite.v1.LandingBranding branding = 6;
-   */
-  branding?: LandingBranding | undefined;
-
-  /**
-   * True when the baked fallback payload was returned.
+   * True when the typed resolver used an explicit same-document fallback,
+   * such as a configured locale fallback. Missing publication is unavailable.
    *
    * @generated from field: bool fallback = 7;
    */
   fallback: boolean;
-
-  /**
-   * Maps a price ID to its currently applicable introductory coupon ID.
-   *
-   * @generated from field: map<string, string> coupon_mappings = 8;
-   */
-  couponMappings: { [key: string]: string };
-
-  /**
-   * Public coupon details referenced by coupon_mappings.
-   *
-   * @generated from field: repeated landing_page_business_suite.v1.IntroOffer intro_offers = 9;
-   */
-  introOffers: IntroOffer[];
 
   /**
    * @generated from field: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation presentation = 10;
@@ -363,7 +166,33 @@ export type LandingConfigResponse = Message<"landing_page_business_suite.v1.Land
  * Use `create(LandingConfigResponseSchema)` to create a new message.
  */
 export const LandingConfigResponseSchema: GenMessage<LandingConfigResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 5);
+  messageDesc(file_landing_page_business_suite_v1_config, 3);
+
+/**
+ * @generated from enum landing_page_business_suite.v1.PresentationAssignmentSource
+ */
+export enum PresentationAssignmentSource {
+  /**
+   * @generated from enum value: PRESENTATION_ASSIGNMENT_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PRESENTATION_ASSIGNMENT_SOURCE_WEIGHTED_VISITOR = 1;
+   */
+  WEIGHTED_VISITOR = 1,
+
+  /**
+   * @generated from enum value: PRESENTATION_ASSIGNMENT_SOURCE_EXPLICIT_URL = 2;
+   */
+  EXPLICIT_URL = 2,
+}
+
+/**
+ * Describes the enum landing_page_business_suite.v1.PresentationAssignmentSource.
+ */
+export const PresentationAssignmentSourceSchema: GenEnum<PresentationAssignmentSource> = /*@__PURE__*/
+  enumDesc(file_landing_page_business_suite_v1_config, 0);
 
 /**
  * LandingConfigService serves the aggregated public landing payload.
@@ -380,6 +209,14 @@ export const LandingConfigService: GenService<{
     methodKind: "unary";
     input: typeof GetLandingConfigRequestSchema;
     output: typeof LandingConfigResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.LandingConfigService.RecordPresentationExposure
+   */
+  recordPresentationExposure: {
+    methodKind: "unary";
+    input: typeof RecordPresentationExposureRequestSchema;
+    output: typeof RecordPresentationExposureResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_landing_page_business_suite_v1_config, 0);

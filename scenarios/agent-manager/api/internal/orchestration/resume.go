@@ -54,6 +54,17 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 	if automatic && (failedRun.Status != domain.RunStatusFailed || failedRun.CancelRequestedAt != nil || failedRun.ExecutionMode.Normalized() == domain.ExecutionModeInteractive || strings.TrimSpace(failedRun.SessionID) == "" || failedRun.ResolvedConfig == nil || failedRun.ResolvedConfig.RunnerType != domain.RunnerTypeOpenCode) {
 		return nil, domain.NewValidationError("runId", "automatic fresh recovery requires a failed managed OpenCode run with a retained session and no cancellation")
 	}
+	// Older failed rows may predate the persisted resolved execution contract.
+	// Explicit manual recovery may rebuild a complete policy from the retained
+	// profile/defaults; automatic fresh recovery remains strict above because it
+	// must prove the original native session and model contract.
+	recoveryConfig := failedRun.ResolvedConfig
+	if recoveryConfig == nil {
+		recoveryConfig, _, err = o.resolveRunConfig(ctx, CreateRunRequest{AgentProfileID: failedRun.AgentProfileID})
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Look up acceptance before preflight, policy changes, maintenance or any
 	// effects. A source claim survives cache expiry and replacement deletion.
 	effectsPossible = true
@@ -72,10 +83,10 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 	// excluded models before liveness/session checks, executor exclusion, or a
 	// replacement claim can have effects. Existing accepted receipts above are
 	// read-only replays and intentionally return before this fence.
-	if err := validateExecutionModel(failedRun.ResolvedConfig); err != nil {
+	if err := validateExecutionModel(recoveryConfig); err != nil {
 		return nil, domain.RefuseBeforeEffects(err)
 	}
-	if err := o.validateCurrentExecutionModel(ctx, failedRun.ResolvedConfig); err != nil {
+	if err := o.validateCurrentExecutionModel(ctx, recoveryConfig); err != nil {
 		return nil, domain.RefuseBeforeEffects(err)
 	}
 	// Fresh identity cannot shed the source's revocable dispatcher grant.
@@ -148,7 +159,7 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		RequestedScopes:   failedRun.RequestedScopes,
 		IdempotencyKey:    freshRecoveryKey(failedRun.ID),
 	}
-	if cfg := failedRun.ResolvedConfig; cfg != nil {
+	if cfg := recoveryConfig; cfg != nil {
 		createReq.PreferredRunner = string(cfg.RunnerType)
 		if cfg.RoleRef != "" {
 			createReq.RoleRef = &cfg.RoleRef
@@ -192,7 +203,7 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 	}
 	// Missing acceptance is never release authority. Only the owner's explicit
 	// pre-effect error class permits a hash/version-fenced release below.
-	newRun, err := o.createRun(ctx, createReq, &runRecoveryContext{attachments: attachments, config: failedRun.ResolvedConfig})
+	newRun, err := o.createRun(ctx, createReq, &runRecoveryContext{attachments: attachments, config: recoveryConfig})
 	if err != nil {
 		if domain.IsPreEffectRefusal(err) {
 			released, releaseErr := claims.ReleaseFreshRecoveryClaim(context.WithoutCancel(ctx), failedRun.ID, failedRun.LifecycleVersion+1, freshRecoveryRequestHash(req))

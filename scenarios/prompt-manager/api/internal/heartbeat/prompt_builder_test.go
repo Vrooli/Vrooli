@@ -92,6 +92,7 @@ func TestFiniteLeaderGuidanceRequiresProgressOrTypedBlocker(t *testing.T) {
 		"record a typed external blocker",
 		"Do not finish a wake with `no-action`",
 		"persist the result, next action, and evidence",
+		"Do not invent a second approval gate",
 	} {
 		if !strings.Contains(finiteLeaderGuidance, want) {
 			t.Errorf("finite leader guidance missing required progress rule %q", want)
@@ -291,7 +292,7 @@ func TestBuildStructuredMatchesRenderedPromptContract(t *testing.T) {
 	if got := strings.Count(prompt, "Record durable continuity in your declared Source Ledger topics"); got != 1 {
 		t.Fatalf("task decision guidance rendered %d times, want once", got)
 	}
-	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "adaptive-improvement", "Never approve, queue, or execute a plan from a heartbeat"} {
+	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "adaptive-improvement", "Autonomous effort exception", "do not use Swarm Manager backlog"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("shared improvement decision tree missing %q", want)
 		}

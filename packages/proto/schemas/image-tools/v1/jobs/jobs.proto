@@ -80,6 +80,8 @@ enum JobLane {
   JOB_LANE_UNSPECIFIED = 0;
   JOB_LANE_GPU = 1;
   JOB_LANE_CPU = 2;
+  // JOB_LANE_NETWORK carries remote-tier work on its own bounded pool.
+  JOB_LANE_NETWORK = 3;
 }
 
 // Job is the persisted, observable record of a submitted unit of work.
@@ -133,6 +135,32 @@ message Job {
   // backends that report it: an empty map means "nobody reported", which is a
   // different fact from a reported zero.
   map<string, string> result_meta = 13;
+
+  // request echoes the parameters that produced the job, so a caller can tell
+  // which prompt/seed/role a result came from without the original submission.
+  // Populated from the stored payload.
+  JobRequest request = 14;
+
+  // result_refs lists every output blob this job produced. result_ref stays the
+  // first entry for callers that only read one; a multi-variation run has one
+  // entry per variation.
+  repeated string result_refs = 15;
+}
+
+// JobRequest is the typed echo of the submitted request.
+message JobRequest {
+  string operation = 1;
+  string model_id = 2;
+  string backend = 3;
+  string tier = 4;
+  string role = 5;
+  string prompt = 6;
+  string negative_prompt = 7;
+  int64 seed = 8;
+  int32 width = 9;
+  int32 height = 10;
+  int32 variations = 11;
+  repeated string adapters = 12;
 }
 
 // ProgressEvent is one progress update streamed by WatchJob.

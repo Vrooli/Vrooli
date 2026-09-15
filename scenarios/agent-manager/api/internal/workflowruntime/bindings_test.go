@@ -42,6 +42,19 @@ func TestEvaluateBindingsJsonKeepsStructuredValueForEndNodeAssembly(t *testing.T
 	}
 }
 
+func TestEvaluateBindingsSelectsIndexedArrayValue(t *testing.T) {
+	values, err := EvaluateBindings([]domain.WorkflowInputBinding{{
+		Name: "scope", Source: domain.WorkflowBindingInput, Selector: "$.assets[0].targetScenario",
+		Limit: 1, MaxBytes: 128, RenderAs: "text", MissingPolicy: "error",
+	}}, BindingContext{Input: json.RawMessage(`{"assets":[{"targetScenario":"disposable-rcl"}]}`)})
+	if err != nil {
+		t.Fatalf("EvaluateBindings() error = %v", err)
+	}
+	if got := values["scope"]; got != "disposable-rcl" {
+		t.Fatalf("indexed binding = %#v, want disposable-rcl", got)
+	}
+}
+
 func TestRenderPromptRendersStructuredEvaluatorBindingInsideSkillEnvelope(t *testing.T) {
 	const source = `<skills count="1">
   <skill id="evaluator"><![CDATA[

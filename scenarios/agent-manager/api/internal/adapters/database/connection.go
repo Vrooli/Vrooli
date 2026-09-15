@@ -1045,6 +1045,8 @@ func (db *DB) consolidateLegacyInvestigationProjections(ctx context.Context) err
 var runColumnMigrations = []columnMigration{
 	{column: "interactive_invocation_started_at", ddl: "ALTER TABLE runs ADD COLUMN interactive_invocation_started_at TEXT"},
 	{column: "lifecycle_version", ddl: "ALTER TABLE runs ADD COLUMN lifecycle_version INTEGER NOT NULL DEFAULT 0"},
+	{column: "owner_identity", ddl: "ALTER TABLE runs ADD COLUMN owner_identity TEXT NOT NULL DEFAULT ''"},
+	{column: "owner_epoch", ddl: "ALTER TABLE runs ADD COLUMN owner_epoch INTEGER NOT NULL DEFAULT 0"},
 	{column: "fresh_recovery_request_hash", ddl: "ALTER TABLE runs ADD COLUMN fresh_recovery_request_hash TEXT NOT NULL DEFAULT ''"},
 	{column: "label", ddl: "ALTER TABLE runs ADD COLUMN label TEXT NOT NULL DEFAULT ''"},
 	{column: "label_source", ddl: "ALTER TABLE runs ADD COLUMN label_source TEXT NOT NULL DEFAULT ''"},

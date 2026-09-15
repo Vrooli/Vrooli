@@ -95,7 +95,7 @@ class CheckoutSession(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., status: _Optional[_Union[CheckoutSessionStatus, str]] = ..., url: _Optional[str] = ..., publishable_key: _Optional[str] = ..., customer_email: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., subscription_id: _Optional[str] = ..., schedule_id: _Optional[str] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class CreateCheckoutSessionRequest(_message.Message):
-    __slots__ = ("price_id", "customer_email", "success_url", "cancel_url", "session_kind", "metadata", "visitor_id", "utm_source", "utm_medium", "utm_campaign", "referrer_kind", "country_code", "business_account_id")
+    __slots__ = ("price_id", "customer_email", "success_url", "cancel_url", "session_kind", "metadata", "visitor_id", "utm_source", "utm_medium", "utm_campaign", "referrer_kind", "country_code", "business_account_id", "session_id", "variant_slug", "landing_path", "device_class")
     class MetadataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -116,6 +116,10 @@ class CreateCheckoutSessionRequest(_message.Message):
     REFERRER_KIND_FIELD_NUMBER: _ClassVar[int]
     COUNTRY_CODE_FIELD_NUMBER: _ClassVar[int]
     BUSINESS_ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
+    LANDING_PATH_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_CLASS_FIELD_NUMBER: _ClassVar[int]
     price_id: str
     customer_email: str
     success_url: str
@@ -129,7 +133,11 @@ class CreateCheckoutSessionRequest(_message.Message):
     referrer_kind: str
     country_code: str
     business_account_id: str
-    def __init__(self, price_id: _Optional[str] = ..., customer_email: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., visitor_id: _Optional[str] = ..., utm_source: _Optional[str] = ..., utm_medium: _Optional[str] = ..., utm_campaign: _Optional[str] = ..., referrer_kind: _Optional[str] = ..., country_code: _Optional[str] = ..., business_account_id: _Optional[str] = ...) -> None: ...
+    session_id: str
+    variant_slug: str
+    landing_path: str
+    device_class: str
+    def __init__(self, price_id: _Optional[str] = ..., customer_email: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., visitor_id: _Optional[str] = ..., utm_source: _Optional[str] = ..., utm_medium: _Optional[str] = ..., utm_campaign: _Optional[str] = ..., referrer_kind: _Optional[str] = ..., country_code: _Optional[str] = ..., business_account_id: _Optional[str] = ..., session_id: _Optional[str] = ..., variant_slug: _Optional[str] = ..., landing_path: _Optional[str] = ..., device_class: _Optional[str] = ...) -> None: ...
 
 class CreateCheckoutSessionResponse(_message.Message):
     __slots__ = ("session",)
