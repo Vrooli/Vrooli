@@ -27,7 +27,7 @@ func newConversationAdapter(s *Server) *conversationAdapter {
 // archive metadata authorizes reads only; mutation paths retain their stricter
 // live-session checks below.
 func (a *conversationAdapter) canReadSession(sessionID string) bool {
-	if _, ok := a.srv.sessions.Get(sessionID); ok {
+	if a.isLiveSession(sessionID) {
 		return true
 	}
 	if a.srv.sessionStore == nil {
@@ -37,7 +37,23 @@ func (a *conversationAdapter) canReadSession(sessionID string) bool {
 	if err != nil {
 		return false
 	}
-	return !meta.ArchivedAt.IsZero() || meta.Status == sessionstore.StatusDismissed || meta.Status == sessionstore.StatusAwaitingRecovery
+	return meta.LaunchMode == sessionstore.LaunchModeCodexAppServer || !meta.ArchivedAt.IsZero() || meta.Status == sessionstore.StatusDismissed || meta.Status == sessionstore.StatusAwaitingRecovery
+}
+
+func (a *conversationAdapter) isLiveSession(sessionID string) bool {
+	if a == nil || a.srv == nil {
+		return false
+	}
+	if a.srv.sessions != nil {
+		if _, ok := a.srv.sessions.Get(sessionID); ok {
+			return true
+		}
+	}
+	if a.srv.managedCodex != nil {
+		_, err := a.srv.managedCodex.Get(context.Background(), sessionID)
+		return err == nil
+	}
+	return false
 }
 
 func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (conversationH.SessionState, error) {
@@ -148,7 +164,7 @@ func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conver
 }
 
 func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH.CursorPatch) (conversationH.Cursor, error) {
-	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+	if !a.isLiveSession(sessionID) {
 		return conversationH.Cursor{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	storePatch := conversationCursorPatch{}
@@ -168,7 +184,7 @@ func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH
 }
 
 func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eventID string) (conversationH.SummarizeResult, error) {
-	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+	if !a.isLiveSession(sessionID) {
 		return conversationH.SummarizeResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	if a.srv.summarizer == nil {
@@ -254,7 +270,15 @@ func transportEvents(in []ConversationEvent) []conversationH.Event {
 			DeliveryState:            string(e.DeliveryState),
 			TTSState:                 string(e.TTSState),
 			ConsumptionState:         string(e.ConsumptionState),
+			NativeProvenance:         nativeProvenance(e.NativeProvenance),
 		})
 	}
 	return out
+}
+
+func nativeProvenance(p *NativeProvenance) *conversationH.NativeProvenance {
+	if p == nil {
+		return nil
+	}
+	return &conversationH.NativeProvenance{Provider: p.Provider, SessionID: p.SessionID, TurnID: p.TurnID, MessageID: p.MessageID, BoundaryID: p.BoundaryID, CompactionLineage: p.CompactionLineage}
 }

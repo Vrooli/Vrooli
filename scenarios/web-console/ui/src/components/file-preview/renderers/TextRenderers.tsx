@@ -55,11 +55,31 @@ function SourcePreview({ model, text }: PreviewRendererProps) {
   );
 }
 
-// srcdoc receives an opaque origin (never allow-same-origin). The first base
-// prevents relative URLs from resolving against web-console's own URL. CSP
-// allows inline interactions and HTTPS presentation assets, but no API calls,
-// embedded pages, forms, or plugins. Keep these headers before supplied markup.
-const HTML_PREVIEW_PREFIX = `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; base-uri about:; form-action 'none'"><base href="about:srcdoc"><meta name="referrer" content="no-referrer">`;
+function escapeHtmlAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Fetching the HTML through srcDoc avoids a second document navigation through
+// an Access/tunnel boundary. The base still points at the session-bound runtime
+// route, so relative CSS, JS, images, and child pages resolve normally.
+function htmlPreviewDocument(content: string, runtimeHref?: string): string {
+  let baseHref = "about:srcdoc";
+  let runtimeOrigin = "";
+  if (runtimeHref) {
+    try {
+      const base = new URL(runtimeHref, window.location.href);
+      baseHref = base.href;
+      runtimeOrigin = base.origin;
+    } catch {
+      // Keep the inert srcdoc fallback if a malformed runtime URL is supplied.
+    }
+  }
+
+  const resourceOrigin = runtimeOrigin || "about:srcdoc";
+  const framePolicy = runtimeOrigin ? runtimeOrigin : "'none'";
+  const documentPolicy = `default-src 'none'; script-src 'unsafe-inline' ${runtimeOrigin}; style-src 'unsafe-inline' ${runtimeOrigin}; img-src ${resourceOrigin} data: blob:; font-src ${resourceOrigin} data:; media-src ${resourceOrigin} data: blob:; base-uri ${resourceOrigin}; connect-src 'none'; form-action 'none'; frame-src ${framePolicy}; navigate-to ${framePolicy}; object-src 'none'`;
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${documentPolicy}"><base href="${escapeHtmlAttribute(baseHref)}"><meta name="referrer" content="no-referrer">${content}`;
+}
 
 function HtmlPreview(props: PreviewRendererProps) {
   const { model, text } = props;
@@ -88,7 +108,7 @@ function HtmlPreview(props: PreviewRendererProps) {
           title={t(strings.messagesFileViewer.htmlPreview, { name: model.basename })}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
-          srcDoc={HTML_PREVIEW_PREFIX + text.content}
+          srcDoc={htmlPreviewDocument(text.content, model.runtimeHref)}
           className="min-h-0 w-full flex-1 border-0 bg-white [color-scheme:light]"
         />
       </>}

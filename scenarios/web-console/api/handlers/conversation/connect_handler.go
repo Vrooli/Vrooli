@@ -249,6 +249,12 @@ func eventToProto(e Event) *conversationv1.ConversationEvent {
 		DeliveryState:            e.DeliveryState,
 		TtsState:                 e.TTSState,
 		ConsumptionState:         e.ConsumptionState,
+		NativeProvenance: func() *conversationv1.NativeProvenance {
+			if e.NativeProvenance == nil {
+				return nil
+			}
+			return &conversationv1.NativeProvenance{Provider: e.NativeProvenance.Provider, SessionId: e.NativeProvenance.SessionID, TurnId: e.NativeProvenance.TurnID, MessageId: e.NativeProvenance.MessageID, BoundaryId: e.NativeProvenance.BoundaryID, CompactionLineage: e.NativeProvenance.CompactionLineage}
+		}(),
 	}
 }
 

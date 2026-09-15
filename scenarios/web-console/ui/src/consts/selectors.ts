@@ -557,6 +557,11 @@ const dynamicSelectorDefinitions = {
       testIdPattern: 'msg-actions-menu-${eventId}',
       params: { eventId: { type: 'string' } },
     }),
+    rewind: defineDynamicSelector({
+      description: 'Native rewind action for an assistant message',
+      testIdPattern: 'msg-rewind-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
     openReader: defineDynamicSelector({
       description: 'Outline footer that opens a long reply in the reader',
       testIdPattern: 'msg-open-reader-${eventId}',

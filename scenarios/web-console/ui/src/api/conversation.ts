@@ -1,7 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import { ConversationSearchMode, ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
 
-import { transport } from "./client";
+import { API_BASE_WITH_SUFFIX, transport } from "./client";
 import { decodeCaptureStatus, type MessageCaptureStatus } from "./messageCapture";
 
 // The capture contract lives in ./messageCapture so the store can import its
@@ -33,6 +33,79 @@ export interface ConversationEvent {
   deliveryState: string;
   ttsState: string;
   consumptionState: string;
+  nativeProvenance?: NativeProvenance;
+}
+
+export interface NativeProvenance {
+  provider: string;
+  sessionId: string;
+  turnId: string;
+  messageId: string;
+  boundaryId: string;
+  compactionLineage: string;
+}
+
+export interface ConversationControlPreflight {
+  operationId: string;
+  operation: string;
+  sessionId: string;
+  eventId: string;
+  sequence: number;
+  capability: {
+    provider: string;
+    available: boolean;
+    reasonCode: string;
+    destructive: boolean;
+    launchMode?: string;
+    controlMode?: string;
+    nativeOwner?: string;
+    options?: ConversationOperationOption[];
+  };
+  decision: string;
+  confirmationKey?: string;
+  targetDigest: string;
+  consequences: string[];
+  expiresAt: string;
+}
+
+export interface ConversationOperationOption {
+  id: string;
+  label: string;
+  supported: boolean;
+  default: boolean;
+  changesConversation: boolean;
+  changesWorkspace: boolean;
+  createsBranch: boolean;
+  requiresConfirmation: boolean;
+  boundary: string;
+  consequences: string[];
+  unavailableReason?: string;
+}
+
+export interface ConversationControlOutcome {
+  operationId: string;
+  sessionId: string;
+  eventId: string;
+  state: string;
+  reasonCode: string;
+  detail: string;
+  terminalUrl?: string;
+}
+
+export async function preflightConversationControl(sessionId: string, eventId: string, operation?: string): Promise<ConversationControlPreflight> {
+  const response = await fetch(`${API_BASE_WITH_SUFFIX}/sessions/${encodeURIComponent(sessionId)}/conversation/control/preflight`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, ...(operation ? { operation } : {}) }),
+  });
+  if (!response.ok) throw new Error(`conversation control preflight failed (${response.status})`);
+  return response.json() as Promise<ConversationControlPreflight>;
+}
+
+export async function executeConversationControl(sessionId: string, request: { operationId: string; eventId: string; operation?: string; confirmationKey: string; preserveDraft: boolean }): Promise<ConversationControlOutcome> {
+  const response = await fetch(`${API_BASE_WITH_SUFFIX}/sessions/${encodeURIComponent(sessionId)}/conversation/control/execute`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+  });
+  if (!response.ok) throw new Error(`conversation control execute failed (${response.status})`);
+  return response.json() as Promise<ConversationControlOutcome>;
 }
 
 export interface ConversationCursor {
@@ -69,6 +142,7 @@ interface ProtoConversationEvent {
   deliveryState: string;
   ttsState: string;
   consumptionState: string;
+  nativeProvenance?: NativeProvenance;
 }
 
 interface ProtoConversationCursor {
@@ -91,6 +165,7 @@ function decodeConversationEvent(e: ProtoConversationEvent): ConversationEvent {
     deliveryState: e.deliveryState,
     ttsState: e.ttsState,
     consumptionState: e.consumptionState,
+    ...(e.nativeProvenance ? { nativeProvenance: e.nativeProvenance } : {}),
   };
 }
 

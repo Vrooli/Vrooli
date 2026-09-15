@@ -104,6 +104,16 @@ type Event struct {
 	DeliveryState            string
 	TTSState                 string
 	ConsumptionState         string
+	NativeProvenance         *NativeProvenance
+}
+
+type NativeProvenance struct {
+	Provider          string
+	SessionID         string
+	TurnID            string
+	MessageID         string
+	BoundaryID        string
+	CompactionLineage string
 }
 
 // Cursor is the transport-neutral cursor shape.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"web-console/session"
 	"web-console/terminal"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -127,6 +129,12 @@ func boundSnapshot(snapshot []byte, maxBytes int) ([]byte, int, bool) {
 // via the writerDone channel.
 // [REQ:P0-002b] WebSocket I/O Streaming
 func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
+	if s.managedCodex != nil {
+		if owner, ok := s.managedCodex.owner(strings.TrimSpace(mux.Vars(r)["id"])); ok {
+			s.handleManagedCodexWS(w, r, strings.TrimSpace(mux.Vars(r)["id"]), owner)
+			return
+		}
+	}
 	sess := s.lookupSession(w, r)
 	if sess == nil {
 		return

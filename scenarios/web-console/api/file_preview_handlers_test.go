@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,6 +61,19 @@ func blobRequest(t *testing.T, srv *Server, method, sessionID, previewID string,
 	return rec
 }
 
+func runtimeRequest(t *testing.T, srv *Server, method, sessionID, previewID, resource string) *httptest.ResponseRecorder {
+	t.Helper()
+	requestPath := "/api/v1/sessions/" + sessionID + "/file-previews/" + previewID + "/runtime/" + resource
+	if resource == "" {
+		requestPath += "/"
+	}
+	req := httptest.NewRequest(method, requestPath, nil)
+	req = mux.SetURLVars(req, map[string]string{"id": sessionID, "previewId": previewID, "resource": resource})
+	rec := httptest.NewRecorder()
+	srv.handleFilePreviewRuntime(rec, req)
+	return rec
+}
+
 func TestFilePreview_ResolveTextAndGetContent(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
@@ -88,6 +102,94 @@ func TestFilePreview_ResolveTextAndGetContent(t *testing.T) {
 	}
 	if text.Content != "# Plan\nbody\n" {
 		t.Fatalf("content=%q", text.Content)
+	}
+}
+
+func TestFilePreview_Runtime_ServesHTMLAndConfinedPresentationResources(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	html := filepath.Join(root, "index.html")
+	if err := os.WriteFile(html, []byte(`<!doctype html><link rel="stylesheet" href="design.css"><script defer src="render.js"></script><img src="assets/logo.png">`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string][]byte{
+		"child.html":      []byte("<script src='render.js'></script>"),
+		"design.css":      []byte("body { color: red }"),
+		"render.js":       []byte("document.body.dataset.ready = 'yes';"),
+		"assets/logo.png": {0x89, 'P', 'N', 'G'},
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	res := resolvePreview(t, srv, sessionID, html)
+
+	doc := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, "")
+	if doc.Code != http.StatusOK || !strings.Contains(doc.Body.String(), "render.js") {
+		t.Fatalf("document status=%d body=%q", doc.Code, doc.Body.String())
+	}
+	if got := doc.Header().Get("Content-Security-Policy"); !strings.Contains(got, "connect-src 'none'") || !strings.Contains(got, "script-src 'unsafe-inline' 'self'") || !strings.Contains(got, "frame-src 'self'") || !strings.Contains(got, "navigate-to 'self'") {
+		t.Fatalf("unexpected runtime CSP: %q", got)
+	}
+	if got := doc.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("runtime CORS origin=%q, want wildcard for opaque iframe origin", got)
+	}
+	if got := doc.Header().Get("X-Frame-Options"); got != "" {
+		t.Fatalf("runtime X-Frame-Options=%q, want absent in favor of CSP frame-ancestors", got)
+	}
+	if got := doc.Header().Get("Content-Security-Policy"); strings.Contains(got, "frame-ancestors") || !strings.Contains(got, "frame-src 'self'") || !strings.Contains(got, "navigate-to 'self'") {
+		t.Fatalf("runtime CSP does not support same-capability child documents: %q", got)
+	}
+
+	css := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, "design.css")
+	if css.Code != http.StatusOK || css.Header().Get("Content-Type") != "text/css; charset=utf-8" || css.Body.String() != "body { color: red }" {
+		t.Fatalf("css response: status=%d type=%q body=%q", css.Code, css.Header().Get("Content-Type"), css.Body.String())
+	}
+	asset := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, "assets/logo.png")
+	if asset.Code != http.StatusOK || asset.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("asset response: status=%d type=%q", asset.Code, asset.Header().Get("Content-Type"))
+	}
+	child := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, "child.html")
+	if child.Code != http.StatusOK || child.Header().Get("Content-Type") != "text/html; charset=utf-8" || !strings.Contains(child.Header().Get("Content-Security-Policy"), "connect-src 'none'") {
+		t.Fatalf("child html response: status=%d type=%q csp=%q", child.Code, child.Header().Get("Content-Type"), child.Header().Get("Content-Security-Policy"))
+	}
+}
+
+func TestFilePreview_Runtime_RejectsTraversalSymlinkAndStaleDocument(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	html := filepath.Join(root, "index.html")
+	if err := os.WriteFile(html, []byte("<h1>preview</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "secret.js"), []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "secret.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "secret.js"), filepath.Join(root, "escape.js")); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	res := resolvePreview(t, srv, sessionID, html)
+
+	for _, resource := range []string{"../secret.js", "..\\secret.js", "escape.js", "secret.txt"} {
+		rec := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, resource)
+		if rec.Code != http.StatusBadRequest && rec.Code != http.StatusForbidden {
+			t.Errorf("resource %q returned %d, want 400 or 403", resource, rec.Code)
+		}
+	}
+	if err := os.WriteFile(html, []byte("<h1>changed</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rec := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, ""); rec.Code != http.StatusConflict {
+		t.Fatalf("stale document returned %d, want %d", rec.Code, http.StatusConflict)
 	}
 }
 

@@ -9,6 +9,7 @@ import {
   Forward,
   ListMusic,
   Play,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import type { ConversationEvent } from "../../api/conversation";
@@ -45,6 +46,7 @@ export interface MessageActionContext {
   onOpenReader?: (eventId: string) => void;
   /** Present only where the surface can reach a composer. */
   onSendToComposer?: (text: string) => void;
+  onRewind?: (eventId: string) => void;
   onSaveAsSnippet?: (text: string) => void;
   onHandoff?: (sessionId: string, payload: string) => void;
   onOpenPlaybackMode?: () => void;
@@ -156,6 +158,15 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     appliesTo: (ctx) => ctx.onSendToComposer != null,
     run: (ctx) => { ctx.onSendToComposer?.(ctx.event.text); },
     testId: (ctx) => `msg-send-to-composer-${ctx.event.id}`,
+  },
+  {
+    id: "rewind",
+    labelKey: strings.messageActions.rewind,
+    icon: () => RotateCcw,
+    placement: "overflow",
+    appliesTo: (ctx) => !ctx.readOnly && ctx.event.role !== "user" && ctx.onRewind != null,
+    run: (ctx) => { ctx.onRewind?.(ctx.event.id); },
+    testId: (ctx) => `msg-rewind-${ctx.event.id}`,
   },
   {
     id: "render-mode",

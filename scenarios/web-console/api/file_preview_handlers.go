@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -216,6 +219,168 @@ func (s *Server) handleFilePreviewBlob(w http.ResponseWriter, r *http.Request) {
 	// ServeContent honors the already-set Content-Type, adds Accept-Ranges,
 	// and handles Range (206/Content-Range/416) and HEAD automatically.
 	http.ServeContent(w, r, entry.Basename, info.ModTime(), file)
+}
+
+// handleFilePreviewRuntime serves an HTML preview and the small set of local
+// presentation resources it references. The preview id remains the only
+// capability: the resource path is resolved below the HTML file's directory,
+// never from a caller-supplied filesystem path.
+func (s *Server) handleFilePreviewRuntime(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+	previewID := vars["previewId"]
+	resource := vars["resource"]
+
+	entry, err := s.filePreviews.Lookup(sessionID, previewID)
+	if err != nil || !isHTMLPreviewEntry(entry) {
+		http.NotFound(w, r)
+		return
+	}
+
+	root, err := filepath.Abs(filepath.Dir(entry.ResolvedPath))
+	if err != nil {
+		http.Error(w, "preview root unavailable", http.StatusInternalServerError)
+		return
+	}
+	resourcePath, status := previewRuntimePath(root, entry.ResolvedPath, resource)
+	if status != http.StatusOK {
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
+	info, statErr := os.Stat(resourcePath)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, "failed to stat preview resource", http.StatusInternalServerError)
+		return
+	}
+	if !info.Mode().IsRegular() || (resource != "" && !previewRuntimeResourceAllowed(resourcePath)) {
+		http.Error(w, "preview resource type is not allowed", http.StatusForbidden)
+		return
+	}
+	if resource == "" && (info.Size() != entry.SizeBytes || info.ModTime().UnixNano() != entry.ModTimeUnixNano) {
+		http.Error(w, "file changed since preview was opened; reopen to refresh", http.StatusConflict)
+		return
+	}
+
+	// Resolve the root and resource through symlinks before serving. This keeps
+	// a symlink inside the presentation directory from escaping its capability.
+	resolvedRoot, rootErr := filepath.EvalSymlinks(root)
+	resolvedResource, resourceErr := filepath.EvalSymlinks(resourcePath)
+	if rootErr != nil || resourceErr != nil || !pathWithinRoot(resolvedRoot, resolvedResource) {
+		http.Error(w, "preview resource is outside the presentation directory", http.StatusForbidden)
+		return
+	}
+	if info.Size() > previewRuntimeMaxResourceBytes {
+		http.Error(w, "preview resource is too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	file, openErr := os.Open(resolvedResource)
+	if openErr != nil {
+		if os.IsNotExist(openErr) {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, "failed to open preview resource", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Cache-Control", "no-store")
+	// Sandboxed iframes have an opaque Origin (`null`). This route is already
+	// protected by the session-bound bearer preview id and never accepts
+	// credentials, so wildcard CORS is safe here and lets module scripts/fonts
+	// load without widening the API's credentialed CORS policy.
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Allow-Methods", "GET, HEAD")
+	h.Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", sanitizeContentDispositionFilename(filepath.Base(resourcePath))))
+	if resource == "" || previewRuntimeHTML(resourcePath) {
+		h.Set("Content-Type", "text/html; charset=utf-8")
+		h.Del("X-Frame-Options")
+		// The Web Console may be reached through a reverse proxy or secure
+		// tunnel, so the parent origin is not knowable from local UI_PORT.
+		// This document is safe to embed broadly because it is still an opaque,
+		// script-only sandbox with no credentials, forms, navigation, or network.
+		// Permit same-capability child HTML documents (for example, a design
+		// index that opens a responsive page in an iframe) and same-origin
+		// relative links. The server-side runtime route still limits every
+		// resulting request to this preview directory and extension allowlist.
+		h.Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; script-src 'unsafe-inline' 'self'; style-src 'unsafe-inline' 'self'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'none'; form-action 'none'; frame-src 'self'; object-src 'none'; navigate-to 'self'")
+	} else {
+		h.Set("Content-Type", previewRuntimeContentType(resourcePath))
+	}
+	http.ServeContent(w, r, filepath.Base(resourcePath), info.ModTime(), file)
+}
+
+const previewRuntimeMaxResourceBytes int64 = 16 << 20
+
+func isHTMLPreviewEntry(entry *filepreview.Entry) bool {
+	if entry == nil || entry.Kind != filepreview.KindCode {
+		return false
+	}
+	return previewRuntimeHTML(entry.Basename)
+}
+
+func previewRuntimePath(root, document, resource string) (string, int) {
+	if resource == "" {
+		return document, http.StatusOK
+	}
+	decoded := strings.ReplaceAll(resource, "\\", "/")
+	if strings.HasPrefix(decoded, "/") {
+		return "", http.StatusBadRequest
+	}
+	for _, segment := range strings.Split(decoded, "/") {
+		if segment == ".." {
+			return "", http.StatusBadRequest
+		}
+	}
+	clean := path.Clean("/" + decoded)
+	if clean == "/" || strings.HasPrefix(clean, "/../") || clean == "/.." {
+		return "", http.StatusBadRequest
+	}
+	relative := strings.TrimPrefix(clean, "/")
+	if relative == "" || filepath.IsAbs(relative) {
+		return "", http.StatusBadRequest
+	}
+	return filepath.Join(root, filepath.FromSlash(relative)), http.StatusOK
+}
+
+func pathWithinRoot(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+func previewRuntimeResourceAllowed(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".html", ".htm", ".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm", ".mp3", ".wav", ".ogg":
+		return true
+	default:
+		return false
+	}
+}
+
+func previewRuntimeHTML(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	return ext == ".html" || ext == ".htm"
+}
+
+func previewRuntimeContentType(name string) string {
+	if ext := strings.ToLower(filepath.Ext(name)); ext == ".js" || ext == ".mjs" {
+		return "text/javascript; charset=utf-8"
+	}
+	if ext := strings.ToLower(filepath.Ext(name)); ext == ".css" {
+		return "text/css; charset=utf-8"
+	}
+	if m := mime.TypeByExtension(strings.ToLower(filepath.Ext(name))); m != "" {
+		return m
+	}
+	return "application/octet-stream"
 }
 
 // sanitizeContentDispositionFilename strips quotes and control characters so

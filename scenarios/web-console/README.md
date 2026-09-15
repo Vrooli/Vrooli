@@ -1,6 +1,6 @@
-# Web Console (web-console scenario)
+# Aquila (web-console scenario)
 
-Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios.
+Aquila delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios. The technical scenario key remains `web-console` for API and lifecycle compatibility.
 
 ## Platform support
 

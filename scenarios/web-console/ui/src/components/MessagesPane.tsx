@@ -5,12 +5,13 @@ import { ArrowDown, Search } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
+import { MESSAGES_FONT_DEFAULT, useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
+import { clampMessagesFont, useMessagesTypographyPinch } from "../hooks/useMessagesTypographyPinch";
 import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
-import { getConversationRange, searchConversation, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
+import { executeConversationControl, getConversationRange, preflightConversationControl, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
@@ -32,7 +33,7 @@ import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
 import { MessageRow, type PressHandlers } from "./messages/MessageRow";
-import { MessagesReader, clampReaderFont } from "./messages/MessagesReader";
+import { MessagesReader } from "./messages/MessagesReader";
 import type { MessageActionContext } from "./messages/messageActions";
 import { holdKeyboardForNextField } from "../lib/keyboardFocus";
 import type { ActionsOrigin } from "./messages/MessageActionList";
@@ -145,13 +146,20 @@ export default function MessagesPane({
   // faster than the sentence can be read.
   const liveInterrupted = useLiveStreamNotice();
 
-  const fontSize = useWorkspaceStore(
-    useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
-  );
+  const messagesFontSize = clampMessagesFont(useMessagesViewStore((state) => state.messagesFontSize ?? MESSAGES_FONT_DEFAULT));
+  const setMessagesFontSize = useCallback((size: number) => {
+    useMessagesViewStore.getState().setMessagesFontSize(clampMessagesFont(size));
+  }, []);
 
   // --- Copy ---
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const [snippetSaveSource, setSnippetSaveSource] = useState<{ body: string; sourceLabel: string } | null>(null);
+  const [rewindPreflight, setRewindPreflight] = useState<ConversationControlPreflight | null>(null);
+  const [rewindOperation, setRewindOperation] = useState("restore_conversation");
+  const [rewindError, setRewindError] = useState<string | null>(null);
+  const [rewindNotice, setRewindNotice] = useState<string | null>(null);
+  const [rewindBusy, setRewindBusy] = useState(false);
+  const [rewindPreserveDraft, setRewindPreserveDraft] = useState(true);
   const handleCopy = useCallback((eventId: string, text: string) => {
     void writeText(text);
     setCopiedEventId(eventId);
@@ -206,6 +214,8 @@ export default function MessagesPane({
 
   // --- Scroll: follow + prepend anchor ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const listPinchSize = useMessagesTypographyPinch(scrollContainerRef, messagesFontSize, setMessagesFontSize);
+  const renderedMessagesFontSize = listPinchSize ?? messagesFontSize;
   // Where this session's list was left (persisted across reloads). An archive
   // hit being revealed takes precedence over it.
   const [savedPosition] = useState(() => (
@@ -670,8 +680,7 @@ export default function MessagesPane({
   };
   const prevReplyId = readerIndex == null ? null : replyNear(readerIndex, -1);
   const nextReplyId = readerIndex == null ? null : replyNear(readerIndex, 1);
-  const readerFontSize = clampReaderFont(useMessagesViewStore((state) => state.readerFontSize) ?? fontSize);
-  const setReaderFontSize = useCallback((size: number) => { useMessagesViewStore.getState().setReaderFontSize(size); }, []);
+  const readerFontSize = messagesFontSize;
   const openReader = useCallback((eventId: string) => {
     if (!eventIndexById.has(eventId)) return;
     setReader({ eventId, seenThrough: events[events.length - 1]?.sequence ?? 0 });
@@ -789,6 +798,17 @@ export default function MessagesPane({
     onOpenReader: openReader,
     onToggleRenderMode: toggleRenderMode,
     onSendToComposer,
+    onRewind: readOnly ? undefined : (eventId) => {
+      setRewindError(null);
+      setRewindNotice(null);
+      setRewindPreserveDraft(true);
+      void preflightConversationControl(sessionId, eventId).then((preflight) => {
+        setRewindOperation(preflight.operation || preflight.capability.options?.find((option) => option.default)?.id || "restore_conversation");
+        setRewindPreflight(preflight);
+      }).catch((error: unknown) => {
+        setRewindError(error instanceof Error ? error.message : t(strings.messagesPane.rewindSafetyCheckFailed));
+      });
+    },
     onSaveAsSnippet: (text) => {
       setSnippetSaveSource({
         body: text,
@@ -871,8 +891,8 @@ export default function MessagesPane({
         })}
       />
 
-      <div
-        ref={scrollContainerRef}
+        <div
+          ref={scrollContainerRef}
         data-testid="messages-scroll"
         data-follow={String(following)}
         tabIndex={0}
@@ -903,7 +923,7 @@ export default function MessagesPane({
                 >
                   <MessageRow
                     actionContext={actionContextFor(event)}
-                    fontSize={fontSize}
+                    fontSize={renderedMessagesFontSize}
                     isFocused={focusedEventId === event.id}
                     isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
                     isDimmed={!!searchQuery && serverSearchReady && !searchMatchSet.has(event.id)}
@@ -993,11 +1013,68 @@ export default function MessagesPane({
         onListOptionsChange={filePreview.setListOptions}
       />
 
+      {rewindPreflight && (
+        <div role="dialog" aria-modal="true" aria-label={t(strings.messagesPane.rewindDialogLabel)} className="absolute inset-x-3 bottom-3 z-wc-chrome-raised max-h-[min(32rem,calc(100%-1.5rem))] overflow-y-auto rounded-lg border border-wc-default bg-wc-surface-raised p-4 shadow-xl">
+          <h2 className="font-semibold text-wc-text-primary">{t(strings.messagesPane.rewindHeading, { sequence: rewindPreflight.sequence })}</h2>
+          <p className="mt-1 break-words text-sm text-wc-text-secondary">{t(strings.messagesPane.rewindNativeTarget, {
+            provider: rewindPreflight.capability.provider,
+            launchMode: rewindPreflight.capability.launchMode || "unknown",
+            controlMode: rewindPreflight.capability.controlMode || "unknown",
+          })}</p>
+          {(rewindPreflight.capability.options?.filter((option) => option.supported).length ?? 0) > 0 && (
+            <label className="mt-3 block text-sm text-wc-text-secondary">
+              <span className="mb-1 block font-medium text-wc-text-primary">{t(strings.messagesPane.rewindOperationLabel)}</span>
+              <select value={rewindOperation} disabled={rewindBusy} className="w-full rounded border border-wc-default bg-wc-surface px-2 py-2" onChange={(event) => {
+                const operation = event.target.value;
+                setRewindOperation(operation);
+                setRewindError(null);
+                void preflightConversationControl(sessionId, rewindPreflight.eventId, operation).then((preflight) => {
+                  setRewindOperation(preflight.operation || operation);
+                  setRewindPreflight(preflight);
+                }).catch((error: unknown) => {
+                  setRewindError(error instanceof Error ? error.message : t(strings.messagesPane.rewindSafetyCheckFailed));
+                });
+              }}>
+                {rewindPreflight.capability.options?.filter((option) => option.supported).map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
+            </label>
+          )}
+          <ul className="my-3 list-disc ps-5 text-sm text-wc-text-secondary">
+            {rewindPreflight.consequences.map((consequence) => <li key={consequence}>{consequence}</li>)}
+          </ul>
+          {!rewindPreflight.capability.available && (
+            <p className="mb-3 text-sm text-wc-text-secondary">{t(strings.messagesPane.rewindUnavailable)}</p>
+          )}
+          {rewindPreflight.capability.available && (
+            <label className="mb-3 flex items-center gap-2 text-sm text-wc-text-secondary">
+              <input type="checkbox" checked={rewindPreserveDraft} onChange={(event) => { setRewindPreserveDraft(event.target.checked); }} />
+              {t(strings.messagesPane.rewindPreserveDraft)}
+            </label>
+          )}
+          {rewindBusy && <p role="status" aria-live="polite" className="mb-3 text-sm text-wc-text-secondary">{t(strings.messagesPane.rewindBusy)}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" disabled={rewindBusy} className="rounded border border-wc-default px-3 py-2 text-sm disabled:opacity-50" onClick={() => { setRewindPreflight(null); }}>{t(strings.messagesPane.rewindCancel)}</button>
+            <button type="button" disabled={rewindBusy} className="rounded bg-wc-accent px-3 py-2 text-sm text-wc-accent-fg disabled:opacity-50" onClick={() => { onOpenTerminal?.(); setRewindPreflight(null); }}>{t(strings.messagesPane.rewindOpenTerminal)}</button>
+            {rewindPreflight.capability.available && rewindPreflight.confirmationKey && (
+              <button type="button" disabled={rewindBusy} className="rounded bg-wc-danger px-3 py-2 text-sm text-white disabled:opacity-50" onClick={() => {
+                setRewindBusy(true);
+                void executeConversationControl(sessionId, { operationId: rewindPreflight.operationId, eventId: rewindPreflight.eventId, operation: rewindOperation, confirmationKey: rewindPreflight.confirmationKey ?? "", preserveDraft: rewindPreserveDraft }).then((outcome) => {
+                  if (outcome.state === "succeeded") setRewindNotice(outcome.detail);
+                  else setRewindError(outcome.detail);
+                }).catch((error: unknown) => { setRewindError(error instanceof Error ? error.message : "Native rewind failed safely"); }).finally(() => { setRewindBusy(false); setRewindPreflight(null); });
+              }}>{t(strings.messagesPane.rewindConfirm)}</button>
+            )}
+          </div>
+        </div>
+      )}
+      {rewindError && <div role="alert" className="absolute inset-x-3 bottom-3 z-wc-chrome-raised rounded border border-red-500/50 bg-wc-surface-raised p-3 text-sm text-red-300">{rewindError}</div>}
+      {rewindNotice && <div role="status" aria-live="polite" className="absolute inset-x-3 bottom-3 z-wc-chrome-raised rounded border border-emerald-500/50 bg-wc-surface-raised p-3 text-sm text-emerald-300">{rewindNotice}</div>}
+
       {readerEvent && (
         <MessagesReader
           actionContext={{ ...actionContextFor(readerEvent), onOpenReader: undefined, onPlayMessage: readOnly ? undefined : onPlayEvent }}
           fontSize={readerFontSize}
-          onFontSizeChange={setReaderFontSize}
+          onFontSizeChange={setMessagesFontSize}
           coarsePointer={coarsePointer}
           hideFooter={coarsePointer && keyboardOpen}
           onClose={closeReader}

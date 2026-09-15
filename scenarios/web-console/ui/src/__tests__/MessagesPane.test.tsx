@@ -5,6 +5,7 @@ import MessagesPane from "../components/MessagesPane";
 import { strings } from "../consts/strings";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import type { ConversationEvent } from "../api/conversation";
 import { makeConversationEvents } from "./fixtures/conversationFixture";
 
@@ -476,10 +477,8 @@ describe("MessagesPane", () => {
 
   // --- Font size ---
 
-  it("applies font size from workspace store to message content", () => {
-    useWorkspaceStore.setState({
-      panes: [{ sessionId: "sess-1", name: "test", headerColor: "transparent", themeId: "slate-ocean", fontSize: 20, groupId: null, supportsMessagesView: true, manuallyUnread: false }],
-    });
+  it("applies the persisted Messages font size to message content", () => {
+    useMessagesViewStore.setState({ messagesFontSize: 20 });
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Sized text" })]);
     render(<MessagesPane {...defaultProps} />);
 

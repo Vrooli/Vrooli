@@ -19,10 +19,10 @@ Every HTTP and WebSocket endpoint exposed by the web-console API. Routes are reg
 
 | Method | Path | Handler |
 |---|---|---|
-| POST | `/api/v1/sessions` | `handleCreateSession` |
-| GET | `/api/v1/sessions` | `handleListSessions` |
-| GET | `/api/v1/sessions/{id}` | `handleGetSession` |
-| DELETE | `/api/v1/sessions/{id}` | `handleDeleteSession` |
+| POST | `/vrooli.web_console.v1.sessions.SessionsService/Create` | `SessionsService.Create` |
+| POST | `/vrooli.web_console.v1.sessions.SessionsService/List` | `SessionsService.List` |
+| POST | `/vrooli.web_console.v1.sessions.SessionsService/Get` | `SessionsService.Get` |
+| POST | `/vrooli.web_console.v1.sessions.SessionsService/Delete` | `SessionsService.Delete` |
 | GET | `/api/v1/sessions/recoverable` | `handleListRecoverable` |
 | DELETE | `/api/v1/sessions/recoverable/{id}` | `handleDismissRecoverable` |
 | POST | `/api/v1/sessions/{id}/recover` | `handleRecoverSession` |
@@ -311,3 +311,25 @@ The machines service exposes configuration reads and answer submission through
 Bridge. It returns the target's onboarding question JSON and readiness JSON;
 Web Console renders those payloads with the same React Component Library form
 assets used by `vrooli-onboarding`.
+# Conversation control
+
+`POST /api/v1/sessions/{id}/conversation/control/preflight` is a read-only
+check for returning to a projected message. It returns a typed decision,
+capability metadata, consequences, target digest, and expiry. It never stops a
+session or sends terminal input. The matching `execute` endpoint is
+confirmation-bound and fail-closed; until a harness-owned adapter has a live
+verified postcondition it returns `failed-preserved`/`unsupported` and leaves
+the projection unchanged. Clients must offer the terminal fallback for
+`unsupported`, `unavailable`, `stale_target`, and `failed_uncertain` states.
+Supported execution results are persisted by `operationId`; replaying the same
+confirmed operation returns the stored terminal result without repeating the
+native side effect. An uncertain result is terminal until a later reconciliation
+establishes the native cursor.
+
+Codex sessions created with `launch_mode=codex_app_server` are owned by Web
+Console over app-server stdio. Their capability advertises only verified
+conversation operations; conversation restore creates a provider branch and
+does not restore workspace files. Legacy terminal sessions remain
+transcript-only and use the terminal fallback. If a restart cannot re-establish
+the app-server owner, the session becomes `recovery_only` instead of attaching
+to an unverified rollout or second writer.

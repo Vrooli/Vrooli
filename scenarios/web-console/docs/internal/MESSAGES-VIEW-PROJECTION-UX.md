@@ -171,6 +171,42 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - **D20 — The prior plan `web-console-messages-view-open-reliably-at-thousands-of` is superseded.**
 - **D21 — One composer in Messages:** The composer bar shows in Messages on every device; there is no composer inside the reader, and "Send to composer" stages into the bar.
 
+## Native control and projection boundary
+
+Messages is a semantic projection, not a PTY transcript. Conversation rows come
+from the Claude, Codex, Grok, and OpenCode adapters when those adapters can
+identify a natural-language turn. Terminal activity detection reads the live
+server-side emulator only to classify working, idle, or waiting state; it does
+not manufacture transcript rows. Generic event logs, redraws, tool UI, and
+unsupported prompts remain terminal-only.
+
+Each projected event may carry optional harness-owned native provenance
+(`provider`, `session_id`, `turn_id`, `message_id`, `boundary_id`, and
+`compaction_lineage`). Web Console ids and sequences remain display and paging
+coordinates. Missing or malformed provenance makes native control unavailable;
+the UI must offer the terminal instead of inferring a command from text.
+
+The conversation-control preflight endpoint is read-only and returns stable
+reason codes (`unsupported`, `unavailable`, `stale_target`, and
+`confirmation_required`) plus consequences and an expiry. Execution is
+fail-closed until a harness adapter is verified to stop safely, invoke its own
+rewind operation, and prove the native postcondition. A timeout or transport
+loss is never rendered as success, and projected history is preserved unless
+native verification completes.
+
+OpenCode is the first verified native adapter. The managed `opencode serve`
+owner exposes `POST /session/:id/revert` with persisted native `messageID` and
+`partID`. Web Console checks session status, records a durable operation
+receipt, aborts a busy turn through the owner API with a bounded wait, invokes
+native revert, and verifies the returned `revert.messageID` before projection
+reconciliation. A compaction lineage, changed ownership, timeout, or uncertain
+postcondition preserves projected history and prevents blind replay; an
+identical request replays the durable result without repeating the side effect.
+The installed owner was OpenCode 1.18.30 during validation. Claude, Codex, and
+Grok remain explicitly unsupported until their owners expose an equivalent
+verified operation. The reproducible served-browser safety-dialog case is
+`bas/cases/02-messages/05-rewind/message-rewind-safety-dialog.json`.
+
 ## Mockups
 
 - Round-two mockup page: `/home/matthalloran8/.vrooli/plan-artifacts/web-console-messages-view-honest-projection-calm-scrolling/messages-view-redesign-round2.html` (published at https://claude.ai/code/artifact/5be808f9-9665-47e0-8d64-338e3bb7e468).

@@ -85,6 +85,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
 	sessionAdapter := &sessionsH.Adapter{
 		Manager:             s.sessions,
+		ManagedCodex:        s.managedCodex,
 		Store:               s.sessionStore,
 		Idempotency:         s.idempotency,
 		Events:              s.events,
@@ -132,8 +133,12 @@ func (s *Server) setupRoutes() {
 	handoffRulesH.Module(s.handoffRules, nil).Mount(s.router)
 	snippetsH.Module(s.snippets, nil).Mount(s.router)
 	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
+	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/control/preflight", s.handleConversationControlPreflight).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/control/execute", s.handleConversationControlExecute).Methods(http.MethodPost)
 	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")
+	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/runtime/", s.handleFilePreviewRuntime).Methods("GET", "HEAD")
+	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource:.*}", s.handleFilePreviewRuntime).Methods("GET", "HEAD")
 	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
 	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
 	aiH.Module(&aiH.Adapter{Backend: s.ai}, nil).Mount(s.router)

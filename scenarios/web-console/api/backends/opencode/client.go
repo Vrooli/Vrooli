@@ -17,6 +17,9 @@ import (
 type Client interface {
 	ListSessions(ctx context.Context) ([]Session, error)
 	SessionMessages(ctx context.Context, sessionID string) ([]MessageWithParts, error)
+	SessionStatus(ctx context.Context) (map[string]SessionStatus, error)
+	AbortSession(ctx context.Context, sessionID string) error
+	RevertMessage(ctx context.Context, sessionID, messageID, partID string) error
 	// Events opens the SSE stream and calls onEvent for each decoded event until
 	// ctx is cancelled or the stream terminates, returning the terminating
 	// error (nil on a clean EOF).
@@ -72,6 +75,57 @@ func (c *HTTPClient) SessionMessages(ctx context.Context, sessionID string) ([]M
 		return nil, err
 	}
 	return messages, nil
+}
+
+func (c *HTTPClient) SessionStatus(ctx context.Context) (map[string]SessionStatus, error) {
+	var status map[string]SessionStatus
+	if err := c.getJSON(ctx, "/session/status", &status); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+func (c *HTTPClient) AbortSession(ctx context.Context, sessionID string) error {
+	path := "/session/" + url.PathEscape(sessionID) + "/abort"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *HTTPClient) RevertMessage(ctx context.Context, sessionID, messageID, partID string) error {
+	body := map[string]string{"messageID": messageID}
+	if partID != "" {
+		body["partID"] = partID
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	path := "/session/" + url.PathEscape(sessionID) + "/revert"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
 }
 
 // Events streams the SSE endpoint. SSE frames are `data: <json>` lines

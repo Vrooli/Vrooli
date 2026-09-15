@@ -12,23 +12,16 @@ import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText"
 import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
 import { speakerKey, timeLabel } from "./speaker";
+import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMessagesTypographyPinch";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-reader
 
 /** The reader's text size range and step, in px. */
-const READER_FONT_MIN = 12;
-const READER_FONT_MAX = 32;
 const READER_FONT_STEP = 2;
 
 /** A reader text size, rounded and held to the reader's range. */
 export function clampReaderFont(size: number): number {
-  return Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, Math.round(size)));
-}
-
-function touchDistance(touches: TouchList): number {
-  const first = touches[0];
-  const second = touches[1];
-  return first && second ? Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY) : 0;
+  return clampMessagesFont(size);
 }
 
 interface MessagesReaderProps {
@@ -76,7 +69,6 @@ export function MessagesReader({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   // The pinch listeners follow the body node itself, attached and detached with it.
-  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
   const findRef = useRef<HTMLInputElement | null>(null);
   const moreRef = useRef<HTMLSpanElement | null>(null);
   const [query, setQuery] = useState("");
@@ -84,7 +76,6 @@ export function MessagesReader({
   const [matchCount, setMatchCount] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const [pinchSize, setPinchSize] = useState<number | null>(null);
   const { ctx, actions, composites } = useMessageActions(actionContext, moreRef, false);
 
   // On a keyboard the find field takes focus; on touch the reader itself
@@ -119,45 +110,7 @@ export function MessagesReader({
     if (scroller) scroller.scrollTop = 0;
   }, [event.id]);
 
-  // Pinch: two fingers scale the text, shown live and kept when they lift.
-  // `touch-action` keeps the page's own pinch-zoom off the text so the gesture
-  // arrives here; iOS's gesture events are cancelled for the same reason.
-  const fontSizeRef = useRef(fontSize);
-  fontSizeRef.current = fontSize;
-  const onFontSizeChangeRef = useRef(onFontSizeChange);
-  onFontSizeChangeRef.current = onFontSizeChange;
-  useEffect(() => {
-    if (!bodyEl) return;
-    let pinch: { distance: number; size: number; latest: number | null } | null = null;
-    const onStart = (touchEvent: TouchEvent) => {
-      if (touchEvent.touches.length === 2) pinch = { distance: touchDistance(touchEvent.touches), size: fontSizeRef.current, latest: null };
-    };
-    const onMove = (touchEvent: TouchEvent) => {
-      if (!pinch || touchEvent.touches.length !== 2 || pinch.distance <= 0) return;
-      touchEvent.preventDefault();
-      pinch.latest = clampReaderFont(pinch.size * touchDistance(touchEvent.touches) / pinch.distance);
-      setPinchSize(pinch.latest);
-    };
-    const onEnd = (touchEvent: TouchEvent) => {
-      if (!pinch || touchEvent.touches.length >= 2) return;
-      if (pinch.latest != null) onFontSizeChangeRef.current(pinch.latest);
-      pinch = null;
-      setPinchSize(null);
-    };
-    const cancelGesture = (gestureEvent: Event) => { gestureEvent.preventDefault(); };
-    bodyEl.addEventListener("touchstart", onStart, { passive: true });
-    bodyEl.addEventListener("touchmove", onMove, { passive: false });
-    bodyEl.addEventListener("touchend", onEnd);
-    bodyEl.addEventListener("touchcancel", onEnd);
-    bodyEl.addEventListener("gesturestart", cancelGesture);
-    return () => {
-      bodyEl.removeEventListener("touchstart", onStart);
-      bodyEl.removeEventListener("touchmove", onMove);
-      bodyEl.removeEventListener("touchend", onEnd);
-      bodyEl.removeEventListener("touchcancel", onEnd);
-      bodyEl.removeEventListener("gesturestart", cancelGesture);
-    };
-  }, [bodyEl]);
+  const pinchSize = useMessagesTypographyPinch(bodyRef, fontSize, onFontSizeChange);
 
   const step = (delta: number) => {
     if (matchCount === 0) return;
@@ -266,7 +219,7 @@ export function MessagesReader({
             </span>
           </p>
           <div
-            ref={(node) => { bodyRef.current = node; setBodyEl(node); }}
+            ref={bodyRef}
             data-testid="messages-reader-body"
             style={{ fontSize: `${String(pinchSize ?? fontSize)}px` }}
             className="touch-pan-y text-wc-text-primary"
@@ -296,7 +249,7 @@ export function MessagesReader({
               title={t(strings.reader.smaller)}
               surface="soft"
               size="sm"
-              disabled={fontSize <= READER_FONT_MIN}
+              disabled={fontSize <= 12}
               onClick={() => { onFontSizeChange(clampReaderFont(fontSize - READER_FONT_STEP)); }}
             >
               <AArrowDown />
@@ -307,7 +260,7 @@ export function MessagesReader({
               title={t(strings.reader.larger)}
               surface="soft"
               size="sm"
-              disabled={fontSize >= READER_FONT_MAX}
+              disabled={fontSize >= 32}
               onClick={() => { onFontSizeChange(clampReaderFont(fontSize + READER_FONT_STEP)); }}
             >
               <AArrowUp />

@@ -97,6 +97,15 @@ When the API has `awaiting_recovery` rows, the workspace shows a compact amber c
 
 Recovery moves the original workspace-pane record to the replacement session in the same SQLite transaction: name, header color, group, ordering, active state, theme, font size, and message-view capability are retained. The replacement inherits the original working directory as well.
 
+Managed Codex recovery is separate from legacy PTY recovery. A session marked
+`codex_app_server` is resumed only with its persisted native thread, launch
+descriptor, owner identity, and verified branch lineage. If the app-server
+handshake or thread check fails, the session is marked `recovery_only`; Web
+Console does not guess from the newest rollout file or attach a second writer.
+Executing native-control receipts found during startup are marked
+`failed-uncertain` and require reconciliation before projected history is
+changed.
+
 ## Storage Locations
 
 | Data | Path |

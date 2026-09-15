@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,17 @@ const (
 	ConversationConsumptionListened  ConversationConsumptionState = "listened"
 )
 
+// NativeProvenance is optional harness-owned identity. Projection ids and
+// sequences are display coordinates only and must never mutate a harness.
+type NativeProvenance struct {
+	Provider          string `json:"provider"`
+	SessionID         string `json:"sessionId"`
+	TurnID            string `json:"turnId"`
+	MessageID         string `json:"messageId"`
+	BoundaryID        string `json:"boundaryId"`
+	CompactionLineage string `json:"compactionLineage"`
+}
+
 type ConversationEvent struct {
 	ID                       string                       `json:"id"`
 	SessionID                string                       `json:"sessionId"`
@@ -60,6 +72,7 @@ type ConversationEvent struct {
 	DeliveryState            ConversationDeliveryState    `json:"deliveryState"`
 	TTSState                 ConversationTTSState         `json:"ttsState"`
 	ConsumptionState         ConversationConsumptionState `json:"consumptionState"`
+	NativeProvenance         *NativeProvenance            `json:"nativeProvenance,omitempty"`
 	// IsUpdate is a transient flag (not persisted) indicating this event is an
 	// async update to a previously delivered event (e.g. summarization result).
 	// The WS forwarder uses this to send a conversation_event_update message.
@@ -162,6 +175,7 @@ func (d *conversationDedup) remember(key, eventID string) {
 type ConversationStore struct {
 	repository ConversationRepository
 	dedup      *conversationDedup
+	nativeMu   sync.Mutex
 	// processor is the audio capability port for speech-shaped paragraph
 	// splitting. Defaulted to audioports.PassthroughSpeechTextProcessor{} via
 	// the speechProcessor() accessor below so tests and the in-memory
@@ -276,6 +290,54 @@ func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID,
 		EventID:   persisted.ID,
 		Sequence:  persisted.Sequence,
 	}
+}
+
+// AppendNativeEvent is the capture path for providers whose native message
+// identity is required for later control. The caller owns idempotency through
+// the provider cursor; the native locator is persisted atomically with the
+// projection event.
+func (s *ConversationStore) AppendNativeEvent(ctx context.Context, sessionID, source, role, text string, provenance *NativeProvenance) (ConversationEvent, ConversationAppendResult) {
+	s.nativeMu.Lock()
+	defer s.nativeMu.Unlock()
+	cleanText := normalizeConversationText(text)
+	if strings.TrimSpace(sessionID) == "" || cleanText == "" || provenance == nil {
+		return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_input_required", Source: source, SessionID: sessionID}
+	}
+	conversationRole := ConversationRoleAssistant
+	if role == "user" {
+		conversationRole = ConversationRoleUser
+	}
+	state, err := s.repository.ListSession(ctx, sessionID)
+	if err == nil {
+		for _, existing := range state.Events {
+			if nativeProvenanceEqual(existing.NativeProvenance, provenance) {
+				return existing, ConversationAppendResult{Appended: true, Code: "conversation_duplicate", Reason: "Native provider identity was already appended", Source: source, SessionID: sessionID, EventID: existing.ID, Sequence: existing.Sequence, Duplicate: true}
+			}
+		}
+	}
+	event := ConversationEvent{ID: newConversationEventID(), SessionID: sessionID, Source: source, Role: conversationRole, Text: cleanText, CreatedAt: time.Now().UTC(), NativeProvenance: provenance, DeliveryState: ConversationDeliveryPending, TTSState: ConversationTTSIdle, ConsumptionState: ConversationConsumptionUnseen}
+	if conversationRole == ConversationRoleAssistant {
+		event.SpeechParagraphs = s.speechProcessor().SplitIntoParagraphs(cleanText)
+	}
+	persisted, err := s.repository.AppendEvent(ctx, event)
+	if err != nil {
+		return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_store_failed", Source: source, SessionID: sessionID}
+	}
+	return persisted, ConversationAppendResult{Appended: true, Code: "conversation_event_appended", Source: source, SessionID: sessionID, EventID: persisted.ID, Sequence: persisted.Sequence}
+}
+
+func nativeProvenanceEqual(left, right *NativeProvenance) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	return left.Provider == right.Provider && left.SessionID == right.SessionID && left.TurnID == right.TurnID && left.MessageID == right.MessageID && left.BoundaryID == right.BoundaryID && left.CompactionLineage == right.CompactionLineage
+}
+
+func (s *ConversationStore) TruncateSessionAfter(ctx context.Context, sessionID string, sequence int64) error {
+	if s == nil || s.repository == nil || strings.TrimSpace(sessionID) == "" || sequence < 0 {
+		return fmt.Errorf("invalid conversation truncation target")
+	}
+	return s.repository.TruncateSessionAfter(ctx, sessionID, sequence)
 }
 
 func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {

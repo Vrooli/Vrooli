@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "56029f17b57633aefed3589debbbe61abf17f6642cb59d28836ff861757a6574",
+  "key": "0631fcd9b213b4dbaed279fd16382eea0e518c38d92fb7dba206c4f30e406727",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -139,6 +139,8 @@
     "packages/proto/gen/go/landing-page-business-suite/v1",
     "packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect",
     "packages/proto/gen/go/landing-page-business-suite/v1/shared",
+    "packages/proto/gen/go/scenario-authenticator/v1/accounts",
+    "packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect",
     "packages/proto/gen/go/setup/v1",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect",

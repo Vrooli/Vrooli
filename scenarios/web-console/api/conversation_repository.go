@@ -28,6 +28,7 @@ type ConversationRepository interface {
 	SearchSession(ctx context.Context, sessionID string, query ConversationSearchQuery) (ConversationSearchResult, error)
 	SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) (ArchivedConversationSearchResult, error)
 	ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error)
+	TruncateSessionAfter(ctx context.Context, sessionID string, sequence int64) error
 	UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error
 	UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
 	RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) error
@@ -125,9 +126,9 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, sequence,
-			delivery_state, tts_state, consumption_state
+			delivery_state, tts_state, consumption_state, native_provenance_json
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		event.ID,
 		event.SessionID,
 		event.Source,
@@ -141,6 +142,7 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		string(event.DeliveryState),
 		string(event.TTSState),
 		string(event.ConsumptionState),
+		nativeProvenanceJSON(event.NativeProvenance),
 	); err != nil {
 		return ConversationEvent{}, fmt.Errorf("insert event: %w", err)
 	}
@@ -155,7 +157,7 @@ func (r *SQLConversationRepository) GetEvent(ctx context.Context, sessionID, eve
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
-		       delivery_state, tts_state, consumption_state
+		       delivery_state, tts_state, consumption_state, native_provenance_json
 		FROM conversation_events
 		WHERE session_id = ? AND id = ?`,
 		sessionID, eventID,
@@ -193,7 +195,7 @@ func (r *SQLConversationRepository) ListSession(ctx context.Context, sessionID s
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
-		       delivery_state, tts_state, consumption_state
+		       delivery_state, tts_state, consumption_state, native_provenance_json
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
@@ -232,7 +234,7 @@ func (r *SQLConversationRepository) ListSessionPage(ctx context.Context, session
 		}
 		return ConversationSessionState{}, false, fmt.Errorf("load cursor: %w", err)
 	}
-	query := `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ?`
+	query := `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state, native_provenance_json FROM conversation_events WHERE session_id = ?`
 	args := []any{sessionID}
 	if beforeSequence > 0 {
 		query += ` AND sequence < ?`
@@ -404,7 +406,7 @@ func (r *SQLConversationRepository) SearchArchived(ctx context.Context, filter A
 }
 
 func (r *SQLConversationRepository) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state, native_provenance_json FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -421,6 +423,11 @@ func (r *SQLConversationRepository) ListSessionRange(ctx context.Context, sessio
 		return nil, fmt.Errorf("conversation range exceeds 5000 events")
 	}
 	return events, rows.Err()
+}
+
+func (r *SQLConversationRepository) TruncateSessionAfter(ctx context.Context, sessionID string, sequence int64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM conversation_events WHERE session_id = ? AND sequence > ?`, sessionID, sequence)
+	return err
 }
 
 func (r *SQLConversationRepository) UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error {
@@ -663,11 +670,11 @@ func (r *SQLConversationRepository) CopySession(ctx context.Context, oldID, newI
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, sequence,
-			delivery_state, tts_state, consumption_state
+			delivery_state, tts_state, consumption_state, native_provenance_json
 		)
 		SELECT lower(hex(randomblob(16))), ?, source, role, text, speech_paragraphs,
 		       original_speech_paragraphs, summarized, created_at, sequence,
-		       delivery_state, tts_state, consumption_state
+		       delivery_state, tts_state, consumption_state, native_provenance_json
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
@@ -837,6 +844,23 @@ func (r *InMemoryConversationRepository) ListSessionRange(ctx context.Context, s
 		}
 	}
 	return events, nil
+}
+
+func (r *InMemoryConversationRepository) TruncateSessionAfter(_ context.Context, sessionID string, sequence int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	session, ok := r.sessions[sessionID]
+	if !ok {
+		return nil
+	}
+	kept := session.events[:0]
+	for _, event := range session.events {
+		if event.Sequence <= sequence {
+			kept = append(kept, event)
+		}
+	}
+	session.events = kept
+	return nil
 }
 
 func (r *InMemoryConversationRepository) UpdateSpeechParagraphs(_ context.Context, sessionID, eventID string, paragraphs []string) error {
@@ -1019,6 +1043,7 @@ func scanConversationEvent(row scannable) (ConversationEvent, error) {
 	var originalJSON string
 	var summarized int
 	var deliveryState, ttsState, consumptionState string
+	var nativeJSON sql.NullString
 	if err := row.Scan(
 		&event.ID,
 		&event.SessionID,
@@ -1033,6 +1058,7 @@ func scanConversationEvent(row scannable) (ConversationEvent, error) {
 		&deliveryState,
 		&ttsState,
 		&consumptionState,
+		&nativeJSON,
 	); err != nil {
 		return ConversationEvent{}, fmt.Errorf("scan conversation event: %w", err)
 	}
@@ -1055,7 +1081,25 @@ func scanConversationEvent(row scannable) (ConversationEvent, error) {
 			return ConversationEvent{}, fmt.Errorf("decode original speech paragraphs: %w", err)
 		}
 	}
+	if nativeJSON.Valid && nativeJSON.String != "" {
+		var provenance NativeProvenance
+		if err := json.Unmarshal([]byte(nativeJSON.String), &provenance); err != nil {
+			return ConversationEvent{}, fmt.Errorf("decode native provenance: %w", err)
+		}
+		event.NativeProvenance = &provenance
+	}
 	return event, nil
+}
+
+func nativeProvenanceJSON(provenance *NativeProvenance) any {
+	if provenance == nil {
+		return nil
+	}
+	data, err := json.Marshal(provenance)
+	if err != nil {
+		return nil
+	}
+	return string(data)
 }
 
 func marshalStringSlice(values []string) (string, error) {
@@ -1070,7 +1114,7 @@ func applyCursorStateUpdates(ctx context.Context, tx *sql.Tx, sessionID string, 
 	rows, err := tx.QueryContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
-		       delivery_state, tts_state, consumption_state
+		       delivery_state, tts_state, consumption_state, native_provenance_json
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
@@ -1117,7 +1161,7 @@ func loadConversationEventForUpdate(ctx context.Context, tx *sql.Tx, sessionID, 
 	row := tx.QueryRowContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
-		       delivery_state, tts_state, consumption_state
+		       delivery_state, tts_state, consumption_state, native_provenance_json
 		FROM conversation_events
 		WHERE session_id = ? AND id = ?`,
 		sessionID, eventID,

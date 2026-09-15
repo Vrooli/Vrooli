@@ -18,6 +18,14 @@ type Session struct {
 		Created int64 `json:"created"`
 		Updated int64 `json:"updated"`
 	} `json:"time"`
+	Revert *struct {
+		MessageID string `json:"messageID"`
+		PartID    string `json:"partID"`
+	} `json:"revert,omitempty"`
+}
+
+type SessionStatus struct {
+	Type string `json:"type"`
 }
 
 // MessageInfo is the `info` half of a `GET /session/{id}/message` element.
@@ -25,6 +33,7 @@ type Session struct {
 // the message is still streaming and must not be appended yet.
 type MessageInfo struct {
 	ID        string `json:"id"`
+	ParentID  string `json:"parentID"`
 	SessionID string `json:"sessionID"`
 	Role      string `json:"role"`
 	Time      struct {

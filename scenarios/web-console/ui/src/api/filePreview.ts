@@ -122,6 +122,8 @@ export interface PreviewModel {
   blobUrl: string;
   /** Absolute href for native media elements (API_BASE + blobUrl). */
   blobHref: string;
+  /** Same-origin runtime root for HTML previews and confined local assets. */
+  runtimeHref?: string;
   /** Epoch ms at which previewId (and every handle it issued) stops working. */
   expiresMs: number;
   warnings: string[];
@@ -179,6 +181,11 @@ export function previewBlobHref(blobUrl: string): string {
   return `${base}${path}`;
 }
 
+export function previewRuntimeHref(blobUrl: string): string {
+  if (!blobUrl) return "";
+  return previewBlobHref(blobUrl.replace(/\/blob$/, "/runtime/"));
+}
+
 export async function resolveFilePreview(
   sessionId: string,
   path: string,
@@ -206,6 +213,7 @@ export async function resolveFilePreview(
     listingAvailable: resp.listingAvailable,
     blobUrl: resp.blobUrl,
     blobHref: previewBlobHref(resp.blobUrl),
+    runtimeHref: previewRuntimeHref(resp.blobUrl),
     expiresMs: Number(resp.expiresUnixNano / 1_000_000n),
     warnings: resp.warnings ?? [],
   };

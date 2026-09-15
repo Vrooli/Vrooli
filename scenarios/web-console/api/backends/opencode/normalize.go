@@ -13,8 +13,11 @@ type Cursor struct {
 
 // Emission is one normalized conversation event to append.
 type Emission struct {
-	Role string // "user" or "assistant"
-	Text string
+	Role      string // "user" or "assistant"
+	Text      string
+	MessageID string
+	TurnID    string
+	PartID    string
 }
 
 // messageText joins a message's text parts, dropping empty parts and the
@@ -48,7 +51,7 @@ func Normalize(messages []MessageWithParts, cur Cursor) ([]Emission, Cursor) {
 		switch m.Info.Role {
 		case "user":
 			if m.Info.Time.Created > cur.LastUserCreated {
-				out = append(out, Emission{Role: "user", Text: text})
+				out = append(out, Emission{Role: "user", Text: text, MessageID: m.Info.ID, TurnID: m.Info.ID, PartID: firstTextPartID(m.Parts)})
 				cur.LastUserCreated = m.Info.Time.Created
 			}
 		case "assistant":
@@ -56,10 +59,23 @@ func Normalize(messages []MessageWithParts, cur Cursor) ([]Emission, Cursor) {
 				continue // still streaming; wait for completion
 			}
 			if m.Info.Time.Completed > cur.LastAssistantCompleted {
-				out = append(out, Emission{Role: "assistant", Text: text})
+				turnID := m.Info.ParentID
+				if turnID == "" {
+					turnID = m.Info.ID
+				}
+				out = append(out, Emission{Role: "assistant", Text: text, MessageID: m.Info.ID, TurnID: turnID, PartID: firstTextPartID(m.Parts)})
 				cur.LastAssistantCompleted = m.Info.Time.Completed
 			}
 		}
 	}
 	return out, cur
+}
+
+func firstTextPartID(parts []Part) string {
+	for _, p := range parts {
+		if p.Type == "text" && strings.TrimSpace(p.Text) != "" {
+			return p.ID
+		}
+	}
+	return ""
 }

@@ -221,6 +221,7 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 	migrations := []string{
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE workspace_panes ADD COLUMN manually_unread INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE conversation_events ADD COLUMN native_provenance_json TEXT`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
 		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'live'`,
@@ -235,10 +236,24 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE sessions ADD COLUMN origin TEXT NOT NULL DEFAULT 'ui'`,
 		`ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN display_label TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN launch_mode TEXT NOT NULL DEFAULT 'unknown'`,
+		`ALTER TABLE sessions ADD COLUMN control_mode TEXT NOT NULL DEFAULT 'unknown'`,
+		`ALTER TABLE sessions ADD COLUMN native_owner TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN native_transport TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN provider_version TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN native_thread_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN last_verified_turn_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN forked_from_native_session TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN launch_descriptor_json TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
 		`CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
+		`CREATE TABLE IF NOT EXISTS conversation_control_receipts (
+			operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, event_id TEXT NOT NULL,
+			state TEXT NOT NULL, reason_code TEXT NOT NULL, detail TEXT NOT NULL,
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS session_lifecycle_receipts (
 			operation_id TEXT PRIMARY KEY,
 			session_id TEXT NOT NULL,

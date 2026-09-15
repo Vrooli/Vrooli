@@ -3,6 +3,7 @@ package opencode
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -38,6 +39,30 @@ func TestHTTPClient_ListSessionsAndMessages(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].Info.Role != "user" || msgs[0].Parts[0].Text != "hi" {
 		t.Fatalf("unexpected messages: %+v", msgs)
+	}
+}
+
+func TestHTTPClient_StatusAndRevert(t *testing.T) {
+	var gotBody string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session/status", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, `{"ses_a":{"type":"idle"}}`) })
+	mux.HandleFunc("/session/ses_a/revert", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		gotBody = string(body)
+		fmt.Fprint(w, `true`)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := NewHTTPClient(srv.URL)
+	status, err := c.SessionStatus(context.Background())
+	if err != nil || status["ses_a"].Type != "idle" {
+		t.Fatalf("status = %+v, err = %v", status, err)
+	}
+	if err := c.RevertMessage(context.Background(), "ses_a", "msg_1", "part_1"); err != nil {
+		t.Fatal(err)
+	}
+	if gotBody != `{"messageID":"msg_1","partID":"part_1"}` {
+		t.Fatalf("revert body = %s", gotBody)
 	}
 }
 

@@ -36,7 +36,16 @@ CREATE TABLE sessions (
     archived_at TEXT NOT NULL DEFAULT '',
     origin TEXT NOT NULL DEFAULT 'ui',
     owner TEXT NOT NULL DEFAULT '',
-    display_label TEXT NOT NULL DEFAULT ''
+    display_label TEXT NOT NULL DEFAULT '',
+    launch_mode TEXT NOT NULL DEFAULT 'unknown',
+    control_mode TEXT NOT NULL DEFAULT 'unknown',
+    native_owner TEXT NOT NULL DEFAULT '',
+    native_transport TEXT NOT NULL DEFAULT '',
+    provider_version TEXT NOT NULL DEFAULT '',
+    native_thread_id TEXT NOT NULL DEFAULT '',
+    last_verified_turn_id TEXT NOT NULL DEFAULT '',
+    forked_from_native_session TEXT NOT NULL DEFAULT '',
+    launch_descriptor_json TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE conversation_events (
     id TEXT PRIMARY KEY,
@@ -85,6 +94,49 @@ func TestSQLStore_ProvenanceRoundTrip(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].Origin != OriginProgrammatic || list[0].Owner != "agent-manager" {
 		t.Fatalf("list provenance = %+v, want one row origin=programmatic owner=agent-manager", list)
+	}
+}
+
+func TestSQLStore_NativeOwnershipMetadataRoundTrip(t *testing.T) {
+	s := newSQLStore(t)
+	want := Metadata{ID: "managed", Created: time.Now().UTC(), LaunchMode: LaunchModeCodexAppServer, ControlMode: ControlModeNativeCapable, NativeOwner: "web-console:managed", NativeTransport: "stdio", ProviderVersion: "0.153.4", NativeThreadID: "thread-1", LastVerifiedTurnID: "turn-4", ForkedFromNativeSession: "thread-0", LaunchDescriptorJSON: `{"launchMode":"codex_app_server"}`}
+	if err := s.Save(context.Background(), want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(context.Background(), want.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LaunchMode != want.LaunchMode || got.ControlMode != want.ControlMode || got.NativeOwner != want.NativeOwner || got.NativeThreadID != want.NativeThreadID || got.LastVerifiedTurnID != want.LastVerifiedTurnID || got.ForkedFromNativeSession != want.ForkedFromNativeSession {
+		t.Fatalf("native metadata = %+v", got)
+	}
+}
+
+func TestParseLaunchDescriptorDefaultsAndRejectsUnverifiedShape(t *testing.T) {
+	d, err := ParseLaunchDescriptor("")
+	if err != nil || d.LaunchMode != string(LaunchModeTerminalPTY) || d.ControlMode != string(ControlModeTranscriptOnly) {
+		t.Fatalf("default descriptor = %+v, err=%v", d, err)
+	}
+	if _, err := ParseLaunchDescriptor(`{"agent":"claude","launchMode":"codex_app_server"}`); err == nil {
+		t.Fatal("non-Codex app-server descriptor was accepted")
+	}
+	d, err = ParseLaunchDescriptor(`{"agent":"codex","launchMode":"codex_app_server","serverTransport":"stdio"}`)
+	if err != nil || d.LaunchMode != string(LaunchModeCodexAppServer) {
+		t.Fatalf("managed descriptor = %+v, err=%v", d, err)
+	}
+}
+
+func TestSQLStore_LegacyCodexRowNormalizesToTerminalOwnership(t *testing.T) {
+	s := newSQLStore(t)
+	if _, err := s.db.ExecContext(context.Background(), `INSERT INTO sessions(id, agent_type, launch_command) VALUES ('legacy-codex', 'codex', 'codex --yolo')`); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(context.Background(), "legacy-codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LaunchMode != LaunchModeTerminalPTY || got.ControlMode != ControlModeTranscriptOnly || got.NativeOwner != "" {
+		t.Fatalf("legacy row = %+v", got)
 	}
 }
 

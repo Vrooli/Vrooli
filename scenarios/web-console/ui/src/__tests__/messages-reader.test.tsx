@@ -69,7 +69,7 @@ describe("messages reader", () => {
     Element.prototype.scrollIntoView = vi.fn();
     vi.stubGlobal("ResizeObserver", vi.fn().mockImplementation(() => ({ observe: vi.fn(), disconnect: vi.fn() })));
     globalThis.fetch = vi.fn() as typeof fetch;
-    useMessagesViewStore.setState({ viewModes: {}, positions: {}, readerFontSize: null, readers: {} });
+    useMessagesViewStore.setState({ viewModes: {}, positions: {}, messagesFontSize: 16, readers: {} });
     useWorkspaceStore.setState({ keyboardOpen: false });
     seed([event("short", 1, "A short reply."), event("long", 2, LONG)]);
     // The long reply's content box renders taller than the collapse threshold.

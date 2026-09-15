@@ -1544,6 +1544,17 @@
         }
       ]
     },
+    "messages.rewind": {
+      "description": "Native rewind action for an assistant message",
+      "selectorPattern": "[data-testid=\"msg-rewind-${eventId}\"]",
+      "testIdPattern": "msg-rewind-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
     "messages.openReader": {
       "description": "Outline footer that opens a long reply in the reader",
       "selectorPattern": "[data-testid=\"msg-open-reader-${eventId}\"]",
@@ -1693,6 +1704,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "f4a18f6eeda93b21d61f0ef2b4dadb430125e12d3e577926c075156c945c9745"
+    "ui/src/consts/selectors.ts": "da1655434c9aa74563b974f69ae4d2480456c11e0cc7e0148283c8127c077ce4"
   }
 }

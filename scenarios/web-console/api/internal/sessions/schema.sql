@@ -35,7 +35,16 @@ CREATE TABLE IF NOT EXISTS sessions (
     -- every historical session was opened from the web UI.
     origin TEXT NOT NULL DEFAULT 'ui',
     owner TEXT NOT NULL DEFAULT '',
-    display_label TEXT NOT NULL DEFAULT ''
+    display_label TEXT NOT NULL DEFAULT '',
+    launch_mode TEXT NOT NULL DEFAULT 'unknown',
+    control_mode TEXT NOT NULL DEFAULT 'unknown',
+    native_owner TEXT NOT NULL DEFAULT '',
+    native_transport TEXT NOT NULL DEFAULT '',
+    provider_version TEXT NOT NULL DEFAULT '',
+    native_thread_id TEXT NOT NULL DEFAULT '',
+    last_verified_turn_id TEXT NOT NULL DEFAULT '',
+    forked_from_native_session TEXT NOT NULL DEFAULT '',
+    launch_descriptor_json TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);
@@ -70,12 +79,24 @@ CREATE TABLE IF NOT EXISTS conversation_events (
     delivery_state TEXT NOT NULL,
     tts_state TEXT NOT NULL,
     consumption_state TEXT NOT NULL,
+    native_provenance_json TEXT,
     FOREIGN KEY (session_id) REFERENCES conversation_sessions(session_id) ON DELETE CASCADE,
     UNIQUE(session_id, sequence)
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence
     ON conversation_events(session_id, sequence);
+
+CREATE TABLE IF NOT EXISTS conversation_control_receipts (
+    operation_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    reason_code TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 
 -- Immutable lifecycle receipts make archive, recovery, reconciliation and
 -- permanent deletion attributable and replay-safe.  INSERT OR IGNORE is the

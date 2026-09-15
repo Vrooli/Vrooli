@@ -161,7 +161,7 @@
   "service": {
     "parent": "vrooli",
     "name": "web-console",
-    "displayName": "Web Console",
+    "displayName": "Aquila",
     "description": "Standalone browser terminal with pane-based workspaces, PTY-backed session durability, AI command generation, configurable launch shortcuts, and mobile-first floating toolbar",
     "version": "0.0.1",
     "type": "business-application",

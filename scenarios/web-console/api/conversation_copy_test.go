@@ -135,3 +135,19 @@ func TestInMemoryCopySession_PreservesHistoryAndSequence(t *testing.T) {
 		t.Errorf("next sequence after copy: got %d, want 3", next.Sequence)
 	}
 }
+
+func TestSQLConversationRepository_PreservesOptionalNativeProvenance(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewSQLConversationRepository(db)
+	want := &NativeProvenance{Provider: "codex", SessionID: "native-session", TurnID: "turn-4", MessageID: "message-9", BoundaryID: "boundary-4", CompactionLineage: "lineage-a"}
+	if _, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "provenance-event", SessionID: "provenance-session", Source: "codex_tailer", Role: ConversationRoleAssistant, Text: "answer", NativeProvenance: want}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	got, found, err := repo.GetEvent(context.Background(), "provenance-session", "provenance-event")
+	if err != nil || !found {
+		t.Fatalf("get: found=%t err=%v", found, err)
+	}
+	if got.NativeProvenance == nil || *got.NativeProvenance != *want {
+		t.Fatalf("native provenance = %+v, want %+v", got.NativeProvenance, want)
+	}
+}

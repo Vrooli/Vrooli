@@ -93,11 +93,19 @@ type Session struct {
 	Recovered       bool
 	// Provenance. Origin is the closed-set vocabulary
 	// "ui" | "programmatic" | "remote".
-	Origin           string
-	Owner            string
-	DisplayLabel     string
-	TrackingDegraded bool
-	Target           *sharedv1.Target
+	Origin                  string
+	Owner                   string
+	DisplayLabel            string
+	TrackingDegraded        bool
+	LaunchMode              string
+	ControlMode             string
+	NativeOwner             string
+	NativeTransport         string
+	ProviderVersion         string
+	NativeThreadID          string
+	LastVerifiedTurnID      string
+	ForkedFromNativeSession string
+	Target                  *sharedv1.Target
 	// Activity is what the session's agent is doing now; live sessions only.
 	// Deliberately absent from the idempotency cache: it is never replayable.
 	Activity *sessionsv1.SessionActivity
@@ -198,7 +206,9 @@ type CreateInput struct {
 	WorkingDir   string
 	// TmuxMouseMode is the creation-time mouse capture choice for persistent
 	// sessions. Other backends ignore it.
-	TmuxMouseMode bool
+	TmuxMouseMode        bool
+	LaunchMode           string
+	LaunchDescriptorJSON string
 }
 
 // RecoverInput bundles inputs for the recovery RPC.
@@ -219,24 +229,32 @@ type RecoverResult struct {
 
 // RecoverableSession mirrors the legacy RecoverableSessionResponse.
 type RecoverableSession struct {
-	ID              string
-	Backend         string
-	Shell           string
-	Cols            int
-	Rows            int
-	CreatedAt       string
-	OrphanedAt      string
-	LastActivityAt  string
-	AgentType       string
-	AgentSessionID  string
-	LaunchCommand   string
-	CWD             string
-	LastRolloutPath string
-	Recoverable     bool
-	NotRecoverable  string
-	PaneName        string
-	HeaderColor     string
-	GroupName       string
+	ID                      string
+	Backend                 string
+	Shell                   string
+	Cols                    int
+	Rows                    int
+	CreatedAt               string
+	OrphanedAt              string
+	LastActivityAt          string
+	AgentType               string
+	AgentSessionID          string
+	LaunchCommand           string
+	CWD                     string
+	LastRolloutPath         string
+	Recoverable             bool
+	NotRecoverable          string
+	PaneName                string
+	HeaderColor             string
+	GroupName               string
+	LaunchMode              string
+	ControlMode             string
+	NativeOwner             string
+	NativeTransport         string
+	ProviderVersion         string
+	NativeThreadID          string
+	LastVerifiedTurnID      string
+	ForkedFromNativeSession string
 }
 
 // PolicyView mirrors the legacy PolicyResponse: policy with derived

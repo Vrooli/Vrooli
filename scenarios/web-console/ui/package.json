@@ -33,7 +33,7 @@
     "tailwind-merge": "^2.3.0",
     "zustand": "^5.0.11"
   },
-  "description": "React + Vite front-end for Web Console",
+  "description": "React + Vite front-end for Aquila",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

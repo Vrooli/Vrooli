@@ -55,6 +55,12 @@ func (f *fakeOpenCodeClient) SessionMessages(_ context.Context, sessionID string
 	return append([]opencode.MessageWithParts(nil), f.messages[sessionID]...), nil
 }
 
+func (f *fakeOpenCodeClient) SessionStatus(context.Context) (map[string]opencode.SessionStatus, error) {
+	return map[string]opencode.SessionStatus{}, nil
+}
+func (f *fakeOpenCodeClient) AbortSession(context.Context, string) error                  { return nil }
+func (f *fakeOpenCodeClient) RevertMessage(context.Context, string, string, string) error { return nil }
+
 func (f *fakeOpenCodeClient) Events(ctx context.Context, onEvent func(opencode.Event)) error {
 	f.mu.Lock()
 	f.eventCalls++

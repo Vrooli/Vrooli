@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -342,15 +343,20 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 	allAppended := true
 	for _, e := range emissions {
 		var result ConversationAppendResult
+		provenance := &NativeProvenance{Provider: "opencode", SessionID: ocID, MessageID: e.MessageID, TurnID: e.TurnID, BoundaryID: e.PartID}
+		var event ConversationEvent
 		switch e.Role {
 		case "user":
-			result = w.server.AppendUser(e.Text, wcID, opencodeSource)
+			event, result = w.server.conversations.AppendNativeEvent(ctx, wcID, opencodeSource, e.Role, e.Text, provenance)
 			logOpencodeAppend("user", wcID, result)
 		case "assistant":
-			result = w.server.AppendAssistant(e.Text, wcID, opencodeSource)
+			event, result = w.server.conversations.AppendNativeEvent(ctx, wcID, opencodeSource, e.Role, e.Text, provenance)
 			logOpencodeAppend("assistant", wcID, result)
 		default:
 			continue
+		}
+		if result.Appended && !result.Duplicate {
+			w.server.publishConversationEvent(event)
 		}
 		if !result.Appended {
 			allAppended = false
@@ -364,6 +370,22 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 		// message permanently invisible to Web Console.
 		log.Printf("opencode-watcher: cursor not advanced for %s because a message projection failed", ocID)
 	}
+}
+
+func (w *OpenCodeWatcher) nativeClient() opencode.Client {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.client
+}
+
+// reconcileNativeSession is the postcondition handoff used by native control:
+// only a verified owner result may trigger projection reconciliation.
+func (w *OpenCodeWatcher) reconcileNativeSession(ctx context.Context, nativeSessionID, webSessionID string) {
+	client := w.nativeClient()
+	if client == nil || strings.TrimSpace(nativeSessionID) == "" || strings.TrimSpace(webSessionID) == "" {
+		return
+	}
+	w.reconcileSession(ctx, client, nativeSessionID, webSessionID)
 }
 
 // logOpencodeAppend surfaces the outcome of routing an opencode message into

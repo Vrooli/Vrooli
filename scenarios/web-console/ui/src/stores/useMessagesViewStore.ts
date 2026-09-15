@@ -30,11 +30,15 @@ export interface OpenReader {
   seenThrough: number;
 }
 
+export const MESSAGES_FONT_MIN = 12;
+export const MESSAGES_FONT_MAX = 32;
+export const MESSAGES_FONT_DEFAULT = 16;
+
 interface MessagesViewState {
   viewModes: Record<string, PaneViewMode>;
   positions: Record<string, MessagesPosition>;
-  /** The reader's text size in px; null follows the pane's. */
-  readerFontSize: number | null;
+  /** One persisted text size shared by the list and reader. */
+  messagesFontSize: number;
   /** Open readers by session. Kept while the page lives (a tab switch
    *  remounts the pane), never across a reload. */
   readers: Record<string, OpenReader>;
@@ -43,7 +47,7 @@ interface MessagesViewState {
 interface MessagesViewActions {
   setViewMode: (sessionId: string, mode: PaneViewMode) => void;
   savePosition: (sessionId: string, position: Omit<MessagesPosition, "savedAt">) => void;
-  setReaderFontSize: (size: number) => void;
+  setMessagesFontSize: (size: number) => void;
   /** Opens (or moves) a session's reader; null closes it. */
   setReader: (sessionId: string, reader: OpenReader | null) => void;
   /** Drops everything remembered for a session; called when it is deleted. */
@@ -70,13 +74,13 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
     (set) => ({
       viewModes: {},
       positions: {},
-      readerFontSize: null,
+      messagesFontSize: MESSAGES_FONT_DEFAULT,
       readers: {},
       setViewMode: (sessionId, mode) => { set((state) => ({ viewModes: { ...state.viewModes, [sessionId]: mode } })); },
       savePosition: (sessionId, position) => {
         set((state) => ({ positions: { ...state.positions, [sessionId]: { ...position, savedAt: Date.now() } } }));
       },
-      setReaderFontSize: (size) => { set({ readerFontSize: size }); },
+      setMessagesFontSize: (size) => { set({ messagesFontSize: size }); },
       setReader: (sessionId, reader) => {
         set((state) => {
           const others = Object.fromEntries(Object.entries(state.readers).filter(([id]) => id !== sessionId));
@@ -93,7 +97,7 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
     }),
     {
       name: "wc-messages-view",
-      version: 1,
+      version: 2,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Record<string, unknown>;
         if (version < 1) {
@@ -101,16 +105,21 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
           state.viewModes ??= {};
           state.positions ??= {};
         }
+        if (version < 2) {
+          const legacy = state.readerFontSize;
+          state.messagesFontSize = typeof legacy === "number" ? legacy : MESSAGES_FONT_DEFAULT;
+          delete state.readerFontSize;
+        }
         return state as unknown as MessagesViewState & MessagesViewActions;
       },
-      partialize: (state) => ({ viewModes: state.viewModes, positions: state.positions, readerFontSize: state.readerFontSize }),
+      partialize: (state) => ({ viewModes: state.viewModes, positions: state.positions, messagesFontSize: state.messagesFontSize }),
       merge: (persisted, current) => {
         const state = (persisted ?? {}) as Partial<MessagesViewState>;
         return {
           ...current,
           viewModes: state.viewModes ?? current.viewModes,
           positions: pruneStalePositions(state.positions ?? {}, Date.now()),
-          readerFontSize: state.readerFontSize ?? current.readerFontSize,
+          messagesFontSize: typeof state.messagesFontSize === "number" ? state.messagesFontSize : current.messagesFontSize,
         };
       },
     },

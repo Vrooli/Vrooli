@@ -22,4 +22,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 			origin TEXT NOT NULL DEFAULT 'ui',
 			owner TEXT NOT NULL DEFAULT '',
 			display_label TEXT NOT NULL DEFAULT ''
+			,launch_mode TEXT NOT NULL DEFAULT 'unknown'
+			,control_mode TEXT NOT NULL DEFAULT 'unknown'
+			,native_owner TEXT NOT NULL DEFAULT ''
+			,native_transport TEXT NOT NULL DEFAULT ''
+			,provider_version TEXT NOT NULL DEFAULT ''
+			,native_thread_id TEXT NOT NULL DEFAULT ''
+			,last_verified_turn_id TEXT NOT NULL DEFAULT ''
+			,forked_from_native_session TEXT NOT NULL DEFAULT ''
+			,launch_descriptor_json TEXT NOT NULL DEFAULT ''
 		);

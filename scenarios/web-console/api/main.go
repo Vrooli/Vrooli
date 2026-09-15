@@ -93,6 +93,9 @@ type Server struct {
 	ai                    *intai.Service
 	sweeper               *session.ExpirationSweeper
 	conversationRetention *conversationRetentionSweeper
+	conversationControlMu sync.Mutex
+	conversationControl   *conversationControlState
+	managedCodex          *managedCodexRegistry
 	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities          *capabilities.Registry
 	workspace             intworkspace.Store
@@ -339,6 +342,12 @@ func NewServer(db *database.RoutedDB) *Server {
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
 	}
+	if err := srv.reconcileOrphanedControlReceipts(context.Background()); err != nil {
+		log.Printf("conversation control recovery: %v", err)
+	}
+	srv.managedCodex = newManagedCodexRegistry(sessionStore)
+	srv.managedCodex.setRegistrar(srv.registerManagedCodexOwner)
+	srv.managedCodex.setEventSink(srv.captureManagedCodexEvent)
 	if pruner, ok := srv.conversations.repository.(conversationEventPruner); ok {
 		srv.conversationRetention = newConversationRetentionSweeper(
 			pruner,
@@ -503,6 +512,13 @@ func NewServer(db *database.RoutedDB) *Server {
 	// sessions.StartReattachWatchdog() runs after async recovery completes (see
 	// the recovery goroutine above) so the watchdog and recovery never race to
 	// reattach the same session.
+	if srv.managedCodex != nil {
+		go func() {
+			if err := srv.managedCodex.Recover(context.Background()); err != nil {
+				log.Printf("managed Codex recovery: %v", err)
+			}
+		}()
+	}
 	srv.setupRoutes()
 
 	// Start Codex rollout tailer for auto-TTS.

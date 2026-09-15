@@ -39,6 +39,15 @@ type SessionManager interface {
 	RecoveryProgress() session.RecoveryProgress
 }
 
+// ManagedCodexService owns sessions that have no PTY writer. It is optional
+// so legacy/test adapters continue to use only SessionManager.
+type ManagedCodexService interface {
+	Create(context.Context, CreateInput) (Session, error)
+	List(context.Context) ([]Session, error)
+	Get(context.Context, string) (Session, error)
+	Delete(context.Context, string) error
+}
+
 // ConversationsStore is the minimal seam for moving/clearing conversation
 // state during the session lifecycle. The production *ConversationStore
 // satisfies it. CopySession carries a recovered session's prior message
@@ -63,6 +72,7 @@ type CodexCheckpoints interface {
 // api/main.go with typed deps — no *Server import — and passed to Module.
 type Adapter struct {
 	Manager             SessionManager
+	ManagedCodex        ManagedCodexService
 	Store               sessionstore.Store
 	Idempotency         *intsessions.IdempotencyCache
 	Events              *events.Logger
@@ -278,6 +288,33 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	fingerprint := createFingerprint(in)
+	descriptorJSON := strings.TrimSpace(in.LaunchDescriptorJSON)
+	if descriptorJSON == "" && in.LaunchMode != "" {
+		raw, _ := json.Marshal(map[string]string{"agent": in.AgentType, "launchMode": in.LaunchMode})
+		descriptorJSON = string(raw)
+	}
+	descriptor, descriptorErr := sessionstore.ParseLaunchDescriptor(descriptorJSON)
+	if descriptorErr != nil {
+		return Session{}, fmt.Errorf("%w: %s", ErrInvalidArgument, descriptorErr)
+	}
+	if in.LaunchMode != "" && in.LaunchMode != descriptor.LaunchMode {
+		return Session{}, fmt.Errorf("%w: launch mode does not match launch descriptor", ErrInvalidArgument)
+	}
+	if in.LaunchMode == string(sessionstore.LaunchModeCodexAppServer) || descriptor.LaunchMode == string(sessionstore.LaunchModeCodexAppServer) {
+		if a.ManagedCodex == nil {
+			return Session{}, fmt.Errorf("%w: Codex app-server managed owner is not configured", session.ErrBackendUnavailable)
+		}
+		created, err := a.ManagedCodex.Create(ctx, in)
+		if err != nil {
+			return Session{}, mapCreateError(err)
+		}
+		if in.IdempotencyKey != "" && a.Idempotency != nil {
+			cached := handlerSessionToResponse(created)
+			cached.Fingerprint = fingerprint
+			a.Idempotency.Set(in.IdempotencyKey, cached)
+		}
+		return created, nil
+	}
 	if in.IdempotencyKey != "" && a.Idempotency != nil {
 		if cached, ok := a.Idempotency.Get(in.IdempotencyKey); ok {
 			if cached.Fingerprint != "" && cached.Fingerprint != fingerprint {
@@ -357,11 +394,16 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		}
 	}
 
-	if a.Store != nil && (in.LaunchCommand != "" || in.AgentType != "") {
+	if a.Store != nil && (in.LaunchCommand != "" || in.AgentType != "" || in.LaunchMode != "" || descriptorJSON != "") {
 		agentType := intsessions.NormalizeAgentType(in.AgentType)
+		launchMode := sessionstore.LaunchModeTerminalPTY
+		controlMode := sessionstore.ControlModeTranscriptOnly
 		if err := a.Store.UpdateAgentInfo(ctx, sess.ID, sessionstore.AgentInfo{
-			AgentType:     agentType,
-			LaunchCommand: in.LaunchCommand,
+			AgentType:            agentType,
+			LaunchCommand:        in.LaunchCommand,
+			LaunchMode:           launchMode,
+			ControlMode:          controlMode,
+			LaunchDescriptorJSON: descriptorJSON,
 		}); err != nil {
 			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
 		}
@@ -458,6 +500,9 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 				continue
 			}
 			s.Origin, s.Owner, s.DisplayLabel = string(p.Origin), p.Owner, p.DisplayLabel
+			s.LaunchMode, s.ControlMode = string(p.LaunchMode), string(p.ControlMode)
+			s.NativeOwner, s.NativeTransport, s.ProviderVersion = p.NativeOwner, p.NativeTransport, p.ProviderVersion
+			s.NativeThreadID, s.LastVerifiedTurnID, s.ForkedFromNativeSession = p.NativeThreadID, p.LastVerifiedTurnID, p.ForkedFromNativeSession
 		}
 		if recoveredAgents[s.ID] == sessionstore.AgentClaude && isClaudeTrackingDegraded(sess, a.Conversations) {
 			s.TrackingDegraded = true
@@ -466,6 +511,13 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 			s.Activity = activityToProto(s.ID, activity)
 		}
 		out = append(out, s)
+	}
+	if a.ManagedCodex != nil {
+		managed, err := a.ManagedCodex.List(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("list managed Codex sessions: %w", err)
+		}
+		out = append(out, managed...)
 	}
 	if a.Remote != nil {
 		remote, err := a.Remote.List(ctx)
@@ -863,12 +915,20 @@ func (a *Adapter) RecoveryStatus(ctx context.Context) RecoveryStatus {
 func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 	sess, ok := a.Manager.Get(id)
 	if !ok {
+		if a.ManagedCodex != nil {
+			if managed, err := a.ManagedCodex.Get(ctx, id); err == nil {
+				return managed, nil
+			}
+		}
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
 	}
 	s := responseToHandlerSession(intsessions.FromSession(sess))
 	if a.Store != nil {
 		if m, err := a.Store.Get(ctx, id); err == nil {
 			s.Origin, s.Owner, s.DisplayLabel = string(m.Origin), m.Owner, m.DisplayLabel
+			s.LaunchMode, s.ControlMode = string(m.LaunchMode), string(m.ControlMode)
+			s.NativeOwner, s.NativeTransport, s.ProviderVersion = m.NativeOwner, m.NativeTransport, m.ProviderVersion
+			s.NativeThreadID, s.LastVerifiedTurnID, s.ForkedFromNativeSession = m.NativeThreadID, m.LastVerifiedTurnID, m.ForkedFromNativeSession
 		}
 	}
 	return s, nil
@@ -883,6 +943,11 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 	if !managed && a.Store != nil {
 		if meta, getErr := a.Store.Get(ctx, id); getErr == nil {
 			fromState = lifecycleStateForMetadata(meta)
+		}
+	}
+	if !managed && a.ManagedCodex != nil {
+		if _, err := a.ManagedCodex.Get(ctx, id); err == nil {
+			return a.ManagedCodex.Delete(ctx, id)
 		}
 	}
 	receipt, replay, err := a.beginLifecycleReceipt(ctx, "delete", id, fromState, continuity.StateDeleted)
@@ -1246,10 +1311,19 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (res RecoverResu
 	}
 
 	if err := a.Store.UpdateAgentInfo(ctx, newSess.ID, sessionstore.AgentInfo{
-		AgentType:      old.AgentType,
-		AgentSessionID: old.AgentSessionID,
-		LaunchCommand:  old.LaunchCommand,
-		CWD:            old.CWD,
+		AgentType:               old.AgentType,
+		AgentSessionID:          old.AgentSessionID,
+		LaunchCommand:           old.LaunchCommand,
+		CWD:                     old.CWD,
+		LaunchMode:              old.LaunchMode,
+		ControlMode:             old.ControlMode,
+		NativeOwner:             old.NativeOwner,
+		NativeTransport:         old.NativeTransport,
+		ProviderVersion:         old.ProviderVersion,
+		NativeThreadID:          old.NativeThreadID,
+		LastVerifiedTurnID:      old.LastVerifiedTurnID,
+		ForkedFromNativeSession: old.ForkedFromNativeSession,
+		LaunchDescriptorJSON:    old.LaunchDescriptorJSON,
 	}); err != nil {
 		return RecoverResult{}, fmt.Errorf("persist recovered agent identity: %v: %w", err, ErrInternal)
 	}
@@ -1478,12 +1552,15 @@ func createFingerprint(in CreateInput) string {
 		TargetID             string
 		WorkingDir           string
 		TmuxMouseMode        bool
+		LaunchMode           string
+		LaunchDescriptorJSON string
 	}{
 		Shell: in.Shell, Cols: in.Cols, Rows: in.Rows, Backend: in.Backend,
 		Policy: in.Policy, HasPolicy: in.HasPolicy, LaunchCommand: in.LaunchCommand,
 		ExecuteLaunchCommand: in.ExecuteLaunchCommand, AgentType: in.AgentType,
 		Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		TargetID: in.TargetID, WorkingDir: in.WorkingDir, TmuxMouseMode: in.TmuxMouseMode,
+		LaunchMode: in.LaunchMode, LaunchDescriptorJSON: in.LaunchDescriptorJSON,
 	})
 	digest := sha256.Sum256(payload)
 	return hex.EncodeToString(digest[:])
@@ -1491,19 +1568,27 @@ func createFingerprint(in CreateInput) string {
 
 func toHandlerRecoverable(m sessionstore.Metadata) RecoverableSession {
 	out := RecoverableSession{
-		ID:              m.ID,
-		Backend:         string(m.Backend),
-		Shell:           m.Shell,
-		Cols:            int(m.Cols),
-		Rows:            int(m.Rows),
-		CreatedAt:       m.Created.UTC().Format(time.RFC3339),
-		OrphanedAt:      formatTimeOrEmpty(m.OrphanedAt),
-		LastActivityAt:  formatTimeOrEmpty(m.LastActivityAt),
-		AgentType:       string(m.AgentType),
-		AgentSessionID:  m.AgentSessionID,
-		LaunchCommand:   m.LaunchCommand,
-		CWD:             m.CWD,
-		LastRolloutPath: m.LastRolloutPath,
+		ID:                      m.ID,
+		Backend:                 string(m.Backend),
+		Shell:                   m.Shell,
+		Cols:                    int(m.Cols),
+		Rows:                    int(m.Rows),
+		CreatedAt:               m.Created.UTC().Format(time.RFC3339),
+		OrphanedAt:              formatTimeOrEmpty(m.OrphanedAt),
+		LastActivityAt:          formatTimeOrEmpty(m.LastActivityAt),
+		AgentType:               string(m.AgentType),
+		AgentSessionID:          m.AgentSessionID,
+		LaunchCommand:           m.LaunchCommand,
+		CWD:                     m.CWD,
+		LastRolloutPath:         m.LastRolloutPath,
+		LaunchMode:              string(m.LaunchMode),
+		ControlMode:             string(m.ControlMode),
+		NativeOwner:             m.NativeOwner,
+		NativeTransport:         m.NativeTransport,
+		ProviderVersion:         m.ProviderVersion,
+		NativeThreadID:          m.NativeThreadID,
+		LastVerifiedTurnID:      m.LastVerifiedTurnID,
+		ForkedFromNativeSession: m.ForkedFromNativeSession,
 	}
 	out.Recoverable, out.NotRecoverable = intsessions.Recoverability(m)
 	return out

@@ -194,6 +194,24 @@ describe("HTML text preview", () => {
     expect(screen.getByTestId("file-preview-notice")).toHaveTextContent(/truncated/i);
   });
 
+  it("uses the directory-aware runtime for interactive HTML previews", () => {
+    const Renderer = renderers.text;
+    render(
+      <Renderer
+        model={model({ kind: "text", basename: "index.html", resolvedPath: "/tmp/site/index.html", runtimeHref: "/api/v1/sessions/s/file-previews/pv-1/runtime/" })}
+        text={text("<script src='render.js'></script>", "text")}
+        onError={() => {}}
+        {...navProps}
+      />,
+    );
+    const iframe = screen.getByTitle(strings.messagesFileViewer.htmlPreview);
+    expect(iframe).not.toHaveAttribute("src");
+    expect(iframe.getAttribute("srcdoc")).toMatch(/<base href="http:\/\/localhost(?::\d+)?\/api\/v1\/sessions\/s\/file-previews\/pv-1\/runtime\/">/);
+    expect(iframe.getAttribute("srcdoc")).toContain("script-src 'unsafe-inline' http://localhost");
+    expect(iframe).toHaveAttribute("sandbox", "allow-scripts");
+    expect(iframe).not.toHaveAttribute("allow-same-origin");
+  });
+
   it("keeps ordinary code as source", () => {
     const Renderer = renderers.code;
     render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("const markup = '<h1>Hello</h1>';", "code")} onError={() => {}} {...navProps} />);

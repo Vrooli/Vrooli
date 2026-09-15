@@ -81,6 +81,32 @@ func TestAppendUserEvent_Basic(t *testing.T) {
 	}
 }
 
+func TestAppendNativeEventDeduplicatesByProviderIdentity(t *testing.T) {
+	store := NewConversationStore()
+	provenance := &NativeProvenance{Provider: "codex", SessionID: "thread-1", TurnID: "turn-1", MessageID: "item-1", BoundaryID: "item-1"}
+	first, result := store.AppendNativeEvent(context.Background(), "session-1", "codex_app_server", "assistant", "first text", provenance)
+	if !result.Appended || result.Duplicate {
+		t.Fatalf("first append = %+v", result)
+	}
+	second, result := store.AppendNativeEvent(context.Background(), "session-1", "codex_app_server", "assistant", "replayed text", provenance)
+	if !result.Duplicate || second.ID != first.ID || second.Text != "first text" {
+		t.Fatalf("replay = event %+v result %+v", second, result)
+	}
+}
+
+func TestTruncateSessionAfterPreservesSelectedProjectionPrefix(t *testing.T) {
+	store := NewConversationStore()
+	first, _ := store.AppendAssistantEvent(context.Background(), "session-1", "test", "first")
+	_, _ = store.AppendAssistantEvent(context.Background(), "session-1", "test", "second")
+	if err := store.TruncateSessionAfter(context.Background(), "session-1", first.Sequence); err != nil {
+		t.Fatal(err)
+	}
+	state := store.ListSession(context.Background(), "session-1")
+	if len(state.Events) != 1 || state.Events[0].ID != first.ID {
+		t.Fatalf("projection after truncate = %+v", state.Events)
+	}
+}
+
 func TestAppendUserEvent_EmptySession(t *testing.T) {
 	store := NewConversationStore()
 	_, result := store.AppendUserEvent(context.Background(), "", "test", "text")

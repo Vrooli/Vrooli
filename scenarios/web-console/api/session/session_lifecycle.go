@@ -417,6 +417,12 @@ func (sm *Manager) reattachOrphanedSessions() {
 	}
 
 	for _, meta := range metaList {
+		// Managed native owners have no tmux session to reattach. Their
+		// app-server registry owns liveness and recovery; treating them as
+		// missing PTYs would incorrectly mark healthy native sessions orphaned.
+		if meta.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+			continue
+		}
 		// Skip sessions that are already active
 		sm.mu.RLock()
 		_, active := sm.sessions[meta.ID]

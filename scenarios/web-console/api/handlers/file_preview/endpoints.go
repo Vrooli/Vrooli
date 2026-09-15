@@ -6,8 +6,9 @@ import (
 	filepreviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/file_preview/file_preview_v1connect"
 )
 
-// Endpoints describes the file-preview module's public surface: two Connect
-// RPCs (resolve + bounded text content) plus the opaque-id blob/range route.
+// Endpoints describes the file-preview module's public surface: three Connect
+// RPCs (resolve + bounded text content + directory listing) plus the opaque-id
+// blob/range and HTML runtime routes.
 // The blob route is a sanctioned REST exception (reason ops_probe): a byte-
 // range stream consumed directly by native <img>/<video>/<audio>/<iframe>
 // elements is browser-native and cannot be a Connect call — the same category
@@ -114,6 +115,29 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id or session mismatch"},
 			{Status: 409, Code: "conflict", Description: "File changed since the preview was resolved; reopen to refresh"},
 			{Status: 416, Code: "range_not_satisfiable", Description: "Requested byte range is invalid"},
+		},
+	},
+	{
+		ID:          "file_preview_runtime",
+		Path:        "/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}",
+		Method:      "GET",
+		Summary:     "Serve an isolated HTML preview and local presentation resources",
+		Description: "Serves the resolved HTML document at the runtime root and a bounded allowlist of CSS, JavaScript, image, font, audio, and video resources below that document's directory. The opaque preview id is session-bound; traversal and symlink escapes are rejected; responses are no-store and CSP-protected.",
+		Category:    "file_preview",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonStreamUpgrade,
+			Note:   "Browser-native document and subresource loading requires ordinary HTTP URLs and relative URL resolution; Connect cannot express this resource graph.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "bad_request", Description: "Malformed or traversal resource path"},
+			{Status: 403, Code: "forbidden", Description: "Resource escapes the HTML directory or has a disallowed type"},
+			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id or missing resource"},
+			{Status: 413, Code: "content_too_large", Description: "Runtime resource exceeds the bounded size limit"},
 		},
 	},
 }

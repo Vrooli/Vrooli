@@ -42,6 +42,26 @@ const (
 	AgentGrok     Agent = "grok"
 )
 
+// LaunchMode is persisted because process names and rollout files do not
+// prove who owns a live provider session.
+type LaunchMode string
+
+const (
+	LaunchModeTerminalPTY    LaunchMode = "terminal_pty"
+	LaunchModeCodexAppServer LaunchMode = "codex_app_server"
+	LaunchModeNativeAPI      LaunchMode = "native_api"
+	LaunchModeUnknown        LaunchMode = "unknown"
+)
+
+type ControlMode string
+
+const (
+	ControlModeTranscriptOnly ControlMode = "transcript_only"
+	ControlModeNativeCapable  ControlMode = "native_capable"
+	ControlModeRecoveryOnly   ControlMode = "recovery_only"
+	ControlModeUnknown        ControlMode = "unknown"
+)
+
 // Origin records who opened a session. It is provenance the UI uses to
 // separate human-opened tabs from agent- or remote-launched sessions.
 type Origin string
@@ -80,18 +100,37 @@ type Metadata struct {
 	Origin       Origin
 	Owner        string
 	DisplayLabel string
+
+	LaunchMode              LaunchMode
+	ControlMode             ControlMode
+	NativeOwner             string
+	NativeTransport         string
+	ProviderVersion         string
+	NativeThreadID          string
+	LastVerifiedTurnID      string
+	ForkedFromNativeSession string
+	LaunchDescriptorJSON    string
 }
 
 // AgentInfo is the partial-update payload used when a populator (codex tailer,
 // claude hook, launch-command save) learns more about a session's agent
 // identity. Empty fields mean "leave unchanged".
 type AgentInfo struct {
-	AgentType       Agent
-	LaunchCommand   string
-	AgentSessionID  string
-	CWD             string
-	LastRolloutPath string
-	LastActivityAt  time.Time
+	AgentType               Agent
+	LaunchCommand           string
+	AgentSessionID          string
+	CWD                     string
+	LastRolloutPath         string
+	LastActivityAt          time.Time
+	LaunchMode              LaunchMode
+	ControlMode             ControlMode
+	NativeOwner             string
+	NativeTransport         string
+	ProviderVersion         string
+	NativeThreadID          string
+	LastVerifiedTurnID      string
+	ForkedFromNativeSession string
+	LaunchDescriptorJSON    string
 }
 
 // Store persists session metadata for restart recovery.
@@ -134,18 +173,36 @@ func NewSQL(db dbx.Handle) *SQLStore {
 }
 
 func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
+	// Non-expiring sessions may omit policy metadata. Normalize that omission
+	// before the upsert so SQLite does not receive an invalid empty enum value.
+	if meta.Policy.Mode == "" {
+		meta.Policy = policy.Default()
+	}
 	if meta.Status == "" {
 		meta.Status = StatusLive
 	}
 	if meta.AgentType == "" {
 		meta.AgentType = AgentNone
 	}
+	if meta.LaunchMode == "" || meta.LaunchMode == LaunchModeUnknown {
+		if meta.AgentType == AgentCodex {
+			meta.LaunchMode = LaunchModeTerminalPTY
+			meta.ControlMode = ControlModeTranscriptOnly
+		} else {
+			meta.LaunchMode = LaunchModeUnknown
+		}
+	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO sessions (
 			id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
-			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
+			launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
+			last_verified_turn_id, forked_from_native_session, launch_descriptor_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?)
 		ON CONFLICT(id) DO UPDATE SET
 			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
 			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
@@ -153,7 +210,13 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			launch_command=excluded.launch_command, agent_session_id=excluded.agent_session_id,
 			cwd=excluded.cwd, last_rollout_path=excluded.last_rollout_path,
 			last_activity_at=excluded.last_activity_at, origin=excluded.origin,
-			owner=excluded.owner, display_label=excluded.display_label`,
+			owner=excluded.owner, display_label=excluded.display_label,
+			launch_mode=excluded.launch_mode, control_mode=excluded.control_mode,
+			native_owner=excluded.native_owner, native_transport=excluded.native_transport,
+			provider_version=excluded.provider_version, native_thread_id=excluded.native_thread_id,
+			last_verified_turn_id=excluded.last_verified_turn_id,
+			forked_from_native_session=excluded.forked_from_native_session,
+			launch_descriptor_json=excluded.launch_descriptor_json`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -176,6 +239,9 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		string(meta.Origin),
 		meta.Owner,
 		meta.DisplayLabel,
+		string(meta.LaunchMode), string(meta.ControlMode), meta.NativeOwner,
+		meta.NativeTransport, meta.ProviderVersion, meta.NativeThreadID,
+		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON,
 	)
 	return err
 }
@@ -183,7 +249,9 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 const selectColumns = `
 	id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
-	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label`
+	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
+	launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
+	last_verified_turn_id, forked_from_native_session, launch_descriptor_json`
 
 func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -284,6 +352,42 @@ func (s *SQLStore) UpdateAgentInfo(ctx context.Context, id string, info AgentInf
 	if !info.LastActivityAt.IsZero() {
 		sets = append(sets, "last_activity_at = ?")
 		args = append(args, info.LastActivityAt.UTC().Format(time.RFC3339))
+	}
+	if info.LaunchMode != "" {
+		sets = append(sets, "launch_mode = ?")
+		args = append(args, string(info.LaunchMode))
+	}
+	if info.ControlMode != "" {
+		sets = append(sets, "control_mode = ?")
+		args = append(args, string(info.ControlMode))
+	}
+	if info.NativeOwner != "" {
+		sets = append(sets, "native_owner = ?")
+		args = append(args, info.NativeOwner)
+	}
+	if info.NativeTransport != "" {
+		sets = append(sets, "native_transport = ?")
+		args = append(args, info.NativeTransport)
+	}
+	if info.ProviderVersion != "" {
+		sets = append(sets, "provider_version = ?")
+		args = append(args, info.ProviderVersion)
+	}
+	if info.NativeThreadID != "" {
+		sets = append(sets, "native_thread_id = ?")
+		args = append(args, info.NativeThreadID)
+	}
+	if info.LastVerifiedTurnID != "" {
+		sets = append(sets, "last_verified_turn_id = ?")
+		args = append(args, info.LastVerifiedTurnID)
+	}
+	if info.ForkedFromNativeSession != "" {
+		sets = append(sets, "forked_from_native_session = ?")
+		args = append(args, info.ForkedFromNativeSession)
+	}
+	if info.LaunchDescriptorJSON != "" {
+		sets = append(sets, "launch_descriptor_json = ?")
+		args = append(args, info.LaunchDescriptorJSON)
 	}
 	if len(sets) == 0 {
 		return nil
@@ -406,6 +510,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		status, agentType                    string
 		lastActivity, orphanedAt, archivedAt string
 		origin                               string
+		launchMode, controlMode              string
 		policyDurationPtr                    *string
 		detached                             int
 	)
@@ -416,11 +521,16 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&meta.CWD, &meta.LastRolloutPath,
 		&lastActivity, &orphanedAt, &meta.RecoveredInto, &archivedAt,
 		&origin, &meta.Owner, &meta.DisplayLabel,
+		&launchMode, &controlMode, &meta.NativeOwner, &meta.NativeTransport,
+		&meta.ProviderVersion, &meta.NativeThreadID, &meta.LastVerifiedTurnID,
+		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
 	}
 	meta.Origin = Origin(origin)
+	meta.LaunchMode = LaunchMode(launchMode)
+	meta.ControlMode = ControlMode(controlMode)
 	meta.Backend = backend.ID(backendID)
 	meta.Policy.Mode = policy.Mode(policyMode)
 	if policyDurationPtr != nil {
@@ -437,6 +547,12 @@ func scanMetadata(row scannable) (Metadata, error) {
 		meta.AgentType = AgentNone
 	} else {
 		meta.AgentType = Agent(agentType)
+	}
+	if meta.LaunchMode == "" || meta.LaunchMode == LaunchModeUnknown {
+		if meta.AgentType == AgentCodex {
+			meta.LaunchMode = LaunchModeTerminalPTY
+			meta.ControlMode = ControlModeTranscriptOnly
+		}
 	}
 	meta.LastActivityAt = parseTimeOrZero(lastActivity)
 	meta.OrphanedAt = parseTimeOrZero(orphanedAt)
@@ -603,6 +719,33 @@ func (s *InMemoryStore) UpdateAgentInfo(_ context.Context, id string, info Agent
 	}
 	if !info.LastActivityAt.IsZero() {
 		meta.LastActivityAt = info.LastActivityAt
+	}
+	if info.LaunchMode != "" {
+		meta.LaunchMode = info.LaunchMode
+	}
+	if info.ControlMode != "" {
+		meta.ControlMode = info.ControlMode
+	}
+	if info.NativeOwner != "" {
+		meta.NativeOwner = info.NativeOwner
+	}
+	if info.NativeTransport != "" {
+		meta.NativeTransport = info.NativeTransport
+	}
+	if info.ProviderVersion != "" {
+		meta.ProviderVersion = info.ProviderVersion
+	}
+	if info.NativeThreadID != "" {
+		meta.NativeThreadID = info.NativeThreadID
+	}
+	if info.LastVerifiedTurnID != "" {
+		meta.LastVerifiedTurnID = info.LastVerifiedTurnID
+	}
+	if info.ForkedFromNativeSession != "" {
+		meta.ForkedFromNativeSession = info.ForkedFromNativeSession
+	}
+	if info.LaunchDescriptorJSON != "" {
+		meta.LaunchDescriptorJSON = info.LaunchDescriptorJSON
 	}
 	s.sessions[id] = meta
 	return nil
