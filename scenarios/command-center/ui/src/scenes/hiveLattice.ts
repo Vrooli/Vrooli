@@ -47,6 +47,11 @@ export function hiveLattice(): Scene {
       }
       waves = waves.filter((wave) => t - wave.born < 4);
       ctx.lineWidth = 1;
+      // One opaque colour, faded by globalAlpha: same pixels as a per-cell
+      // rgba() string without building and parsing hundreds of them a frame.
+      const cellColor = rgba(ctx, palette.primary, 1);
+      ctx.strokeStyle = cellColor;
+      ctx.fillStyle = cellColor;
       for (const cell of cells) {
         const quietHere = inQuiet(quiet, cell.x, cell.y, radius * 0.6);
         const breath = 0.5 + 0.5 * Math.sin(t * 0.35 + cell.phase);
@@ -69,12 +74,13 @@ export function hiveLattice(): Scene {
           else ctx.lineTo(px, py);
         }
         ctx.closePath();
-        ctx.strokeStyle = rgba(ctx, palette.primary, Math.min(0.9, alpha + 0.06));
+        ctx.globalAlpha = Math.min(0.9, alpha + 0.06);
         ctx.stroke();
         if (cell.lit) {
-          ctx.fillStyle = rgba(ctx, palette.primary, alpha * 0.35);
+          ctx.globalAlpha = Math.min(1, alpha * 0.35);
           ctx.fill();
         }
+        ctx.globalAlpha = 1;
         if (cell.lit && !quietHere && tier === "full" && (cell.healthy || pulse > 0.2)) {
           ctx.globalCompositeOperation = "lighter";
           drawGlow(frame, cell.x, cell.y, radius * (1.1 + pulse), cell.healthy ? palette.primary : palette.warning, 0.22 + pulse * 0.6);

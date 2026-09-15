@@ -61,16 +61,17 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && vite build",
     "dev": "vrooli lifecycle protect -- vite",
+    "build": "pnpm selector:manifest && vite build",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit",
-    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "type-check": "tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

@@ -1,8 +1,8 @@
 import { type ReactNode } from "react";
-import { AmbientDisplayShell } from "./AmbientDisplayShell";
+import { AmbientDisplayShell, type AmbientDisplayShellProps } from "./AmbientDisplayShell";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
-import { useBoardController, type SamplesMode } from "../lib/boardContext";
+import { useBoardController, useBoardProgress, type SamplesMode } from "../lib/boardContext";
 
 interface AmbientShellProps {
   theme: string;
@@ -29,13 +29,22 @@ export function AmbientShell({ theme, title, position, status, legend = false, c
     </ExperienceSurface>
   ) : null;
   return (
-    <AmbientDisplayShell theme={theme} title={title} position={position} status={status} legend={legendContent} samples={board.samples} paused={board.paused} progress={board.progress} beatIndex={board.beatIndex} beatCount={board.beatDurations.length} beatProgress={board.beatProgress} beatDurations={board.beatDurations} onBeatSelect={board.selectBeat}>
+    <CycledDisplayShell theme={theme} title={title} position={position} status={status} legend={legendContent} samples={board.samples} paused={board.paused} beatIndex={board.beatIndex} beatCount={board.beatDurations.length} beatDurations={board.beatDurations} onBeatSelect={board.selectBeat}>
       {children}
       <ControlBar />
       {board.helpVisible ? <HelpOverlay /> : null}
       <div className={board.transitioning ? "cc-veil cc-veil-on" : "cc-veil"} aria-hidden="true" />
-    </AmbientDisplayShell>
+    </CycledDisplayShell>
   );
+}
+
+/**
+ * The only subscriber to cycle progress. A tick re-renders the shell chrome and
+ * rail; the children are the caller's unchanged elements, so React skips them.
+ */
+function CycledDisplayShell(props: Omit<AmbientDisplayShellProps, "progress" | "beatProgress">) {
+  const { progress, beatProgress } = useBoardProgress();
+  return <AmbientDisplayShell {...props} progress={progress} beatProgress={beatProgress} />;
 }
 
 function ControlBar() {

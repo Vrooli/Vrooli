@@ -62,6 +62,7 @@ export function flowCurrent(): Scene {
         sparks.push({ x: -10, lane: Math.floor(rng() * lanes), speed: w * (0.05 + rng() * 0.06), size: 1 + rng() * 2.2, age: 0, pooled: false, swirl: rng() * Math.PI * 2 });
       }
       const pooled = sparks.filter((spark) => spark.pooled).length;
+      const sparkColor = rgba(ctx, palette.accent, 1);
       ctx.globalCompositeOperation = "lighter";
       sparks = sparks.filter((spark) => {
         spark.age += dt;
@@ -78,10 +79,13 @@ export function flowCurrent(): Scene {
         if (spark.pooled && spark.age > 60) return false;
         if (!inQuiet(quiet, x, y, 6)) {
           drawGlow(frame, x, y, spark.size * 9, spark.pooled ? palette.warning : palette.primary, 0.9 * life);
-          ctx.fillStyle = rgba(ctx, palette.accent, life);
+          // Opaque accent faded by globalAlpha: same pixels, no per-spark colour parse.
+          ctx.fillStyle = sparkColor;
+          ctx.globalAlpha = life;
           ctx.beginPath();
           ctx.arc(x, y, spark.size * 0.9, 0, Math.PI * 2);
           ctx.fill();
+          ctx.globalAlpha = 1;
         }
         return spark.x < w + 20;
       });

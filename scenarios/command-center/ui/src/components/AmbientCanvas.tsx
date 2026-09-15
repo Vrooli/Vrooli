@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Reading } from "../lib/api";
 import { createScene } from "../scenes";
 import { frameIsBlank, probeTier, type ProbeTier } from "../lib/sceneProbe";
-import { mulberry32, sceneData, seedFrom, type Frame, type Palette, type Rect, type SceneTier } from "../scenes/engine";
+import { mulberry32, sceneData, seedFrom, type Frame, type Palette, type Rect, type SceneData, type SceneTier } from "../scenes/engine";
 
 
 interface AmbientCanvasProps {
@@ -16,6 +16,13 @@ interface AmbientCanvasProps {
   focus?: string;
 }
 
+/**
+ * Quiet zones and theme tokens cost a layout and style read; the loop takes
+ * them at this cadence instead of every frame. Scenes pad quiet zones by 6-8px,
+ * which covers the figure layer's beat-enter drift between reads.
+ */
+const LAYOUT_REFRESH_MS = 250;
+
 const readPalette = (element: HTMLElement): Palette => {
   const style = getComputedStyle(element);
   const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
@@ -28,6 +35,16 @@ const readPalette = (element: HTMLElement): Palette => {
     warning: token("--color-warning", "#f5b544"),
     background: token("--color-background", "#04060d"),
   };
+};
+
+const seeds = new Map<string, number>();
+const seedFor = (key: string): number => {
+  let seed = seeds.get(key);
+  if (seed === undefined) {
+    seed = seedFrom(key);
+    seeds.set(key, seed);
+  }
+  return seed;
 };
 
 /**
@@ -78,15 +95,34 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     let activeInitialised = false;
     let incomingInitialised = false;
     let checked = false;
+    let quiet: Rect[] = [];
+    let palette = readPalette(canvas);
+    let layoutReadAt = Number.NEGATIVE_INFINITY;
+    let dataReadings: Reading[] | null = null;
+    let dataFocus: string | undefined;
+    let data: SceneData = sceneData([]);
 
-    const quietRects = (): Rect[] => {
+    const refreshLayout = (nowMs: number) => {
+      if (nowMs - layoutReadAt < LAYOUT_REFRESH_MS) return;
+      layoutReadAt = nowMs;
       const own = canvas.getBoundingClientRect();
-      return quietRefs.flatMap((ref) => {
+      quiet = quietRefs.flatMap((ref) => {
         const element = ref.current;
         if (!element) return [];
         const box = element.getBoundingClientRect();
         return box.width > 0 && box.height > 0 ? [{ x: box.left - own.left, y: box.top - own.top, w: box.width, h: box.height }] : [];
       });
+      palette = readPalette(canvas);
+    };
+
+    /** Readings only change on a fetch; resolve them then, not per frame. */
+    const currentData = (): SceneData => {
+      if (readingsRef.current !== dataReadings || focusRef.current !== dataFocus) {
+        dataReadings = readingsRef.current;
+        dataFocus = focusRef.current;
+        data = sceneData(dataReadings, dataFocus);
+      }
+      return data;
     };
 
     const resize = () => {
@@ -98,16 +134,18 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       activeInitialised = false;
       incomingInitialised = false;
+      layoutReadAt = Number.NEGATIVE_INFINITY;
     };
 
     const frame = (nowMs: number, rng: () => number): Frame => {
       const t = started ? (nowMs - started) / 1000 : 0;
       const dt = last ? Math.min(0.1, (nowMs - last) / 1000) : 1 / 60;
-      return { ctx: context, w: width, h: height, t, dt, quiet: quietRects(), tier: drawTier, palette: readPalette(canvas), data: sceneData(readingsRef.current, focusRef.current), rng };
+      return { ctx: context, w: width, h: height, t, dt, quiet, tier: drawTier, palette, data: currentData(), rng };
     };
 
     const paint = (nowMs: number, still: boolean) => {
       if (!started) started = nowMs;
+      refreshLayout(nowMs);
       const desiredComposition = compositionRef.current;
       if (desiredComposition !== activeComposition && !incomingScene) {
         incomingComposition = desiredComposition;
@@ -115,7 +153,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
         incomingScene = createScene(incomingComposition);
         incomingInitialised = false;
         transitionStarted = nowMs;
-        if (probed === "still" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        if (probed === "still" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
           activeScene = incomingScene;
           activeComposition = incomingComposition;
           activeSeed = incomingSeed;
@@ -125,14 +163,14 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       }
       const drawAt = still ? started + 14_000 : nowMs;
       context.clearRect(0, 0, width, height);
-      const activeRng = mulberry32(seedFrom(`${activeComposition}:${activeSeed}`));
+      const activeRng = mulberry32(seedFor(`${activeComposition}:${activeSeed}`));
       const activeFrame = frame(drawAt, activeRng);
       if (!activeInitialised) { activeScene.init(activeFrame); activeInitialised = true; }
       const blending = incomingScene !== null;
       const progress = blending ? Math.min(1, Math.max(0, (nowMs - transitionStarted) / transitionDuration)) : 1;
       context.save(); context.globalAlpha = blending ? 1 - progress : 1; activeScene.draw(activeFrame); context.restore();
       if (incomingScene) {
-        const incomingRng = mulberry32(seedFrom(`${incomingComposition}:${incomingSeed}`));
+        const incomingRng = mulberry32(seedFor(`${incomingComposition}:${incomingSeed}`));
         const incomingFrame = frame(drawAt, incomingRng);
         if (!incomingInitialised) { incomingScene.init(incomingFrame); incomingInitialised = true; }
         context.save(); context.globalAlpha = progress; incomingScene.draw(incomingFrame); context.restore();
@@ -152,7 +190,11 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       }
     };
 
-    repaintRef.current = () => paint(performance.now(), probed === "still");
+    // A requested repaint follows a room, beat or theme change: read layout fresh.
+    repaintRef.current = () => {
+      layoutReadAt = Number.NEGATIVE_INFINITY;
+      paint(performance.now(), probed === "still");
+    };
 
     const loop = (nowMs: number) => {
       if (!document.hidden) paint(nowMs, false);

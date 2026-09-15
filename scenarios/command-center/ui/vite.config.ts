@@ -1,10 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // INTEROP-CRITICAL: relative assets remain valid behind proxy/tunnel paths.
   base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
+  // Profile mode (performance-health capture): the profiling react-dom makes
+  // <React.Profiler> emit commit durations, and kept names attribute them.
+  resolve: mode === "profile"
+    ? {
+        alias: [
+          { find: "react-dom/client", replacement: "react-dom/profiling" },
+          { find: /^react-dom$/, replacement: "react-dom/profiling" },
+        ],
+      }
+    : undefined,
+  esbuild: mode === "profile" ? { keepNames: true } : undefined,
   build: {
     rollupOptions: {
       output: {
@@ -54,4 +65,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

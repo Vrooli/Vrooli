@@ -14,11 +14,8 @@ export interface BoardControllerValue {
   controlsVisible: boolean;
   helpVisible: boolean;
   acknowledgement: string;
-  /** 0..1 progress through the current cycle interval. */
-  progress: number;
   cycleSeconds: number;
   beatIndex: number;
-  beatProgress: number;
   beatDurations: number[];
   transitioning: boolean;
   dispatch: (intent: BoardIntent) => void;
@@ -29,6 +26,21 @@ export interface BoardControllerValue {
 }
 
 export const BoardContext = createContext<BoardControllerValue | null>(null);
+
+/**
+ * Cycle progress ticks four times a second. It has its own context so a tick
+ * re-renders only the cycle rail, not every room surface under the board.
+ */
+export interface BoardProgress {
+  /** 0..1 progress through the current cycle interval. */
+  progress: number;
+  /** 0..1 progress through the current beat. */
+  beatProgress: number;
+}
+
+export const BoardProgressContext = createContext<BoardProgress>({ progress: 0, beatProgress: 0 });
+
+export const useBoardProgress = (): BoardProgress => useContext(BoardProgressContext);
 
 export function useBoardController(): BoardControllerValue {
   const value = useContext(BoardContext);

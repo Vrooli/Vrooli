@@ -5,7 +5,7 @@ import { renderWithProviders } from "../test-utils/renderWithProviders";
 vi.mock("./api", () => ({ fetchBoard: async () => ({ rooms: [] }) }));
 import { renderHook, act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { parseSamples, useBoardController } from "./boardContext";
+import { parseSamples, useBoardController, useBoardProgress } from "./boardContext";
 
 describe("board context", () => {
   it("defaults the audience mode to mark, so a screenshot carries its own legend", () => {
@@ -47,6 +47,37 @@ it("shares board gamepad input while leaving focused buttons selectable", async 
     act(() => { buttonIndex = -1; vi.advanceTimersByTime(16); });
     act(() => { buttonIndex = 0; vi.advanceTimersByTime(16); });
     expect(clicked).toHaveBeenCalledOnce();
+  } finally {
+    view.unmount();
+    controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("advances the cycle rail without re-rendering the room surfaces", async () => {
+  vi.useFakeTimers();
+  const controller = initSpatialNav({ getGamepads: () => [], isVisible: () => true });
+  let surfaceRenders = 0;
+  let railProgress = 0;
+  function Surface() {
+    useBoardController();
+    surfaceRenders += 1;
+    return null;
+  }
+  function Rail() {
+    railProgress = useBoardProgress().progress;
+    return null;
+  }
+  const view = renderWithProviders(<MemoryRouter initialEntries={["/mission-control"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BoardController><Surface /><Rail /></BoardController>
+  </MemoryRouter>);
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    const settledRenders = surfaceRenders;
+    // Twelve 250 ms cycle ticks.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    expect(railProgress).toBeGreaterThan(0);
+    expect(surfaceRenders).toBe(settledRenders);
   } finally {
     view.unmount();
     controller.dispose();

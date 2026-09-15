@@ -1,7 +1,7 @@
 import { drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine";
 
 interface Star { x: number; y: number; z: number; twinkle: number }
-interface Body { rx: number; ry: number; period: number; phase: number; tilt: number; size: number; healthy: boolean; trail: Array<[number, number]> }
+interface Body { rx: number; ry: number; period: number; phase: number; tilt: number; size: number; healthy: boolean; trail: Array<[number, number]>; x: number; y: number; wobble: number }
 
 /** Mission Control: every running scenario is a body on its own orbit; health is emission. */
 export function orbitalField(): Scene {
@@ -18,7 +18,7 @@ export function orbitalField(): Scene {
       const unhealthyEvery = running > healthy ? Math.max(1, Math.round(count / (running - healthy))) : Infinity;
       bodies = Array.from({ length: count }, (_, i) => {
         const r = 0.14 + rng() ** 0.8 * 0.36;
-        return { rx: r, ry: r * (0.28 + rng() * 0.4), period: 50 + r * 320 + rng() * 60, phase: rng() * Math.PI * 2, tilt: (rng() - 0.5) * 0.9, size: 1.6 + rng() * 2.2, healthy: (i + 1) % unhealthyEvery !== 0, trail: [] };
+        return { rx: r, ry: r * (0.28 + rng() * 0.4), period: 50 + r * 320 + rng() * 60, phase: rng() * Math.PI * 2, tilt: (rng() - 0.5) * 0.9, size: 1.6 + rng() * 2.2, healthy: (i + 1) % unhealthyEvery !== 0, trail: [], x: 0, y: 0, wobble: 0 };
       });
     },
     draw(frame) {
@@ -43,40 +43,53 @@ export function orbitalField(): Scene {
       drawGlow(frame, focal.x, focal.y, scale * 0.05, palette.accent, 0.9);
       ctx.globalCompositeOperation = "source-over";
       ctx.lineWidth = 1;
+      ctx.strokeStyle = rgba(ctx, palette.primary, 0.05);
       for (const body of bodies) {
-        ctx.strokeStyle = rgba(ctx, palette.primary, 0.05);
         ctx.beginPath();
         ctx.ellipse(focal.x, focal.y, body.rx * scale, body.ry * scale, body.tilt, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.globalCompositeOperation = "lighter";
+      const trailCap = tier === "full" ? 26 : 12;
       for (const body of bodies) {
         const angle = body.phase + (t / body.period) * Math.PI * 2;
         const ox = Math.cos(angle) * body.rx * scale;
         const oy = Math.sin(angle) * body.ry * scale;
-        const x = focal.x + ox * Math.cos(body.tilt) - oy * Math.sin(body.tilt);
-        const y = focal.y + ox * Math.sin(body.tilt) + oy * Math.cos(body.tilt);
-        const wobble = body.healthy ? 0 : Math.sin(t * 3 + body.phase) * 3;
-        body.trail.push([x + wobble, y]);
-        if (body.trail.length > (tier === "full" ? 26 : 12)) body.trail.shift();
-        const color = body.healthy ? palette.primary : palette.warning;
-        for (let i = 1; i < body.trail.length; i += 1) {
-          const from = body.trail[i - 1];
-          const to = body.trail[i];
-          if (!from || !to) continue;
-          const [ax, ay] = from;
-          const [bx, by] = to;
-          ctx.strokeStyle = rgba(ctx, color, (i / body.trail.length) * 0.35);
+        body.x = focal.x + ox * Math.cos(body.tilt) - oy * Math.sin(body.tilt);
+        body.y = focal.y + ox * Math.sin(body.tilt) + oy * Math.cos(body.tilt);
+        body.wobble = body.healthy ? 0 : Math.sin(t * 3 + body.phase) * 3;
+        body.trail.push([body.x + body.wobble, body.y]);
+        if (body.trail.length > trailCap) body.trail.shift();
+      }
+      // Every body advances once per frame, so all trails share one length and a
+      // segment's fade depends only on its age: one path per colour and age
+      // replaces a separate stroke (and colour parse) per segment.
+      const trailLength = bodies[0]?.trail.length ?? 0;
+      for (const healthy of [true, false]) {
+        ctx.strokeStyle = rgba(ctx, healthy ? palette.primary : palette.warning, 1);
+        for (let i = 1; i < trailLength; i += 1) {
+          ctx.globalAlpha = (i / trailLength) * 0.35;
           ctx.beginPath();
-          ctx.moveTo(ax, ay);
-          ctx.lineTo(bx, by);
+          for (const body of bodies) {
+            if (body.healthy !== healthy) continue;
+            const from = body.trail[i - 1];
+            const to = body.trail[i];
+            if (!from || !to) continue;
+            ctx.moveTo(from[0], from[1]);
+            ctx.lineTo(to[0], to[1]);
+          }
           ctx.stroke();
         }
-        if (inQuiet(quiet, x, y, 8)) continue;
-        drawGlow(frame, x + wobble, y, body.size * 4.5, color, body.healthy ? 0.7 : 0.9);
-        ctx.fillStyle = rgba(ctx, palette.foreground, 0.9);
+      }
+      ctx.globalAlpha = 1;
+      const core = rgba(ctx, palette.foreground, 0.9);
+      for (const body of bodies) {
+        if (inQuiet(quiet, body.x, body.y, 8)) continue;
+        const x = body.x + body.wobble;
+        drawGlow(frame, x, body.y, body.size * 4.5, body.healthy ? palette.primary : palette.warning, body.healthy ? 0.7 : 0.9);
+        ctx.fillStyle = core;
         ctx.beginPath();
-        ctx.arc(x + wobble, y, body.size * 0.5, 0, Math.PI * 2);
+        ctx.arc(x, body.y, body.size * 0.5, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalCompositeOperation = "source-over";

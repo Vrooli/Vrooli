@@ -42,7 +42,7 @@ export default function RoomPage() {
     if (board.samples !== "hide" || !beats.length || !beat || visible.length === 0) return;
     if (!visible.some((reading) => reading.id === beat.hero)) board.selectBeat((beatIndex + 1) % beats.length);
   }, [beat, beats, board, board.samples, visible, beatIndex]);
-  const supporting = visible.filter((reading) => reading.id !== hero?.id);
+  const supporting = useMemo(() => visible.filter((reading) => reading.id !== hero?.id), [visible, hero]);
   const supportingTrendIDs = useMemo(() => new Set(supporting.filter((reading) => reading.trend?.state === "meaningful" || reading.trend?.state === "neutral").slice(0, 2).map((reading) => reading.id)), [supporting]);
   const measured = visible.filter(hasValue).length;
   const allIllustrative = visible.length > 0 && measured === 0;

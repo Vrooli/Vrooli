@@ -1,6 +1,6 @@
 import { geoGraticule10, geoOrthographic, geoPath } from "d3-geo";
-import { feature } from "topojson-client";
-import type { Topology } from "topojson-specification";
+import { merge, mesh } from "topojson-client";
+import type { MultiPolygon, Polygon, Topology } from "topojson-specification";
 import worldTopology from "world-atlas/countries-110m.json";
 import { clipOutsideQuiet, drawGlow, focalPoint, mulberry32, rgba, seedFrom, type Scene } from "./engine";
 
@@ -8,8 +8,12 @@ type GeoPoint = [longitude: number, latitude: number];
 
 const WORLD_TOPOLOGY = worldTopology as unknown as Topology;
 const WORLD_OBJECT = WORLD_TOPOLOGY.objects.countries;
-if (!WORLD_OBJECT) throw new Error("world-atlas countries topology is missing");
-const WORLD = feature(WORLD_TOPOLOGY, WORLD_OBJECT);
+if (WORLD_OBJECT?.type !== "GeometryCollection") throw new Error("world-atlas countries topology is missing");
+// The globe is stroked, never filled, so it needs each line once: the merged
+// land outline plus every interior border. Stroking all country polygons
+// projected, clipped and rasterised each shared border twice per frame.
+const LAND = merge(WORLD_TOPOLOGY, WORLD_OBJECT.geometries as Array<Polygon | MultiPolygon>);
+const BORDERS = mesh(WORLD_TOPOLOGY, WORLD_OBJECT, (a, b) => a !== b);
 const GRATICULE = geoGraticule10();
 const VIRGINIA: GeoPoint = [-77.487, 39.043];
 const DESTINATIONS: GeoPoint[] = [
@@ -58,13 +62,19 @@ export function meridianArc(): Scene {
       ctx.translate(-origin.x, -origin.y);
       drawGlow(frame, origin.x, origin.y, globeRadius * 1.35, palette.primary, 0.12);
 
+      // geoPath appends to the context's current path, so each layer starts its
+      // own: without it the graticule stroke re-stroked every coastline, plus
+      // whatever path the previous frame left open.
       ctx.strokeStyle = rgba(ctx, palette.accent, style.landAlpha);
       ctx.lineWidth = style.coastWidth;
-      path(WORLD);
+      ctx.beginPath();
+      path(LAND);
+      path(BORDERS);
       ctx.stroke();
 
       ctx.strokeStyle = rgba(ctx, palette.primary, style.gridAlpha);
       ctx.lineWidth = 0.75;
+      ctx.beginPath();
       path(GRATICULE);
       ctx.stroke();
 

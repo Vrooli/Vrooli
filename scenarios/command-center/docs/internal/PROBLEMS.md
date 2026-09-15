@@ -2,6 +2,18 @@
 
 Known defects and divergences, newest first. This file is the honest record of where the code differs from the documents around it.
 
+## Performance audit — 2026-09-15
+
+| Finding | Evidence | Disposition |
+|---|---|---|
+| Every room surface re-rendered on each 250 ms cycle tick | `progress` sat in the controller context value, so every `useBoardController` consumer committed four times a second. | Fixed: `BoardProgressContext`; regression test `advances the cycle rail without re-rendering the room surfaces`. |
+| Per-frame layout, style and reading resolution in the scene loop | `AmbientCanvas` called `getBoundingClientRect` ×3, `getComputedStyle` and `sceneData()` in every frame, and twice per frame during a crossfade. | Fixed: 250 ms layout/palette cadence; readings resolved on change. Not isolated in a measurement; the expected saving is small. |
+| Colour-string parsing and per-segment strokes in scene loops | orbitalField issued about 2,750 stroke calls a frame; hive-lattice parsed about 600 `rgba()` strings a frame. | Fixed; see PROGRESS 2026-09-15 for A/B numbers. |
+| meridianArc projects the 110m world topology through d3-geo every frame | `geoPath(WORLD)` + graticule with adaptive resampling on each frame of the Broadcast room's first beat. | Open, unmeasured. Next candidate: raise `projection.precision()` or cache the land path between rotation steps. Measure first. |
+| `frameIsBlank` reads the whole canvas once per scene mount | `getImageData` over 2880×1800 at DPR 2 (about 20 MB readback). | Open, unmeasured. Sample a small region if a trace shows it as a long task. |
+| No performance-health baseline | BAS shares one browser, and CDP tracing is browser-wide, so concurrent sessions fail `Tracing.start`. QA `knw-1789451555082051158`. | Not ours to fix. Re-audit with `performance-health audit run command-center --workflow perf-room-cycle` when BAS is quiet. |
+| drawn-fps is unusable | The analyzer reports `drawn-fps=0.0` with a 1.1e9 ms frame duration. QA `knw-1789452282548236326`. | Do not set a `drawn_fps_min` budget until it is fixed. No per-flow budget is set yet: one after-sample from a contended host is too noisy to ratchet. |
+
 ## Morning walk friction review — 2026-09-06
 
 The operator authorized live-path repair and friction analysis. This review separates

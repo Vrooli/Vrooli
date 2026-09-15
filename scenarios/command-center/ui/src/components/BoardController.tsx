@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useGamepad } from "@vrooli/iframe-bridge/react";
 import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 import { fetchBoard } from "../lib/api";
-import { BoardContext, parseSamples, type BoardControllerValue, type BoardIntent, type SamplesMode } from "../lib/boardContext";
+import { BoardContext, BoardProgressContext, parseSamples, type BoardControllerValue, type BoardIntent, type BoardProgress, type SamplesMode } from "../lib/boardContext";
 import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, roomNavigationSuffix } from "../lib/cycle";
 
 
@@ -291,13 +291,19 @@ export function BoardController({ children }: { children: ReactNode }) {
   }, [navigateRoom, pausedUntil, roomDwellSeconds, rooms.length]);
 
   const paused = pausedUntil > Date.now();
-  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, beatIndex: beatPosition.index, beatProgress: beatPosition.progress, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, beatPosition, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat]);
+  const beatIndex = beatPosition.index;
+  // The controller value excludes the 4 Hz progress so a tick does not
+  // re-render every room surface; progress has its own context.
+  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat]);
+  const progressValue = useMemo<BoardProgress>(() => ({ progress, beatProgress: beatPosition.progress }), [progress, beatPosition.progress]);
 
   return (
     <BoardContext.Provider value={value}>
-      <div ref={gamepadRef} tabIndex={0} aria-label="Board controls" data-board-root data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
-        {children}
-      </div>
+      <BoardProgressContext.Provider value={progressValue}>
+        <div ref={gamepadRef} tabIndex={0} aria-label="Board controls" data-board-root data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
+          {children}
+        </div>
+      </BoardProgressContext.Provider>
     </BoardContext.Provider>
   );
 }

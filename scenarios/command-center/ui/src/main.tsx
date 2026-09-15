@@ -23,6 +23,7 @@ import "./themes/vault.css";
 import "./themes/signal-tower.css";
 import "./themes/cosmos.css";
 import "./styles.css";
+import { onProfilerRender } from "./lib/profiler";
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -55,7 +56,9 @@ ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <SpatialNavProvider controller={spatialNav}>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <React.Profiler id="App" onRender={onProfilerRender}>
+            <App />
+          </React.Profiler>
         </QueryClientProvider>
       </SpatialNavProvider>
     </React.StrictMode>
