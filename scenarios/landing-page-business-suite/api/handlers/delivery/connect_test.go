@@ -95,6 +95,65 @@ func TestConnectAuthorizeDownloadReturnsGeneratedAsset(t *testing.T) {
 	}
 }
 
+func TestConnectAuthorizeDownloadSelectedUsesExactIDAndManagedResolutionContext(t *testing.T) {
+	requestCtx := context.WithValue(context.Background(), struct{}{}, "request-context")
+	var selectedID int64
+	var resolveCtx context.Context
+	var authorizeCalls int
+	h := NewConnectHandler(func() string { return "bundle" }, &connectCatalogStub{}).WithAuthorization(ConnectAuthorizationDependencies{
+		UserEmail: func(context.Context) string { return "member@example.com" },
+		Authorize: func(context.Context, string, string, string) (*internal.Asset, error) {
+			authorizeCalls++
+			return &internal.Asset{ID: 1, Platform: "linux", ArtifactURL: "caller-url"}, nil
+		},
+		AuthorizeSelected: func(ctx context.Context, app, platform, user string, id int64) (*internal.Asset, error) {
+			if app != "desktop" || platform != "linux" || user != "member@example.com" {
+				t.Fatalf("selected authorization inputs = %q/%q/%q", app, platform, user)
+			}
+			selectedID = id
+			return &internal.Asset{ID: id, AppKey: app, Platform: platform, ArtifactURL: "https://caller.invalid/forbidden", ArtifactSource: "managed", ArtifactID: ptrInt64(9001)}, nil
+		},
+		ClassifyError: func(error) ErrorKind { return "" },
+		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
+			resolveCtx = ctx
+			if id != 9001 {
+				t.Fatalf("managed artifact ID = %d, want 9001", id)
+			}
+			return "https://provider.example/authorized", true, nil
+		},
+		Log: func(string, map[string]any) {},
+	})
+
+	assetID := int64(42)
+	response, err := h.AuthorizeDownload(requestCtx, connect.NewRequest(&lpbsv1.AuthorizeDownloadRequest{App: "desktop", Platform: "linux", AssetId: &assetID}))
+	if err != nil || response.Msg.GetAsset().GetId() != assetID || response.Msg.GetAsset().GetArtifactUrl() != "https://provider.example/authorized" {
+		t.Fatalf("selected response = %v, error = %v", response, err)
+	}
+	if selectedID != assetID || authorizeCalls != 0 || resolveCtx != requestCtx {
+		t.Fatalf("selected flow = id:%d legacyCalls:%d resolveCtxPreserved:%v", selectedID, authorizeCalls, resolveCtx == requestCtx)
+	}
+}
+
+func TestConnectAuthorizeDownloadSelectedDoesNotFallbackWhenSelectorMissing(t *testing.T) {
+	assetID := int64(42)
+	legacyCalls := 0
+	h := NewConnectHandler(func() string { return "bundle" }, &connectCatalogStub{}).WithAuthorization(ConnectAuthorizationDependencies{
+		UserEmail: func(context.Context) string { return "member@example.com" },
+		Authorize: func(context.Context, string, string, string) (*internal.Asset, error) {
+			legacyCalls++
+			return &internal.Asset{ID: 1, Platform: "linux"}, nil
+		},
+		ClassifyError: func(error) ErrorKind { return "" },
+		Log:           func(string, map[string]any) {},
+	})
+	_, err := h.AuthorizeDownload(context.Background(), connect.NewRequest(&lpbsv1.AuthorizeDownloadRequest{App: "desktop", Platform: "linux", AssetId: &assetID}))
+	if connect.CodeOf(err) != connect.CodeUnavailable || legacyCalls != 0 {
+		t.Fatalf("missing selector = code:%s legacyCalls:%d error:%v", connect.CodeOf(err), legacyCalls, err)
+	}
+}
+
+func ptrInt64(value int64) *int64 { return &value }
+
 func TestGeneratedDeliveryProjectionRejectsInt32Overflow(t *testing.T) {
 	if _, err := appProto(internal.App{DisplayOrder: 1 << 31}); err == nil {
 		t.Fatal("appProto() accepted overflowing display order")

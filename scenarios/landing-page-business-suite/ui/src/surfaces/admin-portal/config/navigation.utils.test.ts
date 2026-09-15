@@ -60,14 +60,18 @@ describe('admin navigation utilities', () => {
       { label: 'Admin', path: '/admin' },
       { label: 'Customization', path: '/admin/customization' },
       { label: 'Variant control', path: '/admin/customization/variants/control' },
-      { label: 'Section 42' },
+      { label: 'Presentation', path: '/admin/presentation/control' },
     ]);
     expect(buildBreadcrumbs('/admin/customization/variants/control/sections/new')).toEqual([
       { label: 'Admin', path: '/admin' },
       { label: 'Customization', path: '/admin/customization' },
       { label: 'Variant control', path: '/admin/customization/variants/control' },
-      { label: 'New Section' },
+      { label: 'Presentation', path: '/admin/presentation/control' },
     ]);
+    expect(buildBreadcrumbs('/admin/presentation/control')).toEqual([
+      { label: 'Admin', path: '/admin' }, { label: 'Presentation', path: '/admin/presentation' }, { label: 'Variant control' },
+    ]);
+    expect(() => buildBreadcrumbs('/admin/presentation/%')).not.toThrow();
     expect(buildBreadcrumbs('/elsewhere')).toEqual([{ label: 'Admin', path: '/admin' }]);
   });
 

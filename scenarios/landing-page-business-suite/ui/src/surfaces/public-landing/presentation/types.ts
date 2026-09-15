@@ -21,6 +21,10 @@ export interface Spotlight {
   app_key: string; slug: string; name: string; tagline: string; description: string; detail_route: string;
 }
 export interface HeroItem { app_key: string; visual_ref: string; exhibit_kind: string; detail_label: string }
+export interface DemoPlayback {
+  provider: 'youtube' | 'vimeo'; external_url: string; layout: 'stacked' | 'split';
+  play_label: string; caption: string; unavailable_label: string;
+}
 export interface ArtifactExample {
   id: string; kind: 'plan' | 'image' | 'html-preview' | 'video' | 'audio' | 'code' | 'pdf';
   filename: string; caption: string; alt_text: string; width: number; height: number;
@@ -35,7 +39,7 @@ export interface ContentByKind {
   'bundle-hero': { eyebrow: string; title: string; description: string; accessibility_label: string; hero_items: HeroItem[]; actions: Action[] };
   'capability-strip': { heading: string; items: { capability_id: string; label: string; description: string }[] };
   'product-story': { heading: string; body: string; items: { title: string; description: string; visual_ref?: string; alt_text?: string }[] };
-  'product-demo': { heading: string; description: string; renderer_ref: string; fixture_ref: string; poster_ref?: string; media_ref?: string; alt_text: string };
+  'product-demo': { heading: string; description: string; renderer_ref: string; fixture_ref?: string; poster_ref?: string; media_ref?: string; alt_text: string; playback?: DemoPlayback };
   'app-spotlights': { heading: string; app_keys: string[]; detail_link_label: string };
   'artifact-explorer': { heading: string; capability_id: string; examples: ArtifactExample[]; selected_example_id: string };
   'voice-story': {
@@ -66,7 +70,7 @@ export interface Presentation {
   schema_version: number; mode: Mode; scope: 'app' | 'bundle'; app_key?: string;
   page: Page; selected_app_keys: string[]; spotlights?: Spotlight[]; capabilities?: Capability[];
   fixtures?: ConfiguredFixture[]; assets?: ResolvedAsset[];
-  diagnostics: { preview: boolean; eligible_app_keys: string[]; noindex: boolean; no_store: boolean; resolved_revision: string };
+  diagnostics: { preview: boolean; fallback?: boolean; eligible_app_keys: string[]; noindex: boolean; no_store: boolean; resolved_revision: string };
 }
 export type ResolvedAction =
   | { status: 'ready'; href: string; onActivate?: never }

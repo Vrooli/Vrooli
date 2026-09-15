@@ -8,53 +8,6 @@ declare global {
 
 type ProtoSchema<_T> = unknown;
 
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  export interface DownloadStorefront { store: string; label: string; url: string; badge: string; }
-  export interface DownloadAsset extends Message<'vrooli.landing_page_business_suite.v1.shared.DownloadAsset'> {
-    id: bigint; bundleKey: string; appKey: string; platform: string; artifactUrl: string; artifactSource: string;
-    artifactId?: bigint; releaseVersion: string; releaseNotes: string; checksum: string; requiresEntitlement: boolean;
-    metadata?: Record<string, unknown>; variantKey: string; artifactFilename: string; artifactSizeBytes: bigint; artifactCount: number;
-  }
-  export interface DownloadApp extends Message<'vrooli.landing_page_business_suite.v1.shared.DownloadApp'> {
-    id: bigint; bundleKey: string; appKey: string; name: string; tagline: string; description: string;
-    iconUrl: string; screenshotUrl: string; installOverview: string; installSteps: string[]; storefronts: DownloadStorefront[];
-    metadata?: Record<string, unknown>; displayOrder: number; platforms: DownloadAsset[]; updateApiKey: string;
-    updatePolicy?: Record<string, unknown>;
-  }
-}
-
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/download_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  import type { DownloadApp, DownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb';
-  export interface AuthorizeDownloadRequest extends Message<'landing_page_business_suite.v1.AuthorizeDownloadRequest'> { app: string; platform: string; }
-  export interface AuthorizeDownloadResponse extends Message<'landing_page_business_suite.v1.AuthorizeDownloadResponse'> { asset?: DownloadAsset; }
-  export type ListDownloadAppsRequest = Message<'landing_page_business_suite.v1.ListDownloadAppsRequest'>;
-  export interface ListDownloadAppsResponse extends Message<'landing_page_business_suite.v1.ListDownloadAppsResponse'> { apps: DownloadApp[]; }
-  export interface CreateDownloadAppRequest extends Message<'landing_page_business_suite.v1.CreateDownloadAppRequest'> { app?: DownloadApp; }
-  export interface SaveDownloadAppRequest extends Message<'landing_page_business_suite.v1.SaveDownloadAppRequest'> { appKey: string; app?: DownloadApp; }
-  export interface DownloadAppResponse extends Message<'landing_page_business_suite.v1.DownloadAppResponse'> { app?: DownloadApp; }
-  export interface DeleteDownloadAppRequest extends Message<'landing_page_business_suite.v1.DeleteDownloadAppRequest'> { appKey: string; }
-  export type DeleteDownloadAppResponse = Message<'landing_page_business_suite.v1.DeleteDownloadAppResponse'>;
-  export const AuthorizeDownloadRequestSchema: GenMessage<AuthorizeDownloadRequest>;
-  export const AuthorizeDownloadResponseSchema: GenMessage<AuthorizeDownloadResponse>;
-  export const ListDownloadAppsRequestSchema: GenMessage<ListDownloadAppsRequest>;
-  export const ListDownloadAppsResponseSchema: GenMessage<ListDownloadAppsResponse>;
-  export const CreateDownloadAppRequestSchema: GenMessage<CreateDownloadAppRequest>;
-  export const SaveDownloadAppRequestSchema: GenMessage<SaveDownloadAppRequest>;
-  export const DownloadAppResponseSchema: GenMessage<DownloadAppResponse>;
-  export const DeleteDownloadAppRequestSchema: GenMessage<DeleteDownloadAppRequest>;
-  export const DeleteDownloadAppResponseSchema: GenMessage<DeleteDownloadAppResponse>;
-  export const DownloadService: GenService<{
-    authorizeDownload: { methodKind: 'unary'; input: typeof AuthorizeDownloadRequestSchema; output: typeof AuthorizeDownloadResponseSchema };
-    listDownloadApps: { methodKind: 'unary'; input: typeof ListDownloadAppsRequestSchema; output: typeof ListDownloadAppsResponseSchema };
-    createDownloadApp: { methodKind: 'unary'; input: typeof CreateDownloadAppRequestSchema; output: typeof DownloadAppResponseSchema };
-    saveDownloadApp: { methodKind: 'unary'; input: typeof SaveDownloadAppRequestSchema; output: typeof DownloadAppResponseSchema };
-    deleteDownloadApp: { methodKind: 'unary'; input: typeof DeleteDownloadAppRequestSchema; output: typeof DeleteDownloadAppResponseSchema };
-  }>;
-}
-
 declare module '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
@@ -100,29 +53,6 @@ declare module '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb' {
   export const LandingPagePaymentsService: GenService<{
     createCheckoutSession: { methodKind: 'unary'; input: typeof CreateCheckoutSessionRequestSchema; output: typeof CreateCheckoutSessionResponseSchema };
     getBillingPortal: { methodKind: 'unary'; input: typeof GetBillingPortalRequestSchema; output: typeof BillingPortalResponseSchema };
-  }>;
-}
-
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/branding_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  export type GetBrandingRequest = Message<'landing_page_business_suite.v1.GetBrandingRequest'>;
-  export type GetPublicBrandingRequest = Message<'landing_page_business_suite.v1.GetPublicBrandingRequest'>;
-  export interface ClearBrandingFieldRequest extends Message<'landing_page_business_suite.v1.ClearBrandingFieldRequest'> { field: string; }
-  export interface UpdateBrandingRequest extends Message<'landing_page_business_suite.v1.UpdateBrandingRequest'> { [key: string]: unknown; }
-  export interface BrandingResponse extends Message<'landing_page_business_suite.v1.BrandingResponse'> { branding?: { toJson(): unknown; }; }
-  export interface PublicBrandingResponse extends Message<'landing_page_business_suite.v1.PublicBrandingResponse'> { branding?: { toJson(): unknown; }; }
-  export const GetBrandingRequestSchema: GenMessage<GetBrandingRequest>;
-  export const GetPublicBrandingRequestSchema: GenMessage<GetPublicBrandingRequest>;
-  export const ClearBrandingFieldRequestSchema: GenMessage<ClearBrandingFieldRequest>;
-  export const UpdateBrandingRequestSchema: GenMessage<UpdateBrandingRequest>;
-  export const BrandingResponseSchema: GenMessage<BrandingResponse>;
-  export const PublicBrandingResponseSchema: GenMessage<PublicBrandingResponse>;
-  export const BrandingService: GenService<{
-    getBranding: { methodKind: 'unary'; input: typeof GetBrandingRequestSchema; output: typeof BrandingResponseSchema };
-    updateBranding: { methodKind: 'unary'; input: typeof UpdateBrandingRequestSchema; output: typeof BrandingResponseSchema };
-    clearBrandingField: { methodKind: 'unary'; input: typeof ClearBrandingFieldRequestSchema; output: typeof BrandingResponseSchema };
-    getPublicBranding: { methodKind: 'unary'; input: typeof GetPublicBrandingRequestSchema; output: typeof PublicBrandingResponseSchema };
   }>;
 }
 

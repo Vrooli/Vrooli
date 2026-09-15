@@ -51,6 +51,8 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 				return downloadhttp.ErrorPlatformRequired
 			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
 				return downloadhttp.ErrorEntitlementsUnavailable
+			case errors.Is(err, delivery.ErrAssetSelectorUnavailable):
+				return downloadhttp.ErrorAssetSelectorUnavailable
 			}
 			return ""
 		},
@@ -86,8 +88,9 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 // established REST endpoint.
 func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.ConnectAuthorizationDependencies {
 	return downloadhttp.ConnectAuthorizationDependencies{
-		UserEmail: getUserEmail,
-		Authorize: authorizer.Authorize,
+		UserEmail:         getUserEmail,
+		Authorize:         authorizer.Authorize,
+		AuthorizeSelected: authorizer.AuthorizeSelected,
 		ClassifyError: func(err error) downloadhttp.ErrorKind {
 			switch {
 			case errors.Is(err, delivery.ErrAssetNotFound):
@@ -102,6 +105,8 @@ func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAutho
 				return downloadhttp.ErrorPlatformRequired
 			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
 				return downloadhttp.ErrorEntitlementsUnavailable
+			case errors.Is(err, delivery.ErrAssetSelectorUnavailable):
+				return downloadhttp.ErrorAssetSelectorUnavailable
 			}
 			return ""
 		},

@@ -37,11 +37,12 @@ func NewConnectHandler(bundleKey func() string, catalog ConnectCatalog) *Connect
 // ConnectAuthorizationDependencies isolates entitlement authorization from
 // catalog administration while keeping both operations on DownloadService.
 type ConnectAuthorizationDependencies struct {
-	UserEmail      func(context.Context) string
-	Authorize      func(context.Context, string, string, string) (*internal.Asset, error)
-	ClassifyError  func(error) ErrorKind
-	ResolveManaged func(context.Context, int64) (string, bool, error)
-	Log            func(string, map[string]any)
+	UserEmail         func(context.Context) string
+	Authorize         func(context.Context, string, string, string) (*internal.Asset, error)
+	AuthorizeSelected func(context.Context, string, string, string, int64) (*internal.Asset, error)
+	ClassifyError     func(error) ErrorKind
+	ResolveManaged    func(context.Context, int64) (string, bool, error)
+	Log               func(string, map[string]any)
 }
 
 // WithAuthorization attaches the user-scoped delivery authorization seam.
@@ -66,7 +67,16 @@ func (h *ConnectHandler) AuthorizeDownload(ctx context.Context, request *connect
 	if user == "" {
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("authentication required"))
 	}
-	asset, err := h.authorization.Authorize(ctx, appKey, platform, user)
+	authorize := h.authorization.Authorize
+	if request.Msg.AssetId != nil {
+		if h.authorization.AuthorizeSelected == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("exact asset authorization is not configured"))
+		}
+		authorize = func(ctx context.Context, app, platform, identity string) (*internal.Asset, error) {
+			return h.authorization.AuthorizeSelected(ctx, app, platform, identity, request.Msg.GetAssetId())
+		}
+	}
+	asset, err := authorize(ctx, appKey, platform, user)
 	if err != nil {
 		h.authorization.Log("download_authorization_failed", map[string]any{"app_key": appKey, "platform": platform, "user": user, "error": err.Error()})
 		return nil, connectAuthorizationError(h.authorization.ClassifyError(err), err)
@@ -101,6 +111,8 @@ func connectAuthorizationError(kind ErrorKind, err error) error {
 	case ErrorIdentityRequired, ErrorPlatformRequired:
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case ErrorEntitlementsUnavailable:
+		return connect.NewError(connect.CodeUnavailable, err)
+	case ErrorAssetSelectorUnavailable:
 		return connect.NewError(connect.CodeUnavailable, err)
 	default:
 		return connect.NewError(connect.CodeInternal, err)

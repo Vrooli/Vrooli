@@ -11,12 +11,12 @@ import (
 	domain "landing-page-business-suite-api/internal/experimentation"
 )
 
-func TestPublicGetPreservesPublicReadContract(t *testing.T) {
+func TestAdminGetPreservesPublicReadContract(t *testing.T) {
 	logged := ""
-	handler := PublicGet(testDependencies(func(string) (any, error) { return map[string]string{"slug": "spring"}, nil }, func(event string, _ map[string]any) { logged = event }))
+	handler := AdminGet(testDependencies(func(string) (any, error) { return map[string]string{"slug": "spring"}, nil }, func(event string, _ map[string]any) { logged = event }))
 
 	w := httptest.NewRecorder()
-	handler(w, httptest.NewRequest(http.MethodGet, "/api/v1/public/variants/spring", nil))
+	handler(w, httptest.NewRequest(http.MethodGet, "/api/v1/variants/spring", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
 	}
@@ -38,12 +38,12 @@ func TestAdminGetRejectsSelectionPseudoSlug(t *testing.T) {
 	}
 }
 
-func TestPublicGetLogsAndReturnsNotFound(t *testing.T) {
+func TestAdminGetLogsAndReturnsNotFound(t *testing.T) {
 	logged := ""
-	handler := PublicGet(testDependencies(func(string) (any, error) { return nil, errors.New("missing") }, func(event string, _ map[string]any) { logged = event }))
+	handler := AdminGet(testDependencies(func(string) (any, error) { return nil, errors.New("missing") }, func(event string, _ map[string]any) { logged = event }))
 	w := httptest.NewRecorder()
-	handler(w, httptest.NewRequest(http.MethodGet, "/api/v1/public/variants/missing", nil))
-	if w.Code != http.StatusNotFound || logged != "public_variant_fetch_failed" {
+	handler(w, httptest.NewRequest(http.MethodGet, "/api/v1/variants/missing", nil))
+	if w.Code != http.StatusNotFound || logged != "variant_fetch_failed" {
 		t.Fatalf("status = %d, log = %q", w.Code, logged)
 	}
 }
@@ -64,16 +64,16 @@ func TestNewReadDependenciesMapsSnapshotsWithinTheDomainBoundary(t *testing.T) {
 	logged := ""
 	deps := NewReadDependencies(store, "/api/v1/variants/", func(http.ResponseWriter, any) {}, func(http.ResponseWriter, int, string, string) {}, func(event string, _ map[string]any) { logged = event })
 
-	selected, err := deps.Select()
+	selected, err := deps.Get("spring")
 	if err != nil {
-		t.Fatalf("Select() error = %v", err)
+		t.Fatalf("Get() error = %v", err)
 	}
 	variant, ok := selected.(VariantResponse)
 	if !ok || variant.Slug != "spring" || variant.Weight != 25 || variant.Axes["audience"] != "founders" {
 		t.Fatalf("selected = %#v", selected)
 	}
-	if logged != "variant_selected" {
-		t.Fatalf("logged = %q, want variant_selected", logged)
+	if logged != "" {
+		t.Fatalf("logged = %q, want no selection event", logged)
 	}
 }
 

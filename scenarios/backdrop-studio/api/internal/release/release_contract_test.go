@@ -9,6 +9,9 @@ import (
 
 	"backdrop-studio/internal/catalog"
 
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,6 +38,7 @@ func solidPNG(t *testing.T, fill color.Color) []byte {
 func authoritativeCandidate(t *testing.T) CandidateEvidence {
 	return CandidateEvidence{
 		ID:                "c",
+		JobID:             "job-c",
 		ImagePNG:          solidPNG(t, color.Black),
 		Width:             8,
 		Height:            8,
@@ -49,11 +53,16 @@ func authoritativeCandidate(t *testing.T) CandidateEvidence {
 
 func evidenceStore(t *testing.T, candidate CandidateEvidence) *Store {
 	t.Helper()
-	return NewStoreWithPublisher(
+	return durableStore(t,
 		&fakePublisher{},
 		fakeProvenance{"c": {Strategy: "procedural", ModelBacked: false}},
 		fakeCandidateSource{"c": candidate},
 	)
+}
+
+func durableStore(t *testing.T, publisher AssetPublisher, provenance ProvenanceSource, candidates CandidateSource) *Store {
+	t.Helper()
+	return NewStoreWithPublisherAndRoots(publisher, provenance, filerouting.New(storage.Paths{DataDir: t.TempDir()}), candidates)
 }
 
 func TestReleaseUsesAuthoritativeCandidateBytesAndMeasurement(t *testing.T) {
@@ -75,6 +84,7 @@ func TestReleaseUsesAuthoritativeCandidateBytesAndMeasurement(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, candidate.ImagePNG, released.ImagePNG)
+	require.Equal(t, candidate.JobID, released.JobID)
 	require.Equal(t, 8, released.Width)
 	require.Equal(t, 8, released.Height)
 	require.Equal(t, "image/png", released.MIMEType)
@@ -104,7 +114,7 @@ func TestReleaseRefusesCallerOnlyLegibilityEvidence(t *testing.T) {
 }
 
 func TestReleaseRefusesMissingCandidateEvidence(t *testing.T) {
-	store := evidenceStore(t, CandidateEvidence{ID: "c"})
+	store := evidenceStore(t, CandidateEvidence{ID: "c", JobID: "job-c"})
 
 	_, err := store.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "procedural", AltText: "A backdrop"})
 	require.ErrorContains(t, err, "candidate bytes")
@@ -121,7 +131,7 @@ func TestReleaseRefusesCandidateMetadataMismatch(t *testing.T) {
 
 func TestReleaseRefusesContradictoryProvenance(t *testing.T) {
 	candidate := authoritativeCandidate(t)
-	store := NewStoreWithPublisher(
+	store := durableStore(t,
 		&fakePublisher{},
 		fakeProvenance{"c": {Strategy: "guided", ModelBacked: true}},
 		fakeCandidateSource{"c": candidate},

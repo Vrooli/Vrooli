@@ -351,7 +351,7 @@ export interface HeaderBehaviorConfig {
   hide_on_scroll: boolean;
 }
 
-// Public branding info included in landing config
+// Shared SEO branding inputs; not part of the public presentation response.
 export interface LandingBranding {
   site_name: string;
   tagline?: string | null;
@@ -371,23 +371,8 @@ export interface LandingBranding {
 import type { StripeCoupon } from './schemas/billing.schema';
 export type { StripeCoupon };
 
-export interface LandingConfigResponse {
-  variant: {
-    id?: number;
-    slug: string;
-    name: string;
-    description?: string;
-    axes?: VariantAxes;
-  };
-  sections: LandingSection[];
-  pricing?: PricingOverview;
-  downloads: DownloadApp[];
-  header: LandingHeaderConfig;
-  branding?: LandingBranding;
-  coupon_mappings?: Record<string, string>;
-  intro_offers?: StripeCoupon[];
-  fallback: boolean;
-}
+// Keep response validation and its type under one schema authority.
+export type { LandingConfigResponse } from './schemas/landing.schema';
 
 export interface MetricEvent {
   event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
@@ -528,6 +513,7 @@ export interface PublicBranding {
   favicon_url?: string | null;
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
+  canonical_base_url?: string | null;
   support_chat_url?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;

@@ -55,6 +55,8 @@ describe('Customization', () => {
     expect(state.clearVariantFilters).toHaveBeenCalledOnce();
     expect(state.setWeightDraft).toHaveBeenCalledWith('enterprise', 70);
     expect(state.persistWeight).toHaveBeenCalledWith('enterprise', 70);
+    expect(state.navigateToSectionEditor).toHaveBeenCalledWith('enterprise');
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata for Enterprise' }));
     expect(state.navigateToVariantEditor).toHaveBeenCalledWith('enterprise');
     expect(state.openVariantPreview).toHaveBeenCalledWith('enterprise');
     expect(state.navigateToAnalytics).toHaveBeenCalledWith('enterprise');

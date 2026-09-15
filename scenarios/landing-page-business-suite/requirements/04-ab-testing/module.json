@@ -15,14 +15,14 @@
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
           "status": "failing",
-          "notes": "Provider unit tests cover fallback activation when the landing config fetch errors or the slug is invalid."
+          "notes": "The active provider test proves API errors remain unavailable without product fallback, which is the current fail-closed behavior and does not prove this legacy baked-fallback requirement. Keep failing until the fallback contract is decided and its replacement proof is supplied."
         },
         {
-          "type": "test",
-          "ref": "api/landing_config_service_test.go",
+          "type": "manual",
+          "ref": "owner-migration-gap:api-landing-config-fallback",
           "phase": "unit",
-          "status": "failing",
-          "notes": "LandingConfigService test verifies that missing variants trigger the baked fallback response."
+          "status": "planned",
+          "notes": "The former Beauvoir-owned service fallback test is being retired during this migration. No current API test proves that missing variants trigger a baked fallback response; current tests instead cover configured publication and fail-closed resolution. Keep this requirement in progress pending owner replacement proof or an explicit OT-P0-031 contract decision."
         }
       ]
     },

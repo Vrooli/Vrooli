@@ -408,18 +408,18 @@ export function VariantEditor() {
                     <div>
                       <CardTitle>Content Sections</CardTitle>
                       <CardDescription className="text-slate-400">
-                        Customize landing page sections with live preview
+                        Legacy section records are retained. Edit current page content and preview saved revisions in the presentation editor.
                       </CardDescription>
                     </div>
                     <Button
-                      onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
+                      onClick={() => { navigate(`/admin/presentation/${encodedRouteSlug}`); }}
                       variant="outline"
                       size="sm"
                       className="gap-2"
                       data-testid="add-section"
                     >
                       <Plus className="h-4 w-4" />
-                      Add Section
+                      Edit Presentation
                     </Button>
                   </div>
                 </CardHeader>
@@ -428,10 +428,10 @@ export function VariantEditor() {
                     <div className="text-center py-12 text-slate-400">
                       <p className="mb-4">No sections yet</p>
                       <Button
-                        onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
+                        onClick={() => { navigate(`/admin/presentation/${encodedRouteSlug}`); }}
                         variant="outline"
                       >
-                        Add Your First Section
+                        Open Presentation Editor
                       </Button>
                     </div>
                   ) : (
@@ -463,7 +463,7 @@ export function VariantEditor() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/${String(section.id)}`); }}
+                              onClick={() => { navigate(`/admin/presentation/${encodedRouteSlug}`); }}
                               data-testid={`edit-section-${String(section.id)}`}
                             >
                               Edit

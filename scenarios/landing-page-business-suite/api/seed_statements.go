@@ -8,8 +8,7 @@ const (
 	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, dashboard_url, updated_at)
 		VALUES (1, NULL, NOW())
 		ON CONFLICT (id) DO NOTHING`
-	seedDownloadAppCountSQL = `SELECT COUNT(*) FROM download_apps`
-	seedDownloadAppSQL      = `INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
+	seedDownloadAppSQL = `INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
 		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10)
 		ON CONFLICT (bundle_key, app_key) DO UPDATE SET
 			name = EXCLUDED.name,

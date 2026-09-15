@@ -1,6 +1,20 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "released_backdrops": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "released-backdrops",
+        "regenerable": false,
+        "sensitive": false,
+        "rationale": "Qualified backdrop metadata and PNG bytes are immutable product data required for same-origin retrieval after restart."
+      }
+    },
+    "rationale": "Backdrop release artifacts are scenario-owned durable data under the api-core routed data root; test-mode leases receive an isolated root."
+  },
   "service": {
     "parent": "vrooli",
     "name": "backdrop-studio",

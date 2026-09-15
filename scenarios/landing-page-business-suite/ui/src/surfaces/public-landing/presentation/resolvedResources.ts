@@ -1,5 +1,5 @@
 import type { Presentation } from './types';
-import type { PresentationResources } from './resources';
+import type { CropPolicy, PresentationResources } from './resources';
 import { assertResourceClosure } from './resourceClosure';
 
 export interface CanonicalWorkspace {
@@ -32,10 +32,16 @@ export interface ResolvedAsset {
       verdict: 'pass' | 'fail' | 'not_measured' } }[];
 }
 
+function cropPolicy(value: string): CropPolicy {
+  switch (value) {
+    case 'center': case 'contain': case 'cover': return value;
+    default: throw new Error('Unsupported asset crop policy');
+  }
+}
+
 /** No fallback fixtures or guessed IDs: canonical arrays are the only content source. */
 export function resolveResources(presentation: Presentation): PresentationResources {
   const display = presentation.page.display;
-  if (!display?.shell) throw new Error('Missing page.display');
   assertResourceClosure(presentation);
   const visuals: PresentationResources['visuals'] = {};
   const assets: PresentationResources['assets'] = {};
@@ -58,7 +64,10 @@ export function resolveResources(presentation: Presentation): PresentationResour
   for (const asset of presentation.assets ?? []) {
     if (assets[asset.id]) throw new Error('Duplicate asset ID');
     const label = display.asset_labels[asset.id];
+    const focal = asset.focal_point;
+    if (![focal.x, focal.y].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) throw new Error('Invalid asset focal point');
     assets[asset.id] = { src: asset.public_url ?? '', width: asset.width, height: asset.height,
+      crop_policy: cropPolicy(asset.crop_policy), focal_point: { ...focal },
       alt: label?.alt ?? '', sizes: label?.sizes, release_ref: asset.release_ref, content_hash: asset.content_hash };
   }
   for (const source of presentation.assets ?? []) {
@@ -68,12 +77,12 @@ export function resolveResources(presentation: Presentation): PresentationResour
     for (const ref of source.responsive_alternatives ?? []) {
       const candidate = presentation.assets?.find(item => item.id === ref.asset_id);
       if (!candidate) throw new Error('Unresolved responsive asset');
-      if (candidate.surface === source.surface && candidate.mime === source.mime && candidate.crop_policy === source.crop_policy && candidate.focal_point.x === source.focal_point.x && candidate.focal_point.y === source.focal_point.y && candidate.width * source.height === source.width * candidate.height && !candidates.some(item => item.width === candidate.width)) candidates.push(candidate);
+      if (ref.surface === source.surface && candidate.surface === source.surface && candidate.mime === source.mime && candidate.crop_policy === source.crop_policy && candidate.focal_point.x === source.focal_point.x && candidate.focal_point.y === source.focal_point.y && candidate.width * source.height === source.width * candidate.height && !candidates.some(item => item.width === candidate.width)) candidates.push(candidate);
     }
     if (candidates.length > 1) {
       if (candidates.some(item => !item.public_url || /[\s,]/.test(item.public_url))) throw new Error('Unsafe responsive URL');
       const output = assets[source.id];
-      if (output?.sizes) output.src_set = candidates.map(item => `${item.public_url} ${String(item.width)}w`).join(', ');
+      if (output?.sizes) output.src_set = candidates.map(item => `${item.public_url ?? ''} ${String(item.width)}w`).join(', ');
     }
   }
   return { shell: display.shell, blocks: display.blocks, apps: display.apps, assets, visuals };

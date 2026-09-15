@@ -17,12 +17,13 @@ type Authorization struct {
 type ErrorKind string
 
 const (
-	ErrorNotFound                ErrorKind = "not_found"
-	ErrorAppNotFound             ErrorKind = "app_not_found"
-	ErrorSubscriptionRequired    ErrorKind = "subscription_required"
-	ErrorIdentityRequired        ErrorKind = "identity_required"
-	ErrorPlatformRequired        ErrorKind = "platform_required"
-	ErrorEntitlementsUnavailable ErrorKind = "entitlements_unavailable"
+	ErrorNotFound                 ErrorKind = "not_found"
+	ErrorAppNotFound              ErrorKind = "app_not_found"
+	ErrorSubscriptionRequired     ErrorKind = "subscription_required"
+	ErrorIdentityRequired         ErrorKind = "identity_required"
+	ErrorPlatformRequired         ErrorKind = "platform_required"
+	ErrorEntitlementsUnavailable  ErrorKind = "entitlements_unavailable"
+	ErrorAssetSelectorUnavailable ErrorKind = "asset_selector_unavailable"
 )
 
 type Dependencies struct {

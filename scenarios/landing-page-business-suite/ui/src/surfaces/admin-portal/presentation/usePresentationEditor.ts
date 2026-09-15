@@ -117,9 +117,9 @@ export function usePresentationEditor(variantSlug: string, client: ProductPresen
       signal => action.kind === 'publish' ? client.publish(request, { signal, timeoutMs: 30000 }) : client.rollback(request, { signal, timeoutMs: 30000 }),
       response => { accept(response); setNotice(action.kind === 'publish' ? 'Publication activated.' : 'Rollback activated. Reload the draft to resume draft editing.'); });
   }
-  function requestPreview(route: string, locale: string) {
-    if (writeLocked || dirty || !snapshot.revision || !route.startsWith('/') || route.startsWith('//')) return;
-    const revision = snapshot.revision;
+  function requestPreview(route: string, locale: string, selectedRevision?: string) {
+    const revision = selectedRevision || snapshot?.revision;
+    if (writeLocked || !revision || (revision !== snapshot.revision && !snapshot.state?.publishedRevisions.includes(revision)) || !route.startsWith('/') || route.startsWith('//')) return;
     setPreview(undefined);
     void perform('Resolving private preview', signal => client.preview({ variantSlug, revision, route, locale }, { signal, timeoutMs: 30000 }), response => {
       const resolved = response.presentation;

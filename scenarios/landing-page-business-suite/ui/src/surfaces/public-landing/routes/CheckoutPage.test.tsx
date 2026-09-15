@@ -78,6 +78,16 @@ describe('CheckoutPage', () => {
     createCheckoutSession.mockImplementation(() => new Promise(() => undefined));
   });
 
+  it.each(['Orion Workspace', ''])('uses commerce-owned bundle identity in terms, or generic copy when absent: %s', name => {
+    getPlans.mockResolvedValue({ ...pricing, bundle: { ...pricing.bundle, name } });
+    renderCheckout();
+    return waitFor(() => {
+      expect(screen.getByText(`By continuing you agree to the terms and acknowledge this subscription is for ${name || 'the selected plan'}.`)).toBeVisible();
+      expect(screen.queryByText(/Aquila/)).toBeNull();
+      expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ price_id: 'price_solo' }));
+    });
+  });
+
   it('selects the requested displayed plan and starts a Stripe checkout session', async () => {
     renderCheckout();
 

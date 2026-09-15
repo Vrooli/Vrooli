@@ -217,6 +217,11 @@ func validateDisplay(page Page, path string, apps map[string]App, capabilities m
 		validateText(label.Alt, path+".asset_labels["+id+"].alt", issues, false)
 		validateText(label.Sizes, path+".asset_labels["+id+"].sizes", issues, false)
 	}
+	for _, id := range sortedStringKeys(referencedPageAssets(page, assets, fixtures)) {
+		if _, ok := display.AssetLabels[id]; !ok {
+			issues.add(path+".asset_labels["+id+"]", "missing_asset_display_label", "every referenced asset requires a configured display label")
+		}
+	}
 	for id, value := range display.FixtureDisplay {
 		p := path + ".fixture_display[" + id + "]"
 		fixture, ok := fixtures[id]
@@ -249,6 +254,55 @@ func validateDisplay(page Page, path string, apps map[string]App, capabilities m
 			}
 		}
 	}
+}
+
+// referencedPageAssets mirrors the resource closure used by resolvedAssets.
+// Labels are required only for assets that this page can resolve, not for
+// unrelated assets retained elsewhere in the document.
+func referencedPageAssets(page Page, assets map[string]Asset, fixtures map[string]Fixture) map[string]bool {
+	refs := map[string]bool{}
+	add := func(ref string) {
+		if ref != "" {
+			refs[ref] = true
+		}
+	}
+	for _, app := range page.Display.Apps {
+		add(app.VisualRef)
+	}
+	fixtureRefs := displayFixtureRefs(page.Display)
+	for _, block := range page.Blocks {
+		for _, ref := range assetRefs(block.Content) {
+			add(ref)
+		}
+		if ref := fixtureRef(block.Content); ref != "" {
+			fixtureRefs[ref] = true
+		}
+	}
+	for ref := range fixtureRefs {
+		fixture, ok := fixtures[ref]
+		if !ok || fixture.Backdrop == nil {
+			continue
+		}
+		for _, assetRef := range fixture.Backdrop.AssetRefs {
+			add(assetRef)
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for id := range refs {
+			asset, ok := assets[id]
+			if !ok {
+				continue
+			}
+			for _, alternative := range asset.ResponsiveAlternatives {
+				if alternative.AssetID != "" && !refs[alternative.AssetID] {
+					refs[alternative.AssetID] = true
+					changed = true
+				}
+			}
+		}
+	}
+	return refs
 }
 
 func displayFixtureRefs(display PageDisplay) map[string]bool {

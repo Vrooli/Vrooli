@@ -45,6 +45,7 @@ import (
 	"landing-page-business-suite-api/internal/landing"
 	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
+	"landing-page-business-suite-api/internal/presentationseed"
 	runtimeschema "landing-page-business-suite-api/internal/schema"
 	"landing-page-business-suite-api/internal/securevalue"
 )
@@ -57,32 +58,33 @@ type RuntimeConfig struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config               *RuntimeConfig
-	db                   StartupStore
-	routedDB             *database.RoutedDB
-	fileRoots            *filerouting.RoutedRoots
-	router               *mux.Router
-	variantSpace         *experimentation.VariantSpace
-	configStore          *experimentation.ConfigStore
-	metricsService       *domainmetrics.Service
-	stripeService        *StripeService
-	planService          *commerce.PlanService
-	downloadService      *delivery.CatalogService
-	downloadHosting      *delivery.Service
-	downloadAuthorizer   *delivery.DownloadAuthorizer
-	accountService       *commerce.Service
-	receiptValidators    commerce.ReceiptValidators
-	landingConfigService *landing.LandingConfigService
-	paymentSettings      *commerce.PaymentSettingsService
-	paymentAnomaly       *commerce.PaymentAnomalyService
-	assetsService        *content.AssetsService
-	seoService           *content.SEOService
-	feedbackService      *domainmetrics.FeedbackService
-	backdropResolver     func(context.Context) (string, error)
-	backdropHTTPClient   *http.Client
-	adminAuthService     *administration.AdminAuthService
-	emailService         *EmailService
-	waitlistService      *domainmetrics.WaitlistService
+	config                   *RuntimeConfig
+	db                       StartupStore
+	routedDB                 *database.RoutedDB
+	fileRoots                *filerouting.RoutedRoots
+	router                   *mux.Router
+	variantSpace             *experimentation.VariantSpace
+	configStore              *experimentation.ConfigStore
+	metricsService           *domainmetrics.Service
+	stripeService            *StripeService
+	planService              *commerce.PlanService
+	downloadService          *delivery.CatalogService
+	downloadHosting          *delivery.Service
+	downloadAuthorizer       *delivery.DownloadAuthorizer
+	accountService           *commerce.Service
+	receiptValidators        commerce.ReceiptValidators
+	landingConfigService     *landing.LandingConfigService
+	paymentSettings          *commerce.PaymentSettingsService
+	paymentAnomaly           *commerce.PaymentAnomalyService
+	assetsService            *content.AssetsService
+	seoService               *content.SEOService
+	feedbackService          *domainmetrics.FeedbackService
+	backdropResolver         func(context.Context) (string, error)
+	backdropHTTPClient       *http.Client
+	presentationAssetHandler http.Handler
+	adminAuthService         *administration.AdminAuthService
+	emailService             *EmailService
+	waitlistService          *domainmetrics.WaitlistService
 	// Credit system services
 	apiKeyService *administration.APIKeyService
 	limitsService *commerce.LimitsService
@@ -229,7 +231,7 @@ func NewServer() (*Server, error) {
 
 	planService := NewPlanService(db)
 	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
-	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{ResolveCredential: func(_ context.Context, field string) (string, error) {
+	downloadHosting := delivery.NewServiceWithRequestStore(delivery.NewStrictRoutedStore(routedDB), delivery.S3StorageProvider{ResolveCredential: func(_ context.Context, field string) (string, error) {
 		authority, err := credentialauthority.Default()
 		if err != nil {
 			return "", err
@@ -278,11 +280,24 @@ func NewServer() (*Server, error) {
 	stripeService.SetPaymentAnomaly(paymentAnomaly)
 	assetsService := NewAssetsService(db)
 	fileRoots := filerouting.New(runtimeStoragePaths(variantsDir, assetsService.GetUploadDir()))
+	assetVerifier, assetCache, err := composePresentationAssetVerification(fileRoots, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("compose presentation asset verification: %w", err)
+	}
 	assetsService.SetFileRoots(fileRoots)
-	// Presentation revisions share the lifecycle-routed config root. Publication
-	// remains fail-closed until the seed/qualification owner supplies an
-	// authorized read-only verifier; nil deliberately refuses auto-publication.
-	configStore.SetPresentationStorage(fileRoots, nil)
+	planService.SetFileRoots(fileRoots)
+	// Available product claims and released assets are separate owner checks.
+	// With no admitted capability bindings, claims fail closed; draft bootstrap
+	// remains usable and never performs an owner release or publication.
+	publicationVerifier := composePresentationQualification(assetVerifier, nil)
+	configStore.SetPresentationStorage(fileRoots, publicationVerifier.VerifyPublication)
+	for _, variant := range configStore.ListVariants() {
+		if _, created, err := presentationseed.EnsureDraft(context.Background(), configStore, variant.Variant.Slug, planService.BundleKey()); err != nil {
+			return nil, fmt.Errorf("initialize presentation draft for %s: %w", variant.Variant.Slug, err)
+		} else if created {
+			logx.Info("presentation_draft_initialized", map[string]interface{}{"variant": variant.Variant.Slug})
+		}
+	}
 	seoService := NewSEOService(configStore)
 	feedbackService := domainmetrics.NewFeedbackService(routedDB)
 	emailService := NewEmailService()
@@ -399,30 +414,31 @@ func NewServer() (*Server, error) {
 	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
 	srv := &Server{
-		config:               &RuntimeConfig{},
-		db:                   db,
-		routedDB:             routedDB,
-		fileRoots:            fileRoots,
-		router:               mux.NewRouter(),
-		variantSpace:         variantSpace,
-		configStore:          configStore,
-		metricsService:       domainmetrics.NewService(db),
-		stripeService:        stripeService,
-		planService:          planService,
-		downloadService:      downloadService,
-		downloadHosting:      downloadHosting,
-		downloadAuthorizer:   downloadAuthorizer,
-		accountService:       accountService,
-		receiptValidators:    newReceiptValidators(userAuthService, planService),
-		landingConfigService: newLandingConfigService(configStore, planService, downloadService, stripeService),
-		paymentSettings:      paymentSettings,
-		paymentAnomaly:       paymentAnomaly,
-		assetsService:        assetsService,
-		seoService:           seoService,
-		feedbackService:      feedbackService,
-		adminAuthService:     administration.NewAdminAuthService(routedDB),
-		emailService:         emailService,
-		waitlistService:      waitlistService,
+		config:                   &RuntimeConfig{},
+		db:                       db,
+		routedDB:                 routedDB,
+		fileRoots:                fileRoots,
+		presentationAssetHandler: assetCache.Handler(),
+		router:                   mux.NewRouter(),
+		variantSpace:             variantSpace,
+		configStore:              configStore,
+		metricsService:           domainmetrics.NewServiceWithContextStore(db, strictPresentationExposureStore{routed: routedDB}),
+		stripeService:            stripeService,
+		planService:              planService,
+		downloadService:          downloadService,
+		downloadHosting:          downloadHosting,
+		downloadAuthorizer:       downloadAuthorizer,
+		accountService:           accountService,
+		receiptValidators:        newReceiptValidators(userAuthService, planService),
+		landingConfigService:     newLandingConfigService(configStore, planService, downloadService),
+		paymentSettings:          paymentSettings,
+		paymentAnomaly:           paymentAnomaly,
+		assetsService:            assetsService,
+		seoService:               seoService,
+		feedbackService:          feedbackService,
+		adminAuthService:         administration.NewAdminAuthService(routedDB),
+		emailService:             emailService,
+		waitlistService:          waitlistService,
 		// Credit system services
 		apiKeyService: apiKeyService,
 		limitsService: limitsService,
@@ -444,7 +460,7 @@ func NewServer() (*Server, error) {
 		// Session management
 		sessionManager: initSessionManager(),
 	}
-	srv.landingConfigService.UseExposureRecorder(srv.metricsService)
+	srv.landingConfigService.UsePresentationExposureRecorder(srv.metricsService)
 
 	srv.setupRoutes()
 	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {

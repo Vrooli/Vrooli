@@ -4,16 +4,12 @@ package landing
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
-	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	"google.golang.org/protobuf/types/known/structpb"
-	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	"landing-page-business-suite-api/internal/landing"
 )
 
@@ -34,86 +30,61 @@ func (h LandingConfigConnectHandler) GetLandingConfig(ctx context.Context, reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode landing configuration: %w", err))
 	}
-	return connect.NewResponse(message), nil
-}
-
-// LandingConfigProto converts domain payloads to their generated public wire contract.
-func LandingConfigProto(response *landing.LandingConfigResponse) (*lpbsv1.LandingConfigResponse, error) {
-	sections := make([]*lpbsv1.LandingSection, 0, len(response.Sections))
-	for index, section := range response.Sections {
-		content, err := structpb.NewStruct(section.Content)
-		if err != nil {
-			return nil, fmt.Errorf("section %d (%q) content: %w", index, section.SectionType, err)
-		}
-		order, err := LandingConfigInt32(section.Order, fmt.Sprintf("section %d (%q) order", index, section.SectionType))
-		if err != nil {
-			return nil, err
-		}
-		sections = append(sections, &lpbsv1.LandingSection{SectionKey: section.Key, SectionType: section.SectionType, Content: content, Order: order, Enabled: section.Enabled})
-	}
-	downloads, err := landing.ProtoDownloads(response.Downloads)
-	if err != nil {
-		return nil, err
-	}
-	header, err := varianthttp.HeaderProto(response.Header)
-	if err != nil {
-		return nil, err
-	}
-	offers, err := introOffersProto(response.IntroOffers)
-	if err != nil {
-		return nil, err
-	}
-	var presentationWire *shared.ResolvedProductPresentation
+	result := connect.NewResponse(message)
 	if response.Presentation != nil {
-		presentationWire, err = ResolvedPresentationProto(*response.Presentation)
-		if err != nil {
-			return nil, fmt.Errorf("presentation: %w", err)
-		}
-	}
-	return &lpbsv1.LandingConfigResponse{Variant: &lpbsv1.LandingVariantSummary{Id: int64(response.Variant.ID), Slug: response.Variant.Slug, Name: response.Variant.Name, Description: response.Variant.Description, Axes: response.Variant.Axes}, Sections: sections, Pricing: response.Pricing, Downloads: downloads, Header: header, Branding: brandingProto(response.Branding), Fallback: response.Fallback, CouponMappings: response.CouponMappings, IntroOffers: offers, Presentation: presentationWire}, nil
-}
-
-func brandingProto(branding *landing.LandingBranding) *lpbsv1.LandingBranding {
-	if branding == nil {
-		return nil
-	}
-	return &lpbsv1.LandingBranding{SiteName: branding.SiteName, Tagline: branding.Tagline, LogoUrl: branding.LogoURL, LogoIconUrl: branding.LogoIconURL, FaviconUrl: branding.FaviconURL, ThemePrimaryColor: branding.ThemePrimaryColor, ThemeBackgroundColor: branding.ThemeBackgroundColor, SupportChatUrl: branding.SupportChatURL, SupportEmail: branding.SupportEmail, ComingSoonEnabled: branding.ComingSoonEnabled, ComingSoonMessage: branding.ComingSoonMessage}
-}
-
-func introOffersProto(offers []landing.IntroOffer) ([]*lpbsv1.IntroOffer, error) {
-	result := make([]*lpbsv1.IntroOffer, 0, len(offers))
-	for _, offer := range offers {
-		var months, max *int32
-		if offer.DurationInMonths != nil {
-			value, err := LandingConfigInt32(*offer.DurationInMonths, fmt.Sprintf("intro offer %q duration in months", offer.ID))
-			if err != nil {
-				return nil, err
-			}
-			months = &value
-		}
-		if offer.MaxRedemptions != nil {
-			value, err := LandingConfigInt32(*offer.MaxRedemptions, fmt.Sprintf("intro offer %q max redemptions", offer.ID))
-			if err != nil {
-				return nil, err
-			}
-			max = &value
-		}
-		times, err := LandingConfigInt32(offer.TimesRedeemed, fmt.Sprintf("intro offer %q times redeemed", offer.ID))
-		if err != nil {
-			return nil, err
-		}
-		amountOff, percentOff, redeemBy := offer.AmountOff, offer.PercentOff, offer.RedeemBy
-		result = append(result, &lpbsv1.IntroOffer{Id: offer.ID, Name: offer.Name, AmountOff: &amountOff, PercentOff: &percentOff, Currency: offer.Currency, Duration: offer.Duration, DurationInMonths: months, MaxRedemptions: max, RedeemBy: &redeemBy, TimesRedeemed: times, Valid: offer.Valid, Created: offer.Created, IsIntroCoupon: offer.IsIntroCoupon, IntroTier: offer.IntroTier})
+		result.Header().Set("Cache-Control", "no-store")
 	}
 	return result, nil
 }
 
-// LandingConfigInt32 bounds-checks a domain integer before protobuf encoding.
-func LandingConfigInt32(value int, field string) (int32, error) {
-	if value < math.MinInt32 || value > math.MaxInt32 {
-		return 0, fmt.Errorf("%s %d is outside the protobuf int32 range", field, value)
+func (h LandingConfigConnectHandler) RecordPresentationExposure(ctx context.Context, request *connect.Request[lpbsv1.RecordPresentationExposureRequest]) (*connect.Response[lpbsv1.RecordPresentationExposureResponse], error) {
+	source, err := presentationAssignmentSource(request.Msg.GetSource())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return int32(value), nil
+	recorded, err := h.service.RecordPresentationExposure(ctx, landing.PresentationExposureRequest{
+		VisitorID: request.Msg.GetVisitorId(), VariantSlug: request.Msg.GetVariantSlug(), Revision: request.Msg.GetRevision(),
+		Route: request.Msg.GetRoute(), Locale: request.Msg.GetLocale(), BlockDigest: request.Msg.GetBlockDigest(),
+		WeightFingerprint: request.Msg.GetWeightFingerprint(), Source: source,
+	})
+	if err != nil {
+		return nil, presentationConnectError(fmt.Errorf("record presentation exposure: %w", err))
+	}
+	result := connect.NewResponse(&lpbsv1.RecordPresentationExposureResponse{Recorded: recorded})
+	result.Header().Set("Cache-Control", "no-store")
+	return result, nil
+}
+
+func presentationAssignmentSource(source lpbsv1.PresentationAssignmentSource) (landing.PresentationAssignmentSource, error) {
+	switch source {
+	case lpbsv1.PresentationAssignmentSource_PRESENTATION_ASSIGNMENT_SOURCE_WEIGHTED_VISITOR:
+		return landing.PresentationAssignmentWeightedVisitor, nil
+	case lpbsv1.PresentationAssignmentSource_PRESENTATION_ASSIGNMENT_SOURCE_EXPLICIT_URL:
+		return landing.PresentationAssignmentExplicitURL, nil
+	default:
+		return "", fmt.Errorf("assignment source is required")
+	}
+}
+
+// LandingConfigProto converts domain payloads to their generated public wire contract.
+func LandingConfigProto(response *landing.LandingConfigResponse) (*lpbsv1.LandingConfigResponse, error) {
+	if response == nil || response.Presentation == nil {
+		return nil, fmt.Errorf("typed presentation is required")
+	}
+	downloads, err := landing.ProtoPresentationDownloads(response.Downloads)
+	if err != nil {
+		return nil, err
+	}
+	presentationWire, err := ResolvedPresentationProto(*response.Presentation)
+	if err != nil {
+		return nil, fmt.Errorf("presentation: %w", err)
+	}
+	return &lpbsv1.LandingConfigResponse{
+		Pricing:      response.Pricing,
+		Downloads:    downloads,
+		Fallback:     response.Fallback,
+		Presentation: presentationWire,
+	}, nil
 }
 
 func RegisterLandingConfigConnectRoutes(router *mux.Router, service *landing.LandingConfigService) {

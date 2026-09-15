@@ -44,6 +44,25 @@ func TestEndpointIDDistinguishesMethods(t *testing.T) {
 	}
 }
 
+// [REQ:LP-PRES-009] Released same-origin byte delivery is a documented surface.
+func TestReleasedPresentationAssetsAppearInRouteInventory(t *testing.T) {
+	routes, err := registeredRoutes(filepath.Join("..", "..", "routes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, method := range []string{"GET", "HEAD"} {
+		found := false
+		for _, route := range routes {
+			if route.Path == "/api/v1/presentation-assets/{file}" && route.Method == method {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("same-origin presentation asset %s route is not inventoried", method)
+		}
+	}
+}
+
 func TestConnectRoutesIncludeEveryMountedGeneratedService(t *testing.T) {
 	routes := connectRoutes()
 	seen := make(map[string]struct{}, len(routes))

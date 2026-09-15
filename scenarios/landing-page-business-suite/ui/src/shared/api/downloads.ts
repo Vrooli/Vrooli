@@ -1,6 +1,8 @@
 import { createClient } from '@connectrpc/connect';
+import { fromJsonString, toJson } from '@bufbuild/protobuf';
+import { StructSchema } from '@bufbuild/protobuf/wkt';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { DownloadService } from '@vrooli/proto-types/landing-page-business-suite/v1/download_pb';
+import { DownloadService, type AuthorizeDownloadRequest } from '@vrooli/proto-types/landing-page-business-suite/v1/download_pb';
 import type { DownloadApp as GeneratedDownloadApp, DownloadAsset as GeneratedDownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb';
 import { apiCall } from './common';
 import { CONNECT_API_BASE } from './common';
@@ -47,11 +49,19 @@ export interface DownloadAppInput {
   platforms: DownloadAssetInput[];
 }
 
-export function requestDownload(appKey: string, platform: string, user?: string) {
+/** Delivery Asset.ID, not the managed storage ArtifactID. */
+export interface DownloadSelector { assetId: number }
+
+export function requestDownload(appKey: string, platform: string, user?: string, selector?: DownloadSelector) {
   // Identity is derived from the authenticated session. The optional legacy
   // user argument remains source-compatible but is never sent over the wire.
   void user;
-  return downloadClient.authorizeDownload({ app: appKey, platform }).then((response) => {
+  const request: Pick<AuthorizeDownloadRequest, 'app' | 'platform' | 'assetId'> = { app: appKey, platform };
+  if (selector) {
+    if (!Number.isSafeInteger(selector.assetId) || selector.assetId <= 0) return Promise.reject(new Error('Invalid download asset selector'));
+    request.assetId = BigInt(selector.assetId);
+  }
+  return downloadClient.authorizeDownload(request).then((response) => {
     const validated = response.asset && parseOrNull(DownloadAssetSchema, downloadAssetFromProto(response.asset), 'DownloadAsset');
     if (!validated) {
       throw new Error('Invalid download asset response from API');
@@ -104,9 +114,14 @@ function downloadAppToProto(app: DownloadAppInput) {
     appKey: app.app_key ?? '', name: app.name, tagline: app.tagline ?? '', description: app.description ?? '',
     iconUrl: app.icon_url ?? '', screenshotUrl: app.screenshot_url ?? '', installOverview: app.install_overview ?? '',
     installSteps: app.install_steps ?? [], storefronts: app.storefronts?.map((store) => ({ store: store.store, label: store.label, url: store.url, badge: store.badge ?? '' })) ?? [],
-    metadata: app.metadata, displayOrder: app.display_order ?? 0,
-    platforms: app.platforms.map((asset) => ({ platform: asset.platform, artifactUrl: asset.artifact_url, artifactSource: asset.artifact_source ?? 'direct', artifactId: asset.artifact_id === undefined ? undefined : BigInt(asset.artifact_id), releaseVersion: asset.release_version, releaseNotes: asset.release_notes ?? '', checksum: asset.checksum ?? '', requiresEntitlement: asset.requires_entitlement ?? false, metadata: asset.metadata })),
+    metadata: downloadMetadataToProto(app.metadata), displayOrder: app.display_order ?? 0,
+    platforms: app.platforms.map((asset) => ({ platform: asset.platform, artifactUrl: asset.artifact_url, artifactSource: asset.artifact_source ?? 'direct', artifactId: asset.artifact_id === undefined ? undefined : BigInt(asset.artifact_id), releaseVersion: asset.release_version, releaseNotes: asset.release_notes ?? '', checksum: asset.checksum ?? '', requiresEntitlement: asset.requires_entitlement ?? false, metadata: downloadMetadataToProto(asset.metadata) })),
   };
+}
+
+/** Generated Struct fields use JsonObject; reuse the protobuf JSON codec. */
+function downloadMetadataToProto(value?: Record<string, unknown>) {
+  return value === undefined ? undefined : toJson(StructSchema, fromJsonString(StructSchema, JSON.stringify(value)));
 }
 
 function requireDownloadApp(app: GeneratedDownloadApp | undefined, operation: string): DownloadApp {

@@ -10,7 +10,6 @@ import (
 	"landing-page-business-suite-api/internal/analytics"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
-	"landing-page-business-suite-api/internal/landing"
 	"landing-page-business-suite-api/internal/logx"
 
 	"github.com/vrooli/api-core/database"
@@ -73,7 +72,11 @@ func seedDefaultData(db StartupStore) error {
 	if _, err := db.Exec(seedPaymentSettingsSQL); err != nil {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
 	}
-	if err := seedDownloadDefaults(db, landing.DefaultFallbackDownloads()); err != nil {
+	downloads, err := delivery.DefaultDownloadSeed()
+	if err != nil {
+		return fmt.Errorf("load delivery seed: %w", err)
+	}
+	if err := seedDownloadDefaults(db, downloads); err != nil {
 		return err
 	}
 	return seedTierLimitsDefaults(db)
@@ -83,12 +86,6 @@ func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 	if len(downloads) == 0 {
 		return nil
 	}
-	var count int
-	if err := db.QueryRow(seedDownloadAppCountSQL).Scan(&count); err != nil {
-		return fmt.Errorf("count download apps: %w", err)
-	}
-	_ = count // Existing rows are preserved; missing canonical limits are additive.
-
 	for idx, app := range downloads {
 		bundleKey := strings.TrimSpace(app.BundleKey)
 		appKey := strings.TrimSpace(app.AppKey)

@@ -94,6 +94,40 @@ func TestVariantConnectHandler_RejectsInvalidLifecycleRequests(t *testing.T) {
 	}
 }
 
+func TestPublicVariantIdentityDoesNotExposeUnpublishedNarrative(t *testing.T) { // [REQ:LP-PRES-012]
+	store := isolatedVariantStore(t)
+	snapshot, err := store.GetVariant("control")
+	if err != nil {
+		t.Fatal(err)
+	}
+	copySnapshot := *snapshot
+	copySnapshot.Variant.Description = "Private migration narrative"
+	copySnapshot.Variant.HeaderConfig.Branding.Label = "Disabled product narrative"
+	if err := store.SaveVariant("control", &copySnapshot); err != nil {
+		t.Fatal(err)
+	}
+	handler := newVariantConnectHandler(store)
+	for _, selectRandom := range []bool{false, true} {
+		var response *connect.Response[lpbsv1.VariantResponse]
+		if selectRandom {
+			response, err = handler.SelectVariant(context.Background(), connect.NewRequest(&lpbsv1.SelectVariantRequest{VisitorId: "test"}))
+		} else {
+			response, err = handler.GetPublicVariant(context.Background(), connect.NewRequest(&lpbsv1.GetPublicVariantRequest{Slug: "control"}))
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		value := response.Msg.Variant
+		if value.Slug == "" || value.Status != "active" || value.HeaderConfig != nil || value.SeoConfig != nil || value.Description != "" || value.Name != "" || len(value.Axes) != 0 {
+			t.Fatalf("public variant identity leaked mutable narrative: %+v", value)
+		}
+	}
+	admin, err := handler.GetVariant(context.Background(), connect.NewRequest(&lpbsv1.GetVariantRequest{Slug: "control"}))
+	if err != nil || admin.Msg.Variant.Description != "Private migration narrative" || admin.Msg.Variant.HeaderConfig.Branding.Label != "Disabled product narrative" {
+		t.Fatalf("private recovery data changed: response=%v error=%v", admin, err)
+	}
+}
+
 func TestVariantConnectHandler_ManagesSectionsByVariantScopedKey(t *testing.T) {
 	handler := newVariantConnectHandler(isolatedVariantStore(t))
 	ctx := context.Background()

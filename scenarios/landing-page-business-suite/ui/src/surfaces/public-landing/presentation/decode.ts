@@ -45,6 +45,7 @@ function footer(v: Wire.PresentationFooter): Footer {
 }
 
 function action(v: Wire.PresentationAction): Action {
+  if (!v.label.trim() || !v.accessibleLabel.trim()) throw new Error('Missing configured action label');
   return {
     kind: oneOf<Action['kind']>(v.kind, ['open', 'download', 'purchase', 'request-access', 'unavailable', 'anchor', 'app-detail']),
     label: v.label,
@@ -130,6 +131,11 @@ function productDemo(v: Wire.PresentationProductDemo): ContentByKind['product-de
     poster_ref: v.posterRef,
     media_ref: v.mediaRef,
     alt_text: v.altText,
+    playback: v.playback ? {
+      provider: oneOf(v.playback.provider, ['youtube', 'vimeo']), external_url: v.playback.externalUrl,
+      layout: oneOf(v.playback.layout, ['stacked', 'split']), play_label: v.playback.playLabel,
+      caption: v.playback.caption, unavailable_label: v.playback.unavailableLabel,
+    } : undefined,
   };
 }
 
@@ -462,7 +468,6 @@ function fixture(v: Wire.PresentationFixture): ConfiguredFixture {
     case 'workspace': return { id: v.id, kind: v.data.case, workspace: workspace(v.data.value) };
     case 'backdrop': return { id: v.id, kind: v.data.case, backdrop: backdrop(v.data.value) };
     case 'workflow': return { id: v.id, kind: v.data.case, workflow: workflow(v.data.value) };
-    case undefined: throw new Error('Missing fixture content');
     default: return unreachable(v.data);
   }
 }
@@ -515,7 +520,7 @@ export function decodeProductPresentation(value: Wire.ResolvedProductPresentatio
     },
     diagnostics: {
       preview: diagnostics.preview, eligible_app_keys: [...diagnostics.eligibleAppKeys],
-      noindex: diagnostics.noindex, no_store: diagnostics.noStore, resolved_revision: diagnostics.resolvedRevision,
+      noindex: diagnostics.noindex, no_store: diagnostics.noStore, resolved_revision: diagnostics.resolvedRevision, fallback: diagnostics.fallback,
     },
   };
   if (diagnostics.preview && (!diagnostics.noindex || !diagnostics.noStore)) throw new Error('Unsafe preview diagnostics');
@@ -528,4 +533,3 @@ export function decodeProductPresentation(value: Wire.ResolvedProductPresentatio
 export function parseProductPresentation(text: string): Presentation {
   return decodeProductPresentation(fromJsonString(ResolvedProductPresentationSchema, text, { ignoreUnknownFields: false }));
 }
-

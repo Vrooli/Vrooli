@@ -4,6 +4,7 @@
 package metrics
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -18,8 +19,9 @@ import (
 )
 
 type Service struct {
-	db    Store
-	clock schedule.Clock
+	db        Store
+	contextDB ContextStore
+	clock     schedule.Clock
 }
 
 // Store is the persistence boundary for metrics ingestion and reporting.
@@ -28,6 +30,16 @@ type Store interface {
 	Query(string, ...any) (*sql.Rows, error)
 	Exec(string, ...any) (sql.Result, error)
 }
+
+// ContextStore is the request-scoped persistence boundary for operations that
+// must honor Test Genie's lease routing. It is intentionally separate from the
+// legacy Store contract until the broader metrics read/write migration is
+// complete.
+type ContextStore interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+var ErrPresentationExposureUnavailable = errors.New("presentation exposure persistence is unavailable")
 
 var validEventTypes = map[string]struct{}{
 	"page_view": {}, "scroll_depth": {}, "click": {}, "form_submit": {},
@@ -50,7 +62,21 @@ func NewServiceWithClock(db Store, serviceClock schedule.Clock) *Service {
 	if serviceClock == nil {
 		serviceClock = schedule.System()
 	}
-	return &Service{db: db, clock: serviceClock}
+	service := &Service{db: db, clock: serviceClock}
+	if contextDB, ok := db.(ContextStore); ok {
+		service.contextDB = contextDB
+	}
+	return service
+}
+
+// NewServiceWithContextStore keeps existing metrics reads on their current
+// Store seam while routing new request-scoped writes through an explicit
+// context-aware owner. A nil context store is a hard error for those writes;
+// the method never falls back to Store.Exec.
+func NewServiceWithContextStore(db Store, contextDB ContextStore) *Service {
+	service := NewService(db)
+	service.contextDB = contextDB
+	return service
 }
 
 type Event struct {
@@ -128,6 +154,39 @@ func (s *Service) RecordExposure(visitorID, variantSlug, weightFingerprint strin
 		return fmt.Errorf("record experiment exposure: %w", err)
 	}
 	return nil
+}
+
+// RecordPresentationExposure records a validated public presentation
+// assignment using the existing experiment-exposure deduplication key. The
+// revision, route, locale, and block digest are proof inputs owned and
+// validated by the landing service; this persistence owner deliberately does
+// not create a new schema surface before the parent protocol decision.
+func (s *Service) RecordPresentationExposure(ctx context.Context, visitorID, variantSlug, revision, route, locale, blockDigest, weightFingerprint string) (bool, error) {
+	for field, value := range map[string]string{
+		"visitor_id":         visitorID,
+		"variant_slug":       variantSlug,
+		"revision":           revision,
+		"route":              route,
+		"locale":             locale,
+		"block_digest":       blockDigest,
+		"weight_fingerprint": weightFingerprint,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return false, &ValidationError{Field: field, Reason: "is required"}
+		}
+	}
+	if s.contextDB == nil {
+		return false, ErrPresentationExposureUnavailable
+	}
+	result, err := s.contextDB.ExecContext(ctx, `INSERT INTO experiment_exposures (visitor_id, variant_slug, weight_fingerprint) VALUES ($1, $2, $3) ON CONFLICT (visitor_id, variant_slug, weight_fingerprint) DO NOTHING`, strings.TrimSpace(visitorID), strings.TrimSpace(variantSlug), strings.TrimSpace(weightFingerprint))
+	if err != nil {
+		return false, fmt.Errorf("record presentation exposure: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("inspect presentation exposure result: %w", err)
+	}
+	return rows > 0, nil
 }
 
 // AdminRevenue is the canonical producer-owned revenue projection. Monetary

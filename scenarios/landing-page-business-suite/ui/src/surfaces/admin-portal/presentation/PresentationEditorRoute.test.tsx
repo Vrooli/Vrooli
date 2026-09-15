@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { renderWithProviders as render } from '@vrooli/api-base/testing';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { AdminAuthContext } from '../../../app/providers/AdminAuthContext';
-import { parsePresentationDocument } from '../../../shared/api/productPresentation';
+import { formatPresentationDocument, parsePresentationDocument } from '../../../shared/api/productPresentation';
+import * as legacyAdapter from '../../../shared/lib/presentationLegacyImport';
 import { PresentationEditorRoute, type PresentationEditorRouteProps } from './PresentationEditorRoute';
 import { admin, clientFixture, snapshot } from './testFixtures';
 
@@ -21,6 +22,100 @@ async function edit() {
 }
 
 describe('authenticated presentation editor', () => {
+  it('imports into the current dirty private draft through the real local adapter without save, publish or rollback', async () => {
+    const client = clientFixture(); const response = snapshot();
+    const app = response.document?.apps[0]; if (!app) throw new Error('Fixture app missing');
+    app.enabled = false; app.visibility = 'private'; app.publication = 'draft'; app.pageId = 'z-page';
+    client.getPresentation.mockResolvedValue(response); mount({ client }); const input = await edit();
+    const before = parsePresentationDocument(input.value);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Import target app' }), { target: { value: app.key } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Import target locale' }), { target: { value: 'fr' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Legacy snapshot JSON' }), { target: { value: JSON.stringify({ variant: {}, sections: [{ key: 'imported', section_type: 'faq', content: { title: 'Recovered questions', items: [{ question: 'Recovered question?', answer: 'Recovered answer.' }] } }] }) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import into local document' }));
+    await screen.findByRole('region', { name: 'Local import receipt' });
+    const after = parsePresentationDocument(input.value);
+    expect(after.pages[0]?.title).toBe('Changed first page');
+    expect(after.pages[0]?.blocks.slice(0, 2)).toEqual(before.pages[0]?.blocks);
+    expect(after.pages[0]?.blocks).toHaveLength(3); expect(after.pages[1]).toEqual(before.pages[1]);
+    expect(after.apps).toEqual(before.apps); expect(after.bundle).toEqual(before.bundle);
+    expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Publish draft…' })).toBeDisabled();
+    expect(client.saveDraft).not.toHaveBeenCalled(); expect(client.publish).not.toHaveBeenCalled(); expect(client.rollback).not.toHaveBeenCalled();
+  });
+  it.each(['logout', 'route', 'document'] as const)('does not apply a late local import after mounted editor %s changes', async changed => {
+    const client = clientFixture(); const response = snapshot(); const document = response.document;
+    const app = document?.apps[0]; if (!document || !app) throw new Error('Fixture app missing');
+    app.enabled = false; app.visibility = 'private'; app.publication = 'draft'; app.pageId = 'z-page';
+    client.getPresentation.mockResolvedValue(response);
+    const value = await legacyAdapter.importLegacyPresentationSnapshot(document, '{"variant":{},"sections":[]}', { adapterVersion: 1, appKey: app.key, locale: 'fr' });
+    let finish: ((result: legacyAdapter.LegacyImportResult) => void) | undefined;
+    vi.spyOn(legacyAdapter, 'importLegacyPresentationSnapshot').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const view = mount({ client }); const input = await source();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Import target app' }), { target: { value: app.key } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Import target locale' }), { target: { value: 'fr' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Legacy snapshot JSON' }), { target: { value: '{"variant":{},"sections":[]}' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import into local document' }));
+    if (changed === 'logout') view.rerender(<AdminAuthContext.Provider value={{ ...admin, isAuthenticated: false, user: null }}><PresentationEditorRoute variantSlug="control" client={client} /></AdminAuthContext.Provider>);
+    if (changed === 'route') fireEvent.change(screen.getByRole('textbox', { name: 'Page route' }), { target: { value: '/apps/other' } });
+    if (changed === 'document') await edit();
+    const expectedText = input.value;
+    await act(async () => { finish?.(value); await Promise.resolve(); });
+    expect(screen.queryByRole('region', { name: 'Local import receipt' })).toBeNull();
+    if (changed === 'logout') { expect(screen.queryByRole('textbox')).toBeNull(); expect(screen.getByRole('alert')).toHaveTextContent('Sign in'); }
+    else { expect(input).toHaveValue(expectedText); expect(input.value).not.toBe(formatPresentationDocument(value.document)); }
+    expect(client.saveDraft).not.toHaveBeenCalled(); expect(client.publish).not.toHaveBeenCalled(); expect(client.rollback).not.toHaveBeenCalled();
+  });
+  it('does not fetch private configuration while the session is still being checked', () => {
+    const client = clientFixture();
+    mount({ client }, { ...admin, isSessionLoading: true });
+    expect(screen.getByRole('status')).toHaveTextContent('Checking administrator session');
+    expect(client.getPresentation).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+  it('requires an explicit nonblank variant even for an authenticated administrator', () => {
+    const client = clientFixture(); mount({ client, variantSlug: '  ' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Select an explicit presentation variant');
+    expect(client.getPresentation).not.toHaveBeenCalled();
+  });
+  it.each(['state', 'variant', 'document'] as const)('rejects an incomplete or mis-scoped owner snapshot: %s', async missing => {
+    const client = clientFixture(); const response = snapshot();
+    if (missing === 'state') response.state = undefined;
+    if (missing === 'variant') response.variantSlug = 'another-variant';
+    if (missing === 'document') response.document = undefined;
+    client.getPresentation.mockResolvedValue(response); mount({ client });
+    await screen.findByText('Request not confirmed');
+    expect(screen.queryByRole('textbox', { name: 'Complete document JSON' })).toBeNull();
+    expect(document.body).not.toHaveTextContent('PRIVATE-REFERENCE');
+    expect(client.saveDraft).not.toHaveBeenCalled(); expect(client.publish).not.toHaveBeenCalled();
+  });
+  it('edits the explicitly selected page title and description without changing other pages or saving', async () => {
+    const client = clientFixture(); mount({ client }); const input = await source();
+    const original = parsePresentationDocument(input.value);
+    fireEvent.click(screen.getByRole('button', { name: 'a-page · en' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Page title' }), { target: { value: 'Localized second title' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Page description' }), { target: { value: 'Localized second description' } });
+    const changed = parsePresentationDocument(input.value);
+    expect(changed.pages.map(page => page.id)).toEqual(['z-page', 'a-page']);
+    expect(changed.pages[0]).toEqual(original.pages[0]);
+    expect(changed.pages[1]).toEqual({ ...original.pages[1], title: 'Localized second title', description: 'Localized second description' });
+    expect(changed.bundle).toEqual(original.bundle); expect(changed.strings).toEqual(original.strings);
+    expect(client.saveDraft).not.toHaveBeenCalled(); expect(client.publish).not.toHaveBeenCalled();
+  });
+  it.each(['publish', 'rollback', 'reload'] as const)('Escape dismisses %s confirmation without mutation or lost edits', async action => {
+    const client = clientFixture(); mount({ client }); const input = await source();
+    if (action === 'reload') {
+      await edit(); fireEvent.click(screen.getByRole('button', { name: 'Reload draft' }));
+    } else if (action === 'rollback') {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Retained published revision' }), { target: { value: 'older-revision' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Roll back…' }));
+    } else fireEvent.click(screen.getByRole('button', { name: 'Publish draft…' }));
+    const text = input.value;
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull(); });
+    expect(input).toHaveValue(text); expect(input).toBeEnabled();
+    expect(client.getPresentation).toHaveBeenCalledTimes(1);
+    expect(client.publish).not.toHaveBeenCalled(); expect(client.rollback).not.toHaveBeenCalled(); expect(client.saveDraft).not.toHaveBeenCalled();
+  });
   it('does not fetch or disclose document data before administrator authentication', () => {
     const client = clientFixture();
     mount({ client }, { ...admin, isAuthenticated: false, user: null });
@@ -41,6 +136,7 @@ describe('authenticated presentation editor', () => {
     const request = client.saveDraft.mock.calls[0]?.[0];
     expect(request?.expectedGeneration).toBe(9007199254740993n);
     expect(request?.document?.pages?.[0]?.title).toBe('Changed first page');
+    expect(request?.document?.pages?.[0]?.display?.shell?.brandName).toBe('Configured brand');
     expect(request?.document?.bundle?.appOrder).toEqual(['second-app', 'first-app']);
     expect(request?.document?.apps?.[0]?.preservationRef).toBe('PRIVATE-REFERENCE');
     expect(request?.document?.strings?.fr?.values).toEqual({ 'custom.copy': 'Configured localized copy' });
@@ -118,6 +214,7 @@ describe('authenticated presentation editor', () => {
   it('previews the authorized saved revision without public navigation or demo substitution', async () => {
     const client = clientFixture(); const storage = vi.spyOn(Storage.prototype, 'setItem');
     mount({ client }); await source();
+    fireEvent.click(screen.getByRole('radio', { name: 'Saved revision' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Page route' }), { target: { value: '/apps/configured-slug' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview saved revision' }));
     await screen.findByRole('heading', { name: 'Configured preview heading' });
@@ -130,6 +227,7 @@ describe('authenticated presentation editor', () => {
     const client = clientFixture();
     client.preview.mockResolvedValue({ $typeName: 'landing_page_business_suite.v1.PreviewPresentationResponse', presentation: undefined });
     mount({ client }); await source();
+    fireEvent.click(screen.getByRole('radio', { name: 'Saved revision' }));
     fireEvent.click(screen.getByRole('button', { name: 'Preview saved revision' }));
     await screen.findByText('Request not confirmed');
     expect(screen.queryByRole('region', { name: 'Private revision preview' })).toBeNull();

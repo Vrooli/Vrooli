@@ -29,7 +29,6 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		syncVariantsCommand(deps),
 	}
 	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
-		{Name: "public-variant-sections", Method: "GET", Path: "/public/variants/{variant_slug}/sections", Description: "Get public sections for a variant"},
 		{Name: "variants-sections", Method: "GET", Path: "/variants/{variant_slug}/sections", Description: "Get variant sections (admin)"},
 	})...)
 	return cliapp.CommandGroup{Title: "Variants", Commands: commands}

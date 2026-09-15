@@ -28,10 +28,36 @@ type Store interface {
 // upload and download operations for the delivery domain.
 type Service struct {
 	db        Store
+	resolver  RequestStoreResolver
 	providers map[string]StorageProvider
 }
 
+func (s *Service) bindRequest(ctx context.Context) (*Service, error) {
+	if s.resolver == nil {
+		return s, nil
+	}
+	db, err := s.resolver.ResolveRequestStore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bound := *s
+	bound.db = db
+	bound.resolver = nil
+	return &bound, nil
+}
+
 func NewService(db Store, providers ...StorageProvider) *Service {
+	return newService(db, nil, providers...)
+}
+
+// NewServiceWithRequestStore composes a Service with a request-store resolver.
+// The resolver is called once per operation and the returned concrete Store is
+// used for every query, write, and provider-settings read in that operation.
+func NewServiceWithRequestStore(resolver RequestStoreResolver, providers ...StorageProvider) *Service {
+	return newService(nil, resolver, providers...)
+}
+
+func newService(db Store, resolver RequestStoreResolver, providers ...StorageProvider) *Service {
 	registered := map[string]StorageProvider{}
 	for _, provider := range providers {
 		if provider == nil {
@@ -50,6 +76,7 @@ func NewService(db Store, providers ...StorageProvider) *Service {
 
 	return &Service{
 		db:        db,
+		resolver:  resolver,
 		providers: registered,
 	}
 }
@@ -75,6 +102,13 @@ func (s *Service) HasProvider(providerKey string) bool {
 }
 
 func (s *Service) GetSettings(ctx context.Context, bundleKey string) (*StorageSettings, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.GetSettings(ctx, bundleKey)
+	}
 	bundleKey = strings.TrimSpace(bundleKey)
 	if bundleKey == "" {
 		return nil, fmt.Errorf("bundle_key is required")
@@ -173,6 +207,13 @@ func (s *Service) ValidateStorageSettings(settings StorageSettings) error {
 }
 
 func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update StorageSettingsUpdate) (*StorageSettingsSnapshot, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.SaveSettings(ctx, bundleKey, update)
+	}
 	bundleKey = strings.TrimSpace(bundleKey)
 	if bundleKey == "" {
 		return nil, fmt.Errorf("bundle_key is required")
@@ -262,6 +303,13 @@ func (s *Service) requireConfiguredSettings(ctx context.Context, bundleKey strin
 }
 
 func (s *Service) TestConnection(ctx context.Context, bundleKey string) error {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return err
+	}
+	if bound != s {
+		return bound.TestConnection(ctx, bundleKey)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return err
@@ -277,6 +325,13 @@ func (s *Service) TestConnection(ctx context.Context, bundleKey string) error {
 }
 
 func (s *Service) PresignUpload(ctx context.Context, bundleKey string, req PresignUploadRequest) (*PresignUploadResponse, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.PresignUpload(ctx, bundleKey, req)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return nil, err
@@ -312,6 +367,13 @@ func (s *Service) PresignUpload(ctx context.Context, bundleKey string, req Presi
 }
 
 func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req CommitArtifactRequest) (*Artifact, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.CommitArtifact(ctx, bundleKey, req)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return nil, err
@@ -488,6 +550,13 @@ func (s *Service) getArtifactByObject(ctx context.Context, bundleKey, bucket, ob
 }
 
 func (s *Service) GetArtifact(ctx context.Context, bundleKey string, id int64) (*Artifact, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.GetArtifact(ctx, bundleKey, id)
+	}
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
 		       release_id, git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
@@ -509,6 +578,13 @@ func (s *Service) GetArtifact(ctx context.Context, bundleKey string, id int64) (
 }
 
 func (s *Service) ListArtifacts(ctx context.Context, bundleKey string, query, platform, appKey string, page, pageSize int) (*ListArtifactsResult, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.ListArtifacts(ctx, bundleKey, query, platform, appKey, page, pageSize)
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -587,6 +663,13 @@ func (s *Service) ListArtifacts(ctx context.Context, bundleKey string, query, pl
 // ListArtifactsByApp returns artifacts for a specific app/platform with is_current flags
 // indicating which artifact is currently active (linked in download_assets).
 func (s *Service) ListArtifactsByApp(ctx context.Context, bundleKey, appKey, platform string, page, pageSize int) (*ListArtifactsResult, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.ListArtifactsByApp(ctx, bundleKey, appKey, platform, page, pageSize)
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -662,6 +745,13 @@ func (s *Service) ListArtifactsByApp(ctx context.Context, bundleKey, appKey, pla
 
 // GetCurrentArtifactByFilename returns the current artifact for an app/variant matching a filename.
 func (s *Service) GetCurrentArtifactByFilename(ctx context.Context, bundleKey, appKey, variantKey, filename string) (*Artifact, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.GetCurrentArtifactByFilename(ctx, bundleKey, appKey, variantKey, filename)
+	}
 	row := s.db.QueryRowContext(ctx, `
 		SELECT da.id, da.bundle_key, da.app_key, da.provider, da.bucket, da.object_key,
 		       da.etag, da.size_bytes, da.sha256, da.sha512, da.release_id, da.git_commit_hash, da.content_type,
@@ -687,6 +777,13 @@ func (s *Service) GetCurrentArtifactByFilename(ctx context.Context, bundleKey, a
 }
 
 func (s *Service) PresignGetArtifact(ctx context.Context, bundleKey string, artifact Artifact) (string, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return "", err
+	}
+	if bound != s {
+		return bound.PresignGetArtifact(ctx, bundleKey, artifact)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return "", err
@@ -706,6 +803,13 @@ func (s *Service) PresignGetArtifact(ctx context.Context, bundleKey string, arti
 
 // HeadArtifact checks if an artifact's S3 object is accessible.
 func (s *Service) HeadArtifact(ctx context.Context, bundleKey string, artifact Artifact) error {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return err
+	}
+	if bound != s {
+		return bound.HeadArtifact(ctx, bundleKey, artifact)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return err
@@ -721,6 +825,13 @@ func (s *Service) HeadArtifact(ctx context.Context, bundleKey string, artifact A
 // ReadArtifact opens the provider object for byte-level verification. Callers
 // own and must close the returned body.
 func (s *Service) ReadArtifact(ctx context.Context, bundleKey string, artifact Artifact) (io.ReadCloser, int64, string, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if bound != s {
+		return bound.ReadArtifact(ctx, bundleKey, artifact)
+	}
 	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
 	if err != nil {
 		return nil, 0, "", err

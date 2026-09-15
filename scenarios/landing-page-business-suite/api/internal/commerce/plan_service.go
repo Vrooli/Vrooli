@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/filerouting"
 	"landing-page-business-suite-api/internal/envx"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -38,6 +39,7 @@ type PlanServiceOptions struct {
 	PlanStore     *PlanStore
 	DefaultBundle string
 	DisplayEnv    string
+	ConfigRoots   *filerouting.RoutedRoots
 	// Log is an optional composition-root supplied observability seam.
 	Log func(event string, fields map[string]interface{})
 }
@@ -56,9 +58,10 @@ func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
 	if planStore == nil {
 		plansPath := ResolvePlansPath()
 		planStore = NewPlanStoreWithOptions(PlanStoreOptions{
-			PlansPath:  plansPath,
-			BundleKey:  bundle,
-			DisplayEnv: env,
+			PlansPath:   plansPath,
+			BundleKey:   bundle,
+			DisplayEnv:  env,
+			ConfigRoots: opts.ConfigRoots,
 		})
 		_ = planStore.LoadAll()
 	}
@@ -88,9 +91,29 @@ func (s *PlanService) GetPlanStore() *PlanStore {
 	return s.planStore
 }
 
+// SetFileRoots attaches the lifecycle-routed configuration roots to the plan
+// owner. Parent composition should call this after creating fileRoots and
+// before serving request-context-aware landing reads.
+func (s *PlanService) SetFileRoots(roots *filerouting.RoutedRoots) {
+	if s == nil || s.planStore == nil {
+		return
+	}
+	s.planStore.SetFileRoots(roots)
+}
+
 // GetPricingOverview loads the product and price rows for the default bundle.
 func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 	return s.planStore.GetPricingOverview()
+}
+
+// GetPricingOverviewForBundle reads the requested configured bundle using the
+// caller's request context. Routed ClassConfig snapshots are selected by the
+// PlanStore; test-mode callers never fall back to the primary catalog.
+func (s *PlanService) GetPricingOverviewForBundle(ctx context.Context, bundleKey string) (*PricingOverview, error) {
+	if s == nil || s.planStore == nil {
+		return nil, fmt.Errorf("plan service is unavailable")
+	}
+	return s.planStore.GetPricingOverviewForBundle(ctx, bundleKey)
 }
 
 // GetPlanByPriceID fetches a plan option for a Stripe price identifier.

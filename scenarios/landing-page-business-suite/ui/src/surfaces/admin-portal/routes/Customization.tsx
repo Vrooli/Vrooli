@@ -321,18 +321,19 @@ export function Customization() {
                           ))}
                         </div>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           aria-label={`Edit ${variant.name}`}
                           className="flex-1 gap-2"
-                          onClick={() => { navigateToVariantEditor(variant.slug); }}
+                          onClick={() => { void navigateToSectionEditor(variant.slug); }}
                           data-testid={`edit-variant-${variant.slug}`}
                         >
                           <Edit className="h-4 w-4" />
-                          Edit
+                          Edit Presentation
                         </Button>
+                        <Button variant="ghost" size="sm" aria-label={`Metadata for ${variant.name}`} onClick={() => { navigateToVariantEditor(variant.slug); }}>Metadata</Button>
                         <Button
                           variant="outline"
                           size="sm"

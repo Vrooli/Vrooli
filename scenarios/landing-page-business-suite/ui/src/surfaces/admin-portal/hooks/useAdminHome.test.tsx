@@ -513,7 +513,7 @@ describe('useAdminHome', () => {
       const { result } = renderHook(() => useAdminHome());
 
       const path = result.current.buildResumeVariantPath();
-      expect(path).toBe('/admin/customization/variants/test-variant/sections/123');
+      expect(path).toBe('/admin/presentation/test-variant');
 
       await waitForInitialLoads(result);
     });

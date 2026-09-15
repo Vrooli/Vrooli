@@ -89,12 +89,14 @@ Click "Preview Landing" or visit `/` in a new tab.
 
 ### 3. Edit Hero Content
 
-1. Go to **Customization**
-2. Select the **Control** variant
-3. Click **Hero** section
-4. Edit the headline and CTA
-5. Watch the live preview update
-6. Click **Save**
+1. Open `/admin/presentation/control` (or select an existing variant in Presentation).
+2. Edit the configured product-hero block in the presentation document.
+3. Save the draft and inspect its private root or app-detail preview.
+4. Resolve validation errors and missing capability/asset qualification.
+5. Confirm **Publish draft** when ready. Saving alone does not change the public page.
+
+The initial recommended document is a draft. Review-fixture artwork is not a
+released asset, and upcoming remote/device features must remain coming soon.
 
 ### 4. View Analytics
 

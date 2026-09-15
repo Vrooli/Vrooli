@@ -79,6 +79,11 @@ func main() {
 	if err := internalcatalog.NewStore(db.Primary()).Seed(context.Background()); err != nil {
 		log.Fatalf("catalog seed failed: %v", err)
 	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
 	imageClient := imageengine.NewClient()
 	// The render store reaches authored generators through the catalog, which
 	// is the single authority on what a generator is. A style bound to one that
@@ -98,12 +103,7 @@ func main() {
 	// The render store is the provenance source: a candidate's model, prompt
 	// and seed are read from the render that produced them, never from the
 	// caller asking for the release.
-	releaseStore := internalrelease.NewStoreWithPublisher(assetPublisher, renderStore, renderStore)
-	primaryFileRoots, err := scenarioStorageRoots()
-	if err != nil {
-		log.Fatalf("file storage configuration failed: %v", err)
-	}
-	fileRoots := filerouting.New(primaryFileRoots)
+	releaseStore := internalrelease.NewStoreWithPublisherAndRoots(assetPublisher, renderStore, fileRoots, renderStore)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},

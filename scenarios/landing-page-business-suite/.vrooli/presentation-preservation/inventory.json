@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "inventoryId": "bas-disabled-profile-migration-v1",
   "generatedAt": "2026-09-15",
+  "sourceCaptureManifest": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/source-captures.json",
   "scope": {
     "scenario": "landing-page-business-suite",
     "appKey": "browser-automation-studio",

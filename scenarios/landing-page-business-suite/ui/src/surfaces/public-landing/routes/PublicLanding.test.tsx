@@ -1,575 +1,219 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { renderWithProviders as render } from "@vrooli/api-base/testing";
-import { fireEvent, screen, within } from "@testing-library/react";
-import type { ReactNode } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { PublicLanding } from './PublicLanding';
-
-const useLandingVariantMock = vi.hoisted(() => vi.fn());
-
-vi.mock('../../../app/providers/LandingVariantProvider', () => {
-  const mockConfig = {
-    variant: { id: 1, slug: 'control', name: 'Control' },
-    branding: {
-      site_name: 'Acme Launchpad',
-      tagline: 'Automation that ships',
-      logo_url: 'https://cdn.example.com/logo.svg',
-      logo_icon_url: 'https://cdn.example.com/icon.png',
-    },
-    sections: [
-      {
-        id: 1,
-        section_type: 'hero',
-        order: 1,
-        enabled: true,
-        content: {
-          title: 'Test Hero',
-          subtitle: 'Subtitle',
-          cta_text: 'Start Trial',
-          cta_url: '/signup',
-        },
-      },
-    ],
-    downloads: [
-      {
-        bundle_key: 'bundle',
-        app_key: 'desktop',
-        name: 'Desktop Suite',
-        tagline: 'mac + windows',
-        description: '',
-        install_overview: '',
-        install_steps: [],
-        storefronts: [],
-        display_order: 0,
-        platforms: [
-          {
-            id: 1,
-            bundle_key: 'bundle',
-            app_key: 'desktop',
-            platform: 'mac',
-            artifact_url: 'https://example.com/app.dmg',
-            release_version: '1.0.0',
-            requires_entitlement: false,
-          },
-        ],
-      },
-    ],
-    fallback: false,
-    pricing: null,
-    header: {
-      branding: { mode: 'logo_and_name', label: 'Acme Launchpad', mobile_preference: 'auto' },
-      nav: { links: [] },
-      ctas: {
-        primary: { mode: 'inherit_hero', variant: 'solid' },
-        secondary: { mode: 'downloads', variant: 'ghost' },
-      },
-      behavior: { sticky: true, hide_on_scroll: false },
-    },
-  };
-
-  return {
-    useLandingVariant: () => ({
-      variant: { slug: 'control', name: 'Control' },
-      config: mockConfig,
-      loading: false,
-      error: null,
-      resolution: 'api_select',
-      statusNote: null,
-      lastUpdated: Date.now(),
-      refresh: vi.fn(),
-    }),
-    LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-  };
-});
-
-// Also mock the separate useLandingVariant hook file (PublicLanding imports from here)
-vi.mock('../../../app/providers/useLandingVariant', () => {
-  const mockConfig = {
-    variant: { id: 1, slug: 'control', name: 'Control' },
-    branding: {
-      site_name: 'Acme Launchpad',
-      tagline: 'Automation that ships',
-      logo_url: 'https://cdn.example.com/logo.svg',
-      logo_icon_url: 'https://cdn.example.com/icon.png',
-    },
-    sections: [
-      {
-        id: 1,
-        section_type: 'hero',
-        order: 1,
-        enabled: true,
-        content: {
-          title: 'Test Hero',
-          subtitle: 'Subtitle',
-          cta_text: 'Start Trial',
-          cta_url: '/signup',
-        },
-      },
-    ],
-    downloads: [
-      {
-        bundle_key: 'bundle',
-        app_key: 'desktop',
-        name: 'Desktop Suite',
-        tagline: 'mac + windows',
-        description: '',
-        install_overview: '',
-        install_steps: [],
-        storefronts: [],
-        display_order: 0,
-        platforms: [
-          {
-            id: 1,
-            bundle_key: 'bundle',
-            app_key: 'desktop',
-            platform: 'mac',
-            artifact_url: 'https://example.com/app.dmg',
-            release_version: '1.0.0',
-            requires_entitlement: false,
-          },
-        ],
-      },
-    ],
-    fallback: false,
-    pricing: null,
-    header: {
-      branding: { mode: 'logo_and_name', label: 'Acme Launchpad', mobile_preference: 'auto' },
-      nav: { links: [] },
-      ctas: {
-        primary: { mode: 'inherit_hero', variant: 'solid' },
-        secondary: { mode: 'downloads', variant: 'ghost' },
-      },
-      behavior: { sticky: true, hide_on_scroll: false },
-    },
-  };
-
-  return { useLandingVariant: useLandingVariantMock };
-});
-
-vi.mock('../../../shared/hooks/useMetricsHook', () => ({
-  useMetrics: () => ({
-    trackCTAClick: vi.fn(),
-    trackDownload: vi.fn(),
-  }),
-}));
-
-describe('PublicLanding header rails', () => {
-  beforeEach(() => {
-    useLandingVariantMock.mockReset();
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'control', name: 'Control', status: 'active' },
-      config: {
-        variant: { id: 1, slug: 'control', name: 'Control' },
-        branding: {
-          site_name: 'Acme Launchpad',
-          tagline: 'Automation that ships',
-          logo_url: 'https://cdn.example.com/logo.svg',
-          logo_icon_url: 'https://cdn.example.com/icon.png',
-        },
-        sections: [{
-          id: 1,
-          section_type: 'hero',
-          order: 1,
-          enabled: true,
-          content: { title: 'Test Hero', subtitle: 'Subtitle', cta_text: 'Start Trial', cta_url: '/signup' },
-        }],
-        downloads: [{
-          bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop Suite', tagline: 'mac + windows',
-          description: '', install_overview: '', install_steps: [], storefronts: [], display_order: 0,
-          platforms: [{ id: 1, bundle_key: 'bundle', app_key: 'desktop', platform: 'mac', artifact_url: 'https://example.com/app.dmg', release_version: '1.0.0', requires_entitlement: false }],
-        }],
-        fallback: false,
-        pricing: null,
-        header: {
-          branding: { mode: 'logo_and_name', label: 'Acme Launchpad', mobile_preference: 'auto' },
-          nav: { links: [] },
-          ctas: { primary: { mode: 'inherit_hero', variant: 'solid' }, secondary: { mode: 'downloads', variant: 'ghost' } },
-          behavior: { sticky: true, hide_on_scroll: false },
-        },
-      },
-      loading: false,
-      error: null,
-      resolution: 'api_select',
-      statusNote: null,
-      lastUpdated: Date.now(),
-      refresh: vi.fn(),
-    });
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@vrooli/api-base/testing';
+import { MemoryRouter } from 'react-router-dom';
+import { PublicLanding, PRESENTATION_READY_TIMEOUT_MS } from './PublicLanding';
+import { publicConfig } from '../presentation/publicTestFixtures';
+import { LandingVariantContext, type LandingVariantContextType } from '../../../app/providers/LandingVariantContext';
+import type { LandingConfigResponse } from '../../../shared/api/types';
+import { fromJsonString } from '@bufbuild/protobuf';
+import { ResolvedProductPresentationSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/product_presentation_pb';
+import signal from '../presentation/fixtures/signal.json';
+import { publicHref } from '../presentation/publicIntegration';
+import { recordPresentationExposure } from '../../../shared/api/landing';
+vi.mock('../../../shared/api/landing', () => ({ recordPresentationExposure: vi.fn().mockResolvedValue({ recorded: true }) }));
+const fontDescriptor = Object.getOwnPropertyDescriptor(document, 'fonts');
+function installFonts(statuses: FontFaceLoadStatus[] = ['loaded'], ready: Promise<unknown> = Promise.resolve(), family = 'PresentationSans') {
+  const faces = statuses.map(status => ({ family, status }));
+  // jsdom has no CSS font inheritance/loading. Supply the computed public family,
+  // while retaining real generated page and readiness effects.
+  const computedStyle = window.getComputedStyle.bind(window);
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const style = computedStyle(element, pseudo);
+    if (element.closest('.presentation-page')) style.fontFamily = `"${family}", Arial, sans-serif`;
+    return style;
   });
-
-  it('surfaces CTA and download anchors in the sticky header', () => {
-    render(
-      <BrowserRouter>
-        <PublicLanding />
-      </BrowserRouter>
-    );
-
-    expect(screen.getByTestId('landing-experience-header')).toHaveProperty('tagName', 'HEADER');
-    expect(screen.getByTestId('landing-nav-cta')).toHaveClass('min-h-10');
-    const downloadButton = screen.getByTestId('landing-nav-download');
-    expect(downloadButton).toBeInTheDocument();
-    expect(screen.getByTestId('landing-nav-mobile').querySelector('a')).toHaveClass('min-h-11');
-    expect(within(downloadButton).getByText(/Download macOS/i)).toBeInTheDocument();
+  const fonts = Object.assign(new EventTarget(), {
+    ready,
+    faces,
+    load: vi.fn(async () => { await ready; return faces.filter(face => face.family === family); }),
+    forEach: (visit: (face: Pick<FontFace, 'status' | 'family'>) => void) => { faces.forEach(visit); },
   });
-
-  it('shows site branding name and logo when provided', () => {
-    render(
-      <BrowserRouter>
-        <PublicLanding />
-      </BrowserRouter>
-    );
-
-    expect(screen.getByText('Acme Launchpad')).toBeInTheDocument();
-    expect(screen.getByText(/Automation that ships/)).toBeInTheDocument();
-    expect(screen.getByTestId('branding-logo')).toBeInTheDocument();
-    expect(screen.getByAltText(/Acme Launchpad logo/i)).toBeInTheDocument();
+  Object.defineProperty(document, 'fonts', { configurable: true, value: fonts });
+  return fonts;
+}
+vi.unmock('../../../app/providers/useLandingVariant');
+const metrics = vi.hoisted(() => ({ track: vi.fn(), mounted: vi.fn() }));
+vi.mock('../../../shared/hooks/useMetricsHook', () => ({ useMetrics: () => { metrics.mounted(); return { trackCTAClick: metrics.track }; } }));
+function mount(config: LandingConfigResponse | null = publicConfig(), path = '/', overrides: Partial<LandingVariantContextType> = {}) {
+  const value: LandingVariantContextType = { config, variant: config?.presentation.diagnostics ? { slug: config.presentation.diagnostics.resolvedVariant } : null, loading: false, error: null, resolution: 'api_select', statusNote: null, lastUpdated: null, refresh: vi.fn(), request: { route: path, locale: '', variant: '' }, ...overrides };
+  return render(<MemoryRouter basename="/proxy" initialEntries={['/proxy' + path]}><LandingVariantContext.Provider value={value}><PublicLanding /></LandingVariantContext.Provider></MemoryRouter>, { withoutRouter: true });
+}
+beforeEach(() => { metrics.mounted.mockClear(); metrics.track.mockClear(); vi.mocked(recordPresentationExposure).mockClear(); });
+afterEach(() => { cleanup(); document.head.querySelector('meta[name="presentation-canonical-base"]')?.remove(); vi.restoreAllMocks(); vi.useRealTimers(); if (fontDescriptor) Object.defineProperty(document, 'fonts', fontDescriptor); else Reflect.deleteProperty(document, 'fonts'); });
+describe('canonical public landing integration', () => {
+  it('retains explicit locale/variant on configured detail links without modifying checkout', async () => {
+    const config = publicConfig('/', 'fr', 'review'); if (!config.presentation.diagnostics) throw new Error('fixture');
+    config.presentation.diagnostics.requestedVariant = 'review';
+    config.presentation.actions = [{ $typeName: 'vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction', key: JSON.stringify(['purchase', '', 'plan', '']), status: 'ready', href: '/checkout?owner=exact', reason: '', appKey: '', planRef: 'plan' }];
+    mount(config, '/', { request: { route: '/', locale: 'fr', variant: 'review' } });
+    expect(screen.getByRole('link', { name: 'Configured detail' })).toHaveAttribute('href', '/proxy/apps/example?locale=fr&variant=review');
+    expect(screen.getByRole('link', { name: 'Configured purchase' })).toHaveAttribute('href', '/proxy/checkout?owner=exact');
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+    expect(recordPresentationExposure).not.toHaveBeenCalled();
   });
-
-  it('renders configured custom, section, and menu navigation with visibility-aware child links', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'configured', name: 'Configured', status: 'active' },
-      config: {
-        variant: { id: 2, slug: 'configured', name: 'Configured' },
-        branding: { site_name: 'Configured Landing', tagline: 'A tailored experience' },
-        sections: [
-          { id: 11, key: 'hero', section_type: 'hero', order: 1, enabled: true, content: { title: 'Hero' } },
-          { id: 12, key: 'features', section_type: 'features', order: 2, enabled: true, content: { items: [] } },
-        ],
-        downloads: [], fallback: false, pricing: null,
-        header: {
-          branding: { mode: 'name', label: 'Configured Landing', mobile_preference: 'logo' },
-          nav: { links: [
-            { id: 'docs', type: 'custom', label: 'Documentation', href: 'https://docs.example.test', visible_on: { desktop: true, mobile: false } },
-            { id: 'features', type: 'section', label: '', section_id: 12, visible_on: { desktop: false, mobile: true } },
-            { id: 'resources', type: 'menu', label: 'Resources', children: [
-              { id: 'hero-child', type: 'section', label: '', section_type: 'hero', visible_on: { desktop: true, mobile: true } },
-              { id: 'custom-child', type: 'custom', label: 'Guide', href: '/guide', visible_on: { desktop: true, mobile: false } },
-            ] },
-          ] },
-          ctas: { primary: { mode: 'hidden' }, secondary: { mode: 'hidden' } },
-          behavior: { sticky: false, hide_on_scroll: false },
-        },
-      },
-      loading: false, error: null, resolution: 'url_param', statusNote: 'Preview', lastUpdated: Date.now(), refresh: vi.fn(),
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByRole('link', { name: 'Documentation' })).toHaveAttribute('href', 'https://docs.example.test');
-    expect(within(screen.getByTestId('landing-nav-mobile')).getByRole('link', { name: 'Section' })).toHaveAttribute('href', '#features-12');
-    expect(screen.getByRole('link', { name: 'Resources · Section' })).toHaveAttribute('href', '#hero-11');
-    expect(screen.getByRole('link', { name: 'Guide' })).toHaveAttribute('href', '/guide');
-    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
-    expect(screen.getByText('Configured Landing')).toBeInTheDocument();
+  function qualifiedArt() {
+    const config = publicConfig(); config.presentation = fromJsonString(ResolvedProductPresentationSchema, JSON.stringify(signal.presentation));
+    const d = config.presentation.diagnostics; if (!d) throw new Error('fixture');
+    Object.assign(d, { preview: false, requestedRoute: '/', resolvedRoute: '/', requestedVariant: '', resolvedVariant: 'control', blockDigest: 'digest', locale: config.presentation.page?.locale });
+    for (const asset of config.presentation.assets) { asset.releaseRef = 'release'; asset.contentHash = 'a'.repeat(64); }
+    d.assetReleaseRefs = ['release'];
+    return config;
+  }
+  it('clears global capture readiness immediately on a late lazy image failure', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(100);
+    const view = mount(qualifiedArt());
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+    const lazy = view.container.querySelector('img[loading="lazy"]'); if (!lazy) throw new Error('Missing lazy image');
+    fireEvent.error(lazy);
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+    expect(document.documentElement.dataset.experienceState).toBe('unavailable');
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
   });
-
-  it('uses fallback runtime metadata and a safe branding placeholder when no logo is configured', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'fallback', name: 'Fallback Variant', status: 'active' },
-      config: {
-        variant: { id: 3, slug: 'fallback', name: 'Fallback Variant' },
-        branding: { site_name: 'Fallback Variant' }, sections: [{ id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Fallback' } }],
-        downloads: [], fallback: true, pricing: null,
-        header: {
-          branding: { mode: 'logo_and_name', label: 'Fallback Variant', logo_icon_url: '', logo_url: '', mobile_preference: 'name' },
-          nav: { links: [] }, ctas: { primary: { mode: 'hidden' }, secondary: { mode: 'hidden' } }, behavior: { sticky: false, hide_on_scroll: false },
-        },
-      },
-      loading: false, error: null, resolution: 'fallback', statusNote: 'Offline copy', lastUpdated: null, refresh: vi.fn(),
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.queryByTestId('fallback-signal-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('FV')).toBeInTheDocument();
-    expect(screen.queryByTestId('branding-logo')).not.toBeInTheDocument();
+  it.each(['fonts', 'images'])('bounds unresolved %s readiness and cleans timers on unmount', async kind => {
+    vi.useFakeTimers();
+    if (kind === 'fonts') installFonts([], new Promise(() => {}));
+    const view = mount(kind === 'images' ? qualifiedArt() : publicConfig());
+    await act(async () => { await vi.advanceTimersByTimeAsync(PRESENTATION_READY_TIMEOUT_MS); });
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+    expect(document.documentElement.dataset.experienceState).toBe('unavailable');
+    view.unmount(); expect(vi.getTimerCount()).toBe(0);
   });
-
-  it('renders a loading state without attempting to resolve sections', () => {
-    useLandingVariantMock.mockReturnValue({ loading: true });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByText('Loading your landing page...')).toBeInTheDocument();
-    expect(screen.queryByTestId('landing-experience-header')).not.toBeInTheDocument();
+  it.each(['PresentationSans', 'PresentationArchivo', 'Presentation Mono'])('rejects a failed used %s face even when fonts.ready fulfills, without recording exposure', async family => {
+    installFonts(['loaded', 'error'], Promise.resolve(), family);
+    const config = publicConfig(); const d = config.presentation.diagnostics; if (!d) throw new Error('fixture');
+    d.assignmentSource = 'weighted_visitor'; d.weightFingerprint = 'weights';
+    mount(config, '/', { visitorId: 'font_failure_visitor' });
+    await waitFor(() => { expect(document.documentElement.dataset.experienceState).toBe('unavailable'); });
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
+    expect(recordPresentationExposure).not.toHaveBeenCalled();
   });
-
-  it('renders a retryable error when no offline-safe fallback is available', () => {
-    useLandingVariantMock.mockReturnValue({
-      loading: false,
-      config: null,
-      variant: null,
-      error: 'The configuration service is unavailable.',
-      resolution: 'unknown',
-      statusNote: null,
-      lastUpdated: null,
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByRole('heading', { name: 'Failed to Load Variant' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  it('clears ready indicators on late font failure and removes the listener on unmount', async () => {
+    const fonts = installFonts(['loaded']);
+    const remove = vi.spyOn(fonts, 'removeEventListener');
+    const view = mount();
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+    fonts.faces[0]!.status = 'error';
+    act(() => { fonts.dispatchEvent(new Event('loadingerror')); });
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+    expect(document.documentElement.dataset.experienceState).toBe('unavailable');
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
+    act(() => { fonts.dispatchEvent(new Event('loadingdone')); });
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+    view.unmount();
+    expect(remove).toHaveBeenCalledWith('loadingerror', expect.any(Function));
+    act(() => { fonts.dispatchEvent(new Event('loadingerror')); });
+    expect(document.documentElement.dataset.captureReady).toBeUndefined();
   });
-
-  it('renders the no-content state for an otherwise valid variant', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'empty', name: 'Empty variant', status: 'active' },
-      config: { sections: [], downloads: [], fallback: false },
-      loading: false,
-      error: null,
-      resolution: 'api_select',
-      statusNote: null,
-      lastUpdated: null,
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByRole('heading', { name: 'No Content Yet' })).toBeInTheDocument();
-    expect(screen.getByText(/doesn't have any sections yet/i)).toBeInTheDocument();
+  it('supports test DOMs without the Font Loading API', async () => {
+    Object.defineProperty(document, 'fonts', { configurable: true, value: undefined });
+    mount();
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
   });
-
-  it('explains when no variant has been resolved instead of rendering a partial landing page', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: null,
-      config: null,
-      loading: false,
-      error: null,
-      resolution: 'unknown',
-      statusNote: null,
-      lastUpdated: null,
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByRole('heading', { name: 'No Variant Available' })).toBeInTheDocument();
-    expect(screen.queryByTestId('landing-experience-header')).not.toBeInTheDocument();
+  it('ignores failed and late-failing global/admin faces without waiting on global fonts.ready', async () => {
+    const fonts = installFonts();
+    fonts.faces.push({ family: 'Space Grotesk', status: 'error' });
+    fonts.faces.push({ family: 'Presentation Mono', status: 'error' });
+    fonts.ready = new Promise(() => {});
+    mount();
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+    act(() => { fonts.dispatchEvent(new Event('loadingerror')); });
+    expect(screen.getByRole('heading', { name: 'Published /' })).toBeVisible();
+    expect(document.documentElement.dataset.experienceState).toBe('ready');
+    expect(document.documentElement.dataset.captureReady).toBe('true');
+    expect(fonts.load).toHaveBeenCalledWith('normal 400 16px "PresentationSans"', expect.any(String));
   });
-
-  it('omits unavailable navigation and CTAs while hiding a sticky header after a meaningful downward scroll', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'minimal', name: 'Minimal', status: 'active' },
-      config: {
-        variant: { id: 3, slug: 'minimal', name: 'Minimal' },
-        branding: { site_name: 'Minimal' },
-        sections: [{ id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Minimal' } }],
-        downloads: [],
-        fallback: false,
-        pricing: null,
-        header: {
-          branding: { mode: 'logo', label: '', mobile_preference: 'name', logo_url: null, logo_icon_url: null },
-          nav: { links: [{ id: 'downloads', type: 'downloads', label: 'Download' }, { id: 'missing-custom', type: 'custom', label: 'Missing' }] },
-          ctas: { primary: { mode: 'inherit_hero', variant: 'solid' }, secondary: { mode: 'downloads', variant: 'ghost' } },
-          behavior: { sticky: true, hide_on_scroll: true },
-        },
-      },
-      loading: false,
-      error: null,
-      resolution: 'fallback',
-      statusNote: null,
-      lastUpdated: null,
-    });
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    const header = screen.getByTestId('landing-experience-header');
-    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('landing-nav-download')).not.toBeInTheDocument();
-    expect(screen.queryByText('Download')).not.toBeInTheDocument();
-    expect(header).toHaveClass('sticky');
-
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 200 });
-    fireEvent.scroll(window);
-    expect(header).toHaveClass('-translate-y-full');
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 100 });
-    fireEvent.scroll(window);
-    expect(header).toHaveClass('translate-y-0');
+  it.each(['missing', 'rejected', 'unloaded'] as const)('fails closed when a required local face is %s', async kind => {
+    const fonts = installFonts(kind === 'unloaded' ? ['unloaded'] : []);
+    if (kind === 'rejected') fonts.load.mockRejectedValue(new Error('Local font failed'));
+    mount();
+    await waitFor(() => { expect(document.documentElement.dataset.experienceState).toBe('unavailable'); });
+    expect(document.documentElement.dataset.captureReady).toBe('false');
   });
-
-  it('keeps the fallback landing usable when an API error accompanies offline-safe content and skips unknown sections', () => {
-    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'offline', name: 'Offline', status: 'active' },
-      config: {
-        variant: { id: 4, slug: 'offline', name: 'Offline' },
-        branding: { site_name: '' },
-        sections: [
-          { id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Available offline' } },
-          { id: 2, section_type: 'retired-section' as never, order: 2, enabled: true, content: {} },
-          { id: 3, section_type: 'features', order: 3, enabled: false, content: { title: 'Disabled' } },
-        ],
-        downloads: [{ bundle_key: 'bundle', app_key: 'empty', name: 'Empty app', tagline: '', description: '', install_overview: '', install_steps: [], storefronts: [], display_order: 1, platforms: [] }],
-        fallback: true,
-        pricing: null,
-        header: {
-          branding: { mode: 'none', label: '', mobile_preference: 'auto' },
-          nav: { links: [
-            { id: 'missing-section', type: 'section', label: 'Missing', section_type: 'faq' },
-            { id: 'empty-menu', type: 'menu', label: 'Empty', children: [] },
-          ] },
-          ctas: { primary: { mode: 'downloads' }, secondary: { mode: 'custom', label: 'Incomplete' } },
-          behavior: { sticky: false, hide_on_scroll: false },
-        },
-      },
-      loading: false,
-      error: 'Remote configuration is unavailable',
-      resolution: 'fallback',
-      statusNote: '',
-      lastUpdated: null,
-      refresh: vi.fn(),
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getByText('Available offline')).toBeInTheDocument();
-    expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
-    expect(screen.queryByText('Missing')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
-    expect(consoleWarn).toHaveBeenCalledWith('Unknown section type: retired-section');
-    consoleWarn.mockRestore();
+  it('records only the actually mounted ready weighted page with the bootstrap identity', async () => {
+    const config = publicConfig(); const d = config.presentation.diagnostics; if (!d) throw new Error('fixture');
+    d.assignmentSource = 'weighted_visitor'; d.weightFingerprint = 'weights';
+    mount(config, '/', { visitorId: 'server_visitor' });
+    expect(recordPresentationExposure).not.toHaveBeenCalled();
+    await waitFor(() => { expect(recordPresentationExposure).toHaveBeenCalledTimes(1); });
+    expect(recordPresentationExposure).toHaveBeenCalledWith(expect.objectContaining({ visitorId: 'server_visitor', weightFingerprint: 'weights', revision: 'revision-1' }));
   });
-
-  it('renders each supported section and the offline-safe operational signals', () => {
-    window.history.pushState({}, '', '/?debug=1&variant=control');
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'control', name: 'Control', status: 'active' },
-      config: {
-        variant: { id: 1, slug: 'control', name: 'Control' },
-        branding: { site_name: 'Acme Launchpad', support_email: 'support@example.com' },
-        sections: [
-          { id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Hero', subtitle: 'Start here' } },
-          { id: 2, section_type: 'features', order: 2, enabled: true, content: { title: 'Features', items: [] } },
-          { id: 3, section_type: 'pricing', order: 3, enabled: true, content: { title: 'Pricing', tiers: [] } },
-          { id: 4, section_type: 'cta', order: 4, enabled: true, content: { title: 'Ready?', cta_text: 'Join' } },
-          { id: 5, section_type: 'testimonials', order: 5, enabled: true, content: { title: 'Customers', testimonials: [] } },
-          { id: 6, section_type: 'faq', order: 6, enabled: true, content: { title: 'FAQ', items: [] } },
-          { id: 7, section_type: 'footer', order: 7, enabled: true, content: { copyright: '© Acme' } },
-          { id: 8, section_type: 'video', order: 8, enabled: true, content: { title: 'Watch', video_url: 'https://example.com/demo' } },
-          { id: 9, section_type: 'downloads', order: 9, enabled: true, content: { title: 'Downloads' } },
-        ],
-        downloads: [],
-        fallback: true,
-        pricing: null,
-        header: { branding: { mode: 'name', label: 'Acme', mobile_preference: 'auto' }, nav: { links: [] }, ctas: { primary: { mode: 'hidden', variant: 'solid' }, secondary: { mode: 'hidden', variant: 'ghost' } }, behavior: { sticky: true, hide_on_scroll: false } },
-      },
-      loading: false,
-      error: 'Network unavailable',
-      resolution: 'url_param',
-      statusNote: 'Using cached configuration',
-      lastUpdated: Date.UTC(2026, 0, 1, 12, 0, 0),
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.queryByTestId('variant-source-banner')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('fallback-signal-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Debug Info')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Hero' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Features' })).toBeInTheDocument();
-    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
-    window.history.pushState({}, '', '/');
+  it.each(['unavailable', 'unsafe-href', 'detail-download'])('keeps the page visible and actions disabled for %s', async failure => {
+    const config = publicConfig('/apps/example'); const p = config.presentation;
+    const block = p.page?.blocks[0]?.content?.value;
+    if (block?.case !== 'closingAction' || !block.value.actions[0]) throw new Error('fixture');
+    const action = block.value.actions[0];
+    if (failure === 'detail-download') action.kind = 'download';
+    p.actions = [{ $typeName: 'vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction', key: JSON.stringify([action.kind, '', 'plan', '']), status: failure === 'unavailable' ? 'unavailable' : 'ready', href: failure === 'detail-download' ? '/apps/example' : 'javascript:alert(1)', reason: 'Delivery owner not ready', appKey: '', planRef: 'plan' }];
+    mount(config, '/apps/example');
+    expect(screen.getByRole('heading')).toHaveTextContent('Published /apps/example');
+    expect(screen.getByRole('button', { name: 'Configured purchase' })).toBeDisabled();
+    expect(screen.getByText('Delivery owner not ready')).toBeInTheDocument();
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
   });
-
-  it('honors configured navigation, custom CTAs, disabled sections, and standalone downloads', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'configured', name: 'Configured', status: 'active' },
-      config: {
-        variant: { id: 2, slug: 'configured', name: 'Configured' },
-        branding: { site_name: 'Configured Co.' },
-        sections: [
-          { id: 1, section_type: 'hero', order: 2, enabled: true, content: { title: 'Welcome', cta_text: 'Begin', cta_url: '/begin' } },
-          { id: 2, section_type: 'faq', order: 1, enabled: true, content: { title: 'Help', items: [] } },
-          { id: 3, section_type: 'features', order: 3, enabled: false, content: { title: 'Hidden feature', items: [] } },
-          { id: 4, section_type: 'unsupported', order: 4, enabled: true, content: {} },
-        ],
-        downloads: [{
-          bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop Suite', tagline: 'mac + windows', description: '', install_overview: '', install_steps: [], storefronts: [], display_order: 0,
-          platforms: [{ id: 1, bundle_key: 'bundle', app_key: 'desktop', platform: 'windows', artifact_url: 'https://example.com/app.exe', release_version: '1.0.0', requires_entitlement: false }],
-        }],
-        fallback: false,
-        pricing: null,
-        header: {
-          branding: { mode: 'none', mobile_preference: 'auto' },
-          nav: { links: [
-            { id: 'faq', type: 'section', section_id: 2, label: 'Support', visible_on: { desktop: true, mobile: false } },
-            { id: 'learn', type: 'custom', label: 'Learn', href: '/learn', visible_on: { desktop: false, mobile: true } },
-            { id: 'products', type: 'menu', label: 'Products', children: [
-              { id: 'product-faq', section_type: 'faq', label: 'FAQ', visible_on: { desktop: false, mobile: true } },
-              { id: 'product-download', type: 'downloads', label: 'Install', visible_on: { desktop: true, mobile: false } },
-              { id: 'product-fallback', label: 'Fallback', visible_on: { desktop: false, mobile: false } },
-            ] },
-            { id: 'missing', type: 'section', label: 'Not rendered', section_type: 'pricing' },
-            { id: 'download', type: 'downloads', label: 'Get the app' },
-          ] },
-          ctas: {
-            primary: { mode: 'custom', label: 'Talk to us', href: '/contact', variant: 'solid' },
-            secondary: { mode: 'downloads', label: 'Install now', variant: 'ghost' },
-          },
-          behavior: { sticky: false, hide_on_scroll: true },
-        },
-      },
-      loading: false,
-      error: null,
-      resolution: 'local_storage',
-      statusNote: null,
-      lastUpdated: null,
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getAllByText('Configured').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'Talk to us' })).toHaveAttribute('href', '/contact');
-    expect(screen.getByRole('link', { name: 'Install now' })).toHaveAttribute('href', '#downloads-section');
-    expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '#faq-2');
-    expect(screen.getByRole('link', { name: 'Learn' })).toHaveAttribute('href', '/learn');
-    expect(screen.getByText('Products')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Install' })).toHaveAttribute('href', '#downloads-section');
-    expect(screen.queryByRole('link', { name: 'FAQ' })).not.toBeInTheDocument();
-    expect(screen.getByText('Products · FAQ')).toBeInTheDocument();
-    expect(screen.queryByText('Products · Install')).not.toBeInTheDocument();
-    expect(screen.getByText('Products · Fallback')).toBeInTheDocument();
-    expect(screen.getAllByText('Get the app')).toHaveLength(2);
-    expect(screen.queryByText('Hidden feature')).not.toBeInTheDocument();
-    expect(screen.queryByText('Not rendered')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Aquila is live' })).toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith('Unknown section type: unsupported');
-    warn.mockRestore();
+  it('keeps all internal paths inside the proxy basename and rejects traversal', () => {
+    expect(publicHref('/proxy/apps/example', '/proxy/')).toBe('/proxy/apps/example');
+    expect(publicHref('/presentation/art.png', '/proxy/')).toBe('/proxy/presentation/art.png');
+    expect(() => publicHref('/%2e%2e/admin', '/proxy')).toThrow('Unsafe presentation');
   });
-
-  it('preserves explicit anchors and fails closed for incomplete configured links', () => {
-    useLandingVariantMock.mockReturnValue({
-      variant: { slug: 'edge-cases', name: 'Edge Cases', status: 'active' },
-      config: {
-        variant: { id: 5, slug: 'edge-cases', name: 'Edge Cases' },
-        branding: { site_name: 'Edge Cases' },
-        sections: [{ id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Edge Hero' } }],
-        downloads: [],
-        fallback: false,
-        pricing: null,
-        header: {
-          branding: { mode: 'none', mobile_preference: 'auto' },
-          nav: { links: [
-            { id: 'direct', type: 'section', label: 'Direct', anchor: 'direct-anchor' },
-            { id: 'invalid', type: 'section', label: 'Invalid' },
-            { id: '', type: 'menu', label: 'More', children: [
-              { id: 'direct-child', type: 'section', label: 'Direct child', anchor: '#child-anchor' },
-              { id: 'section-child', type: 'section', label: 'Hero child', section_id: 1 },
-              { id: 'empty-child', type: 'custom', label: 'Empty child' },
-            ] },
-          ] },
-          ctas: { primary: { mode: 'custom', label: 'Incomplete' }, secondary: { mode: 'inherit_hero' } },
-          behavior: { sticky: false, hide_on_scroll: false },
-        },
-      },
-      loading: false, error: null, resolution: 'api_select', statusNote: null, lastUpdated: null, refresh: vi.fn(),
-    });
-
-    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
-
-    expect(screen.getAllByRole('link', { name: 'Direct' })[0]).toHaveAttribute('href', '#direct-anchor');
-    expect(screen.queryByRole('link', { name: 'Invalid' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'More · Direct child' })).toHaveAttribute('href', '#child-anchor');
-    expect(screen.getByRole('link', { name: 'More · Hero child' })).toHaveAttribute('href', '#hero-1');
-    expect(screen.getByRole('link', { name: 'More · Empty child' })).toHaveAttribute('href', '#');
-    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
+  it.each(['/', '/apps/example'])('renders %s with route metadata, proxy links and capture diagnostics', async route => {
+    mount(publicConfig(route), route);
+    expect(screen.getByRole('heading', { name: 'Published ' + route })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Configured detail' })).toHaveAttribute('href', '/proxy/apps/example');
+    expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+    expect(document.title).toBe('Configured ' + route);
+    expect(document.querySelector('meta[name="description"]')).toHaveAttribute('content', 'Description en');
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+    expect(document.documentElement.dataset.presentationRevision).toBe('revision-1');
+    expect(document.documentElement.dataset.presentationDigest).toBe('digest-1');
+    expect(document.documentElement.dataset.variantSlug).toBe('control');
+    expect(screen.getByRole('button', { name: 'Configured purchase' })).toBeDisabled();
+  });
+  it('uses a server-owned canonical base independently of the proxy served path', async () => {
+    const meta = document.createElement('meta'); meta.name = 'presentation-canonical-base'; meta.content = 'https://canonical.example/site'; document.head.append(meta);
+    mount(publicConfig('/apps/example'), '/apps/example');
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://canonical.example/site/apps/example');
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+  });
+  it('joins exact owner action keys and keeps owner outage local to the action', async () => {
+    const config = publicConfig();
+    config.presentation.actions = [{ $typeName: 'vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction', key: JSON.stringify(['purchase', '', 'plan', '']), status: 'ready', href: '/checkout?owner=exact', reason: '', appKey: '', planRef: 'plan' }];
+    mount(config);
+    expect(screen.getByRole('link', { name: 'Configured purchase' })).toHaveAttribute('href', '/proxy/checkout?owner=exact');
+    const link = screen.getByRole('link', { name: 'Configured detail' }); link.addEventListener('click', event => { event.preventDefault(); }); fireEvent.click(link);
+    expect(metrics.track).toHaveBeenCalled();
+    await waitFor(() => { expect(document.documentElement.dataset.captureReady).toBe('true'); });
+  });
+  it('keeps missing typed content explicitly unavailable without legacy rendering or analytics', () => {
+    mount(null);
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
+    expect(document.body).not.toHaveTextContent('PRIVATE LEGACY PRODUCT');
+    expect(metrics.mounted).not.toHaveBeenCalled();
+    expect(document.documentElement.dataset.captureReady).toBe('false');
+  });
+  it('renders unknown/private app 404 state without navigation or narrative', () => {
+    mount(null, '/apps/unknown', { notFound: true });
+    expect(screen.getByRole('heading')).toHaveTextContent('Page not found');
+    expect(screen.getByTestId('landing-experience-surface')).toHaveAttribute('data-http-status', '404');
+    expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  });
+  it.each(['preview', 'route', 'revision', 'display'])('fails closed for unqualified %s', field => {
+    const config = publicConfig(); const p = config.presentation; if (!p.diagnostics || !p.page) throw new Error('fixture');
+    if (field === 'preview') p.diagnostics.preview = true;
+    if (field === 'route') p.diagnostics.resolvedRoute = '/apps/private';
+    if (field === 'revision') p.diagnostics.resolvedRevision = '';
+    if (field === 'display') p.page.display = undefined;
+    mount(config);
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
+    expect(metrics.mounted).not.toHaveBeenCalled();
+  });
+  it('rejects assets without owner release correlation', () => {
+    const config = publicConfig(); config.presentation = fromJsonString(ResolvedProductPresentationSchema, JSON.stringify(signal.presentation));
+    const d = config.presentation.diagnostics; if (!d) throw new Error('fixture');
+    d.preview = false; d.requestedRoute = '/'; d.resolvedRoute = '/'; d.requestedVariant = ''; d.resolvedVariant = 'control'; d.blockDigest = 'digest';
+    mount(config);
+    expect(screen.getByRole('heading')).toHaveTextContent('This page is currently unavailable');
   });
 });

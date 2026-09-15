@@ -93,7 +93,11 @@ func TestSEOConnectRoutesServeGeneratedClient(t *testing.T) {
 // --- handleSitemapXML Tests ---
 
 func TestHandleSitemapXML_Success(t *testing.T) {
-	cs := setupTestConfigStore(t)
+	cs := newPublishedSEOConfigStore(t)
+	branding := cs.GetBranding()
+	canonicalURL := "https://example.com"
+	branding.CanonicalBaseURL = &canonicalURL
+	_ = cs.SaveBranding(branding)
 	seoService := NewSEOService(cs)
 	handler := seohttp.Sitemap(seoHTTPDependencies(seoService))
 
@@ -125,7 +129,7 @@ func TestHandleSitemapXML_Success(t *testing.T) {
 }
 
 func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
-	cs := setupTestConfigStore(t)
+	cs := newPublishedSEOConfigStore(t)
 
 	// Update branding to have a canonical URL
 	branding := cs.GetBranding()
@@ -178,7 +182,7 @@ func TestHandleRobotsTXT_Success(t *testing.T) {
 }
 
 func TestHandleRobotsTXT_IncludesSitemap(t *testing.T) {
-	cs := setupTestConfigStore(t)
+	cs := newPublishedSEOConfigStore(t)
 
 	// Update branding to have a canonical URL
 	branding := cs.GetBranding()
@@ -268,28 +272,36 @@ func TestSEOService_VariantSEO_NotFound(t *testing.T) {
 	}
 }
 
-func TestSEOService_SitemapXML_AllVariants(t *testing.T) {
-	cs := setupTestConfigStore(t)
+func TestSEOService_SitemapXML_UsesConfiguredCanonicalOnly(t *testing.T) {
+	cs := newPublishedSEOConfigStore(t)
 
-	// Clear any CanonicalBaseURL to ensure fallback is used
 	branding := cs.GetBranding()
-	branding.CanonicalBaseURL = nil
+	canonicalURL := "https://example.com"
+	branding.CanonicalBaseURL = &canonicalURL
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
 
-	sitemap, err := seoService.SitemapXML("https://example.com")
+	sitemap, err := seoService.SitemapXML("https://attacker.example")
 	if err != nil {
 		t.Fatalf("SitemapXML failed: %v", err)
 	}
 
 	if !strings.Contains(sitemap, "https://example.com/") {
-		t.Error("Expected root URL in sitemap")
+		t.Error("expected configured canonical root URL in sitemap")
+	}
+	if strings.Contains(sitemap, "attacker.example") {
+		t.Error("request fallback host appeared in sitemap")
 	}
 }
 
 func TestSEOService_RobotsTXT_IncludesSitemap(t *testing.T) {
 	cs := setupTestConfigStore(t)
+	branding := cs.GetBranding()
+	canonicalURL := "https://example.com"
+	branding.CanonicalBaseURL = &canonicalURL
+	branding.RobotsTxt = nil
+	_ = cs.SaveBranding(branding)
 	seoService := NewSEOService(cs)
 
 	robots, err := seoService.RobotsTXT("https://example.com")

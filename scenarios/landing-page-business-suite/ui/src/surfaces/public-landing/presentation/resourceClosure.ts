@@ -7,7 +7,6 @@ const text = (value: string | undefined): void => {
 /** Validate only resolved references, never infer membership or substitute content. */
 export function assertResourceClosure(p: Presentation): void {
   const d = p.page.display;
-  if (!d?.shell) throw new Error('Missing page.display');
   const fixtures = new Map((p.fixtures ?? []).map(f => [f.id, f]));
   const assets = new Map((p.assets ?? []).map(a => [a.id, a]));
   const blocks = new Map(p.page.blocks.map(b => [b.id, b]));
@@ -72,15 +71,24 @@ export function assertResourceClosure(p: Presentation): void {
         }
         break;
       case 'device-story': exhibit(b?.fixture_ref, block.content.visual_ref); text(block.content.alt_text); break;
-      case 'product-demo': fixture(block.content.fixture_ref); if (block.content.poster_ref) asset(block.content.poster_ref); if (block.content.media_ref) asset(block.content.media_ref); break;
+      case 'product-demo': {
+        if (block.variant === 'recorded') {
+          const poster = assets.get(block.content.poster_ref ?? '');
+          if (!poster || poster.mime !== 'image/png' || !poster.release_ref || !poster.content_hash || !poster.public_url?.startsWith('/') || poster.public_url.startsWith('//')) throw new Error('Recorded demo requires a released same-origin poster');
+        } else {
+          fixture(block.content.fixture_ref ?? '');
+          if (fixtures.get(block.content.fixture_ref ?? '')?.kind !== block.content.renderer_ref) throw new Error('Demo renderer and fixture kind differ');
+        }
+        break;
+      }
       case 'app-spotlights': for (const key of block.content.app_keys) { profile(key); if (!d.apps[key]) throw new Error('Missing app display'); } break;
       case 'product-story': for (const item of block.content.items) if (item.visual_ref) asset(item.visual_ref); break;
       case 'closing-action': if (block.content.visual_ref) asset(block.content.visual_ref); break;
-      case 'capability-strip': block.content.items.forEach(item => capability(item.capability_id)); break;
+      case 'capability-strip': block.content.items.forEach(item => { capability(item.capability_id); }); break;
       case 'capability-roadmap': block.content.capability_ids.forEach(capability); break;
       case 'voice-story':
         block.content.capability_ids.forEach(capability);
-        block.content.features.forEach(item => capability(item.capability_id));
+        block.content.features.forEach(item => { capability(item.capability_id); });
         for (const label of [block.content.input_label, block.content.transcript, block.content.summary_label, block.content.summary_title, block.content.output_label, block.content.demo_note, ...block.content.summary_items]) text(label);
         break;
       case 'artifact-explorer':

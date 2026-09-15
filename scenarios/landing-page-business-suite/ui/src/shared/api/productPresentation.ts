@@ -25,6 +25,14 @@ export function createProductPresentationClient(fetchImplementation?: typeof fet
 
 export const productPresentationClient = createProductPresentationClient();
 
+/** The generated field-5 document path is read-only; never attach a revision. */
+export async function previewPresentationDocument(client: ProductPresentationClient, input: {
+  variantSlug: string; document: ProductPresentationDocument; route: string; locale: string;
+}, signal: AbortSignal) {
+  const response = await client.preview({ variantSlug: input.variantSlug, document: input.document, route: input.route, locale: input.locale }, { signal, timeoutMs: 30000 });
+  return response.presentation;
+}
+
 /** JSON is the generated protobuf document shape, including typed content oneofs. */
 export function parsePresentationDocument(text: string): ProductPresentationDocument {
   if (new TextEncoder().encode(text).byteLength > 8 * 1024 * 1024) {

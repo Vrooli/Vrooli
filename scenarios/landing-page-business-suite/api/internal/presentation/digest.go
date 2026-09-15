@@ -6,6 +6,18 @@ import (
 	"encoding/json"
 )
 
+// PreviewIdentity is the immutable content identity for an authenticated
+// document preview. It is deliberately derived from the complete document,
+// not from storage state or an editor generation.
+func PreviewIdentity(document Document) (string, error) {
+	data, err := json.Marshal(document)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
 // ContentDigest hashes normalized content only. Route identity, locale
 // selection, diagnostics, and navigation context are intentionally excluded,
 // allowing root single-app and /apps/:slug to prove composition parity.

@@ -88,8 +88,15 @@ func Validate(document Document) error {
 		}
 		pageKeys[key] = true
 		pageByID[page.ID] = append(pageByID[page.ID], page)
-		validatePageReferences(page, path, appsByKey, capabilities, assets, fixtures, issues)
-		validateDisplay(page, path+".display", appsByKey, capabilities, assets, fixtures, issues)
+		pageCapabilities := capabilities
+		if owners := appPageOwners[page.ID]; len(owners) == 1 {
+			pageCapabilities = make(map[string]Capability)
+			for _, capability := range appsByKey[owners[0]].Capabilities {
+				pageCapabilities[capability.ID] = capability
+			}
+		}
+		validatePageReferences(page, path, appsByKey, pageCapabilities, assets, fixtures, issues)
+		validateDisplay(page, path+".display", appsByKey, pageCapabilities, assets, fixtures, issues)
 	}
 	for pageID, pages := range pageByID {
 		configuredDefault := false
@@ -105,6 +112,7 @@ func Validate(document Document) error {
 	}
 	for pageID, owners := range appPageOwners {
 		if len(owners) != 1 {
+			issues.add("pages["+pageID+"]", "ambiguous_page_owner", "each app requires its own page identity; localized pages share only that app's identity")
 			continue
 		}
 		for _, page := range pageByID[pageID] {
@@ -281,8 +289,8 @@ func validateCapability(capability Capability, path string, issues *ValidationEr
 func validateAsset(asset Asset, path string, issues *ValidationError) {
 	validateID(asset.ID, path+".id", issues)
 	validateOpaqueRef(asset.ReleaseRef, path+".release_ref", issues)
-	if !hashPattern.MatchString(asset.ContentHash) {
-		issues.add(path+".content_hash", "invalid_content_hash", "must be a hexadecimal content hash")
+	if !assetHashPattern.MatchString(asset.ContentHash) {
+		issues.add(path+".content_hash", "invalid_content_hash", "must be exactly 64 lowercase hexadecimal SHA-256 digits")
 	}
 	if asset.Width <= 0 || asset.Height <= 0 {
 		issues.add(path, "invalid_dimensions", "width and height must be positive")
@@ -297,7 +305,7 @@ func validateAsset(asset Asset, path string, issues *ValidationError) {
 	validateOpaqueRef(asset.Provenance.Provider, path+".provenance.provider", issues)
 	validateOpaqueRef(asset.Provenance.JobRef, path+".provenance.job_ref", issues)
 	validateOpaqueRef(asset.Provenance.CandidateRef, path+".provenance.candidate_ref", issues)
-	if asset.FocalPoint.X < 0 || asset.FocalPoint.X > 1 || asset.FocalPoint.Y < 0 || asset.FocalPoint.Y > 1 {
+	if math.IsNaN(asset.FocalPoint.X) || math.IsInf(asset.FocalPoint.X, 0) || math.IsNaN(asset.FocalPoint.Y) || math.IsInf(asset.FocalPoint.Y, 0) || asset.FocalPoint.X < 0 || asset.FocalPoint.X > 1 || asset.FocalPoint.Y < 0 || asset.FocalPoint.Y > 1 {
 		issues.add(path+".focal_point", "invalid_focal_point", "x and y must be between 0 and 1")
 	}
 	for i, region := range asset.OverlayRegions {
@@ -382,6 +390,22 @@ func validateBackdropFixture(fixture BackdropFixture, path string, issues *Valid
 			issues.add(path+"."+key, "empty_fixture_data", "must contain at least one item")
 		}
 		validateTextList(values, path+"."+key, issues)
+	}
+	if len(fixture.Styles) != len(fixture.AssetRefs) {
+		issues.add(path, "backdrop_style_asset_mismatch", "styles and asset_refs must contain the same number of entries in positional order")
+	}
+	selected := strings.TrimSpace(fixture.Selected)
+	if selected != "" {
+		found := false
+		for _, style := range fixture.Styles {
+			if style == fixture.Selected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			issues.add(path+".selected", "backdrop_selected_style_not_found", "selected must exactly match one of styles")
+		}
 	}
 }
 
@@ -482,7 +506,7 @@ func validateBlock(block Block, path string, issues *ValidationError) {
 		issues.add(path+".content", "invalid_content", err.Error())
 		return
 	}
-	validateContent(block.Kind, content, path+".content", issues)
+	validateContent(block.Kind, block.Variant, content, path+".content", issues)
 }
 
 var contentFields = map[BlockKind]map[string]bool{
@@ -490,7 +514,7 @@ var contentFields = map[BlockKind]map[string]bool{
 	BlockBundleHero:        {"eyebrow": true, "title": true, "description": true, "accessibility_label": true, "hero_items": true, "actions": true},
 	BlockCapabilityStrip:   {"heading": true, "items": true},
 	BlockProductStory:      {"heading": true, "body": true, "items": true},
-	BlockProductDemo:       {"heading": true, "description": true, "renderer_ref": true, "fixture_ref": true, "poster_ref": true, "media_ref": true, "alt_text": true},
+	BlockProductDemo:       {"heading": true, "description": true, "renderer_ref": true, "fixture_ref": true, "poster_ref": true, "media_ref": true, "alt_text": true, "playback": true},
 	BlockAppSpotlights:     {"heading": true, "app_keys": true, "detail_link_label": true},
 	BlockArtifactExplorer:  {"heading": true, "capability_id": true, "examples": true, "selected_example_id": true},
 	BlockVoiceStory:        {"eyebrow": true, "heading": true, "body": true, "features": true, "note": true, "input_label": true, "transcript": true, "summary_label": true, "summary_title": true, "summary_items": true, "output_label": true, "demo_note": true, "provider_qualification": true, "waveform": true, "capability_ids": true},
@@ -506,7 +530,7 @@ var requiredContentFields = map[BlockKind][]string{
 	BlockProductHero:     {"title", "description", "accessibility_label", "actions"},
 	BlockBundleHero:      {"title", "description", "accessibility_label", "hero_items", "actions"},
 	BlockCapabilityStrip: {"heading", "items"}, BlockProductStory: {"heading", "body", "items"},
-	BlockProductDemo:       {"heading", "description", "renderer_ref", "fixture_ref", "alt_text"},
+	BlockProductDemo:       {"heading", "description", "renderer_ref", "alt_text"},
 	BlockAppSpotlights:     {"heading", "app_keys", "detail_link_label"},
 	BlockArtifactExplorer:  {"heading", "capability_id", "examples", "selected_example_id"},
 	BlockVoiceStory:        {"heading", "body", "features", "note", "input_label", "transcript", "summary_label", "summary_title", "summary_items", "output_label", "demo_note", "provider_qualification", "waveform", "capability_ids"},
@@ -516,7 +540,7 @@ var requiredContentFields = map[BlockKind][]string{
 	BlockClosingAction:     {"heading", "description", "actions"}, BlockFAQ: {"heading", "items"}, BlockFooter: {"label", "links"},
 }
 
-func validateContent(kind BlockKind, content map[string]any, path string, issues *ValidationError) {
+func validateContent(kind BlockKind, variant string, content map[string]any, path string, issues *ValidationError) {
 	allowed := contentFields[kind]
 	for _, key := range sortedStringKeys(content) {
 		if unsafeContentKey(key) {
@@ -539,10 +563,10 @@ func validateContent(kind BlockKind, content map[string]any, path string, issues
 			validateText(value.(string), path+"."+key, issues, false)
 		}
 	}
-	validateContentShapes(kind, content, path, issues)
+	validateContentShapes(kind, variant, content, path, issues)
 }
 
-func validateContentShapes(kind BlockKind, content map[string]any, path string, issues *ValidationError) {
+func validateContentShapes(kind BlockKind, variant string, content map[string]any, path string, issues *ValidationError) {
 	validateActions(content["actions"], path+".actions", issues)
 	validateAssetRefs(content, path, issues)
 	switch kind {
@@ -554,7 +578,7 @@ func validateContentShapes(kind BlockKind, content map[string]any, path string, 
 		}
 	case BlockProductDemo:
 		validateIDValue(content["renderer_ref"], path+".renderer_ref", issues)
-		validateIDValue(content["fixture_ref"], path+".fixture_ref", issues)
+		validateProductDemo(variant, content, path, issues)
 	case BlockBundleHero:
 		if len(arrayValue(content["hero_items"])) > 3 {
 			issues.add(path+".hero_items", "hero_capacity_exceeded", "version 1 hero compositions support at most three app groups")
@@ -614,6 +638,154 @@ func validateContentShapes(kind BlockKind, content map[string]any, path string, 
 	case BlockFooter:
 		validateLinkArray(content["links"], path+".links", issues)
 	}
+}
+
+func validateProductDemo(variant string, content map[string]any, path string, issues *ValidationError) {
+	recorded := variant == "recorded"
+	fixtureRef := strings.TrimSpace(stringValue(content["fixture_ref"]))
+	posterRef := strings.TrimSpace(stringValue(content["poster_ref"]))
+	mediaRef := strings.TrimSpace(stringValue(content["media_ref"]))
+	rendererRef := strings.TrimSpace(stringValue(content["renderer_ref"]))
+	playback, hasPlayback := content["playback"]
+
+	if recorded {
+		if rendererRef != "video" {
+			issues.add(path+".renderer_ref", "invalid_recorded_renderer", "recorded product demos must use renderer_ref video")
+		}
+		if fixtureRef != "" {
+			issues.add(path+".fixture_ref", "forbidden_recorded_fixture", "recorded product demos cannot use fixture_ref")
+		}
+		if mediaRef != "" {
+			issues.add(path+".media_ref", "forbidden_recorded_media", "recorded product demos cannot use media_ref")
+		}
+		if posterRef == "" {
+			issues.add(path+".poster_ref", "missing_recorded_poster", "recorded product demos require a released poster_ref")
+		}
+		if !hasPlayback || playback == nil {
+			issues.add(path+".playback", "missing_recorded_playback", "recorded product demos require typed playback")
+		} else {
+			validateProductDemoPlayback(playback, path+".playback", issues)
+		}
+		return
+	}
+
+	if rendererRef == "video" {
+		issues.add(path+".renderer_ref", "invalid_fixture_renderer", "fixture product demos cannot use the recorded video renderer")
+	}
+	if fixtureRef == "" {
+		issues.add(path+".fixture_ref", "missing_fixture_ref", "fixture product demos require fixture_ref")
+	}
+	if hasPlayback && playback != nil {
+		issues.add(path+".playback", "ignored_playback_fields", "fixture product demos cannot carry playback fields")
+	}
+	if posterRef != "" {
+		issues.add(path+".poster_ref", "ignored_media_fields", "fixture product demos cannot carry poster media fields")
+	}
+	if mediaRef != "" {
+		issues.add(path+".media_ref", "ignored_media_fields", "fixture product demos cannot carry media fields")
+	}
+}
+
+func validateProductDemoPlayback(value any, path string, issues *ValidationError) {
+	playback, ok := value.(map[string]any)
+	if !ok {
+		issues.add(path, "invalid_playback", "playback must be an object")
+		return
+	}
+	provider := stringValue(playback["provider"])
+	if provider != "youtube" && provider != "vimeo" {
+		issues.add(path+".provider", "unsupported_playback_provider", "provider must be youtube or vimeo")
+	}
+	if _, err := CanonicalPlaybackURL(provider, stringValue(playback["external_url"])); err != nil {
+		issues.add(path+".external_url", "invalid_playback_url", err.Error())
+	}
+	layout := stringValue(playback["layout"])
+	if layout != "stacked" && layout != "split" {
+		issues.add(path+".layout", "unsupported_playback_layout", "layout must be stacked or split")
+	}
+	for _, field := range []string{"play_label", "caption", "unavailable_label"} {
+		validateTextValue(playback[field], path+"."+field, issues, true)
+	}
+}
+
+// CanonicalPlaybackURL validates an external provider URL and returns the
+// privacy-enhanced embed URL used only after explicit player activation.
+func CanonicalPlaybackURL(provider, externalURL string) (string, error) {
+	if provider != "youtube" && provider != "vimeo" {
+		return "", fmt.Errorf("provider must be youtube or vimeo")
+	}
+	if externalURL == "" || strings.HasSuffix(externalURL, "#") || strings.ContainsAny(externalURL, "\\\x00\r\n\t %") {
+		return "", fmt.Errorf("URL must be an HTTPS provider URL without unsafe characters")
+	}
+	parsed, err := url.Parse(externalURL)
+	if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.Hostname() == "" || parsed.Port() != "" || strings.Contains(parsed.Host, ":") || parsed.Fragment != "" {
+		return "", fmt.Errorf("URL must be HTTPS with no credentials, port, or fragment")
+	}
+	if parsed.RawPath != "" || strings.Contains(parsed.Path, "\\") {
+		return "", fmt.Errorf("URL path contains an unsafe character")
+	}
+
+	if provider == "youtube" {
+		id, ok := youtubePlaybackID(parsed)
+		if !ok {
+			return "", fmt.Errorf("URL is not a canonical YouTube watch, short, or embed URL")
+		}
+		return "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=0&controls=1&playsinline=1", nil
+	}
+	id, ok := vimeoPlaybackID(parsed)
+	if !ok {
+		return "", fmt.Errorf("URL is not a canonical Vimeo or Vimeo player URL")
+	}
+	return "https://player.vimeo.com/video/" + id + "?autoplay=0&controls=1&dnt=1", nil
+}
+
+func youtubePlaybackID(parsed *url.URL) (string, bool) {
+	host := strings.ToLower(parsed.Hostname())
+	if host == "youtu.be" {
+		if parsed.RawQuery != "" || parsed.Path == "" || strings.Count(parsed.Path, "/") != 1 {
+			return "", false
+		}
+		id := strings.TrimPrefix(parsed.Path, "/")
+		return id, youtubeVideoIDPattern.MatchString(id)
+	}
+	if host != "www.youtube.com" && host != "youtube.com" && host != "www.youtube-nocookie.com" {
+		return "", false
+	}
+	if host != "www.youtube-nocookie.com" && strings.HasPrefix(parsed.Path, "/watch") {
+		if parsed.Path != "/watch" {
+			return "", false
+		}
+		query, err := url.ParseQuery(parsed.RawQuery)
+		if err != nil || len(query) != 1 || len(query["v"]) != 1 {
+			return "", false
+		}
+		return query["v"][0], youtubeVideoIDPattern.MatchString(query["v"][0])
+	}
+	if (host == "youtube.com" || host == "www.youtube.com" || host == "www.youtube-nocookie.com") && strings.HasPrefix(parsed.Path, "/embed/") {
+		if parsed.RawQuery != "" {
+			return "", false
+		}
+		id := strings.TrimPrefix(parsed.Path, "/embed/")
+		return id, youtubeVideoIDPattern.MatchString(id) && !strings.Contains(id, "/")
+	}
+	return "", false
+}
+
+func vimeoPlaybackID(parsed *url.URL) (string, bool) {
+	host := strings.ToLower(parsed.Hostname())
+	if parsed.RawQuery != "" || parsed.Path == "" {
+		return "", false
+	}
+	var id string
+	switch {
+	case (host == "vimeo.com" || host == "www.vimeo.com") && strings.Count(parsed.Path, "/") == 1:
+		id = strings.TrimPrefix(parsed.Path, "/")
+	case host == "player.vimeo.com" && strings.HasPrefix(parsed.Path, "/video/") && strings.Count(parsed.Path, "/") == 2:
+		id = strings.TrimPrefix(parsed.Path, "/video/")
+	default:
+		return "", false
+	}
+	return id, vimeoVideoIDPattern.MatchString(id)
 }
 
 func validatePageReferences(page Page, path string, apps map[string]App, capabilities map[string]Capability, assets map[string]Asset, fixtures map[string]Fixture, issues *ValidationError) {
@@ -691,7 +863,7 @@ func validatePageReferences(page Page, path string, apps map[string]App, capabil
 		if block.Kind == BlockBundleHero {
 			for j, raw := range arrayValue(content["hero_items"]) {
 				if item, ok := raw.(map[string]any); ok {
-					if ref, ok := item["visual_ref"].(string); ok {
+					if ref, ok := item["visual_ref"].(string); ok && ref != "" {
 						if _, exists := assets[ref]; !exists {
 							issues.add(fmt.Sprintf("%s.hero_items[%d].visual_ref", blockPath, j), "unknown_asset_ref", "asset reference is not declared")
 						}
@@ -1156,22 +1328,22 @@ func stringArray(value any) []string {
 func numberValue(value any) (float64, bool) { number, ok := value.(float64); return number, ok }
 func isSafePublicURL(value string) bool {
 	parsed, err := url.Parse(value)
-	return err == nil && parsed.IsAbs() == false && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "\r\n")
+	return err == nil && !parsed.IsAbs() && parsed.Host == "" && parsed.User == nil && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "\\\x00\r\n\t") && !strings.ContainsAny(parsed.Path, "\\\x00\r\n\t")
 }
 
 func isSafeTarget(value string) bool {
-	if value == "" || strings.ContainsAny(value, "\x00\r\n") || strings.HasPrefix(value, "//") {
+	if value == "" || strings.ContainsAny(value, "\\\x00\r\n\t") || strings.HasPrefix(value, "//") {
 		return false
 	}
 	if strings.HasPrefix(value, "#") {
 		return len(value) > 1 && !strings.ContainsAny(value[1:], " #?")
 	}
 	parsed, err := url.Parse(value)
-	if err != nil {
+	if err != nil || parsed.User != nil || strings.ContainsAny(parsed.Path, "\\\x00\r\n\t") {
 		return false
 	}
 	if parsed.IsAbs() {
 		return parsed.Scheme == "https" && parsed.Host != ""
 	}
-	return strings.HasPrefix(value, "/") && !strings.Contains(value, "..")
+	return parsed.Host == "" && strings.HasPrefix(value, "/") && !strings.Contains(parsed.Path, "..")
 }

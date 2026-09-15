@@ -103,9 +103,11 @@ This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`
 
 ### Deep Links Used By Editors
 
-- Variant Editor (`/admin/customization/variants/:slug`): Edit variant metadata and sections.
+- Presentation Editor (`/admin/presentation/:variantSlug`): Configure app and bundle pages, inspect private previews, save drafts, publish and roll back revisions.
+  - [CODE: ui/src/surfaces/admin-portal/presentation/PresentationAdminPage.tsx]
+- Variant Editor (`/admin/customization/variants/:slug`): Edit experiment metadata and inspect retained legacy snapshots.
   - [CODE: ui/src/surfaces/admin-portal/routes/VariantEditor.tsx]
-- Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`): Edit a single section with live preview.
+- Former Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`): Redirects old bookmarks to the typed Presentation Editor.
   - [CODE: ui/src/surfaces/admin-portal/routes/SectionEditor.tsx]
 - Analytics Variant Shortcut (`/admin/analytics/:variantSlug`): Opens analytics pre-filtered to a variant.
   - [CODE: ui/src/surfaces/admin-portal/routes/AdminAnalytics.tsx]
@@ -127,25 +129,44 @@ Use the Landing dashboard (`/admin/landing`) for at-a-glance landing health and 
 - Variant health summaries and traffic allocation.
 - Resume shortcuts for the last variant or analytics view.
 
-### Customization (Variants and Sections)
+### Customization (Experiments and Presentations)
 
 The Customization page (`/admin/customization`) is the hub for A/B testing:
 - Create, edit, archive, and delete variants.
 - Adjust traffic weights (relative weights; all-zero means an even split).
-- Jump into the Variant Editor or Section Editor.
+- Open variant metadata or the typed Presentation Editor.
 
 #### Variant Editor
 
 The Variant Editor (`/admin/customization/variants/:slug`) lets you:
 - Update variant metadata (name, slug, axes).
-- Add, reorder, and edit sections.
-- Edit the entire variant + sections payload as JSON.
+- Inspect retained legacy section records and export/import recovery snapshots.
+- Open the Presentation Editor for the current public page model. Editing old
+  snapshot JSON does not publish a typed presentation.
 
-#### Section Editor
+#### Presentation Editor
 
-The Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`) lets you:
-- Edit section fields with a live preview.
-- Switch between sections in the variant timeline.
+Open `/admin/presentation/:variantSlug` for an explicit experiment. The typed
+document contains bundle membership, each app's page, ordered blocks, localized
+copy, capability status, safe action references and asset references.
+
+- Edit the complete document and review validation errors before saving.
+- Local preview resolves valid edits after a 300ms debounce without saving.
+  Desktop uses adjacent editing and preview columns; narrow screens stack them.
+  Invalid edits hide the obsolete preview while keeping the source text.
+- Save a draft without changing the public page.
+- Switch explicitly to saved-revision inspection at `/` or `/apps/:slug`, with the requested locale.
+  This stays inside the authenticated editor and is marked as private preview.
+- Publish the saved draft only after confirming the revision and generation.
+  The server qualifies capability and asset references before activation.
+- Roll back to a retained published revision through the same guarded controls.
+
+Generation conflicts require a deliberate reload or reconciliation; they do not
+overwrite another editor's work. Missing owner evidence is a publication error,
+not permission to fabricate an available claim. The private renderer is shared
+with public pages, but preview actions do not perform purchases or downloads.
+Legacy section-editor URLs redirect here; Browser Automation Studio recovery
+material remains available separately.
 
 ### Analytics
 

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as downloads from './downloads';
 import { apiCall } from './common';
+import { create, toJson } from '@bufbuild/protobuf';
+import { AuthorizeDownloadRequestSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/download_pb';
+import { DownloadAppSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb';
 
 const downloadClient = vi.hoisted(() => ({
   authorizeDownload: vi.fn(),
@@ -31,6 +34,36 @@ describe('download API transport', () => {
     downloadClient.saveDownloadApp.mockResolvedValue({});
     downloadClient.createDownloadApp.mockResolvedValue({});
     downloadClient.deleteDownloadApp.mockResolvedValue({});
+  });
+
+  it('sends an exact delivery asset ID through the generated bigint field without legacy user identity', async () => {
+    downloadClient.authorizeDownload.mockResolvedValue({ asset: { ...generatedAsset({ bundle_key: 'bundle', app_key: 'desktop', platform: 'linux', artifact_url: '/authorized', release_version: '2', requires_entitlement: false }), id: 13n, artifactId: 900n } });
+    const result = await downloads.requestDownload('desktop', 'linux', 'private-legacy-user', { assetId: 13 });
+    expect(downloadClient.authorizeDownload).toHaveBeenCalledExactlyOnceWith({ app: 'desktop', platform: 'linux', assetId: 13n });
+    expect(result.id).toBe(13); expect(result.artifact_id).toBe(900);
+    expect(toJson(AuthorizeDownloadRequestSchema, create(AuthorizeDownloadRequestSchema, { app: 'desktop', platform: 'linux', assetId: 13n }))).toEqual({ app: 'desktop', platform: 'linux', assetId: '13' });
+  });
+
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity])('rejects invalid selector %s before authorization', async assetId => {
+    await expect(downloads.requestDownload('desktop', 'linux', undefined, { assetId })).rejects.toThrow('Invalid download asset selector');
+    expect(downloadClient.authorizeDownload).not.toHaveBeenCalled();
+  });
+
+  it('preserves omission of the selector for existing three-argument callers', async () => {
+    await expect(downloads.requestDownload('desktop', 'linux', 'legacy-user')).rejects.toThrow('Invalid download asset response');
+    expect(downloadClient.authorizeDownload).toHaveBeenCalledExactlyOnceWith({ app: 'desktop', platform: 'linux' });
+  });
+
+  it('preserves generated Struct metadata through admin save and response normalization', async () => {
+    const metadata = { channel: 'stable', access: { enabled: false, seats: 2 }, tags: ['linux', null] };
+    const assetMetadata = { verified: true, mirrors: ['one', 'two'] };
+    const app = create(DownloadAppSchema, { appKey: 'desktop', bundleKey: 'bundle', name: 'Desktop', metadata,
+      platforms: [{ id: 13n, appKey: 'desktop', bundleKey: 'bundle', platform: 'linux', releaseVersion: '2', artifactUrl: '/authorized', metadata: assetMetadata }] });
+    downloadClient.saveDownloadApp.mockResolvedValue({ app });
+    const result = await downloads.saveDownloadAppAdmin('desktop', { name: 'Desktop', metadata, platforms: [{ platform: 'linux', release_version: '2', artifact_url: '/authorized', metadata: assetMetadata }] });
+    expect(downloadClient.saveDownloadApp.mock.calls[0]).toMatchObject([{ app: { metadata, platforms: [{ metadata: assetMetadata }] } }]);
+    expect(result.metadata).toEqual(metadata); expect(result.platforms[0]?.metadata).toEqual(assetMetadata);
+    expect(toJson(DownloadAppSchema, app)).toMatchObject({ metadata, platforms: [{ metadata: assetMetadata }] });
   });
 
   it('uses public/app/storage endpoints and rejects malformed required payloads', async () => {

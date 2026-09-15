@@ -1,765 +1,280 @@
 // DOC: docs/reference/api/landing.md - Public landing page configuration API
 // DOC: docs/concepts/CONCEPTS.md#data-flow-architecture - Data flow overview
-// DOC: PRD.md#OT-P0-031 - API-driven landing config + fallback requirement
+// DOC: PRD.md#OT-P0-031 - API-driven typed landing configuration
 package landing
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"net/url"
 	"sort"
-
-	"landing-page-business-suite-api/internal/scenarioroot"
+	"strings"
 
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/experimentation"
-	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/presentation"
 )
 
-var (
-	fallbackLanding            *LandingConfigPayload
-	defaultFallbackLandingJSON = []byte(`{
-		"variant": {
-			"id": 0,
-			"slug": "control",
-			"name": "Aquila",
-			"description": "Offline-safe fallback for the Aquila landing page."
-		},
-		"axes": {
-			"persona": "silentFounder",
-			"jtbd": "entrepreneurship",
-			"conversionStyle": "emotional"
-		},
-		"sections": [
-			{
-				"section_type": "hero",
-				"order": 1,
-				"enabled": true,
-				"content": {
-					"title": "Your work, in one calm command center",
-					"subtitle": "Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand.",
-					"cta_text": "Open Aquila",
-					"cta_url": "/app/web-console",
-					"secondary_cta_text": "Explore features",
-					"secondary_cta_url": "#video-2",
-					"image_url": "/assets/fallback/hero.png"
-				}
-			},
-			{
-				"section_type": "video",
-				"order": 2,
-				"enabled": true,
-				"content": {
-					"title": "Aquila in action",
-					"videoUrl": "",
-					"thumbnailUrl": "/assets/fallback/video-thumb.png",
-					"caption": "Explore durable sessions, pane-based workflows, and AI-assisted input in the live Aquila workspace."
-				}
-			},
-			{
-				"section_type": "features",
-				"order": 3,
-				"enabled": true,
-				"content": {
-					"title": "Aquila is live now. The suite keeps growing.",
-					"subtitle": "Keep durable sessions, agent work, and operational context together. Your subscription includes future Vrooli Business Suite apps as they become ready.",
-					"features": [
-						{
-							"title": "Durable sessions",
-							"description": "Keep terminal work available across reconnects so context does not disappear when the browser does.",
-							"icon": "zap"
-						},
-						{
-							"title": "Pane-based focus",
-							"description": "See multiple terminal sessions together and keep the important work in view.",
-							"icon": "shield"
-						},
-						{
-							"title": "AI-assisted input",
-							"description": "Turn intent into useful command suggestions while keeping the operator in control.",
-							"icon": "sparkles"
-						},
-						{
-							"title": "Future UX metrics layer",
-							"description": "Coming soon: friction scores, duration, and spatial patterns generated from your workflows.",
-							"icon": "layers"
-						},
-						{
-							"title": "Agent loops on deck",
-							"description": "Next up: swarm-manager + PRD control tower so agents can improve flows and enforce requirements.",
-							"icon": "target"
-						}
-					]
-				}
-			},
-			{
-				"section_type": "pricing",
-				"order": 4,
-				"enabled": true,
-				"content": {
-					"title": "Simple, transparent pricing",
-					"subtitle": "Aquila today. More Business Suite tools added over time.",
-					"tiers": [
-						{
-							"name": "Free",
-							"price": "$0",
-							"description": "50 runs/month, builder, replay viewer (watermarked MP4)",
-							"features": [
-								"Visual workflow builder",
-								"Replay viewer with watermark",
-								"50 runs/month",
-								"No agents or UX metrics"
-							],
-							"cta_text": "Start free",
-							"cta_url": "/checkout?plan=free",
-							"badge": "Try it now"
-						},
-						{
-							"name": "Solo",
-							"price": "$29",
-							"description": "200 runs/month, MP4 export with watermark",
-							"features": [
-								"200 runs/month",
-								"MP4 export (watermark)",
-								"Workflow builder + replays",
-								"Email support"
-							],
-							"cta_text": "Upgrade to Solo",
-							"cta_url": "/checkout?plan=solo"
-						},
-						{
-							"name": "Pro",
-							"price": "$79",
-							"description": "Unlimited runs, MP4 without watermark, CI hooks",
-							"features": [
-								"Unlimited runs (fair use)",
-								"MP4 exports without watermark",
-								"CI integrations + advanced workflow tooling",
-								"Early UX metrics access",
-								"Limited agent loops"
-							],
-							"cta_text": "Choose Aquila",
-							"cta_url": "/checkout?plan=pro",
-							"highlighted": true,
-							"badge": "Recommended"
-						},
-						{
-							"name": "Studio",
-							"price": "$199",
-							"description": "Agency-ready replays + branding, more agent loops",
-							"features": [
-								"Multi-seat studio",
-								"Custom branding in replays",
-								"More agent loop concurrency",
-								"Priority support"
-							],
-							"cta_text": "Choose Studio",
-							"cta_url": "/checkout?plan=studio"
-						},
-						{
-							"name": "Business",
-							"price": "$499",
-							"description": "For small teams with heavy automation + API needs",
-							"features": [
-								"Unlimited agent loops",
-								"API + webhooks",
-								"Reliability & SSO mode prep",
-								"Best for teams/clients"
-							],
-							"cta_text": "Talk async",
-							"cta_url": "/contact"
-						}
-					]
-				}
-			},
-			{
-				"section_type": "faq",
-				"order": 5,
-				"enabled": true,
-				"content": {
-					"title": "Answers for quiet founders",
-					"subtitle": "What ships today, what is coming, and how we price it.",
-					"faqs": [
-						{
-							"question": "What do I get today?",
-						"answer": "Aquila provides durable sessions, pane-based workflows, and AI-assisted input from any browser."
-						},
-						{
-							"question": "What is coming next?",
-							"answer": "UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via swarm-manager + PRD control tower."
-						},
-						{
-							"question": "Do I have to talk to sales?",
-							"answer": "No. No sales calls, no per-seat pricing. Subscribe, download, and grow quietly. Support is async."
-						},
-						{
-							"question": "Can I cancel or switch?",
-							"answer": "Yes. Plans are flat, cancellable, and your price is honored as the suite expands."
-						}
-					]
-				}
-			},
-			{
-				"section_type": "cta",
-				"order": 6,
-				"enabled": true,
-				"content": {
-					"title": "Bring your workspace closer",
-					"subtitle": "Open Aquila, keep your sessions close, and add more Vrooli capabilities as they become ready.",
-					"cta_text": "Open Aquila",
-					"cta_url": "/app/web-console"
-				}
-			},
-			{
-				"section_type": "downloads",
-				"order": 7,
-				"enabled": true,
-				"content": {
-					"title": "Open Aquila",
-					"subtitle": "Open Aquila in your browser. Desktop and mobile apps will appear here as they ship."
-				}
-			},
-			{
-				"section_type": "footer",
-				"order": 8,
-				"enabled": true,
-				"content": {
-					"company_name": "Aquila · Vrooli Business Suite",
-					"tagline": "A calm command center for your tools and agents.",
-					"columns": [
-						{
-							"title": "Product",
-							"links": [
-								{ "label": "Features", "url": "#features" },
-								{ "label": "Pricing", "url": "#pricing" },
-								{ "label": "Downloads", "url": "#downloads-section" }
-							]
-						},
-						{
-							"title": "Company",
-							"links": [
-								{ "label": "Docs", "url": "/docs" },
-								{ "label": "PRD", "url": "/prd" },
-								{ "label": "Careers", "url": "/careers" }
-							]
-						},
-						{
-							"title": "Legal",
-							"links": [
-								{ "label": "Privacy", "url": "/privacy" },
-								{ "label": "Terms", "url": "/terms" },
-								{ "label": "Security", "url": "/security" }
-							]
-						}
-					],
-					"social_links": {
-						"github": "https://github.com/vrooli",
-						"twitter": "https://twitter.com/vrooli",
-						"linkedin": "https://www.linkedin.com/company/vrooli",
-						"email": "hello@vrooli.com"
-					},
-					"copyright": "© 2025 Vrooli. All rights reserved."
-				}
-			}
-		],
-		"pricing": {
-			"bundle": {
-				"id": 0,
-				"bundle_key": "business_suite",
-				"name": "Aquila · Vrooli Business Suite",
-				"stripe_product_id": "prod_business_suite",
-				"credits_per_usd": 1000000,
-				"display_credits_multiplier": 0.001,
-				"display_credits_label": "credits",
-				"environment": "production"
-			},
-			"monthly": [
-				{
-					"plan_name": "Free Monthly",
-					"plan_tier": "free",
-					"billing_interval": "month",
-					"amount_cents": 0,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_free_monthly",
-					"monthly_included_credits": 50,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 0,
-					"bonus_type": "none",
-					"display_weight": 5,
-					"metadata": {
-						"features": [
-							"50 runs/month",
-							"Replay viewer (watermark)",
-							"Builder access"
-						],
-						"badge": "Start free"
-					}
-				},
-				{
-					"plan_name": "Solo Monthly",
-					"plan_tier": "solo",
-					"billing_interval": "month",
-					"amount_cents": 2900,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_solo_monthly",
-					"monthly_included_credits": 200,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 1,
-					"bonus_type": "none",
-					"display_weight": 20,
-					"metadata": {
-						"features": [
-							"200 runs/month",
-							"MP4 export (watermark)",
-							"Async support"
-						],
-						"cta_label": "Upgrade to Solo"
-					}
-				},
-				{
-					"plan_name": "Pro Monthly",
-					"plan_tier": "pro",
-					"billing_interval": "month",
-					"amount_cents": 7900,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_pro_monthly",
-					"monthly_included_credits": 1000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 2,
-					"bonus_type": "none",
-					"display_weight": 40,
-					"metadata": {
-						"features": [
-							"Unlimited runs (fair use)",
-							"MP4 without watermark",
-							"CI hooks + advanced workflows",
-							"Limited agent loops",
-							"Early UX metrics access"
-						],
-						"badge": "Recommended",
-						"highlight": true,
-						"cta_label": "Choose Pro"
-					}
-				},
-				{
-					"plan_name": "Studio Monthly",
-					"plan_tier": "studio",
-					"billing_interval": "month",
-					"amount_cents": 19900,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_studio_monthly",
-					"monthly_included_credits": 2000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 3,
-					"bonus_type": "none",
-					"display_weight": 25,
-					"metadata": {
-						"features": [
-							"Custom branding in replays",
-							"More agent loop concurrency",
-							"Multi-seat studio",
-							"Priority support"
-						],
-						"cta_label": "Choose Studio"
-					}
-				},
-				{
-					"plan_name": "Business Monthly",
-					"plan_tier": "business",
-					"billing_interval": "month",
-					"amount_cents": 49900,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_business_monthly",
-					"monthly_included_credits": 4000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 4,
-					"bonus_type": "none",
-					"display_weight": 10,
-					"metadata": {
-						"features": [
-							"Unlimited agent loops",
-							"API + webhooks",
-							"Reliability options"
-						],
-						"cta_label": "Talk async"
-					}
-				}
-			],
-			"yearly": [
-				{
-					"plan_name": "Solo Yearly",
-					"plan_tier": "solo",
-					"billing_interval": "year",
-					"amount_cents": 29000,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_solo_yearly",
-					"monthly_included_credits": 200,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 1,
-					"bonus_type": "yearly_bonus",
-					"display_weight": 10,
-					"metadata": {
-						"features": [
-							"2 months free equivalent",
-							"MP4 export (watermark)"
-						]
-					}
-				},
-				{
-					"plan_name": "Pro Yearly",
-					"plan_tier": "pro",
-					"billing_interval": "year",
-					"amount_cents": 79000,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_pro_yearly",
-					"monthly_included_credits": 1000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 2,
-					"bonus_type": "yearly_bonus",
-					"display_weight": 20,
-					"metadata": {
-						"features": [
-							"MP4 without watermark",
-							"CI hooks + advanced workflows",
-							"Limited agent loops"
-						]
-					}
-				},
-				{
-					"plan_name": "Studio Yearly",
-					"plan_tier": "studio",
-					"billing_interval": "year",
-					"amount_cents": 199000,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_studio_yearly",
-					"monthly_included_credits": 2000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 3,
-					"bonus_type": "yearly_bonus",
-					"display_weight": 30,
-					"metadata": {
-						"features": [
-							"Custom branding in replays",
-							"More agent loop concurrency",
-							"Multi-seat studio"
-						]
-					}
-				},
-				{
-					"plan_name": "Business Yearly",
-					"plan_tier": "business",
-					"billing_interval": "year",
-					"amount_cents": 499000,
-					"currency": "usd",
-					"intro_enabled": false,
-					"stripe_price_id": "price_business_yearly",
-					"monthly_included_credits": 4000000,
-					"one_time_bonus_credits": 0,
-					"plan_rank": 4,
-					"bonus_type": "yearly_bonus",
-					"display_weight": 5,
-					"metadata": {
-						"features": [
-							"Unlimited agent loops",
-							"API + webhooks",
-							"Reliability + SSO prep"
-						]
-					}
-				}
-			],
-			"updated_at": "2025-01-01T00:00:00Z"
-		},
-		"downloads": [
-			{
-				"bundle_key": "business_suite",
-				"app_key": "browser-automation-studio",
-				"name": "Browser Automation Studio",
-				"tagline": "Browser workflows and replay evidence",
-				"description": "Desktop suite for visual browser automation, tests, and cinematic replays.",
-				"install_overview": "Pick your OS, download the installer, sign in with the email tied to your plan to unlock entitlement-gated downloads.",
-				"install_steps": [
-					"Download the installer for your OS",
-					"Launch the setup wizard and finish the install",
-					"Sign in with your subscription email to unlock the workspace"
-				],
-				"storefronts": [
-					{
-						"store": "app_store",
-						"label": "macOS App Store",
-						"url": "https://apps.apple.com/app/id000000",
-						"badge": "Download on the App Store"
-					}
-				],
-				"platforms": [
-					{
-						"bundle_key": "business_suite",
-						"app_key": "browser-automation-studio",
-						"platform": "windows",
-						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
-						"release_version": "1.0.0",
-						"release_notes": "Initial Browser Automation Studio release.",
-						"requires_entitlement": false,
-						"metadata": {
-							"size_mb": 210
-						}
-					},
-					{
-						"bundle_key": "business_suite",
-						"app_key": "browser-automation-studio",
-						"platform": "mac",
-						"artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
-						"release_version": "1.0.0",
-						"release_notes": "Universal build for Apple Silicon and Intel.",
-						"requires_entitlement": false,
-						"metadata": {
-							"size_mb": 190
-						}
-					},
-					{
-						"bundle_key": "business_suite",
-						"app_key": "browser-automation-studio",
-						"platform": "linux",
-						"artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
-						"release_version": "1.0.0",
-						"release_notes": "AppImage bundle tested on Ubuntu/Debian.",
-						"requires_entitlement": false,
-						"metadata": {
-							"size_mb": 205
-						}
-					}
-				]
-			}
-		]
-	}`)
+// LandingConfigService resolves published presentation data and joins its
+// public commerce facts.
+type LandingConfigService struct {
+	planService                  *commerce.PlanService
+	downloadService              *delivery.CatalogService
+	configStore                  *experimentation.ConfigStore
+	presentationOwnerJoin        func(context.Context, string) (*commerce.PricingOverview, []delivery.App, error)
+	presentationExposureRecorder interface {
+		RecordPresentationExposure(context.Context, string, string, string, string, string, string, string) (bool, error)
+	}
+}
+
+type PresentationAssignmentSource string
+
+const (
+	PresentationAssignmentWeightedVisitor PresentationAssignmentSource = "weighted_visitor"
+	PresentationAssignmentExplicitURL     PresentationAssignmentSource = "explicit_url"
 )
 
-type fallbackProvider func() *LandingConfigPayload
-
-func init() {
-	scenarioRoot := scenarioroot.Resolve()
-	if scenarioRoot == "" {
-		logx.Printf("scenario root unresolved (VROOLI_SCENARIO_DIR unset and binary built with -trimpath); fallback config read relative to the working directory")
-	}
-	primaryPath := filepath.Join(scenarioRoot, ".vrooli", "fallback", "fallback.json")
-	legacyPath := filepath.Join(scenarioRoot, ".vrooli", "variants", "fallback.json")
-	path := primaryPath
-	payload, err := loadFallbackLandingFromFile(path)
-	if err != nil {
-		path = legacyPath
-		payload, err = loadFallbackLandingFromFile(path)
-	}
-	if err != nil {
-		logx.Printf("failed to read fallback config at %s: %v; using baked defaults", path, err)
-		payload, err = parseFallbackLandingConfig(defaultFallbackLandingJSON)
-		if err != nil {
-			panic(fmt.Sprintf("default fallback config invalid: %v", err))
-		}
-	}
-	fallbackLanding = payload
+// PresentationExposureRequest is the schema-free domain proof passed by the
+// public exposure RPC. The generated protocol owns its wire equivalent.
+type PresentationExposureRequest struct {
+	VisitorID         string
+	VariantSlug       string
+	Revision          string
+	Route             string
+	Locale            string
+	BlockDigest       string
+	WeightFingerprint string
+	Source            PresentationAssignmentSource
 }
 
-// LandingConfigService aggregates variant, section, pricing, and download data.
-type LandingConfigService struct {
-	planService      *commerce.PlanService
-	downloadService  *delivery.CatalogService
-	configStore      *experimentation.ConfigStore
-	introOfferLookup IntroOfferLookup
-	fallbackProvider fallbackProvider
-	eventLogger      EventLogger
-	exposureRecorder interface {
-		RecordExposure(string, string, string) error
-	}
-	presentationOwnerJoin func(context.Context, string) (*commerce.PricingOverview, []delivery.App, error)
+func (s *LandingConfigService) UsePresentationExposureRecorder(recorder interface {
+	RecordPresentationExposure(context.Context, string, string, string, string, string, string, string) (bool, error)
+}) {
+	s.presentationExposureRecorder = recorder
 }
 
-func (s *LandingConfigService) UseExposureRecorder(recorder interface {
-	RecordExposure(string, string, string) error
-},
-) {
-	s.exposureRecorder = recorder
-}
-
-// LandingConfigResponse is returned by LandingConfigService.GetLandingConfig.
+// LandingConfigResponse is returned by the typed public landing service.
 type LandingConfigResponse struct {
-	Variant        LandingVariantSummary               `json:"variant"`
-	Sections       []LandingSection                    `json:"sections"`
-	Pricing        *commerce.PricingOverview           `json:"pricing"`
-	Downloads      []delivery.App                      `json:"downloads"`
-	Header         experimentation.LandingHeaderConfig `json:"header"`
-	Branding       *LandingBranding                    `json:"branding,omitempty"`
-	CouponMappings map[string]string                   `json:"coupon_mappings,omitempty"`
-	IntroOffers    []IntroOffer                        `json:"intro_offers,omitempty"`
-	Fallback       bool                                `json:"fallback"`
-	Presentation   *presentation.ResolveResult         `json:"presentation,omitempty"`
+	Pricing      *commerce.PricingOverview   `json:"pricing"`
+	Downloads    []delivery.App              `json:"downloads"`
+	Fallback     bool                        `json:"fallback"`
+	Presentation *presentation.ResolveResult `json:"presentation,omitempty"`
 }
-
-// LandingBranding contains public branding fields for the frontend.
-type LandingBranding struct {
-	SiteName             string  `json:"site_name"`
-	Tagline              *string `json:"tagline,omitempty"`
-	LogoURL              *string `json:"logo_url,omitempty"`
-	LogoIconURL          *string `json:"logo_icon_url,omitempty"`
-	FaviconURL           *string `json:"favicon_url,omitempty"`
-	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
-	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
-	SupportChatURL       *string `json:"support_chat_url,omitempty"`
-	SupportEmail         *string `json:"support_email,omitempty"`
-	ComingSoonEnabled    *bool   `json:"coming_soon_enabled,omitempty"`
-	ComingSoonMessage    *string `json:"coming_soon_message,omitempty"`
-}
-
-type LandingVariantSummary struct {
-	ID          int               `json:"id,omitempty"`
-	Slug        string            `json:"slug"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Axes        map[string]string `json:"axes,omitempty"`
-}
-
-type LandingSection struct {
-	Key         string                 `json:"key,omitempty"`
-	SectionType string                 `json:"section_type"`
-	Content     map[string]interface{} `json:"content"`
-	Order       int                    `json:"order"`
-	Enabled     bool                   `json:"enabled"`
-}
-
-type LandingConfigPayload struct {
-	Variant   LandingVariantSummary               `json:"variant"`
-	Sections  []LandingSection                    `json:"sections"`
-	Pricing   *commerce.PricingOverview           `json:"pricing"`
-	Downloads []delivery.App                      `json:"downloads"`
-	Header    experimentation.LandingHeaderConfig `json:"header"`
-}
-
-// IntroOffer is the public, display-safe coupon projection used by the landing
-// configuration domain. Payment-provider details remain in commerce wiring.
-type IntroOffer struct {
-	ID               string
-	Name             *string
-	AmountOff        int64
-	PercentOff       float64
-	Currency         *string
-	Duration         string
-	DurationInMonths *int
-	MaxRedemptions   *int
-	RedeemBy         int64
-	TimesRedeemed    int
-	Valid            bool
-	Created          int64
-	IsIntroCoupon    bool
-	IntroTier        *string
-}
-
-type IntroOfferLookup func(context.Context, string) (*IntroOffer, error)
-
-// EventLogger records domain events without coupling content policy to the
-// application's logging implementation.
-type EventLogger func(message string, fields map[string]interface{})
 
 // NewLandingConfigServiceWithConfigStore creates a LandingConfigService using ConfigStore (JSON files as source of truth)
 func NewLandingConfigServiceWithConfigStore(
 	configStore *experimentation.ConfigStore,
 	planService *commerce.PlanService,
 	downloadService *delivery.CatalogService,
-	introOfferLookup IntroOfferLookup,
 ) *LandingConfigService {
 	service := &LandingConfigService{
-		configStore:      configStore,
-		planService:      planService,
-		downloadService:  downloadService,
-		introOfferLookup: introOfferLookup,
-		fallbackProvider: defaultFallbackProvider,
-		eventLogger: func(message string, fields map[string]interface{}) {
-			logx.Printf("%s: %+v", message, fields)
-		},
+		configStore:     configStore,
+		planService:     planService,
+		downloadService: downloadService,
 	}
 	service.presentationOwnerJoin = service.joinPresentationOwners
 	return service
 }
 
-// UseFallbackProvider overrides the source of fallback content (primarily for tests).
-func (s *LandingConfigService) UseFallbackProvider(provider fallbackProvider) {
-	s.fallbackProvider = provider
-}
-
-// UseEventLogger overrides fallback-event reporting. Application composition
-// supplies structured logging; tests may inject a deterministic observer.
-func (s *LandingConfigService) UseEventLogger(logger EventLogger) {
-	s.eventLogger = logger
-}
-
-func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug string, visitorID ...string) (*LandingConfigResponse, error) {
-	// Use ConfigStore (JSON files as source of truth)
-	identity := ""
-	if len(visitorID) > 0 {
-		identity = visitorID[0]
-	}
-	return s.getLandingConfigFromConfigStore(ctx, variantSlug, identity)
-}
-
-// GetLandingConfigForRequest resolves the typed presentation path when an
-// immutable published revision exists. The legacy aggregator remains the
-// explicit pre-seed runtime fallback; once a revision is found, all route,
-// locale, and owner-join failures are returned instead of falling through to
-// mutable legacy marketing content.
+// GetLandingConfigForRequest resolves the typed presentation path only when
+// an immutable published revision exists. Missing publication fails closed so
+// mutable legacy marketing content cannot become a public substitute.
 func (s *LandingConfigService) GetLandingConfigForRequest(ctx context.Context, variantSlug, route, locale, visitorID string) (*LandingConfigResponse, error) {
 	selectedVariant, variants := s.presentationVariant(variantSlug, visitorID)
 	if selectedVariant == "" {
-		return s.GetLandingConfig(ctx, variantSlug, visitorID)
+		if presentationDetailRoute(route) {
+			return nil, presentation.ErrNotFound
+		}
+		return nil, fmt.Errorf("%w: no eligible published presentation variant", presentation.ErrUnavailable)
 	}
 
 	loaded, err := s.configStore.GetPublishedPresentation(ctx, selectedVariant)
 	if err != nil {
 		if errors.Is(err, experimentation.ErrPresentationNotFound) {
-			return s.GetLandingConfig(ctx, variantSlug, visitorID)
+			if presentationDetailRoute(route) {
+				return nil, presentation.ErrNotFound
+			}
+			return nil, fmt.Errorf("%w: published presentation unavailable for variant %q", presentation.ErrUnavailable, selectedVariant)
 		}
 		return nil, err
 	}
-	if visitorID != "" && variantSlug == "" && s.exposureRecorder != nil {
-		if err := s.exposureRecorder.RecordExposure(visitorID, selectedVariant, experimentation.WeightFingerprint(variants)); err != nil {
-			return nil, fmt.Errorf("record presentation exposure: %w", err)
-		}
-	}
-
 	resolved, err := presentation.Resolve(loaded.Document, presentation.ResolveRequest{
-		Route: route, Locale: locale, Variant: selectedVariant,
+		Route: route, Locale: locale, Variant: variantSlug,
 		ResolvedVariant: selectedVariant, ResolvedRevision: loaded.Revision,
 	})
 	if err != nil {
 		return nil, err
 	}
-	pricing, downloads, err := s.presentationOwners(ctx, loaded.Document.Bundle.Key)
-	if err != nil {
-		return nil, err
+	if strings.TrimSpace(variantSlug) != "" {
+		resolved.Diagnostics.AssignmentSource = string(PresentationAssignmentExplicitURL)
+	} else if strings.TrimSpace(visitorID) != "" {
+		resolved.Diagnostics.AssignmentSource = string(PresentationAssignmentWeightedVisitor)
+		resolved.Diagnostics.WeightFingerprint = experimentation.WeightFingerprint(variants)
 	}
-	if err := validatePresentationActions(resolved, pricing, downloads); err != nil {
-		return nil, err
+	pricing, downloads, ownerErr := s.presentationOwners(ctx, loaded.Document.Bundle.Key)
+	if ownerErr == nil {
+		// Bundle validation above is intentionally performed against the raw
+		// owner response. The typed presentation path then narrows commerce to
+		// its immutable public facts before snapshots, action joins, or wire
+		// conversion can observe arbitrary owner metadata or hidden plans.
+		pricing = sanitizePresentationPricing(pricing)
+		downloads = filterPresentationDownloads(resolved, downloads)
+		resolved.Diagnostics.CommerceSnapshotRef = publicOwnerSnapshotRef(pricing, downloads)
+	} else {
+		pricing, downloads = nil, nil
 	}
+	resolved.Actions = presentation.ResolveActions(resolved)
+	presentation.JoinActionOwners(&resolved, presentationOwnerObservations(resolved, pricing, downloads))
 	return &LandingConfigResponse{
 		Pricing: pricing, Downloads: downloads, Presentation: &resolved,
-		Fallback: false,
+		Fallback: resolved.Diagnostics.Fallback,
 	}, nil
 }
 
+// RecordPresentationExposure validates a read-only public resolution against
+// the current deterministic assignment and active published revision before
+// delegating the idempotent write to the context-aware metrics owner.
+func (s *LandingConfigService) RecordPresentationExposure(ctx context.Context, request PresentationExposureRequest) (bool, error) {
+	if request.Source != PresentationAssignmentWeightedVisitor {
+		return false, fmt.Errorf("%w: explicit URL assignments are not exposures", presentation.ErrUnavailable)
+	}
+	visitorID := strings.TrimSpace(request.VisitorID)
+	variantSlug := strings.TrimSpace(request.VariantSlug)
+	revision := strings.TrimSpace(request.Revision)
+	route := normalizePresentationExposureRoute(request.Route)
+	locale := strings.TrimSpace(request.Locale)
+	blockDigest := strings.TrimSpace(request.BlockDigest)
+	weightFingerprint := strings.TrimSpace(request.WeightFingerprint)
+	if visitorID == "" || variantSlug == "" || revision == "" || blockDigest == "" || weightFingerprint == "" {
+		return false, fmt.Errorf("%w: incomplete presentation exposure proof", presentation.ErrUnavailable)
+	}
+	if s.configStore == nil || s.presentationExposureRecorder == nil {
+		return false, fmt.Errorf("%w: presentation exposure owner is unavailable", presentation.ErrUnavailable)
+	}
+	variants := s.configStore.ListVariants()
+	selectable := false
+	for _, variant := range variants {
+		if experimentation.VariantWeight(variant) > 0 {
+			selectable = true
+			break
+		}
+	}
+	if !selectable {
+		return false, fmt.Errorf("%w: no selectable presentation variant", presentation.ErrUnavailable)
+	}
+	selected := experimentation.SelectVariantForVisitor(variants, visitorID)
+	if selected == nil || selected.Variant.Slug != variantSlug {
+		return false, fmt.Errorf("%w: variant is not the deterministic assignment for visitor", presentation.ErrUnavailable)
+	}
+	if expected := experimentation.WeightFingerprint(variants); expected != weightFingerprint {
+		return false, fmt.Errorf("%w: assignment weights changed", presentation.ErrUnavailable)
+	}
+	loaded, err := s.configStore.GetPublishedPresentation(ctx, variantSlug)
+	if err != nil {
+		if errors.Is(err, experimentation.ErrPresentationNotFound) {
+			return false, fmt.Errorf("%w: published presentation is unavailable", presentation.ErrUnavailable)
+		}
+		return false, err
+	}
+	if loaded.Revision != revision {
+		return false, fmt.Errorf("%w: published revision changed", presentation.ErrUnavailable)
+	}
+	if locale == "" {
+		locale = loaded.Document.Bundle.DefaultLocale
+	}
+	resolved, err := presentation.Resolve(loaded.Document, presentation.ResolveRequest{
+		Route: route, Locale: locale, ResolvedVariant: variantSlug, ResolvedRevision: revision,
+	})
+	if err != nil {
+		return false, err
+	}
+	if resolved.Diagnostics.ResolvedRoute != route || resolved.Diagnostics.Locale != locale || resolved.Diagnostics.ResolvedVariant != variantSlug || resolved.Diagnostics.ResolvedRevision != revision || resolved.Diagnostics.BlockDigest != blockDigest {
+		return false, fmt.Errorf("%w: public presentation proof does not match current resolution", presentation.ErrUnavailable)
+	}
+	return s.presentationExposureRecorder.RecordPresentationExposure(ctx, visitorID, variantSlug, revision, route, locale, blockDigest, weightFingerprint)
+}
+
+func normalizePresentationExposureRoute(route string) string {
+	route = strings.TrimSpace(route)
+	if route == "" {
+		return "/"
+	}
+	route = strings.TrimRight(route, "/")
+	if route == "" {
+		return "/"
+	}
+	return route
+}
+
+func presentationDetailRoute(route string) bool {
+	clean := strings.TrimRight(strings.TrimSpace(route), "/")
+	return strings.HasPrefix(clean, "/apps/") && len(clean) > len("/apps/")
+}
+
+func filterPresentationDownloads(result presentation.ResolveResult, downloads []delivery.App) []delivery.App {
+	allowed := map[string]bool{}
+	if result.Mode == presentation.ModeAppDetail {
+		allowed[result.AppKey] = true
+	} else {
+		for _, key := range result.Diagnostics.EligibleAppKeys {
+			allowed[key] = true
+		}
+	}
+	filtered := make([]delivery.App, 0, len(downloads))
+	for _, app := range downloads {
+		if app.BundleKey == result.Diagnostics.BundleKey && allowed[app.AppKey] {
+			filtered = append(filtered, sanitizePresentationDownload(app))
+		}
+	}
+	return filtered
+}
+
+func sanitizePresentationDownload(app delivery.App) delivery.App {
+	if len(app.Metadata) == 0 {
+		return app
+	}
+	metadata := make(map[string]interface{}, len(app.Metadata))
+	for key, value := range app.Metadata {
+		metadata[key] = value
+	}
+	if raw, ok := metadata["web_url"].(string); ok {
+		if safe := presentationWebURLValue(raw); safe != "" {
+			metadata["web_url"] = safe
+		} else {
+			delete(metadata, "web_url")
+		}
+	}
+	app.Metadata = metadata
+	return app
+}
+
 func (s *LandingConfigService) presentationVariant(variantSlug, visitorID string) (string, []*experimentation.VariantSnapshot) {
+	if s.configStore == nil {
+		return "", nil
+	}
 	if variantSlug != "" {
+		// Retained immutable revisions are history, not a second admission
+		// registry. Deleting or archiving a variant must revoke public reads.
+		variant, err := s.configStore.GetVariant(variantSlug)
+		if err != nil || variant == nil || experimentation.NormalizeVariantStatus(variant.Variant.Status) != "active" {
+			return "", nil
+		}
 		return variantSlug, nil
 	}
 	variants := s.configStore.ListVariants()
-	if len(variants) == 0 {
+	selectable := false
+	for _, variant := range variants {
+		if experimentation.VariantWeight(variant) > 0 {
+			selectable = true
+			break
+		}
+	}
+	if !selectable {
 		return "", variants
 	}
 	selected := experimentation.SelectVariantForVisitor(variants, visitorID)
@@ -773,14 +288,21 @@ func (s *LandingConfigService) presentationOwners(ctx context.Context, bundleKey
 	if s.presentationOwnerJoin == nil {
 		return nil, nil, fmt.Errorf("%w: commerce and delivery owner join is unavailable", presentation.ErrUnavailable)
 	}
-	return s.presentationOwnerJoin(ctx, bundleKey)
+	pricing, downloads, err := s.presentationOwnerJoin(ctx, bundleKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := validatePresentationOwnerBundle(bundleKey, pricing, downloads); err != nil {
+		return nil, nil, err
+	}
+	return pricing, downloads, nil
 }
 
 func (s *LandingConfigService) joinPresentationOwners(ctx context.Context, bundleKey string) (*commerce.PricingOverview, []delivery.App, error) {
 	if s.planService == nil || s.downloadService == nil {
 		return nil, nil, fmt.Errorf("%w: commerce and delivery owner join is unavailable", presentation.ErrUnavailable)
 	}
-	pricing, err := s.planService.GetPricingOverview()
+	pricing, err := s.planService.GetPricingOverviewForBundle(ctx, bundleKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: pricing owner unavailable", presentation.ErrUnavailable)
 	}
@@ -788,182 +310,213 @@ func (s *LandingConfigService) joinPresentationOwners(ctx context.Context, bundl
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: delivery owner unavailable", presentation.ErrUnavailable)
 	}
+	if err := validatePresentationOwnerBundle(bundleKey, pricing, downloads); err != nil {
+		return nil, nil, err
+	}
 	return pricing, downloads, nil
 }
 
-func validatePresentationActions(result presentation.ResolveResult, pricing *commerce.PricingOverview, downloads []delivery.App) error {
-	planRefs := map[string]bool{}
-	if pricing != nil {
-		for _, plan := range append(append(append([]*commerce.PlanOption{}, pricing.Monthly...), pricing.Yearly...), pricing.CreditTopups...) {
-			if plan != nil && plan.StripePriceId != "" {
-				planRefs[plan.StripePriceId] = true
-			}
+func validatePresentationOwnerBundle(bundleKey string, pricing *commerce.PricingOverview, downloads []delivery.App) error {
+	expected := strings.TrimSpace(bundleKey)
+	if expected == "" {
+		return fmt.Errorf("%w: resolved presentation bundle is empty", presentation.ErrUnavailable)
+	}
+	if pricing == nil || pricing.Bundle == nil || pricing.Bundle.BundleKey != expected {
+		return fmt.Errorf("%w: pricing owner bundle does not match resolved presentation bundle %q", presentation.ErrUnavailable, expected)
+	}
+	plans := append(append(append([]*commerce.PlanOption{}, pricing.Monthly...), pricing.Yearly...), pricing.CreditTopups...)
+	for _, plan := range plans {
+		if plan != nil && plan.BundleKey != expected {
+			return fmt.Errorf("%w: pricing plan %q belongs to bundle %q, want %q", presentation.ErrUnavailable, plan.StripePriceId, plan.BundleKey, expected)
 		}
 	}
-	downloadApps := map[string]bool{}
 	for _, app := range downloads {
-		if app.AppKey != "" {
-			downloadApps[app.AppKey] = true
+		if app.BundleKey != expected {
+			return fmt.Errorf("%w: delivery app %q belongs to bundle %q, want %q", presentation.ErrUnavailable, app.AppKey, app.BundleKey, expected)
 		}
-	}
-	for _, action := range presentationActions(result) {
-		switch action.Kind {
-		case presentation.ActionPurchase:
-			if !planRefs[action.PlanRef] {
-				return fmt.Errorf("%w: purchase plan %q is not present in the pricing owner", presentation.ErrUnavailable, action.PlanRef)
-			}
-		case presentation.ActionDownload:
-			if !downloadApps[action.AppKey] {
-				return fmt.Errorf("%w: download app %q is not present in the delivery owner", presentation.ErrUnavailable, action.AppKey)
+		for _, asset := range app.Platforms {
+			if asset.BundleKey != expected || asset.AppKey != app.AppKey {
+				return fmt.Errorf("%w: delivery platform does not belong to its resolved bundle/app", presentation.ErrUnavailable)
 			}
 		}
 	}
 	return nil
 }
 
-func presentationActions(result presentation.ResolveResult) []presentation.Action {
-	actions := make([]presentation.Action, 0)
-	if header := result.Page.Display.Shell.HeaderAction; header != nil {
-		actions = append(actions, *header)
-	}
-	for _, block := range result.Page.Blocks {
-		switch content := block.Content.(type) {
-		case presentation.ProductHeroContent:
-			actions = append(actions, content.Actions...)
-		case presentation.BundleHeroContent:
-			actions = append(actions, content.Actions...)
-		case presentation.PricingContent:
-			actions = append(actions, content.Actions...)
-		case presentation.ClosingActionContent:
-			actions = append(actions, content.Actions...)
+func presentationOwnerObservations(result presentation.ResolveResult, pricing *commerce.PricingOverview, downloads []delivery.App) presentation.ActionOwnerObservations {
+	observations := presentation.ActionOwnerObservations{Downloads: map[string]presentation.ActionOwnerObservation{}, Purchases: map[string]presentation.ActionOwnerObservation{}, Opens: map[string]presentation.ActionOwnerObservation{}}
+	for _, app := range downloads {
+		if app.BundleKey != result.Diagnostics.BundleKey {
+			continue
+		}
+		if webURL := presentationWebURL(app.Metadata); webURL != "" {
+			observations.Opens[app.AppKey] = presentation.ActionOwnerObservation{Ready: true, Href: webURL}
+		}
+		if !presentationDownloadReady(app) {
+			continue
+		}
+		href := presentation.CanonicalAppHref(result, app.AppKey)
+		if href != "" {
+			observations.Downloads[app.AppKey] = presentation.ActionOwnerObservation{Ready: true, Href: href + "/download"}
 		}
 	}
-	return actions
+	if pricing == nil || pricing.Bundle == nil || pricing.Bundle.BundleKey != result.Diagnostics.BundleKey {
+		return observations
+	}
+	for _, plan := range append(append(append([]*commerce.PlanOption{}, pricing.Monthly...), pricing.Yearly...), pricing.CreditTopups...) {
+		if plan == nil || !plan.DisplayEnabled || plan.StripePriceId == "" || plan.BundleKey != result.Diagnostics.BundleKey {
+			continue
+		}
+		observations.Purchases[plan.StripePriceId] = presentation.ActionOwnerObservation{
+			Ready: true, Href: "/checkout?price_id=" + url.QueryEscape(plan.StripePriceId),
+		}
+	}
+	return observations
 }
 
-// getLandingConfigFromConfigStore uses ConfigStore to fetch landing config
-func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Context, variantSlug string, visitorID string) (*LandingConfigResponse, error) {
-	pricing, err := s.planService.GetPricingOverview()
-	if err != nil {
-		return s.fallbackWithReason("pricing_fetch_failed", err, nil)
+func presentationWebURL(metadata map[string]interface{}) string {
+	raw, ok := metadata["web_url"].(string)
+	if !ok {
+		return ""
 	}
+	return presentationWebURLValue(raw)
+}
 
-	downloads, err := s.downloadService.ListAppsContext(ctx, s.planService.BundleKey())
-	if err != nil {
-		return s.fallbackWithReason("download_list_failed", err, nil)
+func presentationWebURLValue(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" || strings.ContainsAny(value, "\\\x00\r\n\t") || strings.HasPrefix(value, "//") {
+		return ""
 	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.User != nil || strings.ContainsAny(parsed.Path, "\\\x00\r\n\t") {
+		return ""
+	}
+	if parsed.IsAbs() {
+		if parsed.Scheme != "https" || parsed.Host == "" {
+			return ""
+		}
+		return value
+	}
+	if parsed.Host != "" || !strings.HasPrefix(value, "/") || strings.Contains(parsed.Path, "..") {
+		return ""
+	}
+	return value
+}
 
-	var variantSnapshot *experimentation.VariantSnapshot
-	if variantSlug != "" {
-		variantSnapshot, err = s.configStore.GetVariant(variantSlug)
-	} else {
-		// Use weighted random selection for A/B testing
-		variants := s.configStore.ListVariants()
-		if len(variants) > 0 {
-			variantSnapshot = experimentation.SelectVariantForVisitor(variants, visitorID)
-			if s.exposureRecorder != nil && visitorID != "" && variantSnapshot != nil {
-				if err := s.exposureRecorder.RecordExposure(visitorID, variantSnapshot.Variant.Slug, experimentation.WeightFingerprint(variants)); err != nil {
-					return s.fallbackWithReason("exposure_record_failed", err, map[string]interface{}{"variant_slug": variantSnapshot.Variant.Slug})
-				}
+func presentationDownloadReady(app delivery.App) bool {
+	for _, asset := range app.Platforms {
+		if asset.BundleKey != app.BundleKey || asset.AppKey != app.AppKey {
+			continue
+		}
+		if strings.TrimSpace(asset.Platform) == "" || strings.TrimSpace(asset.ReleaseVersion) == "" {
+			continue
+		}
+		if asset.ArtifactURL != "" {
+			if delivery.ValidateDirectArtifactURL(asset.ArtifactURL) == nil {
+				return true
 			}
-		} else {
-			err = fmt.Errorf("no variants available")
+			continue
+		}
+		if asset.ArtifactID != nil && *asset.ArtifactID > 0 {
+			return true
 		}
 	}
-	if err != nil || variantSnapshot == nil {
-		reason := "variant_selection_failed"
-		meta := map[string]interface{}{}
-		if variantSlug != "" {
-			reason = "variant_lookup_failed"
-			meta["variant_slug"] = variantSlug
-		}
-		return s.fallbackWithReason(reason, err, meta)
-	}
+	return false
+}
 
-	// Fetch branding from ConfigStore
-	var branding *LandingBranding
-	siteBranding := s.configStore.GetBranding()
-	if siteBranding != nil {
-		branding = &LandingBranding{
-			SiteName:             siteBranding.SiteName,
-			Tagline:              siteBranding.Tagline,
-			LogoURL:              siteBranding.LogoURL,
-			LogoIconURL:          siteBranding.LogoIconURL,
-			FaviconURL:           siteBranding.FaviconURL,
-			ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
-			ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
-			SupportChatURL:       siteBranding.SupportChatURL,
-			SupportEmail:         siteBranding.SupportEmail,
-			ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
-			ComingSoonMessage:    siteBranding.ComingSoonMessage,
-		}
-	}
+type publicPlanSnapshot struct {
+	StripePriceID string `json:"stripe_price_id"`
+	BundleKey     string `json:"bundle_key"`
+	PlanName      string `json:"plan_name"`
+	PlanTier      string `json:"plan_tier"`
+	Billing       string `json:"billing_interval"`
+	AmountCents   int64  `json:"amount_cents"`
+	Currency      string `json:"currency"`
+	Display       bool   `json:"display_enabled"`
+}
 
-	// Fetch coupon mappings and resolve intro offers for public display
-	couponMappings := s.planService.GetCouponMappings()
-	var introOffers []IntroOffer
-	if len(couponMappings) > 0 && s.introOfferLookup != nil {
-		seen := make(map[string]bool)
-		for _, couponID := range couponMappings {
-			if !seen[couponID] {
-				seen[couponID] = true
-				if coupon, err := s.introOfferLookup(ctx, couponID); err == nil && coupon != nil {
-					introOffers = append(introOffers, *coupon)
+type publicAssetSnapshot struct {
+	AppKey              string `json:"app_key"`
+	Platform            string `json:"platform"`
+	ReleaseVersion      string `json:"release_version"`
+	ReleaseNotes        string `json:"release_notes,omitempty"`
+	Checksum            string `json:"checksum,omitempty"`
+	RequiresEntitlement bool   `json:"requires_entitlement"`
+}
+
+type publicAppSnapshot struct {
+	AppKey      string                `json:"app_key"`
+	Name        string                `json:"name"`
+	Tagline     string                `json:"tagline,omitempty"`
+	Description string                `json:"description,omitempty"`
+	WebURL      string                `json:"web_url,omitempty"`
+	Platforms   []publicAssetSnapshot `json:"platforms"`
+}
+
+func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []delivery.App) string {
+	type snapshot struct {
+		Bundle    string               `json:"bundle"`
+		Monthly   []publicPlanSnapshot `json:"monthly"`
+		Yearly    []publicPlanSnapshot `json:"yearly"`
+		Topups    []publicPlanSnapshot `json:"credit_topups"`
+		Downloads []publicAppSnapshot  `json:"downloads"`
+	}
+	value := snapshot{
+		Monthly:   []publicPlanSnapshot{},
+		Yearly:    []publicPlanSnapshot{},
+		Topups:    []publicPlanSnapshot{},
+		Downloads: []publicAppSnapshot{},
+	}
+	if pricing != nil && pricing.Bundle != nil {
+		value.Bundle = pricing.Bundle.BundleKey
+		appendPlans := func(target *[]publicPlanSnapshot, plans []*commerce.PlanOption) {
+			for _, plan := range plans {
+				if plan == nil {
+					continue
 				}
+				*target = append(*target, publicPlanSnapshot{StripePriceID: plan.StripePriceId, BundleKey: plan.BundleKey, PlanName: plan.PlanName, PlanTier: plan.PlanTier, Billing: plan.BillingInterval.String(), AmountCents: plan.AmountCents, Currency: plan.Currency, Display: plan.DisplayEnabled})
 			}
 		}
+		appendPlans(&value.Monthly, pricing.Monthly)
+		appendPlans(&value.Yearly, pricing.Yearly)
+		appendPlans(&value.Topups, pricing.CreditTopups)
 	}
-
-	response := &LandingConfigResponse{
-		Variant: LandingVariantSummary{
-			Slug:        variantSnapshot.Variant.Slug,
-			Name:        variantSnapshot.Variant.Name,
-			Description: variantSnapshot.Variant.Description,
-			Axes:        variantSnapshot.Variant.Axes,
-		},
-		Header:         variantSnapshot.Variant.HeaderConfig,
-		Pricing:        pricing,
-		Downloads:      downloads,
-		Branding:       branding,
-		CouponMappings: couponMappings,
-		IntroOffers:    introOffers,
-		Fallback:       false,
-	}
-
-	// Convert sections from VariantSnapshot format to LandingSection
-	landingSections := make([]LandingSection, 0, len(variantSnapshot.Sections))
-	for _, section := range variantSnapshot.Sections {
-		if section.Enabled {
-			var content map[string]interface{}
-			if len(section.Content) > 0 {
-				if err := json.Unmarshal(section.Content, &content); err != nil {
-					logx.Printf("landing config section content unmarshal failed: variant=%s section=%s error=%v", variantSnapshot.Variant.Slug, section.SectionType, err)
-					content = make(map[string]interface{})
-				}
-			} else {
-				content = make(map[string]interface{})
-			}
-			landingSections = append(landingSections, LandingSection{
-				Key:         section.Key,
-				SectionType: section.SectionType,
-				Content:     content,
-				Order:       section.Order,
-				Enabled:     section.Enabled,
-			})
+	planLess := func(left, right publicPlanSnapshot) bool {
+		if left.StripePriceID != right.StripePriceID {
+			return left.StripePriceID < right.StripePriceID
 		}
+		if left.BundleKey != right.BundleKey {
+			return left.BundleKey < right.BundleKey
+		}
+		if left.Billing != right.Billing {
+			return left.Billing < right.Billing
+		}
+		return left.PlanTier < right.PlanTier
 	}
-	sort.SliceStable(landingSections, func(i, j int) bool {
-		return landingSections[i].Order < landingSections[j].Order
-	})
-
-	// ASSUMPTION: Every active variant must render at least one section and expose a hero.
-	if err := ensureRenderableSections(landingSections); err != nil {
-		return s.fallbackWithReason("section_renderability_failed", err, map[string]interface{}{
-			"variant_slug": variantSnapshot.Variant.Slug,
+	sort.Slice(value.Monthly, func(i, j int) bool { return planLess(value.Monthly[i], value.Monthly[j]) })
+	sort.Slice(value.Yearly, func(i, j int) bool { return planLess(value.Yearly[i], value.Yearly[j]) })
+	sort.Slice(value.Topups, func(i, j int) bool { return planLess(value.Topups[i], value.Topups[j]) })
+	for _, app := range downloads {
+		projection := publicAppSnapshot{AppKey: app.AppKey, Name: app.Name, Tagline: app.Tagline, Description: app.Description, WebURL: presentationWebURL(app.Metadata), Platforms: []publicAssetSnapshot{}}
+		for _, asset := range app.Platforms {
+			projection.Platforms = append(projection.Platforms, publicAssetSnapshot{AppKey: asset.AppKey, Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion, ReleaseNotes: asset.ReleaseNotes, Checksum: asset.Checksum, RequiresEntitlement: asset.RequiresEntitlement})
+		}
+		value.Downloads = append(value.Downloads, projection)
+	}
+	for index := range value.Downloads {
+		sort.Slice(value.Downloads[index].Platforms, func(i, j int) bool {
+			left, right := value.Downloads[index].Platforms[i], value.Downloads[index].Platforms[j]
+			if left.Platform != right.Platform {
+				return left.Platform < right.Platform
+			}
+			if left.ReleaseVersion != right.ReleaseVersion {
+				return left.ReleaseVersion < right.ReleaseVersion
+			}
+			return left.Checksum < right.Checksum
 		})
 	}
-
-	response.Sections = landingSections
-
-	return response, nil
+	sort.Slice(value.Downloads, func(i, j int) bool { return value.Downloads[i].AppKey < value.Downloads[j].AppKey })
+	data, _ := json.Marshal(value)
+	digest := sha256.Sum256(data)
+	return hex.EncodeToString(digest[:])
 }

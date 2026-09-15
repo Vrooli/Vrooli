@@ -9,6 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 	"landing-page-business-suite-api/internal/envx"
 
 	"google.golang.org/protobuf/proto"
@@ -53,6 +56,8 @@ type PlanStore struct {
 	plans          []*PlanOption
 	couponMappings map[string]string // priceID -> couponID
 	plansPath      string
+	configRoots    *filerouting.RoutedRoots
+	configFileName string
 	displayEnv     string
 	bundleKey      string
 	updatedAt      time.Time
@@ -119,6 +124,7 @@ func NewPlanStore(plansPath string) *PlanStore {
 		plans:          make([]*PlanOption, 0),
 		couponMappings: make(map[string]string),
 		plansPath:      plansPath,
+		configFileName: "plans.json",
 		displayEnv:     env,
 		bundleKey:      bundleKey,
 	}
@@ -129,6 +135,11 @@ type PlanStoreOptions struct {
 	PlansPath  string
 	BundleKey  string
 	DisplayEnv string
+	// ConfigRoots routes request-time plan snapshots through the leased
+	// ClassConfig root. When set, GetPricingOverviewForBundle reads only the
+	// selected root and never falls back to plansPath for a test-mode request.
+	ConfigRoots    *filerouting.RoutedRoots
+	ConfigFileName string
 	// Log is an optional composition-root supplied observability seam.
 	Log func(event string, fields map[string]interface{})
 }
@@ -146,6 +157,8 @@ func NewPlanStoreWithOptions(opts PlanStoreOptions) *PlanStore {
 		plans:          make([]*PlanOption, 0),
 		couponMappings: make(map[string]string),
 		plansPath:      opts.PlansPath,
+		configRoots:    opts.ConfigRoots,
+		configFileName: stringsTrimOrDefault(opts.ConfigFileName, "plans.json"),
 		displayEnv:     env,
 		bundleKey:      bundleKey,
 		log:            opts.Log,
@@ -161,6 +174,38 @@ func (ps *PlanStore) logEvent(event string, fields map[string]interface{}) {
 // BundleKey returns the configured bundle key.
 func (ps *PlanStore) BundleKey() string {
 	return ps.bundleKey
+}
+
+// SetFileRoots attaches the request-routed configuration roots used by
+// GetPricingOverviewForBundle. It does not reload or write the catalog.
+func (ps *PlanStore) SetFileRoots(roots *filerouting.RoutedRoots) {
+	if ps == nil {
+		return
+	}
+	ps.mu.Lock()
+	ps.configRoots = roots
+	ps.mu.Unlock()
+}
+
+// validateConfigFileName constrains the filename used inside a routed
+// ClassConfig root. The request-time reader uses os.Root as a second boundary,
+// so a symlink cannot redirect the read outside that root.
+func validateConfigFileName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("config filename is required")
+	}
+	if filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
+		return fmt.Errorf("config filename must be relative")
+	}
+	clean := filepath.Clean(name)
+	if clean == "." || clean == ".." || clean != name || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("config filename must remain within the routed root")
+	}
+	if strings.IndexByte(name, 0) >= 0 {
+		return fmt.Errorf("config filename contains NUL")
+	}
+	return nil
 }
 
 func (ps *PlanStore) validatePlanCatalogLocked() error {
@@ -327,6 +372,74 @@ func (ps *PlanStore) RemoveCouponFromPlan(priceID string) error {
 func (ps *PlanStore) GetPricingOverview() (*PricingOverview, error) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
+	return BuildPricingOverview(ps.bundle, ps.plans)
+}
+
+// GetPricingOverviewForBundle returns the pricing snapshot for the requested
+// configured bundle. Test-mode requests read only the request-selected leased
+// ClassConfig snapshot. Production requests continue to use the owner-loaded
+// catalog, including an explicitly configured STRIPE_PLANS_PATH; attaching
+// routed roots must not redirect production pricing to config/plans.json.
+func (ps *PlanStore) GetPricingOverviewForBundle(ctx context.Context, bundleKey string) (*PricingOverview, error) {
+	if ps == nil {
+		return nil, fmt.Errorf("plan store is unavailable")
+	}
+	bundleKey = strings.TrimSpace(bundleKey)
+	if bundleKey == "" {
+		return nil, fmt.Errorf("bundle key is required")
+	}
+	if ctx == nil {
+		return nil, fmt.Errorf("pricing context is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	ps.mu.RLock()
+	configRoots := ps.configRoots
+	configFileName := ps.configFileName
+	configuredBundleKey := ps.bundleKey
+	displayEnv := ps.displayEnv
+	ps.mu.RUnlock()
+	if database.IsTestMode(ctx) {
+		if configRoots == nil {
+			return nil, fmt.Errorf("test-mode pricing requires a routed ClassConfig root")
+		}
+		if err := validateConfigFileName(configFileName); err != nil {
+			return nil, err
+		}
+		root, err := configRoots.PickRequired(ctx, storage.ClassConfig)
+		if err != nil {
+			return nil, fmt.Errorf("resolve pricing ClassConfig root: %w", err)
+		}
+		snapshot := &PlanStore{bundleKey: configuredBundleKey, displayEnv: displayEnv, configFileName: configFileName, log: ps.log}
+		if err := snapshot.loadFromRoot(root, configFileName); err != nil {
+			return nil, fmt.Errorf("read pricing snapshot: %w", err)
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		snapshot.mu.RLock()
+		defer snapshot.mu.RUnlock()
+		if snapshot.bundle == nil || snapshot.bundle.BundleKey != bundleKey {
+			actual := ""
+			if snapshot.bundle != nil {
+				actual = snapshot.bundle.BundleKey
+			}
+			return nil, fmt.Errorf("pricing snapshot bundle %q does not match requested bundle %q", actual, bundleKey)
+		}
+		return BuildPricingOverview(snapshot.bundle, snapshot.plans)
+	}
+
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+	if ps.bundle == nil || ps.bundle.BundleKey != bundleKey {
+		actual := ""
+		if ps.bundle != nil {
+			actual = ps.bundle.BundleKey
+		}
+		return nil, fmt.Errorf("pricing bundle %q does not match requested bundle %q", actual, bundleKey)
+	}
 	return BuildPricingOverview(ps.bundle, ps.plans)
 }
 

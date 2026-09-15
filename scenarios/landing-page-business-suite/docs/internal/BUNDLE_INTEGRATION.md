@@ -47,10 +47,24 @@ gates clear.
 
 ## Visual Capture Root Cause
 
-The original MP4s were invalid: Chrome was launched with `--headless` while
-`ffmpeg` captured the Xvfb display, so the display contained no browser window.
-A fresh profile could also present Chrome's first-run dialog. The reusable
-`scripts/capture-public-evidence.sh` now uses a visible app window, suppresses
-first-run UI, records both the hero and catalog states, and fails closed when
-the output is empty, too short, sustained-black, or has a near-zero first-frame
-luma average.
+The earlier report attributed the black recording to rendering a headless page
+while recording a separate X11 display. Controlled reproduction confirms that
+failure mechanism, but the original launch command was not retained, so its
+exact flags are not established. An unrelated first-run dialog can also produce
+nonuniform pixels without showing the intended page. The earlier luma-only gate
+was insufficient: legal-range black can have YAVG near 16 and pass a low cutoff.
+
+As of 2026-09-15, `scripts/capture-public-evidence.sh` invokes a page-bound
+Playwright recorder. Headless capture is the default; headed mode is also tested.
+The screenshot and video use the same page. Configured checkpoint labels and
+ordering support the hero, product, catalog, voice, artifact and closing sections
+as needed, plus an explicit app-detail route. Both desktop and mobile screenshots
+are captured. Every desktop checkpoint must appear in decoded video frames in
+journey order. Validation rejects blank/late-blank recordings, missing expected
+motion, wrong route/variant/revision/viewport, overlays and image failures.
+
+Run the focused regression with
+`xvfb-run -a node --test scripts/capture-public-evidence.test.mjs` when exercising
+its headed case on a host without an existing display. A test fixture recording
+is not final evidence for the integrated public site. Retain capture-receipt.json
+and rejected media; do not treat DOM success or a nonempty MP4 as sufficient.

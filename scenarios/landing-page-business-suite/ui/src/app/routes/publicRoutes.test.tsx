@@ -1,58 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders as render } from "@vrooli/api-base/testing";
-import { screen } from '@testing-library/react';
-import { PublicRouteGuard } from './publicRoutes';
-import type { useLandingVariant } from '../providers/useLandingVariant';
-import type { LandingVariantContextType } from '../providers/LandingVariantContext';
-import type { LandingConfigResponse } from '../../shared/api';
-
-const useLandingVariantMock = vi.fn<() => ReturnType<typeof useLandingVariant>>();
-const createLandingVariantContext = (
-  overrides: Partial<LandingVariantContextType>
-): LandingVariantContextType => ({
-  variant: null,
-  config: null,
-  loading: false,
-  error: null,
-  resolution: 'unknown',
-  statusNote: null,
-  lastUpdated: null,
-  refresh: vi.fn(),
-  ...overrides,
-});
-
-vi.mock('../providers/useLandingVariant', () => ({
-  useLandingVariant: () => useLandingVariantMock(),
-}));
-
-describe('PublicRouteGuard experience readiness', () => {
-  it('exposes the loading state until landing configuration resolves', () => {
-    useLandingVariantMock.mockReturnValue(createLandingVariantContext({ config: null, loading: true }));
-
-    render(<PublicRouteGuard><div>landing content</div></PublicRouteGuard>);
-
-    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-experience-surface', 'public-landing');
-    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-experience-state', 'loading');
-    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-testid', 'landing-experience-surface');
+import { Suspense } from 'react';
+import { MemoryRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { renderWithProviders as render } from '@vrooli/api-base/testing';
+import { cleanup, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { publicRoutes } from './publicRoutes';
+vi.mock('../../surfaces/public-landing/routes/PublicLanding', () => ({ PublicLanding: () => <p>Canonical page route</p> }));
+vi.mock('../../surfaces/public-landing/presentation/DownloadPage', () => ({ DownloadPage: () => <p>Configured download workflow</p> }));
+afterEach(cleanup);
+function Location() { return <span data-testid="location">{useLocation().pathname}</span>; }
+describe('public route table', () => {
+  it('mounts the explicit app download workflow', async () => {
+    render(<MemoryRouter initialEntries={['/apps/example/download']}><Suspense><Routes>{publicRoutes}</Routes></Suspense></MemoryRouter>, { withoutRouter: true });
+    expect(await screen.findByText('Configured download workflow')).toBeInTheDocument();
   });
-
-  it('exposes a terminal ready state once configuration resolves', () => {
-    useLandingVariantMock.mockReturnValue(createLandingVariantContext({
-      config: { branding: { coming_soon_enabled: false } } as LandingConfigResponse,
-      loading: false,
-    }));
-
-    render(<PublicRouteGuard><div>landing content</div></PublicRouteGuard>);
-
-    expect(screen.getByText('landing content').parentElement).toHaveAttribute('data-experience-surface', 'public-landing');
-    expect(screen.getByText('landing content').parentElement).toHaveAttribute('data-experience-state', 'ready');
+  it.each(['/', '/apps/example'])('mounts the canonical page for %s', async path => {
+    render(<MemoryRouter initialEntries={[path]}><Suspense><Routes>{publicRoutes}</Routes></Suspense></MemoryRouter>, { withoutRouter: true });
+    expect(await screen.findByText('Canonical page route')).toBeInTheDocument();
   });
-
-  it('reports an error state when configuration cannot be resolved', () => {
-    useLandingVariantMock.mockReturnValue(createLandingVariantContext({ config: null, loading: false }));
-
-    render(<PublicRouteGuard><div>landing content</div></PublicRouteGuard>);
-
-    expect(screen.getByText('landing content').parentElement).toHaveAttribute('data-experience-state', 'error');
+  it('renders unknown routes in place even alongside the existing App catch-all redirect', () => {
+    render(<MemoryRouter initialEntries={['/unknown/path']}><Location /><Routes>{publicRoutes}<Route path="*" element={<Navigate to="/" replace />} /></Routes></MemoryRouter>, { withoutRouter: true });
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/unknown/path');
   });
 });

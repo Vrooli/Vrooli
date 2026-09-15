@@ -17,6 +17,7 @@ import (
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/landing"
 
 	_ "github.com/lib/pq"
 	tc "github.com/testcontainers/testcontainers-go"
@@ -424,7 +425,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 		planService:          planService,
 		downloadService:      downloadService,
 		paymentSettings:      paymentSettings,
-		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, stripeService),
+		landingConfigService: landing.NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService),
 		seoService:           seoService,
 		feedbackService:      feedbackService,
 		emailService:         emailService,

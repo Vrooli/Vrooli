@@ -23,8 +23,32 @@
       "title": "Canonical BAS app profile containing the recovered identity, narrative, feature copy, availability, installer metadata, screenshots/assets, and disabled/planned state",
       "description": "Existing Browser Automation Studio material must survive as an explicit disabled app profile without being silently deleted or diluted.",
       "prd_ref": "OT-P0-038",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "../../scripts/tests/test_bas_preservation.py",
+          "status": "implemented",
+          "notes": "Canonical preservation gate checks the disabled/private/draft BAS profile, 1,071 field mappings, 9 payload digests, and 5 asset identities. It does not prove public cutover, real asset release, or owner qualification."
+        },
+      {
+        "type": "test",
+        "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyRecoveryPersistsPrivatelyWithoutPublication",
+        "status": "implemented",
+        "notes": "Parent race test proves exact UTF-8 recovery chunks and receipt survive typed draft save/read without publication, stale saves conflict, renderer projections omit private recovery bytes, and disabled BAS has no public route. This tests storage/transport, not the local import adapter itself."
+      },
+      {
+        "type": "test",
+        "ref": "ui/src/shared/lib/presentationLegacyImport.test.ts",
+        "status": "implemented",
+        "notes": "Version1 explicit local adapter preserves exact source bytes and field dispositions, maps only safe narrative content into the selected disabled/private/draft app, rejects malformed or damaged provenance, and is deterministic and idempotent. No default network or persistence writes."
+      },
+      {
+        "type": "test",
+        "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyImportAdapterDocumentIntegration",
+        "status": "implemented",
+        "notes": "Opt-in cross-language bridge: actual canonical generated seed through the real TypeScript adapter then authoritative SaveDraft/GetPresentation validation. Parent passed synthetic edge cases and the archived agency BAS variant with byte-exact storage and no publication; default suites skip this opt-in artifact workflow."
+      },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -38,8 +62,32 @@
       "title": "Canonical app and bundle manifest with duplicate identity handling for Aquila/web-console and a documented Backdrop Studio product-versus-provider decision",
       "description": "The bundle must have one canonical catalog of independently marketable app profiles with explicit public status, stable key, slug, priority, detail route, launch/download targets, narrative, and visual assets.",
       "prd_ref": "OT-P0-035",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_005_006_007_008_012_014_015_ResolutionMatrix",
+          "status": "implemented",
+          "notes": "Pure resolver matrix exercises zero, single, bundle, detail, configured order/cap, and private-profile exclusion."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_006_007_PrivateRoutesAndPublicProjection",
+          "status": "implemented",
+          "notes": "Pure resolver test proves unknown/private public routes fail closed and explicitly authorized private preview remains separate."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_ConfiguredVariantAssignmentIsNotInvented",
+          "status": "implemented",
+          "notes": "Resolver preserves the supplied configured variant assignment instead of inventing a supported fallback."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentationseed/bootstrap_test.go::TestSeedUsesConfiguredBundleIdentityWithoutChangingPreservedFacts",
+          "status": "implemented",
+          "notes": "Parent-owned bootstrap regression proves the seed uses the configured commerce/delivery bundle identity instead of the template bundle key while preserving historical facts."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -53,8 +101,38 @@
       "title": "Versioned page/block schema and coverage audit that distinguishes configured content, shared system strings, and code-owned renderer behavior",
       "description": "All user-facing marketing copy and block data must be supplied by validated presentation configuration, app profiles, plan/catalog data, or shared localization/system strings rather than hidden product-specific JSX defaults.",
       "prd_ref": "OT-P0-037",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/config/presentation_codec_test.go::TestPresentationTypedDocumentRoundTrip",
+          "status": "implemented",
+          "notes": "Typed document and finite block content round-trip is exercised; this is not a public publication acceptance."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/config/presentation_codec_test.go::TestPresentationTypedContentRejectsMismatchedDiscriminator",
+          "status": "implemented",
+          "notes": "Typed discriminator mismatch is rejected."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_004_014_DisplayValidationRejectsUnrenderableConfiguration",
+          "status": "implemented",
+          "notes": "Required shell/display fields, registered marks, references, actions, and finite variants are validated."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/experimentation/presentation_store_test.go::TestPresentationDraftPublishRollback",
+          "status": "implemented",
+          "notes": "Draft, publish, and rollback persistence behavior is exercised; actual external owner publication verification remains pending."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/contentProvenance.test.ts::keeps named product copy and review fixtures out of production renderer modules",
+          "status": "implemented",
+          "notes": "AST-based regression rejects named Aquila/BAS/Backdrop/Web Console marketing literals and review-fixture imports in public renderer modules. Comments and technical identities remain allowed. This is a narrow static guard, supplemented by configured-copy renderer tests, not a guarantee about arbitrary future marketing claims."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -68,8 +146,20 @@
       "title": "Server-side presentation resolver covering zero, one, and multiple public apps",
       "description": "The resolver must render a product-led page when exactly one public app is available and a bundle-led page when multiple public apps are available.",
       "prd_ref": "OT-P0-035",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_005_006_007_008_012_014_015_ResolutionMatrix",
+          "status": "implemented",
+          "notes": "Server-side zero, one, multiple, and detail resolution matrix passes against configured app membership and order."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_005_SpotlightBudgetIsPageWide",
+          "status": "implemented",
+          "notes": "Spotlight cap is consumed page-wide across multiple spotlight blocks."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -83,8 +173,26 @@
       "title": "Configurable app rail/spotlight block with deterministic app order and `/apps/:appKey` detail routing",
       "description": "A multi-app bundle must show at most configured k app slides, and every app slide must link to a complete app-specific route.",
       "prd_ref": "OT-P0-036",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_005_006_HeroCapacityIsIndependentOfSpotlightCap",
+          "status": "implemented",
+          "notes": "Hero exhibit capacity remains independent from the page-wide spotlight cap, with configured app order retained."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_006_007_PrivateRoutesAndPublicProjection",
+          "status": "implemented",
+          "notes": "App-specific public and authorized-preview route behavior is exercised."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::keeps artwork panels in one identified app group and preserves resolved catalog order",
+          "status": "implemented",
+          "notes": "UI projection keeps multiple artifacts within one identified app group and preserves resolved catalog order."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -98,13 +206,31 @@
       "title": "App-detail presentation API and UI route with parity tests",
       "description": "App detail pages must use the same composition engine and product scope as the main page would use when that app is the only public app.",
       "prd_ref": "OT-P0-036",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_005_006_007_008_012_014_015_ResolutionMatrix",
+          "status": "implemented",
+          "notes": "Root/detail block, capability, asset, fixture, and digest parity is asserted for the rich app fixture."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_004_007_DisplayIsImmutableConfiguredContent",
+          "status": "implemented",
+          "notes": "Root/detail display parity and response immutability are asserted."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::renders edited content in app_detail without a page-name heuristic or executing HTML",
+          "status": "implemented",
+          "notes": "UI app-detail rendering uses configured content and does not substitute page-name heuristics."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
           "status": "planned",
-          "notes": "Pending acceptance procedure; not implementation evidence. The resolved block digest, order, app identity, hero narrative, pricing/download treatment, and CTA targets are equal between single-app mode and the corresponding detail route, except for route metadata and explicitly configured bundle navigation."
+          "notes": "Pending acceptance procedure; not implementation evidence. The resolved block digest, order, app identity, hero narrative, pricing/download treatment, and CTA targets are equal between single-app mode and the corresponding detail route, except for route metadata and explicitly configured bundle navigation. Tag correction: LP-PRES-007 belongs on the root/detail parity tests, not asset-release or variant-diagnostic tests."
         }
       ]
     },
@@ -113,8 +239,26 @@
       "title": "Order resolver and validation rules for page blocks, app slides, and scoped overrides",
       "description": "Configured block order must be authoritative; hidden renderer sorting may not move downloads, footer, or other blocks without an explicit schema constraint.",
       "prd_ref": "OT-P0-037",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_008_014_ResolutionDoesNotAliasDocument",
+          "status": "implemented",
+          "notes": "Repeated resolution is deterministic and response mutation does not alter the configured document."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/admin-portal/presentation/PresentationEditorRoute.test.tsx::reorders only the explicitly moved pages and blocks",
+          "status": "implemented",
+          "notes": "Authenticated editor reordering is exercised against explicit page/block moves."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_004_014_DisplayValidationRejectsUnrenderableConfiguration",
+          "status": "implemented",
+          "notes": "Invalid display/block references and unsupported variants fail validation."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -128,13 +272,43 @@
       "title": "Validated backdrop reference fields for hero, app spotlight, and app-detail assets, plus same-origin resolution and release metadata",
       "description": "Backdrop Studio must be used as a released, surface-specific visual asset provider with reserved regions and legibility evidence, while LPBS remains responsible for HTML, copy, and page composition.",
       "prd_ref": "OT-P0-039",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentationassets/presentationassets_test.go::TestPublicationRequiresGeneratedURLAndVerifiedDescriptorAgreement",
+          "status": "implemented",
+          "notes": "Asset publication requires generated same-origin delivery URL and descriptor agreement."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentationassets/presentationassets_test.go::TestVerifyPublicationEnforcesDocumentURLMeasurementAndProvenance",
+          "status": "implemented",
+          "notes": "Document asset URL, dimensions, measurement, and provenance checks are exercised; owner release qualification remains pending."
+        },
+        {
+          "type": "test",
+          "ref": "api/presentation_asset_composition_test.go::TestComposePresentationAssetVerificationDefersOwnerAccessAndPropagatesLease",
+          "status": "implemented",
+          "notes": "Asset verifier composition remains read-only and propagates the request lease; it does not create release evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentationqualification/qualification_test.go::TestPublicAssetsRequireAssetVerifier",
+          "status": "implemented",
+          "notes": "Public asset-bearing documents fail closed without an asset verifier."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::uses canonical backdrop selection and rejects a mismatched selection",
+          "status": "implemented",
+          "notes": "UI consumes canonical resolved backdrop selection and rejects a mismatched selection."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
           "status": "planned",
-          "notes": "Pending acceptance procedure; not implementation evidence. A configured reference resolves to a released asset and metadata for desktop and mobile surfaces; missing, stale, or illegible references fail or use an explicit configured fallback rather than silently rendering an empty or black frame."
+          "notes": "Pending acceptance procedure; not implementation evidence. A configured reference resolves to a released asset and metadata for desktop and mobile surfaces; missing, stale, or illegible references fail or use an explicit configured fallback rather than silently rendering an empty or black frame. Tag correction: LP-PRES-009 belongs on presentationassets publication/provenance, asset-composition, and qualification-gate tests; recording and generic landing diagnostics are not asset-release evidence."
         }
       ]
     },
@@ -143,8 +317,32 @@
       "title": "Catalog/app spotlight block and app profile visual asset treatment for desktop and mobile",
       "description": "The catalog must communicate product value through designed visual cards, screenshots or released backdrop compositions, availability status, and a clear view-details action.",
       "prd_ref": "OT-P0-036",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/capability_projection_test.go::TestAssetIdentityMatchesPublicCacheAndWireContract",
+          "status": "implemented",
+          "notes": "Public asset identity is checked against cache and wire projection."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::reads native demo content and asset URLs only from canonical resolved arrays",
+          "status": "implemented",
+          "notes": "UI exhibit content and asset URLs come from canonical resolved arrays."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::keeps artwork panels in one identified app group and preserves resolved catalog order",
+          "status": "implemented",
+          "notes": "UI preserves identified app grouping/order; real released visual asset availability remains unverified."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_005_006_HeroCapacityIsIndependentOfSpotlightCap",
+          "status": "implemented",
+          "notes": "Configured hero app groups remain distinct from the spotlight cap."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -158,13 +356,55 @@
       "title": "Evidence preflight and recording assertions covering first frame, frame diversity, content landmarks, desktop/mobile dimensions, and route identity",
       "description": "Evidence capture must detect blank, black, stale, or mismatched presentation output instead of returning a superficially successful recording.",
       "prd_ref": "OT-P0-041",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::captures every configured section in its configured order, never path-shaped labels",
+          "status": "implemented",
+          "notes": "Capture journey configuration and landmark ordering are exercised."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::rejects a uniform white recording as well as uniform black",
+          "status": "implemented",
+          "notes": "Uniform blank/black/white output is rejected."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::rejects a frozen recording when the planned journey required a page change",
+          "status": "implemented",
+          "notes": "Frozen capture output is rejected when the configured journey requires change."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::fails closed for route/variant/revision/viewport mismatch, overlays, assets, and decoder errors",
+          "status": "implemented",
+          "notes": "Capture identity, viewport, overlay, asset, and decoder failures are fail-closed."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::captures headed and headless page-bound desktop/mobile journeys and validates the real video",
+          "status": "implemented",
+          "notes": "The executable capture path covers desktop/mobile journey dimensions; integrated current-capability release evidence remains pending."
+        },
+        {
+          "type": "test",
+          "ref": "api/presentation_browser_evidence_test.go::TestPresentationBrowserEvidenceIntegration",
+          "status": "implemented",
+          "notes": "Opt-in LPBS_RUN_BROWSER_EVIDENCE=1 run passed for both variants in effort evidence/integrated-20260915T1110. Real ConfigStore/public API/SSR/production UI use isolated leased roots and fake qualification. Desktop/mobile video, ordered frames, pinned page payloads, private BAS404 and missing/expired lease503 are verified. Default Go runs skip this expensive opt-in test; no public cutover or real release is claimed."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-budget.test.mjs::expires once, aborts its signal, and invokes the expiry callback once",
+          "status": "implemented",
+          "notes": "Bounded capture budget expires and aborts exactly once. This is part of the 25-test explicit UI test:evidence entrypoint."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
           "status": "planned",
-          "notes": "Pending acceptance procedure; not implementation evidence. A black or blank fixture fails before handoff; a valid recording proves non-black pixels, expected Aquila/app landmarks, and the intended resolved variant and route."
+          "notes": "Pending acceptance procedure; not implementation evidence. A black or blank fixture fails before handoff; a valid recording proves non-black pixels, expected Aquila/app landmarks, and the intended resolved variant and route. Tag correction: LP-PRES-011 belongs on scripts/capture-public-evidence.test.mjs preflight and recording assertions; current worker tags on branding or landing action tests are not recording evidence."
         }
       ]
     },
@@ -173,13 +413,43 @@
       "title": "Variant resolution diagnostics, explicit fallback metadata, and evidence labeling/guardrails",
       "description": "Configured variant failure must be visible and diagnosable; the runtime must not silently substitute the fallback page while evidence is presented as proof of the requested variant.",
       "prd_ref": "OT-P0-040",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_012_ContentDigestPropagatesEncodingErrors",
+          "status": "implemented",
+          "notes": "Content digest encoding errors propagate instead of becoming a fabricated digest."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_ConfiguredVariantAssignmentIsNotInvented",
+          "status": "implemented",
+          "notes": "Requested and resolved variant assignments remain explicit and are not relabeled by the resolver."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::rejects requested control when only the URL query says control",
+          "status": "implemented",
+          "notes": "Capture evidence rejects a variant label supported only by URL query state."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/capture-public-evidence.test.mjs::fails closed for route/variant/revision/viewport mismatch, overlays, assets, and decoder errors",
+          "status": "implemented",
+          "notes": "Capture diagnostics expose route, variant, revision, viewport, asset, and decoder mismatches."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/landing/presentation_landing_test.go::TestGetLandingConfigForRequestMarksExplicitVariantWithoutExposureFacts",
+          "status": "implemented",
+          "notes": "Landing response diagnostics distinguish explicit variant selection from missing exposure facts."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
           "status": "planned",
-          "notes": "Pending acceptance procedure; not implementation evidence. The API and capture pipeline expose requested variant, resolved variant, fallback state, and reason; a capture for control cannot be labeled control when the response is fallback."
+          "notes": "Pending acceptance procedure; not implementation evidence. The API and capture pipeline expose requested variant, resolved variant, fallback state, and reason; a capture for control cannot be labeled control when the response is fallback. Tag correction: LP-PRES-012 belongs on resolver/landing diagnostics and capture variant-mismatch tests; asset-release and recording-only tags are not diagnostic evidence."
         }
       ]
     },
@@ -188,8 +458,38 @@
       "title": "App capability records, evidence/constraint fields, artifact-explorer and voice-story blocks, session narrative and a distinct roadmap block, shared by single-app and detail routes",
       "description": "When Aquila is presented, the product page MUST explain local STT/TTS, AI summarization, supported artifact viewing, grouping, session search, and archive/unarchive through configured app-owned content; remote-computer and Android/iPhone control MUST remain explicitly coming soon until release evidence supports availability.",
       "prd_ref": "OT-P0-038",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_014_FixtureResourcesResolveAndRedactEvidence",
+          "status": "implemented",
+          "notes": "Referenced fixtures/assets resolve through public closure while private evidence is redacted."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/capability_projection_test.go::TestAppPageOwnershipIsUniqueAndCapabilityReferencesStayWithinOwner",
+          "status": "implemented",
+          "notes": "Capability ownership and references remain within the owning app/page."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::renders configured block order, rich exhibits, and coming-soon claims",
+          "status": "implemented",
+          "notes": "Configured rich exhibits and coming-soon claims are rendered from the resolved page."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::supports tab keyboard navigation, focus, panel relationships, Home and End",
+          "status": "implemented",
+          "notes": "Artifact/presentation keyboard navigation and panel relationships are exercised."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::switches terminal/conversation views and closes mobile navigation with Escape",
+          "status": "implemented",
+          "notes": "Configured terminal/conversation exhibit views and mobile navigation behavior are exercised."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
@@ -203,8 +503,32 @@
       "title": "Validated hero-exhibit configuration and supported composition variants, with explicit app identity, order, eligibility and detail targets",
       "description": "When the bundle hero contains app exhibits, the renderer MUST use configured eligible app references and show one identifiable visual group per selected app with a matching detail link; multiple artifacts within one group MUST NOT imply additional apps.",
       "prd_ref": "OT-P0-036",
-      "status": "planned",
+      "status": "in_progress",
       "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/display_test.go::TestLP_PRES_005_006_HeroCapacityIsIndependentOfSpotlightCap",
+          "status": "implemented",
+          "notes": "Hero groups retain configured eligible app identity/order independently of spotlight cap."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/decode.test.tsx::keeps two eligible configured hero apps when k=0 and slide keys are empty",
+          "status": "implemented",
+          "notes": "UI decoder preserves eligible hero apps when the spotlight slide cap is zero."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/surfaces/public-landing/presentation/PresentationPage.test.tsx::keeps artwork panels in one identified app group and preserves resolved catalog order",
+          "status": "implemented",
+          "notes": "Multiple artifacts remain one identified app exhibit group with matching resolved order."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presentation/presentation_test.go::TestLP_PRES_003_004_008_009_012_014_015_ValidationRejectsUnsafeOrUnqualified",
+          "status": "implemented",
+          "notes": "Unknown app refs, unsafe actions, invalid assets, and unqualified capability inputs fail validation."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",

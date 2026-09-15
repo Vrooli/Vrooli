@@ -1,6 +1,7 @@
 import { createClient } from '@connectrpc/connect';
+import { fromJsonString, toJson, type JsonValue } from '@bufbuild/protobuf';
 import { z } from 'zod';
-import { BrandingService, type BrandingResponse, type PublicBrandingResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/branding_pb';
+import { BrandingService, BrandingResponseSchema, PublicBrandingResponseSchema, UpdateBrandingRequestSchema, type BrandingResponse, type PublicBrandingResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/branding_pb';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import { CONNECT_API_BASE } from './common';
 import type { SiteBranding, SiteBrandingUpdate, PublicBranding } from './types';
@@ -10,7 +11,7 @@ const brandingClient = createClient(BrandingService, createScenarioConnectTransp
 
 const NullableStringSchema = z.string().nullable().optional();
 const SiteBrandingSchema: z.ZodType<SiteBranding> = z.object({
-  id: z.number(),
+  id: z.number().int().safe(),
   site_name: z.string(),
   tagline: NullableStringSchema,
   logo_url: NullableStringSchema,
@@ -45,39 +46,42 @@ const PublicBrandingSchema: z.ZodType<PublicBranding> = z.object({
   favicon_url: NullableStringSchema,
   theme_primary_color: NullableStringSchema,
   theme_background_color: NullableStringSchema,
+  canonical_base_url: NullableStringSchema,
   support_chat_url: NullableStringSchema,
   coming_soon_enabled: z.boolean().nullable().optional(),
   coming_soon_message: NullableStringSchema,
 });
 
-function snakeCase(value: string): string {
-  return value.replace(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`);
+/** Decode the complete generated envelope; v2 messages have no instance codec. */
+function normalizeBranding(response: JsonValue): Record<string, unknown> {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Invalid branding response');
+  const branding = response.branding;
+  if (!branding || typeof branding !== 'object' || Array.isArray(branding)) throw new Error('Missing branding response');
+  return { ...branding, ...('id' in branding ? { id: Number(branding.id) } : {}) };
 }
 
-function normalizeBranding(branding: { toJson(): unknown } | undefined): Record<string, unknown> {
-  if (!branding) throw new Error('Missing branding response');
-  const raw = branding.toJson();
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid branding response');
-  return Object.fromEntries(Object.entries(raw).map(([key, value]) => [snakeCase(key), key === 'id' ? Number(value) : value]));
+function decodePrivateBranding(response: BrandingResponse): SiteBranding {
+  return parseOrThrow(SiteBrandingSchema, normalizeBranding(toJson(BrandingResponseSchema, response, { useProtoFieldName: true, alwaysEmitImplicit: true })), 'SiteBranding');
 }
 
 // Admin endpoints (require authentication)
 
 export function getBranding() {
-  return brandingClient.getBranding({}).then((response: BrandingResponse) => parseOrThrow(SiteBrandingSchema, normalizeBranding(response.branding), 'SiteBranding'));
+  return brandingClient.getBranding({}).then(decodePrivateBranding);
 }
 
 export function updateBranding(data: SiteBrandingUpdate) {
-  const request = Object.fromEntries(Object.entries(data).map(([key, value]) => [key.replace(/_([a-z])/gu, (_, letter: string) => letter.toUpperCase()), value]));
-  return brandingClient.updateBranding(request).then((response: BrandingResponse) => parseOrThrow(SiteBrandingSchema, normalizeBranding(response.branding), 'SiteBranding'));
+  const request = fromJsonString(UpdateBrandingRequestSchema, JSON.stringify(data), { ignoreUnknownFields: false });
+  return brandingClient.updateBranding(request).then(decodePrivateBranding);
 }
 
 export function clearBrandingField(field: string) {
-  return brandingClient.clearBrandingField({ field }).then((response: BrandingResponse) => parseOrThrow(SiteBrandingSchema, normalizeBranding(response.branding), 'SiteBranding'));
+  return brandingClient.clearBrandingField({ field }).then(decodePrivateBranding);
 }
 
 // Public endpoints (no auth required)
 
 export function getPublicBranding() {
-  return brandingClient.getPublicBranding({}).then((response: PublicBrandingResponse) => parseOrThrow(PublicBrandingSchema, normalizeBranding(response.branding), 'PublicBranding'));
+  return brandingClient.getPublicBranding({}).then((response: PublicBrandingResponse) => parseOrThrow(PublicBrandingSchema,
+    normalizeBranding(toJson(PublicBrandingResponseSchema, response, { useProtoFieldName: true, alwaysEmitImplicit: true })), 'PublicBranding'));
 }

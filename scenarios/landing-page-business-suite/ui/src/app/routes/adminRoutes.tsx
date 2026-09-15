@@ -16,6 +16,7 @@ const lazyRoute = <T extends Record<K, React.ComponentType>, K extends keyof T>(
   );
 
 const AdminHome = lazyRoute(() => import('../../surfaces/admin-portal/routes/AdminHome'), 'AdminHome');
+const PresentationAdminPage = lazyRoute(() => import('../../surfaces/admin-portal/presentation/PresentationAdminPage'), 'PresentationAdminPage');
 const AdminAnalytics = lazyRoute(() => import('../../surfaces/admin-portal/routes/AdminAnalytics'), 'AdminAnalytics');
 const Customization = lazyRoute(() => import('../../surfaces/admin-portal/routes/Customization'), 'Customization');
 const VariantEditor = lazyRoute(() => import('../../surfaces/admin-portal/routes/VariantEditor'), 'VariantEditor');
@@ -56,6 +57,8 @@ function AdminRoute({ name, children }: { name: string; children: ReactNode }) {
 export const adminRoutes = (
   <>
     <Route path="/admin" element={<AdminRoute name="AdminHome"><AdminHome /></AdminRoute>} />
+    <Route path="/admin/presentation" element={<AdminRoute name="PresentationEditor"><PresentationAdminPage /></AdminRoute>} />
+    <Route path="/admin/presentation/:variantSlug" element={<AdminRoute name="PresentationEditorVariant"><PresentationAdminPage /></AdminRoute>} />
 
     {/* Section dashboards */}
     <Route path="/admin/landing" element={<AdminRoute name="LandingDashboard"><LandingDashboard /></AdminRoute>} />
@@ -70,7 +73,8 @@ export const adminRoutes = (
     <Route path="/admin/customization" element={<AdminRoute name="Customization"><Customization /></AdminRoute>} />
     <Route path="/admin/customization/agent" element={<AdminRoute name="AgentCustomization"><AgentCustomization /></AdminRoute>} />
     <Route path="/admin/customization/variants/:slug" element={<AdminRoute name="VariantEditor"><VariantEditor /></AdminRoute>} />
-    <Route path="/admin/customization/variants/:variantSlug/sections/:sectionId" element={<AdminRoute name="SectionEditor"><SectionEditor /></AdminRoute>} />
+    {/* Legacy bookmarks remain authenticated and redirect to the typed document. */}
+    <Route path="/admin/customization/variants/:variantSlug/sections/:sectionId" element={<AdminRoute name="LegacyPresentationBookmark"><SectionEditor /></AdminRoute>} />
 
     {/* Settings */}
     <Route path="/admin/billing" element={<AdminRoute name="BillingSettings"><BillingSettings /></AdminRoute>} />

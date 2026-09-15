@@ -1,5 +1,5 @@
 import { createClient } from '@connectrpc/connect';
-import { create, toJson, type JsonValue } from '@bufbuild/protobuf';
+import { create, fromJsonString, toJson } from '@bufbuild/protobuf';
 import {
   PricingService,
   GetPricingResponseSchema,
@@ -9,6 +9,8 @@ import {
   LandingConfigResponseSchema as LandingConfigMessageSchema,
   GetLandingConfigRequestSchema,
   LandingConfigService,
+  RecordPresentationExposureRequestSchema,
+  type RecordPresentationExposureRequest,
   type LandingConfigResponse as LandingConfigMessage,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/config_pb';
 import { CONNECT_API_BASE } from './common';
@@ -156,59 +158,6 @@ function normalizePricing(value: unknown): PricingOverview | undefined {
   };
 }
 
-function normalizeHeaderLink(value: unknown): JsonRecord {
-  const link = asRecord(value);
-  const visible = asRecord(field(link, 'visible_on', 'visibleOn'));
-  return {
-    id: stringValue(field(link, 'id', 'id')),
-    type: normalizeEnum(field(link, 'type', 'type'), 'HEADER_NAV_LINK_TYPE', 'custom'),
-    label: stringValue(field(link, 'label', 'label')),
-    section_type: stringValue(field(link, 'section_type', 'sectionType')) || undefined,
-    section_id: field(link, 'section_id', 'sectionId') == null ? undefined : numberValue(field(link, 'section_id', 'sectionId')),
-    anchor: stringValue(field(link, 'anchor', 'anchor')) || undefined,
-    href: stringValue(field(link, 'href', 'href')) || undefined,
-    visible_on: {
-      desktop: booleanValue(field(visible, 'desktop', 'desktop'), true),
-      mobile: booleanValue(field(visible, 'mobile', 'mobile'), true),
-    },
-    children: arrayValue(field(link, 'children', 'children')).map(normalizeHeaderLink),
-  };
-}
-
-function normalizeHeader(value: unknown): JsonRecord {
-  const header = asRecord(value);
-  const branding = asRecord(field(header, 'branding', 'branding'));
-  const nav = asRecord(field(header, 'nav', 'nav'));
-  const ctas = asRecord(field(header, 'ctas', 'ctas'));
-  const behavior = asRecord(field(header, 'behavior', 'behavior'));
-  const normalizeCTA = (value: unknown): JsonRecord => {
-    const cta = asRecord(value);
-    return {
-      mode: normalizeEnum(field(cta, 'mode', 'mode'), 'HEADER_CTA_MODE', 'inherit_hero'),
-      label: stringValue(field(cta, 'label', 'label')) || undefined,
-      href: stringValue(field(cta, 'href', 'href')) || undefined,
-      variant: stringValue(field(cta, 'variant', 'variant')) || undefined,
-    };
-  };
-  return {
-    branding: {
-      mode: normalizeEnum(field(branding, 'mode', 'mode'), 'HEADER_BRANDING_MODE', 'none'),
-      label: stringValue(field(branding, 'label', 'label')) || undefined,
-      subtitle: stringValue(field(branding, 'subtitle', 'subtitle')) || undefined,
-      mobile_preference: stringValue(field(branding, 'mobile_preference', 'mobilePreference')) || undefined,
-    },
-    nav: { links: arrayValue(field(nav, 'links', 'links')).map(normalizeHeaderLink) },
-    ctas: {
-      primary: normalizeCTA(field(ctas, 'primary', 'primary')),
-      secondary: normalizeCTA(field(ctas, 'secondary', 'secondary')),
-    },
-    behavior: {
-      sticky: booleanValue(field(behavior, 'sticky', 'sticky')),
-      hide_on_scroll: booleanValue(field(behavior, 'hide_on_scroll', 'hideOnScroll')),
-    },
-  };
-}
-
 function normalizeDownloads(value: unknown): JsonRecord[] {
   return arrayValue(value).map((entry) => {
     const app = asRecord(entry);
@@ -253,87 +202,30 @@ function normalizeDownloads(value: unknown): JsonRecord[] {
   });
 }
 
-function normalizeIntroOffers(value: unknown): JsonRecord[] {
-  return arrayValue(value).map((entry) => {
-    const offer = asRecord(entry);
-    const optionalNumber = (snake: string, camel: string, zeroMeansUndefined = false) => {
-      if (field(offer, snake, camel) == null) return undefined;
-      const parsed = numberValue(field(offer, snake, camel));
-      return zeroMeansUndefined && parsed <= 0 ? undefined : parsed;
-    };
-    return {
-      id: stringValue(field(offer, 'id', 'id')),
-      name: stringValue(field(offer, 'name', 'name')) || undefined,
-      amount_off: optionalNumber('amount_off', 'amountOff'),
-      percent_off: optionalNumber('percent_off', 'percentOff'),
-      currency: stringValue(field(offer, 'currency', 'currency')) || undefined,
-      duration: stringValue(field(offer, 'duration', 'duration'), 'once'),
-      duration_in_months: optionalNumber('duration_in_months', 'durationInMonths'),
-      max_redemptions: optionalNumber('max_redemptions', 'maxRedemptions'),
-      redeem_by: optionalNumber('redeem_by', 'redeemBy', true),
-      times_redeemed: numberValue(field(offer, 'times_redeemed', 'timesRedeemed')),
-      valid: booleanValue(field(offer, 'valid', 'valid')),
-      created: numberValue(field(offer, 'created', 'created')),
-      is_intro_coupon: booleanValue(field(offer, 'is_intro_coupon', 'isIntroCoupon')),
-      intro_tier: stringValue(field(offer, 'intro_tier', 'introTier')) || undefined,
-    };
+export function getLandingConfig(variantSlug?: string, visitorId?: string, options: { route?: string; locale?: string; signal?: AbortSignal } = {}) {
+  return landingConfigClient.getLandingConfig(create(GetLandingConfigRequestSchema, { variantSlug: variantSlug ?? '', visitorId: visitorId ?? '', route: options.route ?? '/', locale: options.locale ?? '' }), { signal: options.signal }).then((response: LandingConfigMessage) => {
+    return decodeLandingConfig(response);
   });
 }
 
-function normalizeLandingConfig(value: JsonValue): LandingConfigResponse {
-  const raw = asRecord(value);
-  const variant = asRecord(field(raw, 'variant', 'variant'));
-  const sections = arrayValue(field(raw, 'sections', 'sections')).map((entry) => {
-    const section = asRecord(entry);
-    return {
-      id: field(section, 'id', 'id') == null ? undefined : numberValue(field(section, 'id', 'id')),
-      key: stringValue(field(section, 'key', 'key')) || stringValue(field(section, 'section_key', 'sectionKey')) || undefined,
-      section_type: stringValue(field(section, 'section_type', 'sectionType')),
-      content: normalizeStruct(field(section, 'content', 'content')),
-      order: numberValue(field(section, 'order', 'order')),
-      enabled: booleanValue(field(section, 'enabled', 'enabled'), true),
-    };
-  });
-  return parseOrThrow(
-    LandingConfigResponseSchema,
-    {
-      variant: {
-        id: field(variant, 'id', 'id') == null ? undefined : numberValue(field(variant, 'id', 'id')),
-        slug: stringValue(field(variant, 'slug', 'slug')),
-        name: stringValue(field(variant, 'name', 'name')),
-        description: stringValue(field(variant, 'description', 'description')) || undefined,
-        axes: isRecord(field(variant, 'axes', 'axes')) ? field(variant, 'axes', 'axes') : {},
-      },
-      sections,
-      pricing: normalizePricing(field(raw, 'pricing', 'pricing')),
-      downloads: normalizeDownloads(field(raw, 'downloads', 'downloads')),
-      header: normalizeHeader(field(raw, 'header', 'header')),
-      branding: isRecord(field(raw, 'branding', 'branding')) ? {
-        site_name: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'site_name', 'siteName')),
-        tagline: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'tagline', 'tagline')) || undefined,
-        logo_url: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'logo_url', 'logoUrl')) || undefined,
-        logo_icon_url: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'logo_icon_url', 'logoIconUrl')) || undefined,
-        favicon_url: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'favicon_url', 'faviconUrl')) || undefined,
-        theme_primary_color: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'theme_primary_color', 'themePrimaryColor')) || undefined,
-        theme_background_color: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'theme_background_color', 'themeBackgroundColor')) || undefined,
-        support_chat_url: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'support_chat_url', 'supportChatUrl')) || undefined,
-        support_email: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'support_email', 'supportEmail')) || undefined,
-        coming_soon_enabled: field(asRecord(field(raw, 'branding', 'branding')), 'coming_soon_enabled', 'comingSoonEnabled') as boolean | undefined,
-        coming_soon_message: stringValue(field(asRecord(field(raw, 'branding', 'branding')), 'coming_soon_message', 'comingSoonMessage')) || undefined,
-      } : undefined,
-      coupon_mappings: isRecord(field(raw, 'coupon_mappings', 'couponMappings')) ? field(raw, 'coupon_mappings', 'couponMappings') : undefined,
-      intro_offers: normalizeIntroOffers(field(raw, 'intro_offers', 'introOffers')),
-      fallback: booleanValue(field(raw, 'fallback', 'fallback')),
-    },
-    'LandingConfigResponse',
-  );
+export function decodeLandingConfig(response: LandingConfigMessage): LandingConfigResponse {
+  const raw = asRecord(toJson(LandingConfigMessageSchema, response, { useProtoFieldName: true }));
+  return parseOrThrow(LandingConfigResponseSchema, {
+    presentation: response.presentation,
+    pricing: normalizePricing(raw.pricing),
+    downloads: normalizeDownloads(raw.downloads),
+    fallback: response.fallback,
+  }, 'LandingConfigResponse');
 }
 
-export function getLandingConfig(variantSlug?: string, visitorId?: string) {
-  return landingConfigClient.getLandingConfig(create(GetLandingConfigRequestSchema, { variantSlug: variantSlug ?? '', visitorId: visitorId ?? '' })).then((response: LandingConfigMessage) => {
-    const raw = toJson(LandingConfigMessageSchema, response, { useProtoFieldName: true });
-    return normalizeLandingConfig(raw);
-  });
+/** Explicit rendered-exposure write; configuration reads never imply exposure. */
+export function recordPresentationExposure(proof: Omit<RecordPresentationExposureRequest, '$typeName' | '$unknown'>) {
+  return landingConfigClient.recordPresentationExposure(create(RecordPresentationExposureRequestSchema, proof), { timeoutMs: 10000 });
+}
+
+/** Server bootstrap and network responses share the installed generated contract. */
+export function parseLandingConfigJson(text: string): LandingConfigResponse {
+  return decodeLandingConfig(fromJsonString(LandingConfigMessageSchema, text, { ignoreUnknownFields: false }));
 }
 
 export function getPlans(): Promise<PricingOverview> {

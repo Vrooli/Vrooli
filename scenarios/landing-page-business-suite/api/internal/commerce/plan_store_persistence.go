@@ -3,6 +3,7 @@ package commerce
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,18 +20,54 @@ import (
 func (ps *PlanStore) LoadAll() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	if ps.plansPath == "" {
+	return ps.loadFromPath(ps.plansPath, true)
+}
+
+// loadFromPath loads one immutable catalog snapshot into ps. missingOK is
+// retained for the compatibility startup loader; request-time ClassConfig
+// reads pass false so a missing leased snapshot cannot silently use another
+// root or the primary catalog.
+func (ps *PlanStore) loadFromPath(path string, missingOK bool) error {
+	if path == "" {
 		ps.logEvent("plans_path_not_set", map[string]interface{}{"fallback": "empty plans"})
 		return nil
 	}
-	data, err := os.ReadFile(ps.plansPath)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			ps.logEvent("plans_file_not_found", map[string]interface{}{"path": ps.plansPath, "fallback": "empty plans"})
+		if missingOK && os.IsNotExist(err) {
+			ps.logEvent("plans_file_not_found", map[string]interface{}{"path": path, "fallback": "empty plans"})
 			return nil
 		}
 		return err
 	}
+	return ps.loadFromData(path, data)
+}
+
+// loadFromRoot reads a request-selected snapshot through os.Root. This keeps
+// symlink and traversal handling inside the routed ClassConfig boundary rather
+// than joining an untrusted filename onto a directory string.
+func (ps *PlanStore) loadFromRoot(rootDir, fileName string) error {
+	if err := validateConfigFileName(fileName); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return fmt.Errorf("open config root: %w", err)
+	}
+	defer root.Close()
+	file, err := root.Open(fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read config snapshot: %w", err)
+	}
+	return ps.loadFromData(fileName, data)
+}
+
+func (ps *PlanStore) loadFromData(path string, data []byte) error {
 	var fileData plansFileFormat
 	if err := json.Unmarshal(data, &fileData); err != nil {
 		return fmt.Errorf("parse plans JSON: %w", err)
@@ -85,7 +122,7 @@ func (ps *PlanStore) LoadAll() error {
 		}
 	}
 	ps.bundle, ps.plans, ps.couponMappings = bundle, plans, couponMappings
-	ps.logEvent("plans_loaded", map[string]interface{}{"path": ps.plansPath, "plan_count": len(ps.plans), "bundle_key": ps.bundle.BundleKey, "coupon_mapping_count": len(ps.couponMappings)})
+	ps.logEvent("plans_loaded", map[string]interface{}{"path": path, "plan_count": len(ps.plans), "bundle_key": ps.bundle.BundleKey, "coupon_mapping_count": len(ps.couponMappings)})
 	return nil
 }
 

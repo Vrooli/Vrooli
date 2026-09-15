@@ -445,13 +445,23 @@ type ProductStoryContent struct {
 func (AppSpotlightsContent) presentationBlockContent() {}
 
 type ProductDemoContent struct {
-	Heading     string `json:"heading"`
-	Description string `json:"description"`
-	RendererRef string `json:"renderer_ref"`
-	FixtureRef  string `json:"fixture_ref"`
-	PosterRef   string `json:"poster_ref,omitempty"`
-	MediaRef    string `json:"media_ref,omitempty"`
-	AltText     string `json:"alt_text"`
+	Heading     string               `json:"heading"`
+	Description string               `json:"description"`
+	RendererRef string               `json:"renderer_ref"`
+	FixtureRef  string               `json:"fixture_ref,omitempty"`
+	PosterRef   string               `json:"poster_ref,omitempty"`
+	MediaRef    string               `json:"media_ref,omitempty"`
+	AltText     string               `json:"alt_text"`
+	Playback    *ProductDemoPlayback `json:"playback,omitempty"`
+}
+
+type ProductDemoPlayback struct {
+	Provider         string `json:"provider"`
+	ExternalURL      string `json:"external_url"`
+	Layout           string `json:"layout"`
+	PlayLabel        string `json:"play_label"`
+	Caption          string `json:"caption"`
+	UnavailableLabel string `json:"unavailable_label"`
 }
 
 func (ArtifactExplorerContent) presentationBlockContent() {}
@@ -738,6 +748,8 @@ type ResolvedAppSpotlight struct {
 }
 
 type Diagnostics struct {
+	WeightFingerprint   string   `json:"weight_fingerprint,omitempty"`
+	AssignmentSource    string   `json:"assignment_source,omitempty"`
 	RequestedRoute      string   `json:"requested_route"`
 	ResolvedRoute       string   `json:"resolved_route"`
 	RequestedVariant    string   `json:"requested_variant"`
@@ -770,6 +782,7 @@ type ResolveResult struct {
 	Capabilities    []ResolvedCapability   `json:"capabilities,omitempty"`
 	Assets          []ResolvedAsset        `json:"assets,omitempty"`
 	Fixtures        []Fixture              `json:"fixtures,omitempty"`
+	Actions         []ResolvedAction       `json:"actions,omitempty"`
 	Diagnostics     Diagnostics            `json:"diagnostics"`
 }
 
@@ -846,11 +859,14 @@ func (e *ValidationError) add(path, code, message string) {
 }
 
 var (
-	idPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
-	slugPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	localePattern = regexp.MustCompile(`^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{2,8})*$`)
-	hashPattern   = regexp.MustCompile(`^(?:sha256:)?[a-fA-F0-9]{32,128}$`)
-	colorPattern  = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	idPattern             = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+	slugPattern           = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	localePattern         = regexp.MustCompile(`^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{2,8})*$`)
+	hashPattern           = regexp.MustCompile(`^(?:sha256:)?[a-fA-F0-9]{32,128}$`)
+	assetHashPattern      = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	colorPattern          = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	youtubeVideoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+	vimeoVideoIDPattern   = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
 )
 
 var validKinds = map[BlockKind]bool{
@@ -866,7 +882,7 @@ var validVariants = map[BlockKind]map[string]bool{
 	BlockBundleHero:        {"editorial": true},
 	BlockCapabilityStrip:   {"inline": true},
 	BlockProductStory:      {"three-column": true},
-	BlockProductDemo:       {"static": true, "interactive": true},
+	BlockProductDemo:       {"static": true, "interactive": true, "recorded": true},
 	BlockAppSpotlights:     {"grid": true},
 	BlockArtifactExplorer:  {"tabs": true},
 	BlockVoiceStory:        {"transcript": true, "waveform": true},

@@ -6,6 +6,11 @@ import { previewFixture } from './testFixtures';
 
 afterEach(cleanup);
 describe('authorized native revision preview', () => {
+  it('retains the router proxy base for configured private-preview navigation', () => {
+    render(<RevisionPreview value={previewFixture()} linkBase="/proxy/" />);
+    expect(screen.getByRole('link', { name: 'Configured brand' })).toHaveAttribute('href', '/proxy/');
+    expect(screen.getByRole('button', { name: 'Configured action' })).toBeDisabled();
+  });
   it('decodes inline display into the same native page and leaves owner transactions disconnected', () => {
     const value = previewFixture();
     value.actions = [{ $typeName: 'vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction', key: 'purchase', status: 'ready', href: '/purchase', reason: '', appKey: '', planRef: 'configured-plan' }];

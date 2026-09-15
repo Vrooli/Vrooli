@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -12,7 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/experimentation"
-	"strings"
 )
 
 // BrandingConnectHandler translates generated branding procedures into the
@@ -103,7 +103,7 @@ func (h BrandingConnectHandler) GetPublicBranding(context.Context, *connect.Requ
 	if b == nil {
 		return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{}}), nil
 	}
-	return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{SiteName: b.SiteName, Tagline: derefString(b.Tagline), LogoUrl: derefString(b.LogoURL), LogoIconUrl: derefString(b.LogoIconURL), FaviconUrl: derefString(b.FaviconURL), ThemePrimaryColor: derefString(b.ThemePrimaryColor), ThemeBackgroundColor: derefString(b.ThemeBackgroundColor), SupportChatUrl: derefString(b.SupportChatURL), ComingSoonEnabled: derefBool(b.ComingSoonEnabled), ComingSoonMessage: derefString(b.ComingSoonMessage)}}), nil
+	return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{SiteName: b.SiteName, Tagline: derefString(b.Tagline), LogoUrl: derefString(b.LogoURL), LogoIconUrl: derefString(b.LogoIconURL), FaviconUrl: derefString(b.FaviconURL), ThemePrimaryColor: derefString(b.ThemePrimaryColor), ThemeBackgroundColor: derefString(b.ThemeBackgroundColor), SupportChatUrl: derefString(b.SupportChatURL), ComingSoonEnabled: derefBool(b.ComingSoonEnabled), ComingSoonMessage: derefString(b.ComingSoonMessage), CanonicalBaseUrl: derefString(b.CanonicalBaseURL)}}), nil
 }
 
 func derefString(value *string) string {

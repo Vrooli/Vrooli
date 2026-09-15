@@ -58,7 +58,7 @@ describe('LandingDashboard', () => {
     expect(screen.getAllByText('Experiment B')).toHaveLength(3);
     fireEvent.click(screen.getByTestId('landing-resume-customization'));
     fireEvent.click(screen.getByTestId('landing-resume-analytics'));
-    expect(navigate).toHaveBeenCalledWith('/admin/customization/variants/experiment-b/sections/42');
+    expect(navigate).toHaveBeenCalledWith('/admin/presentation/experiment-b');
     expect(navigate).toHaveBeenCalledWith('/admin/analytics?variant=experiment-b&range=30');
     expect(screen.getAllByText('Configured')).toHaveLength(2);
     expect(screen.getAllByText('Missing')).toHaveLength(2);

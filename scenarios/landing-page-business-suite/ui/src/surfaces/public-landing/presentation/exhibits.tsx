@@ -4,7 +4,7 @@ import { AssetImage, ProductMark } from './primitives';
 
 export function Workspace({ fixture: w, interactive = true }: { fixture: WorkspaceFixture; interactive?: boolean }) {
   const [view, setView] = useState<'terminal' | 'messages'>('terminal');
-  return <div className="workspace">
+  return <div className="workspace" data-capture-landmark="product">
     <div className="window-bar"><span className="traffic" aria-hidden="true"><i /><i /><i /></span><span className="window-title"><ProductMark kind={w.mark} />{w.title}</span><span className="window-meta">{w.group}</span><span className="window-controls" aria-hidden="true">⌘ K</span></div>
     <div className="workspace-body">
       <aside className="workspace-sidebar"><div className="workspace-side-title">{w.group_label}<span aria-hidden="true">+</span></div>

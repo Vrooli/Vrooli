@@ -1,326 +1,69 @@
 ---
-title: "Section Endpoints"
-description: "Content section management APIs"
+title: "Presentation and Legacy Section APIs"
+description: "Typed product publication and private snapshot recovery"
 category: "reference"
 order: 4
 audience: ["developers"]
 ---
 
-# Section Endpoints
-
-Endpoints for managing landing page content sections.
-
-## Section Types
-
-| Type | Description |
-|------|-------------|
-| `hero` | Main headline, subheadline, primary CTA |
-| `features` | Product feature grid |
-| `pricing` | Pricing tiers and comparison |
-| `testimonials` | Customer quotes |
-| `faq` | Frequently asked questions |
-| `cta` | Secondary call-to-action block |
-| `video` | Embedded video content |
-| `downloads` | Download rail for apps |
-| `footer` | Links, copyright, social |
-
----
-
-## Public Endpoints
-
-### GET /public/variants/{variant_id}/sections
-
-Returns enabled sections for public display.
-
-**Authentication:** None
-
-**Response:**
-```json
-{
-  "sections": [
-    {
-      "id": 1,
-      "variant_id": 1,
-      "section_type": "hero",
-      "content": {
-        "headline": "Build Landing Pages Fast",
-        "subheadline": "Production-ready in minutes",
-        "cta_text": "Get Started",
-        "cta_url": "/signup"
-      },
-      "order": 1,
-      "enabled": true
-    },
-    {
-      "id": 2,
-      "variant_id": 1,
-      "section_type": "features",
-      "content": {
-        "title": "Features",
-        "items": [
-          {
-            "icon": "Zap",
-            "title": "Fast",
-            "description": "Generate in 60 seconds"
-          }
-        ]
-      },
-      "order": 2,
-      "enabled": true
-    }
-  ]
-}
-```
-
----
-
-## Admin Endpoints
-
-### GET /variants/{variant_id}/sections
-
-Returns all sections for a variant (including disabled).
-
-**Authentication:** Admin session required
-
-**Response:** Same as public endpoint, but includes `enabled: false` sections
-
----
-
-### GET /sections/{id}
-
-Returns a single section by ID.
-
-**Authentication:** Admin session required
-
-**Response:**
-```json
-{
-  "id": 1,
-  "variant_id": 1,
-  "section_type": "hero",
-  "content": {
-    "headline": "Build Landing Pages Fast",
-    "subheadline": "Production-ready in minutes",
-    "cta_text": "Get Started",
-    "cta_url": "/signup"
-  },
-  "order": 1,
-  "enabled": true,
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-15T10:30:00Z"
-}
-```
-
-**Errors:**
-
-| Status | Code | Description |
-|--------|------|-------------|
-| 401 | `AUTH_REQUIRED` | Admin session not provided |
-| 404 | `SECTION_NOT_FOUND` | Section with ID doesn't exist |
-
----
-
-### PATCH /sections/{id}
-
-Updates section content. Changes reflect immediately (live preview).
-
-**Authentication:** Admin session required
-
-**Request:**
-```json
-{
-  "content": {
-    "headline": "Updated Headline",
-    "subheadline": "Updated subheadline",
-    "cta_text": "New CTA"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Section updated successfully"
-}
-```
-
-**Errors:**
-
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | `VALIDATION_FAILED` | Content doesn't match section schema |
-| 400 | `INVALID_JSON` | Malformed JSON in request body |
-| 401 | `AUTH_REQUIRED` | Admin session not provided |
-| 404 | `SECTION_NOT_FOUND` | Section with ID doesn't exist |
-
-```json
-// Example content validation error
-{
-  "error": "Validation failed",
-  "code": "VALIDATION_FAILED",
-  "details": {
-    "fields": {
-      "content.headline": "Headline is required for hero sections",
-      "content.cta_url": "Invalid URL format"
-    }
-  }
-}
-```
-
-**Notes:**
-- Only the `content` field is updated
-- Changes take effect immediately
-- The admin preview shows updates within 300ms
-
----
-
-### POST /sections
-
-Creates a new section.
-
-**Authentication:** Admin session required
-
-**Request:**
-```json
-{
-  "variant_id": 1,
-  "section_type": "features",
-  "content": {
-    "title": "Features",
-    "items": [
-      {
-        "icon": "Zap",
-        "title": "Fast",
-        "description": "Generate in 60 seconds"
-      }
-    ]
-  },
-  "order": 2,
-  "enabled": true
-}
-```
-
-**Response:** `201 Created` with created section
-
-**Errors:**
-
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | `VALIDATION_FAILED` | Missing required fields or invalid content |
-| 400 | `INVALID_SECTION_TYPE` | Section type not recognized |
-| 401 | `AUTH_REQUIRED` | Admin session not provided |
-| 404 | `VARIANT_NOT_FOUND` | Variant ID doesn't exist |
-
-```json
-// Example invalid section type error
-{
-  "error": "Invalid section type",
-  "code": "INVALID_SECTION_TYPE",
-  "details": {
-    "provided": "custom_section",
-    "allowed": ["hero", "features", "pricing", "testimonials", "faq", "cta", "video", "downloads", "footer"]
-  }
-}
-```
-
----
-
-### DELETE /sections/{id}
-
-Deletes a section.
-
-**Authentication:** Admin session required
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Section deleted successfully"
-}
-```
-
-**Errors:**
-
-| Status | Code | Description |
-|--------|------|-------------|
-| 401 | `AUTH_REQUIRED` | Admin session not provided |
-| 404 | `SECTION_NOT_FOUND` | Section with ID doesn't exist |
-| 409 | `CANNOT_DELETE` | Cannot delete required section (e.g., last hero) |
-
----
-
-## Content Schemas
-
-Each section type has a specific content schema. See `.vrooli/schemas/sections/*.json` in the template for complete definitions.
-
-### Hero Schema
-
-```json
-{
-  "headline": "string (required)",
-  "subheadline": "string",
-  "cta_text": "string",
-  "cta_url": "string",
-  "background_image_url": "string",
-  "background_gradient": "string"
-}
-```
-
-### Features Schema
-
-```json
-{
-  "title": "string",
-  "subtitle": "string",
-  "items": [
-    {
-      "icon": "string (Lucide icon name)",
-      "title": "string",
-      "description": "string"
-    }
-  ]
-}
-```
-
-### Pricing Schema
-
-```json
-{
-  "title": "string",
-  "subtitle": "string",
-  "tiers": [
-    {
-      "name": "string",
-      "price": "number",
-      "interval": "month | year",
-      "features": ["string"],
-      "cta_text": "string",
-      "highlighted": "boolean"
-    }
-  ]
-}
-```
-
----
-
-## Ordering Sections
-
-Section order is controlled by the `order` field. When reordering:
-
-1. Fetch all sections for the variant
-2. Update `order` values as needed
-3. PATCH each section with new order
-
-Example: Move section from position 3 to position 1:
-```bash
-# Section 3 -> 1, Section 1 -> 2, Section 2 -> 3
-curl -X PATCH .../sections/3 -d '{"content": {...}, "order": 1}'
-```
-
----
-
-## See Also
-
-- [API Overview](OVERVIEW.md)
-- [Variants](variants.md) - Managing variants that contain sections
+# Presentation and legacy section APIs
+
+Public marketing content is served by the generated
+`LandingConfigService.GetLandingConfig` procedure. Its route-aware response
+contains one immutable, validated product presentation. Section snapshots are
+private recovery data, not an alternate public renderer or publication mechanism.
+
+## Typed editing and publication
+
+All `ProductPresentationAdminService` methods require administrator authentication:
+
+| Method | Purpose |
+|---|---|
+| `GetPresentation` | Read the current draft or a retained immutable revision |
+| `SaveDraft` | Validate and save a document with an expected-generation guard |
+| `Preview` | Resolve a private preview without public exposure tracking |
+| `Publish` | Verify and activate a saved revision with an expected-generation guard |
+| `Rollback` | Activate a retained validated publication with the same guard |
+
+Preview accepts exactly one of `revision` or `document`. The latter validates
+the unsaved document and returns a content-derived identity without a storage
+write. Both require an existing variant and a valid request-scoped storage lease
+in test mode. Responses are private/no-store/noindex; an ephemeral identity is
+not a published revision or permission to activate it.
+
+The canonical request and response definitions live in
+`packages/proto/schemas/landing-page-business-suite/v1/product_presentation.proto`.
+Use generated clients and proto-name JSON. Do not infer wire shapes from the old
+section schemas. The configurable block vocabulary and publication rules are in
+[Configurable product presentation](../../concepts/PRODUCT-PRESENTATION.md).
+
+Changing a draft does not change the public page. Publish and rollback are
+explicit administrator operations. Blocks are ordered by their document arrays;
+app membership, visibility and publication determine which page is resolved.
+Commerce prices, entitlements and installer availability remain owner facts.
+
+## Private legacy snapshot recovery
+
+`GET /api/v1/variants/{variant_slug}/sections` requires an admin session and
+returns `{"sections": [...]}`, including disabled sections. Each legacy entry
+retains its ID, type, content, order and enabled flag. Existing authenticated
+variant snapshot export/import operations remain available for recovery.
+
+The old `/api/v1/public/variants/{slug}/sections` and
+`/api/v1/public/variants/{slug}` routes are retired and return 404.
+No anonymous reader may retrieve old section copy merely because its
+`enabled` field is true. Mutating a legacy snapshot does not publish a typed
+presentation. Standalone `/sections` CRUD is not a current registered API;
+use the endpoint inventory rather than historical examples.
+
+Browser Automation Studio recovery bytes, metadata and source digests are
+retained separately from improved draft copy. See
+[BAS preservation](../../internal/BAS-PRESERVATION.md). Retirement of the public
+legacy reader does not remove that recovery material.
+
+## See also
+
+- [API overview](OVERVIEW.md)
+- [Variants](variants.md)
+- [Admin guide](../../guides/ADMIN_GUIDE.md)
+- Generated endpoint inventory: `.vrooli/endpoints.json`

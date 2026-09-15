@@ -2,13 +2,12 @@ import { useCallback, useContext, useEffect, useRef } from 'react';
 import { useLandingVariant } from '../../app/providers/useLandingVariant';
 import { MetricsModeContext } from './MetricsModeContext';
 import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
+import { getVisitorId } from '../lib/visitorIdentity';
 
 const SESSION_STORAGE_KEY = 'metrics_session_id';
-const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
 const CAMPAIGN_STORAGE_KEY = 'metrics_campaign';
 
 let fallbackSessionId: string | null = null;
-let fallbackVisitorId: string | null = null;
 let sessionWarningLogged = false;
 let visitorWarningLogged = false;
 const activePageViews = new Map<string, number>();
@@ -71,34 +70,6 @@ function getSessionID(): string {
   }
 }
 
-// Generate visitor ID (persisted in localStorage for cross-session tracking)
-function getVisitorID(): string {
-  const fallback = () => {
-    if (!fallbackVisitorId) {
-      fallbackVisitorId = generateId('visitor');
-    }
-    return fallbackVisitorId;
-  };
-
-  const storage = getStorage('local');
-  if (!storage) {
-    return fallback();
-  }
-
-  try {
-    let visitorID = storage.getItem(VISITOR_STORAGE_KEY);
-    if (!visitorID) {
-      visitorID = generateId('visitor');
-      storage.setItem(VISITOR_STORAGE_KEY, visitorID);
-    }
-    fallbackVisitorId = visitorID;
-    return visitorID;
-  } catch (error) {
-    logStorageWarning('local', error);
-    return fallback();
-  }
-}
-
 function getPageMetricKey(variantSlug: string) {
   const path = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
   return `${variantSlug}:${path}`;
@@ -130,11 +101,15 @@ type MetricEventPayload = APIMetricEvent & {
  * Implements OT-P0-021 (METRIC-EVENTS): Emits page_view, scroll_depth, click, form_submit, conversion
  */
 export function useMetrics() {
-  const { variant } = useLandingVariant();
+  const { variant, visitorId: assignedVisitor } = useLandingVariant();
   const metricsMode = useContext(MetricsModeContext);
   const previewMode = metricsMode === 'preview';
-  const sessionID = useRef(getSessionID());
-  const visitorID = useRef(getVisitorID());
+  const sessionID = useRef('');
+  const visitorID = useRef('');
+  if (!previewMode && variant?.slug) {
+    if (!sessionID.current) sessionID.current = getSessionID();
+    visitorID.current = getVisitorId(assignedVisitor);
+  }
 
   // Track event to API
   const trackEvent = useCallback(async (

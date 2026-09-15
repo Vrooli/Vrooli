@@ -15,7 +15,7 @@ export function documentFixture() {
     bundle: { key: 'example', name: 'Configured bundle', appOrder: ['second-app', 'first-app'], defaultLocale: 'fr', locales: ['fr', 'en'] },
     apps: [{ key: 'first-app', name: 'Configured private app', visibility: 'private', preservationRef: 'PRIVATE-REFERENCE' }],
     pages: [
-      { id: 'z-page', locale: 'fr', title: 'Configured first page', description: 'Configured description', blocks: [
+      { id: 'z-page', locale: 'fr', title: 'Configured first page', description: 'Configured description', display: previewFixture().page?.display, blocks: [
         { id: 'z-block', kind: 'faq', version: 1, variant: 'accordion', content: { value: { case: 'faq', value: { heading: 'Configured questions', items: [{ question: 'First question?', answer: 'Configured answer', accessibleLabel: 'First question?' }] } } } },
         { id: 'a-block', kind: 'footer', version: 1, variant: 'defined', content: { value: { case: 'footer', value: { label: 'Configured footer', links: [] } } } },
       ] },
@@ -52,6 +52,14 @@ export function clientFixture() {
     saveDraft: vi.fn<ProductPresentationClient['saveDraft']>().mockResolvedValue(snapshot(9007199254740994n)),
     publish: vi.fn<ProductPresentationClient['publish']>().mockResolvedValue(snapshot(9007199254740994n)),
     rollback: vi.fn<ProductPresentationClient['rollback']>().mockResolvedValue(snapshot(9007199254740994n)),
-    preview: vi.fn<ProductPresentationClient['preview']>().mockResolvedValue(create(PreviewPresentationResponseSchema, { presentation: previewFixture() })),
+    preview: vi.fn<ProductPresentationClient['preview']>().mockImplementation(request => {
+      const presentation = previewFixture();
+      if (request.document && presentation.diagnostics) {
+        Object.assign(presentation.diagnostics, { requestedRevision: 'a'.repeat(64), resolvedRevision: 'a'.repeat(64), requestedVariant: request.variantSlug, resolvedVariant: request.variantSlug,
+          requestedRoute: request.route, resolvedRoute: request.route, locale: request.locale || 'fr' });
+        if (presentation.page) presentation.page.locale = request.locale || 'fr';
+      }
+      return Promise.resolve(create(PreviewPresentationResponseSchema, { presentation }));
+    }),
   };
 }

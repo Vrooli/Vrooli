@@ -6,8 +6,11 @@ import { ActionLink, Arrow, AssetImage, Heading, Intro, ProductMark } from './pr
 import { Phone, Visual } from './exhibits';
 import { safeHref } from './links';
 import { ArtifactExplorer } from './ArtifactExplorer';
+import { PricingCards } from './PricingCards';
+import { ProductDemo } from './ProductDemo';
+import type { ResolvedPricing } from './commerce';
 
-export interface RenderContext { presentation: Presentation; resources: PresentationResources; resolvedActions?: ResolvedActions }
+export interface RenderContext { presentation: Presentation; resources: PresentationResources; resolvedActions?: ResolvedActions; resolvedPricing?: ResolvedPricing }
 type Registry = { [K in BlockKind]: (block: Block<K>, context: RenderContext) => ReactNode };
 function Actions({ actions, context }: { actions: Action[]; context: RenderContext }) {
   return <div className="hero-actions">{actions.map((action, index) => <ActionLink key={index} action={action} resolvedActions={context.resolvedActions} reason={context.resources.shell.unavailable_reason} className={index === 0 ? 'button-primary' : 'button-text'} />)}</div>;
@@ -17,7 +20,7 @@ function Hero({ block, context }: { block: Block<'product-hero' | 'bundle-hero'>
   const display = resources.blocks[block.id] ?? {};
   const content = block.content;
   const bundle = block.kind === 'bundle-hero';
-  return <section id={block.id} data-block={block.kind} className={`hero hero-${bundle ? 'editorial' : 'center'}`}>
+  return <section id={block.id} data-block={block.kind} data-capture-landmark="hero" className={`hero hero-${bundle ? 'editorial' : 'center'}`}>
     <div className="hero-copy"><p className="eyebrow"><span />{content.eyebrow}</p><Heading level={1} text={content.title} breaks={display.heading_breaks} /><p className="hero-description">{content.description}</p><Actions actions={content.actions} context={context} />{display.note && <p className="hero-note">{display.note}</p>}</div>
     <figure className="hero-stage" aria-label={content.accessibility_label}>
       {block.kind === 'product-hero' ? <Visual visualRef={block.content.fixture_ref || block.content.visual_ref} resources={resources} eager /> : <>
@@ -56,7 +59,7 @@ export const rendererRegistry: Registry = {
     return <div key={item.capability_id}>{target ? <a href={target}>{content}</a> : content}</div>;
   })}</section>,
   'product-story': (block, { resources }) => <section id={block.id} data-block={block.kind} className="story wrap"><Intro heading={block.content.heading} body={block.content.body} eyebrow={resources.blocks[block.id]?.eyebrow} breaks={resources.blocks[block.id]?.heading_breaks} /><div className="story-grid">{block.content.items.map((item, index) => <article key={index}><span className="item-number">{String(index + 1).padStart(2, '0')}</span><div className="story-rule" /><h3>{item.title}</h3><p>{item.description}</p>{item.visual_ref && <AssetImage assetRef={item.visual_ref} resources={resources} alt={item.alt_text} />}</article>)}</div></section>,
-  'product-demo': (block, { resources }) => <section id={block.id} data-block={block.kind} className="product-demo wrap"><Intro heading={block.content.heading} body={block.content.description} eyebrow={resources.blocks[block.id]?.eyebrow} breaks={resources.blocks[block.id]?.heading_breaks} /><figure aria-label={block.content.alt_text}><Visual visualRef={block.content.fixture_ref} resources={resources} interactive={block.variant === 'interactive'} /><figcaption>{resources.blocks[block.id]?.note}</figcaption></figure></section>,
+  'product-demo': (block, { resources, presentation }) => <ProductDemo block={block} resources={resources} revision={presentation.diagnostics.resolved_revision} />,
   'artifact-explorer': (block, { resources }) => <ArtifactExplorer key={block.content.selected_example_id} block={block} resources={resources} />,
   'voice-story': (block, { resources }) => {
     const content = block.content;
@@ -74,14 +77,14 @@ export const rendererRegistry: Registry = {
     if (!capability) throw new Error(`Unresolved capability: ${id}`);
     return <article key={id} data-capability-id={id} data-capability-status={capability.status}><div><span className="roadmap-symbol" aria-hidden="true">{['⌘', '◇', '▯'][index % 3]}</span><span className="roadmap-badge">{capability.status_label}</span></div><h3>{capability.label}</h3>{capability.benefits.map((benefit, i) => <p key={i}>{benefit}</p>)}{capability.constraints?.map((constraint, i) => <p key={i}>{constraint}</p>)}</article>;
   })}</div></section>,
-  'app-spotlights': (block, { presentation, resources }) => <section id={block.id} data-block={block.kind} className="catalog wrap"><Intro heading={block.content.heading} body={resources.blocks[block.id]?.description} eyebrow={resources.blocks[block.id]?.eyebrow} breaks={resources.blocks[block.id]?.heading_breaks} /><div className="catalog-grid">{block.content.app_keys.map((key, index) => {
+  'app-spotlights': (block, { presentation, resources }) => <section id={block.id} data-block={block.kind} data-capture-landmark="catalog" className="catalog wrap"><Intro heading={block.content.heading} body={resources.blocks[block.id]?.description} eyebrow={resources.blocks[block.id]?.eyebrow} breaks={resources.blocks[block.id]?.heading_breaks} /><div className="catalog-grid">{block.content.app_keys.map((key, index) => {
     const app = presentation.spotlights?.find(app => app.app_key === key);
     const style = resources.apps[key];
     if (!app || !style || !safeHref(app.detail_route)) throw new Error(`Unresolved app spotlight: ${key}`);
     return <article key={key} className={`product-card ${style.tone}`} data-app-key={key}><a className="product-card-visual" href={app.detail_route} aria-label={style.detail_label}><Visual visualRef={style.fixture_ref ?? style.visual_ref ?? ''} resources={resources} interactive={false} /><span className="visual-arrow" aria-hidden="true">↗</span></a><div className="product-card-copy"><div className="product-name"><ProductMark kind={style.mark} /><h3>{app.name}</h3><span className="product-number">{String(index + 1).padStart(2, '0')}</span></div><h4>{app.tagline}</h4><p>{app.description}</p><a className="detail-link" href={app.detail_route}>{style.detail_label}<Arrow /></a></div></article>;
   })}</div></section>,
-  'closing-action': (block, context) => <section id={block.id} data-block={block.kind} className="closing wrap">{block.content.visual_ref && <div className="closing-art" aria-hidden="true"><AssetImage assetRef={block.content.visual_ref} resources={context.resources} alt="" /></div>}<div className="closing-content"><p className="eyebrow">{context.resources.blocks[block.id]?.eyebrow}</p><Heading text={block.content.heading} breaks={context.resources.blocks[block.id]?.heading_breaks} /><p>{block.content.description}</p><Actions actions={block.content.actions} context={context} /></div></section>,
-  'pricing': (block, context) => <section id={block.id} data-block={block.kind} className="pricing wrap"><Intro heading={block.content.heading} body={block.content.description} /><Actions actions={block.content.actions} context={context} /></section>,
+  'closing-action': (block, context) => <section id={block.id} data-block={block.kind} data-capture-landmark="closing" className="closing wrap">{block.content.visual_ref && <div className="closing-art" aria-hidden="true"><AssetImage assetRef={block.content.visual_ref} resources={context.resources} alt="" /></div>}<div className="closing-content"><p className="eyebrow">{context.resources.blocks[block.id]?.eyebrow}</p><Heading text={block.content.heading} breaks={context.resources.blocks[block.id]?.heading_breaks} /><p>{block.content.description}</p><Actions actions={block.content.actions} context={context} /></div></section>,
+  'pricing': (block, context) => <section id={block.id} data-block={block.kind} className="pricing wrap"><Intro heading={block.content.heading} body={block.content.description} /><PricingCards block={block} prices={context.resolvedPricing} actions={context.resolvedActions} reason={context.resources.shell.unavailable_reason} locale={context.presentation.page.locale} /><Actions actions={block.content.actions.filter(action => action.kind !== 'purchase' || !block.content.plan_refs.includes(action.plan_ref ?? ''))} context={context} /></section>,
   'faq': (block) => <section id={block.id} data-block={block.kind} className="faq wrap"><Heading text={block.content.heading} />{block.content.items.map((item, index) => <details key={index}><summary aria-label={item.accessible_label}>{item.question}</summary><p>{item.answer}</p></details>)}</section>,
   'footer': (block) => <section id={block.id} data-block={block.kind} className="footer-block wrap" aria-label={block.content.label}>{block.content.links.map((link, index) => <a key={index} href={safeHref(link.target)} aria-label={link.accessible_label}>{link.label}</a>)}</section>,
 };

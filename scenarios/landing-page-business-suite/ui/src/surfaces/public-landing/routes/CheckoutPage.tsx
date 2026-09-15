@@ -411,7 +411,7 @@ export function CheckoutPage() {
                 <Button variant="ghost" onClick={() => { navigate('/'); }}>Back to landing</Button>
               </div>
               <p className="pt-4 text-xs text-slate-500">
-                By continuing you agree to the terms and acknowledge this subscription powers the Aquila suite.
+                By continuing you agree to the terms and acknowledge this subscription{pricing?.bundle.name.trim() ? ` is for ${pricing.bundle.name.trim()}` : ' is for the selected plan'}.
               </p>
             </CardContent>
           </Card>

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -63,13 +64,61 @@ func (h PresentationAdminHandler) Rollback(ctx context.Context, request *connect
 }
 
 func (h PresentationAdminHandler) Preview(ctx context.Context, request *connect.Request[lpbsv1.PreviewPresentationRequest]) (*connect.Response[lpbsv1.PreviewPresentationResponse], error) {
-	loaded, err := h.store.GetPresentationRevision(ctx, request.Msg.GetVariantSlug(), request.Msg.GetRevision())
-	if err != nil {
+	if request == nil || request.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("preview request is required"))
+	}
+	variant := request.Msg.GetVariantSlug()
+	if variant == "" || strings.TrimSpace(variant) != variant {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("preview variant_slug is required and must be exact"))
+	}
+	revision := request.Msg.GetRevision()
+	documentMessage := request.Msg.GetDocument()
+	if revision != "" && documentMessage != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("preview revision and document are mutually exclusive"))
+	}
+	if revision == "" && documentMessage == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("preview requires exactly one of revision or document"))
+	}
+
+	// Even an ephemeral document preview must prove that this request is
+	// reading through the exact variant's configured storage context. In test
+	// mode this refuses missing or expired leases instead of falling back to a
+	// primary store; the read does not mutate state.
+	if _, err := h.store.GetPresentationState(ctx, variant); err != nil {
 		return nil, presentationConnectError(err)
 	}
-	value, err := presentation.Resolve(loaded.Document, presentation.ResolveRequest{
-		Route: request.Msg.GetRoute(), Locale: request.Msg.GetLocale(), Variant: request.Msg.GetVariantSlug(),
-		PreviewRevision: loaded.Revision, PreviewAuthorized: true,
+	// Presentation state is intentionally allowed to be empty for a known
+	// variant: an editor may preview an unsaved document before its first
+	// presentation revision exists. The variant itself must still be present;
+	// otherwise an arbitrary slug could borrow the storage-read success path.
+	if _, err := h.store.GetVariant(variant); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("presentation variant not found"))
+	}
+
+	var document presentation.Document
+	if documentMessage != nil {
+		var err error
+		document, err = PresentationDocumentFromProto(documentMessage)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid preview document: %w", err))
+		}
+		if err := document.Validate(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		revision, err = presentation.PreviewIdentity(document)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("preview document identity: %w", err))
+		}
+	} else {
+		loaded, err := h.store.GetPresentationRevision(ctx, variant, revision)
+		if err != nil {
+			return nil, presentationConnectError(err)
+		}
+		document = loaded.Document
+	}
+	value, err := presentation.Resolve(document, presentation.ResolveRequest{
+		Route: request.Msg.GetRoute(), Locale: request.Msg.GetLocale(), Variant: variant, ResolvedVariant: variant,
+		ResolvedRevision: revision, PreviewRevision: revision, PreviewAuthorized: true,
 	})
 	if err != nil {
 		return nil, presentationConnectError(err)

@@ -32,7 +32,7 @@ func (h *variantConnectHandler) SelectVariant(_ context.Context, request *connec
 	if len(active) == 0 {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active variants available"))
 	}
-	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: variantProto(experimentation.SelectVariantForVisitor(active, request.Msg.GetVisitorId()), false)}), nil
+	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: publicVariantIdentity(experimentation.SelectVariantForVisitor(active, request.Msg.GetVisitorId()))}), nil
 }
 
 func (h *variantConnectHandler) GetPublicVariant(_ context.Context, request *connect.Request[lpbsv1.GetPublicVariantRequest]) (*connect.Response[lpbsv1.VariantResponse], error) {
@@ -43,7 +43,13 @@ func (h *variantConnectHandler) GetPublicVariant(_ context.Context, request *con
 	if experimentation.NormalizeVariantStatus(snapshot.Variant.Status) != "active" {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("variant is not publicly available"))
 	}
-	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: variantProto(snapshot, false)}), nil
+	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: publicVariantIdentity(snapshot)}), nil
+}
+
+// Public experiment identity is not an alternate marketing publication path.
+// Headers, editorial labels, axes and snapshots remain administrator-only.
+func publicVariantIdentity(snapshot *experimentation.VariantSnapshot) *lpbsv1.Variant {
+	return &lpbsv1.Variant{Slug: snapshot.Variant.Slug, Weight: boundedProtoInt32(experimentation.VariantWeight(snapshot)), Status: experimentation.NormalizeVariantStatus(snapshot.Variant.Status)}
 }
 
 func (h *variantConnectHandler) GetVariant(_ context.Context, request *connect.Request[lpbsv1.GetVariantRequest]) (*connect.Response[lpbsv1.VariantResponse], error) {

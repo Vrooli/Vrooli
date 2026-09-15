@@ -430,7 +430,7 @@ export function AdminAnalytics() {
 }
 
 interface AnalyticsShortcutsCardProps {
-  liveVariant: { slug: string; name: string } | null;
+  liveVariant: { slug: string; name?: string } | null;
   liveResolution: VariantResolution;
   liveStatusNote: string | null;
   onFocusLiveVariant: () => void;
@@ -449,7 +449,7 @@ interface AnalyticsFocusBannerProps {
   onResetFilters?: () => void;
   onCustomizeVariant?: () => void;
   onPreviewVariant?: () => void;
-  liveVariant: { slug: string; name: string } | null;
+  liveVariant: { slug: string; name?: string } | null;
   liveResolution: VariantResolution;
   liveStatusNote: string | null;
 }
@@ -549,7 +549,7 @@ function AnalyticsShortcutsCard({
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Live traffic</p>
             {liveVariant ? (
               <>
-                <p className="text-xl font-semibold text-white">{liveVariant.name}</p>
+                <p className="text-xl font-semibold text-white">{liveVariant.name ?? liveVariant.slug}</p>
                 <p className="text-xs text-slate-400">Source: {RESOLUTION_LABELS[liveResolution]}</p>
                 {liveStatusNote && <p className="text-xs text-slate-500">{liveStatusNote}</p>}
                 <Button

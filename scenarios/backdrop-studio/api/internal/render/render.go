@@ -1329,6 +1329,7 @@ func (s *Store) CandidateEvidence(candidateID string) (release.CandidateEvidence
 			}
 			return release.CandidateEvidence{
 				ID:                candidate.ID,
+				JobID:             candidate.JobID,
 				ImagePNG:          append([]byte(nil), candidate.PNG...),
 				Width:             candidate.Width,
 				Height:            candidate.Height,

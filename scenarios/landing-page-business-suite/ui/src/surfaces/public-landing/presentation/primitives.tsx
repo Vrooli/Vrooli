@@ -3,14 +3,13 @@ import { safeHref } from './links';
 import type { Action, ResolvedActions } from './types';
 import { actionKey } from './types';
 import type { Mark, PresentationResources } from './resources';
+import { getProductMarkPath, productMarkDrawing } from './productMarks.js';
 
 export function ProductMark({ kind }: { kind: Mark }) {
-  const paths: Record<Mark, string> = {
-    'letter-a': 'm6 24 10-17 10 17M11 19h10',
-    landscape: 'M5 23V9h22v14H5Zm0-6 7-6 7 10 4-5 4 7M21 8v8',
-    suite: 'm5 9 7 15 4-8 4 8 7-15', play: 'm11 8 12 8-12 8V8Z',
-  };
-  return <span className={`product-mark mark-${kind}`} aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d={paths[kind]} stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
+  const path = getProductMarkPath(kind);
+  if (!path) throw new Error('Unsupported product mark');
+  const { viewBox, fill, ...stroke } = productMarkDrawing;
+  return <span className={`product-mark mark-${kind}`} aria-hidden="true"><svg viewBox={viewBox} fill={fill}><path d={path} stroke="currentColor" {...stroke} /></svg></span>;
 }
 export function Arrow() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -45,6 +44,9 @@ export function AssetImage({ assetRef, resources, eager = false, className, alt 
   const asset = resources.assets[assetRef];
   if (!asset || !safeHref(asset.src)) throw new Error(`Unresolved presentation asset: ${assetRef}`);
   return <img className={className} src={asset.src} width={asset.width} height={asset.height}
+    // Legacy center is a cover crop; the released focal point owns placement.
+    // Inline placement overrides decorative CSS without changing its frame/layout.
+    style={{ objectFit: asset.crop_policy === 'contain' ? 'contain' : 'cover', objectPosition: `${String(asset.focal_point.x * 100)}% ${String(asset.focal_point.y * 100)}%` }}
     alt={alt ?? asset.alt} loading={eager ? 'eager' : 'lazy'} decoding="async"
     srcSet={asset.src_set} sizes={asset.sizes} />;
 }

@@ -50,8 +50,8 @@ describe('VariantEditor', () => {
     expect(screen.getByTestId('section-2')).toHaveTextContent('Disabled');
     fireEvent.click(screen.getByTestId('add-section'));
     fireEvent.click(screen.getByTestId('edit-section-2'));
-    expect(navigate).toHaveBeenCalledWith('/admin/customization/variants/control/sections/new');
-    expect(navigate).toHaveBeenCalledWith('/admin/customization/variants/control/sections/2');
+    expect(navigate).toHaveBeenCalledWith('/admin/presentation/control');
+    expect(navigate).toHaveBeenCalledWith('/admin/presentation/control');
   });
 
   it('supports form-field, axis, tab, and back-navigation controls for an existing variant', () => {

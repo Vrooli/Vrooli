@@ -19,8 +19,8 @@ func seoHTTPDependencies(service *content.SEOService) seohttp.Dependencies {
 		Now:        time.Now,
 	}
 	if service != nil {
-		deps.Sitemap = service.SitemapXML
-		deps.Robots = service.RobotsTXT
+		deps.Sitemap = service.SitemapXMLContext
+		deps.Robots = service.RobotsTXTContext
 	}
 	return deps
 }

@@ -33,8 +33,7 @@ const { mockGetBranding, mockUpdateBranding, mockClearBrandingField, mockUploadA
 }));
 
 vi.mock('../../../shared/api', async () => {
-  const { getFallbackLandingConfig } = await import('../../../shared/lib/fallbackLandingConfig');
-  const fallbackConfig = getFallbackLandingConfig();
+  const { publicConfig } = await import('../../public-landing/presentation/publicTestFixtures');
   return {
     getBranding: mockGetBranding,
     updateBranding: mockUpdateBranding,
@@ -43,7 +42,7 @@ vi.mock('../../../shared/api', async () => {
     getAssetUrl: (path: string) => path,
     checkAdminSession: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
     listVariants: vi.fn().mockResolvedValue({ variants: [] }),
-    getLandingConfig: vi.fn().mockResolvedValue(fallbackConfig),
+    getLandingConfig: vi.fn().mockResolvedValue(publicConfig()),
     adminLogout: vi.fn(),
     adminLogin: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
   };

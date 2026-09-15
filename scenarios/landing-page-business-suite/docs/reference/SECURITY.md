@@ -348,14 +348,17 @@ Endpoints are categorized by access level:
 | Access Level | Endpoints | Protection |
 |--------------|-----------|------------|
 | **Public** | `LandingConfigService.GetLandingConfig`, `/api/v1/plans`, `/api/v1/branding` | None |
-| **Public** | `/api/v1/metrics/track`, `/api/v1/variants/select` | None |
-| **Public** | `/api/v1/public/variants/*` | None |
+| **Public** | `VariantService.SelectVariant`, `VariantService.GetPublicVariant` | Finite experiment identity only; no marketing copy or snapshots |
+| **Admin** | `ProductPresentationAdminService` (all methods) | Administrator authentication; generation guards for mutations |
 | **Admin** | `/api/v1/admin/*` | `requireAdmin` middleware |
-| **Admin** | `/api/v1/variants` (POST/PATCH/DELETE) | `requireAdmin` middleware |
-| **Admin** | `/api/v1/sections/*` | `requireAdmin` middleware |
+| **Admin** | Registered `/api/v1/variants*` reads/writes and snapshot recovery | `requireAdmin` middleware |
 | **Admin** | `/api/v1/metrics/summary`, `/api/v1/metrics/variants` | `requireAdmin` middleware |
 
 ### Protected Admin Endpoints
+
+The old `/api/v1/public/variants/*` routes are retired. Legacy section snapshots
+remain private even when a section's enabled flag is true. Public presentation
+reads enforce app membership, visibility, publication and route scope separately.
 
 All admin operations require authentication:
 

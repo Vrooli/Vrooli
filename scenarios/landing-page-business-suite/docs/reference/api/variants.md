@@ -10,47 +10,23 @@ audience: ["developers"]
 
 Endpoints for managing A/B testing variants.
 
-## Public Endpoints
+## Public experiment identity
 
-### GET /variants/select
+Generated `VariantService.SelectVariant` and `VariantService.GetPublicVariant`
+remain public. They return a `variant` containing only `slug`, normalized
+`status`, and `weight`. Names, descriptions, header configuration, axes and
+section snapshots are administrator-only. Use
+[LandingConfigService.GetLandingConfig](landing.md) to read published marketing
+content; experiment selection is not a publication grant.
 
-Selects a variant based on configured weights.
+The old REST `GET /api/v1/variants/select` is no longer a public selector.
+`GET /api/v1/public/variants/{slug}` and its section route are retired (404).
+The CLI `variants-select` and `public-variant` operations use generated Connect
+clients. A missing or inactive public variant returns NotFound.
 
-**Authentication:** None
-
-**Response:**
-```json
-{
-  "id": 1,
-  "slug": "control",
-  "name": "Control (Original)",
-  "description": "Original landing page design",
-  "weight": 50,
-  "status": "active",
-  "axes": {
-    "persona": "ops_leader",
-    "jtbd": "launch_bundle",
-    "conversionStyle": "demo_led"
-  }
-}
-```
-
-### GET /public/variants/{slug}
-
-Returns a specific variant by slug (public access, active variants only).
-
-**Authentication:** None
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `slug` | string | The variant slug |
-
-**Response:** Same as `/variants/select`
-
-**Errors:**
-- `404 Not Found` - Variant not found or not active
+Administrator endpoint examples below describe the legacy variant configuration
+and recovery surface, not typed presentation publication. For current registered
+transport paths, consult `.vrooli/endpoints.json`.
 
 ---
 

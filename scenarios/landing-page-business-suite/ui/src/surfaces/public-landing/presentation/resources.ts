@@ -5,9 +5,11 @@
 import type { Action } from './types';
 import type { CanonicalWorkspace, CanonicalBackdrop, CanonicalWorkflow } from './resolvedResources';
 export type Mark = 'letter-a' | 'landscape' | 'suite' | 'play';
+export type CropPolicy = 'center' | 'contain' | 'cover';
 export interface MediaAsset {
   src: string; width: number; height: number; alt: string;
   src_set?: string; sizes?: string; release_ref?: string; content_hash?: string;
+  crop_policy: CropPolicy; focal_point: { x: number; y: number };
 }
 export interface WorkspaceDisplay {
   mark: Mark; avatar: string; time: string; tabs_label: string;

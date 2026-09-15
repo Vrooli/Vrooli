@@ -11,6 +11,7 @@ import { LAYOUT } from '../config/layout.constants';
 export type MaxWidthPreset = 'narrow' | 'default' | 'wide' | 'extraWide' | 'full';
 
 interface AdminLayoutProps {
+  beforeLogout?: () => boolean;
   children: ReactNode;
   /** Content max-width preset. When set, constrains main content width. */
   maxWidth?: MaxWidthPreset;
@@ -80,11 +81,12 @@ function NavDropdown({ group, currentPath, alignRight }: {
   );
 }
 
-export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
+export function AdminLayout({ children, maxWidth, beforeLogout }: AdminLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    if (beforeLogout && !beforeLogout()) return;
     try {
       await adminLogout();
       navigate('/admin/login');

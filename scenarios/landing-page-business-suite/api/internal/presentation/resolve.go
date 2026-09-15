@@ -108,7 +108,7 @@ func Resolve(document Document, request ResolveRequest) (ResolveResult, error) {
 	for _, app := range eligible {
 		publicSlugs[app.Slug] = true
 	}
-	resolvedPage, err := projectPage(page, eligibleSet, selected, mode, preview, publicSlugs)
+	resolvedPage, err := projectPage(page, eligibleSet, selected, mode, preview, publicSlugs, publicCapabilities(eligible))
 	if err != nil {
 		return ResolveResult{}, err
 	}
@@ -126,7 +126,7 @@ func Resolve(document Document, request ResolveRequest) (ResolveResult, error) {
 		Page:            resolvedPage,
 		SelectedAppKeys: copyStrings(selected),
 		Spotlights:      resolvedSpotlights(profileKeys, appsByKey),
-		Capabilities:    resolvedCapabilities(profileKeys, mode, appsByKey, resolvedPage.Locale),
+		Capabilities:    resolvedCapabilities(pageCapabilityKeys(resolvedPage, profileKeys, eligible), mode, appsByKey, resolvedPage.Locale),
 		Assets:          resolvedAssets(document.Assets, resolvedPage, publicFixtures),
 		Fixtures:        publicFixtures,
 	}
@@ -301,7 +301,7 @@ func selectPage(pages []Page, pageID, locale, defaultLocale string) (Page, strin
 	return defaultPage, "locale_unavailable", nil
 }
 
-func projectPage(page Page, eligible map[string]bool, selected []string, mode Mode, preview bool, publicSlugs map[string]bool) (ResolvedPage, error) {
+func projectPage(page Page, eligible map[string]bool, selected []string, mode Mode, preview bool, publicSlugs map[string]bool, capabilities map[string]bool) (ResolvedPage, error) {
 	// JSON round-tripping a validated page is deliberate here: it gives every
 	// response its own backing storage, including nested typed block slices,
 	// without importing a mutable renderer model.
@@ -312,7 +312,12 @@ func projectPage(page Page, eligible map[string]bool, selected []string, mode Mo
 	result := ResolvedPage{ID: page.ID, Locale: normalizedLocale(page.Locale), Title: page.Title, Description: page.Description, Theme: page.Theme, Navigation: publicNavigation(page.Navigation, publicSlugs), Footer: publicFooter(page.Footer, publicSlugs)}
 	result.Blocks = make([]ResolvedBlock, 0, len(page.Blocks))
 	remainingSpotlights := len(selected)
+	dropped := map[string]bool{}
 	for _, block := range page.Blocks {
+		if !blockCapabilitiesPublic(block.Content, capabilities) {
+			dropped["#"+block.ID] = true
+			continue
+		}
 		content := publicContent(block.Kind, block.Content, eligible, selected, mode, preview, publicSlugs, &remainingSpotlights)
 		if content == nil {
 			continue
@@ -320,6 +325,7 @@ func projectPage(page Page, eligible map[string]bool, selected []string, mode Mo
 		result.Blocks = append(result.Blocks, ResolvedBlock{ID: block.ID, Kind: block.Kind, Version: block.Version, Variant: block.Variant, Content: content})
 	}
 	result.Display = projectDisplay(page.Display, result.Blocks, pageAppKeys(result, selected), eligible, publicSlugs)
+	pruneDroppedAnchors(&result, dropped, capabilities)
 	return result, nil
 }
 

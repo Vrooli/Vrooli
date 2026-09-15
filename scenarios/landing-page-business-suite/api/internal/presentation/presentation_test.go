@@ -18,11 +18,27 @@ func testShellPage(id, locale, title string, blocks ...Block) Page {
 }
 
 func testDisplay() PageDisplay {
-	return PageDisplay{Shell: ShellDisplay{BrandName: "Configured brand", BrandMark: "suite", BrandTarget: "/", SkipLabel: "Skip to content", MenuLabel: "Menu", FooterBrandName: "Configured brand", FooterBrandMark: "suite", FooterBrandTarget: "/", UnavailableReason: "Not available", PreviewLabel: "Private preview"}, AssetLabels: map[string]AssetLabel{}, FixtureDisplay: map[string]FixtureDisplay{}, Blocks: map[string]BlockDisplay{}, Apps: map[string]AppDisplay{}}
+	return PageDisplay{Shell: ShellDisplay{BrandName: "Configured brand", BrandMark: "suite", BrandTarget: "/", SkipLabel: "Skip to content", MenuLabel: "Menu", FooterBrandName: "Configured brand", FooterBrandMark: "suite", FooterBrandTarget: "/", UnavailableReason: "Not available", PreviewLabel: "Private preview"}, AssetLabels: map[string]AssetLabel{"hero-art": {Alt: "Configured hero artwork"}}, FixtureDisplay: map[string]FixtureDisplay{}, Blocks: map[string]BlockDisplay{}, Apps: map[string]AppDisplay{}}
 }
 
 func testAsset() Asset {
 	return Asset{ID: "hero-art", ReleaseRef: "release-hero", ContentHash: strings.Repeat("a", 64), Width: 1440, Height: 720, MIME: "image/png", Surface: "web-hero", CropPolicy: "center", Provenance: AssetProvenance{Provider: "test-provider", JobRef: "job-hero", CandidateRef: "candidate-hero"}, OverlayRegions: []OverlayRegion{{Name: "copy", Width: 0.4, Height: 0.4, Measurement: LegibilityMeasurement{ContrastRatio: 7, MinimumContrastRatio: 4.5, Threshold: 4.5, Verdict: LegibilityPass, MeasurementRef: "measurement-hero"}}}, PublicURL: "/assets/hero-art.png", PrivateEvidenceRefs: []string{"asset-evidence"}}
+}
+
+func TestAssetFocalPointMustBeFinite(t *testing.T) {
+	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), -0.01, 1.01} {
+		for _, axis := range []string{"x", "y"} {
+			document := testDocument()
+			if axis == "x" {
+				document.Assets[0].FocalPoint.X = value
+			} else {
+				document.Assets[0].FocalPoint.Y = value
+			}
+			if err := Validate(document); err == nil || !strings.Contains(err.Error(), "focal_point") {
+				t.Fatalf("accepted %s focal point %v: %v", axis, value, err)
+			}
+		}
+	}
 }
 
 func testAppBlocks(app App) []Block {
@@ -209,7 +225,7 @@ func TestLP_PRES_005_SpotlightBudgetIsPageWide(t *testing.T) {
 		Block{ID: "spotlights-one", Kind: BlockAppSpotlights, Version: SchemaVersion, Variant: "grid", Content: AppSpotlightsContent{Heading: "Apps", AppKeys: []string{"web-console", "backdrop-studio"}, DetailLinkLabel: "Open"}},
 		Block{ID: "spotlights-two", Kind: BlockAppSpotlights, Version: SchemaVersion, Variant: "stacked", Content: AppSpotlightsContent{Heading: "More apps", AppKeys: []string{"web-console", "backdrop-studio"}, DetailLinkLabel: "Open"}},
 	)
-	resolved, err := projectPage(page, map[string]bool{"web-console": true, "backdrop-studio": true}, []string{"web-console", "backdrop-studio"}, ModeBundle, false, map[string]bool{"aquila": true, "backdrop-studio": true})
+	resolved, err := projectPage(page, map[string]bool{"web-console": true, "backdrop-studio": true}, []string{"web-console", "backdrop-studio"}, ModeBundle, false, map[string]bool{"aquila": true, "backdrop-studio": true}, map[string]bool{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +245,7 @@ func TestLP_PRES_012_ContentDigestPropagatesEncodingErrors(t *testing.T) {
 
 func TestLP_PRES_014_FixtureResourcesResolveAndRedactEvidence(t *testing.T) {
 	document := richDocument()
-	document.Fixtures = append(document.Fixtures, Fixture{ID: "backdrop-demo", Kind: FixtureBackdrop, Backdrop: &BackdropFixture{Title: "Backdrop", Label: "Backdrop", Selected: "Hero", Styles: []string{"Signal"}, Surface: "web-hero", Palette: "dark", Panel: "preview", Caption: "Configured artwork", Export: "PNG", Options: []string{"Desktop"}, Badge: "Ready", AssetRefs: []string{"hero-art"}}})
+	document.Fixtures = append(document.Fixtures, Fixture{ID: "backdrop-demo", Kind: FixtureBackdrop, Backdrop: &BackdropFixture{Title: "Backdrop", Label: "Backdrop", Selected: "Signal", Styles: []string{"Signal"}, Surface: "web-hero", Palette: "dark", Panel: "preview", Caption: "Configured artwork", Export: "PNG", Options: []string{"Desktop"}, Badge: "Ready", AssetRefs: []string{"hero-art"}}})
 	page := &document.Pages[2]
 	page.Display.FixtureDisplay["backdrop-demo"] = FixtureDisplay{Mark: "landscape"}
 	page.Blocks[0].Content = ProductHeroContent{AppKey: "web-console", Title: "All agents", Description: "One view", FixtureRef: "backdrop-demo", AccessibilityLabel: "Illustrative workspace", Actions: []Action{{Kind: ActionOpen, Label: "Open", AccessibleLabel: "Open", Target: "/apps/aquila"}}}
@@ -249,6 +265,68 @@ func TestLP_PRES_014_FixtureResourcesResolveAndRedactEvidence(t *testing.T) {
 		if strings.Contains(serialized, private) {
 			t.Fatalf("public resource leaked %q: %s", private, serialized)
 		}
+	}
+}
+
+func TestLP_PRES_014_BackdropStylesAndAssetsAreAligned(t *testing.T) {
+	tests := []struct {
+		name     string
+		styles   []string
+		assets   []string
+		selected string
+		want     string
+	}{
+		{
+			name:     "style and asset counts must match",
+			styles:   []string{"Signal", "Studio"},
+			assets:   []string{"hero-art"},
+			selected: "Signal",
+			want:     "backdrop_style_asset_mismatch",
+		},
+		{
+			name:     "selected style must be declared",
+			styles:   []string{"Signal"},
+			assets:   []string{"hero-art"},
+			selected: "Missing",
+			want:     "backdrop_selected_style_not_found",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			document := richDocument()
+			document.Fixtures = append(document.Fixtures, Fixture{
+				ID:   "backdrop-validation",
+				Kind: FixtureBackdrop,
+				Backdrop: &BackdropFixture{
+					Title: "Backdrop", Label: "Backdrop", Selected: tt.selected,
+					Styles: tt.styles, Surface: "web-hero", Palette: "dark",
+					Panel: "preview", Caption: "Configured artwork", Export: "PNG",
+					Options: []string{"Desktop"}, Badge: "Ready", AssetRefs: tt.assets,
+				},
+			})
+			err := Validate(document)
+			if !hasIssueCode(err, tt.want) {
+				t.Fatalf("Validate() error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestLP_PRES_014_BackdropStylesAndAssetsCanContainMultiplePairs(t *testing.T) {
+	document := richDocument()
+	document.Fixtures = append(document.Fixtures, Fixture{
+		ID:   "backdrop-validation",
+		Kind: FixtureBackdrop,
+		Backdrop: &BackdropFixture{
+			Title: "Backdrop", Label: "Backdrop", Selected: "Pale Moon",
+			Styles:  []string{"Survey Relief", "Pale Moon", "Tidal Halftone"},
+			Surface: "web-hero", Palette: "dark", Panel: "preview",
+			Caption: "Configured artwork", Export: "PNG", Options: []string{"Desktop"},
+			Badge: "Ready", AssetRefs: []string{"hero-art", "hero-art", "hero-art"},
+		},
+	})
+	if err := Validate(document); err != nil {
+		t.Fatalf("Validate() rejected aligned multi-style fixture: %v", err)
 	}
 }
 

@@ -1,6 +1,12 @@
 import type { BreadcrumbSegment, NavItem, NavGroup, NavigationConfig } from './navigation.types';
 import { NAVIGATION_CONFIG, ROUTE_LABELS } from './navigation';
 
+/** Explicit variant-owned document; never guess a first legacy section. */
+export const presentationEditorPath = (slug?: string) => slug ? `/admin/presentation/${encodeURIComponent(slug)}` : '/admin/presentation';
+function decodeRouteSegment(value: string) {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
 /**
  * Find a navigation item by its path across all groups and direct links
  */
@@ -68,6 +74,11 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   }
 
   // Handle customization routes with variants and sections
+  if (pathname.startsWith('/admin/presentation/')) {
+    segments.push({ label: 'Presentation', path: '/admin/presentation' });
+    segments.push({ label: `Variant ${decodeRouteSegment(pathname.slice('/admin/presentation/'.length))}` });
+    return segments;
+  }
   if (pathname.startsWith('/admin/customization')) {
     segments.push({ label: 'Customization', path: '/admin/customization' });
 
@@ -82,11 +93,11 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
           path: `/admin/customization/variants/${variantSlug}`,
         });
 
-        const sectionMatch = pathname.match(/\/sections\/(\d+|new)/);
+        const sectionMatch = pathname.match(/\/sections\/([^/]+)/);
         const sectionId = sectionMatch?.[1];
         if (sectionId) {
           segments.push({
-            label: sectionId === 'new' ? 'New Section' : `Section ${sectionId}`,
+            label: 'Presentation', path: presentationEditorPath(decodeRouteSegment(variantSlug)),
           });
         }
       }

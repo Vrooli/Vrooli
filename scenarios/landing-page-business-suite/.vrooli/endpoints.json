@@ -555,20 +555,20 @@
       "category": "system"
     },
     {
-      "id": "get-api-v1-public-variants-slug",
-      "path": "/api/v1/public/variants/{slug}",
+      "id": "get-api-v1-presentation-assets-file",
+      "path": "/api/v1/presentation-assets/{file}",
       "method": "GET",
-      "summary": "GET /api/v1/public/variants/{slug}",
+      "summary": "GET /api/v1/presentation-assets/{file}",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "variants"
+      "category": "system"
     },
     {
-      "id": "get-api-v1-public-variants-variant-slug-sections",
-      "path": "/api/v1/public/variants/{variant_slug}/sections",
-      "method": "GET",
-      "summary": "GET /api/v1/public/variants/{variant_slug}/sections",
+      "id": "head-api-v1-presentation-assets-file",
+      "path": "/api/v1/presentation-assets/{file}",
+      "method": "HEAD",
+      "summary": "HEAD /api/v1/presentation-assets/{file}",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "variants"
+      "category": "system"
     },
     {
       "id": "get-api-v1-uploads-path",
@@ -647,14 +647,6 @@
       "path": "/api/v1/variants",
       "method": "GET",
       "summary": "GET /api/v1/variants",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "variants"
-    },
-    {
-      "id": "get-api-v1-variants-select",
-      "path": "/api/v1/variants/select",
-      "method": "GET",
-      "summary": "GET /api/v1/variants/select",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "variants"
     },
@@ -1127,6 +1119,14 @@
       "path": "/landing_page_business_suite.v1.LandingConfigService/GetLandingConfig",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.LandingConfigService/GetLandingConfig",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingconfigservice-recordpresentationexposure",
+      "path": "/landing_page_business_suite.v1.LandingConfigService/RecordPresentationExposure",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingConfigService/RecordPresentationExposure",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },

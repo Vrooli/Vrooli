@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var (
@@ -14,6 +16,7 @@ var (
 	ErrIdentityRequired           = errors.New("user identity required for gated downloads")
 	ErrRequiresActiveSubscription = errors.New("active subscription required for downloads")
 	ErrEntitlementsUnavailable    = errors.New("entitlements unavailable")
+	ErrAssetSelectorUnavailable   = errors.New("exact asset selector unavailable")
 )
 
 // EntitlementLookup resolves the current subscription status for a caller.
@@ -28,6 +31,20 @@ type EntitlementLookup interface {
 // seam: AssetLookup
 type AssetLookup interface {
 	GetAsset(bundleKey, appKey, platform string) (*Asset, error)
+}
+
+// ContextAssetLookup is the request-aware legacy selector. Production
+// composition implements it with a routed store; test doubles may continue to
+// implement AssetLookup for context-free unit tests.
+type ContextAssetLookup interface {
+	GetAssetContext(context.Context, string, string, string) (*Asset, error)
+}
+
+// ContextAssetSelector resolves one exact delivery-catalog row. The ID is the
+// download_assets.id, never the managed artifact ID. Implementations must
+// constrain the lookup by bundle, app, and platform as well as this ID.
+type ContextAssetSelector interface {
+	GetAssetByIDContext(context.Context, string, string, string, int64) (*Asset, error)
 }
 
 // EntitlementStatusProvider resolves subscription status while preserving the
@@ -64,12 +81,56 @@ func (a *DownloadAuthorizer) Authorize(ctx context.Context, appKey, platform, us
 	if trimmedPlatform == "" {
 		return nil, ErrPlatformRequired
 	}
-	asset, err := a.downloads.GetAsset(a.bundleKey, trimmedApp, trimmedPlatform)
+	var asset *Asset
+	var err error
+	if contextLookup, ok := a.downloads.(ContextAssetLookup); ok {
+		asset, err = contextLookup.GetAssetContext(ctx, a.bundleKey, trimmedApp, trimmedPlatform)
+	} else if database.IsTestMode(ctx) {
+		// A routed test request must never fall back to the context-free
+		// catalog method: that method is allowed to read primary storage.
+		return nil, fmt.Errorf("resolve request-routed asset: %w", ErrRequestStorageLeaseUnavailable)
+	} else {
+		// Preserve the legacy non-routed compatibility contract for callers
+		// that have not adopted ContextAssetLookup yet.
+		asset, err = a.downloads.GetAsset(a.bundleKey, trimmedApp, trimmedPlatform)
+	}
 	if err != nil {
 		return nil, err
 	}
+	return a.authorizeAsset(ctx, asset, trimmedApp, trimmedPlatform, userIdentity)
+}
+
+// AuthorizeSelected authorizes the exact catalog row requested by the caller.
+// It deliberately has no fallback to the legacy platform-first lookup.
+func (a *DownloadAuthorizer) AuthorizeSelected(ctx context.Context, appKey, platform, userIdentity string, assetID int64) (*Asset, error) {
+	trimmedApp := strings.TrimSpace(appKey)
+	if trimmedApp == "" {
+		return nil, ErrAppNotFound
+	}
+	trimmedPlatform := strings.TrimSpace(platform)
+	if trimmedPlatform == "" {
+		return nil, ErrPlatformRequired
+	}
+	selector, ok := a.downloads.(ContextAssetSelector)
+	if !ok {
+		return nil, ErrAssetSelectorUnavailable
+	}
+	asset, err := selector.GetAssetByIDContext(ctx, a.bundleKey, trimmedApp, trimmedPlatform, assetID)
+	if err != nil {
+		return nil, err
+	}
+	if asset == nil || asset.ID != assetID || asset.BundleKey != a.bundleKey || asset.AppKey != trimmedApp || asset.Platform != trimmedPlatform {
+		return nil, ErrAssetNotFound
+	}
+	return a.authorizeAsset(ctx, asset, trimmedApp, trimmedPlatform, userIdentity)
+}
+
+func (a *DownloadAuthorizer) authorizeAsset(ctx context.Context, asset *Asset, appKey, platform, userIdentity string) (*Asset, error) {
+	if asset == nil {
+		return nil, ErrAssetNotFound
+	}
 	if err := Authorize(Request{
-		AppKey: trimmedApp, Platform: trimmedPlatform, UserIdentity: userIdentity, RequiresEntitlement: asset.RequiresEntitlement,
+		AppKey: appKey, Platform: platform, UserIdentity: userIdentity, RequiresEntitlement: asset.RequiresEntitlement,
 	}, entitlementStatusLookup{ctx: ctx, provider: a.entitlements}); err != nil {
 		return nil, err
 	}

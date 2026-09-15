@@ -3,8 +3,12 @@ package release
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 func TestProceduralReleaseDerivesDisclosureAndRequiresAltText(t *testing.T) {
@@ -24,13 +28,15 @@ func TestReleaseRejectsDirectDisclosureAndGeometry(t *testing.T) {
 }
 
 type fakePublisher struct {
-	calls int
-	last  Provenance
+	calls   int
+	last    Provenance
+	lastCtx context.Context
 }
 
-func (p *fakePublisher) Publish(_ context.Context, _ Request, prov Provenance) (string, error) {
+func (p *fakePublisher) Publish(ctx context.Context, _ Request, prov Provenance) (string, error) {
 	p.calls++
 	p.last = prov
+	p.lastCtx = ctx
 	return "asset-123", nil
 }
 
@@ -59,7 +65,7 @@ func TestModelBackedReleaseHandsOffToAssetStudio(t *testing.T) {
 	publisher := &fakePublisher{}
 	candidate := authoritativeCandidate(t)
 	candidate.Strategy = "guided"
-	b, err := NewStoreWithPublisher(publisher, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
+	b, err := durableStore(t, publisher, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.NoError(t, err)
 	require.Equal(t, 1, publisher.calls)
 	require.Equal(t, "asset-123", b.AssetStudioRef)
@@ -70,6 +76,31 @@ func TestModelBackedReleaseHandsOffToAssetStudio(t *testing.T) {
 	require.Equal(t, "7", publisher.last.Seed)
 }
 
+func TestModelBackedReleasePassesRequestContextToPublisher(t *testing.T) {
+	primary := storage.Paths{ConfigDir: t.TempDir(), DataDir: t.TempDir(), CacheDir: t.TempDir(), LogsDir: t.TempDir(), StateDir: t.TempDir()}
+	roots := filerouting.New(primary)
+	const leaseID = "publisher-context-test"
+	_, err := roots.InstallLeasedTestRoots(leaseID, time.Minute, true)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, roots.ClearTestRoots(leaseID)) }()
+
+	publisher := &fakePublisher{}
+	store := NewStoreWithPublisherAndRoots(publisher, guidedProvenance(), roots, fakeCandidateSource{"c": func() CandidateEvidence {
+		candidate := authoritativeCandidate(t)
+		candidate.Strategy = "guided"
+		return candidate
+	}()})
+	requestCtx := context.WithValue(context.Background(), publisherContextKey{}, "request")
+	requestCtx = database.WithTestMode(requestCtx)
+	_, err = store.ReleaseContext(requestCtx, modelBackedRequest())
+	require.NoError(t, err)
+	require.Equal(t, "request", publisher.lastCtx.Value(publisherContextKey{}))
+	require.True(t, database.IsTestMode(publisher.lastCtx))
+	require.Zero(t, roots.LeaseStats().PrimaryWritesDuringTestMode)
+}
+
+type publisherContextKey struct{}
+
 // TestModelBackedReleaseRefusesWithoutRecordedProvenance is the honest-refusal
 // half. A candidate this process did not render has no model or prompt recorded
 // anywhere, so its disclosure cannot be written — and inventing one, or falling
@@ -79,7 +110,7 @@ func TestModelBackedReleaseRefusesWithoutRecordedProvenance(t *testing.T) {
 	publisher := &fakePublisher{}
 	candidate := authoritativeCandidate(t)
 	candidate.Strategy = "guided"
-	_, err := NewStoreWithPublisher(publisher, fakeProvenance{}, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
+	_, err := durableStore(t, publisher, fakeProvenance{}, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.ErrorContains(t, err, "no recorded provenance")
 	require.Zero(t, publisher.calls)
 }
@@ -90,7 +121,7 @@ func TestModelBackedReleaseRefusesWithoutRecordedProvenance(t *testing.T) {
 func TestModelBackedReleaseRefusesWhenAssetStudioIsAbsent(t *testing.T) {
 	candidate := authoritativeCandidate(t)
 	candidate.Strategy = "guided"
-	_, err := NewStoreWithPublisher(nil, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
+	_, err := durableStore(t, nil, guidedProvenance(), fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.ErrorContains(t, err, "asset-studio publisher capability")
 }
 
@@ -102,7 +133,7 @@ func TestReleaseRefusesAStrategyItsRenderDoesNotAgreeWith(t *testing.T) {
 	source := fakeProvenance{"c": {Strategy: "procedural-treated", ModelBacked: false}}
 	candidate := authoritativeCandidate(t)
 	candidate.Strategy = "procedural-treated"
-	_, err := NewStoreWithPublisher(publisher, source, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
+	_, err := durableStore(t, publisher, source, fakeCandidateSource{"c": candidate}).Release(modelBackedRequest())
 	require.ErrorContains(t, err, "does not match candidate evidence")
 	require.Zero(t, publisher.calls)
 }

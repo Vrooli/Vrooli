@@ -15,9 +15,22 @@ func TestPresentationTypedDocumentRoundTrip(t *testing.T) { // [REQ:LP-PRES-004]
 		SchemaVersion: 1,
 		Bundle:        presentation.Bundle{Key: "business-suite", Name: "Vrooli", AppOrder: []string{"web-console"}, PageID: "suite", EmptyPageID: "empty", DefaultLocale: "en", Locales: []string{"en"}},
 		Apps:          []presentation.App{{Key: "web-console", Slug: "aquila", Name: "Aquila", Capabilities: []presentation.Capability{{ID: "speech", Label: "Local speech", Status: presentation.CapabilityComingSoon, LocalizedBenefits: map[string][]string{"fr": {"Une voix locale"}}}}}},
-		Pages:         []presentation.Page{{ID: "aquila", Locale: "en", Title: "Your agents. Your voice. Your work.", Blocks: []presentation.Block{{ID: "hero", Kind: presentation.BlockProductHero, Version: 1, Variant: "centered", Content: presentation.ProductHeroContent{AppKey: "web-console", Title: "Bring your agents into focus.", FixtureRef: "workspace", Actions: []presentation.Action{{Kind: presentation.ActionAnchor, Label: "Explore", AccessibleLabel: "Explore Aquila", Target: "#artifacts"}}}}}}},
-		Fixtures:      []presentation.Fixture{{ID: "workspace", Kind: presentation.FixtureWorkspace, Workspace: &presentation.WorkspaceFixture{Title: "Aquila", Sessions: []string{"Review the changes"}}}},
-		Strings:       map[string]map[string]string{"en": {"skip": "Skip to content", "summary": "AI response summary"}},
+		Pages: []presentation.Page{{
+			ID: "aquila", Locale: "en", Title: "Your agents. Your voice. Your work.",
+			Blocks: []presentation.Block{
+				{ID: "hero", Kind: presentation.BlockProductHero, Version: 1, Variant: "centered", Content: presentation.ProductHeroContent{
+					AppKey: "web-console", Title: "Bring your agents into focus.", FixtureRef: "workspace",
+					Actions: []presentation.Action{{Kind: presentation.ActionAnchor, Label: "Explore", AccessibleLabel: "Explore Aquila", Target: "#artifacts"}},
+				}},
+				{ID: "demo", Kind: presentation.BlockProductDemo, Version: 1, Variant: "recorded", Content: presentation.ProductDemoContent{
+					Heading: "See the workflow.", Description: "A recorded product demonstration.", RendererRef: "video", PosterRef: "poster", AltText: "Recorded product demonstration",
+					Playback: &presentation.ProductDemoPlayback{Provider: "youtube", ExternalURL: "https://youtu.be/dQw4w9WgXcQ", Layout: "split", PlayLabel: "Play demo", Caption: "A configured recording.", UnavailableLabel: "Video unavailable"},
+				}},
+			},
+		}},
+		Fixtures: []presentation.Fixture{{ID: "workspace", Kind: presentation.FixtureWorkspace, Workspace: &presentation.WorkspaceFixture{Title: "Aquila", Sessions: []string{"Review the changes"}}}},
+		Assets:   []presentation.Asset{{ID: "poster", ReleaseRef: "release-poster", ContentHash: strings.Repeat("a", 64), Width: 1280, Height: 720, MIME: "image/png", Surface: "web-demo", CropPolicy: "center", Provenance: presentation.AssetProvenance{Provider: "test"}}},
+		Strings:  map[string]map[string]string{"en": {"skip": "Skip to content", "summary": "AI response summary"}},
 	}
 	document.Pages[0].Display = presentation.PageDisplay{Shell: presentation.ShellDisplay{BrandName: "Aquila", BrandMark: "letter-a", SkipLabel: "Skip to content"}, Blocks: map[string]presentation.BlockDisplay{"hero": {Note: "Configured small print", HeadingBreaks: []int{12}}}, FixtureDisplay: map[string]presentation.FixtureDisplay{"workspace": {Mark: "letter-a", TabsLabel: "Session tabs", FileChanges: map[string]string{"plan.md": "+14"}}}}
 	wire, err := PresentationDocumentProto(document)
@@ -26,6 +39,10 @@ func TestPresentationTypedDocumentRoundTrip(t *testing.T) { // [REQ:LP-PRES-004]
 	}
 	if wire.Pages[0].Blocks[0].Content.GetProductHero().GetFixtureRef() != "workspace" {
 		t.Fatal("typed hero content was lost")
+	}
+	demo := wire.Pages[0].Blocks[1].Content.GetProductDemo()
+	if demo.GetRendererRef() != "video" || demo.GetPosterRef() != "poster" || demo.GetPlayback().GetProvider() != "youtube" || demo.GetPlayback().GetExternalUrl() != "https://youtu.be/dQw4w9WgXcQ" || demo.GetPlayback().GetLayout() != "split" {
+		t.Fatalf("typed recorded playback was lost: %+v", demo)
 	}
 	if wire.Fixtures[0].GetWorkspace().GetSessions()[0] != "Review the changes" {
 		t.Fatal("configured workspace data was lost")
@@ -43,6 +60,10 @@ func TestPresentationTypedDocumentRoundTrip(t *testing.T) { // [REQ:LP-PRES-004]
 	}
 	if roundTrip.Strings["en"]["summary"] != document.Strings["en"]["summary"] || roundTrip.Apps[0].Capabilities[0].LocalizedBenefits["fr"][0] != "Une voix locale" {
 		t.Fatal("domain localized copy changed during wire round trip")
+	}
+	roundTripDemo, ok := roundTrip.Pages[0].Blocks[1].Content.(presentation.ProductDemoContent)
+	if !ok || roundTripDemo.Playback == nil || roundTripDemo.Playback.Provider != "youtube" || roundTripDemo.Playback.PlayLabel != "Play demo" {
+		t.Fatalf("domain recorded playback changed during wire round trip: %+v", roundTrip.Pages[0].Blocks[1].Content)
 	}
 	if roundTrip.Pages[0].Display.Shell.BrandName != "Aquila" || roundTrip.Pages[0].Display.Blocks["hero"].Note != "Configured small print" || roundTrip.Pages[0].Display.FixtureDisplay["workspace"].FileChanges["plan.md"] != "+14" {
 		t.Fatal("typed display configuration was not preserved")

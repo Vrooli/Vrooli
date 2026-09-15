@@ -10,6 +10,7 @@ import {
 } from '../../../shared/api';
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from '../../../shared/lib/adminExperience';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
+import { presentationEditorPath } from '../config/navigation.utils';
 import {
   HEALTH_SNAPSHOT_DAYS,
   buildHealthSnapshot,
@@ -300,9 +301,9 @@ export function useAdminHome(): UseAdminHomeReturn {
     const resumeVariant = experience?.lastVariant;
     if (!resumeVariant) return null;
 
-    return resumeVariant.surface === 'section' && (resumeVariant.sectionKey || resumeVariant.sectionId)
-      ? `/admin/customization/variants/${resumeVariant.slug}/sections/${encodeURIComponent(resumeVariant.sectionKey ?? String(resumeVariant.sectionId))}`
-      : `/admin/customization/variants/${resumeVariant.slug}`;
+    return resumeVariant.surface === 'section'
+      ? presentationEditorPath(resumeVariant.slug)
+      : `/admin/customization/variants/${encodeURIComponent(resumeVariant.slug)}`;
   }, [experience]);
 
   /**

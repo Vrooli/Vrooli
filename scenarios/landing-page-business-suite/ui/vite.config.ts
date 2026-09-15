@@ -63,6 +63,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     test: {
+      // Browser tests use jsdom; server/*.test.mjs uses Node's native runner
+      // through the package test scripts, not Vite's client bundler.
+      include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],

@@ -6,6 +6,7 @@ import { useMetrics } from './useMetricsHook';
 import type { MetricEvent } from '../api/types';
 import type { useLandingVariant } from '../../app/providers/useLandingVariant';
 import { getFirstCall } from '../test-utils/api-mocks';
+import { isValidVisitorId } from '../lib/visitorIdentity';
 
 const trackMetricMock = vi.fn<(event: MetricEvent) => Promise<{ success: boolean }>>();
 const useLandingVariantMock = vi.fn<() => ReturnType<typeof useLandingVariant>>();
@@ -51,6 +52,20 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     }
   });
 
+  it('uses the provider bootstrap visitor instead of a conflicting browser identity', async () => {
+    const current = useLandingVariantMock();
+    useLandingVariantMock.mockReturnValue({ ...current, visitorId: 'server_visitor' });
+    localStorage.setItem('metrics_visitor_id', 'legacy_local');
+    document.cookie = 'metrics_visitor_id=old_cookie; Path=/';
+    trackMetricMock.mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useMetrics());
+    result.current.trackCTAClick('configured');
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledWith(expect.objectContaining({ visitor_id: 'server_visitor' })); });
+    expect(localStorage.getItem('metrics_visitor_id')).toBe('server_visitor');
+    document.cookie = 'metrics_visitor_id=; Path=/; Max-Age=0';
+    localStorage.removeItem('metrics_visitor_id');
+  });
+
   it('falls back to in-memory identifiers when storage is blocked', async () => {
     const throwingStorage: Storage = {
       getItem: () => {
@@ -85,7 +100,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     const [event] = getFirstCall(trackMetricMock);
     expect(event.session_id).toMatch(/^session_/);
-    expect(event.visitor_id).toMatch(/^visitor_/);
+    expect(isValidVisitorId(event.visitor_id)).toBe(true);
     expect(event.variant_slug).toBe('control');
     expect(warnSpy).toHaveBeenCalled();
 

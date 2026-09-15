@@ -29,13 +29,13 @@ func Module(store *internal.Store) module.Module {
 	}, Endpoints: Endpoints}
 }
 
-func (h *handler) Release(_ context.Context, req *connect.Request[v1.ReleaseRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
+func (h *handler) Release(ctx context.Context, req *connect.Request[v1.ReleaseRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
 	r := req.Msg
 	regions := make([]catalog.Region, 0, len(r.GetReservedRegions()))
 	for _, x := range r.GetReservedRegions() {
 		regions = append(regions, catalog.Region{X: x.GetX(), Y: x.GetY(), Width: x.GetWidth(), Height: x.GetHeight(), Kind: x.GetKind(), TextColor: x.GetTextColor()})
 	}
-	b, err := h.store.Release(internal.Request{CandidateID: r.GetCandidateId(), StyleID: r.GetStyleId(), Strategy: r.GetStrategy(), SurfaceID: r.GetSurfaceId(), Placement: r.GetPlacement(), AltText: r.GetAltText(), Width: int(r.GetWidth()), Height: int(r.GetHeight()), ExpectedWidth: int(r.GetExpectedWidth()), ExpectedHeight: int(r.GetExpectedHeight()), Decorative: r.GetDecorative(), AIGeneratedSet: r.GetAiGeneratedSet(), AIGenerated: r.GetAiGenerated(), LegibilityPasses: r.GetLegibilityPasses(), ContrastRatio: r.GetContrastRatio(), ContrastThreshold: r.GetContrastThreshold(), Regions: regions, ImagePNG: r.GetImagePng()})
+	b, err := h.store.ReleaseContext(ctx, internal.Request{CandidateID: r.GetCandidateId(), StyleID: r.GetStyleId(), Strategy: r.GetStrategy(), SurfaceID: r.GetSurfaceId(), Placement: r.GetPlacement(), AltText: r.GetAltText(), Width: int(r.GetWidth()), Height: int(r.GetHeight()), ExpectedWidth: int(r.GetExpectedWidth()), ExpectedHeight: int(r.GetExpectedHeight()), Decorative: r.GetDecorative(), AIGeneratedSet: r.GetAiGeneratedSet(), AIGenerated: r.GetAiGenerated(), LegibilityPasses: r.GetLegibilityPasses(), ContrastRatio: r.GetContrastRatio(), ContrastThreshold: r.GetContrastThreshold(), Regions: regions, ImagePNG: r.GetImagePng()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -43,7 +43,7 @@ func (h *handler) Release(_ context.Context, req *connect.Request[v1.ReleaseRequ
 }
 
 func (h *handler) asset(w http.ResponseWriter, req *http.Request) {
-	b, err := h.store.Get(mux.Vars(req)["id"])
+	b, err := h.store.GetContext(req.Context(), mux.Vars(req)["id"])
 	if err != nil || len(b.ImagePNG) == 0 || b.MIMEType == "" || b.ContentHash == "" {
 		http.Error(w, "backdrop asset not found", http.StatusNotFound)
 		return
@@ -61,8 +61,8 @@ func (h *handler) asset(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write(b.ImagePNG)
 }
 
-func (h *handler) GetReference(_ context.Context, req *connect.Request[v1.GetReferenceRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
-	b, err := h.store.Get(req.Msg.GetId())
+func (h *handler) GetReference(ctx context.Context, req *connect.Request[v1.GetReferenceRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
+	b, err := h.store.GetContext(ctx, req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -70,7 +70,7 @@ func (h *handler) GetReference(_ context.Context, req *connect.Request[v1.GetRef
 }
 
 func toProto(b internal.Backdrop) *v1.ReleasedBackdrop {
-	out := &v1.ReleasedBackdrop{Id: b.ID, CandidateId: b.CandidateID, StyleId: b.StyleID, SurfaceId: b.SurfaceID, Placement: b.Placement, Width: int32(b.Width), Height: int32(b.Height), AltText: b.AltText, Decorative: b.Decorative, AiGenerated: b.AIGenerated, ContrastRatio: b.ContrastRatio, ContrastThreshold: b.ContrastThreshold, Uri: fmt.Sprintf("/api/v1/backdrops/%s/asset", b.ID), AssetStudioRef: b.AssetStudioRef}
+	out := &v1.ReleasedBackdrop{Id: b.ID, CandidateId: b.CandidateID, StyleId: b.StyleID, SurfaceId: b.SurfaceID, Placement: b.Placement, Width: int32(b.Width), Height: int32(b.Height), AltText: b.AltText, Decorative: b.Decorative, AiGenerated: b.AIGenerated, ContrastRatio: b.ContrastRatio, ContrastThreshold: b.ContrastThreshold, Uri: fmt.Sprintf("/api/v1/backdrops/%s/asset", b.ID), AssetStudioRef: b.AssetStudioRef, JobId: b.JobID, MimeType: b.MIMEType, ContentHash: b.ContentHash}
 	for _, r := range b.Regions {
 		out.ReservedRegions = append(out.ReservedRegions, &sharedv1.ReservedRegion{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height, Kind: r.Kind, TextColor: r.TextColor})
 	}

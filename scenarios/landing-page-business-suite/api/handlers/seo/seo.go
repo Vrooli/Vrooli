@@ -2,8 +2,8 @@
 package seo
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -12,8 +12,8 @@ import (
 type Dependencies struct {
 	VariantSEO func(string) (any, error)
 	Update     func(string, json.RawMessage) (bool, error)
-	Sitemap    func(string) (string, error)
-	Robots     func(string) (string, error)
+	Sitemap    func(context.Context, string) (string, error)
+	Robots     func(context.Context, string) (string, error)
 	Path       func(*http.Request, string) (string, bool)
 	DecodeJSON func(http.ResponseWriter, *http.Request, any) bool
 	WriteJSON  func(http.ResponseWriter, any)
@@ -69,28 +69,24 @@ func Update(deps Dependencies) http.HandlerFunc {
 }
 
 func Sitemap(deps Dependencies) http.HandlerFunc {
-	return text(deps, "application/xml; charset=utf-8", "sitemap_generate_failed", "internal error", deps.Sitemap, false)
+	return text(deps, "application/xml; charset=utf-8", "sitemap_generate_failed", "sitemap unavailable", deps.Sitemap, "")
 }
 
 func Robots(deps Dependencies) http.HandlerFunc {
-	return text(deps, "text/plain; charset=utf-8", "robots_branding_failed", "", deps.Robots, true)
+	return text(deps, "text/plain; charset=utf-8", "robots_branding_failed", "robots unavailable", deps.Robots, "User-agent: *\nDisallow: /\n")
 }
 
-func text(deps Dependencies, contentType, event, message string, render func(string) (string, error), fallback bool) http.HandlerFunc {
+func text(deps Dependencies, contentType, event, message string, render func(context.Context, string) (string, error), failureBody string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		scheme := "https"
-		if r.TLS == nil {
-			scheme = "http"
-		}
-		base := fmt.Sprintf("%s://%s", scheme, r.Host)
-		body, err := render(base)
+		body, err := render(r.Context(), "")
 		if err != nil {
 			deps.Log(event, map[string]any{"error": err.Error()})
-			if !fallback {
-				deps.WriteError(w, http.StatusInternalServerError, message, "server_error")
+			if failureBody == "" {
+				deps.WriteError(w, http.StatusServiceUnavailable, message, "unavailable")
 				return
 			}
-			body = "User-agent: *\nAllow: /\n"
+			body = failureBody
+			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 		w.Header().Set("Content-Type", contentType)
 		if _, err := w.Write([]byte(body)); err != nil {

@@ -1691,20 +1691,6 @@
           }
         },
         {
-          "name": "public-variant-sections",
-          "description": "Legacy local command: public-variant-sections.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "remote-profiles-create",
           "description": "Legacy local command: remote-profiles-create.",
           "binding": {

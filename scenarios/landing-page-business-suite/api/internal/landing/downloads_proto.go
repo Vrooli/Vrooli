@@ -40,6 +40,40 @@ func ProtoDownloads(downloads []delivery.App) ([]*sharedv1.DownloadApp, error) {
 	return result, nil
 }
 
+// ProtoPresentationDownloads projects delivery facts for the typed
+// presentation response. Presentation copy owns names and instructions; the
+// owner catalog contributes only stable identity, chooser facts, and the
+// validated web launch destination. In particular, installer URLs and
+// delivery metadata stay behind the authorized download operation.
+func ProtoPresentationDownloads(downloads []delivery.App) ([]*sharedv1.DownloadApp, error) {
+	public := make([]delivery.App, 0, len(downloads))
+	for _, app := range downloads {
+		metadata := map[string]interface{}{}
+		if raw, ok := app.Metadata["web_url"].(string); ok {
+			if webURL := presentationWebURLValue(raw); webURL != "" {
+				metadata["web_url"] = webURL
+			}
+		}
+		item := delivery.App{
+			ID: app.ID, BundleKey: app.BundleKey, AppKey: app.AppKey,
+			Metadata:  metadata,
+			Platforms: make([]delivery.Asset, 0, len(app.Platforms)),
+		}
+		for _, asset := range app.Platforms {
+			item.Platforms = append(item.Platforms, delivery.Asset{
+				ID: asset.ID, BundleKey: asset.BundleKey, AppKey: asset.AppKey,
+				Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion,
+				Checksum: asset.Checksum, RequiresEntitlement: asset.RequiresEntitlement,
+				// Keep the stable artifact lookup identity available to the
+				// authorized delivery flow; never expose its source or URL.
+				ArtifactID: asset.ArtifactID,
+			})
+		}
+		public = append(public, item)
+	}
+	return ProtoDownloads(public)
+}
+
 func protoAssets(assets []delivery.Asset) ([]*sharedv1.DownloadAsset, error) {
 	result := make([]*sharedv1.DownloadAsset, 0, len(assets))
 	for index, asset := range assets {

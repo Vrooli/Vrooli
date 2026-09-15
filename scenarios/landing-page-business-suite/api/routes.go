@@ -49,6 +49,7 @@ func (s *Server) setupRoutes() {
 	registerMonetizationJourneyRoute(s)
 	registerLandingRoutes(s)
 	registerBackdropRoutes(s)
+	registerPresentationAssetRoutes(s)
 	registerAuthRoutes(s)
 	desktoplinkhttp.RegisterRoutes(s.router, desktoplinkhttp.Dependencies{
 		Service:    s.desktopLinkService,
@@ -94,6 +95,15 @@ func (s *Server) setupRoutes() {
 	registerUpdateRoutes(s)
 	registerMeasuresRoutes(s)
 	registerDeployReadinessRoute(s)
+}
+
+func registerPresentationAssetRoutes(s *Server) {
+	if s.presentationAssetHandler == nil {
+		return
+	}
+	// A literal byte route keeps the generated endpoint inventory complete;
+	// the cache handler validates the full content-addressed PNG filename.
+	s.router.HandleFunc("/api/v1/presentation-assets/{file}", s.presentationAssetHandler.ServeHTTP).Methods("GET", "HEAD")
 }
 
 // registerBackdropRoutes keeps the dynamic Backdrop Studio address on the
@@ -380,11 +390,6 @@ func registerVariantRoutes(s *Server) {
 	writeDependencies := varianthttp.WriteDependencies{Store: s.configStore, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
-	// Public endpoints (no auth required for landing page display)
-	s.router.HandleFunc("/api/v1/variants/select", varianthttp.Select(variantReadDependencies(s.configStore, "/api/v1/variants/"))).Methods("GET")
-	s.router.HandleFunc("/api/v1/public/variants/{slug}", varianthttp.PublicGet(variantReadDependencies(s.configStore, "/api/v1/public/variants/"))).Methods("GET")
-	s.router.HandleFunc("/api/v1/public/variants/{variant_slug}/sections", contenthttp.Public(contentHTTPDependencies(s.configStore))).Methods("GET")
-
 	// Admin endpoints (require auth)
 	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(varianthttp.List(variantReadDependencies(s.configStore, "")))).Methods("GET")
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(varianthttp.AdminGet(variantReadDependencies(s.configStore, "/api/v1/variants/")))).Methods("GET")

@@ -525,7 +525,7 @@ describe('useCustomizationPage', () => {
   });
 
   describe('navigation helpers', () => {
-    it('navigates to each admin destination and opens the selected public preview', async () => {
+    it('navigates to each admin destination and opens the selected private preview controls', async () => {
       const open = vi.spyOn(window, 'open').mockImplementation(() => null);
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
       await waitFor(() => {
@@ -541,105 +541,28 @@ describe('useCustomizationPage', () => {
       act(() => { result.current.navigateToAnalytics('control'); });
       expect(`${window.location.pathname}${window.location.search}`).toBe('/admin/analytics?variant=control');
       act(() => { result.current.openVariantPreview('control'); });
-      expect(open).toHaveBeenCalledWith('/?variant=control', '_blank');
+      expect(window.location.pathname).toBe('/admin/presentation/control');
+      expect(window.location.hash).toBe('#presentation-preview');
+      expect(open).not.toHaveBeenCalled();
       open.mockRestore();
     });
   });
 
-  describe('section navigation', () => {
-    it('uses a direct section ID without loading the variant snapshot', async () => {
+  describe('presentation navigation', () => {
+    it.each([undefined, { sectionId: 42 }, { sectionType: 'faq' }])('opens the selected document without a legacy section lookup: %s', async options => {
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
       await waitFor(() => { expect(result.current.loading).toBe(false); });
-
-      await act(async () => {
-        await expect(result.current.navigateToSectionEditor('control', { sectionId: 42 })).resolves.toBe(true);
-      });
-
-      expect(mockLoadVariantEditorData).not.toHaveBeenCalled();
-      expect(window.location.pathname).toBe('/admin/customization/variants/control/sections/42');
-    });
-
-    it('honors a URL-requested direct section focus and consumes the request after navigation', async () => {
-      window.history.replaceState({}, '', '/admin/customization?focus=control&focusSectionId=42&focusSectionType=hero');
-      mockLoadCustomizationData.mockResolvedValue({
-        variants: [createMockVariant({ slug: 'control', status: 'active' })],
-        error: null,
-      });
-      const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-        expect(window.location.pathname).toBe('/admin/customization/variants/control/sections/42');
-      });
-
-      expect(window.location.search).toBe('');
+      await act(async () => { await expect(result.current.navigateToSectionEditor('control', options)).resolves.toBe(true); });
+      expect(window.location.pathname).toBe('/admin/presentation/control');
       expect(mockLoadVariantEditorData).not.toHaveBeenCalled();
     });
-
-    it('resolves a URL-requested section type before navigating and clears the completed request', async () => {
-      window.history.replaceState({}, '', '/admin/customization?focus=control&focusSectionType=faq');
-      mockLoadCustomizationData.mockResolvedValue({
-        variants: [createMockVariant({ slug: 'control', status: 'active' })],
-        error: null,
-      });
-      mockLoadVariantEditorData.mockResolvedValue({ variant: createMockVariant({ slug: 'control' }), sections: [{
-        id: 8, variant_id: 1, key: 'faq', section_type: 'faq', content: {}, order: 0, enabled: true, created_at: '', updated_at: '',
-      }] });
-      const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-        expect(window.location.pathname).toBe('/admin/customization/variants/control/sections/8');
-      });
-
-      expect(mockLoadVariantEditorData).toHaveBeenCalledWith('control');
+    it.each(['focusSectionId=42', 'focusSectionType=faq'])('retains variant focus from a legacy customization link: %s', async focus => {
+      window.history.replaceState({}, '', '/admin/customization?focus=control&' + focus);
+      mockLoadCustomizationData.mockResolvedValue({ variants: [createMockVariant({ slug: 'control' })], error: null });
+      renderHook(() => useCustomizationPage(), { wrapper });
+      await waitFor(() => { expect(window.location.pathname).toBe('/admin/presentation/control'); });
       expect(window.location.search).toBe('');
-    });
-
-    it('resolves requested section types and falls back safely when a target cannot be found', async () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => { expect(result.current.loading).toBe(false); });
-      mockLoadVariantEditorData.mockResolvedValue({ variant: createMockVariant({ slug: 'control' }), sections: [{
-        id: 7, variant_id: 1, key: 'hero', section_type: 'hero', content: {}, order: 0, enabled: true, created_at: '', updated_at: '',
-      }] });
-
-      await act(async () => {
-        await expect(result.current.navigateToSectionEditor('control', { sectionType: 'hero' })).resolves.toBe(true);
-      });
-      expect(window.location.pathname).toBe('/admin/customization/variants/control/sections/7');
-
-      mockLoadVariantEditorData.mockResolvedValue({ variant: createMockVariant({ slug: 'control' }), sections: [{
-        id: 0, variant_id: 1, key: 'hero', section_type: 'hero', content: {}, order: 0, enabled: true, created_at: '', updated_at: '',
-      }] });
-      await act(async () => {
-        await expect(result.current.navigateToSectionEditor('control', { sectionType: 'missing' })).resolves.toBe(false);
-      });
-      expect(window.location.pathname).toBe('/admin/customization/variants/control');
-
-      mockLoadVariantEditorData.mockRejectedValue(new Error('Unavailable'));
-      await act(async () => {
-        await expect(result.current.navigateToSectionEditor('control')).resolves.toBe(false);
-      });
-      expect(window.location.pathname).toBe('/admin/customization/variants/control');
-      expect(consoleError).toHaveBeenCalledWith('Failed to resolve section editor for variant', 'control', expect.any(Error));
-      consoleError.mockRestore();
-    });
-
-    it('uses the first available section when no section type was requested', async () => {
-      const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-      mockLoadVariantEditorData.mockResolvedValue({ variant: createMockVariant({ slug: 'control' }), sections: [{
-        id: 11, variant_id: 1, key: 'faq', section_type: 'faq', content: {}, order: 0, enabled: true, created_at: '', updated_at: '',
-      }] });
-
-      await act(async () => {
-        await expect(result.current.navigateToSectionEditor('control')).resolves.toBe(true);
-      });
-
-      expect(window.location.pathname).toBe('/admin/customization/variants/control/sections/11');
+      expect(mockLoadVariantEditorData).not.toHaveBeenCalled();
     });
   });
 

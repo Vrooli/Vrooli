@@ -1,6 +1,6 @@
 # Landing Page Business Suite API Notes
 
-Last Updated: 2026-02-04
+Last Updated: 2026-09-15
 
 ## Current Module Map
 Route registration is organized by domain in `api/routes.go`:
@@ -11,7 +11,7 @@ Route registration is organized by domain in `api/routes.go`:
 - `registerBillingRoutes`: `/api/v1/billing/*`, `/api/v1/checkout/create`, `/api/v1/webhooks/stripe`, `/api/v1/subscription/*`
 - `registerAdminCoreRoutes`: admin profile routes plus generated `AdminAuthService`, `AdminResetService`, and `StripeSettingsService` Connect procedures
 - `registerCommerceAdminRoutes`: `/api/v1/admin/download-*`, generated `BundleAdminService` and `CouponAdminService` Connect procedures, and `/api/v1/admin/stripe/import*`
-- `registerVariantRoutes`: `/api/v1/variants*`, `/api/v1/public/variants*`, `/api/v1/admin/variants/*`
+- `registerVariantRoutes`: authenticated `/api/v1/variants*` and `/api/v1/admin/variants/*`, plus generated variant procedures. Public Connect projections contain only experiment identity; legacy public snapshot REST routes are retired.
 - `registerContentRoutes`: `/api/v1/branding`, `/api/v1/admin/branding`, `/api/v1/admin/assets*`, `/api/v1/uploads/*`, `/api/v1/seo/*`, `/sitemap.xml`, `/robots.txt`
 - `registerMetricsRoutes`: `/api/v1/metrics/*`
 - `registerFeedbackRoutes`: generated `FeedbackService` Connect procedures (public creation; admin lifecycle operations)
@@ -26,5 +26,6 @@ Route registration is organized by domain in `api/routes.go`:
 - Auth boundaries are enforced at registration time via `requireUserAuth`, `requireAdmin`, and service auth wrappers.
 
 ## Recent Changes
+- 2026-09-15: Public marketing is resolved through the immutable typed presentation. Legacy sections remain private recovery data; their enabled flag is not publication authority. See `docs/reference/api/sections.md`.
 - 2026-02-04: Consolidated route registration into domain-focused modules in `api/routes.go` to make capability boundaries explicit.
 - 2026-07-30: Replaced the feedback REST endpoints with the generated `FeedbackService` contract; the UI and CLI retain their established operations while using typed Connect clients.

@@ -420,6 +420,66 @@ func (s *CatalogService) GetAsset(bundleKey, appKey, platform string) (*Asset, e
 	return &asset, nil
 }
 
+// GetAssetContext fetches the legacy platform-selected asset from the pool
+// selected for the request. It preserves the old wire contract while keeping
+// request-scoped test leases fail-closed.
+func (s *CatalogService) GetAssetContext(ctx context.Context, bundleKey, appKey, platform string) (*Asset, error) {
+	query := `
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
+		       release_notes, checksum, requires_entitlement, metadata
+		FROM download_assets
+		WHERE bundle_key = $1 AND app_key = $2 AND platform = $3
+		LIMIT 1
+	`
+	rows, err := s.db.QueryContext(ctx, query, bundleKey, appKey, platform)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: %s/%s/%s", ErrAssetNotFound, bundleKey, appKey, platform)
+	}
+	var t AssetScanTargets
+	if err := rows.Scan(t.ScanDest()...); err != nil {
+		return nil, err
+	}
+	asset := t.Hydrate()
+	return &asset, nil
+}
+
+// GetAssetByIDContext selects one exact download-catalog row using the
+// request-routed database pool. The catalog asset ID is distinct from the
+// managed artifact ID carried by the selected row.
+func (s *CatalogService) GetAssetByIDContext(ctx context.Context, bundleKey, appKey, platform string, assetID int64) (*Asset, error) {
+	query := `
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
+		       release_notes, checksum, requires_entitlement, metadata
+		FROM download_assets
+		WHERE id = $1 AND bundle_key = $2 AND app_key = $3 AND platform = $4
+		LIMIT 1
+	`
+	rows, err := s.db.QueryContext(ctx, query, assetID, bundleKey, appKey, platform)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: %d/%s/%s/%s", ErrAssetNotFound, assetID, bundleKey, appKey, platform)
+	}
+	var t AssetScanTargets
+	if err := rows.Scan(t.ScanDest()...); err != nil {
+		return nil, err
+	}
+	asset := t.Hydrate()
+	return &asset, nil
+}
+
 // GetAssetByVariant fetches a download asset by platform and variant_key.
 func (s *CatalogService) GetAssetByVariant(bundleKey, appKey, platform, variantKey string) (*Asset, error) {
 	query := `

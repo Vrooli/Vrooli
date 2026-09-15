@@ -140,3 +140,11 @@ func TestLP_PRES_004_014_DisplayValidationRejectsUnrenderableConfiguration(t *te
 		})
 	}
 }
+
+func TestLP_PRES_014_ReferencedAssetsRequireDisplayLabels(t *testing.T) {
+	document := richDocument()
+	delete(document.Pages[2].Display.AssetLabels, "hero-art")
+	if !hasIssueCode(Validate(document), "missing_asset_display_label") {
+		t.Fatal("Validate accepted a referenced asset without a display label")
+	}
+}

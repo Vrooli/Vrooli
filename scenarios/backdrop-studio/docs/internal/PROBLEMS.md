@@ -12,7 +12,35 @@
   asset endpoint returned 404. Focused release, handler, render, API, and CLI
   tests are the affected W3 gate.
 - Blocker: none; no shared proto ownership is required for this repair.
-- Measured: 2026-09-15
+- Measured: 2026-09-15; durable release persistence added and focused restart,
+  tamper, isolation, and concurrency tests pass.
+
+### 2026-09-15 — released artifacts were process-memory-only
+
+**Symptom:** A successful release existed only in the API process map. A
+restart discarded the metadata and PNG bytes, even though the returned
+`ReleasedBackdrop.uri` looked durable.
+
+**Boundary repair:** The release owner now writes an immutable per-release
+directory below the routed `data/released-backdrops` root. It commits PNG
+bytes, strict JSON metadata, and a metadata checksum through rooted atomic
+writes, then atomically renames the prepared directory. Reads reopen the
+files on every request, verify metadata checksum, byte length, SHA-256, MIME,
+PNG dimensions, and stored geometry before returning anything. Existing
+release directories are never overwritten; concurrent calls converge on the
+same qualified content or refuse a conflict.
+
+**Isolation:** The handler passes request context through release and asset
+reads. `RoutedRoots.PickRequired` refuses a test-mode request without an active
+lease and selects the lease-owned data root when one exists. The service
+manifest declares the non-regenerable storage surface. Candidate render
+evidence remains process-memory-backed in the render owner; this bounded repair
+does not claim restart recovery for unpersisted candidate jobs.
+
+**Evidence:** `internal/release/release_persistence_test.go` covers restart
+retrieval, byte and metadata tamper refusal, test-root isolation, and
+concurrent immutable commits. No real candidate was published and no proto or
+commercial/publication state was changed.
 
 ### 2026-09-15 — release qualification accepted metadata without a deliverable
 

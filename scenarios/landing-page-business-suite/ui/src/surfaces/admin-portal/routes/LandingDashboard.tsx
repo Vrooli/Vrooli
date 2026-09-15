@@ -54,9 +54,9 @@ export function LandingDashboard() {
   const handleResumeVariant = () => {
     if (!resumeVariant) return;
     const path =
-      resumeVariant.surface === 'section' && (resumeVariant.sectionKey || resumeVariant.sectionId)
-        ? `/admin/customization/variants/${resumeVariant.slug}/sections/${encodeURIComponent(resumeVariant.sectionKey ?? String(resumeVariant.sectionId))}`
-        : `/admin/customization/variants/${resumeVariant.slug}`;
+      resumeVariant.surface === 'section'
+        ? `/admin/presentation/${encodeURIComponent(resumeVariant.slug)}`
+        : `/admin/customization/variants/${encodeURIComponent(resumeVariant.slug)}`;
     navigate(path);
   };
 
