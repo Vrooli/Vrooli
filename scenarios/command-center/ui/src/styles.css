@@ -47,9 +47,13 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-scene canvas { display: block; width: 100%; height: 100%; }
 .cc-scene-still { position: absolute; inset: 0; background: radial-gradient(60% 60% at 68% 50%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 70%), repeating-radial-gradient(circle at 68% 50%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0 1px, transparent 1px 42px); }
 @keyframes cc-beat-enter { from { opacity: 0; transform: translateY(0.45rem); } to { opacity: 1; transform: none; } }
-.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto 1fr auto; padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
+.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto minmax(0, 1fr) auto; --strip-max: calc((100vh - var(--viewport-pad) * 4.2 - 1.6rem) * 0.36); padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
 .cc-figure-layer > * { pointer-events: auto; }
-.cc-hero-region { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+/* The hero gets what the strip leaves and sizes to its own box, so a short screen shrinks the figure instead of pushing it into the strip. */
+.cc-hero-region { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; justify-content: safe center; min-width: 0; min-height: 0; container-type: size; }
+.cc-hero-region > * { flex-shrink: 0; }
+.cc-hero-region > .cc-ladder, .cc-hero-region > .cc-panel-readout { flex-shrink: 1; min-height: 0; }
+.cc-hero-region [data-rcl-figure="wall"] { font-size: min(var(--text-wall), 55cqh); }
 .cc-hero { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; max-width: 100%; padding: var(--space-4) var(--space-6) var(--space-4) 0; isolation: isolate; }
 .cc-hero::before { content: ""; position: absolute; inset: -12% -22% -12% -40%; z-index: -1; background: radial-gradient(closest-side, color-mix(in srgb, var(--color-background) 88%, transparent), transparent); pointer-events: none; }
 .cc-hero .cc-figure-wall { max-width: 100%; }
@@ -60,8 +64,19 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-sky-tally { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); margin: var(--space-4) 0 0; padding: 0; list-style: none; font: 500 var(--text-label-size) var(--font-mono); letter-spacing: 0.04em; color: var(--color-muted-foreground); }
 .cc-sky-tally li { display: inline-flex; align-items: center; gap: 0.55em; white-space: nowrap; }
 .cc-room-stamp { grid-column: 1 / -1; grid-row: 1; align-self: start; justify-self: start; margin: 0; padding: 0.4em 0.9em; border: 1.5px dotted color-mix(in srgb, var(--color-foreground) 60%, var(--color-gap)); border-radius: var(--radius-pill); font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--color-foreground) 80%, var(--color-gap)); }
-.cc-supporting-region { grid-column: 1 / -1; grid-row: 3; min-width: 0; padding-top: var(--space-4); }
-.cc-readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 14vw, 15rem), 1fr)); gap: var(--space-4) var(--space-6); margin: 0; padding: var(--space-4) 0 0; list-style: none; border-top: 1px solid var(--color-border); }
+.cc-supporting-region { position: relative; grid-column: 1 / -1; grid-row: 3; min-width: 0; padding-top: var(--space-4); }
+/* A ladder beat keeps the required surface but gives its height to the schedule. */
+.cc-supporting-region[data-omitted] { padding-top: 0; }
+.cc-readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 14vw, 15rem), 1fr)); gap: var(--space-4) var(--space-6); max-height: var(--strip-max); margin: 0; padding: var(--space-4) 0 0; list-style: none; border-top: 1px solid var(--color-border); }
+/* A strip over its budget tightens to a compact density, then pages in place (UI-ARCHITECTURE §"Fitting a landscape room"). */
+.cc-readings[data-density="compact"] { grid-template-columns: repeat(auto-fit, minmax(clamp(8.5rem, 11vw, 12rem), 1fr)); gap: var(--space-2) var(--space-4); }
+.cc-readings[data-density="compact"] [data-rcl-figure="display"] { font-size: calc(var(--text-display-size) * 0.78); }
+.cc-readings[data-density="compact"] .cc-reading-label { margin-bottom: 0.2rem; -webkit-line-clamp: 1; }
+.cc-readings[data-paged] { grid-template-columns: repeat(var(--strip-columns), minmax(0, 1fr)); }
+.cc-readings[data-paged] > li { animation: cc-strip-page 420ms ease both; }
+.cc-readings[data-measuring] { visibility: hidden; }
+@keyframes cc-strip-page { from { opacity: 0; } to { opacity: 1; } }
+.cc-strip-pages { position: absolute; top: 0; right: 0; font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.14em; font-variant-numeric: tabular-nums; color: var(--color-muted-foreground); }
 .cc-reading { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 0.2rem 0; }
 .cc-reading-measure { display: inline-flex; max-width: 100%; flex-direction: column; align-items: flex-start; }
 .cc-reading-measure [data-rcl-freshness] { width: 100%; max-width: 100%; min-height: 3px; opacity: .9; }
@@ -71,9 +86,12 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-trend[data-polarity="neutral"] { opacity: .62; }
 .cc-reading [data-rcl-figure] { max-width: 100%; }
 .cc-reading-label { margin-bottom: 0.35rem; font: 600 var(--text-micro) var(--font-sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-muted-foreground); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cc-reading .cc-qualifier { margin-top: 0.15rem; font-size: var(--text-micro); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cc-reading-origin { display: block; margin-top: 0.35rem; font: 500 var(--text-micro) var(--font-mono); color: var(--color-muted-foreground); }
-.cc-reading[data-origin-env="production"] .cc-reading-origin { color: var(--color-primary); }
+/* One line under the figure, drawn only when the reading needs explaining; the full text is on hover. */
+.cc-reading .cc-qualifier { margin-top: 0.15rem; font-size: var(--text-micro); }
+.cc-reading > .cc-qualifier, .cc-tile-qualifier > .cc-qualifier { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-tile-qualifier { display: flex; align-items: baseline; gap: 0.5em; max-width: 100%; min-width: 0; margin-top: 0.2rem; }
+.cc-tile-qualifier > .cc-qualifier { margin-top: 0; }
+.cc-origin-mark { flex: none; padding: 0.05em 0.4em; border: 1px solid var(--color-primary); border-radius: 2px; font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.12em; color: var(--color-primary); }
 .cc-reading[data-origin-env="production"] { border-left: 2px solid var(--color-primary); padding-left: 0.5rem; }
 /* Broadcast is a full-bleed signal field; its supporting region is not a card
    and production provenance is already communicated by the source status. */
@@ -154,13 +172,13 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 /* ── Portrait composition: figure on top, scene as a band, readings stacked ── */
 @media (orientation: portrait), (max-width: 760px) {
   .cc-figure-layer { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; align-content: start; overflow-y: auto; overscroll-behavior: contain; padding-top: 6.6rem; padding-bottom: calc(var(--viewport-pad) + 3rem); }
-  .cc-hero-region { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .cc-hero-region { grid-column: 1; grid-row: 2; justify-content: flex-start; min-height: auto; container-type: normal; }
   .cc-room-stamp, .cc-degraded { margin-bottom: var(--space-3); font-size: 0.58rem; }
   .cc-hero { padding-right: 0; }
   .cc-hero::before { inset: -8% -20% -8% -20%; }
   .cc-shell [data-rcl-figure="wall"] { font-size: clamp(4rem, 22vw, 9rem); }
   .cc-supporting-region { grid-row: 3; align-self: start; padding-top: clamp(4rem, 24vh, 12rem); }
-  .cc-readings { border-top: 0; padding-top: 0; }
+  .cc-readings { max-height: none; border-top: 0; padding-top: 0; }
   .cc-scene-layer::after { content: ""; position: absolute; right: 0; bottom: 0; left: 0; height: 46%; background: linear-gradient(to top, var(--color-background) 30%, transparent); pointer-events: none; }
   /* Panorama's scene is the reading, not atmosphere: give the atlas a real band and keep the fade off it. */
   .cc-room-panorama-constellation .cc-supporting-region { padding-top: clamp(14rem, 46vh, 26rem); }
@@ -188,9 +206,12 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 @media (prefers-reduced-motion: reduce) {
   .cc-source-fetching, .cc-loading-figure { animation: none; }
     .cc-veil, .cc-controls, .cc-figure-layer { transition-duration: 0.001ms; animation: none; }
+  .cc-autoscroll__content, .cc-readings[data-paged] > li { transition: none; animation: none; }
 }
 /* Ranked panels keep the hero footprint while exposing honest shares. */
-.cc-panel-readout { width: min(24rem, 32vw); min-height: 20rem; display: flex; flex-direction: column; gap: .7rem; }
+.cc-panel-readout { width: min(24rem, 32vw); display: flex; flex-direction: column; gap: .7rem; }
+.cc-panel-readout__rows .cc-autoscroll__content { display: flex; flex-direction: column; gap: .7rem; }
+.cc-panel-readout [data-rcl-figure="display"] { font-size: min(var(--text-display-size), 11cqh); }
 .cc-panel-readout__heading { font-size: var(--text-label-size, .75rem); letter-spacing: .14em; text-transform: uppercase; }
 .cc-panel-readout__row { position: relative; width: min(100%, 16rem); min-height: 2.5rem; box-sizing: border-box; padding: .35rem .5rem; border-left: 2px solid currentColor; overflow: hidden; }
 .cc-panel-readout__label { position: relative; z-index: 1; font-size: var(--text-label-size, .72rem); letter-spacing: .05em; }
@@ -206,7 +227,9 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-room[data-layout="wide"] .cc-scene-layer { opacity: 0.3; transition: opacity var(--motion-room) ease; }
 
 /* ── Release ladder: shared marks ──────────────────────────────────── */
-.cc-ladder { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); max-width: 100%; min-width: 0; isolation: isolate; }
+.cc-ladder { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); max-width: 100%; min-width: 0; min-height: 0; isolation: isolate; }
+.cc-ladder > * { flex-shrink: 0; }
+.cc-ladder > .cc-next-rung__details, .cc-ladder > .cc-reach__scroll { flex-shrink: 1; min-height: 0; }
 .cc-ladder::before { content: ""; position: absolute; inset: -10% -18% -10% -40%; z-index: -1; background: radial-gradient(closest-side, color-mix(in srgb, var(--color-background) 88%, transparent), transparent); pointer-events: none; }
 .cc-ladder .cc-hero-label { font: 600 var(--text-body-size) var(--font-sans); letter-spacing: 0.24em; text-transform: uppercase; color: var(--color-foreground); }
 .cc-ladder .cc-qualifier { max-width: 40rem; }
@@ -225,12 +248,15 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 
 /* ── Next Rung: the hero column ────────────────────────────────────── */
 .cc-next-rung__head { display: flex; align-items: flex-end; gap: var(--space-6); min-width: 0; }
-.cc-next-rung__rank { font: 700 clamp(4rem, 17vh, 9.5rem) var(--font-sans); line-height: 0.8; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--color-primary); text-shadow: 0 0 40px var(--color-glow); }
+.cc-next-rung__rank { font: 700 clamp(3rem, min(17vh, 24cqh), 9.5rem) var(--font-sans); line-height: 0.8; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--color-primary); text-shadow: 0 0 40px var(--color-glow); }
 .cc-next-rung__who { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; padding-bottom: 0.2rem; }
 .cc-next-rung__kicker { font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-muted-foreground); }
 .cc-next-rung__name { font: 600 var(--text-display-size) var(--font-mono); line-height: 1.05; letter-spacing: -0.02em; overflow-wrap: anywhere; color: var(--color-foreground); }
 .cc-next-rung__opens { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin: 0; font: 500 var(--text-label-size) var(--font-mono); color: var(--color-muted-foreground); }
 .cc-next-rung__audience { color: var(--color-foreground); }
+.cc-ladder > .cc-next-rung__details { min-height: 3.2rem; }
+.cc-ladder > .cc-next-rung__details { width: 100%; }
+.cc-next-rung__details .cc-autoscroll__content { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 .cc-next-rung__blockers { width: min(100%, 38rem); border-top: 1px solid var(--color-border); }
 .cc-next-rung__blockers h3 { display: flex; justify-content: space-between; gap: var(--space-4); margin: 0.6rem 0 0.25rem; font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-muted-foreground); }
 .cc-next-rung__blockers ul { margin: 0; padding: 0; list-style: none; }
@@ -250,9 +276,11 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-reach__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-6); width: 100%; }
 .cc-reach__summary { margin: 0; font: 500 var(--text-label-size)/1.5 var(--font-mono); text-align: right; color: var(--color-foreground); }
 .cc-reach__summary span { color: var(--color-muted-foreground); }
-.cc-reach__scroll { width: 100%; overflow-x: auto; }
+/* Landscape: the rung axis always fits the width and the lanes auto-scroll in the height left under the header. */
+.cc-reach__scroll { display: flex; flex-direction: column; width: 100%; min-height: 0; }
 .cc-reach { gap: var(--space-2); }
-.cc-reach__grid { --lane-h: clamp(1rem, 2vh, 1.55rem); display: grid; grid-template-columns: minmax(13rem, 22rem) repeat(var(--rungs), minmax(2.2rem, 1fr)); min-width: calc(22rem + var(--rungs) * 2.2rem); }
+.cc-reach__grid { --lane-h: clamp(1rem, 2vh, 1.55rem); display: grid; grid-template-columns: minmax(9rem, 22rem) repeat(var(--rungs), minmax(1.2rem, 1fr)); grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; }
+.cc-reach__body { grid-row: 2; }
 .cc-reach__cols, .cc-reach__group, .cc-reach__lanes, .cc-reach__lane, .cc-reach__goals { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
 .cc-reach__cols { align-items: end; }
 .cc-reach__col { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding-bottom: 0.4rem; }
@@ -271,7 +299,7 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-reach__lane[data-kind="ramp"] .cc-reach__bar { color: var(--color-primary); }
 .cc-reach__lane[data-kind="stream"] .cc-reach__bar { color: var(--color-accent); }
 .cc-reach__lane[data-kind="audience"] .cc-reach__bar { height: 0.25rem; color: var(--color-muted-foreground); }
-.cc-reach__goals { align-items: center; padding-top: 0.3rem; }
+.cc-reach__goals { grid-row: 3; align-items: center; padding-top: 0.3rem; }
 .cc-reach__goals-label { font: 500 var(--text-micro) var(--font-mono); color: var(--color-muted-foreground); }
 .cc-reach__pips { display: flex; justify-content: center; gap: 2px; }
 .cc-reach__pips i { width: 0.3rem; height: 0.8rem; border-radius: 1px; background: var(--color-primary); opacity: 0.8; }
@@ -292,8 +320,29 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-panel-tile[data-provenance="sample"] .cc-panel-tile__rows { padding-left: 0.4rem; border-left: 1.5px dotted currentColor; opacity: 0.6; }
 .cc-panel-tile__more, .cc-panel-tile__empty { margin-top: 0.2rem; font: 500 var(--text-micro) var(--font-mono); color: var(--color-muted-foreground); }
 
+/* ── Auto-scroll: a list that is tall by nature (UI-ARCHITECTURE §"Fitting a landscape room") ── */
+/* The wrapper owns the floor, so a squeezed list keeps two rows' height instead of spilling over what follows it. */
+.cc-autoscroll { display: flex; flex-direction: column; min-height: 3.2rem; max-width: 100%; }
+.cc-autoscroll__viewport { position: relative; flex: 0 1 auto; min-height: 0; overflow: hidden; }
+.cc-autoscroll__content { transition: transform 700ms cubic-bezier(0.3, 0.7, 0.2, 1), opacity 450ms ease; }
+.cc-autoscroll__viewport[data-phase="fading"] .cc-autoscroll__content { opacity: 0; }
+.cc-autoscroll__viewport[data-phase="return"] .cc-autoscroll__content { transition: opacity 450ms ease; }
+.cc-autoscroll__viewport[data-more-below] { mask-image: linear-gradient(to bottom, #000 calc(100% - 1.8rem), transparent); }
+.cc-autoscroll__viewport[data-more-above] { mask-image: linear-gradient(to bottom, transparent, #000 1.8rem); }
+.cc-autoscroll__viewport[data-more-above][data-more-below] { mask-image: linear-gradient(to bottom, transparent, #000 1.8rem, #000 calc(100% - 1.8rem), transparent); }
+.cc-autoscroll__position { align-self: flex-end; padding-top: 0.2rem; font: 500 var(--text-micro) var(--font-mono); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; color: var(--color-muted-foreground); }
+/* In a subgrid host (the Reach Map) every level keeps the rung columns. */
+.cc-autoscroll--subgrid, .cc-autoscroll--subgrid > .cc-autoscroll__viewport, .cc-autoscroll--subgrid .cc-autoscroll__content { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.cc-autoscroll--subgrid { grid-template-rows: minmax(0, 1fr) auto; }
+.cc-autoscroll--subgrid > .cc-autoscroll__viewport { align-content: start; }
+.cc-autoscroll--subgrid > .cc-autoscroll__position { grid-column: 1 / -1; justify-self: end; }
+
 @media (orientation: portrait), (max-width: 760px) {
   .cc-next-rung__head { gap: var(--space-4); }
   .cc-next-rung__facts { grid-template-columns: minmax(0, 1fr); }
   .cc-reach__summary { text-align: left; }
+  /* The desk view scrolls: lists show in full and the rung axis scrolls inside its own container. */
+  .cc-autoscroll__viewport { overflow: visible; mask-image: none; }
+  .cc-reach__scroll { display: block; overflow-x: auto; }
+  .cc-reach__grid { grid-template-columns: minmax(13rem, 22rem) repeat(var(--rungs), minmax(2.2rem, 1fr)); min-width: calc(22rem + var(--rungs) * 2.2rem); }
 }

@@ -5,10 +5,12 @@ import { useGamepad } from "@vrooli/iframe-bridge/react";
 import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 import { fetchBoard } from "../lib/api";
 import { BoardContext, BoardProgressContext, parseSamples, type BoardControllerValue, type BoardIntent, type BoardProgress, type SamplesMode } from "../lib/boardContext";
-import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, roomNavigationSuffix } from "../lib/cycle";
+import { beatPositionAtProgress, buildBeatDurations, crossesBeat, progressAtBeat, roomNavigationSuffix } from "../lib/cycle";
 
 
 const IDLE_RESUME_MS = 20_000;
+/** A held beat waits at its end for at most this long before the cycle moves on regardless. */
+const MAX_HOLD_MS = 90_000;
 const CONTROLS_HIDE_MS = 4_000;
 const TRANSITION_MS = 900;
 
@@ -56,6 +58,19 @@ export function BoardController({ children }: { children: ReactNode }) {
   const restoredPathRef = useRef<string | null>(null);
   const restoringBeatRef = useRef<{ path: string; index: number } | null>(null);
   const transitionTimersRef = useRef<number[]>([]);
+  const progressRef = useRef(0);
+  const holdsRef = useRef(new Set<string>());
+  const heldSinceRef = useRef<number | null>(null);
+
+  const showProgress = useCallback((value: number) => {
+    progressRef.current = value;
+    setProgress(value);
+  }, []);
+
+  const holdBeat = useCallback((id: string, holding: boolean) => {
+    if (holding) holdsRef.current.add(id);
+    else holdsRef.current.delete(id);
+  }, []);
 
   const cancelTransition = useCallback(() => {
     transitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -90,8 +105,8 @@ export function BoardController({ children }: { children: ReactNode }) {
   const seekCycle = useCallback((nextProgress: number) => {
     const bounded = Math.max(0, Math.min(0.999, nextProgress));
     cycleStartedAt.current = Date.now() - bounded * roomDwellSeconds * 1000;
-    setProgress(bounded);
-  }, [roomDwellSeconds]);
+    showProgress(bounded);
+  }, [roomDwellSeconds, showProgress]);
 
   const selectBeat = useCallback((index: number) => {
     if (!beatDurations.length || !currentRoom?.beats?.[index]) return;
@@ -165,8 +180,9 @@ export function BoardController({ children }: { children: ReactNode }) {
     restoredPathRef.current = null;
     restoringBeatRef.current = null;
     cycleStartedAt.current = Date.now();
-    setProgress(0);
-  }, [location.pathname]);
+    heldSinceRef.current = null;
+    showProgress(0);
+  }, [location.pathname, showProgress]);
 
   useEffect(() => cancelTransition, [cancelTransition]);
 
@@ -280,21 +296,33 @@ export function BoardController({ children }: { children: ReactNode }) {
     const timer = window.setInterval(() => {
       const now = Date.now();
       setControlsVisible((visible) => visible && now - lastInputAt.current < CONTROLS_HIDE_MS);
-      const paused = pausedUntil > now;
-      if (!paused) setProgress(Math.min(1, (now - cycleStartedAt.current) / (roomDwellSeconds * 1000)));
-      if (!paused && now - cycleStartedAt.current >= roomDwellSeconds * 1000 && rooms.length && !document.hidden) {
+      if (pausedUntil > now) return;
+      const dwellMs = roomDwellSeconds * 1000;
+      const next = (now - cycleStartedAt.current) / dwellMs;
+      const crossing = crossesBeat(progressRef.current, next, beatDurations);
+      if (crossing && holdsRef.current.size) {
+        heldSinceRef.current ??= now;
+        if (now - heldSinceRef.current < MAX_HOLD_MS) {
+          // Wait at the end of the held beat: slide the cycle start so progress stays put.
+          cycleStartedAt.current = now - progressRef.current * dwellMs;
+          return;
+        }
+      }
+      if (crossing) heldSinceRef.current = null;
+      showProgress(Math.min(1, next));
+      if (next >= 1 && rooms.length && !document.hidden) {
         cycleStartedAt.current = now;
         navigateRoom(1);
       }
     }, 250);
     return () => window.clearInterval(timer);
-  }, [navigateRoom, pausedUntil, roomDwellSeconds, rooms.length]);
+  }, [beatDurations, navigateRoom, pausedUntil, roomDwellSeconds, rooms.length, showProgress]);
 
   const paused = pausedUntil > Date.now();
   const beatIndex = beatPosition.index;
   // The controller value excludes the 4 Hz progress so a tick does not
   // re-render every room surface; progress has its own context.
-  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat]);
+  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat, holdBeat }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, cycleSeconds, beatIndex, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat, holdBeat]);
   const progressValue = useMemo<BoardProgress>(() => ({ progress, beatProgress: beatPosition.progress }), [progress, beatPosition.progress]);
 
   return (

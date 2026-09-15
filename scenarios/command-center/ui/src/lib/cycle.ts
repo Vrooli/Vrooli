@@ -39,6 +39,13 @@ export function progressAtBeat(index: number, durations: number[]): number {
   return total ? start / total : 0;
 }
 
+/** Whether moving from one cycle progress to the next would leave the current beat (or the room, at the end). */
+export function crossesBeat(from: number, to: number, durations: number[]): boolean {
+  if (to >= 1) return true;
+  if (!durations.length) return false;
+  return beatPositionAtProgress(to, durations).index !== beatPositionAtProgress(from, durations).index;
+}
+
 export function parseBeat(value: string | null, count: number): number {
   if (count <= 0) return 0;
   const requested = Number.parseInt(value ?? "0", 10);

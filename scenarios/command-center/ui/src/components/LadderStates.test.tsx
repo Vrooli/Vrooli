@@ -52,12 +52,13 @@ describe("Next Rung detail", () => { // [REQ:CC-P1-016]
     renderWithProviders(<NextRungReadout reading={ladderReading({ ladder: firstRung({ readiness: { reported: true } }) })} />);
     expect(screen.getByText("readiness goal open")).toBeInTheDocument();
   });
-  it("caps the blocker list and counts the rest", () => {
+  it("lists every blocker in an auto-scroll list instead of truncating it", () => { // [REQ:CC-P1-017]
     const blockers = Array.from({ length: 7 }, (_, index) => ({ name: `work-${index}`, status: "IDEA", urgency: 1 }));
-    renderWithProviders(<NextRungReadout reading={ladderReading({ ladder: firstRung({ blockers }) })} />);
+    const { container } = renderWithProviders(<NextRungReadout reading={ladderReading({ ladder: firstRung({ blockers }) })} />);
     expect(screen.getByText("7 open")).toBeInTheDocument();
-    expect(screen.getByText("+2 more")).toBeInTheDocument();
-    expect(screen.queryByText("work-5")).toBeNull();
+    expect(screen.getByText("work-6")).toBeInTheDocument();
+    expect(screen.queryByText(/^\+\d+ more$/)).toBeNull();
+    expect(container.querySelector(".cc-next-rung__details [data-autoscroll-viewport] .cc-next-rung__blockers")).not.toBeNull();
   });
   it("says when nothing is in the way and when a release opens nothing new", () => {
     renderWithProviders(<NextRungReadout reading={ladderReading({ ladder: firstRung({ blockers: [], ramps: [], streams: [], audiences: [], goals: [], finishBar: undefined }) })} />);

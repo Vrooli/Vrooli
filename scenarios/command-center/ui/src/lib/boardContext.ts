@@ -23,9 +23,19 @@ export interface BoardControllerValue {
   goTo: (path: string) => void;
   seekCycle: (progress: number) => void;
   selectBeat: (index: number) => void;
+  /**
+   * Keep the current beat on screen past its authored dwell while `holding`.
+   * A paged strip or an auto-scrolling list holds until it has been read once.
+   */
+  holdBeat: (id: string, holding: boolean) => void;
 }
 
 export const BoardContext = createContext<BoardControllerValue | null>(null);
+
+const noHold = () => undefined;
+
+/** The beat hold for components that also render outside a board (Focus, tests): a no-op there. */
+export const useBeatHold = (): BoardControllerValue["holdBeat"] => useContext(BoardContext)?.holdBeat ?? noHold;
 
 /**
  * Cycle progress ticks four times a second. It has its own context so a tick

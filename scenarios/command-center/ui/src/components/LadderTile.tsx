@@ -2,11 +2,12 @@ import type { CSSProperties } from "react";
 import type { Reading } from "../lib/api";
 import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { ladderOf, nextRung, statusLabel, stillIdeas } from "../lib/ladder";
+import { TileQualifier } from "./TileQualifier";
 
 const STAGE: Record<string, number> = { SHIPPED: 1, ACTIVE: 0.8, TRIGGER_MET: 0.6, PROPOSED: 0.6, CANDIDATE: 0.4 };
 
 /** The release ladder in the supporting strip: the next rung, and one segment per rung showing how far each has moved. */
-export function LadderTile({ reading }: { reading: Reading }) {
+export function LadderTile({ reading, showOrigin = false }: { reading: Reading; showOrigin?: boolean }) {
   const resolution = resolveReading(reading);
   const qualifier = qualify(reading, resolution);
   const resolved = ladderOf(reading);
@@ -27,8 +28,7 @@ export function LadderTile({ reading }: { reading: Reading }) {
         </span>
       ) : null}
       {ladder ? <span className="cc-ladder-tile__ideas">{stillIdeas(ladder)} of {ladder.rungs.length} still ideas{ladder.unscheduled.length ? ` · ${ladder.unscheduled.length} unscheduled` : ""}</span> : null}
-      <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>{qualifier.text}</span>
-      <span className="cc-reading-origin" data-origin>{reading.origin_display}</span>
+      <TileQualifier qualifier={qualifier} reading={reading} showOrigin={showOrigin} />
     </li>
   );
 }

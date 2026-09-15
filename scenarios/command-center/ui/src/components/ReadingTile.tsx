@@ -4,10 +4,11 @@ import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1
 import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.2";
 import { SampleSeries } from "@vrooli/react-component-library/SampleSeries/0.1.2";
 import { displayFormat } from "../lib/format";
+import { TileQualifier } from "./TileQualifier";
 import { TrendIndicator } from "./TrendIndicator";
 
-/** A supporting reading: label, figure in its ink, the rule or series beneath it, and its qualifier. */
-export function ReadingTile({ reading, showTrend = false }: { reading: Reading; showTrend?: boolean }) {
+/** A supporting reading: label, figure in its ink, the rule or series beneath it, and a qualifier line when it needs one. */
+export function ReadingTile({ reading, showTrend = false, showOrigin = false }: { reading: Reading; showTrend?: boolean; showOrigin?: boolean }) {
   const resolution = resolveReading(reading);
   const value = figureValue(reading, resolution);
   const qualifier = qualify(reading, resolution);
@@ -20,8 +21,7 @@ export function ReadingTile({ reading, showTrend = false }: { reading: Reading; 
       <span className="cc-reading-measure"><RollingNumber value={value} format={displayFormat(value, reading.format)} unit={reading.unit} ink={resolution.ink} scale="display" placeholder={resolution.ink === "unavailable" ? "––" : "—"} />
       {live ? <FreshnessArc observedAt={reading.observedAt} ttlSeconds={reading.ttlSeconds} cached={resolution.ink === "dimmed"} /> : null}</span>
       {illustrative && reading.sample ? <SampleSeries series={reading.sample.series} illustrative /> : null}
-      <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>{qualifier.text}</span>
-      <span className="cc-reading-origin" data-origin>{reading.origin_display}</span>
+      <TileQualifier qualifier={qualifier} reading={reading} showOrigin={showOrigin} />
     </li>
   );
 }

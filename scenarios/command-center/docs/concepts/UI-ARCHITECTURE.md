@@ -48,10 +48,26 @@ Three rules:
 
 Each room ships two designed compositions, not one scaled layout (`CC-P1-004`):
 
-- **Landscape** — figure in the void, scene owning the opposite side, supporting readings in a row.
-- **Portrait** — figure at the top, scene reduced to a band, supporting readings stacked.
+- **Landscape** — figure in the void, scene owning the opposite side, supporting readings in a row. **A landscape room never scrolls**: it is the wall display, and content below the fold is content nobody sees.
+- **Portrait** — figure at the top, scene reduced to a band, supporting readings stacked. Portrait is the desk view and may scroll vertically.
 
 Room identity survives at 390px. No surface scrolls horizontally at any width. The portrait view is the one people check from their desk, so it is designed, not tolerated.
+
+## Fitting a landscape room
+
+The landscape figure layer is a fixed budget, not a flow (`CC-P1-017`):
+
+- **The strip is capped, the hero takes the rest.** The supporting strip gets at most a third of the figure layer's height. The hero region is `minmax(0, 1fr)` and sizes its figures to its own box through container units, not to the viewport.
+- **A strip that does not fit tightens, then pages.** It first drops to a compact density. If that still does not fit, it splits into pages that cross-fade in place, with the column count held across pages and a page counter in the corner.
+- **A list that is tall by nature auto-scrolls.** Panel rows, Next Rung blockers and Reach Map lanes sit in an auto-scroll viewport. It holds the first rows for four seconds, steps up one row at a time, holds at the end, then fades back to the top; it never scrolls back up. Edges fade where more rows wait, and a counter names the rows in view. Under reduced motion it steps a viewport at a time without animation. A list that fits does not move.
+- **Paging and scrolling hold the beat.** A beat does not end until its strip has shown every page and its list has made one full pass, bounded at 90 seconds past the authored dwell. The rail waits at the segment's end so a held beat reads as reading, not frozen. Manual navigation is never held.
+- **The room reports its own fit.** The room element carries `data-fit`: `ok`, `overflow` when a figure leaves the viewport or the hero runs into the strip, or `scroll` in portrait. Workflow cases assert `ok` on the densest beats at 1280×720.
+
+## Supporting tiles speak on exception
+
+A supporting tile draws its label, its figure and the freshness hairline. Its text qualifier appears only when the reading needs explaining (cached, not answering, untrusted, illustrative or absent), on one line with the full text on hover. A live reading's source is already named in the room's source strip and its freshness is the hairline, so writing both under every figure spent a third of the strip saying nothing new. The live text stays in the accessibility tree (`PROVENANCE-MODEL.md` §"Every figure carries its qualifier").
+
+Origin is shown only where it differs. A production reading in a room of local readings carries a `PROD` mark on its qualifier line. A room whose readings all share a non-local origin names it once in the source strip.
 
 ## Input and intent
 
@@ -84,6 +100,8 @@ A beat features one reading as the hero. Its `layout` decides how much of the fi
 The hero component follows the reading's `kind`: `scalar` renders the wall figure, `panel` renders ranked rows, and `ladder` renders **Next Rung** on a standard beat and the **Reach Map** on a wide one. The Forge shows Next Rung beside the funnel-cascade scene, which draws the actual next rungs with their names; the Hive shows the Reach Map.
 
 A supporting tile follows the same kind. A list reading has no single figure, so a `panel` tile shows its leading rows and a `ladder` tile shows the next release and one segment per rung, instead of a dash (`CC-P1-016`).
+
+**A ladder beat has no supporting strip.** When the hero is the release ladder (Next Rung with the funnel-cascade scene, or the Reach Map), the schedule is the whole page: the strip is omitted and the hero takes its height. On every other beat the ladder still appears in the strip as its tile.
 
 Both topologies are supported from the first commit: one display cycling, and several displays each pinned to a room. That means the room is a pure URL parameter, ambient motion seeds per display so adjacent screens never run in sync, and nothing anywhere assumes exactly one room is live.
 

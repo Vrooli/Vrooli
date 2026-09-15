@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "mission-control-metric-list-renders",
-    "description": "Navigates to /mission-control and asserts metric readings include a non-production origin marker and display label, so provenance reaches the browser without rendering a resolved URL.",
+    "description": "Navigates to /mission-control and asserts metric readings carry their origin environment as data, and that a room whose readings are all local draws no per-tile origin mark, so provenance reaches the browser without rendering a resolved URL or repeating what does not differ.",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-UI-002\"]"
@@ -94,17 +94,17 @@
       }
     },
     {
-      "id": "assert-origin-display",
+      "id": "assert-no-origin-mark",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-testid='metric-list'] [data-reading][data-origin]",
-          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-testid='metric-list'] [data-origin]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "timeout_ms": 5000,
-          "failure_message": "Expected mission-control readings to render origin_display rather than a resolved URL"
+          "failure_message": "A room whose readings are all local draws no per-tile origin mark; origin is shown only where it differs (UI-ARCHITECTURE §Supporting tiles speak on exception)"
         },
         "metadata": {
-          "label": "Assert origin display label"
+          "label": "No origin mark in an all-local room"
         }
       }
     },
@@ -122,11 +122,41 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-mission-control", "target": "wait-metric-list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-metric-list", "target": "assert-metric-list-wrapper", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "assert-metric-list-wrapper", "target": "assert-metric-entry", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-metric-entry", "target": "assert-local-origin-env", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "assert-local-origin-env", "target": "assert-origin-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e6", "source": "assert-origin-display", "target": "capture-mission-control-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate-mission-control",
+      "target": "wait-metric-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-metric-list",
+      "target": "assert-metric-list-wrapper",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-metric-list-wrapper",
+      "target": "assert-metric-entry",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-metric-entry",
+      "target": "assert-local-origin-env",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-local-origin-env",
+      "target": "assert-no-origin-mark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-no-origin-mark",
+      "target": "capture-mission-control-metrics",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

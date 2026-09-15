@@ -19,6 +19,22 @@ export function visibleRungs(rows: Array<{ value: number; label?: string; detail
 
 const LIT = new Set(["TRIGGER_MET", "PROPOSED", "ACTIVE"]);
 
+/** The figure layer's edge padding (`--viewport-pad` in design-tokens.css), in CSS pixels. */
+const viewportPad = (w: number): number => Math.min(52, Math.max(16, w * 0.026));
+
+/**
+ * The rung spacing and foot position that keep the whole ladder, its labels and
+ * "+N more above" between the eyebrow and the bottom edge, centred on `centerY`
+ * where the band allows it.
+ */
+export function ladderSpan(count: number, centerY: number, w: number, h: number): { gap: number; footY: number } {
+  const top = viewportPad(w) * 3.2;
+  const bottom = h - viewportPad(w) * 1.6;
+  const gap = Math.max(8, Math.min(66, (h * 0.62) / Math.max(count, 3), (bottom - top) / (count + 1)));
+  const centred = centerY + ((count - 1) * gap) / 2;
+  return { gap, footY: Math.min(bottom - gap * 0.5, Math.max(centred, top + count * gap)) };
+}
+
 function drawUnlabelled(frame: Frame): void {
   const { ctx, w, h, palette } = frame;
   const center = focalPoint(frame);
@@ -55,11 +71,10 @@ export function funnelCascade(): Scene {
       ctx.textBaseline = "middle";
       const widest = Math.max(...rungs.map((rung) => ctx.measureText(`${rung.rank}  ${rung.label}`).width));
       const railWidth = Math.min(w * 0.16, 190);
-      const gap = Math.min(66, (h * 0.62) / Math.max(rungs.length, 3));
+      const { gap, footY } = ladderSpan(rungs.length, center.y, w, h);
       let left = center.x - (railWidth + 16 + widest) / 2;
       left = Math.min(left, w - 24 - widest - 16 - railWidth);
       const right = left + railWidth;
-      const footY = center.y + ((rungs.length - 1) * gap) / 2;
       const topY = footY - (rungs.length - 1) * gap;
 
       for (const x of [left, right]) {

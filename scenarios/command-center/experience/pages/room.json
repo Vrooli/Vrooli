@@ -40,7 +40,7 @@
     },
     {
       "id": "supporting",
-      "purpose": "The category's remaining readings, each with its own ink and qualifier. Never a list of labels; scalar entries carry a figure and panel entries carry a ranked-row figure.",
+      "purpose": "The category's remaining readings, each with its own ink and qualifier. Never a list of labels; scalar entries carry a figure and panel entries carry a ranked-row figure. Rendered empty on a ladder beat, where the release schedule is the whole page.",
       "required": true,
       "component": {
         "library": {

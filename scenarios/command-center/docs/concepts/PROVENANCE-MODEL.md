@@ -53,6 +53,8 @@ No value appears alone (`CC-P1-002`). Each ink has a required qualifier, sized t
 
 An `UNTRUSTED` reading is a special case: the figure is drawn but the integrity finding is shown *with* it. A number that arrived and cannot be believed is more dangerous than no number, so it never appears unqualified.
 
+**Where the live qualifier is drawn.** The hero writes its qualifier out in full. In the supporting strip, a live reading's qualifier is its hairline plus the room's source strip; the text stays in the accessibility tree and on hover but is not drawn, so the strip spends its lines on the readings that need explaining. Every other ink draws its qualifier on one line below the figure. The line sits below the figure, so a reading changing state adds or removes it without moving the figure.
+
 ## Sample values are authored, never generated
 
 This is the rule that makes the whole system trustworthy, and it is easy to get wrong.

@@ -1,5 +1,6 @@
 import type { PanelRow, Reading } from "../lib/api";
 import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { TileQualifier } from "./TileQualifier";
 
 const TILE_ROWS = 3;
 const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
@@ -8,7 +9,7 @@ const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumF
  * A ranked panel in the supporting strip. A panel has no single figure, so the
  * tile shows its leading rows instead of a dash; authored rows stay marked.
  */
-export function PanelTile({ reading }: { reading: Reading }) {
+export function PanelTile({ reading, showOrigin = false }: { reading: Reading; showOrigin?: boolean }) {
   const resolution = resolveReading(reading);
   const qualifier = qualify(reading, resolution);
   const sampled = !reading.rows?.length && Boolean(reading.sample?.rows?.length);
@@ -24,8 +25,7 @@ export function PanelTile({ reading }: { reading: Reading }) {
         </ol>
       ) : <span className="cc-panel-tile__empty">No rows available</span>}
       {rows.length > TILE_ROWS ? <span className="cc-panel-tile__more">+{rows.length - TILE_ROWS} more</span> : null}
-      <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>{qualifier.text}</span>
-      <span className="cc-reading-origin" data-origin>{reading.origin_display}</span>
+      <TileQualifier qualifier={qualifier} reading={reading} showOrigin={showOrigin} />
     </li>
   );
 }

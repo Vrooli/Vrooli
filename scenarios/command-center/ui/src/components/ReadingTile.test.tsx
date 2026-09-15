@@ -32,11 +32,30 @@ describe("ReadingTile", () => {
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-ink", "unavailable");
     expect(screen.getByText(/not answering · deadline exceeded/)).toBeInTheDocument();
   });
-  it("shows a safe origin label without exposing a URL", () => {
-    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ origin: "production", origin_env: "production", origin_display: "Production instance" })} /></ul>);
+  it("marks a production reading in a mixed room without exposing a URL", () => {
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ origin: "production", origin_env: "production", origin_display: "Production instance" })} showOrigin /></ul>);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-origin-env", "production");
-    expect(screen.getByText("Production instance")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Production instance" })).toHaveTextContent("PROD");
     expect(container.textContent).not.toMatch(/https?:\/\/|127\.0\.0\.1|:\d{2,5}/);
+  });
+  it("draws no origin line where every reading shares the origin", () => {
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ origin_env: "local", origin_display: "Local instance" })} showOrigin /></ul>);
+    expect(container.querySelector("[data-origin]")).toBeNull();
+    expect(container.textContent).not.toContain("Local instance");
+  });
+  it("keeps a live reading's qualifier for assistive technology without drawing it", () => { // [REQ:CC-P1-002]
+    const observedAt = new Date().toISOString();
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "VALID", value: 12, observedAt, sample: null })} /></ul>);
+    const qualifier = container.querySelector("[data-qualifier]");
+    expect(qualifier).toHaveTextContent(/landing-page-business-suite · observed \d+s ago/);
+    expect(qualifier).toHaveClass("cc-visually-hidden");
+    expect(container.querySelector(".cc-reading-measure [data-rcl-freshness]")).not.toBeNull();
+  });
+  it("draws an exception qualifier on one line with its full text on hover", () => {
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "UNAVAILABLE", sample: null, trustReason: "deadline exceeded" })} /></ul>);
+    const qualifier = container.querySelector("[data-qualifier]");
+    expect(qualifier).toHaveClass("cc-qualifier");
+    expect(qualifier).not.toHaveClass("cc-visually-hidden");
   });
   it("uses compact notation for a large supporting count and keeps freshness inside its measure", () => {
     const observedAt = new Date().toISOString();

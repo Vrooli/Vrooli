@@ -2,6 +2,7 @@ import { forwardRef, type CSSProperties } from "react";
 import type { Reading } from "../lib/api";
 import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { lastOpening, ladderOf, openedBy, statusLabel, type LadderReading, type UnlockKind } from "../lib/ladder";
+import { AutoScroll } from "./AutoScroll";
 
 const GROUPS: Array<{ kind: UnlockKind; title: string }> = [
   { kind: "ramp", title: "Ramps · how people get it" },
@@ -51,28 +52,30 @@ export const ReachMapReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
                 </span>
               ))}
             </div>
-            {GROUPS.map((group) => {
-              const lanes = ladder.reach.filter((unlock) => unlock.kind === group.kind);
-              if (!lanes.length) return null;
-              return (
-                <section key={group.kind} className="cc-reach__group" aria-label={group.title}>
-                  <h3 className="cc-reach__group-title">{group.title}</h3>
-                  <ul className="cc-reach__lanes">
-                    {lanes.map((unlock) => {
-                      const index = rungIndex.get(unlock.opensAt);
-                      const opens = unlock.opensAt > 0 && index !== undefined;
-                      return (
-                        <li key={unlock.name} className="cc-reach__lane" data-kind={unlock.kind} data-unopened={opens ? undefined : true}>
-                          <span className="cc-reach__label">{unlock.name} <small>{opens ? `opens at ${unlock.opensAt} · ${nameAt.get(unlock.opensAt) ?? ""}` : "not scheduled"}</small></span>
-                          <span className="cc-reach__track" aria-hidden="true" />
-                          {opens ? <span className="cc-reach__bar" aria-hidden="true" style={{ gridColumn: `${index + 2} / -1`, "--span": ladder.rungs.length - index } as CSSProperties} /> : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })}
+            <AutoScroll className="cc-autoscroll--subgrid cc-reach__body" rowSelector=".cc-reach__group-title, .cc-reach__lane" countSelector=".cc-reach__lane" label="What each release opens">
+              {GROUPS.map((group) => {
+                const lanes = ladder.reach.filter((unlock) => unlock.kind === group.kind);
+                if (!lanes.length) return null;
+                return (
+                  <section key={group.kind} className="cc-reach__group" aria-label={group.title}>
+                    <h3 className="cc-reach__group-title">{group.title}</h3>
+                    <ul className="cc-reach__lanes">
+                      {lanes.map((unlock) => {
+                        const index = rungIndex.get(unlock.opensAt);
+                        const opens = unlock.opensAt > 0 && index !== undefined;
+                        return (
+                          <li key={unlock.name} className="cc-reach__lane" data-kind={unlock.kind} data-unopened={opens ? undefined : true}>
+                            <span className="cc-reach__label">{unlock.name} <small>{opens ? `opens at ${unlock.opensAt} · ${nameAt.get(unlock.opensAt) ?? ""}` : "not scheduled"}</small></span>
+                            <span className="cc-reach__track" aria-hidden="true" />
+                            {opens ? <span className="cc-reach__bar" aria-hidden="true" style={{ gridColumn: `${index + 2} / -1`, "--span": ladder.rungs.length - index } as CSSProperties} /> : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
+            </AutoScroll>
             {goalCount ? (
               <div className="cc-reach__goals">
                 <span className="cc-reach__goals-label">{goalCount} goals follow these ranks</span>

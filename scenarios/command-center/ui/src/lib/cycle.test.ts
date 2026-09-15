@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beatPositionAtProgress, buildBeatDurations, parseBeat, progressAtBeat, roomNavigationSuffix } from "./cycle";
+import { beatPositionAtProgress, buildBeatDurations, crossesBeat, parseBeat, progressAtBeat, roomNavigationSuffix } from "./cycle";
 
 describe("cycle model", () => {
   it("scales authored beat durations to the cycle length", () => {
@@ -25,5 +25,14 @@ describe("cycle model", () => {
   it("resets the beat but preserves other room navigation settings", () => {
     expect(roomNavigationSuffix("?beat=3&cycle=45&samples=mark")).toBe("?cycle=45&samples=mark");
     expect(roomNavigationSuffix("?beat=3")).toBe("");
+  });
+
+  it("detects where a held beat must wait: its own boundary and the room's end", () => { // [REQ:CC-P1-017]
+    const durations = buildBeatDurations([{ dwellSeconds: 10 }, { dwellSeconds: 20 }], 60);
+    expect(crossesBeat(0.1, 0.2, durations)).toBe(false);
+    expect(crossesBeat(0.33, 0.34, durations)).toBe(true);
+    expect(crossesBeat(0.9, 1, durations)).toBe(true);
+    expect(crossesBeat(0.5, 0.9, [])).toBe(false);
+    expect(crossesBeat(0.9, 1.01, [])).toBe(true);
   });
 });

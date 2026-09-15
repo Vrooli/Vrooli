@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visibleRungs } from "./funnelCascade";
+import { ladderSpan, visibleRungs } from "./funnelCascade";
 
 const row = (value: number, detail: string) => ({ value, label: `rung-${value}`, detail });
 
@@ -19,5 +19,22 @@ describe("funnel cascade rungs", () => {
   });
   it("draws nothing labelled when there are no rows", () => {
     expect(visibleRungs([])).toEqual({ rungs: [], above: 0 });
+  });
+});
+
+describe("funnel cascade span", () => { // [REQ:CC-P1-017]
+  it("keeps the rails, labels and the count above between the eyebrow and the bottom edge", () => {
+    const cases: Array<[number, number, number]> = [[1280, 720, 120], [1920, 1080, 540], [1280, 720, 700], [3840, 2160, 300]];
+    for (const [w, h, centerY] of cases) {
+      const count = 7;
+      const { gap, footY } = ladderSpan(count, centerY, w, h);
+      const pad = Math.min(52, Math.max(16, w * 0.026));
+      expect(footY - count * gap).toBeGreaterThanOrEqual(pad * 3.2 - 0.01);
+      expect(footY + gap * 0.5).toBeLessThanOrEqual(h - pad * 1.6 + 0.01);
+    }
+  });
+  it("centres on the focal band when the band has room", () => {
+    const { gap, footY } = ladderSpan(3, 540, 1920, 1080);
+    expect(footY - gap).toBeCloseTo(540);
   });
 });

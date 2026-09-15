@@ -30,7 +30,7 @@
       "status": "planned",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "description": "A value never appears alone. A live reading shows its source and freshness, a cached reading its age, an in-reach reading what is needed to make it real, a missing reading its owner and the days it has stood. Composition does not change between states, so a metric going live is a change of weight and never a change of layout.",
+      "description": "A value never appears alone. A live reading shows its source and freshness, a cached reading its age, an in-reach reading what is needed to make it real, a missing reading its owner and the days it has stood. In the supporting strip a live reading's qualifier is its freshness hairline and the room's source strip, with the text kept for assistive technology; every other state draws its qualifier on one line below the figure. Composition does not change between states, so a metric going live is a change of weight and never moves its figure.",
       "validation": [
         {
           "type": "test",
@@ -78,7 +78,7 @@
       "status": "planned",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "description": "Every room ships a designed narrow-viewport composition — figure, reduced scene band, stacked supporting readings — rather than a scaled or letterboxed landscape layout. Room identity survives at 390px; no page scrolls horizontally at any width.",
+      "description": "Every room ships a designed narrow-viewport composition — figure, reduced scene band, stacked supporting readings — rather than a scaled or letterboxed landscape layout. Room identity survives at 390px; the portrait desk view may scroll vertically, and no page scrolls horizontally at any width.",
       "validation": [
         {
           "type": "test",
@@ -289,7 +289,7 @@
       "status": "complete",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "description": "A standard beat renders the ladder as Next Rung in the hero column, with labelled rungs drawn by the funnel-cascade scene beside it; a wide beat renders the Reach Map across both figure columns; the supporting strip summarises the ladder by its next release, and any ranked panel by its leading rows, instead of a dash. An authored sample is marked illustrative.",
+      "description": "A standard beat renders the ladder as Next Rung in the hero column, with labelled rungs drawn by the funnel-cascade scene beside it; a wide beat renders the Reach Map across both figure columns; the supporting strip summarises the ladder by its next release, and any ranked panel by its leading rows, instead of a dash. A beat whose hero is the ladder omits the supporting strip: the schedule is the whole page. An authored sample is marked illustrative.",
       "validation": [
         {
           "type": "test",
@@ -325,6 +325,72 @@
           "phase": "workflow",
           "status": "implemented",
           "notes": "The Hive wide beat renders the Reach Map [REQ:CC-P1-016]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P1-017",
+      "title": "A landscape room fits the screen without scrolling",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "In landscape, every figure of every beat stays inside the viewport and the hero never runs into the supporting strip. The strip is capped at a third of the figure layer, tightens to a compact density, then pages in place; a list that is tall by nature holds its first rows, then steps one row at a time and returns to the top. A beat is held until its pages and its list have been read once, bounded at 90 seconds. The room reports its fit as data-fit.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/lib/fit.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Rows page to the strip budget and auto-scroll stops reach every row once, by row and by page [REQ:CC-P1-017]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/cycle.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A held beat is detected at its boundary and at the room's end [REQ:CC-P1-017]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/AutoScroll.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An overflowing list holds its beat, steps through its rows and releases after one pass; a list that fits never moves [REQ:CC-P1-017]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/SupportingStrip.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A strip over its budget tightens, pages at a fixed column count and holds its beat until every page is shown [REQ:CC-P1-017]."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/useFitProbe.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The room's fit report names figures off screen and a hero running into the strip, and ignores what a clipping ancestor hides [REQ:CC-P1-017]."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/broadcast-landscape-fits.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The densest strip (14 readings under a panel hero) reports data-fit ok at 1280x720 [REQ:CC-P1-017]."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/hive-reach-landscape-fits.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The Reach Map wide beat reports data-fit ok at 1280x720 [REQ:CC-P1-017]."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/forge-next-rung-landscape-fits.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The Next Rung beat, which takes the whole page with no strip, reports data-fit ok at 1280x720 [REQ:CC-P1-017]."
         }
       ]
     }

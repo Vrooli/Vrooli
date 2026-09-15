@@ -2,9 +2,11 @@ import { forwardRef } from "react";
 import type { Reading } from "../lib/api";
 import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { finishLabel, ladderOf, nextRung, rungsAfterNext, statusLabel, type LadderRung, type LadderWork } from "../lib/ladder";
+import { AutoScroll } from "./AutoScroll";
 
-const MAX_BLOCKERS = 5;
 const THEN_COUNT = 3;
+/** Below the head, each of these is a row the details step through when the hero is too short to hold them all. */
+const DETAIL_ROWS = ".cc-next-rung__blockers h3, .cc-next-rung__blocker, .cc-next-rung__clear, .cc-next-rung__facts, .cc-next-rung__then, .cc-ladder-gap";
 
 const why = (work: LadderWork): string => (work.direct ? "direct enabler" : `due by rank ${work.urgency}`);
 
@@ -21,7 +23,8 @@ function Opens({ rung }: { rung: LadderRung }) {
 /**
  * The release ladder in the hero column: the lowest unshipped rung, what it
  * opens, and the enabling work still in its way. The rest of the schedule is
- * drawn by the funnel-cascade scene in the band beside it.
+ * drawn by the funnel-cascade scene in the band beside it. The head always
+ * shows; the details below it auto-scroll on a screen too short to hold them.
  */
 export const NextRungReadout = forwardRef<HTMLDivElement, { reading: Reading }>(function NextRungReadout({ reading }, ref) {
   const resolution = resolveReading(reading);
@@ -30,6 +33,12 @@ export const NextRungReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
   const rung = resolved ? nextRung(resolved.ladder) : null;
   const after = resolved ? rungsAfterNext(resolved.ladder) : [];
   const blockers = rung?.blockers ?? [];
+  const gaps = (
+    <>
+      {resolved?.ladder.unscheduled.length ? <p className="cc-ladder-gap">Unscheduled: {resolved.ladder.unscheduled.map((node) => node.name).join(", ")} · marketed, no rank</p> : null}
+      {resolved?.ladder.unavailable?.map((gap) => <p key={gap.source} className="cc-ladder-gap">{gap.source} unavailable · {gap.reason}</p>)}
+    </>
+  );
   return (
     <div ref={ref} className="cc-ladder cc-next-rung" data-testid="ladder-next-rung" data-kind="ladder" data-view="next-rung" data-reading data-metric-id={reading.id} data-ink={resolution.ink} data-provenance={resolved?.sampled ? "sample" : resolution.figure === "measured" ? "measured" : "absent"} data-trust={reading.trust}>
       <span className="cc-hero-label">{reading.label}</span>
@@ -48,38 +57,39 @@ export const NextRungReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
             </div>
           </div>
           <Opens rung={rung} />
-          <section className="cc-next-rung__blockers" aria-label={`Enabling work due by rank ${rung.rank}`}>
-            <h3><span>Enabling work due by rank {rung.rank}</span><span>{blockers.length} open</span></h3>
-            {blockers.length ? (
-              <ul>
-                {blockers.slice(0, MAX_BLOCKERS).map((work) => (
-                  <li key={work.name} className="cc-next-rung__blocker">
-                    <span className="cc-ladder-dot" data-status={work.status} aria-hidden="true" />
-                    <span className="cc-next-rung__work">{work.name}</span>
-                    <span className="cc-next-rung__why">{statusLabel(work.status)} · {why(work)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="cc-next-rung__clear">Nothing enabling is still open.</p>}
-            {blockers.length > MAX_BLOCKERS ? <p className="cc-next-rung__more">+{blockers.length - MAX_BLOCKERS} more</p> : null}
-          </section>
-          <dl className="cc-next-rung__facts">
-            <div>
-              <dt>Goals riding on it</dt>
-              <dd>{rung.goals.length ? rung.goals.map((goal) => goal.title || goal.name).join(" · ") : "none linked"}</dd>
-            </div>
-            <div>
-              <dt>Readiness</dt>
-              <dd data-gap={rung.readiness.reported ? undefined : true}>{rung.readiness.reported ? (rung.readiness.goalClosed ? "readiness goal closed" : "readiness goal open") + (rung.readiness.approvedCommit ? ` · ${rung.readiness.approvedCommit.slice(0, 8)}` : "") : "not reported"}</dd>
-            </div>
-          </dl>
-          {after.length ? (
-            <p className="cc-next-rung__then">Then {after.slice(0, THEN_COUNT).map((next, index) => <span key={next.id}>{index ? " · " : ""}<b>{next.rank}</b> {next.name}</span>)}{after.length > THEN_COUNT ? ` · +${after.length - THEN_COUNT} more` : ""}</p>
-          ) : null}
+          <AutoScroll className="cc-next-rung__details" rowSelector={DETAIL_ROWS} counter={false} label={`Rank ${rung.rank} details`}>
+            <section className="cc-next-rung__blockers" aria-label={`Enabling work due by rank ${rung.rank}`}>
+              <h3><span>Enabling work due by rank {rung.rank}</span><span>{blockers.length} open</span></h3>
+              {blockers.length ? (
+                <ul>
+                  {blockers.map((work) => (
+                    <li key={work.name} className="cc-next-rung__blocker">
+                      <span className="cc-ladder-dot" data-status={work.status} aria-hidden="true" />
+                      <span className="cc-next-rung__work">{work.name}</span>
+                      <span className="cc-next-rung__why">{statusLabel(work.status)} · {why(work)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="cc-next-rung__clear">Nothing enabling is still open.</p>}
+            </section>
+            <dl className="cc-next-rung__facts">
+              <div>
+                <dt>Goals riding on it</dt>
+                <dd>{rung.goals.length ? rung.goals.map((goal) => goal.title || goal.name).join(" · ") : "none linked"}</dd>
+              </div>
+              <div>
+                <dt>Readiness</dt>
+                <dd data-gap={rung.readiness.reported ? undefined : true}>{rung.readiness.reported ? (rung.readiness.goalClosed ? "readiness goal closed" : "readiness goal open") + (rung.readiness.approvedCommit ? ` · ${rung.readiness.approvedCommit.slice(0, 8)}` : "") : "not reported"}</dd>
+              </div>
+            </dl>
+            {after.length ? (
+              <p className="cc-next-rung__then">Then {after.slice(0, THEN_COUNT).map((next, index) => <span key={next.id}>{index ? " · " : ""}<b>{next.rank}</b> {next.name}</span>)}{after.length > THEN_COUNT ? ` · +${after.length - THEN_COUNT} more` : ""}</p>
+            ) : null}
+            {gaps}
+          </AutoScroll>
         </>
       )}
-      {resolved?.ladder.unscheduled.length ? <p className="cc-ladder-gap">Unscheduled: {resolved.ladder.unscheduled.map((node) => node.name).join(", ")} · marketed, no rank</p> : null}
-      {resolved?.ladder.unavailable?.map((gap) => <p key={gap.source} className="cc-ladder-gap">{gap.source} unavailable · {gap.reason}</p>)}
+      {rung ? null : gaps}
       <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>
         {resolved?.sampled && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>illustrative</InkMark> : null}
         {qualifier.text}

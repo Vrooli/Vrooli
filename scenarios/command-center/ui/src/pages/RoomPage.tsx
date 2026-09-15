@@ -17,13 +17,15 @@ import { LadderTile } from "../components/LadderTile";
 import { PanelTile } from "../components/PanelTile";
 import { SkyReadout } from "../components/SkyReadout";
 import { skyState } from "../lib/sky";
+import { SupportingStrip } from "../components/SupportingStrip";
+import { useFitProbe } from "../lib/useFitProbe";
 import type { Reading } from "../lib/api";
 
 /** A supporting reading takes the tile its shape calls for: a list reading has no single figure to show. */
-function SupportingTile({ reading, showTrend }: { reading: Reading; showTrend: boolean }) {
-  if (reading.kind === "ladder") return <LadderTile reading={reading} />;
-  if (reading.kind === "panel") return <PanelTile reading={reading} />;
-  return <ReadingTile reading={reading} showTrend={showTrend} />;
+function SupportingTile({ reading, showTrend, showOrigin }: { reading: Reading; showTrend: boolean; showOrigin: boolean }) {
+  if (reading.kind === "ladder") return <LadderTile reading={reading} showOrigin={showOrigin} />;
+  if (reading.kind === "panel") return <PanelTile reading={reading} showOrigin={showOrigin} />;
+  return <ReadingTile reading={reading} showTrend={showTrend} showOrigin={showOrigin} />;
 }
 
 const THEMES: Record<string, string> = { "mission-control": "ground-control", hive: "bioluminescent", forge: "foundry", ledger: "vault", broadcast: "signal-tower", panorama: "cosmos" };
@@ -34,8 +36,9 @@ export default function RoomPage() {
   const board = useBoardController();
   const heroRef = useRef<HTMLDivElement>(null);
   const supportingRef = useRef<HTMLUListElement>(null);
+  const roomRef = useRef<HTMLElement>(null);
   const quietRefs = useMemo(() => [heroRef, supportingRef], []);
-  const { data, isLoading, error, isFetching } = useQuery<RoomResponse>({
+  const { data, isLoading, error, isFetching, dataUpdatedAt } = useQuery<RoomResponse>({
     queryKey: ["room", roomId, board.samples],
     queryFn: () => fetchRoom(roomId, board.samples),
     refetchInterval: (query) => {
@@ -59,7 +62,9 @@ export default function RoomPage() {
     if (board.samples !== "hide" || !beats.length || !beat || visible.length === 0) return;
     if (!visible.some((reading) => reading.id === beat.hero)) board.selectBeat((beatIndex + 1) % beats.length);
   }, [beat, beats, board, board.samples, visible, beatIndex]);
-  const supporting = useMemo(() => visible.filter((reading) => reading.id !== hero?.id), [visible, hero]);
+  // The release ladder is the whole page: a ladder beat carries no supporting strip (UI-ARCHITECTURE §"Beats, layouts and list readings").
+  const stripless = hero?.kind === "ladder";
+  const supporting = useMemo(() => (stripless ? [] : visible.filter((reading) => reading.id !== hero?.id)), [visible, hero, stripless]);
   const supportingTrendIDs = useMemo(() => new Set(supporting.filter((reading) => reading.trend?.state === "meaningful" || reading.trend?.state === "neutral").slice(0, 2).map((reading) => reading.id)), [supporting]);
   // Measured means what the resolver draws as measured: an in-reach reading that returns a number still shows its illustration.
   const measured = visible.filter((reading) => skyState(reading) === "measured").length;
@@ -71,6 +76,11 @@ export default function RoomPage() {
   const heroState: ExperienceSurfaceState = isLoading ? "loading" : error ? "error" : "ready";
   const supportingState: ExperienceSurfaceState = isLoading ? "loading" : error ? "error" : supporting.length === 0 ? "empty" : sources.some(([, meta]) => meta.staleness_ts) ? "partial" : "ready";
   const sourceState: ExperienceSurfaceState = sources.some(([, meta]) => meta.staleness_ts) ? "partial" : "ready";
+  // Origin is shown only where it differs: per tile in a mixed room, once in the source strip when every reading shares a non-local origin.
+  const origins = new Set(visible.map((reading) => reading.origin_env || "local"));
+  const showOrigin = origins.size > 1;
+  const sharedOrigin = origins.size === 1 && !origins.has("local") ? visible[0]?.origin_display || visible[0]?.origin_env : null;
+  useFitProbe(roomRef, `${roomId}:${beatIndex}:${board.samples}`, String(dataUpdatedAt));
 
   return (
     <AmbientShell
@@ -86,11 +96,12 @@ export default function RoomPage() {
               <span className="cc-source-dot" />{name}{meta.integration_status ? ` · ${meta.integration_status}` : ""}
             </span>
           ))}
+          {sharedOrigin ? <span className="cc-source" data-origin data-testid="room-origin">{sharedOrigin}</span> : null}
           {isFetching ? <span className="cc-source cc-source-fetching" aria-label="refreshing">·</span> : null}
         </ExperienceSurface>
       }
     >
-      <main className={`cc-room cc-room-${composition}`} data-testid="room-composition" data-composition={composition} data-layout={layout} data-room={roomId} data-beat={beatIndex} data-all-illustrative={allIllustrative || undefined}>
+      <main ref={roomRef} className={`cc-room cc-room-${composition}`} data-testid="room-composition" data-composition={composition} data-layout={layout} data-room={roomId} data-beat={beatIndex} data-all-illustrative={allIllustrative || undefined}>
         <ExperienceSurface surfaceId="scene" as="div" data-testid="room-scene" className="cc-scene-layer" state={isLoading ? "loading" : "ready"}>
           {!isLoading ? <AmbientCanvas composition={composition} readings={visible} focus={hero?.id} forcedTier={searchParams.get("tier")} quietRefs={quietRefs} seed={`${roomId}:${beatIndex}:${searchParams.get("seed") ?? ""}`} constellations={constellations} /> : null}
         </ExperienceSurface>
@@ -101,8 +112,8 @@ export default function RoomPage() {
             {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : constellations ? <SkyReadout ref={heroRef} constellations={constellations} /> : hero?.kind === "ladder" ? (layout === "wide" ? <ReachMapReadout ref={heroRef} reading={hero} /> : <NextRungReadout ref={heroRef} reading={hero} />) : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={board.samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
             {constellations ? null : <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>}
           </ExperienceSurface>
-          <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings">
-            {supporting.length > 0 ? <ul ref={supportingRef} className="cc-readings" data-testid="metric-list">{supporting.map((reading) => <SupportingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} />)}</ul> : !isLoading ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
+          <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings" data-omitted={stripless || undefined}>
+            {supporting.length > 0 ? <SupportingStrip ref={supportingRef}>{supporting.map((reading) => <SupportingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} showOrigin={showOrigin} />)}</SupportingStrip> : !isLoading && !stripless ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
           </ExperienceSurface>
         </div>
       </main>
