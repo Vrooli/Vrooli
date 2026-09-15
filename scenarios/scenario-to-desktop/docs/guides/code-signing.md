@@ -109,13 +109,76 @@ security find-identity -v -p codesigning
 - Debian/Ubuntu: `sudo apt update && sudo apt install gnupg rpm osslsigncode` (rpmsign is provided by rpm); optionally `sudo apt install dpkg-sig` if available/enabled (universe)
 - RHEL/CentOS/Fedora: `sudo dnf install gnupg2 rpm-sign` (rpmsign), and add `osslsigncode` if you need Windows EXE signing from Linux
 
-**How to list keys**
+**Managed key custody (recommended)**
+
+A generated key is custodied by the native credential authority, not written as
+a keyring into the repository. One publisher key can sign every desktop app:
+name a shared logical identity (for example `vrooli/desktop-signing`) and every
+scenario that names it uses the same key. `generate-key` is idempotent per
+identity — the first run mints the key, and later runs for other scenarios reuse
+the existing key instead of rotating it.
+
+```bash
+# First scenario: mint the shared publisher key. The private key and a fresh
+# random passphrase are stored in the credential authority; only the public key
+# and fingerprint touch the scenario.
+scenario-to-desktop signing generate-key <first-scenario> \
+  --name "Your Publisher" --email publisher@example.test \
+  --logical-id vrooli/desktop-signing
+
+# Later scenarios: same command and identity. The existing key is reused, so
+# every scenario signs with the same publisher fingerprint.
+scenario-to-desktop signing generate-key <second-scenario> \
+  --name "Your Publisher" --email publisher@example.test \
+  --logical-id vrooli/desktop-signing
+
+scenario-to-desktop signing validate <first-scenario>
+scenario-to-desktop signing ready <first-scenario>
+```
+
+When `--logical-id` is omitted, custody defaults to the scenario's own
+namespace, `vrooli/scenario-to-desktop/<scenario>`, which is a private key per
+scenario. Pass `--force` only to rotate a key deliberately; rotation creates a
+new fingerprint, so every other scenario that names the identity must update its
+`gpg_key_id` before it can sign again.
+
+The generated `signing.json` records a `managed_key` block:
+
+```json
+{
+  "enabled": true,
+  "linux": {
+    "gpg_key_id": "FINGERPRINT",
+    "gpg_passphrase_env": "VROOLI_GPG_PASSPHRASE",
+    "managed_key": { "logical_id": "vrooli/desktop-signing" }
+  }
+}
+```
+
+The authority holds the ASCII-armored private key in field `gpg-private-key`
+and the passphrase in `gpg-passphrase`. Inspect them through the control plane;
+the values are never displayed:
+
+```bash
+vrooli credentials status --identity vrooli/desktop-signing --field gpg-private-key --format json
+vrooli credentials status --identity vrooli/desktop-signing --field gpg-passphrase --format json
+```
+
+At build time the build resolves both fields, imports the key into an ephemeral
+0700 GPG home, and injects `VROOLI_GPG_HOMEDIR` plus the passphrase environment
+variable only for the signing command. Neither value is written to the generated
+project, the process environment at large, or the metadata sidecar. The public
+key is published to `scenarios/<scenario>/signing/public-key.asc`.
+
+**External keyring (optional)**
+
+To sign with a keyring you manage yourself, set `gpg_homedir` and
+`gpg_passphrase_env` instead of `managed_key`. The build then reads the ambient
+passphrase variable and the supplied keyring, exactly as before.
+
 ```bash
 gpg --list-secret-keys
 ```
-
-**Save config**
-- In Signing tab, enable Linux and paste the key ID/fingerprint. Add `gpg_passphrase_env` if your key is protected.
 
 The generated Linux build installs an electron-builder `afterAllArtifactBuild`
 hook. It creates an ASCII-armored detached `.asc` signature for each Linux

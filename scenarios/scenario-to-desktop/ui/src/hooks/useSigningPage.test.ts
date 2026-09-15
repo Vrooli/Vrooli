@@ -476,6 +476,104 @@ describe("useSigningPage", () => {
     });
   });
 
+  describe("generate key with shared identity", () => {
+    function promptSequence(values: (string | null)[]) {
+      const prompt = vi.spyOn(window, "prompt");
+      values.forEach((value) => prompt.mockReturnValueOnce(value));
+      return prompt;
+    }
+
+    it("forwards the shared credential identity and reuse (no force)", async () => {
+      mockFetchSigningConfig.mockResolvedValue({
+        config: {
+          enabled: true,
+          linux: { enabled: true, gpgKeyId: "OLD" },
+        },
+      });
+      _mockGenerateLinuxSigningKey.mockResolvedValueOnce({
+        fingerprint: "FPR",
+        logicalId: "vrooli/desktop-signing",
+      });
+      promptSequence(["Publisher", "pub@example.test", "vrooli/desktop-signing"]);
+      const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+      const { result } = renderHook(
+        () => useSigningPage({ initialScenario: "test-scenario" }),
+        { wrapper: createWrapper() },
+      );
+      await waitFor(() => {
+        expect(result.current.selectedScenario).toBe("test-scenario");
+      });
+
+      await act(async () => {
+        await result.current.handleGenerateKey();
+      });
+
+      expect(confirm).not.toHaveBeenCalled();
+      const payload = _mockGenerateLinuxSigningKey.mock.calls.at(-1)?.[0];
+      expect(payload.logicalId).toBe("vrooli/desktop-signing");
+      expect(payload.force).toBe(false);
+    });
+
+    it("asks to rotate when the prompted identity matches the loaded one", async () => {
+      mockFetchSigningConfig.mockResolvedValue({
+        config: {
+          enabled: true,
+          linux: {
+            enabled: true,
+            gpgKeyId: "OLD",
+            managedKey: { logicalId: "vrooli/desktop-signing" },
+          },
+        },
+      });
+      _mockGenerateLinuxSigningKey.mockResolvedValueOnce({
+        fingerprint: "NEW",
+        logicalId: "vrooli/desktop-signing",
+        message:
+          "Rotated vrooli/desktop-signing; re-run generate-key for: other-app",
+      });
+      promptSequence(["Publisher", "pub@example.test", "vrooli/desktop-signing"]);
+      const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+      const { result } = renderHook(
+        () => useSigningPage({ initialScenario: "test-scenario" }),
+        { wrapper: createWrapper() },
+      );
+      await waitFor(() => {
+        expect(result.current.localConfig.linux?.managed_key?.logical_id).toBe(
+          "vrooli/desktop-signing",
+        );
+      });
+
+      await act(async () => {
+        await result.current.handleGenerateKey();
+      });
+
+      expect(confirm).toHaveBeenCalled();
+      const payload = _mockGenerateLinuxSigningKey.mock.calls.at(-1)?.[0];
+      expect(payload.force).toBe(true);
+    });
+
+    it("aborts without generating when a prompt is dismissed", async () => {
+      mockFetchSigningConfig.mockResolvedValue({ config: undefined });
+      promptSequence([null]);
+
+      const { result } = renderHook(
+        () => useSigningPage({ initialScenario: "test-scenario" }),
+        { wrapper: createWrapper() },
+      );
+      await waitFor(() => {
+        expect(result.current.selectedScenario).toBe("test-scenario");
+      });
+
+      await act(async () => {
+        await result.current.handleGenerateKey();
+      });
+
+      expect(_mockGenerateLinuxSigningKey).not.toHaveBeenCalled();
+    });
+  });
+
   describe("applyCertificate", () => {
     it("updates local config and marks as unsaved", () => {
       const { result } = renderHook(() => useSigningPage({}), {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/vrooli/api-core/storage"
 )
@@ -16,6 +17,14 @@ type Store interface {
 	Delete(scenarioName, captureID string) error
 	DeleteAll(scenarioName string) ([]Capture, error)
 	Summary(scenarioName string) (CapturesSummary, error)
+}
+
+type PipelineAnnotator interface {
+	UpdatePipelineID(scenarioName, captureID, pipelineID string) error
+}
+
+type Voider interface {
+	Void(scenarioName, captureID, reason, supersededBy string) error
 }
 
 // FileStore is a JSON-file-backed Store implementation.
@@ -76,6 +85,33 @@ func (s *FileStore) Add(capture Capture) error {
 	defer s.mu.Unlock()
 	s.data[capture.ScenarioName] = append(s.data[capture.ScenarioName], capture)
 	return s.flush()
+}
+
+func (s *FileStore) UpdatePipelineID(scenarioName, captureID, pipelineID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.data[scenarioName] {
+		if s.data[scenarioName][i].ID == captureID {
+			s.data[scenarioName][i].PipelineID = pipelineID
+			return s.flush()
+		}
+	}
+	return fmt.Errorf("capture %q not found for scenario %q", captureID, scenarioName)
+}
+
+func (s *FileStore) Void(scenarioName, captureID, reason, supersededBy string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.data[scenarioName] {
+		if s.data[scenarioName][i].ID == captureID {
+			now := time.Now().UTC()
+			s.data[scenarioName][i].VoidReason = reason
+			s.data[scenarioName][i].VoidedAt = &now
+			s.data[scenarioName][i].SupersededBy = supersededBy
+			return s.flush()
+		}
+	}
+	return fmt.Errorf("capture %q not found for scenario %q", captureID, scenarioName)
 }
 
 func (s *FileStore) Delete(scenarioName, captureID string) error {

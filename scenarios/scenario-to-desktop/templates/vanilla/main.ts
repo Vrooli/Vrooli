@@ -181,6 +181,8 @@ const BUNDLED_RUNTIME = {
     DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
 };
 
+const BUNDLED_TARGET_PATH = process.env.S2D_BUNDLED_TARGET_PATH || "";
+
 // Port configuration from service.json
 const PORTS: Record<string, { envVar: string; port: number }> = {{PORTS_CONFIG}};
 
@@ -347,6 +349,16 @@ const isSmokeTestDemo = process.env.SMOKE_TEST_DEMO === "1";
 // The smoke-test service sets this for the full scripted desktop journey.
 // Keep a long safe fallback for older launchers that omit the variable.
 const smokeTestDemoHoldMs = Number(process.env.SMOKE_TEST_DEMO_HOLD_MS) || 30000;
+const smokeTestDemoReleaseFile = process.env.SMOKE_TEST_DEMO_RELEASE_FILE || "";
+
+async function waitForDemoReleaseOrHold(): Promise<void> {
+    if (!smokeTestDemoReleaseFile) { await delay(smokeTestDemoHoldMs); return; }
+    const deadline = Date.now() + smokeTestDemoHoldMs;
+    while (Date.now() < deadline) {
+        try { await fs.promises.access(smokeTestDemoReleaseFile); return; } catch { /* keep waiting */ }
+        await delay(200);
+    }
+}
 
 const launchTrace: LaunchTraceRecorder = createLaunchTraceRecorder({
     runId: process.env.SMOKE_TEST_RUN_ID,
@@ -1249,9 +1261,18 @@ async function startBundledRuntime(): Promise<string> {
         VROOLI_DATA: appData,
         // Canonical root for api-core/storage class directories.
         VROOLI_STORAGE_ROOT: path.join(appData, "storage"),
+        // Keep bundled web-console sessions and its dedicated tmux socket
+        // inside this desktop instance. A bundled app must never inherit the
+        // operator's session state or default tmux server.
+        WC_SESSION_STATE_ROOT: path.join(appData, "web-console-sessions"),
     };
-    for (const [portKey, portConfig] of Object.entries(PORTS)) {
-        if (portConfig.envVar && portConfig.port) { runtimeEnv[portConfig.envVar] = String(portConfig.port); console.log(`[Desktop App] Setting ${portConfig.envVar}=${portConfig.port}`); }
+    // Bundled runtime ports are allocated from the manifest at launch. Fixed
+    // Tier 1 values in PORTS are only valid for thin-client/local-server mode;
+    // injecting them here would defeat the bundle allocator's role bands.
+    if (!isBundledMode) {
+        for (const [, portConfig] of Object.entries(PORTS)) {
+            if (portConfig.envVar && portConfig.port) { runtimeEnv[portConfig.envVar] = String(portConfig.port); console.log(`[Desktop App] Setting ${portConfig.envVar}=${portConfig.port}`); }
+        }
     }
 
     // Initialize exit tracker
@@ -1337,6 +1358,25 @@ async function startBundledRuntime(): Promise<string> {
     const svcPorts = (ports as RuntimePortsResponse).services?.[serviceId!];
     const port = svcPorts?.[portName];
     if (!serviceId || !port) throw new Error("Bundled runtime started but did not expose a UI port");
+    const services = (ports as RuntimePortsResponse).services || {};
+    const apiService = Object.keys(services).find(id => id !== serviceId && /api|server|backend/i.test(id))
+        || Object.keys(services).find(id => id !== serviceId);
+    const apiPorts = apiService ? services[apiService] : undefined;
+    const apiPort = apiPorts?.http || apiPorts?.api || apiPorts?.https;
+    if (apiPort) {
+        // Static bundled renderers read window.API_BASE_URL from preload. Set
+        // the discovered private endpoint before the main window is created;
+        // bundled launches must not fall back to a Tier 1 fixed port.
+        process.env.VROOLI_VALIDATION_API_URL = `http://127.0.0.1:${apiPort}`;
+    }
+    if (BUNDLED_TARGET_PATH) {
+        if (!apiPort) throw new Error("Bundled runtime started but did not expose a private API port");
+        await fs.promises.mkdir(path.dirname(BUNDLED_TARGET_PATH), { recursive: true });
+        await fs.promises.writeFile(BUNDLED_TARGET_PATH, JSON.stringify({
+            renderer_url: `http://127.0.0.1:${port}/`,
+            api_url: `http://127.0.0.1:${apiPort}`,
+        }), "utf-8");
+    }
     await launchTrace.emit("port_discovered", "bundled-runtime", "bundled_runtime", { service: serviceId, port_name: portName });
 
     updateSplashStatus("loading-ui", "Starting user interface...", 80);
@@ -1859,8 +1899,9 @@ app.whenReady().then(async () => {
         if (isSmokeTestDemo) {
             await launchTrace.emit("app_ready", "electron", "main");
             console.log(`[Desktop App] Demo recording: app ready, holding for ${smokeTestDemoHoldMs}ms`);
-            await delay(smokeTestDemoHoldMs);
-            console.log("[Desktop App] Demo recording: hold complete, quitting");
+            await waitForDemoReleaseOrHold();
+            console.log("[Desktop App] Demo recording: release or hold complete, quitting");
+            presentationController?.prepareQuit();
             await finalizeDemoTrace();
             return;
         }
@@ -1888,6 +1929,7 @@ app.on("activate", async () => { if (presentationController) presentationControl
 app.on("before-quit", (event) => {
     if (isSmokeTestDemo && !demoRecordingEnded) {
         event.preventDefault();
+        presentationController?.prepareQuit();
         void finalizeDemoTrace();
         return;
     }

@@ -108,7 +108,11 @@ func populateTimeline(manifest *deliveryramp.Manifest, input smoketest.EvidenceM
 		return fmt.Errorf("validate journey timeline: %w", err)
 	}
 	journey := input.Journey
-	manifest.Timeline = deliveryramp.TimelineSummary{Version: journey.EvidenceVersion, Capability: journey.Capability, EventCount: len(journey.Events), Ordered: true, RedactionStatus: "verified", WorkflowRequired: journey.WorkflowRequired}
+	redactionStatus := "unverified"
+	if journey.Disposition == deliveryramp.DispositionPass && strings.TrimSpace(input.ScreenContentSource) != "" && input.ScreenContentSource != "unknown" {
+		redactionStatus = "verified"
+	}
+	manifest.Timeline = deliveryramp.TimelineSummary{Version: journey.EvidenceVersion, Capability: journey.Capability, EventCount: len(journey.Events), Ordered: true, RedactionStatus: redactionStatus, ScreenContentSource: strings.TrimSpace(input.ScreenContentSource), WorkflowRequired: journey.WorkflowRequired}
 	workflowReference := input.WorkflowReference
 	if workflowReference == nil {
 		workflowReference = journey.WorkflowReference
@@ -220,7 +224,7 @@ func appendProfileArtifacts(manifest *deliveryramp.Manifest, input smoketest.Evi
 }
 
 func setPerformanceSummary(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput) {
-	manifest.Performance.ProtocolSummary, manifest.Performance.DemoSummary, manifest.Performance.DemoProcessTree = input.ProtocolResourceSummary, input.DemoResourceSummary, input.DemoProcessTree
+	manifest.Performance.ProtocolSummary, manifest.Performance.ProtocolProcessTree, manifest.Performance.DemoSummary, manifest.Performance.DemoProcessTree = input.ProtocolResourceSummary, input.ProtocolProcessTree, input.DemoResourceSummary, input.DemoProcessTree
 	if manifest.Performance.Status != "" {
 		return
 	}
@@ -238,16 +242,29 @@ func setPerformanceSummary(manifest *deliveryramp.Manifest, input smoketest.Evid
 
 func manifestGates(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, recordingOK bool, startedAt, completedAt time.Time) []deliveryramp.GateResult {
 	gates := []deliveryramp.GateResult{
-		gate(deliveryramp.GateProtocol, true, "protocol smoke completed", startedAt, completedAt),
-		gate(deliveryramp.GateVisual, input.Journey.Disposition == "pass", "usable application window and visual launch", startedAt, completedAt),
-		gate(deliveryramp.GateJourney, input.Journey.Disposition == "pass", "semantic desktop journey", startedAt, completedAt),
+		gate(deliveryramp.GateProtocol, input.ProtocolPassed, "protocol smoke completed", startedAt, completedAt),
+		gateReadiness(deliveryramp.GateVisual, input.VisualReadiness, "usable application window and visual launch", startedAt, completedAt),
+		gate(deliveryramp.GateJourney, input.Journey != nil && input.Journey.Disposition == deliveryramp.DispositionPass, "semantic desktop journey", startedAt, completedAt),
 		gate(deliveryramp.GateCapture, recordingOK, "MP4 decoded with useful frames", startedAt, completedAt),
-		gate(deliveryramp.GatePersistence, true, "journey and recording captures persisted", startedAt, completedAt),
+		gate(deliveryramp.GatePersistence, strings.TrimSpace(input.JourneyCaptureID) != "" && strings.TrimSpace(input.RecordingCaptureID) != "", "journey and recording captures persisted", startedAt, completedAt),
 	}
 	if profile == deliveryramp.ProfileReleaseVisual {
 		gates = append(gates, gate(deliveryramp.GateGovernance, input.GovernanceReported, "deployment-manager evidence report", startedAt, completedAt))
 	}
 	return gates
+}
+
+func gateReadiness(name deliveryramp.GateName, signal, reason string, startedAt, completedAt time.Time) deliveryramp.GateResult {
+	result := gate(name, signal == "passed" || signal == "usable", reason, startedAt, completedAt)
+	if signal == "unavailable" {
+		result.Disposition = deliveryramp.GateUnavailable
+		result.Reason = reason + ": unavailable"
+	}
+	if signal == "degraded" {
+		result.Disposition = deliveryramp.GateDegraded
+		result.Reason = reason + ": degraded"
+	}
+	return result
 }
 
 func persistManifest(manifest deliveryramp.Manifest) error {

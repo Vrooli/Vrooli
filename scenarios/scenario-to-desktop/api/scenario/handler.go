@@ -194,6 +194,10 @@ func loadScenarioServiceInfo(scenarioRoot string) (*scenarioServiceInfo, error) 
 
 func findScenarioIcon(scenarioRoot string) string {
 	candidates := []string{
+		// brand-manager-applied web-public-v1 assets first: these are the
+		// canonical, correctly sized, non-placeholder icons.
+		filepath.Join("ui", "public", "public", "icon-512.png"),
+		filepath.Join("ui", "public", "public", "logo.svg"),
 		filepath.Join("ui", "dist", "manifest-icon-512.maskable.png"),
 		filepath.Join("ui", "dist", "manifest-icon-192.maskable.png"),
 		filepath.Join("ui", "dist", "apple-icon-180.png"),

@@ -30,6 +30,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // setupRoutes is the transport assembly point for the API. Domain handlers
@@ -82,7 +83,23 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/integrations/connections", s.connectionsHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/commercial-context", s.commercialContextHandler).Methods(http.MethodGet)
-	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
+	s.router.Handle("/api/v1/internal/monetization/journey", monetization.JourneyModule{Deps: monetization.JourneyDeps{
+		AppKey: "web-console", BundleKey: "business_suite",
+		Operations: map[monetization.JourneyOperation]func(context.Context) (string, error){
+			monetization.JourneyProviderObservation: func(ctx context.Context) (string, error) {
+				if _, err := s.Integrity(ctx); err != nil {
+					return "", fmt.Errorf("web-console integrity unavailable: %w", err)
+				}
+				return "provider=tier1-local-vrooli;route=scenario-api-proxy", nil
+			},
+			monetization.JourneyCommunication: func(ctx context.Context) (string, error) {
+				if _, err := s.Integrity(ctx); err != nil {
+					return "", fmt.Errorf("web-console communication unavailable: %w", err)
+				}
+				return "operation=thin-client;mode=thin-client", nil
+			},
+		},
+	}}.Handler()).Methods(http.MethodGet)
 	sessionAdapter := &sessionsH.Adapter{
 		Manager:             s.sessions,
 		ManagedCodex:        s.managedCodex,

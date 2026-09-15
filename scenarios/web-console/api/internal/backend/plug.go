@@ -50,8 +50,20 @@ type PromptAnalysis struct {
 	Prompt *PendingPrompt
 	// Working is true when the screen shows the agent's in-progress marker.
 	Working bool
+	// Interruption is set when the harness is stopped by a provider condition
+	// that is safe to retry later (for example temporary model capacity). It is
+	// deliberately separate from Prompt: this is not an operator question.
+	Interruption *ResumableInterruption
 	// Confidence is 0..1 for whichever of the above the detector reported.
 	Confidence float32
+}
+
+// ResumableInterruption is a normalized provider/runtime interruption read
+// from a harness screen. Raw text is retained as evidence, while Kind is a
+// stable extension point for recovery policy.
+type ResumableInterruption struct {
+	Kind    string
+	Message string
 }
 
 // PromptDetector reads an agent harness's screen: whether it is working, at

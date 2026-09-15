@@ -703,7 +703,11 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 					item.EvidenceNextAction = "retry-credential-verification"
 				} else if statusErr != nil {
 					item.Status = "unsupported"
-					item.Detail = "native credential authority unavailable"
+					// Keep the authority's own reason. A fixed "native credential
+					// authority unavailable" hid why a store could not answer, and
+					// the operator was sent to a doctor run that reported a
+					// different, healthy-looking condition.
+					item.Detail = "the credential authority could not answer: " + strings.TrimSpace(statusErr.Error())
 					item.EvidenceDetail = "The credential provider could not answer this check; readiness remains unknown."
 					item.EvidenceNextAction = "retry-credential-verification"
 				} else {
@@ -1132,16 +1136,16 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 		result.Remediation = "Repair the safeguard declaration before continuing."
 		return result
 	}
+	if strings.TrimSpace(manifest.Handler) != "" {
+		// The handler is the authority whenever one exists: the control plane
+		// owns a read-only inspection half that is separate from Apply by
+		// interface, and it knows the platform. Verification files are a
+		// fallback for handler-less safeguards only. Statting them first made
+		// every systemd path "missing" on macOS — safeguards whose manifests
+		// declare macOS not applicable blocked readiness on every Mac.
+		return observeHandlerSafeguard(root, item)
+	}
 	if len(manifest.VerificationCheck.Files) == 0 {
-		if strings.TrimSpace(manifest.Handler) != "" {
-			// A handler-owned safeguard has no file this process can stat, but
-			// that never made it unknowable: the control plane owns a read-only
-			// inspection half that is separate from Apply by interface. Asking
-			// it is the whole check. Deferring to the apply outcome instead
-			// told the operator a safeguard was uncheckable while the answer
-			// was one unprivileged call away.
-			return observeHandlerSafeguard(root, item)
-		}
 		result.Status = "unsupported"
 		result.Detail = "The safeguard has no declarative verification probe and no handler."
 		result.Remediation = "Add a verification check or a handler before enabling this safeguard."

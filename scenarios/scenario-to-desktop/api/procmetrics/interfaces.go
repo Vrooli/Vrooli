@@ -39,6 +39,17 @@ type ProcessTreeReader interface {
 	ProcessTree(rootPID int) ([]ProcessInfo, error)
 }
 
+// ProcessTreeReaderWithOptions is an optional attribution-aware reader. It
+// keeps ProcessTreeReader compatible with lightweight test doubles and other
+// platforms that cannot provide Linux process metadata.
+type ProcessTreeReaderWithOptions interface {
+	ProcessTreeWithOptions(rootPID int, options ProcessTreeOptions) ([]ProcessInfo, error)
+}
+
+type ProcessIdentityReader interface {
+	ApplicationPID(rootPID int, options ProcessTreeOptions) (int, error)
+}
+
 // WindowGeometry describes the size of a detected window.
 type WindowGeometry struct {
 	X      int

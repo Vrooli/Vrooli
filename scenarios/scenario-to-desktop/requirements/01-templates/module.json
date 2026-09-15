@@ -8,7 +8,6 @@
       "title": "Basic Electron template generates correctly",
       "status": "complete",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "When an operator selects the basic template, the generator shall produce an Electron project with its main process, preload bridge, package manifest, TypeScript configuration, splash page, and assets.",
       "validation": [
         {
@@ -24,7 +23,6 @@
       "title": "Advanced Electron template with system tray and shortcuts",
       "status": "complete",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "When an operator selects the advanced template, the generator shall include the configured system-tray, global-shortcut, and background-operation capabilities.",
       "validation": [
         {
@@ -82,6 +80,22 @@
           "status": "implemented"
         }
       ]
+    },
+    {
+      "id": "STD-TEMPLATE-NO-UNRESOLVED",
+      "title": "Generated templates contain no unresolved placeholders",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "description": "When an operator generates a desktop template, the generator MUST reject unresolved template placeholders before it writes a buildable project.",
+      "validation": []
+    },
+    {
+      "id": "STD-TEMPLATE-GENERATOR-FRESHNESS",
+      "title": "Template generator verifies compiled freshness",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "description": "When compiled generator output is older than its sources, the generator MUST refuse generation and report the required rebuild command.",
+      "validation": []
     }
   ]
 }

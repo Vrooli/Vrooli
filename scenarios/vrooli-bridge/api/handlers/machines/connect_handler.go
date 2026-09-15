@@ -184,6 +184,9 @@ func (h *connectHandler) composeProjection(ctx context.Context, machine internal
 	if err != nil {
 		trust = internalmachines.TrustRecord{MachineID: machine.ID, HostKeyState: internalmachines.HostKeyUnverified}
 	}
+	// CurrentNode above stays what the node itself reports; readiness and
+	// drift also count what Bridge has established for the machine.
+	projection = internalmachines.WithControlPlaneCapabilities(projection, trust)
 	policy := internalmachines.PolicySnapshot{}
 	if reader, ok := h.deps.Service.(internalmachines.PolicyReader); ok {
 		policy, err = reader.LatestPolicySnapshot(ctx, machine.ID)

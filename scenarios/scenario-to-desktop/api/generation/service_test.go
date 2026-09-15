@@ -1,6 +1,7 @@
 package generation
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -490,6 +491,23 @@ func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(templateDir, "build-tools", "dist", "template-generator.js"), []byte("// fixture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	buildTools := filepath.Join(templateDir, "build-tools")
+	for name, contents := range map[string]string{"package.json": "{}\n", "tsconfig.json": "{}\n"} {
+		if err := os.WriteFile(filepath.Join(buildTools, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputHash, err := templateGeneratorInputsHash(buildTools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stamp, err := json.Marshal(templateGeneratorBuildStamp{Schema: "scenario-to-desktop-template-generator-build-v1", InputsHash: inputHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(buildTools, "dist", ".build-stamp.json"), stamp, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	binDir := t.TempDir()

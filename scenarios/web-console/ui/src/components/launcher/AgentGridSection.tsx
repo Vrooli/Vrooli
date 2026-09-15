@@ -132,6 +132,14 @@ export default function AgentGridSection({
 
   const reorder = useListReorder<AgentCard>({ source: agents, onCommit: commitOrder, enabled: reordering });
 
+  // The rail has room for "Install failed" and nothing else. The reason lived
+  // only in a title tooltip, which a phone never shows, so it is also listed
+  // under the grid in the machine's own words.
+  const installNotes = agents.filter((card) => {
+    const outcome = outcomes[card.agentID];
+    return Boolean(outcome?.message) && (outcome?.status === "failed" || outcome?.status === "unconfirmed");
+  });
+
   const startInstall = useCallback(async (agentID: string) => {
     if (!onInstall) return;
     // Clear any previous verdict first: a retry that still showed the last
@@ -431,6 +439,21 @@ export default function AgentGridSection({
           </button>
         )}
       </div>
+
+      {!reordering && installNotes.length > 0 && (
+        <ul data-testid="launcher-install-reasons" className="space-y-1">
+          {installNotes.map((card) => (
+            <li
+              key={card.key}
+              role="alert"
+              data-testid={`launcher-agent-install-reason-${slugify(card.key)}`}
+              className="break-words rounded-lg border border-wc-error-text/30 bg-wc-error-text/10 px-2.5 py-1.5 text-[11.5px] text-wc-error-text"
+            >
+              {t(strings.launcher.installFailedReason, { name: card.label, reason: outcomes[card.agentID]?.message })}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {reordering && (
         <p data-testid="launcher-reorder-hint" className="flex items-start gap-2 rounded-lg border border-wc-default/60 bg-wc-surface-base/40 px-2.5 py-2 text-[11.5px] text-wc-text-muted">

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -13,8 +12,6 @@ import (
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
-
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 // DefaultService is the default implementation of Service.
@@ -56,6 +53,7 @@ type DefaultService struct {
 	manifestWriter      EvidenceManifestWriter
 	rendererURLResolver func(context.Context, string) (string, error)
 	apiURLResolver      func(context.Context, string) (string, error)
+	targetResolver      func(context.Context, *Status) (JourneyTarget, error)
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -74,47 +72,20 @@ func NewService(
 	telemetryExtractor TelemetryErrorExtractor,
 ) *DefaultService {
 	return &DefaultService{
-		store:               store,
-		cancelManager:       cancelManager,
-		telemetryIngestor:   telemetryIngestor,
-		config:              config,
-		executor:            executor,
-		platformResolver:    platformResolver,
-		telemetryResolver:   telemetryResolver,
-		outputParser:        outputParser,
-		fileSystem:          fileSystem,
-		logger:              logger,
-		port:                port,
-		telemetryExtractor:  telemetryExtractor,
-		rendererURLResolver: resolveScenarioRendererURL,
-		apiURLResolver:      resolveScenarioAPIURL,
+		store:              store,
+		cancelManager:      cancelManager,
+		telemetryIngestor:  telemetryIngestor,
+		config:             config,
+		executor:           executor,
+		platformResolver:   platformResolver,
+		telemetryResolver:  telemetryResolver,
+		outputParser:       outputParser,
+		fileSystem:         fileSystem,
+		logger:             logger,
+		port:               port,
+		telemetryExtractor: telemetryExtractor,
+		targetResolver:     resolveSmokeTarget,
 	}
-}
-
-func resolveScenarioRendererURL(ctx context.Context, scenarioName string) (string, error) {
-	_ = ctx
-	portText := cliutil.DetectPortFromVrooli(scenarioName, "UI_PORT")()
-	port, err := strconv.Atoi(portText)
-	if err != nil || port <= 0 {
-		if err == nil {
-			err = fmt.Errorf("port detector returned %q", portText)
-		}
-		return "", fmt.Errorf("resolve UI_PORT for %q: %w", scenarioName, err)
-	}
-	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
-}
-
-func resolveScenarioAPIURL(ctx context.Context, scenarioName string) (string, error) {
-	_ = ctx
-	portText := cliutil.DetectPortFromVrooli(scenarioName, "API_PORT")()
-	port, err := strconv.Atoi(portText)
-	if err != nil || port <= 0 {
-		if err == nil {
-			err = fmt.Errorf("port detector returned %q", portText)
-		}
-		return "", fmt.Errorf("resolve API_PORT for %q: %w", scenarioName, err)
-	}
-	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
 }
 
 func (s *DefaultService) validationRendererEnv(ctx context.Context, scenarioName string) []string {
@@ -145,6 +116,37 @@ func (s *DefaultService) validationRendererEnv(ctx context.Context, scenarioName
 	return env
 }
 
+func (s *DefaultService) validationRendererEnvForStatus(ctx context.Context, status *Status) []string {
+	if status == nil {
+		return nil
+	}
+	if status.DeploymentMode == "bundled" {
+		// The bundled runtime discovers its private service ports through its
+		// control API. Never inject a Tier 1 URL into a bundled launch.
+		return nil
+	}
+	if status.DeploymentMode == "proxy" && s.targetResolver != nil {
+		target, err := s.targetResolver(ctx, status)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("isolated_smoke_target_unavailable", "scenario", status.ScenarioName, "error", err)
+			}
+			return nil
+		}
+		result := make([]string, 0, 2)
+		if target.RendererURL != "" {
+			result = append(result, "VROOLI_VALIDATION_RENDERER_URL="+target.RendererURL)
+		}
+		if target.APIURL != "" {
+			result = append(result, "VROOLI_VALIDATION_API_URL="+target.APIURL)
+		}
+		return result
+	}
+	// Unknown-mode legacy requests are intentionally targetless. A smoke run
+	// must not silently rediscover the live instance.
+	return nil
+}
+
 // NewDefaultSmokeTestService creates a new smoke test service with default implementations.
 // This is the factory function for production wiring.
 func NewDefaultSmokeTestService(
@@ -165,22 +167,21 @@ func NewDefaultSmokeTestService(
 	telemetryExtractor := NewTelemetryErrorExtractor(fs)
 
 	return &DefaultService{
-		store:               store,
-		cancelManager:       cancelManager,
-		telemetryIngestor:   telemetryIngestor,
-		config:              config,
-		executor:            executor,
-		platformResolver:    platformResolver,
-		telemetryResolver:   telemetryResolver,
-		outputParser:        outputParser,
-		fileSystem:          fs,
-		logger:              logger,
-		port:                port,
-		prereqChecker:       prereqChecker,
-		envReader:           envReader,
-		telemetryExtractor:  telemetryExtractor,
-		rendererURLResolver: resolveScenarioRendererURL,
-		apiURLResolver:      resolveScenarioAPIURL,
+		store:              store,
+		cancelManager:      cancelManager,
+		telemetryIngestor:  telemetryIngestor,
+		config:             config,
+		executor:           executor,
+		platformResolver:   platformResolver,
+		telemetryResolver:  telemetryResolver,
+		outputParser:       outputParser,
+		fileSystem:         fs,
+		logger:             logger,
+		port:               port,
+		prereqChecker:      prereqChecker,
+		envReader:          envReader,
+		telemetryExtractor: telemetryExtractor,
+		targetResolver:     resolveSmokeTarget,
 	}
 }
 
@@ -193,6 +194,17 @@ func (s *DefaultService) WithRecording(recorder screenrecording.Recorder, displa
 // WithCaptures makes the captures domain the only durable home for smoke-test
 // recordings. Status retains metadata and a capture ID, never a local path.
 func (s *DefaultService) WithCaptures(service *captures.Service) { s.captures = service }
+
+func (s *DefaultService) annotateCapture(capture *captures.Capture, pipelineID string) {
+	if capture == nil || pipelineID == "" || s == nil || s.captures == nil {
+		return
+	}
+	if annotator, ok := s.captures.Store().(captures.PipelineAnnotator); ok {
+		if err := annotator.UpdatePipelineID(capture.ScenarioName, capture.ID, pipelineID); err != nil && s.logger != nil {
+			s.logger.Warn("capture_pipeline_id_persist_failed", "capture_id", capture.ID, "error", err)
+		}
+	}
+}
 
 // WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
 func (s *DefaultService) WithMonitor(factory procmetrics.MonitorFactory) {
@@ -261,11 +273,17 @@ type EvidenceManifestInput struct {
 	DemoTracePath           string
 	PerformanceArtifacts    []PerformanceArtifact
 	ProtocolResourceSummary *procmetrics.Summary
+	ProtocolProcessTree     *procmetrics.ProcessTreeReport
 	DemoResourceSummary     *procmetrics.Summary
 	DemoProcessTree         *procmetrics.ProcessTreeReport
 	ProtocolProfileDir      string
 	DemoProfileDir          string
 	ProfileMode             string
+	ProtocolPassed          bool
+	VisualReadiness         string
+	JourneyCaptureID        string
+	RecordingCaptureID      string
+	ScreenContentSource     string
 }
 
 // PerformanceArtifact is a producer-owned file with an immutable checksum.

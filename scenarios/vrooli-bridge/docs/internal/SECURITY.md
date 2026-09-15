@@ -239,6 +239,16 @@ accidentally move a secret to weaker custody.
   interactive use reads a masked terminal prompt and unattended use reads
   `--password-stdin`. Passwords are not placed in argv, environment variables,
   reports, or logs.
+- **Node credential-store passphrase — generated and escrowed by the control
+  plane (2026-09-15).** Bridge generates a 32-byte random passphrase per
+  Machine, stores it in the control-plane credential authority at
+  `vrooli-bridge/node-credential-store/<machineID>:passphrase` before first use,
+  and hands it to the node only over SSH stdin (store init/rewrap) and as a
+  sealed `infrastructure`/`ephemeral` credential grant re-pushed on reconnect.
+  It never enters the onboarding DB, step events, logs, argv, or error text
+  (asserted by test; details are also redacted). Residue: the authority API is
+  string-typed, so the loaded value is an unzeroable process-memory copy, like
+  the `KeyCopier` residue below. See DECISIONS 2026-09-15.
 - **Credential authority is the ordinary boundary.** A dev-mode, root-token
   Vault on the same host is not stronger than the native credential authority
   or operator-controlled encrypted backup and adds a hard runtime dependency to

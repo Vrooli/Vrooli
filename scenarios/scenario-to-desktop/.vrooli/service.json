@@ -363,6 +363,14 @@
     }
   ],
   "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "build-template-generator",
+          "exec": ["npm", "--prefix", "templates/build-tools", "run", "build"]
+        }
+      ]
+    },
     "health": {
       "checks": [
         {

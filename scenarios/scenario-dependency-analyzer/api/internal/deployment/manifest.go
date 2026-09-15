@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/portspec"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
@@ -564,9 +565,6 @@ func desktopComponentBinaryPath(name, role, platform string) string {
 }
 
 func desktopPortRange(port scenariomodel.Port) types.BundleSkeletonPortRange {
-	if port.Port != nil && *port.Port > 0 {
-		return types.BundleSkeletonPortRange{Min: *port.Port, Max: *port.Port}
-	}
 	parts := strings.SplitN(strings.TrimSpace(port.Range), "-", 2)
 	if len(parts) == 2 {
 		minimum, minimumErr := strconv.Atoi(strings.TrimSpace(parts[0]))
@@ -574,6 +572,10 @@ func desktopPortRange(port scenariomodel.Port) types.BundleSkeletonPortRange {
 		if minimumErr == nil && maximumErr == nil && minimum > 0 && maximum >= minimum {
 			return types.BundleSkeletonPortRange{Min: minimum, Max: maximum}
 		}
+	}
+	if port.Port != nil && *port.Port > 0 {
+		minimum, maximum := portspec.DesktopBandForFixedPort(port.EnvVar, "", *port.Port)
+		return types.BundleSkeletonPortRange{Min: minimum, Max: maximum}
 	}
 	return types.BundleSkeletonPortRange{Min: 20000, Max: 24000}
 }

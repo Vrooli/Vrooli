@@ -414,6 +414,15 @@ func (s *DefaultService) writeConfigFile(buildID string, config *DesktopConfig) 
 
 // runTemplateGenerator executes the Node template generator and processes the result.
 func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopConfig, configPath string) {
+	if err := verifyTemplateGeneratorStamp(s.templateDir); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			now := time.Now()
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, err.Error())
+			status.CompletedAt = &now
+		})
+		return
+	}
 	templateGeneratorPath := filepath.Join(s.templateDir, "build-tools", "dist", "template-generator.js")
 	cmd := exec.Command("node", templateGeneratorPath, configPath)
 

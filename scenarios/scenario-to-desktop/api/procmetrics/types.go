@@ -27,12 +27,15 @@ type Summary struct {
 type ProcessRole string
 
 const (
-	RoleElectronMain    ProcessRole = "electron_main"
-	RoleElectronRender  ProcessRole = "electron_renderer"
-	RoleElectronGPU     ProcessRole = "electron_gpu"
-	RoleBundledRuntime  ProcessRole = "bundled_runtime"
-	RoleScenarioService ProcessRole = "scenario_service"
-	RoleUnknown         ProcessRole = "unknown"
+	RoleElectronMain     ProcessRole = "electron_main"
+	RoleElectronRender   ProcessRole = "electron_renderer"
+	RoleElectronGPU      ProcessRole = "electron_gpu"
+	RoleElectronUtility  ProcessRole = "electron_utility"
+	RoleElectronCrashpad ProcessRole = "electron_crashpad"
+	RoleBundledRuntime   ProcessRole = "bundled_runtime"
+	RoleScenarioService  ProcessRole = "scenario_service"
+	RoleLauncher         ProcessRole = "launcher"
+	RoleUnknown          ProcessRole = "unknown"
 )
 
 // ProcessInfo is one node in a sampled process tree.
@@ -40,6 +43,8 @@ type ProcessInfo struct {
 	PID        int         `json:"pid"`
 	PPID       int         `json:"ppid"`
 	Command    string      `json:"command,omitempty"`
+	Cmdline    []string    `json:"cmdline,omitempty"`
+	Exe        string      `json:"exe,omitempty"`
 	Role       ProcessRole `json:"role"`
 	CPUJiffies int64       `json:"cpu_jiffies"`
 	RSSBytes   int64       `json:"rss_bytes"`
@@ -68,6 +73,12 @@ type ProcessTreeReport struct {
 	Supported bool                        `json:"supported"`
 	Scope     string                      `json:"scope"`
 	Roles     map[ProcessRole]RoleSummary `json:"roles,omitempty"`
+}
+
+// ProcessTreeOptions identifies the application executable when it is known.
+// An empty name enables the conservative executable-path heuristic.
+type ProcessTreeOptions struct {
+	AppExecutableName string
 }
 
 // StartupTiming records app startup in two phases:

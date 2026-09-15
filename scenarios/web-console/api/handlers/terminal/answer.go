@@ -102,6 +102,15 @@ func answerPrompt(ctx context.Context, sessionID string, target answerTarget, re
 		}
 		return PromptAnswerResult{Delivery: DeliveryHarnessAPI, Answer: chosen.Label}, nil
 	}
+	if prompt.Kind == "resumable_interruption" {
+		if err := target.TypeText(chosen.Key); err != nil {
+			return PromptAnswerResult{}, err
+		}
+		if err := target.PressKey("Enter"); err != nil {
+			return PromptAnswerResult{}, err
+		}
+		return PromptAnswerResult{Delivery: DeliveryKeystrokes, Answer: chosen.Label}, nil
+	}
 	if err := target.TypeText(chosen.Key); err != nil {
 		return PromptAnswerResult{}, err
 	}

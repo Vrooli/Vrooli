@@ -195,6 +195,9 @@ function ScreenRecordingError({ error }: { error: string }) {
 }
 
 type EvidenceReviewData = NonNullable<SmokeTestStageDetails["evidenceReview"]>;
+type EvidenceReviewWithSelection = EvidenceReviewData & {
+  capabilitySelection?: { capability: string; reason: string };
+};
 
 function EvidenceReviewPanel({
   review,
@@ -203,6 +206,7 @@ function EvidenceReviewPanel({
   review: EvidenceReviewData;
   videoRef: { current: HTMLVideoElement | null };
 }) {
+  const reviewWithSelection = review as EvidenceReviewWithSelection;
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const selected = review.chapters.find((chapter) => chapter.id === selectedChapter);
   const isPass = review.disposition === "pass";
@@ -225,6 +229,11 @@ function EvidenceReviewPanel({
             Verdict: {statusLabel}
           </span>
           <span className="text-slate-500">Capability: {review.capability}</span>
+          {reviewWithSelection.capabilitySelection && (
+            <span className="text-slate-500">
+              Selected: {reviewWithSelection.capabilitySelection.capability} ({reviewWithSelection.capabilitySelection.reason})
+            </span>
+          )}
           {review.profile && <span className="text-slate-500">Profile: {review.profile}</span>}
           {review.providerTier && <span className="text-slate-500">Provider: {review.providerTier}</span>}
           {review.safeRouteClass && <span className="text-slate-500">Route: {review.safeRouteClass}</span>}
@@ -246,7 +255,7 @@ function EvidenceReviewPanel({
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-slate-200">{String(index + 1)}. {chapter.purpose}</span>
-                  <span className={chapter.disposition === "passed" ? "text-emerald-300" : "text-amber-300"}>{chapter.disposition}</span>
+                  <span className={chapter.disposition === "passed" ? "text-emerald-300" : chapter.disposition === "not_run" ? "text-slate-400" : "text-amber-300"}>{chapter.disposition === "not_run" ? "not run" : chapter.disposition}</span>
                 </span>
                 <span className="mt-1 block text-slate-500">
                   {chapter.expected ? `Expected: ${chapter.expected}` : "Action"}

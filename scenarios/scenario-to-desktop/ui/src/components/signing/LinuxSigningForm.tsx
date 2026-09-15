@@ -95,6 +95,25 @@ export function LinuxSigningForm({
         </p>
       </div>
 
+      {/* Managed custody identity */}
+      {config?.managed_key?.logical_id && (
+        <div>
+          <Label htmlFor="linux-managed-identity" className="text-xs">
+            Credential Identity (managed custody)
+          </Label>
+          <Input
+            id="linux-managed-identity"
+            value={config.managed_key.logical_id}
+            readOnly
+            className="mt-1 text-sm font-mono"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Publisher key held by the credential authority. Scenarios naming the
+            same identity share one key; use Generate GPG key to rotate.
+          </p>
+        </div>
+      )}
+
       {/* GPG Passphrase Environment Variable */}
       <div>
         <Label htmlFor="linux-gpg-passphrase-env" className="text-xs">

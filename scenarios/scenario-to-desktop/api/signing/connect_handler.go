@@ -3,6 +3,8 @@ package signing
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/signing/types"
@@ -38,7 +40,7 @@ func (s *ConnectService) GetSigningConfig(ctx context.Context, req *connect.Requ
 func (s *ConnectService) PutSigningConfig(ctx context.Context, req *connect.Request[domainv1.UpsertSigningConfigRequest]) (*connect.Response[domainv1.SigningConfigResponse], error) {
 	config := configFromProto(req.Msg.GetConfig())
 	if result := s.handler.validator.ValidateConfig(config); !result.Valid {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("signing configuration validation failed"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("signing configuration validation failed: %s", describeValidationErrors(result)))
 	}
 	if err := s.handler.repo.Save(ctx, req.Msg.GetScenarioName(), config); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save signing config: %w", err))
@@ -156,7 +158,7 @@ func (s *ConnectService) DeleteSigningPlatform(ctx context.Context, req *connect
 func (s *ConnectService) GenerateLinuxSigningKey(ctx context.Context, req *connect.Request[domainv1.GenerateLinuxSigningKeyRequest]) (*connect.Response[domainv1.GenerateLinuxSigningKeyResponse], error) {
 	keyCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	result, err := s.handler.generateLinuxKey(keyCtx, generateLinuxKeyParams{Name: req.Msg.GetName(), Email: req.Msg.GetEmail(), PassphraseEnv: req.Msg.GetPassphraseEnv(), KeyType: req.Msg.GetKeyType(), Expiry: req.Msg.GetExpiry(), Homedir: req.Msg.GetHomedir(), Force: req.Msg.GetForce(), ExportPublic: req.Msg.GetExportPublic(), Scenario: req.Msg.GetScenarioName(), WorkingDirRoot: resolveVrooliRoot()})
+	result, err := s.handler.generateLinuxKey(keyCtx, generateLinuxKeyParams{Name: req.Msg.GetName(), Email: req.Msg.GetEmail(), PassphraseEnv: req.Msg.GetPassphraseEnv(), KeyType: req.Msg.GetKeyType(), Expiry: req.Msg.GetExpiry(), Homedir: req.Msg.GetHomedir(), Force: req.Msg.GetForce(), ExportPublic: req.Msg.GetExportPublic(), Scenario: req.Msg.GetScenarioName(), LogicalID: req.Msg.GetLogicalId(), WorkingDirRoot: resolveVrooliRoot()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -172,14 +174,77 @@ func (s *ConnectService) GenerateLinuxSigningKey(ctx context.Context, req *conne
 		config.Linux = &types.LinuxSigningConfig{}
 	}
 	config.Linux.GPGKeyID = result.Fingerprint
-	config.Linux.GPGHomedir = result.Homedir
-	if req.Msg.GetPassphraseEnv() != "" {
-		config.Linux.GPGPassphraseEnv = req.Msg.GetPassphraseEnv()
+	config.Linux.GPGHomedir = ""
+	config.Linux.ManagedKey = &types.ManagedSigningKey{LogicalID: result.LogicalID}
+	envName := strings.TrimSpace(req.Msg.GetPassphraseEnv())
+	if envName == "" {
+		envName = config.Linux.GPGPassphraseEnv
 	}
+	if envName == "" {
+		envName = types.DefaultPassphraseEnvVar
+	}
+	config.Linux.GPGPassphraseEnv = envName
 	if err := s.handler.repo.Save(keyCtx, req.Msg.GetScenarioName(), config); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&domainv1.GenerateLinuxSigningKeyResponse{KeyId: result.Fingerprint, Fingerprint: result.Fingerprint, Homedir: result.Homedir, PublicKey: optional(result.PublicKey), PublicKeyPath: optional(result.PublicPath)}), nil
+	response := &domainv1.GenerateLinuxSigningKeyResponse{KeyId: result.Fingerprint, Fingerprint: result.Fingerprint, Homedir: result.Homedir, PublicKey: optional(result.PublicKey), PublicKeyPath: optional(result.PublicPath), LogicalId: optional(result.LogicalID)}
+	// A rotation invalidates the fingerprint other scenarios referencing this
+	// identity already recorded, so report them as the blast radius.
+	if req.Msg.GetForce() {
+		response.Message = optional(rotationImpact(s.handler.repo, result.LogicalID, req.Msg.GetScenarioName()))
+	}
+	return connect.NewResponse(response), nil
+}
+
+// describeValidationErrors renders each validation error so a caller sees the
+// specific rule that failed rather than a bare "validation failed".
+func describeValidationErrors(result *types.ValidationResult) string {
+	if result == nil || len(result.Errors) == 0 {
+		return "no error detail available"
+	}
+	parts := make([]string, 0, len(result.Errors))
+	for _, err := range result.Errors {
+		detail := err.Code
+		if err.Field != "" {
+			detail += " (" + err.Field + ")"
+		}
+		if err.Message != "" {
+			detail += ": " + err.Message
+		}
+		parts = append(parts, detail)
+	}
+	return strings.Join(parts, "; ")
+}
+
+// rotationImpact names the other scenarios whose signing.json still records the
+// fingerprint of a shared identity that was just rotated.
+func rotationImpact(repo Repository, logicalID, rotatedScenario string) string {
+	logicalID = strings.TrimSpace(logicalID)
+	if logicalID == "" {
+		return "Rotated; no shared identity was recorded."
+	}
+	scenarios, err := repo.ListScenarios()
+	if err != nil {
+		return "Rotated shared identity " + logicalID + "; could not enumerate other scenarios: " + err.Error()
+	}
+	var affected []string
+	for _, scenario := range scenarios {
+		if scenario == rotatedScenario {
+			continue
+		}
+		config, getErr := repo.Get(context.Background(), scenario)
+		if getErr != nil || config == nil || config.Linux == nil || config.Linux.ManagedKey == nil {
+			continue
+		}
+		if config.Linux.ManagedKey.LogicalID == logicalID {
+			affected = append(affected, scenario)
+		}
+	}
+	if len(affected) == 0 {
+		return "Rotated " + logicalID + "; no other scenario references it."
+	}
+	sort.Strings(affected)
+	return "Rotated " + logicalID + "; re-run generate-key for: " + strings.Join(affected, ", ")
 }
 
 func (s *ConnectService) ListSigningPrerequisites(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[domainv1.ListSigningPrerequisitesResponse], error) {
@@ -229,7 +294,7 @@ func configFromProto(value *domainv1.SigningConfig) *types.SigningConfig {
 		result.MacOS = &types.MacOSSigningConfig{Identity: v.GetIdentity(), TeamID: v.GetTeamId(), HardenedRuntime: v.GetHardenedRuntime(), Notarize: v.GetNotarize(), EntitlementsFile: v.GetEntitlementsPath(), ProvisioningProfile: v.GetProvisioningProfile()}
 	}
 	if v := value.GetLinux(); v != nil {
-		result.Linux = &types.LinuxSigningConfig{GPGKeyID: v.GetGpgKeyId(), GPGPassphraseEnv: v.GetPassphraseEnv(), GPGHomedir: v.GetKeyringPath()}
+		result.Linux = &types.LinuxSigningConfig{GPGKeyID: v.GetGpgKeyId(), GPGPassphraseEnv: v.GetPassphraseEnv(), GPGHomedir: v.GetKeyringPath(), ManagedKey: managedKeyFromProto(v.GetManagedKey())}
 	}
 	return result
 }
@@ -246,9 +311,23 @@ func configToProto(value *types.SigningConfig) *domainv1.SigningConfig {
 		result.Macos = &domainv1.MacOSSigningConfig{Identity: optional(v.Identity), TeamId: optional(v.TeamID), HardenedRuntime: optional(v.HardenedRuntime), Notarize: v.Notarize, EntitlementsPath: optional(v.EntitlementsFile), ProvisioningProfile: optional(v.ProvisioningProfile)}
 	}
 	if v := value.Linux; v != nil {
-		result.Linux = &domainv1.LinuxSigningConfig{GpgKeyId: optional(v.GPGKeyID), PassphraseEnv: optional(v.GPGPassphraseEnv), KeyringPath: optional(v.GPGHomedir)}
+		result.Linux = &domainv1.LinuxSigningConfig{GpgKeyId: optional(v.GPGKeyID), PassphraseEnv: optional(v.GPGPassphraseEnv), KeyringPath: optional(v.GPGHomedir), ManagedKey: managedKeyToProto(v.ManagedKey)}
 	}
 	return result
+}
+
+func managedKeyFromProto(value *domainv1.ManagedSigningKey) *types.ManagedSigningKey {
+	if value == nil {
+		return nil
+	}
+	return &types.ManagedSigningKey{LogicalID: value.GetLogicalId(), PrivateKeyField: value.GetPrivateKeyField(), PassphraseField: value.GetPassphraseField()}
+}
+
+func managedKeyToProto(value *types.ManagedSigningKey) *domainv1.ManagedSigningKey {
+	if value == nil {
+		return nil
+	}
+	return &domainv1.ManagedSigningKey{LogicalId: value.LogicalID, PrivateKeyField: optional(value.PrivateKeyField), PassphraseField: optional(value.PassphraseField)}
 }
 
 func validationToProto(value *types.ValidationResult, enabled bool) *domainv1.SigningValidationResult {

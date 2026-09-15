@@ -22,6 +22,13 @@ const (
 	codexWorkingMarker = "esc to interrupt"
 )
 
+var codexCapacityMarkers = []string{
+	"selected model is at capacity",
+	"model is at capacity",
+	"temporarily at capacity",
+	"try a different model",
+}
+
 // A selected numbered option, e.g. "› 1. Yes, proceed".
 var codexSelectedOption = regexp.MustCompile(`^\s*[›❯>▌]\s*1\.\s+\S`)
 
@@ -32,6 +39,14 @@ func (promptDetector) Analyze(view backend.ScreenView) backend.PromptAnalysis {
 	text := view.PlainText()
 	if text == "" {
 		return backend.PromptAnalysis{}
+	}
+	lower := strings.ToLower(text)
+	for _, marker := range codexCapacityMarkers {
+		if strings.Contains(lower, marker) {
+			return backend.PromptAnalysis{Interruption: &backend.ResumableInterruption{
+				Kind: "model_capacity", Message: marker,
+			}, Confidence: 0.95}
+		}
 	}
 	lines := strings.Split(text, "\n")
 	for _, line := range lines[max(0, len(lines)-24):] {

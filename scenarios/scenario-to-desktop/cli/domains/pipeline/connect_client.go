@@ -13,6 +13,7 @@ import (
 // this narrow seam makes primitive-handler tests independent of HTTP transport.
 type pipelineRPC interface {
 	Get(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error)
+	Wait(context.Context, *connect.Request[pipelinev1.PipelineWaitRequest]) (*connect.Response[pipelinev1.PipelineStatus], error)
 	GetReleaseGate(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error)
 	Resume(context.Context, *connect.Request[pipelinev1.PipelineResumeRequest]) (*connect.Response[pipelinev1.PipelineResumeResponse], error)
 	Cancel(context.Context, *connect.Request[pipelinev1.PipelineCancelRequest]) (*connect.Response[pipelinev1.PipelineCancelResponse], error)

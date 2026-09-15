@@ -26,6 +26,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			(cliapp.Command{Name: "run", Description: "Start a new pipeline: run <scenario> [--stages ...] [--platforms ...]", Args: pipelineRunArgs()}).WithPrimitive(cmds.runPrimitive()),
 			(cliapp.Command{Name: "status", Description: "Get pipeline status: status <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.statusPrimitive()),
+			(cliapp.Command{Name: "wait", Description: "Wait for pipeline completion: wait <id>", Args: pipelineIDArgs(cliapp.Flag{Name: "timeout", Default: "3600", Description: "Maximum wait in seconds"})}).WithPrimitive(cmds.waitPrimitive()),
 			(cliapp.Command{Name: "resume", Description: "Resume a stopped pipeline: resume <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.resumePrimitive()),
 			(cliapp.Command{Name: "cancel", Description: "Cancel a running pipeline: cancel <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.cancelPrimitive()),
 			(cliapp.Command{Name: "list", Description: "List all pipelines"}).WithPrimitive(cmds.listPrimitive()),
@@ -39,8 +40,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 	}
 }
 
-func pipelineIDArgs() cliapp.ArgSchema {
-	return cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "pipeline-id", Required: true, Description: "Pipeline identifier"}}}
+func pipelineIDArgs(flags ...cliapp.Flag) cliapp.ArgSchema {
+	return cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "pipeline-id", Required: true, Description: "Pipeline identifier"}}, Flags: flags}
 }
 
 func pipelineScenarioArgs(flags ...cliapp.Flag) cliapp.ArgSchema {

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -205,8 +206,17 @@ func startWindowManagerWithMetadata(display string) (*os.Process, string, bool) 
 		if err != nil {
 			continue
 		}
+		args := append([]string(nil), wm.args...)
+		if wm.name == "openbox" {
+			configPath := filepath.Join(os.TempDir(), "vrooli-openbox-"+strings.TrimPrefix(display, ":")+".xml")
+			const config = `<?xml version="1.0" encoding="UTF-8"?><openbox_config><theme><name>Clearlooks</name><titleLayout>NLIMC</titleLayout><font place="ActiveWindow"><name>DejaVu Sans</name><size>12</size><weight>Bold</weight><slant>Normal</slant></font></theme></openbox_config>`
+			if writeErr := os.WriteFile(configPath, []byte(config), 0o600); writeErr == nil {
+				args = append([]string{"--config-file", configPath}, args...)
+				defer os.Remove(configPath)
+			}
+		}
 
-		wmCmd := exec.Command(wmPath, wm.args...)
+		wmCmd := exec.Command(wmPath, args...)
 		wmCmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{displayEnv})
 		if err := wmCmd.Start(); err != nil {
 			slog.Warn("window manager failed to start",

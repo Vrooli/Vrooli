@@ -31,12 +31,13 @@ const goModReplaceRuleID = "dependency.gomod.replace.missing"
 func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps reconcile")
 	var scenario, surface string
-	var all, allModules, apply, jsonOutput bool
+	var all, allModules, apply, check, jsonOutput bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
 	fs.StringVar(&surface, "surface", "", "Only report/fix this surface (api|cli|ui|…)")
 	fs.BoolVar(&all, "all", false, "Reconcile every discovered scenario")
 	fs.BoolVar(&allModules, "all-modules", false, "Reconcile every buildable in-repo Go module")
 	fs.BoolVar(&apply, "apply", false, "Write the replaces (default is a dry run)")
+	fs.BoolVar(&check, "check", false, "Check go.sum entries for in-repo module requirements (writes nothing; non-zero exit on drift)")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -47,8 +48,10 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	if allModules && (all || scenario != "") || !allModules && all == (scenario != "") {
 		return reconcileUsage()
 	}
+	if check && surface != "" {
+		return fmt.Errorf("--check may not be combined with --surface")
+	}
 
-	targets := []string{scenario}
 	var modulePaths map[string]string
 	if allModules {
 		var err error
@@ -56,6 +59,13 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 		if err != nil {
 			return err
 		}
+	}
+	if check {
+		return runReconcileCheck(core, scenario, all, allModules, modulePaths, jsonOutput)
+	}
+
+	targets := []string{scenario}
+	if allModules {
 		targets = make([]string, 0, len(modulePaths))
 		for path := range modulePaths {
 			targets = append(targets, path)
@@ -102,17 +112,91 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	}
 	wg.Wait()
 
-	if jsonOutput {
-		if len(responses) == 1 {
-			return printProto(responses[0])
+	var synced, syncFailures []string
+	if apply {
+		dirs, derr := reconcileCheckTargets(core, scenario, all, allModules, modulePaths)
+		if derr != nil {
+			return derr
 		}
-		return printReconcileJSON(responses)
+		for _, dir := range filterDirsBySurface(dirs, surface) {
+			changed, terr := tidySurface(dir)
+			if terr != nil {
+				syncFailures = append(syncFailures, fmt.Sprintf("%s: %v", dir, terr))
+				continue
+			}
+			if changed {
+				synced = append(synced, dir)
+			}
+		}
+		sort.Strings(synced)
+		sort.Strings(syncFailures)
 	}
-	return printReconcileReport(responses, apply)
+
+	if jsonOutput {
+		if len(synced) == 0 && len(syncFailures) == 0 {
+			if len(responses) == 1 {
+				return printProto(responses[0])
+			}
+			return printReconcileJSON(responses)
+		}
+		return support.PrintReportJSON(struct {
+			Responses    []*scenariovalidationv1.FixResponse `json:"responses"`
+			GoSumSynced  []string                            `json:"gosum_synced,omitempty"`
+			GoSumFailed  []string                            `json:"gosum_failures,omitempty"`
+		}{Responses: responses, GoSumSynced: synced, GoSumFailed: syncFailures})
+	}
+	if err := printReconcileReport(responses, apply); err != nil {
+		return err
+	}
+	if apply {
+		fmt.Printf("go.sum synchronized for %d module(s).\n", len(synced))
+		for _, dir := range syncFailures {
+			fmt.Printf("go.sum sync failed: %s\n", dir)
+		}
+	}
+	return nil
 }
 
 func reconcileUsage() error {
-	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --all | --all-modules) [--surface api|cli|ui] [--apply] [--json]", support.AppName)
+	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --all | --all-modules) [--surface api|cli|ui] [--apply] [--check] [--json]", support.AppName)
+}
+
+// runReconcileCheck executes the read-only go.sum drift check over the selected
+// scope. It writes nothing and returns a non-nil error (non-zero exit) when any
+// module's go.sum drifts.
+func runReconcileCheck(core *cliapp.ScenarioApp, scenario string, all, allModules bool, modulePaths map[string]string, jsonOutput bool) error {
+	dirs, err := reconcileCheckTargets(core, scenario, all, allModules, modulePaths)
+	if err != nil {
+		return err
+	}
+	return reconcileCheck(dirs, goListDeps, jsonOutput)
+}
+
+func reconcileCheckTargets(core *cliapp.ScenarioApp, scenario string, all, allModules bool, modulePaths map[string]string) ([]string, error) {
+	if allModules {
+		dirs := make([]string, 0, len(modulePaths))
+		for _, goModPath := range modulePaths {
+			dirs = append(dirs, filepath.Dir(goModPath))
+		}
+		return dirs, nil
+	}
+	names := []string{scenario}
+	if all {
+		var err error
+		names, err = listScenarioNames(core)
+		if err != nil {
+			return nil, err
+		}
+	}
+	repoRoot := cliutil.ResolveRepoRoot()
+	var dirs []string
+	for _, name := range names {
+		scenarioDir := filepath.Join(repoRoot, "scenarios", name)
+		for _, goModPath := range scenarioGoMods(scenarioDir) {
+			dirs = append(dirs, filepath.Dir(goModPath))
+		}
+	}
+	return dirs, nil
 }
 
 func discoverBuildableModules() (map[string]string, error) {

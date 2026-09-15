@@ -51,6 +51,13 @@ func TestPromptAnsweringFollowsHarnessAndVersion(t *testing.T) {
 	}
 }
 
+func TestPromptAnsweringAllowsExplicitResumableRecovery(t *testing.T) {
+	prompt := backend.PendingPrompt{Kind: "resumable_interruption", Options: []backend.PromptOption{{Key: "continue"}}}
+	if version, ok := newPromptAnswering("", nil).decide("codex", prompt); !ok || version != "recovery-v1" {
+		t.Fatalf("recovery answerability = (%q, %v), want recovery-v1/true", version, ok)
+	}
+}
+
 func TestPromptAnsweringSettingComesFromTheEnvironmentOrTheHostFile(t *testing.T) {
 	// [REQ:P0-017i] The operator turns answering on per host: the environment
 	// variable wins; otherwise a prompt-answering file in the data directory.

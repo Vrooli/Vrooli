@@ -167,6 +167,22 @@
           "status": "implemented"
         }
       ]
+    },
+    {
+      "id": "STD-OPERATOR-PIPELINE-WAIT",
+      "title": "Operator pipeline commands support durable waiting",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "description": "When an operator waits for a pipeline, the control plane MUST provide a durable wait operation that can resume without shell polling.",
+      "validation": []
+    },
+    {
+      "id": "STD-OPERATOR-EVIDENCE-LOOKUP",
+      "title": "Operator commands filter evidence by pipeline",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "description": "When an operator lists or shows evidence, the CLI MUST support pipeline-scoped lookup and return an actionable error for an unknown pipeline.",
+      "validation": []
     }
   ]
 }

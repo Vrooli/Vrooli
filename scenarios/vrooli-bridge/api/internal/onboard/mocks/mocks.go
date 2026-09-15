@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -176,6 +177,10 @@ func (f *FakeRepository) Seed(op onboard.Op) {
 type FakeSSHDriver struct {
 	mu sync.Mutex
 
+	// NodeCLI scripts RunNodeCLI; NodeCLICalls records every invocation.
+	NodeCLI      func(args []string, stdin []byte) (onboard.NodeCommandResult, error)
+	NodeCLICalls []NodeCLICall
+
 	FirstTouchErr           error
 	FirstTouchBlock         bool
 	PushScriptErr           error
@@ -335,6 +340,34 @@ func (d *FakeSSHDriver) PushArtifacts(_ context.Context, p onboard.ArtifactPushP
 		}, nil
 	}
 	return d.RemoteArtifacts, nil
+}
+
+// NodeCLICall is one recorded RunNodeCLI invocation. Stdin is a copy taken
+// before the caller zeroes its buffer.
+type NodeCLICall struct {
+	Args  []string
+	Stdin []byte
+}
+
+// RunNodeCLI answers through the NodeCLI script, recording every call. An
+// unscripted call reports a transport error so a test never passes on a
+// default it did not choose.
+func (d *FakeSSHDriver) RunNodeCLI(ctx context.Context, conn onboard.Conn, platform onboard.NodePlatform, args []string, stdin []byte) (onboard.NodeCommandResult, error) {
+	d.mu.Lock()
+	d.NodeCLICalls = append(d.NodeCLICalls, NodeCLICall{Args: append([]string(nil), args...), Stdin: append([]byte(nil), stdin...)})
+	script := d.NodeCLI
+	d.mu.Unlock()
+	if script == nil {
+		return onboard.NodeCommandResult{}, errors.New("node CLI not scripted in this test")
+	}
+	return script(args, stdin)
+}
+
+// NodeCLIRecorded returns a copy of the recorded node CLI calls.
+func (d *FakeSSHDriver) NodeCLIRecorded() []NodeCLICall {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]NodeCLICall(nil), d.NodeCLICalls...)
 }
 
 func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, onMarker func(onboard.Marker)) (onboard.BootstrapResult, error) {

@@ -211,6 +211,24 @@ adapter cannot provide that role, while `available: false` means the role was
 supported but not observed. Consumers must preserve those states instead of
 rendering them as zero.
 
+### Process role taxonomy
+
+The process-metrics role vocabulary is independent from launch-trace roles. It
+is: `launcher`, `electron_main`, `electron_renderer`, `electron_gpu`,
+`electron_utility`, `electron_crashpad`, `bundled_runtime`,
+`scenario_service`, and `unknown`. The monitor anchors on the launched app PID
+and re-anchors only when a verified Electron child replaces that process; it
+MUST NOT attach to an unrelated live scenario process. Chromium children use
+their cmdline `--type=` value for renderer, GPU, utility, and crashpad
+classification. Bundled services use their verified bundle path for
+`bundled_runtime` or `scenario_service` classification. Unclear evidence is
+`unknown`, not a guessed role.
+
+Each `*_summary` follows the anchored app PID and its verified descendants.
+`duration_ms` spans launch through the last sample. CPU aggregation is the
+sum of per-process CPU samples for the role at each sample time; RSS is the
+corresponding aggregate, with peak values taken over those aggregates.
+
 ## Launch-performance evidence
 
 Smoke-test runs persist two separate, redacted launch traces beside the

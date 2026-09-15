@@ -46,6 +46,8 @@ export function CapturesDrawer() {
 
   const allSelected =
     captures.length > 0 && selectedIds.size === captures.length;
+  const captureVoidReason = (capture: (typeof captures)[number]) =>
+    (capture as typeof capture & { voidReason?: string }).voidReason;
 
   return (
     <Drawer
@@ -206,6 +208,11 @@ export function CapturesDrawer() {
 
                   {/* Info */}
                   <div className="p-2 space-y-1">
+                    {captureVoidReason(cap) && (
+                      <p className="rounded bg-amber-950/40 px-1.5 py-1 text-[11px] text-amber-200">
+                        Voided: {captureVoidReason(cap)}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400 truncate">
                         {formatBytes(Number(cap.fileSizeBytes))}

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "12a2c04880e2c7f148412fa68580d40bed9f01a98d0beece2caa86637a61f4d5",
+  "manifest_hash": "fc912703ba9b826e0ced01505827f90335c642eaaf0b76d0b311a0e66b2aff3d",
   "commands": [
     {
       "path": "build get",
@@ -140,11 +140,24 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "evidence show",
+      "group": "evidence",
+      "command": "show",
+      "binding": "EvidenceService.GetEvidenceCapture",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "evidence summary",
       "group": "evidence",
       "command": "summary",
       "binding": "EvidenceService.GetEvidenceCapturesSummary",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence void",
+      "group": "evidence",
+      "command": "void",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "pipeline active",
@@ -221,6 +234,13 @@
       "group": "pipeline",
       "command": "status",
       "binding": "PipelineService.Get",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline wait",
+      "group": "pipeline",
+      "command": "wait",
+      "binding": "PipelineService.Wait",
       "observed_primitive": "proto_list"
     },
     {

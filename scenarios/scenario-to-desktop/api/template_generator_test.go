@@ -67,6 +67,7 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 		t.Fatalf("failed to read generated main.ts: %v", err)
 	}
 	mainContent := string(mainContentBytes)
+	assertGeneratedFilesAreHonest(t, outputDir)
 
 	if strings.Contains(mainContent, "{{") {
 		t.Fatalf("generated main.ts still contains template tokens: %s", mainContent)
@@ -161,6 +162,7 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		t.Fatalf("failed to read generated main.ts: %v", err)
 	}
 	mainContent := string(mainContentBytes)
+	assertGeneratedFilesAreHonest(t, outputDir)
 
 	if !strings.Contains(mainContent, `DEPLOYMENT_MODE: "bundled"`) {
 		t.Fatalf("deployment mode placeholder missing from generated file: %s", mainContent)
@@ -188,5 +190,31 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 	// the shell must not carry a port constant at all.
 	if strings.Contains(mainContent, "IPC_PORT") {
 		t.Fatalf("generated shell must not bake an IPC port constant: %s", mainContent)
+	}
+}
+
+func assertGeneratedFilesAreHonest(t *testing.T, root string) {
+	t.Helper()
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(contents), "{{") {
+			t.Errorf("generated file %s contains an unresolved template token", path)
+		}
+		if strings.HasSuffix(path, ".json") && !json.Valid(contents) {
+			t.Errorf("generated JSON file %s is invalid", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("scan generated files: %v", err)
 	}
 }

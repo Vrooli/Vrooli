@@ -34,11 +34,15 @@ func (f *fakeRPC) GetEvidenceCapturesSummary(_ context.Context, req *connect.Req
 	return connect.NewResponse(&domainv1.EvidenceCapturesSummary{Count: 1, TotalBytes: 42}), nil
 }
 
+func (f *fakeRPC) VoidEvidenceCapture(_ context.Context, req *connect.Request[domainv1.VoidEvidenceCaptureRequest]) (*connect.Response[domainv1.EvidenceCapture], error) {
+	return connect.NewResponse(&domainv1.EvidenceCapture{CaptureId: req.Msg.GetCaptureId()}), nil
+}
+
 func TestEvidencePrimitivesUseTypedScenarioRequests(t *testing.T) {
 	fake := &fakeRPC{}
 	commands := &Commands{rpc: fake}
 
-	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}}
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "session"}, {Name: "kind"}}}
 	listModes := cliapptest.RunPrimitiveHandlerModes(t, commands.listPrimitive(), schema, []string{"demo"}, nil)
 	if listModes.HumanErr != nil || listModes.JSONErr != nil {
 		t.Fatalf("list primitive errors: human=%v json=%v", listModes.HumanErr, listModes.JSONErr)

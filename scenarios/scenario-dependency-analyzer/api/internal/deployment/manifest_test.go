@@ -190,3 +190,33 @@ func TestBuildSkeletonServicesProjectsDeclaredComponents(t *testing.T) {
 		t.Fatalf("ui entry point args = %#v, want none", args)
 	}
 }
+
+func TestDesktopPortRangeTranslatesFixedTierOnePortsToRoleBands(t *testing.T) {
+	fixed := 21233
+	got := desktopPortRange(scenariomodel.Port{EnvVar: "UI_PORT", Port: &fixed})
+	if got.Min != 20000 || got.Max != 24999 {
+		t.Fatalf("fixed UI port range = %#v, want 20000-24999", got)
+	}
+	if got.Min == fixed && got.Max == fixed {
+		t.Fatalf("fixed UI port remained a single-port request: %#v", got)
+	}
+}
+
+func TestDesktopPortRangePrefersDeclaredRangeOverFixedPort(t *testing.T) {
+	fixed := 18800
+	got := desktopPortRange(scenariomodel.Port{EnvVar: "API_PORT", Port: &fixed, Range: "18800-18899"})
+	if got.Min != 18800 || got.Max != 18899 {
+		t.Fatalf("declared range = %#v, want 18800-18899", got)
+	}
+}
+
+func TestDesktopPortRangeKeepsRangeOnlyAndDefaults(t *testing.T) {
+	ranged := desktopPortRange(scenariomodel.Port{Range: "23100-23200"})
+	if ranged.Min != 23100 || ranged.Max != 23200 {
+		t.Fatalf("range-only result = %#v, want 23100-23200", ranged)
+	}
+	defaulted := desktopPortRange(scenariomodel.Port{})
+	if defaulted.Min != 20000 || defaulted.Max != 24000 {
+		t.Fatalf("default result = %#v, want 20000-24000", defaulted)
+	}
+}

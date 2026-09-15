@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"web-console/internal/events"
 
@@ -28,37 +29,48 @@ func (c *credentialHandlerClient) Provision(_ context.Context, request credentia
 	c.provision = request
 	return credentialclient.ProvisionResponse{Identity: request.Identity, Field: request.Field}, nil
 }
+
 func (c *credentialHandlerClient) Resolve(context.Context, string, string) (string, error) {
 	return "", nil
 }
+
 func (c *credentialHandlerClient) Delete(_ context.Context, identity, field string) error {
 	c.deleteID, c.deleteField = identity, field
 	return nil
 }
+
 func (c *credentialHandlerClient) Status(context.Context, string, string) (credentialclient.CredentialStatus, error) {
 	return c.status, nil
 }
+
 func (c *credentialHandlerClient) List(context.Context) ([]credentialclient.CredentialRef, error) {
 	return c.refs, nil
 }
+
 func (c *credentialHandlerClient) Doctor(context.Context) (credentialclient.DoctorResponse, error) {
 	return credentialclient.DoctorResponse{}, nil
 }
+
 func (c *credentialHandlerClient) KeyringInspect(context.Context, string) (credentialclient.KeyringReport, error) {
 	return credentialclient.KeyringReport{}, nil
 }
+
 func (c *credentialHandlerClient) KeyringRepair(context.Context, string) (credentialclient.KeyringReport, error) {
 	return credentialclient.KeyringReport{}, nil
 }
+
 func (c *credentialHandlerClient) RecoveryExport(context.Context, credentialclient.RecoveryExportRequest) (credentialclient.RecoveryExportResponse, error) {
 	return credentialclient.RecoveryExportResponse{}, nil
 }
+
 func (c *credentialHandlerClient) RecoveryVerify(context.Context, credentialclient.RecoveryVerifyRequest) (credentialclient.RecoveryVerifyResponse, error) {
 	return credentialclient.RecoveryVerifyResponse{}, nil
 }
+
 func (c *credentialHandlerClient) RecoveryRestore(context.Context, credentialclient.RecoveryRestoreRequest) error {
 	return nil
 }
+
 func (c *credentialHandlerClient) StoreStatus(context.Context) (credentialclient.StoreStatus, error) {
 	return credentialclient.StoreStatus{}, nil
 }
@@ -126,8 +138,8 @@ func TestJourneyHandlerIsLoopbackOnlyAndMetadataOnly(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/internal/monetization/journey?operation=signin_shared_session", nil)
 	request.RemoteAddr = "127.0.0.1:1234"
 	recorder := httptest.NewRecorder()
-	(&Server{}).journeyHandler(recorder, request)
-	if recorder.Code != http.StatusOK || strings.Contains(recorder.Body.String(), "token") || !strings.Contains(recorder.Body.String(), "web-console") || !strings.Contains(recorder.Body.String(), "business_suite") {
+	monetization.JourneyModule{Deps: monetization.JourneyDeps{AppKey: "web-console", BundleKey: "business_suite"}}.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || strings.Contains(recorder.Body.String(), "token") || !strings.Contains(recorder.Body.String(), "web-console") || !strings.Contains(recorder.Body.String(), "business_suite") || !strings.Contains(recorder.Body.String(), "unsupported:") {
 		t.Fatalf("status/body = %d/%q", recorder.Code, recorder.Body.String())
 	}
 
@@ -136,9 +148,9 @@ func TestJourneyHandlerIsLoopbackOnlyAndMetadataOnly(t *testing.T) {
 	request.Host = "console.example"
 	request.Header.Set("Origin", "https://evil.example")
 	recorder = httptest.NewRecorder()
-	(&Server{}).journeyHandler(recorder, request)
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("cross-origin status = %d, want %d", recorder.Code, http.StatusForbidden)
+	monetization.JourneyModule{Deps: monetization.JourneyDeps{AppKey: "web-console", BundleKey: "business_suite"}}.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("cross-origin status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
 }
 

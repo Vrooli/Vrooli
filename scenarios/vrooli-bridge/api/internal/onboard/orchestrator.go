@@ -326,6 +326,10 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned and final SSH trust verified")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
+	// The node's own credential store is set up from here, before its
+	// selection is applied: scenarios in that selection read credentials, and
+	// nothing may require a person at the node.
+	s.provisionCredentialStore(ctx, opID, &seq, conn, platform, in.MachineID, nodeID)
 	selection := onboarding.Selection{}
 	requested := false
 	if in.Selection != nil {

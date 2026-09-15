@@ -2,7 +2,9 @@ package smoketest
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,87 @@ import (
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/procmetrics"
 )
+
+type JourneySelectionInput struct {
+	ScenarioName   string
+	DeploymentMode string
+	Target         JourneyTarget
+	Override       string
+}
+
+type JourneySelection struct {
+	Capability string
+	Reason     string
+	Skipped    []string
+}
+
+func selectJourneyCapability(input JourneySelectionInput) JourneySelection {
+	if override := strings.TrimSpace(input.Override); override != "" {
+		return JourneySelection{Capability: override, Reason: "explicit_override"}
+	}
+	if input.DeploymentMode == "proxy" {
+		return JourneySelection{Capability: "tier2.tier1.thin-client.v1", Reason: "proxy_mode"}
+	}
+	if scenarioDeclaresMonetization(input.ScenarioName) {
+		operations := probeJourneyCapabilities(input.Target.APIURL)
+		missing := missingJourneyOperations(operations)
+		if len(missing) == 0 {
+			return JourneySelection{Capability: "monetization.trust-boundary.v1", Reason: "bundled_manifest_and_probe_capability"}
+		}
+		if _, ok := journeyFixture(input.ScenarioName); ok {
+			return JourneySelection{Capability: input.ScenarioName, Reason: "probe_missing_operations", Skipped: missing}
+		}
+		return JourneySelection{Capability: "desktop.launch.baseline", Reason: "probe_missing_operations", Skipped: missing}
+	}
+	if _, ok := journeyFixture(input.ScenarioName); ok {
+		return JourneySelection{Capability: input.ScenarioName, Reason: "registered_fixture"}
+	}
+	return JourneySelection{Capability: "desktop.launch.baseline", Reason: "default_baseline"}
+}
+
+var requiredJourneyOperations = []string{"signin_shared_session", "second_app_resolves", "tampered_class_a", "class_b_local", "offline_class_b", "offline_gate_degrades", "outbox_drains_once", "expired_lease_falls_back"}
+
+func probeJourneyCapabilities(apiURL string) map[string]bool {
+	if strings.TrimSpace(apiURL) == "" {
+		return nil
+	}
+	endpoint := strings.TrimRight(apiURL, "/") + "/api/v1/internal/monetization/journey?operation=capabilities"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil
+	}
+	var payload struct {
+		Operations []string `json:"operations"`
+	}
+	if json.NewDecoder(response.Body).Decode(&payload) != nil {
+		return nil
+	}
+	result := make(map[string]bool, len(payload.Operations))
+	for _, operation := range payload.Operations {
+		result[operation] = true
+	}
+	return result
+}
+
+func missingJourneyOperations(operations map[string]bool) []string {
+	missing := make([]string, 0)
+	for _, operation := range requiredJourneyOperations {
+		if !operations[operation] {
+			missing = append(missing, operation)
+		}
+	}
+	return missing
+}
 
 // DesktopDriver is the consumer-owned seam for platform actions. The runner
 // never imports or type-asserts the concrete xdotool implementation.
@@ -47,6 +130,7 @@ type JourneyOperationResult struct {
 	Observed string                            `json:"observed"`
 	Provider *deliveryramp.ProviderObservation `json:"provider,omitempty"`
 	Route    string                            `json:"route,omitempty"`
+	AppKey   string                            `json:"app_key,omitempty"`
 }
 
 type JourneyProcessObserver interface {
@@ -83,12 +167,25 @@ type JourneyFixture interface {
 }
 
 type JourneyInput struct {
-	SmokeTestID   string
-	ScenarioName  string
-	Platform      string
-	Display       string
-	DisplayWidth  int
-	DisplayHeight int
+	SmokeTestID    string
+	ScenarioName   string
+	Platform       string
+	DeploymentMode string
+	ProxyURL       string
+	PipelineID     string
+	Target         JourneyTarget
+	Display        string
+	DisplayWidth   int
+	DisplayHeight  int
+}
+
+// JourneyTarget is the only source a semantic probe may use for renderer and
+// API addresses. Bundled runs discover private ports after runtime startup.
+type JourneyTarget struct {
+	RendererURL string
+	APIURL      string
+	Instance    string
+	Source      string
 }
 
 var journeyRegistry = struct {

@@ -6,6 +6,7 @@ import { StatusBadge, type StatusTone } from "@vrooli/react-component-library/St
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { strings } from "../../consts/strings";
 import type { Machine, PermissionPreset } from "../../api/machines";
+import type { InstallOutcome } from "../../api/capabilities";
 import { GrantLine } from "../machines/grant";
 import { machineIssues, reachabilityDetail, statusBadge } from "../machines/MachineList";
 import { machineTestID } from "../machines/testids";
@@ -39,6 +40,7 @@ export function MachineDetail({
   savingGrant,
   onSaveGrant,
   onBack,
+  onInstallCapability,
 }: {
   machine: Machine;
   presets: PermissionPreset[];
@@ -46,6 +48,7 @@ export function MachineDetail({
   savingGrant: boolean;
   onSaveGrant: (machine: Machine, preset: string) => void;
   onBack: () => void;
+  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>;
 }) {
   const { t } = useTranslation();
   const translate = t as (key: string, options?: Record<string, unknown>) => string;
@@ -149,7 +152,7 @@ export function MachineDetail({
             />
           )}
 
-          {tab === "configuration" && <ConfigurationTab machine={machine} />}
+          {tab === "configuration" && <ConfigurationTab machine={machine} onInstallCapability={onInstallCapability} />}
 
           {tab === "activity" && <MachineActivityTab machine={machine} />}
         </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,6 +90,34 @@ func TestBundleStage(t *testing.T) {
 			t.Error("expected CanSkip to return false for bundled mode")
 		}
 	})
+
+	t.Run("staging manifest generation is outside scenario source", func(t *testing.T) {
+		var generatedDir string
+		generator := manifestGeneratorFunc(func(_ context.Context, _ string, outputDir string) (string, error) {
+			generatedDir = outputDir
+			return filepath.Join(outputDir, "bundle.json"), nil
+		})
+		stage := NewBundleStage(WithManifestGenerator(generator))
+		result := newStageResult(StageBundle, stage.timeProvider)
+		scenarioPath := t.TempDir()
+		outputRoot := t.TempDir()
+		_, domainErr := stage.resolveManifest(context.Background(), result, &PipelineConfig{ScenarioName: "hello", LocationMode: "staging"}, scenarioPath, "electron", outputRoot)
+		if domainErr != nil {
+			t.Fatal(domainErr)
+		}
+		if !strings.HasPrefix(filepath.Clean(generatedDir), filepath.Join(filepath.Clean(outputRoot), "manifest")) {
+			t.Fatalf("staging manifest dir=%q is not under output root", generatedDir)
+		}
+		if strings.HasPrefix(filepath.Clean(generatedDir), filepath.Clean(scenarioPath)) {
+			t.Fatalf("staging manifest dir=%q leaked into scenario source %q", generatedDir, scenarioPath)
+		}
+	})
+}
+
+type manifestGeneratorFunc func(context.Context, string, string) (string, error)
+
+func (f manifestGeneratorFunc) GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error) {
+	return f(ctx, scenarioName, outputDir)
 }
 
 // TestGenerateStage tests the generate stage.

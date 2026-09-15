@@ -47,6 +47,26 @@ export interface LinuxSigningConfig {
   keyring_path?: string;
   deb_keyring_path?: string;
   rpm_keyring_path?: string;
+  managed_key?: ManagedSigningKey;
+}
+export interface ManagedSigningKey {
+  logical_id: string;
+  private_key_field?: string;
+  passphrase_field?: string;
+}
+
+// The proto-types artifact is provisioned separately from the generated
+// source, so the managed-key field may not be present in the installed copy
+// yet. Read it structurally to avoid dropping custody metadata on save.
+interface ProtoManagedSigningKeyShape {
+  logicalId: string;
+  privateKeyField?: string;
+  passphraseField?: string;
+}
+
+function protoManagedKey(linux: unknown): ProtoManagedSigningKeyShape | undefined {
+  if (!linux || typeof linux !== "object") return undefined;
+  return (linux as { managedKey?: ProtoManagedSigningKeyShape }).managedKey;
 }
 export type SigningPlatform = "windows" | "macos" | "linux";
 
@@ -139,6 +159,11 @@ export function signingConfigToProto(config: SigningConfig) {
       gpgKeyId: config.linux.gpg_key_id,
       passphraseEnv: config.linux.gpg_passphrase_env,
       keyringPath: config.linux.keyring_path,
+      managedKey: config.linux.managed_key && {
+        logicalId: config.linux.managed_key.logical_id,
+        privateKeyField: config.linux.managed_key.private_key_field,
+        passphraseField: config.linux.managed_key.passphrase_field,
+      },
     },
   };
 }
@@ -171,6 +196,11 @@ export function signingConfigFromProto(
       gpg_key_id: config.linux.gpgKeyId,
       gpg_passphrase_env: config.linux.passphraseEnv,
       keyring_path: config.linux.keyringPath,
+      managed_key: protoManagedKey(config.linux) && {
+        logical_id: protoManagedKey(config.linux)!.logicalId,
+        private_key_field: protoManagedKey(config.linux)!.privateKeyField,
+        passphrase_field: protoManagedKey(config.linux)!.passphraseField,
+      },
     },
   };
 }
@@ -207,6 +237,11 @@ export function linuxSigningConfigToProto(config: LinuxSigningConfig) {
     gpgKeyId: config.gpg_key_id,
     passphraseEnv: config.gpg_passphrase_env,
     keyringPath: config.keyring_path,
+    managedKey: config.managed_key && {
+      logicalId: config.managed_key.logical_id,
+      privateKeyField: config.managed_key.private_key_field,
+      passphraseField: config.managed_key.passphrase_field,
+    },
   };
 }
 
@@ -296,6 +331,8 @@ export interface GenerateKeyResponse {
   public_key?: string;
   config_path?: string;
   public_key_path?: string;
+  logical_id?: string;
+  message?: string;
 }
 
 export function presentSigningReadiness(

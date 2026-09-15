@@ -82,6 +82,28 @@ func resolveBridgeOwnerCredentials() (string, string) {
 	return "", ""
 }
 
+// bridgeCredentialSource returns a per-call credential resolver when owner is
+// a locally minted session. Those expire after 15 minutes, so any long-lived
+// client built from the startup value must re-mint rather than hold it.
+func bridgeCredentialSource(owner string) func() (string, string) {
+	if hasExplicitAuthScheme(owner, sharedsession.LocalSessionScheme) {
+		return resolveBridgeOwnerCredentials
+	}
+	return nil
+}
+
+// freshOwnerAuthorization re-mints a local owner session for one request.
+// Other credential kinds are returned unchanged.
+func freshOwnerAuthorization(ctx context.Context, owner string) string {
+	if !hasExplicitAuthScheme(owner, sharedsession.LocalSessionScheme) {
+		return owner
+	}
+	if fresh, err := resolveLocalOwnerToken(ctx); err == nil && strings.TrimSpace(fresh) != "" {
+		return fresh
+	}
+	return owner
+}
+
 func hasExplicitAuthScheme(value, scheme string) bool {
 	prefix := strings.TrimSpace(scheme) + " "
 	return strings.HasPrefix(strings.TrimSpace(value), prefix)

@@ -21,6 +21,68 @@ current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
 - Blocker: none for the learning setup; live outcome baselines remain unearned. Shared Memory UI/attestation findings are recorded in the learning progress entry.
 - Measured: 2026-09-04
 
+### Scoped work-ladder record — Linux managed signing identity (2026-09-15)
+
+- Rung: W3 (Linux signing implementation).
+- Evidence: `ManagedSigningKey` and `GenerateLinuxSigningKeyRequest.logical_id`
+  in `packages/proto/schemas/scenario-to-desktop/v1/domain/signing.proto` promise
+  that one publisher key may sign every desktop app and that the custody identity
+  defaults to `vrooli/scenario-to-desktop/<scenario>`; `docs/guides/code-signing.md`
+  documents the same shared-identity workflow. `generateLinuxKey` ignored
+  `logical_id`, so the documented shared identity could not be established.
+- Blocker: none.
+- Measured: 2026-09-15. Custody resolves the explicit identity with idempotent
+  reuse (first run mints, later runs reuse; `--force` rotates), ambiguous
+  `homedir` + `logical-id` is rejected, and the generate request records the
+  passphrase environment variable the build injects. Verified with
+  `go test ./signing/... ./build/...` and the CLI signing domain tests; UI
+  `useSigningPage`/`signing` vitest, `pnpm type-check`, and eslint pass.
+
+#### Live end-to-end verification (2026-09-15)
+
+Real `gpg` 2.4.4 + native credential store (`encrypted-file`) against the
+running scenario, not fixtures. Findings and repairs:
+
+- **Real bug found and fixed.** `exportSecretKey` exported the
+  passphrase-protected secret key without loopback pinentry, so `gpg-agent`
+  blocked on a prompt and failed after ~65s (`error receiving key from agent:
+  Timeout - skipped`). Export now passes `--pinentry-mode loopback
+  --passphrase-fd 0`; the fake `gpg` fixture now fails if loopback is absent, so
+  the regression cannot return silently.
+- **`ready` was misleading.** It reported Linux "Not configured" for a valid
+  managed config because the CLI rendered the raw proto message and ignored
+  `enabled`/`ready`. The CLI now reports `Not configured`, `Assignable`, or
+  `Ready` per platform from the actual status fields.
+- **Rotation blast radius is now reported.** `generate-key --force` returns the
+  other scenarios still referencing the shared identity (`... re-run generate-key
+  for: hello-desktop, scenario-to-desktop`). A new `message` field on
+  `GenerateLinuxSigningKeyResponse` carries it; the proto was regenerated.
+- **Config ambiguity is now rejected.** `validate` / `set` fail with
+  `LINUX_SIGNING_SOURCE_AMBIGUOUS` when `managed_key` and `gpg_homedir` are both
+  set, and warn (`LINUX_MANAGED_PASSPHRASE_ENV_NONSTANDARD`) when a managed key
+  is paired with a non-default passphrase variable. `PutSigningConfig` now names
+  the specific failing rule instead of a bare "validation failed".
+- **Recovery inventory gap found and fixed.** `ManagedSystemEntries` discovered
+  only `device-control/*` and the release authority, so a live managed signing
+  key (`vrooli/desktop-signing-e2e:gpg-private-key`/`gpg-passphrase`) was absent
+  from `vrooli credentials list`/`doctor` and from `recovery export --all`. The
+  inventory now discovers `vrooli/desktop-signing*` and
+  `vrooli/scenario-to-desktop/*` managed identities from the store index; both
+  fields appear in `list`, `doctor`, and `recovery export --all`.
+- Verified: mint → reuse (same fingerprint) → validate → ready → `--force`
+  rotation with blast radius → reuse-repair → build-time materialization into a
+  0700 GPG home with a real detached signature that `gpg --verify` accepts →
+  `recovery export`/`verify` covers both managed fields.
+
+Recorded test-genie run `20260915-201242-0af89331` (phases unit, api, contracts,
+proto) is FAIL for pre-existing, unrelated reasons: template drift in
+`browser-automation-studio` (`TestBrowserAutomationStudioGeneratedShellMatchesTemplate`),
+a UI branch-coverage threshold miss (84.78% vs 85%, global and spread across
+pre-existing files), `binding.arg_unmapped`/`binding.duplicate` in the
+`pipeline`/`evidence` CLI groups, `proto.shared_type_misplaced` for
+`NativeExtension`, and `MISSING_INJECTABLE_SEAM` in `cli/domains/evidence`.
+No signing-domain binding, coverage, or test finding was introduced by this work.
+
 ## Security scanner triage (2026-07-27)
 
 `gitleaks detect --source . --no-git` is configured through the scenario-local

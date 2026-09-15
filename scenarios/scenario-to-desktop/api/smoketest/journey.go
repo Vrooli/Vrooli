@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/envkit-go"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
@@ -144,8 +143,8 @@ func (w defaultJourneyWaiter) Settle(ctx context.Context, policy deliveryramp.Se
 }
 
 type loopbackJourneyAPI struct {
-	resolver     func(context.Context, string) (string, error)
-	scenarioName string
+	target         JourneyTarget
+	expectedAppKey string
 }
 
 // isLoopbackHTTP accepts the resolver's canonical localhost form as well as
@@ -165,8 +164,8 @@ func isLoopbackHTTP(parsed *url.URL) bool {
 }
 
 type monetizationJourneyAPI struct {
-	resolver     func(context.Context, string) (string, error)
-	scenarioName string
+	target         JourneyTarget
+	expectedAppKey string
 }
 
 func (monetizationJourneyAPI) Greet(context.Context, string) (string, error) {
@@ -174,17 +173,7 @@ func (monetizationJourneyAPI) Greet(context.Context, string) (string, error) {
 }
 
 func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (JourneyOperationResult, error) {
-	baseURL := strings.TrimRight(os.Getenv("S2D_MONETIZATION_JOURNEY_URL"), "/")
-	if baseURL == "" {
-		baseURL = strings.TrimRight(os.Getenv("VROOLI_VALIDATION_RENDERER_URL"), "/")
-	}
-	if baseURL == "" && api.resolver != nil {
-		resolved, err := api.resolver(ctx, api.scenarioName)
-		if err != nil {
-			return JourneyOperationResult{}, fmt.Errorf("resolve monetization journey renderer URL: %w", err)
-		}
-		baseURL = strings.TrimRight(resolved, "/")
-	}
+	baseURL := strings.TrimRight(api.target.APIURL, "/")
 	if baseURL == "" {
 		return JourneyOperationResult{}, fmt.Errorf("bundled scenario renderer URL is unavailable")
 	}
@@ -218,24 +207,19 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return JourneyOperationResult{}, fmt.Errorf("decode monetization journey result: %w", err)
 	}
+	if strings.TrimSpace(result.AppKey) == "" {
+		return JourneyOperationResult{}, fmt.Errorf("probe_app_unidentified")
+	}
+	if expected := strings.TrimSpace(api.expectedAppKey); expected != "" && result.AppKey != expected {
+		return JourneyOperationResult{}, fmt.Errorf("probe_app_mismatch")
+	}
 	return result, nil
 }
 
 func (api loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
-	baseURL := strings.TrimRight(os.Getenv("VROOLI_VALIDATION_API_URL"), "/")
-	if baseURL == "" && api.resolver != nil {
-		resolved, err := api.resolver(ctx, api.scenarioName)
-		if err != nil {
-			return "", fmt.Errorf("resolve %s API: %w", api.scenarioName, err)
-		}
-		baseURL = strings.TrimRight(resolved, "/")
-	}
+	baseURL := strings.TrimRight(api.target.APIURL, "/")
 	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "hello-desktop")
-		if err != nil {
-			return "", fmt.Errorf("resolve hello-desktop: %w", err)
-		}
-		baseURL = strings.TrimRight(resolved, "/")
+		return "", fmt.Errorf("journey target API URL is unavailable")
 	}
 	parsedBase, err := url.Parse(baseURL)
 	if err != nil || !isLoopbackHTTP(parsedBase) {
@@ -271,15 +255,66 @@ func (api loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (s
 	return payload.Message, nil
 }
 
+func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (JourneyOperationResult, error) {
+	baseURL := strings.TrimRight(api.target.APIURL, "/")
+	if baseURL == "" {
+		return JourneyOperationResult{}, fmt.Errorf("journey target API URL is unavailable")
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil || !isLoopbackHTTP(parsed) {
+		return JourneyOperationResult{}, fmt.Errorf("communication journey URL must target loopback HTTP")
+	}
+	parsed.Path = "/api/v1/internal/monetization/journey"
+	query := parsed.Query()
+	query.Set("operation", operation)
+	parsed.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil) // #nosec G704 -- URL is restricted to loopback above.
+	if err != nil {
+		return JourneyOperationResult{}, err
+	}
+	response, err := newControlPlaneHTTPClient().Do(request)
+	if err != nil {
+		return JourneyOperationResult{}, fmt.Errorf("communication journey request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return JourneyOperationResult{}, fmt.Errorf("communication journey returned HTTP %d", response.StatusCode)
+	}
+	var result JourneyOperationResult
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return JourneyOperationResult{}, fmt.Errorf("decode communication journey result: %w", err)
+	}
+	if strings.TrimSpace(result.AppKey) == "" {
+		return JourneyOperationResult{}, fmt.Errorf("probe_app_unidentified")
+	}
+	if expected := strings.TrimSpace(api.expectedAppKey); expected != "" && result.AppKey != expected {
+		return JourneyOperationResult{}, fmt.Errorf("probe_app_mismatch")
+	}
+	return result, nil
+}
+
 func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState) deliveryramp.JourneyResult {
 	capability := strings.TrimSpace(s.journeyCapability)
-	if capability == "" {
-		capability = strings.TrimSpace(os.Getenv("S2D_JOURNEY_CAPABILITY"))
+	override := strings.TrimSpace(capability)
+	if override == "" {
+		override = strings.TrimSpace(os.Getenv("S2D_JOURNEY_CAPABILITY"))
 	}
-	if capability == "" {
-		capability = capabilityForScenario(scenarioName)
+	selectionInput := JourneySelectionInput{ScenarioName: scenarioName, Override: override}
+	if s.store != nil {
+		if status, ok := s.store.Get(smokeTestID); ok {
+			selectionInput.DeploymentMode = status.DeploymentMode
+			selectionInput.Target = JourneyTarget{Source: status.ScreenContentSource}
+			if s.targetResolver != nil && (status.DeploymentMode == "proxy" || status.DeploymentMode == "bundled") {
+				if target, err := s.targetResolver(ctx, status); err == nil {
+					selectionInput.Target = target
+				}
+			}
+		}
 	}
-	return s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, capability)
+	selection := selectJourneyCapability(selectionInput)
+	result := s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, selection.Capability)
+	result.CapabilitySelection = &deliveryramp.CapabilitySelection{Capability: selection.Capability, Reason: selection.Reason, Skipped: selection.Skipped}
+	return result
 }
 
 type journeySetup struct {
@@ -302,6 +337,19 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 	}
 	started := clock.Now().UTC()
 	input := JourneyInput{SmokeTestID: smokeTestID, ScenarioName: scenarioName, Platform: platform, Display: rec.displayID, DisplayWidth: rec.displayWidth, DisplayHeight: rec.displayHeight}
+	if s.store != nil {
+		if status, ok := s.store.Get(smokeTestID); ok {
+			input.DeploymentMode = status.DeploymentMode
+			input.ProxyURL = status.ProxyURL
+			input.PipelineID = status.PipelineID
+			input.Target = JourneyTarget{Source: status.ScreenContentSource}
+			if s.targetResolver != nil && (status.DeploymentMode == "proxy" || status.DeploymentMode == "bundled") {
+				if target, err := s.targetResolver(ctx, status); err == nil {
+					input.Target = target
+				}
+			}
+		}
+	}
 	fixture, ok := journeyFixture(capability)
 	base := deliveryramp.JourneyResult{SchemaVersion: deliveryramp.JourneySchemaVersion, EvidenceVersion: deliveryramp.JourneyEvidenceVersion, SmokeTestID: smokeTestID, ScenarioName: scenarioName, Capability: capability, Platform: platform, Display: rec.displayID, WindowManager: rec.windowManager, Titlebar: rec.titlebar, RecordingStartedBeforeLaunch: rec.captureID != "", Disposition: deliveryramp.Disposition(journeyPass), CreatedAt: started}
 	if !ok {
@@ -354,9 +402,9 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 	api := s.journeyAPI
 	if api == nil {
 		if capability == "monetization.trust-boundary.v1" {
-			api = monetizationJourneyAPI{resolver: s.apiURLResolver, scenarioName: scenarioName}
+			api = monetizationJourneyAPI{target: input.Target, expectedAppKey: input.ScenarioName}
 		} else {
-			api = loopbackJourneyAPI{resolver: s.apiURLResolver, scenarioName: scenarioName}
+			api = loopbackJourneyAPI{target: input.Target, expectedAppKey: input.ScenarioName}
 		}
 	}
 	return journeySetup{base: base, clock: clock, started: started, input: input, plan: plan, driver: driver, waiter: waiter, capture: capture, api: api, actions: fixture.Actions()}, nil
@@ -395,7 +443,7 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 		result = base
 	}()
 
-	for _, spec := range setup.plan.Steps {
+	for index, spec := range setup.plan.Steps {
 		if err := ctx.Err(); err != nil {
 			base.Disposition = deliveryramp.DispositionFailed
 			base.DegradedReason = "context_" + err.Error()
@@ -404,6 +452,22 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 		step, stop := s.runJourneyStep(ctx, &base, setup, spec, smokeTestID, scenarioName, rec)
 		base.Steps = append(base.Steps, step)
 		if stop {
+			now := setup.clock.Now().UTC()
+			previousEnd := int64(0)
+			if len(base.Steps) > 0 {
+				previousEnd = base.Steps[len(base.Steps)-1].MonotonicEndMs
+			}
+			for _, skipped := range setup.plan.Steps[index+1:] {
+				step := deliveryramp.JourneyStep{
+					ID: skipped.ID, Name: skipped.ID, Purpose: skipped.Purpose, Action: skipped.Action,
+					Disposition: deliveryramp.StepNotRun, Readiness: skipped.Readiness, Settle: skipped.Settle,
+					StartedAt: now, CompletedAt: now, MonotonicStartMs: previousEnd, MonotonicEndMs: previousEnd,
+				}
+				if skipped.Assertion != nil {
+					step.AssertionID, step.ExpectedState = skipped.Assertion.ID, skipped.Assertion.Expected
+				}
+				base.Steps = append(base.Steps, step)
+			}
 			break
 		}
 		if spec.Action == "quit_app" {
@@ -431,6 +495,7 @@ func (s *DefaultService) runJourneyStep(ctx context.Context, base *deliveryramp.
 		s.recordJourneyEvent(base, setup.clock, setup.started, eventType, step.ID, spec.Readiness.ID, ready.Observed, err.Error())
 		step.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(err))
 		step.Error, step.DegradedReason = err.Error(), "readiness_failed"
+		base.Disposition = deliveryramp.Disposition(dispositionForJourneyError(err))
 		return s.finishJourneyStep(step, rec.recordingStartedAt, setup), true
 	}
 	if ready.Attempts > 1 {
@@ -647,7 +712,7 @@ func journeyHasScreenshotPairs(steps []deliveryramp.JourneyStep) bool {
 		return false
 	}
 	for _, step := range steps {
-		if step.Action == "screenshot" || step.Action == "window_geometry" {
+		if step.Disposition == deliveryramp.StepNotRun || step.Action == "screenshot" || step.Action == "window_geometry" {
 			continue
 		}
 		if step.BeforeCaptureID == "" || step.AfterCaptureID == "" {
@@ -755,7 +820,7 @@ func validateJourneyRedaction(journey deliveryramp.JourneyResult) error {
 }
 
 func reviewFromJourney(journey deliveryramp.JourneyResult) *JourneyReview {
-	review := &JourneyReview{SchemaVersion: journey.EvidenceVersion, Capability: journey.Capability, PlanID: journey.PlanID, Profile: journey.Profile, Disposition: string(journey.Disposition), Reason: journey.DegradedReason, EventCount: len(journey.Events), WorkflowRequired: journey.WorkflowRequired, WorkflowReference: journey.WorkflowReference, Chapters: make([]JourneyChapter, 0, len(journey.Steps))}
+	review := &JourneyReview{SchemaVersion: journey.EvidenceVersion, Capability: journey.Capability, Selection: journey.CapabilitySelection, PlanID: journey.PlanID, Profile: journey.Profile, Disposition: string(journey.Disposition), Reason: journey.DegradedReason, EventCount: len(journey.Events), WorkflowRequired: journey.WorkflowRequired, WorkflowReference: journey.WorkflowReference, Chapters: make([]JourneyChapter, 0, len(journey.Steps))}
 	if provider := journey.ProviderObservation; provider != nil {
 		review.DeploymentMode = provider.DeploymentMode
 		review.ProviderTier = provider.ProviderTier
@@ -795,6 +860,9 @@ func (s *DefaultService) captureJourneyScreenshot(ctx context.Context, smokeTest
 	cap, err := s.captures.SaveCapture(scenarioName, captures.CaptureScreenshot, "smoke-test:"+smokeTestID, path, 0, 0, 0)
 	if err != nil {
 		return "", err
+	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		s.annotateCapture(cap, status.PipelineID)
 	}
 	return cap.ID, nil
 }
@@ -836,6 +904,9 @@ func (s *DefaultService) persistJourney(journey deliveryramp.JourneyResult) stri
 	cap, err := s.captures.SaveCapture(journey.ScenarioName, captures.CaptureJourney, "smoke-test:"+journey.SmokeTestID, path, 0, 0, 0)
 	if err != nil {
 		return ""
+	}
+	if status, ok := s.store.Get(journey.SmokeTestID); ok {
+		s.annotateCapture(cap, status.PipelineID)
 	}
 	return cap.ID
 }

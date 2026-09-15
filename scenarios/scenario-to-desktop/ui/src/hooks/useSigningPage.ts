@@ -182,6 +182,7 @@ export function useSigningPage(
       passphrase_env?: string;
       homedir?: string;
       expiry?: string;
+      logical_id?: string;
       force?: boolean;
     }) => {
       if (payload.passphrase)
@@ -195,13 +196,18 @@ export function useSigningPage(
         passphraseEnv: payload.passphrase_env,
         homedir: payload.homedir,
         expiry: payload.expiry,
+        logicalId: payload.logical_id,
         force: payload.force,
         exportPublic: true,
       });
     },
     onSuccess: (resp) => {
       setHasUnsavedChanges(false);
-      setKeygenMessage(`Generated key ${resp.fingerprint} in ${resp.homedir}`);
+      const custody = resp.logicalId
+        ? `custodied as ${resp.logicalId}`
+        : "custodied in the credential authority";
+      const rotation = resp.message ? ` ${resp.message}` : "";
+      setKeygenMessage(`Ready with key ${resp.fingerprint} (${custody}).${rotation}`);
       void queryClient.invalidateQueries({
         queryKey: ["signing-config", selectedScenario],
       });
@@ -312,6 +318,7 @@ export function useSigningPage(
 
   const handleGenerateKey = useCallback(async () => {
     if (!selectedScenario) return;
+    const currentLogicalId = localConfig.linux?.managed_key?.logical_id;
     const name =
       typeof window !== "undefined"
         ? window.prompt("Name for GPG UID (required)", selectedScenario)
@@ -322,25 +329,43 @@ export function useSigningPage(
         ? window.prompt("Email for GPG UID (optional)", "")
         : "";
     if (email === null) return;
-    const passphrase =
+    const logicalId =
       typeof window !== "undefined"
-        ? window.prompt("Passphrase (optional, leave blank for none)", "")
+        ? window.prompt(
+            "Shared credential identity (optional; blank keeps a key private to this scenario)",
+            currentLogicalId ?? "",
+          )
         : "";
+    if (logicalId === null) return;
+    const rotate =
+      typeof window !== "undefined" &&
+      currentLogicalId !== undefined &&
+      currentLogicalId === (logicalId || undefined)
+        ? window.confirm(
+            "Rotate the existing key at this identity? Other scenarios sharing it must re-run generate-key afterward.",
+          )
+        : false;
 
     try {
       await generateKeyMutation.mutateAsync({
         name: name || undefined,
         email: email || undefined,
-        passphrase: passphrase || undefined,
-        passphrase_env: "GPG_PASSPHRASE",
         expiry: "1y",
+        logical_id: logicalId || undefined,
+        force: rotate,
       });
       await refetchConfig();
       await refetchReadiness();
     } catch (err) {
       console.error(err);
     }
-  }, [selectedScenario, generateKeyMutation, refetchConfig, refetchReadiness]);
+  }, [
+    selectedScenario,
+    localConfig,
+    generateKeyMutation,
+    refetchConfig,
+    refetchReadiness,
+  ]);
 
   const applyCertificate = useCallback(
     (cert: DiscoveredCertificate) => {

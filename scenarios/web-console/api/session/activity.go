@@ -302,6 +302,16 @@ func (d *ActivityDetector) evaluate(quiet bool) {
 	switch {
 	case d.harnessPrompt != nil:
 		d.setLocked(ActivityWaiting, SourceHarnessEvent, confidenceHarnessEvent, d.harnessPrompt)
+	case analysis.Interruption != nil:
+		prompt := &backend.PendingPrompt{
+			Kind: "resumable_interruption",
+			Text: analysis.Interruption.Message,
+			Options: []backend.PromptOption{
+				{Key: "continue", Label: "Continue"},
+				{Key: "/goal resume", Label: "Resume goal"},
+			},
+		}
+		d.setLocked(ActivityWaiting, SourceScreen, analysis.Confidence, prompt)
 	case analysis.Prompt != nil:
 		confidence := analysis.Confidence
 		if d.hookWaiting && confidence < confidenceHook {

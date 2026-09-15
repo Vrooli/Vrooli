@@ -318,6 +318,22 @@ func TestGenerateLinuxArtifactSignerRequiresKey(t *testing.T) {
 	}
 }
 
+func TestGenerateLinuxArtifactSignerManagedKeyUsesAuthorityEnv(t *testing.T) {
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{
+		GPGKeyID:   "ABC123",
+		ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	text := string(content)
+	for _, expected := range []string{"VROOLI_GPG_PASSPHRASE", "process.env.VROOLI_GPG_HOMEDIR"} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("managed-key hook does not contain %q", expected)
+		}
+	}
+}
+
 func TestGenerateLinuxArtifactSignerIsValidNodeModule(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {

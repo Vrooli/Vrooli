@@ -179,6 +179,15 @@ func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Re
 	}
 	response := &domainv1.ListEvidenceCapturesResponse{}
 	for _, item := range items {
+		if req.Msg.GetPipelineId() != "" && item.PipelineID != req.Msg.GetPipelineId() {
+			continue
+		}
+		if req.Msg.GetSourceSessionId() != "" && item.SourceSession != req.Msg.GetSourceSessionId() {
+			continue
+		}
+		if req.Msg.GetKind() != "" && string(item.Type) != req.Msg.GetKind() {
+			continue
+		}
 		response.Captures = append(response.Captures, captureToProto(item))
 	}
 	return connect.NewResponse(response), nil
@@ -236,6 +245,28 @@ func (s *ConnectService) DeleteAllEvidenceCaptures(_ context.Context, req *conne
 		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "delete evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(&emptypb.Empty{}), nil
+}
+
+func (s *ConnectService) VoidEvidenceCapture(_ context.Context, req *connect.Request[domainv1.VoidEvidenceCaptureRequest]) (*connect.Response[domainv1.EvidenceCapture], error) {
+	voider, ok := s.captures.(interface {
+		VoidCapture(string, string, string, string) error
+	})
+	if !ok {
+		return nil, evidenceError(connect.CodeUnimplemented, domainerrors.CodeNotImplemented, "void evidence capture", nil, domainerrors.RecoveryNone)
+	}
+	if err := voider.VoidCapture(req.Msg.GetScenarioName(), req.Msg.GetCaptureId(), req.Msg.GetReason(), req.Msg.GetSupersededBy()); err != nil {
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "void evidence capture", err, domainerrors.RecoveryFixInput)
+	}
+	items, err := s.captures.Store().List(req.Msg.GetScenarioName())
+	if err != nil {
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "read voided evidence capture", err, domainerrors.RecoveryRetry)
+	}
+	for _, item := range items {
+		if item.ID == req.Msg.GetCaptureId() {
+			return connect.NewResponse(captureToProto(item)), nil
+		}
+	}
+	return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "voided evidence capture not found", nil, domainerrors.RecoveryFixInput)
 }
 
 func requireLocal(target *domainv1.EvidenceTarget) error {
@@ -365,8 +396,13 @@ func metricsToProto(value *livedesktop.MetricsView) *domainv1.DesktopSessionMetr
 }
 
 func captureToProto(value captures.Capture) *domainv1.EvidenceCapture {
-	result := &domainv1.EvidenceCapture{CaptureId: value.ID, ScenarioName: value.ScenarioName, Kind: string(value.Type), SourceSessionId: value.SourceSession, Filename: value.Filename, FileSizeBytes: value.FileSizeBytes, CreatedAt: timestamppb.New(value.CreatedAt)}
+	result := &domainv1.EvidenceCapture{CaptureId: value.ID, ScenarioName: value.ScenarioName, Kind: string(value.Type), SourceSessionId: value.SourceSession, Filename: value.Filename, FileSizeBytes: value.FileSizeBytes, PipelineId: value.PipelineID, CreatedAt: timestamppb.New(value.CreatedAt)}
 	result.Checksum = value.Checksum
+	result.VoidReason = optional(value.VoidReason)
+	result.SupersededBy = optional(value.SupersededBy)
+	if value.VoidedAt != nil {
+		result.VoidedAt = timestamppb.New(*value.VoidedAt)
+	}
 	if value.Width != 0 {
 		width := int32(value.Width)
 		result.Width = &width

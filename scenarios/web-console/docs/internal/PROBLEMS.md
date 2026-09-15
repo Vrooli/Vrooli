@@ -851,3 +851,36 @@ server was cleared so new sessions inherit color-capable defaults.
   Unrelated pre-existing failures in the same runs: `TestDocsNoStaleOldPaths`,
   `TestOpenCodeWatcher_*`, and `locales.test.ts` (ar.json missing 67 keys).
 - Measured: 2026-09-15
+
+- Rung: W3 (every remote-machine action broken by one lookup; errors misnamed)
+- Evidence: after the version fix minimouse still could not start a session
+  ("remote machine authorization has expired"), install an agent ("Install
+  failed", 400 in 20ms), or clear drift (every Fix ran the same re-apply; the
+  only feedback was a status line below the credentials). Bridge logged
+  `GET /api/v1/channel/session status=401` with no credential and 84
+  `local owner session rejected` lines per boot.
+- Root causes: (1) `targetByID` returned the selected `Target` without its
+  connection, so sessions opened with no Authorization header and installs saw
+  an empty Bridge URL; (2) the Bridge capability checker and the install relay
+  client held a 15-minute LocalSession minted at startup, and nodereach replayed
+  the Open header on reconnect; (3) nodereach mapped every 401 to
+  `missing_reauth`; (4) the install HTTP client timed out at 30s inside a 90s
+  relay window and every action error was `invalid_argument`; (5) the
+  `bridge-provisioner` node fact reached the browser under `capability:` and
+  became an installable "agent"; (6) re-apply polling stopped at 3 minutes
+  while runs take ~4.5.
+- Repair: `targetByID` keeps the connection; per-call credential sources
+  (`bridgeCredentialSource`, `freshOwnerAuthorization`, nodereach session
+  `authorize`); nodereach `ErrUnauthenticated`; typed `RunAction` codes;
+  `node_capability:` browser key; Configuration tab rows carry their own action
+  (Install / Re-apply / "Not fixable from here") and a top-of-panel apply panel
+  that polls to the end and names each failed step's cause; the launcher lists
+  install-failure reasons under the grid instead of in a tooltip.
+- Evidence of repair: `TestTargetByIDKeepsTheConnection`,
+  `TestNodeCapabilitiesAreNotPresentedAsAgents`, nodereach
+  `TestOpenClassifiesHandshakeHTTPStatuses` and
+  `TestSessionReconnectMintsAFreshCredential`, vitest
+  `ConfigurationTab.actions.test.tsx` and `applyRunSummary.test.ts`. Live:
+  remote session Create on minimouse succeeded; Bridge logged 0 LocalSession
+  rejections after restart; minimouse drift is empty.
+- Measured: 2026-09-15

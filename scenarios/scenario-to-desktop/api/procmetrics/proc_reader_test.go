@@ -1,6 +1,10 @@
 package procmetrics
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+	"testing/fstest"
+)
 
 func TestParseProcessStatAndRoleClassification(t *testing.T) {
 	input := "1234 (Electron Helper (GPU)) S 1000 1234 1234 0 -1 4194304 500 0 0 0 150 30 0 0 20 0 1 0 100 1000000 200 0 0 0"
@@ -11,8 +15,43 @@ func TestParseProcessStatAndRoleClassification(t *testing.T) {
 	if ppid != 1000 || command != "Electron Helper (GPU)" || utime != 150 || stime != 30 {
 		t.Fatalf("parsed process = %d %q %d %d", ppid, command, utime, stime)
 	}
-	if got := classifyRole(1235, 1234, command); got != RoleElectronGPU {
+	if got := classifyProcess(ProcessInfo{PID: 1235, Command: command, Cmdline: []string{"electron", "--type=gpu-process"}, Exe: "/opt/app/app"}, 1234, ProcessTreeOptions{}); got != RoleElectronGPU {
 		t.Fatalf("role = %q, want %q", got, RoleElectronGPU)
+	}
+}
+
+func TestLinuxProcReaderReanchorsAndClassifiesFixtureTree(t *testing.T) {
+	proc := fstest.MapFS{}
+	add := func(pid, ppid int, command, exe, cmdline string) {
+		stat := []byte(fmt.Sprintf("%d (%s) S %d 1 1 0 -1 0 0 0 0 0 10 2 0 0 20 0 1 0 1 1 1 0 0 0", pid, command, ppid))
+		status := []byte("VmPeak:\t100 kB\nVmRSS:\t50 kB\nThreads:\t2\n")
+		proc[fmt.Sprintf("%d/stat", pid)] = &fstest.MapFile{Data: stat}
+		proc[fmt.Sprintf("%d/status", pid)] = &fstest.MapFile{Data: status}
+		proc[fmt.Sprintf("%d/cmdline", pid)] = &fstest.MapFile{Data: []byte(cmdline + "\x00")}
+		proc[fmt.Sprintf("%d/exe-target", pid)] = &fstest.MapFile{Data: []byte(exe)}
+	}
+	add(100, 1, "sh", "/usr/bin/sh", "sh -c launch")
+	add(200, 100, "hello-desktop", "/tmp/squashfs-root/hello-desktop", "hello-desktop --smoke-test")
+	add(201, 200, "hello-desktop", "/tmp/squashfs-root/hello-desktop", "hello-desktop\x00--type=renderer")
+	add(202, 200, "hello-desktop", "/tmp/squashfs-root/hello-desktop", "hello-desktop\x00--type=gpu-process")
+	add(203, 200, "runtime", "/tmp/squashfs-root/resources/bundle/runtime/linux-x64/runtime", "runtime")
+	add(204, 200, "foo-api", "/tmp/squashfs-root/resources/bundle/bin/api/linux-x64/foo-api", "foo-api")
+	add(205, 100, "Xvfb", "/usr/bin/Xvfb", "Xvfb :99")
+
+	reader := &LinuxProcReader{FS: proc}
+	got, err := reader.ProcessTreeWithOptions(100, ProcessTreeOptions{AppExecutableName: "hello-desktop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roles := map[int]ProcessRole{}
+	for _, p := range got {
+		roles[p.PID] = p.Role
+	}
+	want := map[int]ProcessRole{100: RoleLauncher, 200: RoleElectronMain, 201: RoleElectronRender, 202: RoleElectronGPU, 203: RoleBundledRuntime, 204: RoleScenarioService, 205: RoleUnknown}
+	for pid, role := range want {
+		if roles[pid] != role {
+			t.Errorf("pid %d role = %q, want %q", pid, roles[pid], role)
+		}
 	}
 }
 

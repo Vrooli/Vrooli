@@ -9,7 +9,7 @@ metadata:
   tags: ["desktop", "electron", "packaging", "deployment", "evidence"]
   icon: "monitor"
   status: "active"
-  revision: 52
+  revision: 53
   createdAt: "2026-01-31T00:00:00Z"
   updatedAt: "2026-09-04T00:00:00Z"
   requires:
@@ -93,7 +93,7 @@ Do not wrap each command in a new program.
 | The default platform set includes an unavailable target | Select the requested platforms with `pipeline run --platforms`; retain omitted required platforms as evidence gaps | Selected platforms and unresolved obligations |
 | Need to continue a specific build | Supply `pipeline_id` to `pipeline-inspect`; never substitute the newest pipeline | Requested and returned pipeline IDs |
 | Human output omits identifiers needed for evidence linkage | Use that command's `--json` format and verify the expected fields are present | Why structured output was necessary and which references were used |
-| Build returns before completion | Preserve its ID and use the pipeline UI for continued observation; `pipeline-inspect` is one snapshot, not a polling loop | ID and observed state; current CLI has no wait flag |
+| Build returns before completion | Preserve its ID and run `scenario-to-desktop pipeline wait <pipeline-id> [--timeout seconds]`; inspect the terminal result afterward | ID and observed state; timeout remains distinct from pipeline failure |
 
 ### Verification and authority
 
@@ -148,6 +148,12 @@ superseded advice.
 | Evidence exists only for another build or an emulator | Matrix artifact and target identities | Retain its actual scope; obtain native evidence before a native support claim |
 | Signing or trust authority is absent | `signing prerequisites` and Deployment Manager review | Preserve the release refusal; do not convert development-local evidence into production approval |
 | A program needs matrix orchestration or a server-owned pipeline wait | Existing binding work in `docs/internal/PROGRESS.md` | Reuse the obligation; add the typed owner operation before authoring orchestration |
+
+The operator loop is: `scenario-to-desktop pipeline run`, `pipeline wait`,
+`pipeline status`, `evidence list <scenario> --pipeline <id>`, and
+`evidence show <scenario> <capture-id> [--output file]`. Use
+`evidence journey <scenario>` for the latest journey and `evidence void` to
+retain a capture while removing it from active consideration.
 
 Promote repeated compatibility, recovery, or evidence-policy workarounds to the
 owning scenario. Then remove the superseded program logic and skill prose.

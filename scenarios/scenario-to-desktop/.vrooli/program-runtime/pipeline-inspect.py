@@ -25,11 +25,11 @@ def guarded(call):
 
 # VALIDATE: reject malformed selectors before any binding is called.
 def step_validate():
-    if not isinstance(inputs, dict) or set(inputs) - {"scenario", "pipeline_id"}:
+    if not isinstance(inputs, dict) or set(inputs) - {"scenario", "pipeline_id"} or not inputs.get("scenario", "").strip() and not inputs.get("pipeline_id", "").strip():
         return fail("failed", "invalid_input", "Expected scenario and optional pipeline_id", "validate")
     for key in ("scenario", "pipeline_id"):
         value = inputs.get(key, "")
-        if not isinstance(value, str) or len(value) > 128 or (key == "scenario" and not value.strip()):
+        if not isinstance(value, str) or len(value) > 128:
             return fail("failed", "invalid_input", "Invalid " + key, "validate")
         selection[key] = value.strip()
     envelope["inputs"] = dict(selection)
@@ -73,6 +73,9 @@ def step_collect():
 def step_classify():
     envelope["phase"] = "classify"
     record = handles["pipeline"].meta()
+    if not selection.get("scenario"):
+        selection["scenario"] = str(record.get("scenarioName", "")).strip()
+        envelope["inputs"]["scenario"] = selection["scenario"]
     if record.get("scenarioName") != selection["scenario"] or record.get("pipelineId") != selection["pipeline_id"]:
         return fail("failed", "identity_mismatch", "Pipeline identity differs from requested selectors", "classify")
     owner_status = record.get("status")
@@ -85,7 +88,8 @@ def step_classify():
     envelope["signals"]["pipeline"] = {
         "id": selection["pipeline_id"], "scenario": selection["scenario"], "status": owner_status,
         "current_stage": record.get("currentStage"), "has_error": bool(record.get("error")),
-        "stages": [{"name": name, "status": stage.get("status"), "has_error": bool(stage.get("error"))}
+        "error": str(record.get("error", ""))[:160],
+        "stages": [{"name": name, "status": stage.get("status"), "has_error": bool(stage.get("error")), "error": str(stage.get("error", ""))[:160]}
                    for name, stage in sorted(stages.items())]}
     if "tasks" in handles:
         tasks = handles["tasks"]

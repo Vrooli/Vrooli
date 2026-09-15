@@ -1338,7 +1338,14 @@ export function ValidationWorkspace() {
                 {(run.cells ?? []).map((record, index) => {
                   const cell = record.cell;
                   const cellID = cell?.cell_id ?? `cell-${String(index)}`;
-                  const status = disposition(cell?.disposition);
+                  const status =
+                    record.state === "not_run"
+                      ? {
+                          label: "not run",
+                          explanation: "The chapter was planned but not executed after an earlier failure.",
+                          tone: "neutral" as const,
+                        }
+                      : disposition(cell?.disposition);
                   const target = run.selection?.targets?.find(
                     (item) => item.descriptor?.target_id === cell?.target_id,
                   );
@@ -1392,7 +1399,7 @@ export function ValidationWorkspace() {
                               : status.tone
                           }
                         >
-                          {record.state ?? "queued"}
+                        {record.state === "not_run" ? "not run" : record.state ?? "queued"}
                         </StatusBadge>
                       </td>
                       <td className="max-w-xs p-3">

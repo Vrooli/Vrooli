@@ -119,6 +119,70 @@
           "status": "implemented"
         }
       ]
+    },
+    {
+      "id": "STD-INTEGRATION-STAGING-SOURCE-ISOLATION",
+      "title": "Staging keeps artifacts outside scenario sources",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "description": "When a staging or temporary pipeline runs, it MUST write generated artifacts outside the scenario source tree.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-SMOKE-ISOLATION",
+      "title": "Smoke evidence targets an isolated instance",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When a thin-client smoke test runs, it MUST target an identified isolated instance and MUST refuse the operator's live instance.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-MODE-AWARE-JOURNEY",
+      "title": "Evidence selects a mode-aware journey",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When a desktop pipeline selects a deployment mode, it MUST record and execute the journey baseline for that mode.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-CHAPTER-COMPLETENESS",
+      "title": "Evidence retains unexecuted chapters",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When a journey stops before completion, the evidence sidecar MUST retain every planned chapter with unexecuted chapters marked `not_run`.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-INDEPENDENT-GATES",
+      "title": "Evidence gates use independent signals",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When a manifest is produced, each required gate MUST use its own predicate and MUST NOT copy another gate or a constant result.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-DEMO-RELEASE",
+      "title": "Demo release follows app readiness",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When a visual demo starts, it MUST publish its release marker only after the application-ready signal and MUST respect the configured hold ceiling.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-PROCESS-ROLES",
+      "title": "Evidence reports anchored process roles",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When process metrics are collected, the monitor MUST classify the anchored application tree with the documented role taxonomy and report uncertain roles as `unknown`.",
+      "validation": []
+    },
+    {
+      "id": "STD-EVIDENCE-VOID",
+      "title": "Unsafe evidence is voided and retained",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "description": "When evidence is unsafe or superseded, the producer MUST record a void reason and successor reference without deleting the capture.",
+      "validation": []
     }
   ]
 }

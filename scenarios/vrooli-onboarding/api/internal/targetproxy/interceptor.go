@@ -101,6 +101,8 @@ func mapError(target string, err error) error {
 			return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("node %q is missing scope %q", target, scope))
 		case nodereach.ErrNodeUnavailable, nodereach.ErrNodeNotFound:
 			return connect.NewError(connect.CodeUnavailable, fmt.Errorf("node %q is unavailable", target))
+		case nodereach.ErrUnauthenticated:
+			return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("Bridge did not accept the owner credential used to reach node %q", target))
 		}
 	}
 	message := strings.ToLower(err.Error())

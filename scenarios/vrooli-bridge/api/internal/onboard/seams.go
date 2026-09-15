@@ -201,6 +201,19 @@ type SSHDriver interface {
 	// over stdin, and invokes onMarker for every parsed VBOOTSTRAP stdout marker
 	// as it streams. It returns once the script exits.
 	RunBootstrap(ctx context.Context, p RunParams, onMarker func(Marker)) (BootstrapResult, error)
+
+	// RunNodeCLI runs the node's installed vrooli CLI with typed args over the
+	// verified key-only connection. Any secret rides stdin only; args and the
+	// logged command string never carry one. A non-zero remote exit is reported
+	// in the result, not as an error.
+	RunNodeCLI(ctx context.Context, conn Conn, platform NodePlatform, args []string, stdin []byte) (NodeCommandResult, error)
+}
+
+// NodeCommandResult is one node CLI invocation's outcome.
+type NodeCommandResult struct {
+	ExitCode int
+	Stdout   string
+	Stderr   string
 }
 
 // WorkingTreeSnapshot is the control plane's local working tree at ship time: the

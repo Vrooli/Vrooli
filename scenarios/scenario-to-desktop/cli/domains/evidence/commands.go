@@ -25,6 +25,7 @@ type evidenceRPC interface {
 	ListEvidenceCaptures(context.Context, *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.ListEvidenceCapturesResponse], error)
 	GetEvidenceCapture(context.Context, *connect.Request[domainv1.GetEvidenceCaptureRequest]) (*connect.Response[domainv1.GetEvidenceCaptureResponse], error)
 	GetEvidenceCapturesSummary(context.Context, *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.EvidenceCapturesSummary], error)
+	VoidEvidenceCapture(context.Context, *connect.Request[domainv1.VoidEvidenceCaptureRequest]) (*connect.Response[domainv1.EvidenceCapture], error)
 }
 
 type gatesRPC interface {
@@ -49,11 +50,32 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 	c := New(deps)
 	scenarioArgs := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true, Description: "Scenario name"}}}
 	return cliapp.SubcommandGroup{Name: "evidence", Description: "Inspect durable desktop validation evidence", NeedsAPI: true, Subcommands: []cliapp.Command{
-		(cliapp.Command{Name: "list", Description: "List persisted evidence captures", Args: scenarioArgs}).WithPrimitive(c.listPrimitive()),
+		(cliapp.Command{Name: "list", Description: "List persisted evidence captures", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "session"}, {Name: "kind"}}}}).WithPrimitive(c.listPrimitive()),
+		(cliapp.Command{Name: "show", Description: "Export or inspect one evidence capture", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "output"}}}}).WithPrimitive(c.showPrimitive()),
 		(cliapp.Command{Name: "journey", Description: "Print the latest desktop journey steps and dispositions", Args: scenarioArgs}).WithPrimitive(c.journeyPrimitive()),
 		(cliapp.Command{Name: "summary", Description: "Summarize persisted evidence captures", Args: scenarioArgs}).WithPrimitive(c.summaryPrimitive()),
+		(cliapp.Command{Name: "void", Description: "Void evidence without deleting its capture file", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "reason", Required: true}, {Name: "superseded-by"}}}}).WithPrimitive(c.voidPrimitive()),
 		(cliapp.Command{Name: "publish-offer-fact", Description: "Publish a producer-owned release fact to Offer Desk: publish-offer-fact <trigger-id> --scenario <name> [--observed-at RFC3339]", Args: publishFactArgs()}).WithPrimitive(c.publishOfferFactPrimitive()),
 	}}
+}
+
+func (c *Commands) voidPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*domainv1.EvidenceCapture, error) {
+		response, err := c.rpc.VoidEvidenceCapture(context.Background(), connect.NewRequest(&domainv1.VoidEvidenceCaptureRequest{ScenarioName: ctx.Positional("scenario"), CaptureId: ctx.Positional("capture-id"), Reason: ctx.Flag("reason"), SupersededBy: optionalString(ctx.Flag("superseded-by"))}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("void evidence capture", err, nil)
+		}
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.EvidenceCapture) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Evidence capture voided: %s", response.GetCaptureId())}}
+	})
+}
+
+func optionalString(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
 }
 
 func publishFactArgs() cliapp.ArgSchema {
@@ -150,9 +172,14 @@ func (c *Commands) publishOfferFactPrimitive() cliapp.PrimitiveHandler {
 type journeyReport struct {
 	Disposition    string `json:"disposition"`
 	DegradedReason string `json:"degraded_reason"`
-	WindowManager  string `json:"window_manager"`
-	Titlebar       bool   `json:"titlebar"`
-	Steps          []struct {
+	Selection      *struct {
+		Capability string   `json:"capability"`
+		Reason     string   `json:"reason"`
+		Skipped    []string `json:"skipped"`
+	} `json:"selection,omitempty"`
+	WindowManager string `json:"window_manager"`
+	Titlebar      bool   `json:"titlebar"`
+	Steps         []struct {
 		Name            string `json:"name"`
 		Action          string `json:"action"`
 		Disposition     string `json:"disposition"`
@@ -193,6 +220,12 @@ func (c *Commands) journeyPrimitive() cliapp.PrimitiveHandler {
 		if report.DegradedReason != "" {
 			results = append(results, "Degraded reason: "+report.DegradedReason)
 		}
+		if report.Selection != nil {
+			results = append(results, fmt.Sprintf("Capability selected: %s (reason=%s)", report.Selection.Capability, report.Selection.Reason))
+			if len(report.Selection.Skipped) > 0 {
+				results = append(results, "Skipped capabilities: "+strings.Join(report.Selection.Skipped, ", "))
+			}
+		}
 		for _, step := range report.Steps {
 			line := fmt.Sprintf("%s [%s] %s", step.Name, step.Action, step.Disposition)
 			if step.BeforeCaptureID != "" && step.AfterCaptureID != "" {
@@ -212,13 +245,48 @@ func (c *Commands) journeyPrimitive() cliapp.PrimitiveHandler {
 
 func (c *Commands) listPrimitive() cliapp.PrimitiveHandler {
 	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*domainv1.ListEvidenceCapturesResponse, error) {
-		response, err := c.rpc.ListEvidenceCaptures(context.Background(), connect.NewRequest(&domainv1.ListEvidenceCapturesRequest{ScenarioName: strings.TrimSpace(ctx.Positional("scenario"))}))
+		pipeline, session, kind := "", "", ""
+		if ctx.FlagProvided("pipeline") {
+			pipeline = ctx.Flag("pipeline")
+		}
+		if ctx.FlagProvided("session") {
+			session = ctx.Flag("session")
+		}
+		if ctx.FlagProvided("kind") {
+			kind = ctx.Flag("kind")
+		}
+		response, err := c.rpc.ListEvidenceCaptures(context.Background(), connect.NewRequest(&domainv1.ListEvidenceCapturesRequest{ScenarioName: strings.TrimSpace(ctx.Positional("scenario")), PipelineId: optionalString(pipeline), SourceSessionId: optionalString(session), Kind: optionalString(kind)}))
 		if err != nil {
 			return nil, cliapp.WrapAPIError("list evidence captures", err, nil)
 		}
 		return response.Msg, nil
 	}, func(_ cliapp.OperationContext, response *domainv1.ListEvidenceCapturesResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{"Evidence captures retrieved"}, Results: []string{fmt.Sprintf("Captures: %d", len(response.GetCaptures()))}}
+		results := make([]string, 0, len(response.GetCaptures()))
+		for _, capture := range response.GetCaptures() {
+			results = append(results, fmt.Sprintf("%s  %s  %s  %d bytes  %s  %s", capture.GetCaptureId(), capture.GetKind(), capture.GetCreatedAt().AsTime().Format(time.RFC3339), capture.GetFileSizeBytes(), capture.GetSourceSessionId(), capture.GetFilename()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Evidence captures retrieved: %d", len(results))}, Results: results}
+	})
+}
+
+func (c *Commands) showPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*domainv1.GetEvidenceCaptureResponse, error) {
+		response, err := c.rpc.GetEvidenceCapture(context.Background(), connect.NewRequest(&domainv1.GetEvidenceCaptureRequest{ScenarioName: ctx.Positional("scenario"), CaptureId: ctx.Positional("capture-id")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("show evidence capture", err, nil)
+		}
+		if output := strings.TrimSpace(ctx.Flag("output")); output != "" {
+			if err := os.WriteFile(output, response.Msg.GetContent(), 0o600); err != nil {
+				return nil, fmt.Errorf("write evidence capture: %w", err)
+			}
+		}
+		return response.Msg, nil
+	}, func(ctx cliapp.OperationContext, response *domainv1.GetEvidenceCaptureResponse) cliapp.ListReport {
+		capture := response.GetCapture()
+		if output := strings.TrimSpace(ctx.Flag("output")); output != "" {
+			return cliapp.ListReport{Summary: []string{"Evidence capture exported"}, Results: []string{output}}
+		}
+		return cliapp.ListReport{Summary: []string{"Evidence capture metadata"}, Results: []string{fmt.Sprintf("%s  %s  %s  %d bytes", capture.GetCaptureId(), capture.GetKind(), capture.GetFilename(), capture.GetFileSizeBytes())}}
 	})
 }
 

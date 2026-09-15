@@ -23,6 +23,7 @@
 package gomodreconcile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/parser"
@@ -89,6 +90,9 @@ type Candidate struct {
 	Before  string
 	After   string
 	Applied bool
+	// SumChanged is true when the surface go.sum was synchronized by the
+	// reconcile tidy pass (the missing-transitive-entry drift class).
+	SumChanged bool
 }
 
 // LoadTopology scans repoRoot for in-repo Go modules and returns module path ->
@@ -270,7 +274,7 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 			// flag it (caller surfaces a finding) but never guess a path.
 			continue
 		}
-		missing = append(missing, MissingReplace{Module: path, RelPath: filepath.ToSlash(rel), AddRequire: addRequire})
+		missing = append(missing, MissingReplace{Module: path, RelPath: localReplacePath(rel), AddRequire: addRequire})
 	}
 	sort.Slice(missing, func(i, j int) bool { return missing[i].Module < missing[j].Module })
 	return missing, nil
@@ -344,12 +348,18 @@ func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]strin
 		}
 		for _, spec := range file.Imports {
 			importPath := strings.Trim(spec.Path.Value, `"`)
-			if importPath == "" || importPathMatchesModule(importPath, selfModule) {
+			if importPath == "" {
 				continue
 			}
-			if module := matchingInRepoModule(importPath, modules); module != "" {
-				seen[module] = struct{}{}
+			// Resolve the owning in-repo module by longest prefix first: an
+			// import of a nested module (for example a scenario's `cli`
+			// submodule) shares the parent module's prefix and must not be
+			// mistaken for a package of the module under inspection.
+			module := matchingInRepoModule(importPath, modules)
+			if module == "" || module == selfModule {
+				continue
 			}
+			seen[module] = struct{}{}
 		}
 		return nil
 	})
@@ -391,6 +401,21 @@ func importPathMatchesModule(importPath, module string) bool {
 		return false
 	}
 	return importPath == module || strings.HasPrefix(importPath, module+"/")
+}
+
+// localReplacePath normalizes a module-relative directory into a path that
+// `go mod edit -replace` accepts as a local target. A bare child directory such
+// as `cli` is rejected ("unversioned new path must be local directory"), so it
+// gains a `./` prefix; `../…`, `./…` and absolute paths are already local.
+func localReplacePath(rel string) string {
+	rel = filepath.ToSlash(rel)
+	if rel == "" || rel == "." || rel == ".." {
+		return rel
+	}
+	if strings.HasPrefix(rel, "../") || strings.HasPrefix(rel, "./") || strings.HasPrefix(rel, "/") {
+		return rel
+	}
+	return "./" + rel
 }
 
 func sortedTopologyModules(topo Topology) []string {
@@ -459,7 +484,7 @@ func PrepareLocalInstall(ctx context.Context, goModPath, packagePath string, top
 		if err != nil {
 			return false, fmt.Errorf("derive local replace for %s: %w", module, err)
 		}
-		args = append(args, "-replace="+module+"="+filepath.ToSlash(rel))
+		args = append(args, "-replace="+module+"="+localReplacePath(rel))
 	}
 	if err := runGo(ctx, moduleDir, args...); err != nil {
 		return false, fmt.Errorf("prepare local install replaces: %w", err)
@@ -496,16 +521,23 @@ func PreviewSurface(ctx context.Context, goModPath string, topo Topology) (*Cand
 
 // ApplySurface writes the missing replaces and runs `go mod tidy`, iterating to a
 // fixpoint so that in-repo edges newly materialized by tidy (as indirect
-// requires) also receive their replace. It is idempotent: an already-converged
-// surface produces no change. Returns nil when nothing needed fixing.
+// requires) also receive their replace. It then runs a final tidy even when no
+// replace was needed, because a surface can require an in-repo module *with* its
+// replace while its go.sum drifts behind that module's own transitive
+// requirements (the missing-protovalidate-entry class that stranded
+// brand-manager). It is idempotent: an already-converged surface produces no
+// change. Returns nil when nothing needed fixing.
 func ApplySurface(ctx context.Context, goModPath string, topo Topology) (*Candidate, error) {
 	before, err := os.ReadFile(goModPath)
 	if err != nil {
 		return nil, err
 	}
 	moduleDir := filepath.Dir(goModPath)
+	sumPath := filepath.Join(moduleDir, "go.sum")
+	sumBefore, _ := os.ReadFile(sumPath)
 	var allMissing []MissingReplace
 	changed := false
+	tidied := false
 	const maxIters = 8
 	for i := 0; i < maxIters; i++ {
 		missing, err := Plan(ctx, goModPath, topo)
@@ -513,10 +545,6 @@ func ApplySurface(ctx context.Context, goModPath string, topo Topology) (*Candid
 			return nil, err
 		}
 		if len(missing) == 0 {
-			if !changed {
-				return nil, nil
-			}
-			// Converged after at least one edit — final tidy already ran below.
 			break
 		}
 		args := []string{"mod", "edit"}
@@ -534,18 +562,32 @@ func ApplySurface(ctx context.Context, goModPath string, topo Topology) (*Candid
 		if err := runGo(ctx, moduleDir, "mod", "tidy"); err != nil {
 			return nil, fmt.Errorf("go mod tidy after adding replaces: %w", err)
 		}
+		tidied = true
+	}
+	if !tidied {
+		// No replace was missing, but the surface's go.sum may still be behind
+		// its in-repo module requires. Tidy is the governed lockfile-sync path.
+		if err := runGo(ctx, moduleDir, "mod", "tidy"); err != nil {
+			return nil, fmt.Errorf("go mod tidy: %w", err)
+		}
 	}
 	after, err := os.ReadFile(goModPath)
 	if err != nil {
 		return nil, err
 	}
+	sumAfter, _ := os.ReadFile(sumPath)
+	sumChanged := !bytes.Equal(sumBefore, sumAfter)
+	if !changed && bytes.Equal(before, after) && !sumChanged {
+		return nil, nil
+	}
 	allMissing = dedupeMissing(allMissing)
 	return &Candidate{
-		GoModPath: goModPath,
-		Missing:   allMissing,
-		Before:    string(before),
-		After:     string(after),
-		Applied:   true,
+		GoModPath:  goModPath,
+		Missing:    allMissing,
+		Before:     string(before),
+		After:      string(after),
+		Applied:    true,
+		SumChanged: sumChanged,
 	}, nil
 }
 

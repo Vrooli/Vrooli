@@ -142,10 +142,14 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Initialize smoke test status in store BEFORE launching async goroutine.
 	// The smoke test service checks if the status exists and exits immediately if not,
 	// so we must create it here first.
-	s.initSmokeTestStore(smokeTestID, scenarioName, currentPlatform, artifactPath)
+	s.initSmokeTestStore(smokeTestID, scenarioName, currentPlatform, artifactPath, input.Config.GetDeploymentMode(), input.Config.ProxyURL, input.PipelineID)
 
 	// Start the async smoke test
-	go s.service.PerformSmokeTest(ctx, smokeTestID, scenarioName, artifactPath, currentPlatform)
+	go smoketest.RunSmokeTestRequest(ctx, s.service, smoketest.SmokeTestRequest{
+		SmokeTestID: smokeTestID, ScenarioName: scenarioName, ArtifactPath: artifactPath,
+		Platform: currentPlatform, DeploymentMode: input.Config.GetDeploymentMode(),
+		ProxyURL: input.Config.ProxyURL, PipelineID: input.PipelineID,
+	})
 
 	// Wait for smoke test to complete
 	smokeStatus, waitErr := s.waitForSmokeTest(ctx, smokeTestID)
@@ -206,19 +210,31 @@ func (s *SmokeTestStage) waitForSmokeTest(ctx context.Context, smokeTestID strin
 }
 
 // initSmokeTestStore creates the initial smoke test status in the store.
-func (s *SmokeTestStage) initSmokeTestStore(smokeTestID, scenarioName, platform, artifactPath string) {
+func (s *SmokeTestStage) initSmokeTestStore(smokeTestID, scenarioName, platform, artifactPath, deploymentMode, proxyURL, pipelineID string) {
 	if s.store == nil {
 		return
 	}
 	now := time.Unix(s.timeProvider.Now(), 0)
 	initialStatus := &smoketest.Status{
-		SmokeTestID:  smokeTestID,
-		ScenarioName: scenarioName,
-		Platform:     platform,
-		Status:       "running",
-		ArtifactPath: artifactPath,
-		StartedAt:    now,
-		Logs:         []string{},
+		SmokeTestID:    smokeTestID,
+		ScenarioName:   scenarioName,
+		Platform:       platform,
+		Status:         "running",
+		ArtifactPath:   artifactPath,
+		StartedAt:      now,
+		DeploymentMode: deploymentMode,
+		ProxyURL:       proxyURL,
+		PipelineID:     pipelineID,
+		ScreenContentSource: func() string {
+			if deploymentMode == DeploymentModeBundled {
+				return "bundled_private"
+			}
+			if deploymentMode == DeploymentModeProxy {
+				return "isolated_instance"
+			}
+			return "unknown"
+		}(),
+		Logs: []string{},
 		RecordingConfig: &smoketest.ScreenRecordingConfig{
 			Enabled:       true,
 			DisplayWidth:  1920,

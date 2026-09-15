@@ -108,6 +108,11 @@ type Status struct {
 	SmokeTestID          string     `json:"smoke_test_id"`
 	ScenarioName         string     `json:"scenario_name"`
 	Platform             string     `json:"platform"`
+	DeploymentMode       string     `json:"deployment_mode,omitempty"`
+	ProxyURL             string     `json:"proxy_url,omitempty"`
+	PipelineID           string     `json:"pipeline_id,omitempty"`
+	ScreenContentSource  string     `json:"screen_content_source,omitempty"`
+	ProtocolPassed       bool       `json:"protocol_passed,omitempty"`
 	Status               string     `json:"status"` // running, passed, failed
 	ArtifactPath         string     `json:"artifact_path,omitempty"`
 	StartedAt            time.Time  `json:"started_at"`
@@ -165,6 +170,7 @@ type Status struct {
 	ReadyDurationMs         *int64                         `json:"ready_duration_ms,omitempty"`
 	ResourceSummary         *procmetrics.Summary           `json:"resource_summary,omitempty"`
 	ProtocolResourceSummary *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
+	ProtocolProcessTree     *procmetrics.ProcessTreeReport `json:"protocol_process_tree,omitempty"`
 	DemoResourceSummary     *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
 	DemoProcessTree         *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
 	ProtocolTracePath       string                         `json:"protocol_trace_path,omitempty"`
@@ -187,6 +193,7 @@ type PerformancePhase struct {
 type JourneyReview struct {
 	SchemaVersion     string                                   `json:"schema_version"`
 	Capability        string                                   `json:"capability"`
+	Selection         *deliveryramp.CapabilitySelection        `json:"selection,omitempty"`
 	PlanID            string                                   `json:"plan_id"`
 	Profile           string                                   `json:"profile"`
 	Disposition       string                                   `json:"disposition"`

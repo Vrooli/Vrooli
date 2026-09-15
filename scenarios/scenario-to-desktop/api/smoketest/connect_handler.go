@@ -39,7 +39,7 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	}
 	id := uuid.NewString()
 	now := time.Now()
-	status := &Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing}
+	status := &Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing, ScreenContentSource: "unknown"}
 	if req.Msg.GetRecordDesktop() {
 		status.RecordingConfig = &ScreenRecordingConfig{Enabled: true, DisplayWidth: 1920, DisplayHeight: 1080, FPS: 15}
 	}
@@ -48,7 +48,7 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	// cancellation: smoke-test lifetime is owned by the cancellation registry.
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	s.cancels.SetCancel(id, cancel)
-	go s.service.PerformSmokeTest(runCtx, id, req.Msg.GetScenarioName(), req.Msg.GetArtifactPath(), platform)
+	go RunSmokeTestRequest(runCtx, s.service, SmokeTestRequest{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), ArtifactPath: req.Msg.GetArtifactPath(), Platform: platform})
 	return connect.NewResponse(&domainv1.SmokeTestStartResponse{SmokeTestId: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platformProto(platform), Status: sharedv1.SmokeTestStatus_SMOKE_TEST_STATUS_RUNNING, ArtifactPath: &req.Msg.ArtifactPath, StartedAt: timestamppb.New(now), Logs: []string{"Smoke test queued"}}), nil
 }
 
@@ -100,6 +100,9 @@ func StatusToProto(v *Status) *sharedv1.SmokeTestStatusResponse {
 			Readiness:        optional(v.EvidenceReview.Readiness),
 			FallbackDecision: optional(v.EvidenceReview.FallbackDecision),
 			SafeRouteClass:   optional(v.EvidenceReview.SafeRouteClass),
+		}
+		if selection := v.EvidenceReview.Selection; selection != nil {
+			review.CapabilitySelection = &sharedv1.CapabilitySelection{Capability: selection.Capability, Reason: selection.Reason, Skipped: append([]string(nil), selection.Skipped...)}
 		}
 		for _, chapter := range v.EvidenceReview.Chapters {
 			review.Chapters = append(review.Chapters, &sharedv1.EvidenceChapter{

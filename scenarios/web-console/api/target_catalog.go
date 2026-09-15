@@ -79,18 +79,26 @@ func (s *Server) targetByID(id string) (targetConnection, bool) {
 	if id == "local" {
 		return targetConnection{Target: localTerminalTarget()}, true
 	}
-	selection := targetmodel.SelectByID(targetmodel.Inventory{Targets: func() []targetmodel.Target {
-		remote := s.remoteTargets()
-		out := make([]targetmodel.Target, 0, len(remote))
-		for _, target := range remote {
-			out = append(out, target.Target)
-		}
-		return out
-	}()}, id)
-	if selection.Found && selection.Target.ID == id {
-		return targetConnection{Target: selection.Target}, true
+	remote := s.remoteTargets()
+	inventory := make([]targetmodel.Target, 0, len(remote))
+	for _, target := range remote {
+		inventory = append(inventory, target.Target)
 	}
-	return targetConnection{}, false
+	selection := targetmodel.SelectByID(targetmodel.Inventory{Targets: inventory}, id)
+	if !selection.Found || selection.Target.ID != id {
+		return targetConnection{}, false
+	}
+	// Selection decides which target; the connection carries how to reach it.
+	// Returning the bare Target dropped the Bridge URL and owner credential, so
+	// every remote session opened with no Authorization header (Bridge 401) and
+	// every remote install failed with "Bridge URL is not configured".
+	for _, connection := range remote {
+		if connection.ID == id {
+			connection.Target = selection.Target
+			return connection, true
+		}
+	}
+	return targetConnection{Target: selection.Target}, true
 }
 
 func localTerminalTarget() targetmodel.Target {
@@ -254,10 +262,33 @@ func remoteCatalogState(targets []targetConnection) (targetsv1.CatalogState, str
 		"Remote node readiness is shown for every registered node.", ""
 }
 
+// NodeCapabilityPrefix marks a node capability that is not a coding agent,
+// such as the Bridge provisioning helper. The browser treats "capability:"
+// facts as launchable, installable agents, so a node fact under that prefix
+// became an "agent" card with an Install button that could never work.
+const NodeCapabilityPrefix = "node_capability:"
+
+func browserFactKey(identity string) string {
+	id, ok := strings.CutPrefix(identity, targetmodel.ReadinessCapabilityPrefix)
+	if !ok || isCodingAgent(id) {
+		return identity
+	}
+	return NodeCapabilityPrefix + id
+}
+
+func isCodingAgent(id string) bool {
+	for _, def := range capabilityprobe.AITools {
+		if def.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func targetToProto(target targetConnection) *sharedv1.Target {
 	facts := make([]*sharedv1.ReadinessFact, 0, len(target.Readiness))
 	for _, fact := range target.Readiness {
-		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Identity, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail, State: string(fact.State), Version: fact.Version, RecoveryAction: fact.RecoveryAction})
+		facts = append(facts, &sharedv1.ReadinessFact{Key: browserFactKey(fact.Identity), Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail, State: string(fact.State), Version: fact.Version, RecoveryAction: fact.RecoveryAction})
 	}
 	operations := make([]*sharedv1.OperationReadiness, 0, len(target.OperationReadiness))
 	for _, readiness := range target.OperationReadiness {

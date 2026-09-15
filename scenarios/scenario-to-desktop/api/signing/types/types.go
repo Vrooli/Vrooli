@@ -154,6 +154,49 @@ type LinuxSigningConfig struct {
 
 	// GPGHomedir overrides the default GPG home directory.
 	GPGHomedir string `json:"gpg_homedir,omitempty"`
+
+	// ManagedKey references credential-authority custody for the signing key.
+	// When set, the private key never persists in the repository; the build
+	// resolves and materializes it in-process at signing time.
+	ManagedKey *ManagedSigningKey `json:"managed_key,omitempty"`
+}
+
+// ManagedSigningKey names the credential-authority custody for a signing key.
+// One logical identity may be referenced by many scenarios so a single
+// publisher key signs every desktop app.
+type ManagedSigningKey struct {
+	// LogicalID is the namespaced credential-authority identity.
+	LogicalID string `json:"logical_id"`
+
+	// PrivateKeyField holds the ASCII-armored private key.
+	PrivateKeyField string `json:"private_key_field,omitempty"`
+
+	// PassphraseField holds the key passphrase.
+	PassphraseField string `json:"passphrase_field,omitempty"`
+}
+
+// Default credential-authority field names for managed signing keys.
+const (
+	DefaultPrivateKeyField   = "gpg-private-key"
+	DefaultPassphraseField   = "gpg-passphrase"
+	DefaultPassphraseEnvVar  = "VROOLI_GPG_PASSPHRASE"
+	DefaultManagedHomedirEnv = "VROOLI_GPG_HOMEDIR"
+)
+
+// ResolvedPrivateKeyField returns the configured private key field or the default.
+func (m *ManagedSigningKey) ResolvedPrivateKeyField() string {
+	if m == nil || m.PrivateKeyField == "" {
+		return DefaultPrivateKeyField
+	}
+	return m.PrivateKeyField
+}
+
+// ResolvedPassphraseField returns the configured passphrase field or the default.
+func (m *ManagedSigningKey) ResolvedPassphraseField() string {
+	if m == nil || m.PassphraseField == "" {
+		return DefaultPassphraseField
+	}
+	return m.PassphraseField
 }
 
 // ValidationResult contains the outcome of signing configuration validation.

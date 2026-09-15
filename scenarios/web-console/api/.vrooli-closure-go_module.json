@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "0658113f5a27e266aace417ac34ff52632071ab1b3fdae3c6b00c418f744f0a0",
+  "key": "65951963cc4c7055162acbd98166a72e4c26dd4cdbd1014557e75704e4d3cf1d",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -106,6 +106,7 @@
     "packages/kopiaregistry-go",
     "packages/monetization-go",
     "packages/platform-go",
+    "packages/platform-go/credentialunlock",
     "packages/platform-go/go.mod",
     "packages/platform-go/go.sum",
     "packages/proto/gen/go/ai-gateway/v1/inference",

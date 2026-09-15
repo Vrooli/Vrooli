@@ -47,6 +47,48 @@ type recordingState struct {
 
 // PerformSmokeTest runs a smoke test on a built application.
 func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	s.performSmokeTest(ctx, smokeTestID, scenarioName, artifactPath, platform)
+}
+
+// PerformSmokeTestRequest runs a smoke test with deployment and pipeline
+// identity persisted before any child process is launched.
+func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request SmokeTestRequest) {
+	if request.DeploymentMode == "proxy" && s.targetResolver != nil {
+		status, exists := s.store.Get(request.SmokeTestID)
+		if exists {
+			target, err := s.targetResolver(ctx, status)
+			if err != nil {
+				completed := time.Now().UTC()
+				s.store.Update(request.SmokeTestID, func(status *Status) {
+					status.Status = "failed"
+					status.JourneyDisposition = string(deliveryramp.DispositionUnavailable)
+					status.Error = err.Error()
+					status.CompletedAt = &completed
+					status.Logs = append(status.Logs, "Smoke test unavailable: "+err.Error())
+				})
+				return
+			}
+			s.store.Update(request.SmokeTestID, func(status *Status) {
+				status.ScreenContentSource = target.Source
+			})
+		}
+	}
+	if s.store != nil {
+		s.store.Update(request.SmokeTestID, func(status *Status) {
+			status.DeploymentMode = request.DeploymentMode
+			status.ProxyURL = request.ProxyURL
+			status.PipelineID = request.PipelineID
+			if request.DeploymentMode == "bundled" {
+				status.ScreenContentSource = "bundled_private"
+			} else if request.DeploymentMode == "proxy" {
+				status.ScreenContentSource = "isolated_instance"
+			}
+		})
+	}
+	s.performSmokeTest(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform)
+}
+
+func (s *DefaultService) performSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
 	if _, ok := s.store.Get(smokeTestID); !ok {
 		return
 	}
@@ -91,6 +133,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	var evidenceErr error
 	if rec.captureID != "" && rec.displayID != "" && execErr == nil && execResult != nil {
 		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
+			s.store.Update(smokeTestID, func(status *Status) { status.ProtocolPassed = true })
 			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec)
 			if journey == nil {
 				evidenceErr = fmt.Errorf("desktop evidence demo launch did not produce a journey")
@@ -257,6 +300,7 @@ func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, cap
 		})
 		return fmt.Errorf("persisting recording evidence: %w", err)
 	}
+	s.annotateCapture(capture, status.PipelineID)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.ScreenRecording = &RecordingStatus{Recorded: true, CaptureID: capture.ID, Checksum: capture.Checksum}
 		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved as capture %s", capture.ID))
@@ -386,7 +430,7 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "protocol")),
 	}
 	if status, ok := s.store.Get(smokeTestID); ok {
-		env = append(env, s.validationRendererEnv(ctx, status.ScenarioName)...)
+		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
 	}
 
 	// When screen recording manages the display, tell Electron to render on it.
@@ -448,6 +492,9 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 
 	// Strip --smoke-test from args so the app launches in normal mode
 	args = StripSmokeTestFlag(args)
+	releaseFile := filepath.Join(os.TempDir(), "scenario-to-desktop", "demo-release-"+smokeTestID)
+	_ = os.Remove(releaseFile)
+	_ = os.MkdirAll(filepath.Dir(releaseFile), 0o700)
 
 	env := []string{
 		fmt.Sprintf("DISPLAY=%s", rec.displayID),
@@ -457,8 +504,12 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "demo")),
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "demo")),
+		fmt.Sprintf("S2D_BUNDLED_TARGET_PATH=%s", bundledTargetPath(smokeTestID)),
+		fmt.Sprintf("SMOKE_TEST_DEMO_RELEASE_FILE=%s", releaseFile),
 	}
-	env = append(env, s.validationRendererEnv(ctx, scenarioName)...)
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
+	}
 	var monitor procmetrics.Monitor
 	s.installMonitorHook(rec.displayID, rec.displayWidth, rec.displayHeight, func(m procmetrics.Monitor) { monitor = m })
 
@@ -479,6 +530,13 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	}()
 
 	journey := s.runDesktopJourney(ctx, smokeTestID, scenarioName, platform, rec)
+	// Give the final journey observation its normal settle window before
+	// releasing the demo. The desktop process remains bounded by demoTimeout.
+	select {
+	case <-ctx.Done():
+	case <-time.After(1500 * time.Millisecond):
+	}
+	_ = os.WriteFile(releaseFile, []byte("release\n"), 0o600)
 	attachWorkflowReference(&journey)
 	journeyID := s.persistJourney(journey)
 	s.store.Update(smokeTestID, func(status *Status) {
@@ -680,6 +738,16 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		profile = "visual"
 	}
 	governanceReported := status.EvidenceReportDisposition == "reported"
+	journeyCaptureID, recordingCaptureID := status.JourneyCaptureID, ""
+	for _, item := range items {
+		if item.Type == captures.CaptureRecording && item.SourceSession == "smoke-test:"+smokeTestID {
+			recordingCaptureID = item.ID
+		}
+	}
+	visualReadiness := "unavailable"
+	if journey.WindowManager != "" && journey.Titlebar {
+		visualReadiness = "usable"
+	}
 	err = s.manifestWriter.WriteManifest(ctx, EvidenceManifestInput{
 		RunID: smokeTestID, ScenarioName: status.ScenarioName, Platform: platform,
 		ArtifactPath: artifactPath, Profile: profile, StartedAt: status.StartedAt,
@@ -690,9 +758,13 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		ProtocolResourceSummary: status.ProtocolResourceSummary,
 		DemoResourceSummary:     status.DemoResourceSummary,
 		DemoProcessTree:         status.DemoProcessTree,
+		ProtocolProcessTree:     status.ProtocolProcessTree,
 		ProtocolProfileDir:      status.ProtocolProfileDir,
 		DemoProfileDir:          status.DemoProfileDir,
 		ProfileMode:             configuredProfileMode(),
+		ProtocolPassed:          status.ProtocolPassed, VisualReadiness: visualReadiness,
+		JourneyCaptureID: journeyCaptureID, RecordingCaptureID: recordingCaptureID,
+		ScreenContentSource: status.ScreenContentSource,
 	})
 	if err != nil {
 		s.store.Update(smokeTestID, func(status *Status) {
@@ -901,6 +973,7 @@ func (s *DefaultService) harvestMonitor(monitor procmetrics.Monitor, smokeTestID
 		status.ReadyDurationMs = report.Startup.ReadyMs
 		status.ResourceSummary = report.Summary
 		status.ProtocolResourceSummary = report.Summary
+		status.ProtocolProcessTree = report.ProcessTree
 		status.ProtocolTracePath = launchTracePath(smokeTestID, "protocol")
 		status.ProtocolProfileDir = profileDirPath(smokeTestID, "protocol")
 		refreshPerformanceStatus(status)

@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-09-15 — Pipeline wait and evidence operator surfaces
+
+Added the server-owned `PipelineService.Wait` RPC and CLI
+`scenario-to-desktop pipeline wait`, plus pipeline/session/kind evidence
+filters and `evidence show` export. Pipeline status human output now includes
+bounded pipeline and stage error text; the pipeline-inspect program accepts a
+pipeline-only selector and exposes bounded error text. These are read-only
+operator surfaces; timeout and pipeline failure remain distinct.
+
 Historical execution details are preserved beneath the protected runtime home:
 `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-desktop/docs/internal/PROGRESS.md`.
 The archive retains exact entries, validation receipts, and unresolved qualifications;

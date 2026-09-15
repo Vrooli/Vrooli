@@ -808,6 +808,8 @@ func main() {
 	onboardOpts := []internalonboard.Option{
 		internalonboard.WithRevisionResolver(revResolver),
 		internalonboard.WithProtectionProvisioner(onboardH.NewProtectionProvisioner(cleanupSvc)),
+		internalonboard.WithCredentialStoreEscrow(onboardH.NewCredentialStoreEscrow()),
+		internalonboard.WithNodeStoreGrant(onboardH.NewNodeStoreGrantEnsurer(grantSvc, grantHandler.SyncNode)),
 		internalonboard.WithDefaultScopes(postureDefaults.NodeExecutionScopes),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
 		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder(sshStateDir)),

@@ -52,6 +52,7 @@ import (
 	"vrooli-bridge/agent/internal/health"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/privsep"
+	"vrooli-bridge/agent/internal/storeunlock"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -114,6 +115,7 @@ type Client struct {
 	grantStore     credentialgrant.Store
 	credentialSink credentialpush.Sink
 	ephemeral      *credentialpush.EphemeralStore
+	storeUnlock    *storeunlock.Holder
 	cpVerifier     *cpverify.Verifier
 	logger         *log.Logger
 	now            func() time.Time
@@ -182,6 +184,12 @@ func WithCredentialGrants(grants credentialgrant.Store) Option {
 
 func WithCredentialSink(sink credentialpush.Sink) Option {
 	return func(c *Client) { c.credentialSink = sink }
+}
+
+// WithStoreUnlock supplies the holder for this node's credential-store
+// passphrase, which the control plane delivers sealed on every connection.
+func WithStoreUnlock(holder *storeunlock.Holder) Option {
+	return func(c *Client) { c.storeUnlock = holder }
 }
 
 func WithEphemeralCredentials(store *credentialpush.EphemeralStore) Option {
@@ -708,7 +716,12 @@ func (c *Client) handleCredentialPush(push *channelv1.CredentialPush) {
 	}
 	c.reportCredentialReceipt(result.Receipt)
 	if len(result.Ephemeral) > 0 {
-		if c.ephemeral != nil {
+		// This node's own store passphrase is kept for the life of the agent
+		// and served locally; an ordinary ephemeral value is taken once by
+		// the job that needs it.
+		if storeunlock.Owns(push.GetLogicalId(), push.GetField()) && c.storeUnlock != nil {
+			c.storeUnlock.Put(result.Ephemeral)
+		} else if c.ephemeral != nil {
 			_ = c.ephemeral.Put(push.GetLogicalId(), push.GetField(), result.Ephemeral)
 		}
 		credentialpush.Zero(result.Ephemeral)
@@ -1114,16 +1127,25 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 	if reporter == nil {
 		reporter = &relayResponseReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
 	}
-	reportCtx, stopReporting := context.WithTimeout(context.Background(), 10*time.Second)
-	defer stopReporting()
 	sequence := uint64(0)
 	var reportedBytes uint64
+	// Each report gets its own bound. One 10s context shared by the whole
+	// relay expired while any command longer than 10s was still running, so
+	// its terminal report was refused silently and Bridge held the caller
+	// until the relay timeout — every slow install looked like a hang.
 	report := func(kind sharedv1.RelayResponseKind, data []byte, reason string, exitCode int32, total uint64) error {
 		sequence++
+		reportCtx, stopReporting := context.WithTimeout(context.Background(), relayReportTimeout)
+		defer stopReporting()
 		return reporter.ReportRelayResponse(reportCtx, &sharedv1.RelayResponse{
 			CorrelationId: request.GetCorrelationId(), Kind: kind, Sequence: sequence,
 			Data: append([]byte(nil), data...), Reason: reason, ExitCode: exitCode, TotalBytes: total,
 		})
+	}
+	reportTerminal := func(kind sharedv1.RelayResponseKind, reason string, exitCode int32, total uint64) {
+		if err := report(kind, nil, reason, exitCode, total); err != nil && base.Err() == nil {
+			c.logger.Printf("channel: relay %q terminal %s report failed: %v", request.GetCorrelationId(), kind, err)
+		}
 	}
 	if err := report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_ACCEPTED, nil, "", 0, 0); err != nil {
 		if base.Err() == nil {
@@ -1162,6 +1184,14 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 		}
 		return
 	}
+	// An install or uninstall changes what this node reports. Re-probe before
+	// the terminal report so the caller's confirmation sees the new inventory on
+	// the next heartbeat instead of after the periodic 10-minute probe.
+	if changesCapabilities(request.GetCommand()) {
+		if refresher, ok := c.sampler.(health.CapabilityRefresher); ok {
+			refresher.RefreshCapabilities()
+		}
+	}
 	reason := result.Reason
 	if result.LimitExceeded {
 		reason = exec.RelayResponseLimitReason
@@ -1170,15 +1200,30 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 		if requested := c.relayCancelReason(request.GetCorrelationId()); requested != "" {
 			reason = requested
 		}
-		_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_TERMINATED, nil, reason, int32(result.ExitCode), result.TotalBytes)
+		reportTerminal(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_TERMINATED, reason, int32(result.ExitCode), result.TotalBytes)
 		return
 	}
 	if result.ExitCode == 0 {
-		_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED, nil, reason, 0, result.TotalBytes)
+		reportTerminal(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED, reason, 0, result.TotalBytes)
 		return
 	}
-	_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_FAILED, nil, reason, int32(result.ExitCode), result.TotalBytes)
+	reportTerminal(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_FAILED, reason, int32(result.ExitCode), result.TotalBytes)
 }
+
+// changesCapabilities reports whether a relayed command can change the node's
+// capability inventory.
+func changesCapabilities(command string) bool {
+	switch strings.TrimSpace(command) {
+	case "resource install", "resource uninstall":
+		return true
+	default:
+		return false
+	}
+}
+
+// relayReportTimeout bounds one relay response report, not the command. It is
+// a variable only so tests can prove a command outliving it still reports.
+var relayReportTimeout = 10 * time.Second
 
 func homeForVrooliBinary(binary string) string {
 	binary = strings.TrimSpace(binary)

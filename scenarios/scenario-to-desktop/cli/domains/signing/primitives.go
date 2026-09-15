@@ -94,9 +94,24 @@ func (c *Commands) readyPrimitive() cliapp.PrimitiveHandler {
 		}
 		return r.Msg, nil
 	}, func(_ cliapp.OperationContext, r *domainv1.ReadinessResponse) cliapp.OperationalReport {
-		report := cliapp.OperationalReport{Status: []string{r.GetMessage()}}
+		report := cliapp.OperationalReport{}
+		if r.GetReady() {
+			report.Status = []string{r.GetMessage()}
+		} else {
+			report.Status = []string{"Signing is not ready: " + r.GetMessage()}
+		}
 		for _, item := range r.GetPlatforms() {
-			report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: item.GetPlatform().String(), Items: []string{item.GetMessage()}})
+			label := item.GetPlatform().String()
+			detail := "Not configured"
+			if item.GetEnabled() {
+				detail = "Assignable"
+				if item.GetReady() {
+					detail = "Ready"
+				} else if item.GetMessage() != "" {
+					detail = "Configured, " + item.GetMessage()
+				}
+			}
+			report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: label, Items: []string{detail}})
 		}
 		return report
 	})
@@ -136,13 +151,20 @@ func (c *Commands) generateKeyPrimitive() cliapp.PrimitiveHandler {
 		if ctx.FlagProvided("passphrase-env") {
 			req.PassphraseEnv = stringPtr(ctx.Flag("passphrase-env"))
 		}
+		if ctx.FlagProvided("logical-id") {
+			req.LogicalId = stringPtr(ctx.Flag("logical-id"))
+		}
 		r, err := c.rpc.GenerateLinuxSigningKey(context.Background(), connect.NewRequest(req))
 		if err != nil {
 			return nil, signingCallError("generate Linux signing key", err)
 		}
 		return r.Msg, nil
 	}, func(_ cliapp.OperationContext, r *domainv1.GenerateLinuxSigningKeyResponse) cliapp.MutationReport {
-		return cliapp.MutationReport{Result: []string{"GPG key generated: " + r.GetFingerprint()}}
+		report := cliapp.MutationReport{Result: []string{"GPG key ready: " + r.GetFingerprint()}}
+		if r.GetLogicalId() != "" {
+			report.Changes = append(report.Changes, "Credential identity: "+r.GetLogicalId())
+		}
+		return report
 	})
 }
 

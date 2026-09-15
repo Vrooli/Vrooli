@@ -2,6 +2,7 @@ package captures
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,8 +30,30 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{scenario}/summary", h.summary).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{scenario}/{id}/file", h.serveFile).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{scenario}/{id}", h.deleteCapture).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/captures/{scenario}/{id}/void", h.voidCapture).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{scenario}", h.deleteAll).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/captures/{scenario}/download", h.download).Methods("GET")
+}
+
+func (h *Handler) voidCapture(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		Reason       string `json:"reason"`
+		SupersededBy string `json:"superseded_by,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil || strings.TrimSpace(request.Reason) == "" {
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "reason is required"})
+		return
+	}
+	vars := mux.Vars(r)
+	if err := h.service.VoidCapture(vars["scenario"], vars["id"], request.Reason, request.SupersededBy); err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		httputil.WriteJSON(w, status, map[string]string{"error": err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "voided"})
 }
 
 func (h *Handler) listCaptures(w http.ResponseWriter, r *http.Request) {

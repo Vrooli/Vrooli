@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -54,6 +55,20 @@ func (c *Commands) statusPrimitive() cliapp.PrimitiveHandler {
 	return c.statusCall("get pipeline status", c.rpc.Get)
 }
 
+func (c *Commands) waitPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*pipelinev1.PipelineStatus, error) {
+		seconds, err := positiveInt32(ctx.Flag("timeout"), "timeout")
+		if err != nil {
+			return nil, err
+		}
+		response, err := c.rpc.Wait(context.Background(), connect.NewRequest(&pipelinev1.PipelineWaitRequest{PipelineId: strings.TrimSpace(ctx.Positional("pipeline-id")), TimeoutSeconds: seconds}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("wait for pipeline", err, nil)
+		}
+		return response.Msg, nil
+	}, pipelineStatusReport)
+}
+
 func (c *Commands) gatePrimitive() cliapp.PrimitiveHandler {
 	return c.statusCall("get release gate", c.rpc.GetReleaseGate)
 }
@@ -69,7 +84,17 @@ func (c *Commands) statusCall(operation string, call func(context.Context, *conn
 }
 
 func pipelineStatusReport(_ cliapp.OperationContext, response *pipelinev1.PipelineStatus) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: []string{fmt.Sprintf("Scenario: %s", response.GetScenarioName()), fmt.Sprintf("Stage: %s", response.GetCurrentStage().String())}}
+	results := []string{fmt.Sprintf("Scenario: %s", response.GetScenarioName()), fmt.Sprintf("Stage: %s", response.GetCurrentStage().String())}
+	if response.GetError() != "" {
+		results = append(results, "Pipeline error: "+strings.Split(response.GetError(), "\n")[0])
+	}
+	for name, stage := range response.GetStages() {
+		if stage.GetError() != "" {
+			results = append(results, fmt.Sprintf("%s error: %s", name, strings.Split(stage.GetError(), "\n")[0]))
+		}
+	}
+	slices.Sort(results[2:])
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: results}
 }
 
 func (c *Commands) resumePrimitive() cliapp.PrimitiveHandler {

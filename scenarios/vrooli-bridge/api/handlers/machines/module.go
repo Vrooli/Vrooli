@@ -2,6 +2,7 @@ package machines
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -100,10 +101,17 @@ type registryProjectionReader struct{ service registry.Service }
 
 func (r registryProjectionReader) GetNode(ctx context.Context, nodeID string) (internalmachines.NodeSnapshot, error) {
 	node, err := r.service.Get(ctx, nodeID)
+	var missing registry.ErrNodeNotFound
+	if errors.As(err, &missing) {
+		return internalmachines.NodeSnapshot{}, fmt.Errorf("%w: %v", internalmachines.ErrNodeMissing, err)
+	}
 	if err != nil {
 		return internalmachines.NodeSnapshot{}, err
 	}
-	return internalmachines.NodeSnapshot{ID: node.ID, Name: node.Name, Capabilities: append([]string(nil), node.Capabilities...), ApprovedScopes: append([]string(nil), node.Scopes...)}, nil
+	return internalmachines.NodeSnapshot{
+		ID: node.ID, Name: node.Name, Capabilities: append([]string(nil), node.Capabilities...), ApprovedScopes: append([]string(nil), node.Scopes...),
+		ConfigurationState: node.ConfigurationState, ConfigurationUnmet: append([]string(nil), node.ConfigurationUnmet...),
+	}, nil
 }
 
 type presenceProjectionReader struct{ hub *presence.Hub }

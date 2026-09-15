@@ -109,13 +109,13 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	expectedNames := map[string]int{
-		"pipeline":      11,
+		"pipeline":      12,
 		"preflight":     1,
 		"build":         1,
 		"bundle":        1,
 		"docs":          1,
 		"deploy-target": 6,
-		"evidence":      4,
+		"evidence":      6,
 		"signing":       8,
 		"state":         1,
 		"tasks":         1,

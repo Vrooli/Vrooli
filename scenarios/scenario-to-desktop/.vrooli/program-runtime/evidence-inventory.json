@@ -11,6 +11,11 @@
       "type": "string",
       "required": true,
       "description": "Exact packaged scenario name, 1–128 characters."
+    },
+    "pipeline_id": {
+      "type": "string",
+      "default": "",
+      "description": "Exact pipeline ID used to filter captures."
     }
   },
   "assumptions": [

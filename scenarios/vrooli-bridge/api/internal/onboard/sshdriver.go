@@ -668,6 +668,32 @@ func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func
 	return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr), NodeID: nodeID}, nil
 }
 
+// RunNodeCLI runs the node's installed vrooli CLI by its fixed install path. A
+// non-login SSH shell may lack ~/.vrooli/bin on PATH, so the path is explicit
+// and left unquoted only for $HOME expansion; every arg is shell-quoted. The
+// secret, if any, rides stdin and is zeroed on return.
+func (d *sshDriver) RunNodeCLI(ctx context.Context, conn Conn, platform NodePlatform, args []string, stdin []byte) (NodeCommandResult, error) {
+	defer zeroBytes(stdin)
+	if strings.EqualFold(platform.OS, "windows") {
+		return NodeCommandResult{}, fmt.Errorf("running the node CLI over SSH is not supported on Windows nodes")
+	}
+	remote := `"$HOME/.vrooli/bin/vrooli" ` + quoteArgs(args)
+	options := ssh.DefaultRunOptions()
+	options.ControlMaster = false
+	options.CommandTimeout = 3 * time.Minute
+	options.MaxOutputBytes = 256 * 1024
+	var stdout strings.Builder
+	res, err := d.svc.RunStreaming(ctx, d.config(conn), remote, ssh.StreamOptions{
+		Run:   options,
+		Stdin: stdin,
+		OnStdoutLine: func(line string) {
+			stdout.WriteString(line)
+			stdout.WriteByte('\n')
+		},
+	})
+	return NodeCommandResult{ExitCode: res.ExitCode, Stdout: stdout.String(), Stderr: res.Stderr}, err
+}
+
 // diagnosticsTailMaxBytes bounds the node-side diagnostic tail carried on a
 // BootstrapResult (and persisted on a failed op). The full stream can be MiB of
 // build output; the operator needs the end — where the failing step's error

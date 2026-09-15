@@ -101,6 +101,8 @@ type service struct {
 	handoff                onboarding.HandoffClient
 	firewallAdmitter       FirewallAdmitter
 	protection             ProtectionProvisioner
+	storeEscrow            CredentialStoreEscrow
+	storeGrant             NodeStoreGrantEnsurer
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
 }

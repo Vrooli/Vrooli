@@ -26,12 +26,14 @@ def guarded(call):
 
 # VALIDATE: named scenario required; this inventory never accepts artifact claims.
 def step_validate():
-    if not isinstance(inputs, dict) or set(inputs) - {"scenario"}:
+    if not isinstance(inputs, dict) or set(inputs) - {"scenario", "pipeline_id"}:
         return fail("failed", "invalid_input", "Expected only scenario", "validate")
-    value = inputs.get("scenario")
-    if not isinstance(value, str) or not value.strip() or len(value) > 128:
+    value = inputs.get("scenario", "")
+    pipeline_id = inputs.get("pipeline_id", "")
+    if (not isinstance(value, str) or not value.strip() or len(value) > 128) or (not isinstance(pipeline_id, str) or len(pipeline_id) > 128):
         return fail("failed", "invalid_input", "scenario must be a nonempty string of at most 128 characters", "validate")
     selection["scenario"] = value.strip()
+    selection["pipeline_id"] = pipeline_id.strip()
     envelope["inputs"] = dict(selection)
     return "collect"
 
@@ -39,8 +41,9 @@ def step_validate():
 # COLLECT: list metadata and its producer summary; fetch no evidence bytes.
 def step_collect():
     envelope["phase"] = "collect"
+    list_call = (lambda: scenario_to_desktop.evidence.list(scenario_name=selection["scenario"], pipeline_id=selection["pipeline_id"])) if selection["pipeline_id"] else (lambda: scenario_to_desktop.evidence.list(scenario_name=selection["scenario"]))
     results = gather(
-        guarded(lambda: scenario_to_desktop.evidence.list(scenario_name=selection["scenario"])),
+        guarded(list_call),
         guarded(lambda: scenario_to_desktop.evidence.summary(scenario_name=selection["scenario"])))
     for key, result in zip(("list", "summary"), results):
         if isinstance(result, Exception):

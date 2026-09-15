@@ -1,6 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "branding": {
+    "brand": "aquila",
+    "targets": ["web-public-v1", "electron-v1"]
+  },
   "storage": {
     "entries": {
       "web-console-db": {

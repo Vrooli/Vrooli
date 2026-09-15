@@ -92,6 +92,9 @@ type Repository interface {
 
 	// DeleteForPlatform removes config for a specific platform.
 	DeleteForPlatform(ctx context.Context, scenario string, platform string) error
+
+	// ListScenarios returns every scenario that has a signing configuration.
+	ListScenarios() ([]string, error)
 }
 
 // Validator validates signing configurations structurally.

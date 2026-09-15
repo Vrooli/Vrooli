@@ -183,6 +183,10 @@ const (
 	// StepVerifyOnline — the orchestrator's post-run ONLINE confirmation (distinct
 	// from the bootstrap's own verify-online step).
 	StepVerifyOnline = "verify-online-confirm"
+	// StepCredentialStore creates or verifies the node's own encrypted
+	// credential store after it is online and before its selection is applied,
+	// with a passphrase the control plane generates and escrows.
+	StepCredentialStore = "credential-store"
 	// StepApplySelection records the declarative onboarding pass after the node
 	// is online and before the operation is reported successful.
 	StepApplySelection = "apply-selection"

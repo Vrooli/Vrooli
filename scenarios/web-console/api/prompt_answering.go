@@ -45,6 +45,12 @@ func newPromptAnswering(setting string, claudeVersion func() string) promptAnswe
 // be answered: Claude Code with keystrokes on a verified version, OpenCode
 // permissions through its reply API. Everything else stays read-only.
 func (p promptAnswering) decide(harness string, prompt backend.PendingPrompt) (string, bool) {
+	// Resumable provider interruptions are explicit recovery controls, not
+	// ordinary harness questions. They are safe to deliver for every terminal
+	// harness because the option key contains the literal recovery command.
+	if prompt.Kind == "resumable_interruption" {
+		return "recovery-v1", harness != ""
+	}
 	readable := prompt.Kind != "unknown" && len(prompt.Options) > 0
 	switch harness {
 	case "claude":

@@ -439,6 +439,38 @@ func TestDefaultValidator_ValidateForPlatform_NilConfig(t *testing.T) {
 	assert.True(t, result.Valid)
 }
 
+func TestDefaultValidator_LinuxRejectsAmbiguousSigningSource(t *testing.T) {
+	v := NewValidator()
+	config := &types.SigningConfig{
+		Enabled: true,
+		Linux: &types.LinuxSigningConfig{
+			GPGKeyID:   "ABC123",
+			GPGHomedir: "/custom/keyring",
+			ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+		},
+	}
+	result := v.ValidateForPlatform(config, types.PlatformLinux)
+
+	assert.False(t, result.Valid)
+	assert.Equal(t, "LINUX_SIGNING_SOURCE_AMBIGUOUS", result.Errors[0].Code)
+}
+
+func TestDefaultValidator_LinuxWarnsOnNonstandardManagedPassphraseEnv(t *testing.T) {
+	v := NewValidator()
+	config := &types.SigningConfig{
+		Enabled: true,
+		Linux: &types.LinuxSigningConfig{
+			GPGKeyID:         "ABC123",
+			GPGPassphraseEnv: "MY_CUSTOM_GPG_PASSPHRASE",
+			ManagedKey:       &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+		},
+	}
+	result := v.ValidateForPlatform(config, types.PlatformLinux)
+
+	assert.True(t, result.Valid)
+	assert.Equal(t, "LINUX_MANAGED_PASSPHRASE_ENV_NONSTANDARD", result.Warnings[0].Code)
+}
+
 func TestDefaultValidator_ValidateForPlatform_DisabledConfig(t *testing.T) {
 	v := NewValidator()
 	config := &types.SigningConfig{Enabled: false}

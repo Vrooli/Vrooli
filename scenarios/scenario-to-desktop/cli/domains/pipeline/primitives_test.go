@@ -34,6 +34,10 @@ func (*fakePipelineRPC) Get(context.Context, *connect.Request[pipelinev1.Pipelin
 	return connect.NewResponse(pipelineStatusFixture()), nil
 }
 
+func (*fakePipelineRPC) Wait(context.Context, *connect.Request[pipelinev1.PipelineWaitRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+	return connect.NewResponse(pipelineStatusFixture()), nil
+}
+
 func (*fakePipelineRPC) GetReleaseGate(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
 	return connect.NewResponse(pipelineStatusFixture()), nil
 }

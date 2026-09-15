@@ -89,7 +89,10 @@ func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request vali
 			Enabled: true, DisplayWidth: 1920, DisplayHeight: 1080, FPS: 15,
 		},
 	})
-	e.smokeService.PerformSmokeTest(ctx, smokeID, request.Cell.GetScenarioName(), artifactPath, e.smokeService.CurrentPlatform())
+	smoketest.RunSmokeTestRequest(ctx, e.smokeService, smoketest.SmokeTestRequest{
+		SmokeTestID: smokeID, ScenarioName: request.Cell.GetScenarioName(), ArtifactPath: artifactPath,
+		Platform: e.smokeService.CurrentPlatform(), DeploymentMode: "unknown",
+	})
 	status, ok := e.smokeStore.Get(smokeID)
 	if !ok {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: "desktop smoke-test status disappeared"}

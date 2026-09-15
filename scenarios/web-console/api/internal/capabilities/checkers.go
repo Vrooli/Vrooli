@@ -213,6 +213,11 @@ type BridgeChecker struct {
 	ResolveURL  func(context.Context) (string, error)
 	OwnerToken  string
 	ReauthToken string
+	// Credentials, when set, supplies the owner and re-auth credentials for
+	// each check instead of OwnerToken/ReauthToken. Locally minted owner
+	// sessions live 15 minutes, so a checker built with the startup value
+	// fails Bridge authentication for the rest of the process's life.
+	Credentials func() (owner, reauth string)
 	Client      *http.Client
 	Probe       bool
 }
@@ -250,7 +255,11 @@ func (c *BridgeChecker) CheckResult(ctx context.Context) CheckResult {
 		start.ReasonCode = "bridge_url_invalid"
 		return start
 	}
-	if strings.TrimSpace(c.OwnerToken) == "" || (strings.TrimSpace(c.ReauthToken) == "" && !strings.HasPrefix(strings.TrimSpace(c.OwnerToken), "LocalSession ")) {
+	ownerToken, reauthToken := c.OwnerToken, c.ReauthToken
+	if c.Credentials != nil {
+		ownerToken, reauthToken = c.Credentials()
+	}
+	if strings.TrimSpace(ownerToken) == "" || (strings.TrimSpace(reauthToken) == "" && !strings.HasPrefix(strings.TrimSpace(ownerToken), "LocalSession ")) {
 		start.Message = "Bridge credentials are not configured"
 		start.ReasonCode = "bridge_credentials_missing"
 		return start
@@ -271,9 +280,9 @@ func (c *BridgeChecker) CheckResult(ctx context.Context) CheckResult {
 		start.ReasonCode = "bridge_unreachable"
 		return start
 	}
-	req.Header.Set("Authorization", c.OwnerToken)
-	if strings.TrimSpace(c.ReauthToken) != "" {
-		req.Header.Set("X-Bridge-Owner-Reauth", c.ReauthToken)
+	req.Header.Set("Authorization", ownerToken)
+	if strings.TrimSpace(reauthToken) != "" {
+		req.Header.Set("X-Bridge-Owner-Reauth", reauthToken)
 	}
 	resp, err := client.Do(req)
 	if err != nil {

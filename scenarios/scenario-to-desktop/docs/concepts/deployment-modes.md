@@ -23,6 +23,17 @@ tier contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-
 | `node` | Runs a bundled Node entrypoint | Node microservices | Ensure ports/env are configured |
 | `executable` | Spawns a packaged binary | Go/Rust/other binaries | Health/port checks required |
 
+## Evidence journey selection
+
+| Mode | Journey baseline | Smoke target | Probes |
+|---|---|---|---|
+| `bundled` | `bundled.private.v1` or the selected scenario fixture | Private runtime ports reported by the bundle supervisor | Runtime readiness and bundled service identity |
+| `external-server` (thin client) | `tier2.tier1.thin-client.v1` or the selected scenario fixture | A named isolated Tier 1 instance, never the operator's live port | Application identity, route class, and provider response |
+| `static` | `desktop.launch.baseline` | The generated local UI | Window readiness and visual capture |
+
+The selection order, sidecar/manifest recording, and refusal dispositions are
+defined by the [canonical evidence and tier contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
 ## Quick Decisions
 - **Desktop app for end users?** Use `deployment_mode=bundled` only after the selected dependency matrix is ready; the resulting offline claim is evidence-gated.
 - **Shared server backend?** Use `deployment_mode=external-server`, `server_type=external`, provide proxy URLs

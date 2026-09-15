@@ -86,6 +86,15 @@
           }
         },
         {
+          "name": "wait",
+          "description": "Wait for a pipeline to reach a terminal state",
+          "binding": {"kind": "connect-rpc", "service": "PipelineService", "method": "Wait"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [{"name": "pipeline-id", "required": true, "description": "Pipeline ID"}],
+          "flags": [{"name": "timeout", "default": "3600", "description": "Maximum wait in seconds"}]
+        },
+        {
           "name": "status",
           "description": "Show a pipeline",
           "binding": {
@@ -670,6 +679,29 @@
                 "field": "scenario_name"
               }
             }
+          ],
+          "flags": [
+            {
+              "name": "pipeline",
+              "description": "Filter by pipeline ID",
+              "bind": {
+                "field": "pipeline_id"
+              }
+            },
+            {
+              "name": "session",
+              "description": "Filter by source session ID",
+              "bind": {
+                "field": "source_session_id"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Filter by capture kind",
+              "bind": {
+                "field": "kind"
+              }
+            }
           ]
         },
         {
@@ -827,7 +859,39 @@
                 "field": "scenario_name"
               }
             }
+          ],
+          "flags": [
+            {
+              "name": "pipeline",
+              "description": "Filter by pipeline ID",
+              "bind": {
+                "field": "pipeline_id"
+              }
+            },
+            {
+              "name": "session",
+              "description": "Filter by source session ID",
+              "bind": {
+                "field": "source_session_id"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Filter by capture kind",
+              "bind": {
+                "field": "kind"
+              }
+            }
           ]
+        },
+        {
+          "name": "show",
+          "description": "Export or inspect one evidence capture",
+          "binding": {"kind": "connect-rpc", "service": "EvidenceService", "method": "GetEvidenceCapture"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [{"name": "scenario", "required": true}, {"name": "capture-id", "required": true}],
+          "flags": [{"name": "output", "description": "Write capture bytes to this file"}]
         },
         {
           "name": "journey",

@@ -149,6 +149,18 @@ func (s *SystemSampler) refreshLoop() {
 	}
 }
 
+// CapabilityRefresher is a sampler that can re-probe its capability inventory
+// on demand. The periodic probe runs every 10 minutes, so an agent installed
+// through Bridge was not reported for up to 10 minutes and every remote install
+// ended "unconfirmed" against Web Console's short confirmation window.
+type CapabilityRefresher interface {
+	RefreshCapabilities()
+}
+
+// RefreshCapabilities re-probes the capability inventory now; the next
+// heartbeat carries the result.
+func (s *SystemSampler) RefreshCapabilities() { s.refresh() }
+
 func (s *SystemSampler) refresh() {
 	capabilities := capabilityprobe.Probe(context.Background(), capabilityprobe.AITools)
 	now := time.Now().UTC()

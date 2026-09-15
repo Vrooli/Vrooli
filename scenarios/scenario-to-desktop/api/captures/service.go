@@ -124,6 +124,14 @@ func (s *Service) DeleteCapture(scenarioName, captureID string) error {
 	return fmt.Errorf("capture %q not found", captureID)
 }
 
+func (s *Service) VoidCapture(scenarioName, captureID, reason, supersededBy string) error {
+	voider, ok := s.store.(Voider)
+	if !ok {
+		return fmt.Errorf("capture store does not support voiding")
+	}
+	return voider.Void(scenarioName, captureID, reason, supersededBy)
+}
+
 // CleanAll removes all captures for a scenario.
 func (s *Service) CleanAll(scenarioName string) error {
 	deleted, err := s.store.DeleteAll(scenarioName)

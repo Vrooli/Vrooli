@@ -2,6 +2,8 @@
 package validation
 
 import (
+	"strings"
+
 	"scenario-to-desktop-api/signing/types"
 )
 
@@ -270,6 +272,36 @@ func (v *DefaultValidator) validateLinux(config *types.LinuxSigningConfig, resul
 			Remediation: "Provide the GPG key ID or fingerprint to sign with",
 		})
 		pv.Errors = append(pv.Errors, "GPG key ID missing")
+	}
+
+	// Managed custody and an external keyring are mutually exclusive sources;
+	// silently preferring one would make a configured keyring invisible.
+	if config.ManagedKey != nil && strings.TrimSpace(config.GPGHomedir) != "" {
+		addError(result, types.ValidationError{
+			Code:        "LINUX_SIGNING_SOURCE_AMBIGUOUS",
+			Platform:    types.PlatformLinux,
+			Field:       "managed_key",
+			Message:     "managed_key (credential-authority custody) and gpg_homedir (external keyring) cannot both be set",
+			Remediation: "Clear gpg_homedir to use managed custody, or remove managed_key to use the external keyring",
+		})
+		pv.Errors = append(pv.Errors, "ambiguous signing key source")
+	}
+
+	// Managed custody must resolve to exactly the passphrase variable the
+	// signing command reads; a mismatch makes readiness misleading.
+	if config.ManagedKey != nil {
+		env := strings.TrimSpace(config.GPGPassphraseEnv)
+		if env == "" {
+			env = types.DefaultPassphraseEnvVar
+		}
+		if env != types.DefaultPassphraseEnvVar {
+			addWarning(result, types.ValidationWarning{
+				Code:     "LINUX_MANAGED_PASSPHRASE_ENV_NONSTANDARD",
+				Platform: types.PlatformLinux,
+				Message:  "Managed custody injects its passphrase into " + types.DefaultPassphraseEnvVar + "; configured variable " + env + " is ignored",
+			})
+			pv.Warnings = append(pv.Warnings, "nonstandard managed passphrase variable")
+		}
 	}
 
 	result.Platforms[types.PlatformLinux] = pv

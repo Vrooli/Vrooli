@@ -4,9 +4,12 @@ package smoketest
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // PrerequisiteKind categorizes different types of prerequisites.
@@ -234,6 +237,25 @@ func (c *PrerequisiteChecker) CheckPortAvailable(port int) PrerequisiteResult {
 	result := PrerequisiteResult{
 		Kind:  PrereqPort,
 		Fatal: false, // Not fatal - telemetry upload might still work
+	}
+	// The smoke API intentionally owns its control-plane port. It is not a
+	// desktop service collision, so do not report the API that is serving this
+	// request as an occupied target port.
+	if configured := strings.TrimSpace(os.Getenv("API_PORT")); configured != "" && configured == strconv.Itoa(port) {
+		client := &http.Client{Timeout: 750 * time.Millisecond}
+		response, err := client.Get("http://127.0.0.1:" + configured + "/health")
+		if err == nil {
+			response.Body.Close()
+		}
+		if err == nil && response.StatusCode >= 200 && response.StatusCode < 300 {
+			result.Passed = true
+			result.Message = fmt.Sprintf("Port %d is owned by a healthy smoke-test API", port)
+			return result
+		}
+		result.Passed = false
+		result.Message = fmt.Sprintf("Smoke-test API health probe failed on port %d", port)
+		result.Suggestion = "Restore the scenario-to-desktop API before running smoke tests"
+		return result
 	}
 
 	// Use ss or netstat to check port availability

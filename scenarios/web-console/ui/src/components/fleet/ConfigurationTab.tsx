@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertTriangle, CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
 import { ErrorState } from "@vrooli/react-component-library/ErrorState/1";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -26,7 +27,8 @@ import {
 } from "../../api/machines";
 import type { CredentialGrant } from "@vrooli/proto-types/vrooli-bridge/v1/credentialgrant/credentialgrant_pb";
 import { ReadinessState, type GetReadinessResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/readiness/readiness_pb";
-import { ApplyRunState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
+import type { InstallOutcome } from "../../api/capabilities";
+import { summarizeApplyRun, type ApplyRunSummary } from "./applyRunSummary";
 
 /**
  * A machine's desired state — the panel formerly reached by `Configure`.
@@ -71,7 +73,115 @@ function readinessStateName(state: ReadinessState): string {
   return ReadinessState[state];
 }
 
-export function ConfigurationTab({ machine }: { machine: Machine }) {
+/** Codes such as "helper_not_installed: …" lead the machine's detail; the prose after it is the explanation. */
+function nodeFeatureDetail(detail?: string): string {
+  return (detail ?? "").replace(/^[a-z0-9_]+:\s*/, "");
+}
+
+/**
+ * A re-apply the operator started, from the request to the run's outcome.
+ *
+ * It renders at the top of the panel. It used to be one line of text below the
+ * credentials and questions — off-screen on a phone — and polling gave up
+ * after three minutes while runs routinely take longer, so a press of Fix
+ * appeared to do nothing at all.
+ */
+type ApplyActivity =
+  | { phase: "starting"; startedAt: number }
+  | { phase: "running" | "done" | "timeout"; startedAt: number; summary: ApplyRunSummary }
+  | { phase: "error"; startedAt: number; message: string };
+
+const APPLY_POLL_LIMIT_MS = 20 * 60 * 1000;
+
+function applyPollDelay(elapsedMs: number): number {
+  return elapsedMs < 30_000 ? 2_000 : 5_000;
+}
+
+function ApplyActivityPanel({ activity, onDismiss }: { activity: ApplyActivity; onDismiss: () => void }) {
+  const { t } = useTranslation();
+  const busy = activity.phase === "starting" || activity.phase === "running";
+  let title: string;
+  let tone: "neutral" | "success" | "warning" | "danger";
+  switch (activity.phase) {
+    case "starting":
+      title = t(strings.machines.applyStarting);
+      tone = "neutral";
+      break;
+    case "error":
+      title = t(strings.machines.applyError);
+      tone = "danger";
+      break;
+    case "running":
+      title = t(strings.machines.applyRunning, { finished: activity.summary.finished, total: activity.summary.total });
+      tone = "neutral";
+      break;
+    case "timeout":
+      title = t(strings.machines.applyTimedOut, { minutes: Math.round(APPLY_POLL_LIMIT_MS / 60_000) });
+      tone = "warning";
+      break;
+    case "done": {
+      const { outcome, failed, total } = activity.summary;
+      const titles: Record<string, string> = {
+        applied: t(strings.machines.applyApplied),
+        "already-satisfied": t(strings.machines.applyAlreadySatisfied),
+        partial: t(strings.machines.applyPartial, { failed: failed.length, total }),
+        incomplete: t(strings.machines.applyIncomplete),
+        failed: t(strings.machines.applyFailed),
+        cancelled: t(strings.machines.applyCancelled),
+      };
+      title = titles[outcome] ?? t(strings.machines.applyIndeterminate);
+      tone = outcome === "applied" || outcome === "already-satisfied" ? "success" : outcome === "failed" || outcome === "cancelled" ? "danger" : "warning";
+      break;
+    }
+  }
+  const toneClass = {
+    neutral: "border-wc-default bg-wc-surface-input text-wc-text-primary",
+    success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-100",
+    warning: "border-amber-400/30 bg-amber-400/10 text-amber-100",
+    danger: "border-rose-400/30 bg-rose-400/10 text-rose-100",
+  }[tone];
+  const Icon = busy ? Loader2 : tone === "success" ? CheckCircle2 : tone === "danger" ? CircleAlert : AlertTriangle;
+  const failed = activity.phase === "done" || activity.phase === "timeout" ? activity.summary.failed : [];
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      data-testid="machine-configuration-apply"
+      data-apply-phase={activity.phase}
+      data-apply-outcome={activity.phase === "done" ? activity.summary.outcome : undefined}
+      className={`rounded-xl border p-3 ${toneClass}`}
+    >
+      <div className="flex items-start gap-2">
+        <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${busy ? "animate-spin" : ""}`} aria-hidden />
+        <p className="min-w-0 flex-1 text-xs font-medium">{title}</p>
+        {!busy && (
+          <button type="button" onClick={onDismiss} className="shrink-0 text-[11px] underline-offset-2 opacity-80 hover:underline">
+            {t(strings.machines.applyDismiss)}
+          </button>
+        )}
+      </div>
+      {activity.phase === "error" && <p className="mt-1 break-words text-[11px] opacity-90">{activity.message}</p>}
+      {failed.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {failed.map((step) => (
+            <li key={step.id} data-testid={`machine-configuration-apply-failed-${step.id}`} className="break-words text-[11px]">
+              <span className="font-mono">{step.name}</span> — {step.reason}
+              {step.remediation && <span className="block opacity-75">{step.remediation}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function ConfigurationTab({
+  machine,
+  onInstallCapability,
+}: {
+  machine: Machine;
+  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>;
+}) {
   const { t } = useTranslation();
   const [questions, setQuestions] = useState<ConfigurationQuestion[]>([]);
   const [secretValues, setSecretValues] = useState<Record<string, string>>({});
@@ -86,6 +196,15 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
   const [grantIdentity, setGrantIdentity] = useState("");
   const [grantField, setGrantField] = useState("");
   const [granting, setGranting] = useState(false);
+  const [apply, setApply] = useState<ApplyActivity | null>(null);
+  const [installs, setInstalls] = useState<Record<string, InstallOutcome | "installing">>({});
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const issues = machineIssues(machine);
   // A missing procedure on a reachable machine is version skew: the machine
@@ -171,46 +290,72 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
     }
   };
 
-  const trackApply = async (runId: string) => {
-    for (let attempt = 0; attempt < 180; attempt += 1) {
+  const trackApply = async (runId: string, startedAt: number) => {
+    for (;;) {
+      if (!mounted.current) return;
       const current = await getConfigurationApplyStatus(machine.target.id, runId);
-      const status = applyRunStateName(current.status);
-      setStatus(`Re-apply ${status}`);
-      if (![ApplyRunState.PENDING, ApplyRunState.APPLYING].includes(current.status)) {
-        const refreshed = await getConfiguration(machine.target.id);
-        setDetail(refreshed.detail);
-        setQuestions(refreshed.questions);
-        setStatus(`Re-apply ${status}; configuration evidence refreshed.`);
+      if (!mounted.current) return;
+      const summary = summarizeApplyRun(current.status, current.steps);
+      if (!summary.active) {
+        setApply({ phase: "done", startedAt, summary });
+        await loadConfiguration();
         return;
       }
-      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > APPLY_POLL_LIMIT_MS) {
+        setApply({ phase: "timeout", startedAt, summary });
+        return;
+      }
+      setApply({ phase: "running", startedAt, summary });
+      await new Promise((resolve) => window.setTimeout(resolve, applyPollDelay(elapsed)));
     }
-    setStatus("Re-apply is still running; the durable run remains available for refresh.");
   };
 
   const reapply = () => {
+    const startedAt = Date.now();
     setReapplying(true);
-    setStatus("Re-applying the desired configuration…");
+    setApply({ phase: "starting", startedAt });
     void reapplyConfiguration(machine.target.id)
       .then(async (result) => {
         const runId = result.result?.run?.runId;
-        if (runId) await trackApply(runId);
-        else setStatus("Re-apply returned no durable run id.");
+        if (!runId) throw new Error("The machine accepted the re-apply but returned no run to follow.");
+        // An unchanged plan returns the run that already applied it, which may
+        // have finished long ago; the first read shows that outcome directly.
+        await trackApply(runId, startedAt);
       })
       .catch((error: unknown) => {
-        setStatus(error instanceof Error ? error.message : "The configuration could not be re-applied.");
+        if (mounted.current) {
+          setApply({ phase: "error", startedAt, message: error instanceof Error ? error.message : String(error) });
+        }
       })
       .finally(() => {
-        setReapplying(false);
+        if (mounted.current) setReapplying(false);
       });
   };
 
-  function applyRunStateName(state: ApplyRunState): string {
-    return ApplyRunState[state].toLowerCase().replace(/_/g, " ");
-  }
+  const installAgent = (capabilityID: string) => {
+    if (!onInstallCapability) return;
+    setInstalls((current) => ({ ...current, [capabilityID]: "installing" }));
+    void onInstallCapability(capabilityID, machine.target)
+      .catch((error: unknown): InstallOutcome => ({
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
+      }))
+      .then((outcome) => {
+        if (mounted.current) setInstalls((current) => ({ ...current, [capabilityID]: outcome }));
+      });
+  };
 
   return (
     <div className="space-y-3" data-testid="machine-configuration-panel">
+      {apply && <ApplyActivityPanel activity={apply} onDismiss={() => { setApply(null); }} />}
+
+      {status && (
+        <p className="text-xs text-wc-text-muted" role="status" data-testid="machine-configuration-status">
+          {status}
+        </p>
+      )}
+
       {loadFailure && (
         <ErrorState
           title={targetOnboardingIncompatible ? t(strings.machines.configIncompatibleTitle) : t(strings.machines.configUnavailableTitle)}
@@ -317,30 +462,85 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
             <StatusBadge tone="warning">{issues.count}</StatusBadge>
           </div>
           <ul className="mt-2 divide-y divide-wc-default">
-            {issues.drift.map((item) => (
-              <li key={`${item.kind}:${item.name}`} className="flex items-center gap-3 py-2.5">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs text-wc-text-primary">{driftLabel(item.name)}</span>
-                  <span className="block truncate text-[11px] text-wc-text-faint">{item.reason}</span>
-                </span>
-                <Button size="sm" variant="outline" shape="square" disabled={reapplying} onClick={reapply}>
-                  {t(strings.machines.driftFix)}
-                </Button>
-              </li>
-            ))}
-            {issues.missingCapabilities.map((fact) => (
-              <li key={fact.key} className="flex items-center gap-3 py-2.5">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs text-wc-text-primary">
-                    {fact.label || fact.key.slice("capability:".length)}
+            {/* Each row carries the action that can clear it, or says plainly
+                that none exists here. Every row used to be a "Fix" that ran
+                the same re-apply, which cannot install an agent or grant
+                Bridge SSH trust, so most Fix presses changed nothing. */}
+            {issues.drift.map((item) => {
+              const reapplies = item.kind === "profile" || item.kind === "selection";
+              return (
+                <li
+                  key={`${item.kind}:${item.name}`}
+                  data-testid={`machine-drift-${item.kind}-${item.name}`}
+                  className="flex items-center gap-3 py-2.5"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs text-wc-text-primary">{driftLabel(item.name)}</span>
+                    <span className="block break-words text-[11px] text-wc-text-faint">{item.reason}</span>
                   </span>
-                  <span className="block truncate text-[11px] text-wc-text-faint">
-                    Not reported by this machine
+                  {reapplies ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid="machine-drift-reapply"
+                      pending={reapplying}
+                      pendingLabel={t(strings.machines.reapplying)}
+                      onClick={reapply}
+                    >
+                      {t(strings.machines.reapply)}
+                    </Button>
+                  ) : (
+                    <span className="shrink-0 text-[11px] text-wc-text-faint">{t(strings.machines.driftNotFixableHere)}</span>
+                  )}
+                </li>
+              );
+            })}
+            {issues.missingCapabilities.map((fact) => {
+              const id = fact.key.slice("capability:".length);
+              const state = installs[id];
+              const outcome = typeof state === "object" ? state : undefined;
+              const settled = outcome?.status === "installed" || outcome?.status === "not_applicable";
+              return (
+                <li key={fact.key} data-testid={`machine-drift-capability-${id}`} className="flex items-center gap-3 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs text-wc-text-primary">{fact.label || id}</span>
+                    <span
+                      data-testid={`machine-drift-capability-${id}-status`}
+                      className={`block break-words text-[11px] ${outcome && outcome.status !== "installed" ? "text-rose-200" : "text-wc-text-faint"}`}
+                    >
+                      {outcome
+                        ? outcome.status === "installed"
+                          ? (outcome.message ?? t(strings.launcher.agentInstalled))
+                          : (outcome.message ?? t(strings.launcher.installFailed))
+                        : t(strings.machines.capabilityNotInstalled)}
+                    </span>
                   </span>
+                  {onInstallCapability && !settled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid={`machine-drift-install-${id}`}
+                      pending={state === "installing"}
+                      pendingLabel={t(strings.machines.driftInstalling)}
+                      onClick={() => { installAgent(id); }}
+                    >
+                      {outcome ? t(strings.launcher.installRetry) : t(strings.machines.driftInstall)}
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+            {issues.unavailableNodeFeatures.map((fact) => (
+              <li
+                key={fact.key}
+                data-testid={`machine-drift-node-${fact.key.slice("node_capability:".length)}`}
+                className="flex items-start gap-3 py-2.5"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs text-wc-text-primary">{fact.label || fact.key}</span>
+                  <span className="block break-words text-[11px] text-wc-text-faint">{nodeFeatureDetail(fact.detail)}</span>
                 </span>
-                <Button size="sm" variant="outline" shape="square" disabled={reapplying} onClick={reapply}>
-                  {t(strings.machines.driftFix)}
-                </Button>
+                <span className="shrink-0 text-[11px] text-wc-text-faint">{t(strings.machines.driftNotFixableHere)}</span>
               </li>
             ))}
           </ul>
@@ -519,12 +719,6 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
             )}
           </div>
         </section>
-      )}
-
-      {status && (
-        <p className="text-xs text-wc-text-muted" role="status" data-testid="machine-configuration-status">
-          {status}
-        </p>
       )}
     </div>
   );

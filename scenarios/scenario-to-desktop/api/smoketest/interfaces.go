@@ -18,6 +18,33 @@ type Service interface {
 	CurrentPlatform() string
 }
 
+// SmokeTestRequest carries pipeline identity and target-mode context into a
+// smoke run. The legacy Service method remains as a compatibility seam for
+// deterministic callers; production orchestration uses RunSmokeTestRequest.
+type SmokeTestRequest struct {
+	SmokeTestID    string
+	ScenarioName   string
+	ArtifactPath   string
+	Platform       string
+	DeploymentMode string
+	ProxyURL       string
+	PipelineID     string
+}
+
+type requestService interface {
+	PerformSmokeTestRequest(context.Context, SmokeTestRequest)
+}
+
+// RunSmokeTestRequest preserves compatibility with older service doubles while
+// ensuring the default implementation receives the complete request context.
+func RunSmokeTestRequest(ctx context.Context, service Service, request SmokeTestRequest) {
+	if runner, ok := service.(requestService); ok {
+		runner.PerformSmokeTestRequest(ctx, request)
+		return
+	}
+	service.PerformSmokeTest(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform)
+}
+
 // Store manages smoke test status tracking.
 type Store interface {
 	// Save inserts or replaces a smoke test status.

@@ -845,3 +845,116 @@ an authorized refresh or redeployment supplies the missing procedure.
      orchestrator now re-targets a machine-targeted selection to the node, and
      onboarding reports the fence as 412 instead of 500.
 - Measured: 2026-09-15
+
+- Rung: W3 (second pass: minimouse reachable but every action failed)
+- Evidence and repair:
+  1. Drift listed "SSH management — required capability is not reported by the
+     node" on a machine whose trust is verified/trusted with a Bridge key and a
+     login. Only a node's `--capabilities` flag could report it, and no node
+     sets it. `WithControlPlaneCapabilities` now derives `ssh.management` from
+     `TrustRecord.SSHManagementEstablished`; `CurrentNode` still shows only
+     node-reported facts.
+  2. "Profile has not been applied" was permanent: only a fully successful
+     onboarding marks it, and Web Console re-applies straight to the node. A
+     connection-only profile (scenarios ⊆ {vrooli-bridge}) whose requirements
+     Bridge observes on a connected node is no longer drift; otherwise the
+     reason names the last configuration state and unmet items.
+  3. `GetMachine` returned 500 for a machine whose current lineage names a
+     deleted node (`a8f0c222…`). `Compose` treats `ErrNodeMissing` as no current
+     node. Tests: `projection_drift_test.go`.
+  4. A 7-second remote `resource install` surfaced as a 90-second relay
+     `deadline_exceeded`: the agent's `runRelay` shared one 10s report context
+     across the whole command, so the terminal report of any command longer
+     than 10s was refused and dropped silently. Each report is now bounded on
+     its own and a lost terminal report is logged
+     (`TestRelayCommandOutlivingTheReportBoundStillCompletes`). Needs the node
+     agent rebuilt (re-onboard).
+  5. `resource install opencode` exited 0 on minimouse without installing
+     anything usable: the npm acquisition ran `npm install --prefix ~/.local`,
+     which links under `~/.local/node_modules/.bin`, and nothing linked it into
+     `~/.local/bin` where the resource and the capability probe look. The
+     control-plane installer now links it and fails when npm produced no
+     executable (`internal/resources/agentinstall`, `link_test.go`).
+  6. Scenario starts on minimouse failed in the re-apply (5 of the selection's
+     scenarios): darwin had no process-environment inspection, so postgres
+     ownership verification failed, and `pidIsAlive` counted zombies, so
+     rollback reported "tracked processes did not exit". platform-go now reads
+     `kern.procargs2` and the zombie state on darwin; ownership falls back to
+     the executable-identity proof when the environment is unobservable.
+     Open: `packages/proto/vendor/github.com/vrooli/platform-go` needs a
+     re-vendor through `scenario-dependency-analyzer deps vendor`; kopia is
+     still a manual host tool (data-backup-manager); scenario-authenticator's
+     API wrote no output before its 15s readiness bound on minimouse — cause
+     not yet established.
+  7. Backspace in a remote terminal "added spaces". The launchd-started agent
+     gives its shells no `TERM`; zsh then has no cursor-left capability and
+     redraws an erase as runs of spaces (measured on minimouse with
+     `script`: TERM unset → space runs, TERM=xterm-256color → `\b`/`ESC[K`;
+     the line content was correct in both). `terminalSessionEnv` now sets
+     `TERM=xterm-256color`, `COLORTERM=truecolor`, and a UTF-8 `LANG` only
+     where the host set none (`TestTerminalSessionEnvDescribesTheBrowserTerminal`).
+     Needs the node agent rebuilt (re-onboard).
+  8. kopia is now acquired from its checksum-verified v0.23.1 release
+     (`internal/tools/kopia/tool.json`, checksums from the release's
+     `checksums.txt`) instead of being a manual host tool.
+- The four "credential backend could not answer" blockers on minimouse are an
+  absent store, not a locked keychain: `vrooli credentials doctor --json`
+  reports backend `encrypted-file`, condition `absent` ("no credential store on
+  this host; run `vrooli credentials store init`"). Creating it needs the
+  operator's passphrase (the Configuration tab's "Protect the encrypted
+  credential store" question). `credentials doctor` itself refused to run
+  without `--json` ("format must be text or json" for its own default
+  `text`); fixed in `internal/app/credentials`. Readiness now names the absent
+  store and the action that creates it (`completion.go` credential gap).
+- Onboarding readiness statted each safeguard's Linux verification files
+  before asking its handler, so `keyring_daemon_limits` and
+  `log_volume_bounds` (declared macOS not applicable) and three more read
+  "missing" on every Mac. A handler now always decides; files are only for
+  handler-less safeguards.
+- Re-apply on minimouse after the darwin fixes: 41 applied, 4 failed (was 5;
+  postgres-backed secrets-manager now starts). Remaining, not code defects in
+  this pass:
+  - scenario-authenticator exits with "redis is configured but unavailable":
+    `resources/redis` declares macOS `unsupported`, and the authenticator
+    requires it. vrooli-bridge's own start then fails on the authenticator.
+    Needs a decision: qualify Redis on macOS (its acquisition already lists
+    darwin targets) or let the authenticator run without it.
+  - landing-page-business-suite's API does not compile on the node: the
+    working tree was shipped mid-way through another session's LPBS proto
+    change (`business_digest.proto` generated locally only after the ship).
+    A working-tree ship carries whatever is uncommitted in the shared tree.
+  - data-backup-manager needs kopia; the new acquisition reaches the node on
+    the next re-onboard.
+- After the second re-onboard: readiness blockers 12 → 7 (all five safeguard
+  blockers gone); a remote OpenCode install completed in 50s through Web
+  Console (no relay hang) and linked `~/.local/bin/opencode` (1.18.30), but
+  returned "unconfirmed": the agent re-probed capabilities only every 10
+  minutes. A relayed `resource install`/`uninstall` now re-probes before its
+  terminal report (`TestRelayedInstallRefreshesTheCapabilityInventory`).
+- The node's onboarding reads credentials in-process; there the client failed
+  where `vrooli credentials status` answered `provider_state: absent`, and
+  readiness replaced the error with a fixed "native credential authority
+  unavailable". Readiness now carries the authority's own error into the
+  credential detail and the blocker text, so the next node read names it.
+- Third re-onboard: OpenCode READY 1.18.30 on minimouse (install confirmed
+  end to end). The surfaced error was "credential transport is unavailable":
+  `credentialclient.NewClient` builds the in-process client only when the
+  authority is available, so with no store there was no client at all, while
+  the metadata-only status would have said `absent`. `onboardingStatusJSON`
+  now asks the authority directly when the client cannot be built
+  (`TestCredentialStatusNamesAnUnusableStoreInsteadOfTheTransport`).
+- Operator direction (same day): connecting a machine must set up its
+  credential store with no action at the machine. Built: onboarding step
+  `credential-store` generates and escrows the passphrase
+  (`vrooli-bridge/node-credential-store/<machineID>`), initializes the node
+  store over SSH stdin, converges unattended wraps, and ensures an
+  `infrastructure`/`ephemeral` grant; the agent holds the pushed passphrase in
+  memory and serves it over `credentialunlock` so a headless Mac reopens its
+  store after a reboot (DECISIONS 2026-09-15, both rows). Known gaps:
+  - A TPM host's setup creates the store with no passphrase wrap, so Bridge
+    escrows nothing there (no control-plane recovery copy) until securestore
+    can add a passphrase wrap to an open store.
+  - Windows nodes are skipped by the step.
+  - `TestArtifactBuilderCachesBySnapshotAndBuildsExecutablesInParallel` is a
+    timing flake (5/5 then 3/5 passing in consecutive runs), unrelated.
+- Measured: 2026-09-15

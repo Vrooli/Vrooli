@@ -5,10 +5,12 @@ import (
 	"io"
 	"log"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	bridgeexec "vrooli-bridge/agent/internal/exec"
+	"vrooli-bridge/agent/internal/health"
 
 	"github.com/stretchr/testify/require"
 
@@ -60,6 +62,87 @@ func waitRelayKind(t *testing.T, seen <-chan *sharedv1.RelayResponse, kind share
 			}
 		case <-deadline:
 			t.Fatalf("timed out waiting for relay response kind %s", kind)
+		}
+	}
+}
+
+// deadlineCheckingCollector refuses a report whose context has already
+// expired, the way the real Presence RPC does.
+type deadlineCheckingCollector struct{ *relayCollector }
+
+func (c deadlineCheckingCollector) ReportRelayResponse(ctx context.Context, response *sharedv1.RelayResponse) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.relayCollector.ReportRelayResponse(ctx, response)
+}
+
+type slowRelayCommand struct{ delay time.Duration }
+
+func (c slowRelayCommand) Run(ctx context.Context, _ []string, _ string, _ func(string)) (int, error) {
+	select {
+	case <-time.After(c.delay):
+		return 0, nil
+	case <-ctx.Done():
+		return 143, ctx.Err()
+	}
+}
+
+// TestRelayCommandOutlivingTheReportBoundStillCompletes pins the relay hang:
+// one report context shared by the whole relay expired while a command longer
+// than its bound was still running, so the terminal report was refused and
+// Bridge held the caller until the relay timeout. A 7-second remote install
+// therefore surfaced as a 90-second "deadline exceeded".
+func TestRelayCommandOutlivingTheReportBoundStillCompletes(t *testing.T) {
+	previous := relayReportTimeout
+	relayReportTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { relayReportTimeout = previous })
+
+	client, priv := signedClient(t)
+	client.logger = log.New(io.Discard, "", 0)
+	collector := newRelayCollector()
+	client.relayReporter = deadlineCheckingCollector{collector}
+	client.commandRunner = slowRelayCommand{delay: 200 * time.Millisecond}
+	client.baseCtx = context.Background()
+
+	request := &channelv1.ServerFrame{FrameId: "relay-slow", Payload: &channelv1.ServerFrame_Relay{Relay: &channelv1.RelayRequest{
+		CorrelationId: "relay-slow", Scenario: "vrooli", Command: "resource install", MaxResponseBytes: 128,
+	}}}
+	client.handleServerFrame(signFrame(t, priv, request))
+	waitRelayKind(t, collector.seen, sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_ACCEPTED)
+	waitRelayKind(t, collector.seen, sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED)
+}
+
+var _ bridgeexec.CommandRunner = slowRelayCommand{}
+
+type refreshCountingSampler struct {
+	health.Sampler
+	refreshes atomic.Int32
+}
+
+func (s *refreshCountingSampler) RefreshCapabilities() { s.refreshes.Add(1) }
+
+// TestRelayedInstallRefreshesTheCapabilityInventory pins the "unconfirmed"
+// install: the node re-probed its agents every 10 minutes, so an install
+// through Bridge was never reported inside Web Console's confirmation window.
+func TestRelayedInstallRefreshesTheCapabilityInventory(t *testing.T) {
+	client, priv := signedClient(t)
+	client.logger = log.New(io.Discard, "", 0)
+	collector := newRelayCollector()
+	sampler := &refreshCountingSampler{}
+	client.sampler = sampler
+	client.relayReporter = collector
+	client.commandRunner = slowRelayCommand{}
+	client.baseCtx = context.Background()
+
+	for i, command := range []string{"scenario status", "resource install"} {
+		request := &channelv1.ServerFrame{FrameId: "relay-" + command, Payload: &channelv1.ServerFrame_Relay{Relay: &channelv1.RelayRequest{
+			CorrelationId: "relay-refresh-" + command, Scenario: "vrooli", Command: command, MaxResponseBytes: 128,
+		}}}
+		client.handleServerFrame(signFrame(t, priv, request))
+		waitRelayKind(t, collector.seen, sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED)
+		if got := sampler.refreshes.Load(); got != int32(i) {
+			t.Fatalf("after %q refreshes = %d, want %d", command, got, i)
 		}
 	}
 }

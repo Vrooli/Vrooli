@@ -41,6 +41,11 @@ describe("resolveStateSlot", () => {
     expect(resolveStateSlot({ ...base, state: "waiting", prompt })?.kind).toBe("waiting-answerable");
   });
 
+  it("[REQ:P0-017e] resumable provider interruption is an interruption card", () => {
+    const prompt = { kind: "resumable_interruption", text: "Selected model is at capacity", options: [{ key: "continue", label: "Continue", selected: false }], answerable: true };
+    expect(resolveStateSlot({ ...base, state: "waiting", prompt })?.kind).toBe("interruption");
+  });
+
   it("[REQ:P0-017e] idle, unknown, and missing show nothing", () => {
     expect(resolveStateSlot({ ...base, state: "idle" })).toBeNull();
     expect(resolveStateSlot({ ...base, state: "unknown" })).toBeNull();

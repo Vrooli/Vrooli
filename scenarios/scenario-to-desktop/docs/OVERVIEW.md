@@ -194,6 +194,11 @@ For project-level context, read the [Deployment Hub](../../../docs/deployment/RE
 
 Temporary generation and pipeline builds share the canonical storage resolver's cache `staging/<application>/<build>` directory. The owner enforces the `.vrooli/service.json` staging budget using api-core retention: default **20GiB and 7 days**, oldest eligible complete builds first. It removes at most 20 builds per cycle and preserves the newest build plus active pipelines, direct builds, smoke tests, live desktop sessions and `.building` markers. Unknown legacy builds receive a two-hour grace period. Failed and cancelled builds become eligible; a resumable record does not pin its cache forever.
 
+Staging and temporary runs MUST write no files under the scenario source tree.
+The retained bundle manifest is at `<outputRoot>/manifest/bundle.json`. The
+build-tools generator MUST run its build step before generation and MUST refuse
+an out-of-date compiled `dist` directory by checking its source stamp.
+
 Configure `DESKTOP_STAGING_RETENTION_MAX_BYTES` (for example `30GiB`), `DESKTOP_STAGING_RETENTION_MAX_AGE` (for example `3d`) and `DESKTOP_STAGING_RETENTION_INTERVAL` (default `15m`). Positive overrides are required and loaded at API startup. The first cycle runs after one interval. Logs report remaining bytes, the capacity ceiling, reclaimed bytes and incomplete cycles. Shared owner enforcement receipts expose cycle failures. Protection and the per-cycle batch bound can temporarily keep storage above the ceiling; this is retention, not a hard write quota.
 
 The staging declaration uses `reclaim.pruner: custom`; the host contract classifies it `safe_with_owner`. Generic whole-application directory deletion must not bypass owner activity checks. Published output and operator-selected custom output directories are outside this staging policy.

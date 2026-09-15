@@ -2,6 +2,7 @@ package signing
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"scenario-to-desktop-api/signing/types"
@@ -60,6 +61,14 @@ func (r *connectTestRepository) DeleteForPlatform(_ context.Context, scenario, p
 	return nil
 }
 
+func (r *connectTestRepository) ListScenarios() ([]string, error) {
+	names := make([]string, 0, len(r.configs))
+	for name := range r.configs {
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 func newConnectSigningService() (*ConnectService, *connectTestRepository) {
 	repo := &connectTestRepository{configs: map[string]*types.SigningConfig{}}
 	return NewConnectService(&Handler{repo: repo, validator: validation.NewValidator(), prereqChecker: validation.NewPrerequisiteChecker()}), repo
@@ -94,6 +103,91 @@ func TestSigningConnectConfigLifecycleAndValidation(t *testing.T) {
 	deleted, err := service.DeleteSigningConfig(ctx, connect.NewRequest(&domainv1.DeleteSigningConfigRequest{ScenarioName: "demo"}))
 	if err != nil || deleted.Msg.GetScenarioName() != "demo" || repo.configs["demo"] != nil {
 		t.Fatalf("DeleteSigningConfig = %#v, %v", deleted, err)
+	}
+}
+
+func TestSigningConnectRoundTripsManagedKey(t *testing.T) {
+	service, _ := newConnectSigningService()
+	ctx := context.Background()
+	_, err := service.PutSigningConfig(ctx, connect.NewRequest(&domainv1.UpsertSigningConfigRequest{
+		ScenarioName: "demo",
+		Config: &domainv1.SigningConfig{Enabled: true, Linux: &domainv1.LinuxSigningConfig{
+			GpgKeyId:   optional("ABC123"),
+			ManagedKey: &domainv1.ManagedSigningKey{LogicalId: "vrooli/desktop-signing"},
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("PutSigningConfig = %v", err)
+	}
+	got, err := service.GetSigningConfig(ctx, connect.NewRequest(&domainv1.SigningScenarioRequest{ScenarioName: "demo"}))
+	if err != nil {
+		t.Fatalf("GetSigningConfig = %v", err)
+	}
+	managed := got.Msg.GetConfig().GetLinux().GetManagedKey()
+	if managed.GetLogicalId() != "vrooli/desktop-signing" {
+		t.Fatalf("managed key did not round-trip: %#v", managed)
+	}
+}
+
+func TestSigningConnectGenerateKeyHonorsLogicalID(t *testing.T) {
+	writeFakeGPG(t)
+	authority := newFakeAuthority()
+	withFakeAuthority(t, authority)
+	service, repo := newConnectSigningService()
+
+	resp, err := service.GenerateLinuxSigningKey(context.Background(), connect.NewRequest(&domainv1.GenerateLinuxSigningKeyRequest{
+		ScenarioName:  "demo",
+		Name:          "Example Publisher",
+		Email:         "publisher@example.test",
+		LogicalId:     optional("vrooli/desktop-signing"),
+		PassphraseEnv: optional("VROOLI_GPG_PASSPHRASE"),
+	}))
+	if err != nil {
+		t.Fatalf("GenerateLinuxSigningKey = %v", err)
+	}
+	if resp.Msg.GetLogicalId() != "vrooli/desktop-signing" {
+		t.Fatalf("response logical id = %q", resp.Msg.GetLogicalId())
+	}
+	config := repo.configs["demo"]
+	if config == nil || config.Linux == nil || config.Linux.ManagedKey == nil {
+		t.Fatalf("managed linux config not persisted: %#v", config)
+	}
+	if config.Linux.ManagedKey.LogicalID != "vrooli/desktop-signing" {
+		t.Fatalf("custody identity = %q", config.Linux.ManagedKey.LogicalID)
+	}
+	if config.Linux.GPGKeyID != "TESTFINGERPRINT123" {
+		t.Fatalf("fingerprint = %q", config.Linux.GPGKeyID)
+	}
+	if config.Linux.GPGPassphraseEnv != "VROOLI_GPG_PASSPHRASE" {
+		t.Fatalf("passphrase env = %q", config.Linux.GPGPassphraseEnv)
+	}
+}
+
+func TestSigningConnectReportsRotationImpact(t *testing.T) {
+	writeFakeGPG(t)
+	authority := newFakeAuthority()
+	withFakeAuthority(t, authority)
+	service, repo := newConnectSigningService()
+	repo.configs["other-app"] = &types.SigningConfig{
+		Enabled: true,
+		Linux: &types.LinuxSigningConfig{
+			GPGKeyID:   "OLD",
+			ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+		},
+	}
+
+	resp, err := service.GenerateLinuxSigningKey(context.Background(), connect.NewRequest(&domainv1.GenerateLinuxSigningKeyRequest{
+		ScenarioName: "demo",
+		Name:         "Example Publisher",
+		Email:        "publisher@example.test",
+		LogicalId:    optional("vrooli/desktop-signing"),
+		Force:        true,
+	}))
+	if err != nil {
+		t.Fatalf("GenerateLinuxSigningKey = %v", err)
+	}
+	if !strings.Contains(resp.Msg.GetMessage(), "other-app") {
+		t.Fatalf("rotation message = %q, want it to name other-app", resp.Msg.GetMessage())
 	}
 }
 

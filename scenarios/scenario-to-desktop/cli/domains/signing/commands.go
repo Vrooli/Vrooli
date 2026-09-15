@@ -26,7 +26,13 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		(cliapp.Command{Name: "ready", Description: "Check signing readiness", Args: scenarioSchema("scenario")}).WithPrimitive(c.readyPrimitive()),
 		(cliapp.Command{Name: "prerequisites", Description: "List signing tools"}).WithPrimitive(c.prerequisitesPrimitive()),
 		(cliapp.Command{Name: "discover", Description: "Discover certificates", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "platform", Required: true}}}}).WithPrimitive(c.discoverPrimitive()),
-		(cliapp.Command{Name: "generate-key", Description: "Generate Linux GPG key", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}}).WithPrimitive(c.generateKeyPrimitive()),
+		(cliapp.Command{Name: "generate-key", Description: "Generate or reuse a Linux GPG key custodied in the credential authority", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{
+			{Name: "name", Required: true, Description: "Publisher name for the GPG UID"},
+			{Name: "email", Required: true, Description: "Publisher email for the GPG UID"},
+			{Name: "logical-id", Description: "Shared credential identity; defaults to vrooli/scenario-to-desktop/<scenario>"},
+			{Name: "passphrase-env", Description: "Environment variable the build injects the passphrase into"},
+			{Name: "force", Bool: true, Description: "Rotate an existing key held at this identity"},
+		}}}).WithPrimitive(c.generateKeyPrimitive()),
 	}}
 }
 

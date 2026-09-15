@@ -38,6 +38,11 @@ an `EvidenceReview` projection, while the raw journey and recording remain
 producer-owned captures. The UI must display the backend verdict verbatim:
 `pass`, `failed`, `degraded`, `unavailable`, `unsupported`, or `not_run`.
 
+The complete chapter, isolation, screen-content, gate, and voiding rules are
+defined in the [canonical evidence and tier contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+The producer MUST retain every planned chapter and MUST mark an unexecuted
+chapter `not_run`.
+
 Visual pass requires all of the following:
 
 - the capability and plan are registered;
@@ -75,8 +80,9 @@ The `normal-review` profile leaves a named visual settle window for human review
 `diagnostic-slow` lengthens them within explicit upper bounds. Select them with
 `S2D_JOURNEY_PROFILE`; unknown values fail closed. `S2D_JOURNEY_CAPABILITY`
 selects a registered behavior fixture when a journey is not the baseline
-scenario identity. The app demo hold remains owned by this smoke orchestration
-(`SMOKE_TEST_DEMO_HOLD_MS`); a journey step may not silently extend it.
+scenario identity. The app demo hold remains owned by this smoke orchestration.
+`SMOKE_TEST_DEMO_HOLD_MS` is a ceiling for the demo lifetime, not a required
+delay; a journey step may not silently extend it.
 
 ---
 
@@ -244,6 +250,7 @@ type Config struct {
 | `SMOKE_TEST_UPLOAD_URL` | `http://127.0.0.1:{port}/api/v1/deployment/telemetry` | Where to upload telemetry |
 | `DEPLOYMENT_MANAGER_URL` | Optional Connect base URL | Enables reference-only `ReportTargetVerdict` after the journey |
 | `DEPLOYMENT_MANAGER_PROFILE_ID` | Optional profile ID | Identifies the release profile for the evidence report |
+| `SMOKE_TEST_DEMO_RELEASE_FILE` | Optional release marker path | The demo writes this marker only after its ready signal; a missing marker is unavailable evidence |
 
 Release-bound generated desktop updates use `DEPLOYMENT_MANAGER_RELEASE_ID`,
 `DEPLOYMENT_MANAGER_CANDIDATE_ID`, `DEPLOYMENT_MANAGER_TARGET_ID`, and the
@@ -310,6 +317,11 @@ the exact `Hello, <name>!` state. The semantic step records an assertion ID,
 expected state, and observed state. Generic pointer and keyboard actions remain
 structural diagnostics and cannot replace this application-level assertion.
 
+The demo MUST bypass its quit guard when `SMOKE_TEST_DEMO=1`, publish the
+configured release marker only after its app-ready signal, and use an isolated
+target. A thin-client target MUST NOT be the operator's live Tier 1 instance.
+See the canonical contract for the required failure dispositions.
+
 The journey is `pass` only when Linux, xdotool, a started titlebar-capable
 window manager, a usable application window, successful interactions, and a
 maximize geometry of at least 90% of the display are all observed. A desktop
@@ -348,7 +360,10 @@ The default local profile is `visual`. `release_visual` additionally requires
 successful reference-only reporting to deployment-manager; unavailable
 governance is never converted into a release pass. Windows and macOS remain
 compile/package results until a native or remote runner executes this same
-visual contract.
+visual contract. Each manifest gate MUST use its independent predicate from the
+[canonical contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md);
+protocol readiness, visual launch, semantic journey, capture integrity, and
+artifact persistence MUST NOT be copied from one another or hard-coded.
 
 ## Success Criteria
 

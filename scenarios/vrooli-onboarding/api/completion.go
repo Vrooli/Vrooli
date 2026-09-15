@@ -191,8 +191,24 @@ func operatorSuppliedCredential(credential credentialReadiness) bool {
 	}
 }
 
+// credentialGapReason names the store's own condition when the store is the
+// problem. "The backend could not answer" was shown for every address when no
+// credential store existed at all, sending operators to retry a check that
+// could never pass instead of to the one action that creates the store.
 func credentialGapReason(credential credentialReadiness) string {
 	if credential.Status == "unsupported" {
+		switch strings.TrimSpace(credential.ProviderState) {
+		case "absent":
+			return "no credential store exists on this machine yet, so no credential can be stored or read"
+		case "unavailable":
+			if detail := strings.TrimSpace(credential.ProviderDetail); detail != "" {
+				return "the credential store is unavailable: " + detail
+			}
+			return "the credential store is unavailable"
+		}
+		if detail := strings.TrimSpace(credential.Detail); detail != "" {
+			return detail
+		}
 		return "the credential backend could not answer for this address"
 	}
 	return "the credential is declared and not configured"
@@ -201,6 +217,9 @@ func credentialGapReason(credential credentialReadiness) string {
 func credentialGapRemediation(credential credentialReadiness) string {
 	switch credential.Status {
 	case "unsupported":
+		if strings.TrimSpace(credential.ProviderState) == "absent" {
+			return "Create the credential store: answer \"Protect the encrypted credential store\" in this machine's configuration, or run `vrooli credentials store init` on it."
+		}
 		return "Retry credential verification; if the condition persists, run `vrooli credentials doctor` and resolve the reported provider condition."
 	case credentialStatusPending:
 		return "Retry readiness after the credential authority finishes checking this address."

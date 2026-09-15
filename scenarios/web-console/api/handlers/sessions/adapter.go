@@ -923,6 +923,9 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
 	}
 	s := responseToHandlerSession(intsessions.FromSession(sess))
+	if activity, ok := sess.Activity(); ok {
+		s.Activity = activityToProto(s.ID, activity)
+	}
 	if a.Store != nil {
 		if m, err := a.Store.Get(ctx, id); err == nil {
 			s.Origin, s.Owner, s.DisplayLabel = string(m.Origin), m.Owner, m.DisplayLabel
@@ -1462,8 +1465,10 @@ func mapCreateError(err error) error {
 			return fmt.Errorf("%w: remote node was not found; refresh the machine catalog", ErrTargetNotFound)
 		case nodereach.ErrNodeUnavailable, nodereach.ErrBridgeUnavailable:
 			return fmt.Errorf("%w: remote node is offline or Bridge is unavailable; reconnect the machine and refresh", ErrTargetUnavailable)
+		case nodereach.ErrUnauthenticated:
+			return fmt.Errorf("%w: Bridge did not accept this Web Console's owner credential, so it cannot open sessions on any machine; sign in with `vrooli-bridge auth login`, then restart Web Console", ErrTargetUnavailable)
 		case nodereach.ErrMissingReauth:
-			return fmt.Errorf("%w: remote machine authorization has expired; manage the machine permissions", ErrTargetUnavailable)
+			return fmt.Errorf("%w: Bridge requires owner re-authentication before it opens a shell on this machine; sign in again with `vrooli-bridge auth login` and retry", ErrTargetUnavailable)
 		case nodereach.ErrHandshakeRejected:
 			return fmt.Errorf("%w: the remote node rejected the session handshake; refresh the machine and try again", ErrTargetUnavailable)
 		case nodereach.ErrTransport, nodereach.ErrStreaming:

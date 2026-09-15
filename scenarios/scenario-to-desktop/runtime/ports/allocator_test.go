@@ -344,6 +344,31 @@ func TestManagerAllocateFailsWhenRangeExhausted(t *testing.T) {
 	}
 }
 
+func TestManagerAllocateRejectsOccupiedSinglePortRange(t *testing.T) {
+	m := &manifest.Manifest{
+		Ports:    &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		Services: []manifest.Service{{ID: "ui", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "ui", Range: manifest.PortRange{Min: 48000, Max: 48000}}}}}},
+	}
+	pm := ports.NewManager(m, &stubDialer{availability: map[int]bool{48000: false}})
+	if err := pm.Allocate(); err == nil || !strings.Contains(err.Error(), "no free port in 48000-48000") {
+		t.Fatalf("Allocate() error = %v, want occupied single-port range error", err)
+	}
+}
+
+func TestManagerAllocateAdvancesWithinBandAfterOccupiedFirstPort(t *testing.T) {
+	m := &manifest.Manifest{
+		Ports:    &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		Services: []manifest.Service{{ID: "ui", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "ui", Range: manifest.PortRange{Min: 48000, Max: 48002}}}}}},
+	}
+	pm := ports.NewManager(m, &stubDialer{availability: map[int]bool{48000: false, 48001: true, 48002: true}})
+	if err := pm.Allocate(); err != nil {
+		t.Fatalf("Allocate() error = %v", err)
+	}
+	if got, err := pm.Resolve("ui", "ui"); err != nil || got != 48001 {
+		t.Fatalf("Resolve(ui, ui) = %d, %v; want 48001", got, err)
+	}
+}
+
 func TestManagerAllocateRejectsInvalidRequestedRange(t *testing.T) {
 	m := &manifest.Manifest{
 		Services: []manifest.Service{

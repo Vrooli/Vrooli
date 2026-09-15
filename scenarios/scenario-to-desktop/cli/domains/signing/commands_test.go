@@ -85,7 +85,7 @@ func TestDiscoverPrimitiveUsesTypedPlatform(t *testing.T) {
 }
 
 func TestGenerateKeyProductionParserRejectsInlineSecret(t *testing.T) {
-	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "logical-id"}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}
 	if _, err := cliapptest.NewTestRunContextFromArgs(schema, []string{"demo", "--name", "n", "--email", "a@example.com", "--passphrase", "secret"}, nil, nil, nil); err == nil {
 		t.Fatal("inline passphrase accepted")
 	}
@@ -94,9 +94,12 @@ func TestGenerateKeyProductionParserRejectsInlineSecret(t *testing.T) {
 func TestGenerateKeyPrimitiveUsesEnvironmentReference(t *testing.T) {
 	rpc := &fakeSigningRPC{}
 	c := &Commands{rpc: rpc}
-	assertPrimitiveModes(t, c.generateKeyPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}, []string{"demo", "--name", "n", "--email", "a@example.com", "--passphrase-env", "GPG_SECRET", "--force"})
+	assertPrimitiveModes(t, c.generateKeyPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "logical-id"}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}, []string{"demo", "--name", "n", "--email", "a@example.com", "--passphrase-env", "GPG_SECRET", "--logical-id", "vrooli/desktop-signing", "--force"})
 	if rpc.key.GetPassphraseEnv() != "GPG_SECRET" || !rpc.key.GetForce() {
 		t.Fatalf("unexpected request %#v", rpc.key)
+	}
+	if rpc.key.GetLogicalId() != "vrooli/desktop-signing" {
+		t.Fatalf("logical id not forwarded: %#v", rpc.key)
 	}
 }
 

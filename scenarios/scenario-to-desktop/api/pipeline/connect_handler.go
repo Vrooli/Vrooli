@@ -67,6 +67,33 @@ func (s *ConnectService) Get(_ context.Context, req *connect.Request[pipelinev1.
 	return connect.NewResponse(statusToProto(status)), nil
 }
 
+func (s *ConnectService) Wait(ctx context.Context, req *connect.Request[pipelinev1.PipelineWaitRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+	if err := s.requireOrchestrator(); err != nil {
+		return nil, err
+	}
+	id := req.Msg.GetPipelineId()
+	if status, ok := s.handler.orchestrator.GetStatus(id); !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("pipeline %q was not found", id))
+	} else if status.IsComplete() {
+		return connect.NewResponse(statusToProto(status)), nil
+	}
+	timeout := time.Duration(req.Msg.GetTimeoutSeconds()) * time.Second
+	if timeout <= 0 || timeout > time.Hour {
+		timeout = time.Hour
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	poller := &Poller[*Status]{Config: PollerConfig{EntityType: "pipeline", Timeout: timeout, PollInterval: 500 * time.Millisecond}, GetStatus: s.handler.orchestrator.GetStatus, IsComplete: func(v *Status) bool { return v != nil && v.IsComplete() }}
+	status, waitErr := poller.Wait(waitCtx, id)
+	if waitErr != nil {
+		if latest, ok := s.handler.orchestrator.GetStatus(id); ok {
+			status = latest
+		}
+		return connect.NewResponse(statusToProto(status)), connect.NewError(connect.CodeDeadlineExceeded, waitErr)
+	}
+	return connect.NewResponse(statusToProto(status)), nil
+}
+
 // GetReleaseGate exposes the approval-gate view as a first-class contract.
 // The gate state is derived from the authoritative pipeline status, but the
 // separate RPC prevents clients from treating a generic status read as an

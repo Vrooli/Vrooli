@@ -121,6 +121,7 @@ export async function generateLinuxSigningKey(
     passphrase_env?: string;
     homedir?: string;
     expiry?: string;
+    logical_id?: string;
     force?: boolean;
   },
 ) {
@@ -135,6 +136,7 @@ export async function generateLinuxSigningKey(
     passphraseEnv: payload.passphrase_env,
     homedir: payload.homedir,
     expiry: payload.expiry,
+    logicalId: payload.logical_id,
     force: payload.force,
     exportPublic: true,
   });
@@ -142,6 +144,8 @@ export async function generateLinuxSigningKey(
     key_id: response.keyId,
     fingerprint: response.fingerprint,
     homedir: response.homedir,
+    logical_id: response.logicalId,
+    message: response.message,
     public_key: response.publicKey,
     public_key_path: response.publicKeyPath,
   };

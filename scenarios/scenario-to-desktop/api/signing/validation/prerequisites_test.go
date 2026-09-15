@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/signing/types"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 type prerequisiteTestFS struct{}
@@ -124,6 +126,77 @@ func TestPrerequisiteCheckerLinuxRejectsMissingConfiguredKey(t *testing.T) {
 	})
 	if result.Valid || !hasPrerequisiteCode(result, "LINUX_KEY_NOT_FOUND") {
 		t.Fatalf("expected missing key evidence, got %#v", result)
+	}
+}
+
+type fakePrerequisiteAuthority struct {
+	available  bool
+	configured map[string]bool
+}
+
+func (f fakePrerequisiteAuthority) Status(identity credentialauthority.Identity, field string) credentialauthority.Status {
+	return credentialauthority.Status{Configured: f.configured[string(identity)+":"+field]}
+}
+
+func (f fakePrerequisiteAuthority) Availability() error {
+	if !f.available {
+		return errors.New("credential provider is unavailable")
+	}
+	return nil
+}
+
+func TestPrerequisiteCheckerLinuxAcceptsConfiguredManagedKey(t *testing.T) {
+	checker := NewPrerequisiteChecker(
+		WithCommandRunner(prerequisiteTestRunner{}),
+		WithEnvironmentReader(prerequisiteTestEnv{}),
+		WithCredentialAuthority(fakePrerequisiteAuthority{
+			available:  true,
+			configured: map[string]bool{"vrooli/desktop-signing:gpg-private-key": true, "vrooli/desktop-signing:gpg-passphrase": true},
+		}),
+	)
+	result := checker.CheckPlatformPrerequisites(context.Background(), &types.SigningConfig{
+		Enabled: true,
+		Linux:   &types.LinuxSigningConfig{GPGKeyID: "ABC123", ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"}},
+	}, types.PlatformLinux)
+	if !result.Valid {
+		t.Fatalf("configured managed key should be valid: %#v", result)
+	}
+	// A managed key must not warn that the ambient passphrase variable is absent.
+	if hasPrerequisiteCode(result, "LINUX_GPG_PASSPHRASE_ENV_NOT_SET") {
+		t.Fatalf("managed key should not require an ambient passphrase variable: %#v", result)
+	}
+}
+
+func TestPrerequisiteCheckerLinuxRejectsIncompleteManagedKey(t *testing.T) {
+	checker := NewPrerequisiteChecker(
+		WithCommandRunner(prerequisiteTestRunner{}),
+		WithEnvironmentReader(prerequisiteTestEnv{}),
+		WithCredentialAuthority(fakePrerequisiteAuthority{
+			available:  true,
+			configured: map[string]bool{"vrooli/desktop-signing:gpg-private-key": true},
+		}),
+	)
+	result := checker.CheckPlatformPrerequisites(context.Background(), &types.SigningConfig{
+		Enabled: true,
+		Linux:   &types.LinuxSigningConfig{GPGKeyID: "ABC123", ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"}},
+	}, types.PlatformLinux)
+	if result.Valid || !hasPrerequisiteCode(result, "LINUX_MANAGED_KEY_NOT_CONFIGURED") {
+		t.Fatalf("incomplete managed key should fail: %#v", result)
+	}
+}
+
+func TestPrerequisiteCheckerLinuxRejectsUnavailableAuthority(t *testing.T) {
+	checker := NewPrerequisiteChecker(
+		WithCommandRunner(prerequisiteTestRunner{}),
+		WithEnvironmentReader(prerequisiteTestEnv{}),
+		WithCredentialAuthority(fakePrerequisiteAuthority{available: false}),
+	)
+	result := checker.CheckPlatformPrerequisites(context.Background(), &types.SigningConfig{
+		Enabled: true,
+		Linux:   &types.LinuxSigningConfig{GPGKeyID: "ABC123", ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"}},
+	}, types.PlatformLinux)
+	if result.Valid || !hasPrerequisiteCode(result, "LINUX_MANAGED_KEY_AUTHORITY_UNAVAILABLE") {
+		t.Fatalf("unavailable authority should fail: %#v", result)
 	}
 }
 

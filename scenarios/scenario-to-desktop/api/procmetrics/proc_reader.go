@@ -2,6 +2,7 @@ package procmetrics
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -9,8 +10,20 @@ import (
 	"syscall"
 )
 
-// LinuxProcReader reads process stats from the /proc filesystem.
-type LinuxProcReader struct{}
+// LinuxProcReader reads from /proc by default. FS and Readlink are injectable
+// so attribution rules can be tested against deterministic process trees.
+type LinuxProcReader struct {
+	FS       fs.FS
+	Readlink func(string) (string, error)
+}
+
+func (r *LinuxProcReader) ApplicationPID(rootPID int, options ProcessTreeOptions) (int, error) {
+	processes, err := r.ProcessTreeWithOptions(rootPID, options)
+	if err != nil {
+		return 0, err
+	}
+	return findApplicationPID(processes, options.AppExecutableName), nil
+}
 
 // ReadStat parses /proc/<pid>/stat and returns utime and stime in clock ticks.
 // Fields 14 and 15 (0-indexed from the comm field end) are utime and stime.
@@ -153,7 +166,15 @@ func (r *LinuxProcReader) IsAlive(pid int) bool {
 // in /proc. A disappearing process is skipped because short-lived Electron
 // helpers are expected during startup.
 func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
-	entries, err := os.ReadDir("/proc")
+	return r.ProcessTreeWithOptions(rootPID, ProcessTreeOptions{})
+}
+
+func (r *LinuxProcReader) ProcessTreeWithOptions(rootPID int, options ProcessTreeOptions) ([]ProcessInfo, error) {
+	procFS := r.FS
+	if procFS == nil {
+		procFS = os.DirFS("/proc")
+	}
+	entries, err := fs.ReadDir(procFS, ".")
 	if err != nil {
 		return nil, fmt.Errorf("read /proc: %w", err)
 	}
@@ -163,7 +184,7 @@ func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
 		if parseErr != nil || !entry.IsDir() {
 			continue
 		}
-		statData, readErr := os.ReadFile(filepath.Join("/proc", entry.Name(), "stat"))
+		statData, readErr := fs.ReadFile(procFS, filepath.Join(entry.Name(), "stat"))
 		if readErr != nil {
 			continue
 		}
@@ -171,7 +192,7 @@ func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
 		if parseErr != nil {
 			continue
 		}
-		statusData, readErr := os.ReadFile(filepath.Join("/proc", entry.Name(), "status"))
+		statusData, readErr := fs.ReadFile(procFS, filepath.Join(entry.Name(), "status"))
 		if readErr != nil {
 			continue
 		}
@@ -179,7 +200,10 @@ func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
 		if parseErr != nil {
 			continue
 		}
-		all[pid] = ProcessInfo{PID: pid, PPID: ppid, Command: command, Role: classifyRole(pid, rootPID, command), CPUJiffies: utime + stime, RSSBytes: rss, PeakBytes: peak, Threads: threads}
+		cmdlineData, _ := fs.ReadFile(procFS, filepath.Join(entry.Name(), "cmdline"))
+		cmdline := splitCmdline(cmdlineData)
+		exe := r.readExe(filepath.Join(entry.Name(), "exe"), filepath.Join(entry.Name(), "exe-target"))
+		all[pid] = ProcessInfo{PID: pid, PPID: ppid, Command: command, Cmdline: cmdline, Exe: exe, CPUJiffies: utime + stime, RSSBytes: rss, PeakBytes: peak, Threads: threads}
 	}
 	if _, ok := all[rootPID]; !ok {
 		return nil, fmt.Errorf("root process %d is not visible", rootPID)
@@ -203,7 +227,113 @@ func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
 		}
 		queue = append(queue, children[pid]...)
 	}
+	anchor := findApplicationPID(result, options.AppExecutableName)
+	for i := range result {
+		result[i].Role = classifyProcess(result[i], anchor, options)
+	}
 	return result, nil
+}
+
+func splitCmdline(data []byte) []string {
+	if len(data) == 0 {
+		return nil
+	}
+	if !strings.ContainsRune(string(data), '\x00') {
+		return strings.Fields(string(data))
+	}
+	parts := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	if len(parts) == 1 && parts[0] == "" {
+		return nil
+	}
+	return parts
+}
+
+func (r *LinuxProcReader) readExe(path, fixturePath string) string {
+	if r.Readlink != nil {
+		if value, err := r.Readlink("/proc/" + strings.TrimSuffix(path, "/exe") + "/exe"); err == nil {
+			return strings.TrimSuffix(value, " (deleted)")
+		}
+	}
+	if r.FS == nil {
+		if value, err := os.Readlink(filepath.Join("/proc", path)); err == nil {
+			return strings.TrimSuffix(value, " (deleted)")
+		}
+	}
+	procFS := r.FS
+	if procFS == nil {
+		procFS = os.DirFS("/proc")
+	}
+	if data, err := fs.ReadFile(procFS, fixturePath); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	if data, err := fs.ReadFile(procFS, path); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+func findApplicationPID(processes []ProcessInfo, expected string) int {
+	for _, p := range processes {
+		if expected != "" && filepath.Base(p.Exe) == expected {
+			return p.PID
+		}
+	}
+	for _, p := range processes {
+		if hasTypeArg(p.Cmdline) || p.Exe == "" {
+			continue
+		}
+		base := strings.ToLower(filepath.Base(p.Exe))
+		if isLauncherExecutable(base) {
+			continue
+		}
+		return p.PID
+	}
+	return 0
+}
+
+func hasTypeArg(args []string) bool {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--type=") {
+			return true
+		}
+	}
+	return false
+}
+
+func classifyProcess(p ProcessInfo, anchor int, options ProcessTreeOptions) ProcessRole {
+	if p.PID == anchor && anchor != 0 {
+		return RoleElectronMain
+	}
+	base := strings.ToLower(filepath.Base(p.Exe))
+	for _, arg := range p.Cmdline {
+		switch arg {
+		case "--type=renderer", "--type=zygote":
+			return RoleElectronRender
+		case "--type=gpu-process":
+			return RoleElectronGPU
+		case "--type=utility":
+			return RoleElectronUtility
+		}
+	}
+	if strings.HasPrefix(base, "chrome_crashpad") {
+		return RoleElectronCrashpad
+	}
+	if p.PID != anchor && anchor != 0 {
+		if strings.Contains(p.Exe, "/resources/bundle/runtime/") {
+			return RoleBundledRuntime
+		}
+		if strings.Contains(p.Exe, "/resources/bundle/bin/") {
+			return RoleScenarioService
+		}
+	}
+	if p.PID != anchor && isLauncherExecutable(base) {
+		return RoleLauncher
+	}
+	return RoleUnknown
+}
+
+func isLauncherExecutable(base string) bool {
+	return base == "sh" || base == "bash" || base == "xvfb-run" || base == "apprun" || strings.HasSuffix(base, ".appimage") || strings.Contains(base, "appimage")
 }
 
 func parseProcessStat(content string) (ppid int, command string, utime, stime int64, err error) {
@@ -232,20 +362,5 @@ func parseProcessStat(content string) (ppid int, command string, utime, stime in
 }
 
 func classifyRole(pid, rootPID int, command string) ProcessRole {
-	if pid == rootPID {
-		return RoleElectronMain
-	}
-	lower := strings.ToLower(command)
-	switch {
-	case strings.Contains(lower, "gpu"):
-		return RoleElectronGPU
-	case strings.Contains(lower, "renderer"), strings.Contains(lower, "zygote"):
-		return RoleElectronRender
-	case strings.Contains(lower, "runtime"), strings.Contains(lower, "node"), strings.Contains(lower, "deno"), strings.Contains(lower, "bun"):
-		return RoleBundledRuntime
-	case lower != "":
-		return RoleScenarioService
-	default:
-		return RoleUnknown
-	}
+	return classifyProcess(ProcessInfo{PID: pid, Command: command, Cmdline: []string{command}, Exe: command}, rootPID, ProcessTreeOptions{})
 }

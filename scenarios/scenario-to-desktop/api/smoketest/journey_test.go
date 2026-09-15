@@ -261,8 +261,8 @@ func TestDesktopJourney_ReadinessTimeoutFailsClosedAndCleansUp(t *testing.T) {
 	waiter := &journeyTestWaiter{err: errors.New("readiness policy timed out")}
 	service := &DefaultService{journeyDriver: driver, journeyClock: RealClock{}, journeyWaiter: waiter, journeyCapture: &journeyTestCapture{}, journeyAPI: journeyTestAPI{}}
 	result := service.runDesktopJourney(context.Background(), "smoke-1", "hello-desktop", "linux", recordingState{captureID: "rec", displayID: ":99", displayWidth: 1280, displayHeight: 720, windowManager: "openbox", titlebar: true})
-	if result.Disposition == deliveryramp.Disposition(journeyPass) || len(result.Steps) != 1 || !strings.Contains(result.Steps[0].Error, "timed out") {
-		t.Fatalf("timeout result = %+v, want failed step and no pass", result)
+	if result.Disposition == deliveryramp.Disposition(journeyPass) || len(result.Steps) != 8 || !strings.Contains(result.Steps[0].Error, "timed out") || result.Steps[1].Disposition != deliveryramp.StepNotRun {
+		t.Fatalf("timeout result = %+v, want failed step plus not_run chapters", result)
 	}
 }
 

@@ -351,6 +351,18 @@ class DesktopTemplateGenerator {
         if (file.isTemplate) {
             content = await this.processTemplateContent(content, templateConfig);
         }
+
+        const unresolved = [...content.matchAll(/\{\{[A-Z0-9_]+\}\}/g)].map(match => match[0]);
+        if (unresolved.length > 0) {
+            throw new Error(`unresolved template token(s) in ${file.targetPath}: ${[...new Set(unresolved)].join(', ')}`);
+        }
+        if (file.targetPath.endsWith('.json')) {
+            try {
+                JSON.parse(content);
+            } catch (error) {
+                throw new Error(`invalid JSON generated for ${file.targetPath}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
         
         await fs.writeFile(targetPath, content);
         console.log(`📄 Processed: ${file.targetPath}`);
@@ -982,17 +994,12 @@ SOFTWARE.`;
     }
     
     private generatePlaceholderIcon(size: number): Buffer {
-        // Generate a minimal valid 256x256 PNG (minimum size for electron-builder)
-        // This creates a simple gray square that electron-builder can process and convert
-
-        // For sizes < 256, we still generate 256x256 (electron-builder minimum)
-        // For sizes >= 256, we generate the requested size
-        const actualSize = Math.max(size, 256);
-
-        // Create a simple PNG with a solid color
-        // We'll create the smallest valid PNG possible for the requested dimensions
-        const png = this.createMinimalPNG(actualSize, actualSize);
-        return png;
+        // Emit a placeholder at the EXACT requested size. Using one size for every
+        // name (the old Math.max(size, 256)) shipped a 256x256 file under a
+        // 16x16 name, which brand-manager's declared-icon-targets rule rejects and
+        // which looks like a real icon. The placeholder bytes are registered in
+        // brand-manager's placeholder-hash registry so validation flags them.
+        return this.createMinimalPNG(size, size);
     }
 
     private createMinimalPNG(width: number, height: number): Buffer {

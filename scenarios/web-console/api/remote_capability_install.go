@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/binaryfetch"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
+	capsH "web-console/handlers/capabilities"
 	capabilities "web-console/internal/capabilities"
 )
 
@@ -25,11 +26,11 @@ import (
 func (s *Server) installCapabilityRemote(ctx context.Context, targetID, capabilityID string) (capabilities.LifecycleActionResult, error) {
 	def, ok := capabilityDefinition(capabilityID)
 	if !ok || def.DependencyKind != capabilities.DependencyResource || def.DependencySlug == "" {
-		return capabilities.LifecycleActionResult{}, fmt.Errorf("capability %q has no governed resource installer", capabilityID)
+		return capabilities.LifecycleActionResult{}, fmt.Errorf("%w: capability %q has no governed resource installer", capsH.ErrFailedPrecondition, capabilityID)
 	}
 	target, ok := s.targetByID(strings.TrimSpace(targetID))
 	if !ok || target.NodeID == "" {
-		return capabilities.LifecycleActionResult{}, fmt.Errorf("remote target %q was not found", targetID)
+		return capabilities.LifecycleActionResult{}, fmt.Errorf("%w: remote target %q was not found; refresh the machine list", capsH.ErrTargetNotFound, targetID)
 	}
 	if acquisition, found := resourceAcquisition(def.DependencySlug); found {
 		if _, err := acquisition.Resolve(binaryfetch.Facts{"os": target.OS, "arch": target.Architecture}); err != nil {
@@ -48,11 +49,19 @@ func (s *Server) installCapabilityRemote(ctx context.Context, targetID, capabili
 		}
 		break
 	}
+	// The Bridge endpoint is discovered per call when the operator configured
+	// none; an empty BaseURL means "discover", never "not configured".
 	base := strings.TrimRight(strings.TrimSpace(target.BaseURL), "/")
 	if base == "" {
-		return capabilities.LifecycleActionResult{}, fmt.Errorf("Bridge URL is not configured")
+		resolved, resolveErr := resolveBridgeScenarioURL(ctx)
+		if resolveErr != nil || strings.TrimSpace(resolved) == "" {
+			return capabilities.LifecycleActionResult{}, fmt.Errorf("%w: Bridge is not reachable from this Web Console, so it cannot install on remote machines: %v", capsH.ErrUnavailable, resolveErr)
+		}
+		base = strings.TrimRight(strings.TrimSpace(resolved), "/")
 	}
-	client := relayconnect.NewRelayServiceClient(authenticatedHTTPClient(target.OwnerToken, target.ReauthToken), base)
+	// The HTTP client must outlive the relay window it waits on; a 30s client
+	// cut every install that took longer than half a minute.
+	client := relayconnect.NewRelayServiceClient(authenticatedHTTPClientWithTimeout(freshOwnerAuthorization(ctx, target.OwnerToken), target.ReauthToken, capabilityRelayWindow+10*time.Second), base)
 	relayCtx, cancelRelay := context.WithTimeout(ctx, capabilityRelayWindow)
 	defer cancelRelay()
 	response, err := client.Call(relayCtx, connect.NewRequest(&relayv1.RelayCallRequest{
@@ -60,7 +69,7 @@ func (s *Server) installCapabilityRemote(ctx context.Context, targetID, capabili
 		Args: []string{def.DependencySlug, "--json"}, TimeoutSeconds: int64(capabilityRelayWindow.Seconds()), MaxResponseBytes: 512 * 1024,
 	}))
 	if err != nil {
-		return capabilities.LifecycleActionResult{}, err
+		return capabilities.LifecycleActionResult{}, fmt.Errorf("Bridge could not run the %s installer on %s: %w", def.DependencySlug, target.Label, err)
 	}
 	if response == nil || response.Msg == nil {
 		return capabilities.LifecycleActionResult{}, fmt.Errorf("Bridge returned no install result")
@@ -189,7 +198,11 @@ func capabilityDefinition(id string) (capabilities.Def, bool) {
 }
 
 func authenticatedHTTPClient(ownerToken, reauthToken string) *http.Client {
-	return &http.Client{Timeout: 30 * time.Second, Transport: authTransport{base: http.DefaultTransport, owner: ownerToken, reauth: reauthToken}}
+	return authenticatedHTTPClientWithTimeout(ownerToken, reauthToken, 30*time.Second)
+}
+
+func authenticatedHTTPClientWithTimeout(ownerToken, reauthToken string, timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: authTransport{base: http.DefaultTransport, owner: ownerToken, reauth: reauthToken}}
 }
 
 type authTransport struct {

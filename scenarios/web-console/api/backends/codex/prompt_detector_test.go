@@ -88,6 +88,13 @@ func TestCodexNumberedChoiceIsDetectedNotParsed(t *testing.T) {
 	}
 }
 
+func TestCodexCapacityInterruptionIsResumable(t *testing.T) {
+	got := DefaultPromptDetector().Analyze(stubView{text: "Selected model is at capacity. Please try a different model."})
+	if got.Interruption == nil || got.Interruption.Kind != "model_capacity" || got.Confidence < 0.9 {
+		t.Fatalf("capacity screen = %+v, want high-confidence model_capacity interruption", got)
+	}
+}
+
 type stubView struct {
 	text   string
 	cursor int

@@ -152,12 +152,43 @@ func onboardingProvision(ctx context.Context, logicalID, field, value string) (c
 	return client.Provision(ctx, credentialclient.ProvisionRequest{Identity: logicalID, Field: field, Value: value})
 }
 
+// authorityStatusJSON reads one address's metadata straight from the
+// authority, in the same shape the in-process client returns. It reports false
+// when there is no authority to ask or the identity does not parse.
+func authorityStatusJSON(logicalID, field string) ([]byte, bool) {
+	authority, err := onboardingAuthority()
+	if err != nil || authority == nil {
+		return nil, false
+	}
+	identity, err := credentialauthority.ParseIdentity(logicalID)
+	if err != nil {
+		return nil, false
+	}
+	status := authority.Status(identity, field)
+	data, err := json.Marshal(credentialclient.CredentialStatus{
+		Identity: string(status.Identity), Field: status.Field, Version: status.Version, Configured: status.Configured,
+		Provider: status.Provider, ProviderState: string(status.ProviderState), ProviderDetail: status.ProviderDetail,
+	})
+	if err != nil {
+		return nil, false
+	}
+	return data, true
+}
+
 func onboardingStatusJSON(ctx context.Context, logicalID, field string) ([]byte, error) {
 	client, ok := ctx.Value(credentialClientContextKey{}).(credentialclient.Client)
 	if !ok {
 		var err error
 		client, err = onboardingCredentialClient()
 		if err != nil {
+			// The client refuses to exist while its store is unavailable —
+			// exactly when readiness must say why. Status is metadata-only, so
+			// ask the authority itself: an absent store then reads as
+			// "absent, run `vrooli credentials store init`" instead of
+			// "credential transport is unavailable".
+			if direct, ok := authorityStatusJSON(logicalID, field); ok {
+				return direct, nil
+			}
 			return nil, err
 		}
 	}

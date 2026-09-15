@@ -7,7 +7,7 @@
     "generate-desktop-app": "./dist/template-generator.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node write-build-stamp.js",
     "typecheck": "tsc --noEmit",
     "dev": "vrooli lifecycle protect -- ts-node template-generator.ts",
     "test": "jest --passWithNoTests",

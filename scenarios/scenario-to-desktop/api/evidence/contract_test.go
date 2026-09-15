@@ -20,7 +20,7 @@ func validManifest(profile deliveryramp.Profile, state deliveryramp.RunState) de
 		Target:     deliveryramp.EvidenceTarget{Ramp: "scenario-to-desktop", Platform: "linux", OS: "linux", DeviceKind: "host"},
 		Runner:     deliveryramp.Runner{ID: "runner-1", Kind: "local", HostOS: "linux", TargetOS: "linux", Isolation: "xvfb"},
 		Provenance: deliveryramp.Provenance{ArtifactDigest: "sha256:artifact", GitCommit: "commit", StartedAt: now, CompletedAt: now.Add(time.Minute)},
-		Timeline:   deliveryramp.TimelineSummary{Version: "journey-evidence.v2", JourneyRef: "capture:journey-1", ChapterIDs: []string{"launch"}, EventCount: 1, Ordered: true, RedactionStatus: "verified"},
+		Timeline:   deliveryramp.TimelineSummary{Version: "journey-evidence.v2", JourneyRef: "capture:journey-1", ChapterIDs: []string{"launch"}, EventCount: 1, Ordered: true, RedactionStatus: "verified", ScreenContentSource: "bundled_private"},
 		Gates:      gates,
 		Artifacts:  []deliveryramp.Artifact{{ImmutableRef: "capture:recording-1", LocalPath: "/tmp/recording.mp4", Kind: "recording", Checksum: "sha256:capture", SizeBytes: 42, Width: 1280, Height: 720, DurationMs: 3000, Container: "mp4", Codec: "h264", UsefulFrames: true, CreatedAt: now}},
 	}

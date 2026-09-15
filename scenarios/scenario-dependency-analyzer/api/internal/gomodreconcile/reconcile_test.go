@@ -159,6 +159,47 @@ func TestPlanFlagsImportedSiblingAPIModuleMissingRequireAndReplace(t *testing.T)
 	}
 }
 
+// TestPlanNormalizesChildReplacePath guards the regression where a nested
+// in-repo module produced a bare `cli` replacement path, which
+// `go mod edit -replace` rejects as "unversioned new path must be local
+// directory". A child directory must carry a `./` prefix.
+func TestPlanNormalizesChildReplacePath(t *testing.T) {
+	t.Setenv("GOPROXY", "off")
+	t.Setenv("GOFLAGS", "-mod=mod")
+	root := t.TempDir()
+	parentDir := filepath.Join(root, "scenarios", "demo", "api")
+	childDir := filepath.Join(parentDir, "sub")
+	writeModule(t, childDir, "module demo/sub\n\ngo 1.25.0\n", map[string]string{
+		"sub.go": "package sub\n\nvar X = 1\n",
+	})
+	goModPath := filepath.Join(parentDir, "go.mod")
+	writeModule(t, parentDir, "module demo\n\ngo 1.25.0\n", map[string]string{
+		"main.go": "package main\n\nimport \"demo/sub\"\n\nfunc main() { _ = sub.X }\n",
+	})
+	topo := Topology{"demo": parentDir, "demo/sub": childDir}
+
+	missing, err := Plan(context.Background(), goModPath, topo)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(missing) != 1 || missing[0].RelPath != "./sub" {
+		t.Fatalf("expected child replace path ./sub, got %#v", missing)
+	}
+
+	// The full apply path (go mod edit) must accept the normalized path.
+	cand, err := ApplySurface(context.Background(), goModPath, topo)
+	if err != nil {
+		t.Fatalf("ApplySurface: %v", err)
+	}
+	if cand == nil {
+		t.Fatal("expected an applied candidate")
+	}
+	after, _ := os.ReadFile(goModPath)
+	if !strings.Contains(string(after), "replace demo/sub => ./sub") {
+		t.Fatalf("go.mod missing normalized replace:\n%s", after)
+	}
+}
+
 func TestPreviewSurfaceProducesDeterministicAfter(t *testing.T) {
 	root := t.TempDir()
 	leafDir := filepath.Join(root, "packages", "leaf")
@@ -251,6 +292,57 @@ func TestApplySurfaceAddsReplaceAndIsIdempotent(t *testing.T) {
 	}
 	if again != nil {
 		t.Fatalf("expected no-op on converged surface, got %#v", again)
+	}
+}
+
+// TestApplySurfaceSyncsGoSumForInRepoTransitiveRequirement is the regression for
+// the drift class that stranded brand-manager: the consumer already declares the
+// in-repo require and its local replace, but its go.sum is missing the entry its
+// in-repo dependency pulls in transitively. ApplySurface must tidy even though no
+// replace is missing.
+func TestApplySurfaceSyncsGoSumForInRepoTransitiveRequirement(t *testing.T) {
+	t.Setenv("GOPROXY", "off")
+	t.Setenv("GOFLAGS", "-mod=mod")
+	root := t.TempDir()
+	leafDir := filepath.Join(root, "packages", "leaf")
+	consumerDir := filepath.Join(root, "scenarios", "demo", "cli")
+	writeModule(t, leafDir,
+		"module example.com/leaf\n\ngo 1.25.0\n\nrequire golang.org/x/mod v0.37.0\n",
+		map[string]string{
+			"leaf.go": "package leaf\n\nimport \"golang.org/x/mod/module\"\n\ntype V = module.Version\n",
+		})
+	goModPath := filepath.Join(consumerDir, "go.mod")
+	writeModule(t, consumerDir,
+		"module demo/cli\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n\nreplace example.com/leaf => ../../../packages/leaf\n",
+		map[string]string{
+			"main.go": "package main\n\nimport \"example.com/leaf\"\n\nfunc main() { _ = leaf.V{} }\n",
+		})
+	topo := Topology{"example.com/leaf": leafDir}
+
+	cand, err := ApplySurface(context.Background(), goModPath, topo)
+	if err != nil {
+		t.Fatalf("ApplySurface: %v", err)
+	}
+	if cand == nil {
+		t.Fatal("expected a candidate because go.sum was synced")
+	}
+	if len(cand.Missing) != 0 {
+		t.Fatalf("no replace was missing, got %#v", cand.Missing)
+	}
+	if !cand.SumChanged {
+		t.Fatalf("expected SumChanged for the transitive go.sum sync, got %#v", cand)
+	}
+	sum, _ := os.ReadFile(filepath.Join(consumerDir, "go.sum"))
+	if !strings.Contains(string(sum), "golang.org/x/mod") {
+		t.Fatalf("go.sum missing the in-repo transitive requirement entry:\n%s", sum)
+	}
+
+	again, err := ApplySurface(context.Background(), goModPath, topo)
+	if err != nil {
+		t.Fatalf("second ApplySurface: %v", err)
+	}
+	if again != nil {
+		t.Fatalf("expected no-op on a synced surface, got %#v", again)
 	}
 }
 

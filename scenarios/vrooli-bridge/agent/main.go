@@ -56,6 +56,7 @@ import (
 	"vrooli-bridge/agent/internal/platform"
 	"vrooli-bridge/agent/internal/privsep"
 	"vrooli-bridge/agent/internal/service"
+	"vrooli-bridge/agent/internal/storeunlock"
 )
 
 func main() {
@@ -221,7 +222,9 @@ func runWithContext(ctx context.Context, args []string) error {
 		}
 	}
 
-	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithEncryptionCredential(encryption), channel.WithCredentialGrants(grants), channel.WithCredentialSink(cliCredentialSink{binary: cfg.VrooliBin, workDir: cfg.WorkDir}), channel.WithCPVerifier(cpVerifier), channel.WithShutdown(stop))
+	storeUnlock := &storeunlock.Holder{}
+	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithEncryptionCredential(encryption), channel.WithCredentialGrants(grants), channel.WithCredentialSink(cliCredentialSink{binary: cfg.VrooliBin, workDir: cfg.WorkDir}), channel.WithCPVerifier(cpVerifier), channel.WithShutdown(stop), channel.WithStoreUnlock(storeUnlock))
+	startStoreUnlockServer(ctx, logger, storeUnlock)
 	if err := retryControlPlane(ctx, logger, "sync credential grants", func() error {
 		return client.SyncCredentialGrants(ctx)
 	}); err != nil {

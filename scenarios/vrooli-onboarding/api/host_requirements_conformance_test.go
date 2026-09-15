@@ -196,6 +196,26 @@ func TestHandlerOwnedSafeguardIsCheckedThroughTheControlPlane(t *testing.T) {
 }
 
 // [REQ:ONB-HOST-PROBE-TRUTH]
+// A safeguard with both a handler and verification files is judged by its
+// handler. Statting the files first reported every Linux-only systemd path as
+// "missing" on macOS, so safeguards whose manifests declare macOS not
+// applicable blocked every Mac's readiness.
+func TestHandlerOwnedSafeguardWithVerificationFilesAsksTheHandler(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, "internal", "safeguards", "linux_only", "safeguard.json"),
+		`{"name":"linux_only","description":"Handler plus Linux file","handler":"internal/safeguards/linux-only","verificationCheck":{"files":["/nonexistent/systemd/user/linux-only.service"]}}`)
+
+	item := hostItem{hostRequirement: hostRequirement{Name: "linux_only", Required: true}, Status: "required"}
+	got := inspectSafeguardReadiness(root, item)
+	if got.Status == "missing" {
+		t.Fatalf("status = missing from a file stat; the handler must decide (detail %q)", got.Detail)
+	}
+	if !strings.Contains(got.Detail, "could not sample") {
+		t.Fatalf("detail = %q, want the handler's sampling outcome", got.Detail)
+	}
+}
+
+// [REQ:ONB-HOST-PROBE-TRUTH]
 // Every handler-owned safeguard in the real catalog must reach a verdict from
 // an unprivileged read. "deferred" is reserved for a probe that could not run;
 // if one appears here it means onboarding is again reporting a knowable host as

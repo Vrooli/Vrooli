@@ -128,11 +128,12 @@ export function SessionStateSlot({ slot, onOpenTerminal, onAnswer }: SessionStat
         <p className="text-sm font-medium text-wc-text-primary">{t(labels.asking, { speaker })}</p>
       ) : (
         <>
-          <p className="text-xs font-medium text-wc-text-secondary">{t(labels.asking, { speaker })}</p>
+          <p className="text-xs font-medium text-wc-text-secondary">{slot.kind === "interruption" ? t(labels.interruption, { speaker }) : t(labels.asking, { speaker })}</p>
           <p className="mt-1 whitespace-pre-wrap break-words text-sm text-wc-text-primary">{slot.prompt.text}</p>
+          {slot.kind === "interruption" && <p className="mt-1 text-xs text-wc-text-secondary">{t(labels.interruptionHint)}</p>}
           {slot.prompt.options.length > 0 && (
             <div role="group" aria-label={t(labels.options)} className="mt-2 flex flex-wrap gap-1.5">
-              {slot.prompt.options.map((option) => (slot.kind === "waiting-answerable" ? (
+              {slot.prompt.options.map((option) => (slot.kind === "waiting-answerable" || slot.kind === "interruption" ? (
                 <Button
                   key={option.key}
                   type="button"

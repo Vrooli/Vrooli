@@ -116,6 +116,16 @@ type TrustRecord struct {
 	ConnectionState      ConnectionState
 	UpdatedAt            time.Time
 }
+
+// SSHManagementEstablished reports whether Bridge can manage the machine over
+// SSH on its own authority: a verified host key, a trusted connection, a
+// Bridge-owned client key, and a login. These are the same facts the typed SSH
+// cleanup transport refuses to run without.
+func (t TrustRecord) SSHManagementEstablished() bool {
+	return t.HostKeyState == HostKeyVerified && t.ConnectionState == ConnectionTrusted &&
+		strings.TrimSpace(t.ClientKeyRef) != "" && strings.TrimSpace(t.SSHUser) != ""
+}
+
 type CreateInput struct {
 	ID                    string
 	Locators              []Locator

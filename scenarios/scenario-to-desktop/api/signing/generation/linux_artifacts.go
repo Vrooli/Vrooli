@@ -17,6 +17,11 @@ func generateLinuxArtifactSigner(config *types.LinuxSigningConfig) ([]byte, erro
 		return nil, fmt.Errorf("Linux artifact signing requires a GPG key ID")
 	}
 
+	passphraseEnv := strings.TrimSpace(config.GPGPassphraseEnv)
+	if config.ManagedKey != nil && passphraseEnv == "" {
+		passphraseEnv = types.DefaultPassphraseEnvVar
+	}
+
 	const template = `'use strict';
 
 const crypto = require('node:crypto');
@@ -26,7 +31,9 @@ const { spawn } = require('node:child_process');
 
 const GPG_KEY_ID = __GPG_KEY_ID__;
 const PASSPHRASE_ENV = __PASSPHRASE_ENV__;
-const GPG_HOMEDIR = __GPG_HOMEDIR__;
+// A managed key is materialized by the build into VROOLI_GPG_HOMEDIR; an
+// external keyring keeps the embedded path.
+const GPG_HOMEDIR = process.env.VROOLI_GPG_HOMEDIR || __GPG_HOMEDIR__;
 
 function runGpg(args, input) {
   return new Promise((resolve, reject) => {
@@ -41,14 +48,14 @@ function runGpg(args, input) {
       }
       resolve();
     });
-    if (input !== undefined) child.stdin.end(input + '\\n');
+    if (input !== undefined) child.stdin.end(input + '\n');
     else child.stdin.end();
   });
 }
 
 function architectureFor(artifactPath) {
   const match = path.basename(artifactPath).match(/(?:^|[-_.])(x64|arm64|armv7l|ia32|universal)(?:[-_.]|$)/i);
-  if (!match) throw new Error('cannot determine Linux artifact architecture from ' + artifactPath);
+  if (!match) return (process.env.npm_config_arch || process.arch || 'x64').toLowerCase();
   return match[1].toLowerCase();
 }
 
@@ -59,7 +66,13 @@ module.exports = async function signLinuxArtifacts(result) {
   const artifacts = result.artifactPaths.filter((value) => /\.(AppImage|deb|rpm|snap|tar\.gz)$/i.test(value));
   if (artifacts.length === 0) return [];
 
-  const version = result.configuration && result.configuration.extraMetadata && result.configuration.extraMetadata.version;
+  let version = result.configuration && ((result.configuration.extraMetadata && result.configuration.extraMetadata.version) || result.configuration.version);
+  if (!version) {
+    try {
+      const packageJSON = JSON.parse(await fs.readFile(path.join(process.cwd(), 'package.json'), 'utf8'));
+      version = packageJSON.version;
+    } catch (_) { /* report the canonical error below */ }
+  }
   const configuredChannel = result.configuration && result.configuration.publish && result.configuration.publish.channel;
   const channel = process.env.VROOLI_UPDATE_CHANNEL || configuredChannel || 'stable';
   if (!version) throw new Error('package version is required for Linux release metadata');
@@ -95,6 +108,6 @@ module.exports.default = module.exports;
 
 	return []byte(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(template,
 		"__GPG_KEY_ID__", strconv.Quote(config.GPGKeyID)),
-		"__PASSPHRASE_ENV__", strconv.Quote(config.GPGPassphraseEnv)),
+		"__PASSPHRASE_ENV__", strconv.Quote(passphraseEnv)),
 		"__GPG_HOMEDIR__", strconv.Quote(config.GPGHomedir))), nil
 }

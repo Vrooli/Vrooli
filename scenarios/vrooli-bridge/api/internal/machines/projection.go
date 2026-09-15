@@ -3,7 +3,12 @@ package machines
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
+	"strings"
+
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 )
 
 // NodeSnapshot and PresenceSnapshot are read models supplied by their owning
@@ -17,11 +22,19 @@ type NodeSnapshot struct {
 	Name           string
 	Capabilities   []string
 	ApprovedScopes []string
+	// ConfigurationState and ConfigurationUnmet are the outcome of the last
+	// configuration apply Bridge recorded for this node. They explain an
+	// unapplied profile; they never count as applying it.
+	ConfigurationState string
+	ConfigurationUnmet []string
 }
 
 type PresenceSnapshot struct {
 	Connected bool
 }
+
+// ErrNodeMissing is returned by a NodeReader when the node no longer exists.
+var ErrNodeMissing = errors.New("node no longer exists")
 
 type NodeReader interface {
 	GetNode(context.Context, string) (NodeSnapshot, error)
@@ -62,7 +75,9 @@ type DriftItem struct {
 func ComputeDrift(machine Machine, policy PolicySnapshot, projection Projection) []DriftItem {
 	items := make([]DriftItem, 0)
 	if machine.AppliedProfileID == "" || machine.AppliedProfileVersion == "" {
-		items = append(items, DriftItem{Kind: "profile", Name: policy.ProfileID, Reason: "profile has not been applied"})
+		if !connectionProfileObserved(policy, projection) {
+			items = append(items, DriftItem{Kind: "profile", Name: policy.ProfileID, Reason: unappliedProfileReason(projection)})
+		}
 	} else if machine.AppliedProfileID != policy.ProfileID || machine.AppliedProfileVersion != policy.ProfileVersion {
 		items = append(items, DriftItem{Kind: "profile", Name: policy.ProfileID, Reason: "desired profile differs from the applied profile"})
 	}
@@ -86,6 +101,64 @@ func ComputeDrift(machine Machine, policy PolicySnapshot, projection Projection)
 		}
 	}
 	return items
+}
+
+// connectionProfileObserved reports whether a connection-only profile is
+// visibly in effect even though no apply was recorded. Such a profile asks for
+// nothing but a connected Bridge agent and capabilities Bridge can observe, so
+// a connected node that has them conforms; calling that drift sent operators
+// to re-apply a machine that was already what its profile asks for. Profiles
+// that place other scenarios still need a recorded apply, because Bridge
+// cannot observe those scenarios from here.
+func connectionProfileObserved(policy PolicySnapshot, projection Projection) bool {
+	if !projection.HasNode || !projection.Presence.Connected || policy.ProfileID == "" {
+		return false
+	}
+	for _, scenario := range policy.Scenarios {
+		if scenario != "vrooli-bridge" {
+			return false
+		}
+	}
+	return len(missingRequirements("", policy.RequiredCapabilities, projection.Node.Capabilities)) == 0
+}
+
+// unappliedProfileReason names why a profile is unapplied when Bridge knows.
+func unappliedProfileReason(projection Projection) string {
+	const base = "profile has not been applied"
+	state := strings.TrimSpace(projection.Node.ConfigurationState)
+	if !projection.HasNode || state == "" {
+		return base
+	}
+	reason := base + "; the last configuration apply ended " + state
+	if unmet := projection.Node.ConfigurationUnmet; len(unmet) > 0 {
+		shown := unmet
+		if len(shown) > 3 {
+			shown = shown[:3]
+		}
+		reason += fmt.Sprintf(" with %d unmet item(s): %s", len(unmet), strings.Join(shown, ", "))
+		if len(unmet) > len(shown) {
+			reason += ", …"
+		}
+	}
+	return reason
+}
+
+// WithControlPlaneCapabilities adds capabilities Bridge establishes itself
+// rather than hears from the node. SSH management is Bridge holding a verified
+// host key, a trusted connection, its own client key, and a login for the
+// machine; a node cannot report that, so requiring the node to report it made
+// the drift permanent on every correctly onboarded machine.
+func WithControlPlaneCapabilities(projection Projection, trust TrustRecord) Projection {
+	if !projection.HasNode || !trust.SSHManagementEstablished() {
+		return projection
+	}
+	for _, capability := range projection.Node.Capabilities {
+		if capability == privilegedops.CapabilitySSHManagement {
+			return projection
+		}
+	}
+	projection.Node.Capabilities = append(append([]string(nil), projection.Node.Capabilities...), privilegedops.CapabilitySSHManagement)
+	return projection
 }
 
 func selectionDrift(desiredJSON, appliedJSON string) []DriftItem {
@@ -167,6 +240,12 @@ func Compose(ctx context.Context, machine Machine, nodes NodeReader, presence Pr
 			continue
 		}
 		node, err := nodes.GetNode(ctx, lineage.NodeID)
+		if errors.Is(err, ErrNodeMissing) {
+			// The lineage still names a node the registry has deleted. That is
+			// a machine with no current node, which drift and readiness already
+			// explain; failing the whole read made the machine unreadable.
+			return projection, nil
+		}
 		if err != nil {
 			return Projection{}, err
 		}

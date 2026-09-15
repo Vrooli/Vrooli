@@ -261,6 +261,7 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
             savingGrant={setGrant.isPending}
             onSaveGrant={handleSaveGrant}
             onBack={goList}
+            onInstallCapability={onInstallCapability}
           />
         )}
 

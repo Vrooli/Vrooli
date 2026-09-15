@@ -39,14 +39,16 @@ type DefaultMonitor struct {
 	stopped bool
 
 	// Previous sample state for CPU delta calculation.
-	prevUtime      int64
-	prevStime      int64
-	prevSampleT    time.Time
-	treePrev       map[int]int64
-	treeAt         time.Time
-	treeSeen       map[ProcessRole]map[int]struct{}
-	treeCPUAccum   map[ProcessRole]float64
-	treeCPUSamples map[ProcessRole]int
+	prevUtime          int64
+	prevStime          int64
+	prevSampleT        time.Time
+	treePrev           map[int]int64
+	treeAt             time.Time
+	treeStartedAt      time.Time
+	treeSeen           map[ProcessRole]map[int]struct{}
+	treeCPUAccum       map[ProcessRole]float64
+	treeCPUSamples     map[ProcessRole]int
+	processTreeOptions ProcessTreeOptions
 }
 
 // NewDefaultMonitor creates a monitor with the given dependencies.
@@ -153,14 +155,32 @@ func (m *DefaultMonitor) Done() <-chan struct{} {
 
 // pollResources samples /proc stats at regular intervals.
 func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
-	// Take an initial baseline reading for CPU delta calculation.
-	utime, stime, err := m.proc.ReadStat(pid)
-	if err == nil {
-		m.prevUtime = utime
-		m.prevStime = stime
-		m.prevSampleT = time.Now()
+	samplePID := pid
+	identity, hasIdentity := m.tree.(ProcessIdentityReader)
+	if hasIdentity {
+		samplePID = 0 // the launcher is not an app-resource sample
 	}
-
+	setBaseline := func(candidate int) {
+		utime, stime, err := m.proc.ReadStat(candidate)
+		if err == nil {
+			m.prevUtime = utime
+			m.prevStime = stime
+			m.prevSampleT = time.Now()
+		}
+	}
+	if !hasIdentity {
+		setBaseline(samplePID)
+	}
+	// Record a t0 sample so short-lived launches still have a truthful sample
+	// series and duration. The first CPU value remains zero because it has no
+	// prior interval.
+	if !hasIdentity {
+		if sample := m.collectSample(samplePID); sample != nil {
+			m.mu.Lock()
+			m.report.Samples = append(m.report.Samples, *sample)
+			m.mu.Unlock()
+		}
+	}
 	ticker := time.NewTicker(resourcePollInterval)
 	defer ticker.Stop()
 
@@ -169,11 +189,22 @@ func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !m.proc.IsAlive(pid) {
+			if hasIdentity {
+				if resolved, err := identity.ApplicationPID(pid, m.processTreeOptions); err == nil && resolved != 0 {
+					samplePID = resolved
+					if m.prevSampleT.IsZero() {
+						setBaseline(samplePID)
+					}
+				}
+			}
+			if samplePID == 0 {
+				continue
+			}
+			if !m.proc.IsAlive(samplePID) {
 				return
 			}
 
-			sample := m.collectSample(pid)
+			sample := m.collectSample(samplePID)
 			if sample != nil {
 				m.mu.Lock()
 				m.report.Samples = append(m.report.Samples, *sample)
@@ -226,7 +257,7 @@ func newProcessTreeReport(supported bool) *ProcessTreeReport {
 	if supported {
 		result.Scope = "linux:/proc"
 	}
-	for _, role := range []ProcessRole{RoleElectronMain, RoleElectronRender, RoleElectronGPU, RoleBundledRuntime, RoleScenarioService} {
+	for _, role := range []ProcessRole{RoleElectronMain, RoleElectronRender, RoleElectronGPU, RoleElectronUtility, RoleElectronCrashpad, RoleBundledRuntime, RoleScenarioService, RoleLauncher} {
 		result.Roles[role] = RoleSummary{Role: role, Unsupported: !supported}
 	}
 	return result
@@ -236,7 +267,13 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 	if m.tree == nil {
 		return
 	}
-	processes, err := m.tree.ProcessTree(rootPID)
+	var processes []ProcessInfo
+	var err error
+	if reader, ok := m.tree.(ProcessTreeReaderWithOptions); ok {
+		processes, err = reader.ProcessTreeWithOptions(rootPID, m.processTreeOptions)
+	} else {
+		processes, err = m.tree.ProcessTree(rootPID)
+	}
 	if err != nil {
 		m.logger.Debug("process tree unavailable", "pid", rootPID, "error", err)
 		return
@@ -246,6 +283,9 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 	defer m.mu.Unlock()
 	if m.report.ProcessTree == nil {
 		m.report.ProcessTree = newProcessTreeReport(true)
+	}
+	if m.treeStartedAt.IsZero() {
+		m.treeStartedAt = now
 	}
 	currentRSS := make(map[ProcessRole]int64)
 	currentThreads := make(map[ProcessRole]int)
@@ -300,9 +340,9 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 		}
 		m.report.ProcessTree.Roles[role] = summary
 	}
-	if !m.treeAt.IsZero() {
+	if !m.treeStartedAt.IsZero() {
 		for role, summary := range m.report.ProcessTree.Roles {
-			summary.DurationMs = now.Sub(m.treeAt).Milliseconds()
+			summary.DurationMs = now.Sub(m.treeStartedAt).Milliseconds()
 			m.report.ProcessTree.Roles[role] = summary
 		}
 	}

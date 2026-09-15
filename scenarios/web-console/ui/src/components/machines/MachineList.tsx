@@ -66,16 +66,33 @@ export function statusBadge(machine: Machine, t: Translate): { label: string; to
  * its neighbour on the same shelf. The count belongs on the card; the list
  * belongs in the Configuration tab.
  */
+/**
+ * What needs attention on a machine, grouped by what can be done about it.
+ *
+ * `missingCapabilities` are coding agents ("capability:") the operator can
+ * install. `unavailableNodeFeatures` are node features ("node_capability:",
+ * such as the Bridge provisioning helper) that are missing but cannot be
+ * installed from a browser; they are listed so the gap is visible, with the
+ * machine's own explanation instead of an action that could never work.
+ */
 export function machineIssues(machine: Machine): {
   count: number;
   drift: NonNullable<Machine["drift"]>;
   missingCapabilities: NonNullable<Machine["target"]["readiness"]>;
+  unavailableNodeFeatures: NonNullable<Machine["target"]["readiness"]>;
 } {
   const drift = machine.drift ?? [];
-  const missingCapabilities = (machine.target.readiness ?? []).filter(
-    (fact) => fact.key.startsWith("capability:") && fact.state === "missing",
+  const readiness = machine.target.readiness ?? [];
+  const missingCapabilities = readiness.filter((fact) => fact.key.startsWith("capability:") && fact.state === "missing");
+  const unavailableNodeFeatures = readiness.filter(
+    (fact) => fact.key.startsWith("node_capability:") && fact.state === "missing",
   );
-  return { count: drift.length + missingCapabilities.length, drift, missingCapabilities };
+  return {
+    count: drift.length + missingCapabilities.length + unavailableNodeFeatures.length,
+    drift,
+    missingCapabilities,
+    unavailableNodeFeatures,
+  };
 }
 
 export function statusPill(machine: Machine, t: Translate) {

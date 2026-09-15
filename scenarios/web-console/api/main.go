@@ -427,7 +427,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		},
 		"audio-tools": &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: audioProviderHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
 		"vrooli-bridge": &capabilities.BridgeChecker{
-			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
+			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken, Credentials: bridgeCredentialSource(bridgeOwnerToken),
 			ResolveURL: resolveBridgeScenarioURL,
 			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
@@ -593,7 +593,7 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 		"session-backend-standard":   &capabilities.StaticChecker{Available: probeStandard},
 		"session-backend-persistent": &capabilities.StaticChecker{Available: backend.CheckTmuxAvailable},
 		"vrooli-bridge": &capabilities.BridgeChecker{
-			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
+			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken, Credentials: bridgeCredentialSource(bridgeOwnerToken),
 			ResolveURL: resolveBridgeScenarioURL,
 			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
@@ -736,7 +736,11 @@ func resolveSQLiteDSN() string {
 		log.Fatalf("storage resolver: %v", err)
 	}
 
-	opts := storage.Options{ScenarioID: "web-console"}
+	scenarioNamespace, err := storage.ScenarioNamespace("web-console")
+	if err != nil {
+		log.Fatalf("resolve scenario storage namespace: %v", err)
+	}
+	opts := storage.Options{ScenarioID: scenarioNamespace}
 	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassData, 0); err != nil {
 		log.Fatalf("ensure data dir: %v", err)
 	}

@@ -9,8 +9,8 @@
   "inputs": {
     "scenario": {
       "type": "string",
-      "required": true,
-      "description": "Exact packaged scenario name, 1–128 characters."
+      "required": false,
+      "description": "Exact packaged scenario name when known; optional when pipeline_id is supplied."
     },
     "pipeline_id": {
       "type": "string",

@@ -73,6 +73,30 @@ func TestInteractiveCommandEnvMakesConfiguredVrooliBinDiscoverable(t *testing.T)
 	require.Equal(t, "/Users/test/.vrooli/bin:/usr/bin:/bin", pathValue)
 }
 
+// TestTerminalSessionEnvDescribesTheBrowserTerminal pins the remote backspace
+// defect: a launchd-started agent passed its shells no TERM, so zsh drew each
+// backspace as trailing spaces instead of erasing.
+func TestTerminalSessionEnvDescribesTheBrowserTerminal(t *testing.T) {
+	env := terminalSessionEnv([]string{"PATH=/usr/bin:/bin", "HOME=/Users/test"})
+	require.Contains(t, env, "TERM=xterm-256color")
+	require.Contains(t, env, "COLORTERM=truecolor")
+	require.Contains(t, env, "LANG=en_US.UTF-8")
+	require.Contains(t, env, "HOME=/Users/test")
+
+	dumb := terminalSessionEnv([]string{"TERM=dumb"})
+	require.Contains(t, dumb, "TERM=xterm-256color")
+	require.NotContains(t, dumb, "TERM=dumb")
+}
+
+func TestTerminalSessionEnvKeepsWhatTheHostChose(t *testing.T) {
+	env := terminalSessionEnv([]string{"TERM=screen-256color", "COLORTERM=24bit", "LC_ALL=de_DE.UTF-8"})
+	require.Contains(t, env, "TERM=screen-256color")
+	require.Contains(t, env, "COLORTERM=24bit")
+	for _, entry := range env {
+		require.False(t, strings.HasPrefix(entry, "LANG="), "must not add LANG over the host's LC_ALL: %v", env)
+	}
+}
+
 type desktopOwnerFixture struct {
 	desktopv1connect.UnimplementedDesktopOwnerServiceHandler
 	observedSession string

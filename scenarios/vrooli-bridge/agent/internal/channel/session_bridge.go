@@ -122,7 +122,7 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 	c.closeNodeSession(id, "replaced")
 	ctx, cancel := context.WithCancel(c.baseCtxOrBackground())
 	cmd := exec.CommandContext(ctx, shell) // #nosec G204 -- interactiveShell allowlists the executable; no user-supplied argv or shell string reaches exec.
-	cmd.Env = interactiveCommandEnv(c.cfg.VrooliBin, os.Environ())
+	cmd.Env = terminalSessionEnv(interactiveCommandEnv(c.cfg.VrooliBin, os.Environ()))
 	if dir := strings.TrimSpace(open.GetWorkingDir()); dir != "" {
 		cmd.Dir = filepath.Clean(dir)
 	}
@@ -141,7 +141,7 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 			fallbackShell = "/bin/sh"
 		}
 		cmd = exec.CommandContext(ctx, fallbackShell, interactiveShellArgs()...) // #nosec G204 -- fallbackShell is a fixed platform shell or the previously validated shell.
-		cmd.Env = interactiveCommandEnv(c.cfg.VrooliBin, os.Environ())
+		cmd.Env = terminalSessionEnv(interactiveCommandEnv(c.cfg.VrooliBin, os.Environ()))
 		if dir := strings.TrimSpace(open.GetWorkingDir()); dir != "" {
 			cmd.Dir = filepath.Clean(dir)
 		}
@@ -464,6 +464,41 @@ func interactiveShellArgs() []string {
 	// A pipe is not a terminal. POSIX shells otherwise exit immediately
 	// instead of accepting the session's stdin stream.
 	return []string{"-i"}
+}
+
+// terminalSessionEnv describes the terminal the remote shell is really talking
+// to: the operator's browser runs xterm.js. A service-managed agent (launchd,
+// systemd) inherits no TERM, so the shell fell back to a capability-less
+// terminal whose line editor cannot move the cursor left — a backspace was
+// redrawn as trailing spaces instead of erasing. An explicit TERM (other than
+// "dumb") and any locale the host already set are kept.
+func terminalSessionEnv(base []string) []string {
+	env := append([]string(nil), base...)
+	value := func(key string) (string, int) {
+		for i, entry := range env {
+			if v, ok := strings.CutPrefix(entry, key+"="); ok {
+				return v, i
+			}
+		}
+		return "", -1
+	}
+	if term, index := value("TERM"); strings.TrimSpace(term) == "" || term == "dumb" {
+		if index >= 0 {
+			env[index] = "TERM=xterm-256color"
+		} else {
+			env = append(env, "TERM=xterm-256color")
+		}
+	}
+	if _, index := value("COLORTERM"); index < 0 {
+		env = append(env, "COLORTERM=truecolor")
+	}
+	lang, _ := value("LANG")
+	all, _ := value("LC_ALL")
+	ctype, _ := value("LC_CTYPE")
+	if lang == "" && all == "" && ctype == "" {
+		env = append(env, "LANG=en_US.UTF-8")
+	}
+	return env
 }
 
 func interactiveCommandEnv(vrooliBin string, base []string) []string {

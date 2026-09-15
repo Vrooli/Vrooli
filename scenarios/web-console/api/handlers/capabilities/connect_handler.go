@@ -2,12 +2,41 @@ package capabilities
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"connectrpc.com/connect"
 
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
 )
+
+// Action failures carry their class so the browser can tell a missing
+// machine or an unreachable control plane from a malformed request. Every
+// action error used to be invalid_argument, which named the caller as the
+// cause of failures it could not have avoided.
+var (
+	ErrTargetNotFound     = errors.New("target not found")
+	ErrUnavailable        = errors.New("unavailable")
+	ErrFailedPrecondition = errors.New("failed precondition")
+)
+
+// runActionCode keeps a control-plane status code when the failure came from
+// one, and otherwise classifies by the sentinel the adapter wrapped.
+func runActionCode(err error) connect.Code {
+	var remote *connect.Error
+	switch {
+	case errors.As(err, &remote):
+		return remote.Code()
+	case errors.Is(err, ErrTargetNotFound):
+		return connect.CodeNotFound
+	case errors.Is(err, ErrUnavailable):
+		return connect.CodeUnavailable
+	case errors.Is(err, ErrFailedPrecondition):
+		return connect.CodeFailedPrecondition
+	default:
+		return connect.CodeInvalidArgument
+	}
+}
 
 // Deps wires the seams the Connect capabilities handler needs.
 type Deps struct {
@@ -55,7 +84,7 @@ func (h *connectHandler) RunAction(ctx context.Context, req *connect.Request[cap
 		TargetID:     req.Msg.GetTargetId(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(runActionCode(err), err)
 	}
 	resp := &capabilitiesv1.RunActionResponse{
 		Success:      result.Success,
