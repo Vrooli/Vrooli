@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -177,6 +179,31 @@ func runReleaseActivate(ctx context.Context, e *executor, action execplan.Action
 // runConfigApply runs the target's setup and delivers the autoheal scope
 // declaration as a file (a small typed document, never a shell write).
 func runConfigApply(ctx context.Context, e *executor, action execplan.Action) (string, error) {
+	// setup discovers vrooli-autoheal through the user's managed CLI path.
+	// Deliver it in this action immediately before setup so a refreshed target
+	// cannot lose the repair capability between releases.
+	localHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve local CLI home: %w", err)
+	}
+	autohealCLI := filepath.Join(localHome, ".vrooli", "bin", "vrooli-autoheal")
+	if _, err := os.Stat(autohealCLI); err != nil {
+		return "", fmt.Errorf("autoheal CLI is unavailable at %s: %w", autohealCLI, err)
+	}
+	remoteCLI := filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "bin", "vrooli-autoheal")
+	delivery := []reach.ArtifactFile{{
+		Role: "autoheal_cli_user_install", LocalPath: autohealCLI, RemotePath: remoteCLI, Mode: 0o755,
+	}}
+	for _, suffix := range []string{".manifest.json", ".build.meta"} {
+		local := autohealCLI + suffix
+		if _, statErr := os.Stat(local); statErr != nil {
+			return "", fmt.Errorf("autoheal CLI sidecar is unavailable at %s: %w", local, statErr)
+		}
+		delivery = append(delivery, reach.ArtifactFile{Role: "autoheal_cli_sidecar" + suffix, LocalPath: local, RemotePath: remoteCLI + suffix})
+	}
+	if _, err := e.reach.Deliver(ctx, e.rt.Target, reach.Delivery{Files: delivery}); err != nil {
+		return "", err
+	}
 	detail, err := e.runCommands(ctx, action)
 	if err != nil {
 		return "", err

@@ -9,16 +9,16 @@
       "conversionStyle": "emotional"
     },
     "seo_config": {
-      "title": "Silent Founder OS - Browser Automation Curriculum",
+      "title": "Aquila - Aquila workspace",
       "description": "Teach automation faster with onboarding lessons and downloadable labs.",
-      "og_title": "Silent Founder OS",
+      "og_title": "Aquila",
       "og_description": "Teach automation faster with onboarding lessons and downloadable labs.",
       "twitter_card": "summary_large_image"
     },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",
-        "label": "Silent Founder OS"
+        "label": "Aquila"
       },
       "nav": {
         "links": [
@@ -40,16 +40,16 @@
   "header": {
     "branding": {
       "mode": "logo_and_name",
-      "label": "Silent Founder OS"
+      "label": "Aquila"
     }
   },
   "sections": [
     {
       "section_type": "hero",
       "order": 1,
-      "enabled": true,
+      "enabled": false,
       "content": {
-        "title": "Teach Browser Automation Faster",
+        "title": "Aquila workspace overview",
         "subtitle": "Bundle onboarding lessons, downloadable labs, and live cohorts behind a single landing page.",
         "cta_text": "Download the starter kit",
         "cta_url": "/downloads/starter",
@@ -61,7 +61,7 @@
       "order": 2,
       "enabled": true,
       "content": {
-        "title": "Why trainers pick Vrooli Ascension",
+        "title": "Why trainers pick the Vrooli Business Suite",
         "subtitle": "Variant A leans into enablement metrics over pricing copy.",
         "features": [
           {

@@ -162,6 +162,9 @@ WantedBy=multi-user.target
 func invokingIdentity() (int, int, error) {
 	uidText := strings.TrimSpace(os.Getenv("SUDO_UID"))
 	if uidText == "" {
+		if os.Geteuid() == 0 {
+			return 0, 0, nil
+		}
 		return 0, 0, fmt.Errorf("elevated setup needs SUDO_UID to identify the authorized broker caller")
 	}
 	uid, err := strconv.Atoi(uidText)

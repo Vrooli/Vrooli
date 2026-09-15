@@ -31,9 +31,9 @@ describe('PublicRouteGuard experience readiness', () => {
 
     render(<PublicRouteGuard><div>landing content</div></PublicRouteGuard>);
 
-    expect(screen.getByLabelText('Preparing Silent Founder OS')).toHaveAttribute('data-experience-surface', 'public-landing');
-    expect(screen.getByLabelText('Preparing Silent Founder OS')).toHaveAttribute('data-experience-state', 'loading');
-    expect(screen.getByLabelText('Preparing Silent Founder OS')).toHaveAttribute('data-testid', 'landing-experience-surface');
+    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-experience-surface', 'public-landing');
+    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-experience-state', 'loading');
+    expect(screen.getByLabelText('Preparing Aquila')).toHaveAttribute('data-testid', 'landing-experience-surface');
   });
 
   it('exposes a terminal ready state once configuration resolves', () => {

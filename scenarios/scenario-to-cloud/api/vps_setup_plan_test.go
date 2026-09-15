@@ -110,7 +110,7 @@ func TestBuildSetupPlanStepOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
-	expectedOrder := []string{execplan.OpHostPrepare, execplan.OpDataInventory, execplan.OpReleaseDeliver, execplan.OpReleaseVerify, execplan.OpReleaseStage, execplan.OpConfigApply}
+	expectedOrder := []string{execplan.OpReleaseDeliver, execplan.OpHostPrepare, execplan.OpDataInventory, execplan.OpReleaseVerify, execplan.OpReleaseStage, execplan.OpConfigApply}
 	if len(plan) != len(expectedOrder) {
 		t.Fatalf("expected %d steps, got %d: %+v", len(expectedOrder), len(plan), plan)
 	}

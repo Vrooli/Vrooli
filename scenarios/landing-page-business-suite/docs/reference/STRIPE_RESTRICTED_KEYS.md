@@ -31,16 +31,27 @@ Everything else should stay **No access**. If you do not cancel subscriptions fr
 
 ## Wire it into this app
 
-Provision these through the admin portal (Billing → Stripe) or the credential-authority provisioning flow:
+Set `STRIPE_MODE` to `test` or `live`, then provision the matching namespace.
+When it is absent, LPBS defaults to live-mode migration behavior:
 
-- `stripe-publishable-key`: `pk_...` (the descriptor retains `STRIPE_PUBLISHABLE_KEY` only for the browser projection)
-- `stripe-secret-key`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)
-- `stripe-webhook-secret`: `whsec_...` from your webhook endpoint configuration
+- Test: `stripe-test-publishable-key`, `stripe-test-secret-key`, and `stripe-test-webhook-secret`
+- Live: `stripe-live-publishable-key`, `stripe-live-secret-key`, and `stripe-live-webhook-secret`
+
+The legacy `stripe-publishable-key`, `stripe-secret-key`, and
+`stripe-webhook-secret` fields remain a live-mode migration fallback. Test mode
+never reads them. Secret values stay in the credential authority and are never
+put in browser code.
+
+The Stripe catalog must use the same mode as the credentials. In test mode,
+set `BUNDLE_ENVIRONMENT=test` and `STRIPE_PLANS_PATH` to a separately
+provisioned test catalog with bundle environment `test`; do not point test mode
+at the production `.vrooli/plans.json` file. LPBS rejects an explicit mode and
+catalog environment mismatch. Live mode defaults to the production catalog.
 
 Keep the publishable and restricted server keys in the same Stripe mode. LPBS
 rejects a recognizable `pk_test_`/`pk_live_` versus `sk_`/`rk_` mismatch before
-persisting the update. Webhook secrets are validated separately by Stripe's
-signature checks.
+persistence. Webhook secrets are validated separately by Stripe's signature
+checks.
 
 Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>/api/v1/webhooks/stripe` and select:
 - `checkout.session.completed`
@@ -59,6 +70,6 @@ Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>
 
 ## Rotation tips
 
-- Keep separate test and live restricted keys; never reuse the old `sk_...` key here.
+- Keep separate test and live restricted keys; never reuse a key across modes.
 - Rotate keys per environment; update the webhook secret when regenerating endpoints.
 - Remove unused restricted keys from the Stripe Dashboard after a rotation window.

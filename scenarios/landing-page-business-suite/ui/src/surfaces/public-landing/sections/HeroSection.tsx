@@ -86,21 +86,21 @@ export function HeroSection({ content }: HeroSectionProps) {
         <div className="space-y-8">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.35em] text-slate-300">
-              Silent Founder OS
+              Aquila
               <Sparkles className="h-3.5 w-3.5 text-accent" />
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-accent-secondary/20 bg-accent-secondary/10 px-3 py-1 text-[11px] font-semibold text-accent-secondary/80">
-              Vrooli Ascension · Live today
+              Vrooli Business Suite · Live in your browser
             </span>
           </div>
 
           <div className="space-y-5">
             <h1 className="text-5xl leading-tight text-white md:text-6xl">
-              {content.title || 'Record once. Automate forever'}
+              {content.title || 'Your work, in one calm command center'}
             </h1>
             <p className="max-w-2xl text-lg text-slate-300">
               {content.subtitle ||
-                'And turn every recording into a polished, professional demo video'}
+                'Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand'}
             </p>
           </div>
 
@@ -120,23 +120,23 @@ export function HeroSection({ content }: HeroSectionProps) {
           </div>
 
           <div className="rounded-3xl border border-white/5 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Silent Founder essentials</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Aquila essentials</p>
             <div className="mt-4 grid gap-3 text-sm text-slate-200">
               {[
                 {
-                  icon: <Video className="h-4 w-4 text-accent-secondary" />,
-                  title: 'Replay-ready',
-                  copy: 'Passively builds a timeline of your work—convert anything into a reusable workflow.',
+                  icon: <Terminal className="h-4 w-4 text-accent-secondary" />,
+                  title: 'Durable sessions',
+                  copy: 'Keep terminal work available across reconnects so context does not disappear when the browser does.',
                 },
                 {
                   icon: <ShieldCheck className="h-4 w-4 text-success" />,
-                  title: 'Guardrails built-in',
-                  copy: 'Waits, retries, and entitlement checks keep ops reliable.',
+                  title: 'Pane-based focus',
+                  copy: 'See multiple sessions together and keep the important work in view.',
                 },
                 {
-                  icon: <Clock className="h-4 w-4 text-accent" />,
-                  title: 'Zero-effort capture',
-                  copy: 'Works in the background. Select any moment to become a reusable workflow.',
+                  icon: <Sparkles className="h-4 w-4 text-accent" />,
+                  title: 'AI-assisted input',
+                  copy: 'Turn intent into useful command suggestions while keeping the operator in control.',
                 },
               ].map((item) => (
                 <div key={item.title} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-3 py-3">
@@ -151,15 +151,15 @@ export function HeroSection({ content }: HeroSectionProps) {
             <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-200">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
                 <LineChart className="h-4 w-4 text-accent" />
-                <span>12–20 hours back weekly</span>
+                <span>Context that persists</span>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
                 <ShieldCheck className="h-4 w-4 text-success" />
-                <span>Ops-safe guardrails</span>
+                <span>Operator control</span>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
                 <Sparkles className="h-4 w-4 text-accent-secondary" />
-                <span>Ad-ready exports</span>
+                <span>Browser-first</span>
               </div>
             </div>
           </div>
@@ -167,10 +167,44 @@ export function HeroSection({ content }: HeroSectionProps) {
 
         <div className="relative">
           <div className="absolute -top-12 -right-10 h-72 w-72 rounded-full bg-accent-secondary/10 blur-3xl" />
-          <FeatureShowcase />
+          <AquilaWorkspacePreview />
         </div>
       </div>
     </section>
+  );
+}
+
+function AquilaWorkspacePreview() {
+  return (
+    <div className="relative mx-auto w-full max-w-2xl">
+      <div className="absolute -inset-8 rounded-[3rem] bg-cyan-400/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/90 shadow-2xl shadow-cyan-950/50">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            <span className="text-sm font-semibold text-white">Aquila workspace</span>
+          </div>
+          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">Live</span>
+        </div>
+        <div className="grid gap-3 p-4 sm:grid-cols-[0.7fr_1.3fr]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <p className="mb-3 text-[10px] uppercase tracking-[0.25em] text-slate-500">Sessions</p>
+            {['Release checklist', 'Agent handoff', 'Local shell'].map((session, index) => (
+              <div key={session} className={`mb-2 rounded-xl px-3 py-2 text-xs ${index === 0 ? 'border border-cyan-300/20 bg-cyan-300/10 text-cyan-100' : 'text-slate-400'}`}>
+                {session}
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-xs leading-6 text-slate-300">
+            <p><span className="text-emerald-400">$</span> vrooli status</p>
+            <p className="text-slate-500">workspace ready · 3 sessions attached</p>
+            <p><span className="text-emerald-400">$</span> aquila suggest</p>
+            <p className="text-cyan-200">Keep the release lane open and verify the latest receipt.</p>
+            <div className="mt-3 flex items-center gap-2 text-[10px] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Connected to local workspace</div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

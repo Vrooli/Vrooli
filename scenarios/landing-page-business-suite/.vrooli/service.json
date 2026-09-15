@@ -29,8 +29,8 @@
     }
   },
   "environment": {
-    "PUBLIC_BASE_URL": "http://localhost:${UI_PORT}",
-    "AUTH_MAGIC_LINK_BASE_URL": "http://localhost:${UI_PORT}/auth/verify"
+    "PUBLIC_BASE_URL": "https://vrooli.com",
+    "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify"
   },
   "generation": {
     "template": {
@@ -307,7 +307,7 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "stripe-publishable-key",
+        "field": "stripe-publishable-key",
         "env": "STRIPE_PUBLISHABLE_KEY",
         "label": "Stripe publishable key",
         "description": "Public client key used by the browser checkout flow.",
@@ -322,7 +322,73 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-    "field": "delivery-s3-access-key-id",
+        "field": "stripe-test-secret-key",
+        "label": "Stripe test restricted secret key",
+        "description": "Test-mode server key used only when STRIPE_MODE=test. It is never read from the live or legacy Stripe fields.",
+        "placeholder": "rk_test_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/test/apikeys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-test-webhook-secret",
+        "label": "Stripe test webhook signing secret",
+        "description": "Test-mode webhook signing secret used only when STRIPE_MODE=test.",
+        "placeholder": "whsec_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/test/webhooks",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-test-publishable-key",
+        "label": "Stripe test publishable key",
+        "description": "Test-mode browser key used only when STRIPE_MODE=test.",
+        "placeholder": "pk_test_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/test/apikeys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-secret-key",
+        "label": "Stripe live restricted secret key",
+        "description": "Explicit live-mode server key used when STRIPE_MODE=live. Legacy stripe-secret-key remains a migration fallback only.",
+        "placeholder": "rk_live_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-webhook-secret",
+        "label": "Stripe live webhook signing secret",
+        "description": "Explicit live-mode webhook signing secret used when STRIPE_MODE=live. Legacy stripe-webhook-secret remains a migration fallback only.",
+        "placeholder": "whsec_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/webhooks",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-live-publishable-key",
+        "label": "Stripe live publishable key",
+        "description": "Explicit live-mode browser key used when STRIPE_MODE=live. Legacy stripe-publishable-key remains a migration fallback only.",
+        "placeholder": "pk_live_...",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-access-key-id",
         "label": "Download bucket access key ID",
         "description": "Optional account identifier for signing desktop download URLs; prefer an instance role or short-lived credentials and leave this unset when the runtime already has that role.",
         "placeholder": "AKIAIOSFODNN7EXAMPLE",

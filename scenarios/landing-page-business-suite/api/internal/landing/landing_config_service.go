@@ -24,8 +24,8 @@ var (
 		"variant": {
 			"id": 0,
 			"slug": "control",
-			"name": "Silent Founder OS",
-			"description": "Offline-safe fallback for the Silent Founder OS landing page."
+			"name": "Aquila",
+			"description": "Offline-safe fallback for the Aquila landing page."
 		},
 		"axes": {
 			"persona": "silentFounder",
@@ -38,11 +38,11 @@ var (
 				"order": 1,
 				"enabled": true,
 				"content": {
-					"title": "Record once. Automate forever",
-					"subtitle": "And turn every recording into a polished, professional demo video",
-					"cta_text": "Start free",
-					"cta_url": "/checkout?plan=pro",
-					"secondary_cta_text": "Watch video",
+					"title": "Your work, in one calm command center",
+					"subtitle": "Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand.",
+					"cta_text": "Open Aquila",
+					"cta_url": "/app/web-console",
+					"secondary_cta_text": "Explore features",
 					"secondary_cta_url": "#video-2",
 					"image_url": "/assets/fallback/hero.png"
 				}
@@ -52,10 +52,10 @@ var (
 				"order": 2,
 				"enabled": true,
 				"content": {
-					"title": "Watch Vrooli Ascension build and replay a flow",
-					"videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+					"title": "Aquila in action",
+					"videoUrl": "",
 					"thumbnailUrl": "/assets/fallback/video-thumb.png",
-					"caption": "Visual workflow builder \u2192 e2e test \u2192 replay-as-movie export. Available today; Silent Founder OS keeps adding tools."
+					"caption": "Explore durable sessions, pane-based workflows, and AI-assisted input in the live Aquila workspace."
 				}
 			},
 			{
@@ -63,22 +63,22 @@ var (
 				"order": 3,
 				"enabled": true,
 				"content": {
-					"title": "Vrooli Ascension is live now. The suite keeps growing.",
-					"subtitle": "Automate browsers, ship tests, and generate proof-ready replays today. Your subscription includes future Vrooli Business Suite apps at no extra cost.",
+					"title": "Aquila is live now. The suite keeps growing.",
+					"subtitle": "Keep durable sessions, agent work, and operational context together. Your subscription includes future Vrooli Business Suite apps as they become ready.",
 					"features": [
 						{
-							"title": "Visual workflow builder",
-							"description": "Point-and-record or assemble actions to automate admin panels, dashboards, and back-office flows.",
+							"title": "Durable sessions",
+							"description": "Keep terminal work available across reconnects so context does not disappear when the browser does.",
 							"icon": "zap"
 						},
 						{
-							"title": "Workflows = e2e tests",
-							"description": "Run flows in CI, capture failures, and share evidence without rewriting tests.",
+							"title": "Pane-based focus",
+							"description": "See multiple terminal sessions together and keep the important work in view.",
 							"icon": "shield"
 						},
 						{
-							"title": "Replay-as-movie exports",
-							"description": "Fake browser frames, smooth cursor animation, zoom/pan highlights, MP4 export with watermark rules by plan.",
+							"title": "AI-assisted input",
+							"description": "Turn intent into useful command suggestions while keeping the operator in control.",
 							"icon": "sparkles"
 						},
 						{
@@ -100,7 +100,7 @@ var (
 				"enabled": true,
 				"content": {
 					"title": "Simple, transparent pricing",
-					"subtitle": "Vrooli Ascension today. More Silent Founder OS tools added over time.",
+					"subtitle": "Aquila today. More Business Suite tools added over time.",
 					"tiers": [
 						{
 							"name": "Free",
@@ -140,7 +140,7 @@ var (
 								"Early UX metrics access",
 								"Limited agent loops"
 							],
-							"cta_text": "Default for Silent Founders",
+							"cta_text": "Choose Aquila",
 							"cta_url": "/checkout?plan=pro",
 							"highlighted": true,
 							"badge": "Recommended"
@@ -184,7 +184,7 @@ var (
 					"faqs": [
 						{
 							"question": "What do I get today?",
-							"answer": "Vrooli Ascension: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)."
+						"answer": "Aquila provides durable sessions, pane-based workflows, and AI-assisted input from any browser."
 						},
 						{
 							"question": "What is coming next?",
@@ -206,10 +206,10 @@ var (
 				"order": 6,
 				"enabled": true,
 				"content": {
-					"title": "See Vrooli Ascension in action",
-					"subtitle": "Start free, export a replay, and know more tools are coming to the same subscription.",
-					"cta_text": "Get started quietly",
-					"cta_url": "/checkout?plan=pro"
+					"title": "Bring your workspace closer",
+					"subtitle": "Open Aquila, keep your sessions close, and add more Vrooli capabilities as they become ready.",
+					"cta_text": "Open Aquila",
+					"cta_url": "/app/web-console"
 				}
 			},
 			{
@@ -217,8 +217,8 @@ var (
 				"order": 7,
 				"enabled": true,
 				"content": {
-					"title": "Download Vrooli Ascension",
-					"subtitle": "Install now and start automating today."
+					"title": "Open Aquila",
+					"subtitle": "Open Aquila in your browser. Desktop and mobile apps will appear here as they ship."
 				}
 			},
 			{
@@ -226,8 +226,8 @@ var (
 				"order": 8,
 				"enabled": true,
 				"content": {
-					"company_name": "Vrooli Business Suite · Silent Founder OS",
-					"tagline": "Vrooli Ascension today. Agents and new tools tomorrow. No meetings required.",
+					"company_name": "Aquila · Vrooli Business Suite",
+					"tagline": "A calm command center for your tools and agents.",
 					"columns": [
 						{
 							"title": "Product",
@@ -268,7 +268,7 @@ var (
 			"bundle": {
 				"id": 0,
 				"bundle_key": "business_suite",
-				"name": "Vrooli Business Suite (Silent Founder OS)",
+				"name": "Aquila · Vrooli Business Suite",
 				"stripe_product_id": "prod_business_suite",
 				"credits_per_usd": 1000000,
 				"display_credits_multiplier": 0.001,
@@ -483,8 +483,8 @@ var (
 			{
 				"bundle_key": "business_suite",
 				"app_key": "browser-automation-studio",
-				"name": "Vrooli Ascension",
-				"tagline": "Silent Founder OS \u00b7 Day-one value",
+				"name": "Browser Automation Studio",
+				"tagline": "Browser workflows and replay evidence",
 				"description": "Desktop suite for visual browser automation, tests, and cinematic replays.",
 				"install_overview": "Pick your OS, download the installer, sign in with the email tied to your plan to unlock entitlement-gated downloads.",
 				"install_steps": [
@@ -507,7 +507,7 @@ var (
 						"platform": "windows",
 						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
 						"release_version": "1.0.0",
-						"release_notes": "Vrooli Ascension GA with replay exports.",
+						"release_notes": "Initial Browser Automation Studio release.",
 						"requires_entitlement": false,
 						"metadata": {
 							"size_mb": 210

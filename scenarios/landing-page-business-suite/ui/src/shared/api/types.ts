@@ -115,6 +115,7 @@ export interface PricingOverview {
   bundle: BundleProduct;
   monthly: PlanOption[];
   yearly: PlanOption[];
+  credit_topups?: PlanOption[];
   updated_at: string;
 }
 

@@ -50,7 +50,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
         features: [
           {
             title: 'Automation-first OS',
-            description: 'Vrooli Ascension builds, retries, and heals workflows so founders ship without engineers.',
+            description: 'Aquila keeps durable sessions, agent workflows, and operational context together so work stays moving.',
             bullets: ['Autopilot retries', 'Observability baked-in', 'No-code overrides'],
             icon: 'zap',
           },
@@ -154,11 +154,11 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System features</p>
           <div className="space-y-2">
             <h2 className="text-4xl font-semibold">
-              {content.title || 'The Silent Founder OS: automate ops, export proof, stay in flow'}
+              {content.title || 'Aquila keeps your workspace ready'}
             </h2>
             <p className="text-lg text-slate-300">
               {content.subtitle ||
-                'Start with Vrooli Ascension, then snap in upcoming business apps. Your assets, automations, and analytics live together.'}
+                'Start with Aquila, then add upcoming Business Suite capabilities as they become ready.'}
             </p>
           </div>
         </div>
@@ -222,9 +222,9 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Proof & momentum</p>
             <div className="space-y-3">
               {[
-                { label: '87% tasks auto-resolved', desc: 'Retries, guardrails, and human-in-loop when needed.' },
-                { label: '<90s to ship new flow', desc: 'Record, edit, deploy—no engineers required.' },
-                { label: 'Zero cloud dependency', desc: 'Local-first footprint; deploy where you run.' },
+                { label: 'Sessions persist', desc: 'Reconnect without losing the work or context already in motion.' },
+                { label: 'Workspace stays in view', desc: 'Keep related sessions and operator decisions together.' },
+                { label: 'Run where you operate', desc: 'A browser-first workspace with local capabilities as they become ready.' },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -239,7 +239,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
               <p className="text-sm text-slate-200">See how it works, from first automation to downloads.</p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild variant="default" size="sm" className="px-4">
-                  <a href="#downloads-section">Preview Ascension</a>
+                  <a href="#downloads-section">Open Aquila</a>
                 </Button>
                 <Button asChild variant="muted" size="sm" className="px-4">
                   <a href="#pricing">See roadmap</a>
@@ -253,7 +253,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p>Consistent pricing, no matter how many features and apps we ship. That's the Vrooli guarantee.</p>
             <div className="flex gap-3">
-              <Button variant="default" size="sm">Preview Ascension</Button>
+              <Button variant="default" size="sm">Open Aquila</Button>
               <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:border-white/40">
                 <a href="#downloads-section">Jump to downloads</a>
               </Button>

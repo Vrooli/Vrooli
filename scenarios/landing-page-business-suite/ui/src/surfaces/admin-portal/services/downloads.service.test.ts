@@ -186,6 +186,51 @@ describe('downloads.service', () => {
       expect(result.installSteps).toBe('Step 1\nStep 2\nStep 3');
     });
 
+    it('round-trips catalog metadata used by the public storefront', () => {
+      const result = deserializeApp(createApp({
+        metadata: {
+          enabled: false,
+          web_url: '/app/web-console',
+          feature_gates: ['subscription', 'ai_credits'],
+          catalog_status: 'live',
+          agent_plugin: true,
+          release_channel: 'stable',
+        },
+      }));
+
+      const serialized = serializeApp(result);
+
+      expect(result.enabled).toBe(false);
+      expect(result.webUrl).toBe('/app/web-console');
+      expect(result.featureGates).toBe('subscription, ai_credits');
+      expect(result.catalogStatus).toBe('live');
+      expect(result.agentPlugin).toBe(true);
+      expect(serialized.metadata).toEqual({
+        enabled: false,
+        web_url: '/app/web-console',
+        feature_gates: ['subscription', 'ai_credits'],
+        catalog_status: 'live',
+        agent_plugin: true,
+        release_channel: 'stable',
+      });
+    });
+
+    it('normalizes protobuf Struct metadata before applying catalog controls', () => {
+      const result = deserializeApp(createApp({
+        metadata: {
+          fields: {
+            enabled: { boolValue: false },
+            web_url: { stringValue: '/app/web-console' },
+            feature_gates: { listValue: { values: [{ stringValue: 'subscription' }] } },
+          },
+        } as unknown as Record<string, unknown>,
+      }));
+
+      expect(result.enabled).toBe(false);
+      expect(result.webUrl).toBe('/app/web-console');
+      expect(result.featureGates).toBe('subscription');
+    });
+
     it('deserializes Apple App Store storefront', () => {
       const app = createApp({
         app_key: 'test',

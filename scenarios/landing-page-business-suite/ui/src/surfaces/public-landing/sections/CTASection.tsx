@@ -37,7 +37,7 @@ export function CTASection({ content }: CTASectionProps) {
             <div className="space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-300">
                 <BellOff className="h-4 w-4 text-slate-200" />
-                Silent founder mode
+                Aquila workspace
               </div>
               <div className="space-y-3">
                 <h2 className="text-4xl font-semibold leading-tight">
@@ -45,21 +45,21 @@ export function CTASection({ content }: CTASectionProps) {
                 </h2>
                 <p className="text-lg text-slate-200">
                   {content.subtitle ||
-                    'Launch the Silent Founder OS without meetings. Automate a dreaded tab and ship a production-ready asset quietly.'}
+                    'Open Aquila in your browser and keep your sessions, agents, and operational context close at hand.'}
                 </p>
               </div>
               <ul className="grid gap-2 text-sm text-slate-300 sm:grid-cols-3">
                 <li className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  Setup in silent mode
+                  Ready in your browser
                 </li>
                 <li className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                   <span className="h-2 w-2 rounded-full bg-amber-400" />
-                  Automate a dreaded tab
+                  Keep sessions close
                 </li>
                 <li className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                   <span className="h-2 w-2 rounded-full bg-sky-400" />
-                  Ship your first asset quietly
+                  Stay in control
                 </li>
               </ul>
             </div>
@@ -71,11 +71,11 @@ export function CTASection({ content }: CTASectionProps) {
                 className="h-auto w-full justify-center gap-2 px-6 py-4 text-base font-semibold shadow-lg shadow-orange-500/25 transition hover:-translate-y-0.5 hover:shadow-orange-500/35"
                 data-testid="cta-button"
               >
-                {content.cta_text || 'Start with Vrooli Ascension'}
+                {content.cta_text || 'Open Aquila'}
                 <ArrowRight className="h-5 w-5" />
               </Button>
               <p className="text-sm text-slate-300">
-                Bring a browser tab you dread opening. We’ll automate it and ship the first asset without calls or demos.
+                Bring your workspace with you. Aquila keeps the important context ready across reconnects.
               </p>
               <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.25em] text-slate-400">
                 <span className="flex items-center gap-2">

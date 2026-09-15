@@ -1160,6 +1160,30 @@ func TestHandleWebhook_UnknownEventType_Succeeds(t *testing.T) {
 	}
 }
 
+func TestHandleWebhook_RefundEventIsExplicitlyIgnored(t *testing.T) {
+	db := setupTestDB(t)
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_refund_unsupported",
+		"type": "charge.refunded",
+		"data": map[string]interface{}{"object": map[string]interface{}{"id": "ch_refunded"}},
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal refund event: %v", err)
+	}
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	_, _ = mac.Write([]byte(timestamp + "." + string(payload)))
+	signatureHeader := "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
+
+	if err := service.HandleWebhook(payload, signatureHeader); err != nil {
+		t.Fatalf("refund event should be safely ignored until refund reconciliation is implemented: %v", err)
+	}
+}
+
 // ============================================================================
 // Helper Function Tests
 // ============================================================================

@@ -103,6 +103,7 @@ func (s bootstrapChangedGenerationStore) Close() error { return nil }
 func (s bootstrapChangedGenerationStore) StopLease(context.Context, string, int64, string) (scenarioruntime.Instance, error) {
 	return scenarioruntime.Instance{}, scenarioruntime.ErrStaleGeneration
 }
+
 func (s bootstrapChangedGenerationStore) ReleaseActivePortClaimsForInstance(context.Context, string) ([]scenarioruntime.PortClaim, error) {
 	s.t.Fatal("generation change must refuse before claim release")
 	return nil, nil
@@ -204,6 +205,91 @@ func TestOwnerMaintenanceProtectsLegacyTaggedExecutor(t *testing.T) {
 				t.Fatalf("legacy executor admitted: %v", err)
 			}
 		})
+	}
+}
+
+func TestRecoveryFirstRestartRequiresCompleteIdentifiedExecutorInventory(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	for _, tc := range []struct {
+		name string
+		edit func(*ownerMaintenanceStanding)
+		want bool
+	}{
+		{name: "identified active executor", edit: func(s *ownerMaintenanceStanding) {
+			s.Remaining = intPtr(1)
+			s.Inventory.Remaining = intPtr(1)
+			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":true}`)}
+		}, want: true},
+		{name: "unknown physical scope", edit: func(s *ownerMaintenanceStanding) {
+			s.Remaining = intPtr(1)
+			s.Inventory.Remaining = intPtr(1)
+			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":true}`)}
+			s.Inventory.Unknown = []string{"descendants unavailable"}
+		}},
+		{name: "missing identity", edit: func(s *ownerMaintenanceStanding) {
+			s.Remaining = intPtr(1)
+			s.Inventory.Remaining = intPtr(1)
+			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"alive":true}`)}
+		}},
+		{name: "inactive executor", edit: func(s *ownerMaintenanceStanding) {
+			s.Remaining = intPtr(1)
+			s.Inventory.Remaining = intPtr(1)
+			s.Inventory.Executors = []json.RawMessage{json.RawMessage(`{"id":"run-1","alive":false}`)}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := drainedOwner(t)
+			tc.edit(&state)
+			r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) { return state, nil }}}
+			_, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"})
+			if tc.want && err != nil {
+				t.Fatalf("valid recovery-first inventory refused: %v", err)
+			}
+			if !tc.want && err == nil {
+				t.Fatal("unsafe recovery-first inventory admitted")
+			}
+		})
+	}
+}
+
+func TestRecoveryFirstRestartProtectsIdentifiedCurrentExecutor(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "identified-test-executor")
+	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+		t.Fatal("current executor protection must precede owner observation")
+		return drainedOwner(t), nil
+	}}}
+	if _, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err == nil {
+		t.Fatal("recovery-first restart admitted the current executor")
+	}
+}
+
+func TestRecoveryFirstRestartAcceptsTypedStartupRecoveryUnavailable(t *testing.T) {
+	state := drainedOwner(t)
+	state.Remaining = nil
+	state.Inventory.Remaining = nil
+	state.Inventory.Executors = nil
+	state.Inventory.Unknown = []string{"startup recovery degraded"}
+	payload, err := json.Marshal(struct {
+		State ownerMaintenanceStanding `json:"state"`
+		Error string                   `json:"error"`
+	}{State: state, Error: "startup recovery is not ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+		return ownerMaintenanceStanding{}, &ownerAdmissionReadError{status: http.StatusServiceUnavailable, body: payload}
+	}}}
+	if revision, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err != nil || revision != state.Revision {
+		t.Fatalf("typed startup recovery response revision=%d err=%v, want revision %d and admission", revision, err, state.Revision)
+	}
+}
+
+func TestRecoveryFirstRestartRejectsUnrelatedUnavailableOwner(t *testing.T) {
+	r := &Runner{deps: lifecycleDeps{readOwnerMaintenance: func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+		return ownerMaintenanceStanding{}, &ownerAdmissionReadError{status: http.StatusServiceUnavailable, body: []byte(`{"error":"database unavailable"}`)}
+	}}}
+	if _, err := r.allowRecoveryFirstRestart(t.Context(), scenario.Scenario{Slug: "agent-manager"}); err == nil {
+		t.Fatal("unrelated unavailable owner response admitted recovery-first restart")
 	}
 }
 
@@ -437,10 +523,12 @@ func TestOwnerMaintenanceDependencyRefreshPreservesOwner(t *testing.T) {
 	}
 }
 
-const accountingWorkflowID = "391b1e6d-3b4b-40ef-9256-356cfb3183c9"
-const accountingRunID = "800ae00c-fb7d-4ae4-97ad-d737cd037fec"
-const accountingTraceFixture = `{"execution":{"id":"391b1e6d-3b4b-40ef-9256-356cfb3183c9","status":"WORKFLOW_EXECUTION_STATUS_CANCELLING","terminal_reason":{"code":"cancelled"},"budget_usage":{"node_attempts":1}},"attempts":[{"id":"d866bb5c-d6f8-4902-93db-70c834893637","execution_id":"391b1e6d-3b4b-40ef-9256-356cfb3183c9","status":"dispatched","run_id":"800ae00c-fb7d-4ae4-97ad-d737cd037fec"}]}`
-const accountingRunFixture = `{"run":{"id":"800ae00c-fb7d-4ae4-97ad-d737cd037fec","status":"RUN_STATUS_CANCELLED","ended_at":"2026-09-12T12:00:00Z","finalization_status":"RUN_FINALIZATION_STATUS_NONE"}}`
+const (
+	accountingWorkflowID   = "391b1e6d-3b4b-40ef-9256-356cfb3183c9"
+	accountingRunID        = "800ae00c-fb7d-4ae4-97ad-d737cd037fec"
+	accountingTraceFixture = `{"execution":{"id":"391b1e6d-3b4b-40ef-9256-356cfb3183c9","status":"WORKFLOW_EXECUTION_STATUS_CANCELLING","terminal_reason":{"code":"cancelled"},"budget_usage":{"node_attempts":1}},"attempts":[{"id":"d866bb5c-d6f8-4902-93db-70c834893637","execution_id":"391b1e6d-3b4b-40ef-9256-356cfb3183c9","status":"dispatched","run_id":"800ae00c-fb7d-4ae4-97ad-d737cd037fec"}]}`
+	accountingRunFixture   = `{"run":{"id":"800ae00c-fb7d-4ae4-97ad-d737cd037fec","status":"RUN_STATUS_CANCELLED","ended_at":"2026-09-12T12:00:00Z","finalization_status":"RUN_FINALIZATION_STATUS_NONE"}}`
+)
 
 func accountingOwner(t *testing.T) ownerMaintenanceStanding {
 	t.Helper()

@@ -220,4 +220,5 @@ export const TIER_OPTIONS = [
 export const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI', description: 'GPT-4 and other OpenAI models' },
   { value: 'anthropic', label: 'Anthropic', description: 'Claude models' },
+  { value: 'openrouter', label: 'OpenRouter', description: 'A broad catalog of routed models' },
 ] as const;

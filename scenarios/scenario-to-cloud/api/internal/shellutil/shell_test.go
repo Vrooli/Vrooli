@@ -53,6 +53,9 @@ func TestVrooliCommand(t *testing.T) {
 			if !contains(result, `export PATH=`) {
 				t.Errorf("VrooliCommand missing PATH setup: %s", result)
 			}
+			if !contains(result, "export VROOLI_ROOT="+QuoteSingle(tt.workdir)) {
+				t.Errorf("VrooliCommand missing deployment root: %s", result)
+			}
 			// Must contain cd to workdir (quoted)
 			if !contains(result, "cd "+QuoteSingle(tt.workdir)) {
 				t.Errorf("VrooliCommand missing cd to workdir: %s", result)

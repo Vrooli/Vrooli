@@ -111,20 +111,22 @@ To enable payments:
 
 ### 1. Get Stripe Keys
 
-From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
+From [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys), use test
+mode first:
 - Publishable key: `pk_test_...`
-   - Restricted key: `rk_test_...`
+- Restricted key: `rk_test_...`
 
 ### 2. Configure in Admin
 
-1. Go to **Billing → Stripe** (`/admin/billing`)
-2. Enter your keys
-3. Save
+1. Set `STRIPE_MODE=test`.
+2. Provision the three `stripe-test-*` fields through the credential authority
+   or governed Billing → Stripe flow.
+3. Save and restart through `make restart`.
 
 ### 3. Set Up Webhooks
 
 In Stripe Dashboard → Developers → Webhooks:
-- Endpoint: `http://your-domain/api/v1/webhooks/stripe`
+- Endpoint: `https://your-domain/api/v1/webhooks/stripe`
 - Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
 
 ### 4. Test Payment

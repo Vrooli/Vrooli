@@ -26,7 +26,7 @@ func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 	socketGID := flags.Int("socket-gid", -1, "")
 	auditPath := flags.String("audit-path", defaultAuditPath, "")
 	runtimeHomeRoot := flags.String("runtime-home-root", "", "")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *allowedUID == 0 || *allowedUID > uint(^uint32(0)) {
+	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *allowedUID > uint(^uint32(0)) {
 		if err == nil {
 			fmt.Fprintln(stderr, "valid --allowed-uid is required")
 		}

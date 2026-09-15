@@ -44,6 +44,11 @@ export function hasDownloadTargets(app: DownloadApp): boolean {
   return (Array.isArray(app.platforms) && app.platforms.length > 0) || Boolean(app.storefronts?.length);
 }
 
+/** Catalog records can be prepared in the admin portal before public launch. */
+export function isDownloadAppEnabled(app: DownloadApp): boolean {
+  return app.metadata?.enabled !== false;
+}
+
 /**
  * Formats a platform string to a human-readable label
  * @param platform - Platform identifier (e.g., 'windows', 'mac', 'linux')

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -1152,6 +1153,24 @@ func TestResolvePlansPath(t *testing.T) {
 	// in multiple locations and returns the first found or default
 	path := ResolvePlansPath()
 	assert.Contains(t, path, "plans.json")
+}
+
+func TestLoadAllRejectsProductionCatalogInExplicitTestMode(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
+	plansJSON := strings.Replace(string(testPlansJSON()), `"environment": "test"`, `"environment": "production"`, 1)
+	plansPath := setupTestPlansFile(t, []byte(plansJSON))
+	store := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle", DisplayEnv: "test"})
+
+	err := store.LoadAll()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires a test catalog")
+}
+
+func TestResolvePlansPathHonorsStripePlansPath(t *testing.T) {
+	configured := filepath.Join(t.TempDir(), "plans.test.json")
+	t.Setenv("STRIPE_PLANS_PATH", configured)
+
+	assert.Equal(t, configured, ResolvePlansPath())
 }
 
 func TestRoundTripSaveLoad(t *testing.T) {

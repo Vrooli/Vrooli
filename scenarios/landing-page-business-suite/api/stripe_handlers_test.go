@@ -161,7 +161,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 		"credits",
 		"one_time",
 		"usd",
-		9900,
+		1000,
 		false,
 		"",
 		0,
@@ -191,7 +191,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 				"id":             sessionID,
 				"customer_email": "credits@example.com",
 				"subscription":   "",
-				"amount_total":   9900,
+				"amount_total":   1000,
 			},
 		},
 	}

@@ -26,7 +26,7 @@ describe('CTASection', () => {
   it('uses safe defaults and does not emit conversion analytics without a destination', () => {
     render(<CTASection content={{}} />);
     expect(screen.getByRole('heading', { name: 'See your ops and marketing run themselves' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start with Vrooli Ascension' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Aquila' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('cta-button'));
     expect(trackCTAClick).not.toHaveBeenCalled();
   });

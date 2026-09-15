@@ -309,9 +309,22 @@ describe('DownloadSection', () => {
     expect(screen.getByRole('link', { name: 'Contact support' })).toHaveAttribute('href', 'mailto:help@example.com');
   });
 
-  it('does not render when every app lacks an install target', () => {
+  it('renders a staged catalog entry when it lacks an install target', () => {
     render(<DownloadSection downloads={[buildApp(undefined, [])]} />);
-    expect(screen.queryByTestId('downloads-section')).not.toBeInTheDocument();
+    expect(screen.getByTestId('downloads-section')).toBeInTheDocument();
+    expect(screen.getByTestId('downloads-section')).toHaveAttribute('id', 'downloads-section');
+    expect(screen.getByTestId('download-card-primary')).toHaveTextContent('Automation Studio');
+    expect(screen.getByTestId('download-card-primary')).toHaveTextContent('Start for free');
+  });
+
+  it('renders a configured web app CTA when no installer exists', () => {
+    render(<DownloadSection downloads={[buildApp({
+      metadata: { enabled: true, web_url: '/app/web-console' },
+      name: 'Vrooli Web Console',
+    }, [])]} />);
+
+    expect(screen.getByTestId('open-app-primary-automation')).toHaveAttribute('href', '/app/web-console');
+    expect(screen.getByTestId('open-app-primary-automation')).toHaveTextContent('Open Vrooli Web Console');
   });
 
   it('reports request failures and prevents downloads when app configuration has no application key', async () => {

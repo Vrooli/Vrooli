@@ -10,102 +10,26 @@ audience: ["developers"]
 
 Endpoints for Stripe integration, subscriptions, credits, and entitlements.
 
-## Checkout
+## Checkout and billing management
 
-### POST /checkout/create
+Billing transport uses the generated Connect service
+`landing_page_business_suite.v1.LandingPagePaymentsService`. With the LPBS API
+base URL (normally `/api/v1`), the procedures are:
 
-Creates a Stripe checkout session for one-time payments.
+- `POST /landing_page_business_suite.v1.LandingPagePaymentsService/CreateCheckoutSession`
+- `POST /landing_page_business_suite.v1.LandingPagePaymentsService/VerifySubscription`
+- `POST /landing_page_business_suite.v1.LandingPagePaymentsService/CancelSubscription`
+- `POST /landing_page_business_suite.v1.LandingPagePaymentsService/GetBillingPortal`
 
-**Authentication:** None
+`CreateCheckoutSession` accepts a Stripe `price_id`, validated success and
+cancel URLs, and `session_kind` (`SUBSCRIPTION` or `CREDITS_TOPUP`). Credit
+top-ups require a customer email. When `business_account_id` is supplied,
+the caller must be an authenticated account member; email alone cannot select
+the billing account. The response contains the hosted Checkout URL.
 
-**Request:**
-```json
-{
-  "price_id": "price_xxx",
-  "customer_email": "user@example.com",
-  "success_url": "/success",
-  "cancel_url": "/cancel"
-}
-```
-
-**Response:**
-```json
-{
-  "session_id": "cs_xxx",
-  "url": "https://checkout.stripe.com/..."
-}
-```
-
-**Usage:**
-```javascript
-const { url } = await fetch('/api/v1/checkout/create', {
-  method: 'POST',
-  body: JSON.stringify({ price_id: 'price_xxx', customer_email: email })
-}).then(r => r.json());
-
-window.location.href = url;
-```
-
----
-
-### POST /billing/create-checkout-session
-
-Creates a checkout session for subscription plans.
-
-**Authentication:** None
-
-**Request:**
-```json
-{
-  "price_id": "price_xxx",
-  "customer_email": "user@example.com"
-}
-```
-
-**Response:** Same as `/checkout/create`
-
----
-
-### POST /billing/create-credits-checkout-session
-
-Creates a checkout session for credit top-ups.
-
-**Authentication:** None
-
-**Request:**
-```json
-{
-  "credits_amount": 1000,
-  "customer_email": "user@example.com"
-}
-```
-
-**Response:** Same as `/checkout/create`
-
----
-
-## Billing Portal
-
-### GET /billing/portal-url
-
-Returns Stripe customer portal URL for managing subscriptions.
-
-**Authentication:** User identity required (header or query)
-
-**Headers:** `X-User-Email: user@example.com`
-
-**Response:**
-```json
-{
-  "url": "https://billing.stripe.com/session/..."
-}
-```
-
-The portal allows customers to:
-- View invoices
-- Update payment method
-- Cancel subscription
-- Change plan
+`GetBillingPortal` requires the authenticated LPBS user and accepts an
+optional absolute `return_url`. The Stripe portal handles invoices, payment
+methods, cancellation, and plan changes.
 
 ---
 
@@ -126,14 +50,20 @@ Stripe-Signature: t=xxx,v1=xxx
 
 | Event | Action |
 |-------|--------|
-| `checkout.session.completed` | Create/update subscription |
+| `checkout.session.completed` | Create/update subscription or apply a validated credit top-up |
 | `customer.subscription.created` | Record new subscription |
 | `customer.subscription.updated` | Update subscription status |
 | `customer.subscription.deleted` | Mark subscription canceled |
-| `invoice.paid` | Add credits for credit purchases |
+| `invoice.paid` | Refresh subscription payment state |
 | `invoice.payment_failed` | Mark subscription past_due |
 
 **Response:** `200 OK` on success
+
+Stripe refund events are intentionally not treated as automatic credit
+reversals. An operator must reconcile a refund against the Stripe record,
+credit transaction history, and consumed balance before applying an audited
+administrative adjustment. LPBS does not claim support for automatic
+`charge.refunded` or `refund.created` top-up reversal.
 
 **Testing locally:**
 ```bash
@@ -146,29 +76,12 @@ stripe trigger checkout.session.completed
 
 ---
 
-## Subscription Verification
+## Subscription verification
 
-### GET /subscription/verify
-
-Verifies subscription status for a user.
-
-**Authentication:** None (but requires user identity)
-
-**Query Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `user` | string | User email or identity |
-
-**Response:**
-```json
-{
-  "status": "active",
-  "plan_tier": "pro",
-  "subscription_id": "sub_xxx",
-  "current_period_end": "2024-02-15T00:00:00Z"
-}
-```
+`VerifySubscription` accepts `user_identity` (a normalized email or Stripe
+customer ID) and returns the cached subscription state. Webhook updates refresh
+the cache; a stale cache may trigger a provider refresh within the documented
+cache policy.
 
 **Status Values:**
 
@@ -185,98 +98,37 @@ Verifies subscription status for a user.
 
 ---
 
-### POST /subscription/cancel
-
-Cancels a subscription.
-
-**Authentication:** Admin session required
-
-**Request:**
-```json
-{
-  "user_identity": "user@example.com"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Subscription canceled",
-  "ends_at": "2024-02-15T00:00:00Z"
-}
-```
-
-**Note:** Cancellation takes effect at the end of the current billing period.
+`CancelSubscription` accepts `user_identity` and is admin-protected. It
+requests period-end cancellation and returns the resulting subscription state.
 
 ---
 
-## Account & Entitlements
+## Account and entitlements
 
-### GET /me/subscription
+Authenticated account reads use the generated Connect service
+`landing_page_business_suite.v1.AccountService`:
 
-Returns current user's subscription details.
+- `POST /landing_page_business_suite.v1.AccountService/GetMySubscription`
+- `POST /landing_page_business_suite.v1.AccountService/GetMyCredits`
+- `POST /landing_page_business_suite.v1.AccountService/GetEntitlements`
+- `POST /landing_page_business_suite.v1.AccountService/GetCommercialContext`
 
-**Authentication:** User identity via header
+Identity is derived from the authenticated session. Caller-supplied email
+headers or query parameters do not select another account. Credits include the
+authoritative balance and the bundle's display label/multiplier. Entitlements
+include subscription state, plan tier, feature flags, credit metrics, and
+subscription metadata.
 
-**Headers:** `X-User-Email: user@example.com`
-
-**Response:**
-```json
-{
-  "status": "active",
-  "plan_tier": "pro",
-  "plan_name": "Pro Monthly",
-  "current_period_start": "2024-01-15T00:00:00Z",
-  "current_period_end": "2024-02-15T00:00:00Z"
-}
-```
-
----
-
-### GET /me/credits
-
-Returns current user's credit balance.
-
-**Authentication:** User identity via header
-
-**Response:**
-```json
-{
-  "balance_credits": 5000,
-  "bonus_credits": 1000,
-  "display_multiplier": 1.0,
-  "display_label": "credits"
-}
-```
-
----
-
-### GET /entitlements
-
-Returns feature entitlements for the user.
-
-**Authentication:** User identity via header
-
-**Response:**
-```json
-{
-  "has_active_subscription": true,
-  "plan_tier": "pro",
-  "features": {
-    "downloads_enabled": true,
-    "api_access": true,
-    "priority_support": false
-  },
-  "bundled_apps": ["app_1", "app_2"]
-}
-```
+The compatibility HTTP endpoint `GET /api/v1/entitlements` is also
+authenticated. It rejects a requested `user` that differs from the session
+identity and returns a short-lived signed entitlement lease for downstream
+gating.
 
 ---
 
 ## Downloads
 
-### GET /downloads
+### GET /api/v1/downloads
 
 Returns download URL for an entitled asset.
 

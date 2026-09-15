@@ -23,7 +23,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
       name: 'Maya R.',
       role: 'Solo founder',
       company: 'AI concierge studio',
-      content: 'Vrooli Ascension runs my client onboarding while I sleep. The same flows spit out perfect reels for ads—zero camera time.',
+      content: 'Vrooli Business Suite runs my client onboarding while I sleep. The same flows spit out perfect reels for ads—zero camera time.',
       rating: 5,
     },
     {
@@ -37,7 +37,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
       name: 'Jess P.',
       role: 'Agency owner',
       company: 'Growth studio',
-      content: "Clients think I have a video team. It's Vrooli Ascension in the background with guardrails so nothing breaks on launch day.",
+      content: "Aquila keeps the work visible without adding another meeting or another tab.",
       rating: 5,
     },
   ];
@@ -49,7 +49,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Operators on record</p>
           <h2 className="mt-3 text-4xl font-semibold text-white">{content.title || 'Proof from the factory floor'}</h2>
           <p className="mt-3 text-lg text-slate-300">
-            {content.subtitle || 'Silent Founder OS ships as a business-ready bundle. Here is what founders highlight in handoffs.'}
+            {content.subtitle || 'Aquila ships as a business-ready workspace. Here is what operators value in daily handoffs.'}
           </p>
         </div>
         <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">

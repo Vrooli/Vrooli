@@ -24,7 +24,7 @@ import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId, getSectionKey } from '../../../
 import { normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
 import {
   buildNavItems,
-  hasDownloadTargets,
+  isDownloadAppEnabled,
   getDownloadButtonLabel,
   getSectionNavLabel,
 } from '../services/navigation.service';
@@ -140,7 +140,6 @@ export function PublicLanding() {
     lastUpdated,
   } = useLandingVariant();
   const fallbackActive = Boolean(config?.fallback);
-  const variantPinnedViaParam = resolution === 'url_param';
   const isDebugMode = useMemo(
     () => new URLSearchParams(window.location.search).get('debug') === '1',
     [],
@@ -150,7 +149,13 @@ export function PublicLanding() {
     const incoming = config?.sections ?? [];
     return incoming
       .filter((section) => section.enabled !== false)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => {
+        // The catalog is a conversion endpoint and must precede the footer,
+        // even when an older CMS record has the two orders reversed.
+        const priority = (type: string) => type === 'downloads' ? 1 : type === 'footer' ? 2 : 0;
+        const priorityDelta = priority(a.section_type) - priority(b.section_type);
+        return priorityDelta || a.order - b.order;
+      });
   }, [config]);
   const debugSectionTypes = useMemo<string[] | null>(() => null, []);
   const sectionsToRender = debugSectionTypes
@@ -159,7 +164,7 @@ export function PublicLanding() {
   const downloadsSection = sections.find((section) => section.section_type === 'downloads');
   const downloadApps = useMemo<DownloadApp[]>(() => {
     const raw = config?.downloads ?? [];
-    return raw.filter((app) => hasDownloadTargets(app));
+    return raw.filter((app) => isDownloadAppEnabled(app));
   }, [config]);
   const hasDownloads = downloadApps.length > 0;
   const downloadAnchorId = downloadsSection ? getSectionAnchorId(downloadsSection) : DOWNLOAD_ANCHOR_ID;
@@ -289,22 +294,6 @@ export function PublicLanding() {
           showMeta={isDebugMode}
         />
       </React.Profiler>
-      {variantPinnedViaParam && (
-        <div className="border border-accent-secondary/30 bg-accent-secondary/10 py-3 px-4 text-center text-sm text-accent-secondary/80" data-testid="variant-source-banner">
-          Variant <strong>{variant.name}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
-        </div>
-      )}
-
-      {fallbackActive && (
-        <div className="border border-accent/30 bg-accent/10 py-3 px-4 text-center text-sm text-accent/80" data-testid="fallback-signal-banner">
-          Offline-safe fallback variant is active. {statusNote && <span>{statusNote}. </span>}
-          Live analytics, pricing, and downloads may be outdated until the API recovers.
-          {lastUpdated && (
-            <span className="ml-1 text-amber-200/80">Last sync: {new Date(lastUpdated).toLocaleTimeString()}.</span>
-          )}
-        </div>
-      )}
-
       {/* Debug info in dev mode (only visible with ?debug=1) */}
       {isDebugMode && (
         <div className="fixed top-4 right-4 z-50 max-w-xs rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-xs backdrop-blur">
@@ -341,8 +330,8 @@ export function PublicLanding() {
             downloads={downloadApps}
             supportEmail={config.branding?.support_email}
             content={{
-              title: 'Download Vrooli Ascension',
-              subtitle: 'Install on Windows, macOS, Linux, or via the stores while we verify entitlements.',
+              title: 'Aquila is live',
+              subtitle: 'Open Aquila in your browser. Desktop and mobile apps will appear here as they ship.',
             }}
           />
         </div>
@@ -381,7 +370,7 @@ function LandingExperienceHeader({
 
   return (
     <header className={containerClasses} data-testid="landing-experience-header">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6 md:py-4">
         <BrandingBlock
           header={headerConfig}
           branding={branding}
@@ -432,9 +421,9 @@ function LandingExperienceHeader({
           </nav>
         )}
         {(ctas.primary || ctas.secondary) && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center">
+          <div className="flex flex-row flex-nowrap items-center gap-2">
             {ctas.primary && (
-              <Button asChild size="sm" className="min-h-11 gap-1 whitespace-nowrap" data-testid={ctas.primary.testId}>
+              <Button asChild size="sm" className="min-h-10 gap-1 px-3 text-xs whitespace-nowrap sm:min-h-11 sm:px-4 sm:text-sm" data-testid={ctas.primary.testId}>
                 <a href={ctas.primary.href}>
                   {ctas.primary.label}
                   <ArrowRight className="ml-1 h-4 w-4" />
@@ -446,7 +435,7 @@ function LandingExperienceHeader({
                 asChild
                 size="sm"
                 variant={ctas.secondary.variant === 'ghost' ? 'ghost' : undefined}
-                className={ctas.secondary.variant === 'ghost' ? 'min-h-11 gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10' : 'min-h-11 gap-1 whitespace-nowrap'}
+                className={ctas.secondary.variant === 'ghost' ? 'min-h-10 gap-1 px-3 text-xs whitespace-nowrap bg-white/5 text-white hover:bg-white/10 sm:min-h-11 sm:px-4 sm:text-sm' : 'min-h-10 gap-1 px-3 text-xs whitespace-nowrap sm:min-h-11 sm:px-4 sm:text-sm'}
                 data-testid={ctas.secondary.testId}
               >
                 <a href={ctas.secondary.href}>

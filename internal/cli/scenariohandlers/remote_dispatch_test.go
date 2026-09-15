@@ -139,6 +139,7 @@ func TestManifestLifecycleDispatchPreservesLegacyArguments(t *testing.T) {
 		{[]string{"start", "alpha", "beta", "--best-effort", "--timeout", "17"}, []string{"alpha", "beta", "--best-effort", "--timeout", "17", "--json"}},
 		{[]string{"stop", "alpha", "--node", "node-a"}, []string{"alpha", "--node", "node-a", "--json"}},
 		{[]string{"restart", "alpha", "--force", "--path", "/tmp/alpha"}, []string{"alpha", "--path", "/tmp/alpha", "--force", "--json"}},
+		{[]string{"restart", "alpha", "--force-lifecycle", "--lifecycle-override-reason", "retain detached runners"}, []string{"alpha", "--force-lifecycle", "--lifecycle-override-reason", "retain detached runners", "--json"}},
 		{[]string{"setup", "alpha", "--path", "/tmp/alpha"}, []string{"alpha", "--path", "/tmp/alpha", "--json"}},
 	}
 	for _, test := range tests {

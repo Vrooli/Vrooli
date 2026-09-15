@@ -336,6 +336,8 @@ type StartOptions struct {
 	LifecycleOverrideReason string
 	providerFence           *providerFence
 	lifecycleOperationID    string
+	maintenanceRevision     int64
+	ownerMaintenanceChecked bool
 	// AcceptCredentialLoss explicitly permits a generated credential to be
 	// replaced after its data-owned mint witness reports that the original was
 	// lost. The lifecycle passes this as a process-scoped environment marker;
@@ -609,7 +611,6 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		return Result{}, err
 	}
 	item.Variant = opts.Variant
-	var maintenanceRevision int64
 	// Create the durable operation before negotiating a provider fence so the
 	// provider and registry describe one operation, not two unrelated UUIDs.
 	var recorder *startOperationRecorder
@@ -621,6 +622,18 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		defer candidate.close()
 	}
 	if opts.stopFirst {
+		maintenanceRevision, maintenanceErr := r.requireOwnerMaintenance(opts.Context, item, 0)
+		if maintenanceErr != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(maintenanceErr, ErrOwnerMaintenanceRequired) {
+			maintenanceRevision, maintenanceErr = r.allowRecoveryFirstRestart(opts.Context, item)
+			if maintenanceErr == nil {
+				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
+			}
+		}
+		if maintenanceErr != nil {
+			return Result{}, maintenanceErr
+		}
+		opts.maintenanceRevision = maintenanceRevision
+		opts.ownerMaintenanceChecked = true
 		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
 		if err != nil {
 			return Result{}, err
@@ -639,23 +652,6 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	}
 
 	_ = recorder // the deferred recorder remains attached for the full transaction
-	if opts.stopFirst {
-		// Restart semantics: unconditional teardown before the start body,
-		// announced (and rendered) before "starting …" like the historical
-		// stop+start sequence.
-		if err := r.stopLocked(name, StopOptions{Context: opts.Context, Variant: opts.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision}); err != nil {
-			return Result{}, err
-		}
-		if err := r.waitForInstanceReleased(opts.Context, name, opts.Variant); err != nil {
-			return Result{}, err
-		}
-		// A restart may change the dependency graph. Release old dependency
-		// holds before acquiring the new graph so removed dependencies do not
-		// remain artificially demanded.
-		if err := r.releaseDependencyLeasesForConsumer(opts.Context, name, opts.Variant, "scenario restart"); err != nil {
-			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
-		}
-	}
 	r.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start")})
 	r.logInfo("Scenario start requested",
 		logx.AttrScenario, name,
@@ -732,6 +728,9 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		return Result{}, err
 	}
 	plan := planStart(observed.planInput())
+	if opts.stopFirst {
+		plan = startPlan{Decision: decisionStopThenStart, RestartReason: "restart requested"}
+	}
 	switch plan.Decision {
 	case decisionReuseRunning:
 		if !opts.DemandManaged && observed.View.Instance.SupervisionPolicy == scenarioruntime.SupervisionPolicyDemand {
@@ -761,7 +760,20 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			AlreadyRunning:     true,
 		}, nil
 	case decisionStopThenStart:
-		maintenanceRevision, err := r.requireOwnerMaintenance(opts.Context, item, 0)
+		maintenanceRevision := opts.maintenanceRevision
+		var err error
+		if !opts.ownerMaintenanceChecked {
+			maintenanceRevision, err = r.requireOwnerMaintenance(opts.Context, item, 0)
+		}
+		if err != nil && opts.ForceLifecycle && item.Slug == "agent-manager" && errors.Is(err, ErrOwnerMaintenanceRequired) {
+			// Emergency provider fencing deliberately skips drain, but the owner
+			// still needs an explicit, complete executor inventory before a
+			// recovery-first restart may proceed.
+			maintenanceRevision, err = r.allowRecoveryFirstRestart(opts.Context, item)
+			if err == nil {
+				r.logWarn("using recovery-first Agent Manager restart with detached executors retained", logx.AttrScenario, item.Slug, "maintenance_revision", maintenanceRevision, "override_reason", opts.LifecycleOverrideReason)
+			}
+		}
 		if errors.Is(err, errOwnerAdmissionUnavailable) && item.Slug == "agent-manager" && !observed.View.Authoritative {
 			if err := r.retireAbsentOwner(ctxOrBackground(opts.Context), item, observed.View); err != nil {
 				return Result{}, err
@@ -792,6 +804,12 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		}
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
 			return Result{}, err
+		}
+		// A restart may change the dependency graph. Release old dependency
+		// holds only after the owner-gated teardown has settled, before the new
+		// graph is bootstrapped.
+		if err := r.releaseDependencyLeasesForConsumer(opts.Context, item.Slug, item.Variant, "scenario restart"); err != nil {
+			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
 		}
 	}
 	return r.executeStart(item, opts, forceSetup, branch, failedDeps, failedResources)

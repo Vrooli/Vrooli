@@ -35,7 +35,7 @@ independent from every relying-party release cycle.
 
 ### Trust posture defaults
 
-The shared typed posture reader consumes `.vrooli/operator-state.json` and
+The shared typed posture reader consumes `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` and
 defaults a missing `trust_posture` to `personal`. The posture never disables
 verification. Its defaults are:
 

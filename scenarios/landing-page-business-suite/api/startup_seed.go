@@ -140,6 +140,11 @@ func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 			}
 		}
 	}
+	// Legacy rows predate app-level visibility metadata. Keep them configured
+	// and recoverable in the admin CMS, but do not publish them accidentally.
+	if _, err := db.Exec(seedDownloadVisibilityMigrationSQL, "business_suite"); err != nil {
+		return fmt.Errorf("migrate download app visibility: %w", err)
+	}
 	return nil
 }
 

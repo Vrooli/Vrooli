@@ -77,6 +77,30 @@ describe('PricingSection', () => {
     expect(screen.queryByText('Starter')).toBeNull();
   });
 
+  it('renders fixed credit top-ups separately from subscription tiers', () => {
+    const pricingOverview: PricingOverview = {
+      bundle,
+      monthly: [],
+      yearly: [],
+      credit_topups: [
+        {
+          plan_name: '$10 credits', plan_tier: 'credits', billing_interval: 'one_time', amount_cents: 1000,
+          currency: 'usd', intro_enabled: false, stripe_price_id: 'price-credits-10', monthly_included_credits: 10_000_000,
+          one_time_bonus_credits: 0, plan_rank: 1, bonus_type: 'none', kind: 'credits_topup', is_variable_amount: false,
+          display_enabled: true, display_weight: 1, metadata: {},
+        },
+      ],
+      updated_at: '2025-01-01T00:00:00Z',
+    };
+
+    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
+
+    expect(screen.getByRole('heading', { name: 'Add credits' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '$10 credits' })).toBeInTheDocument();
+    expect(screen.getByText('10k credits')).toBeInTheDocument();
+    expect(screen.getByTestId('pricing-cta-$10-credits')).toHaveTextContent('Buy credits');
+  });
+
   it('pads monthly pricing tiers up to three cards when less data is available', () => {
     const pricingOverview: PricingOverview = {
       bundle,

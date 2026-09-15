@@ -17,6 +17,19 @@ var allowedPlanTiers = map[string]int32{
 	"free": 0, "solo": 1, "pro": 2, "studio": 3, "business": 4, "credits": 5, "donation": 6,
 }
 
+var approvedCreditTopupAmountsCents = map[int64]struct{}{
+	1_000:  {},
+	5_000:  {},
+	10_000: {},
+}
+
+// IsApprovedCreditTopupAmount enforces the initial fixed-price credit policy.
+// Variable-amount and other prices must not enter the customer top-up rail.
+func IsApprovedCreditTopupAmount(amountCents int64) bool {
+	_, ok := approvedCreditTopupAmountsCents[amountCents]
+	return ok
+}
+
 func EnsureStripePriceMatchesBundle(bundle *shared.Bundle, price *StripePriceImport) error {
 	if price == nil {
 		return nil
@@ -235,6 +248,14 @@ func ValidatePlanTierConstraints(plan *shared.PlanOption) error {
 		if plan.BillingInterval != shared.BillingInterval_BILLING_INTERVAL_ONE_TIME {
 			return fmt.Errorf("%s plans must use one_time billing_interval", plan.PlanTier)
 		}
+		if plan.PlanTier == "credits" {
+			if plan.IsVariableAmount {
+				return fmt.Errorf("credit top-up plans must use fixed Stripe prices")
+			}
+			if !IsApprovedCreditTopupAmount(plan.AmountCents) {
+				return fmt.Errorf("credit top-up amount_cents must be one of 1000, 5000, or 10000")
+			}
+		}
 	}
 	return nil
 }
@@ -452,7 +473,7 @@ func BuildPricingOverview(bundle *shared.Bundle, plans []*shared.PlanOption) (*s
 	if bundle == nil {
 		return nil, fmt.Errorf("bundle not configured")
 	}
-	monthly, yearly := make([]*shared.PlanOption, 0), make([]*shared.PlanOption, 0)
+	monthly, yearly, creditTopups := make([]*shared.PlanOption, 0), make([]*shared.PlanOption, 0), make([]*shared.PlanOption, 0)
 	for _, plan := range plans {
 		if !plan.DisplayEnabled && strings.ToLower(strings.TrimSpace(plan.PlanTier)) != "free" {
 			continue
@@ -462,11 +483,17 @@ func BuildPricingOverview(bundle *shared.Bundle, plans []*shared.PlanOption) (*s
 			monthly = append(monthly, proto.Clone(plan).(*shared.PlanOption))
 		case shared.BillingInterval_BILLING_INTERVAL_YEAR:
 			yearly = append(yearly, proto.Clone(plan).(*shared.PlanOption))
+		case shared.BillingInterval_BILLING_INTERVAL_ONE_TIME:
+			if (plan.Kind == shared.PlanKind_PLAN_KIND_CREDITS_TOPUP || strings.EqualFold(plan.PlanTier, "credits")) &&
+				!plan.IsVariableAmount && IsApprovedCreditTopupAmount(plan.AmountCents) {
+				creditTopups = append(creditTopups, proto.Clone(plan).(*shared.PlanOption))
+			}
 		}
 	}
 	sortPlanOptions(monthly)
 	sortPlanOptions(yearly)
-	return &shared.PricingOverview{Bundle: proto.Clone(bundle).(*shared.Bundle), Monthly: monthly, Yearly: yearly, UpdatedAt: timestamppb.Now()}, nil
+	sortPlanOptions(creditTopups)
+	return &shared.PricingOverview{Bundle: proto.Clone(bundle).(*shared.Bundle), Monthly: monthly, Yearly: yearly, CreditTopups: creditTopups, UpdatedAt: timestamppb.Now()}, nil
 }
 
 // BuildBundleCatalog projects every catalog price for administrative operations.

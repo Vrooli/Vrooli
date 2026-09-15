@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Download, Globe } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
@@ -12,6 +13,7 @@ import {
   openDownloadWindow,
   getVariantLabel,
 } from '../services/downloads.service';
+import { isDownloadAppEnabled } from '../services/navigation.service';
 
 interface DownloadSectionProps {
   content?: {
@@ -71,19 +73,16 @@ const EMAIL_LINK_SCHEME = ['mail', 'to'].join('');
 
 // Note: getDownloadAssetKey is available from '../services/downloads.service'
 
-function hasInstallTargets(app: DownloadApp) {
-  return (Array.isArray(app.platforms) && app.platforms.length > 0) ||
-    (Array.isArray(app.storefronts) && app.storefronts.length > 0);
-}
-
-
 export function DownloadSection({ content, downloads, supportEmail }: DownloadSectionProps) {
   // Compute filtered apps before any hooks
-  const filteredApps = (downloads ?? []).filter(hasInstallTargets);
+  // Enabled catalog entries remain visible even before an installer exists. This
+  // lets operators stage polished "coming soon" products without publishing a
+  // download asset prematurely.
+  const filteredApps = (downloads ?? []).filter(isDownloadAppEnabled);
   const hasApps = filteredApps.length > 0;
 
-  const title = content?.title || 'Download Vrooli Ascension';
-  const subtitle = content?.subtitle || 'Install now and start automating today.';
+  const title = content?.title || 'Aquila is live';
+  const subtitle = content?.subtitle || 'Open Aquila in your browser. Desktop and mobile apps will appear here as they ship.';
   const supportHref = supportEmail ? `${EMAIL_LINK_SCHEME}:${supportEmail}` : undefined;
 
   // All hooks must be called before any conditional returns
@@ -97,7 +96,10 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
 
   const detectedPlatform = useMemo(() => detectPlatform(), []);
   // Use first filtered app, or undefined if none
-  const activeApp = hasApps ? filteredApps[0] : undefined;
+  // The first enabled app is the featured product even when it is web-only.
+  // A catalog should not hide the live launch experience just because it has
+  // no installer asset yet.
+  const activeApp = filteredApps[0];
 
   // Group installers by platform
   const platformGroups = useMemo<PlatformGroup[]>(() => {
@@ -221,7 +223,7 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
   const isRecommended = recommendedGroup?.platform === detectedPlatform;
 
   // Early return after all hooks have been called
-  if (!hasApps || !activeApp) {
+  if (!hasApps) {
     return null;
   }
 
@@ -273,9 +275,30 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
     );
   };
 
+  const renderStorefrontLinks = (app: DownloadApp) => {
+    const stores = app.storefronts ?? [];
+    if (stores.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-2" data-testid={`storefront-links-${app.app_key}`}>
+        {stores.map((store) => (
+          <a
+            key={`${app.app_key}-${store.store}-${store.url}`}
+            href={store.url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-white/15 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-accent hover:text-white"
+          >
+            {store.badge || store.label || store.store}
+          </a>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <section
       className="relative overflow-hidden border-t border-white/5 bg-surface-deep py-20 text-white"
+      id="downloads-section"
       data-testid="downloads-section"
     >
       {/* Subtle gradient background */}
@@ -291,7 +314,7 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
         </div>
 
         {/* Primary Download Card */}
-        {recommendedGroup && (
+        {activeApp && (
           <div
             className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 md:p-8"
             data-testid="download-card-primary"
@@ -312,7 +335,7 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
                   />
                 ) : null}
                 <div className={activeApp.icon_url ? 'hidden' : ''}>
-                  {platformInfo.icon}
+                  {typeof activeApp.metadata?.web_url === 'string' ? <Globe className="h-8 w-8" /> : platformInfo.icon}
                 </div>
               </div>
 
@@ -320,7 +343,7 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-2xl font-semibold">{activeApp.name || platformInfo.label}</h3>
-                  {isRecommended && (
+                  {isRecommended && recommendedGroup && (
                     <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-300">
                       Recommended for {platformInfo.label}
                     </span>
@@ -330,17 +353,28 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
                   <p className="mt-1 text-sm text-slate-300">{activeApp.tagline}</p>
                 )}
                 <p className="mt-2 text-sm text-slate-400">
-                  Start for free
+                  {typeof activeApp.metadata?.web_url === 'string' ? 'Available in your browser' : 'Start for free'}
                 </p>
               </div>
 
-              {/* Download Buttons */}
+              {/* Download or hosted-app action */}
               <div className="flex flex-wrap items-center justify-center gap-3 md:justify-end">
-                {recommendedGroup.installers.map((installer, idx) =>
-                  renderDownloadButton(installer, idx === 0)
+                {recommendedGroup?.installers.map((installer, idx) => renderDownloadButton(installer, idx === 0))}
+                {(recommendedGroup?.installers.length ?? 0) === 0 && (activeApp.storefronts?.length ?? 0) === 0 && (
+                  typeof activeApp.metadata?.web_url === 'string' ? (
+                    <a
+                      href={activeApp.metadata.web_url}
+                      className="inline-flex min-h-11 items-center rounded-full bg-emerald-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                      data-testid={`open-app-primary-${activeApp.app_key}`}
+                    >
+                      Open {activeApp.name}
+                    </a>
+                  ) : null
                 )}
               </div>
             </div>
+
+            {renderStorefrontLinks(activeApp)}
 
             {/* Screenshot Preview (if available) */}
             {activeApp.screenshot_url && (
@@ -355,6 +389,45 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
             )}
           </div>
         )}
+
+        {/* Every enabled catalog entry is advertised, including staged products. */}
+        <div className="mt-6 grid gap-4 md:grid-cols-2" data-testid="bundle-app-catalog">
+          {filteredApps.filter((app) => app !== activeApp).map((app) => {
+            const installers = app.platforms ?? [];
+            const webUrl = typeof app.metadata?.web_url === 'string' ? app.metadata.web_url : undefined;
+            return (
+              <article key={app.app_key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5" data-testid={`bundle-app-${app.app_key}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/10 text-white">
+                    {app.icon_url ? <img src={getAssetUrl(app.icon_url)} alt={`${app.name} icon`} className="h-full w-full object-contain" /> : <Download className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-semibold text-white">{app.name}</h3>
+                    {app.tagline && <p className="mt-1 text-sm text-slate-300">{app.tagline}</p>}
+                    {app.description && <p className="mt-2 text-sm leading-6 text-slate-400">{app.description}</p>}
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {installers.map((installer) => renderDownloadButton(installer))}
+                  {renderStorefrontLinks(app)}
+                  {installers.length === 0 && (app.storefronts?.length ?? 0) === 0 && (
+                    webUrl ? (
+                      <a
+                        href={webUrl}
+                        className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-medium text-emerald-200 transition hover:border-emerald-300 hover:text-white"
+                        data-testid={`open-app-${app.app_key}`}
+                      >
+                        Open {app.name}
+                      </a>
+                    ) : (
+                      <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">Coming soon</span>
+                    )
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
 
         {/* Other Platforms Toggle */}
         {otherGroups.length > 0 && (
@@ -485,7 +558,7 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
 
         {/* Footer note */}
         <p className="mt-8 text-center text-xs text-slate-500">
-          Downloads are direct. The app verifies your subscription after install.
+          Aquila opens in your browser. Future installers will appear here as they ship.
           <br />
           {supportHref ? <>Need help? <a href={supportHref} className="text-slate-400 underline hover:text-white">Contact support</a></> : 'Need help? Contact your administrator.'}
         </p>

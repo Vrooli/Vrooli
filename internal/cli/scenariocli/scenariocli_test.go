@@ -440,6 +440,19 @@ func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
 		t.Fatalf("timeout = %d, want 90", parsed.TimeoutSeconds)
 	}
 
+	recovery, err := ParseScenarioSingleStartArgs("restart", false, []string{
+		"agent-manager", "--force-lifecycle", "--lifecycle-override-reason", "retain detached runners",
+	})
+	if err != nil {
+		t.Fatalf("recovery-first restart parse error = %v", err)
+	}
+	if !recovery.Options.ForceLifecycle || recovery.Options.LifecycleOverrideReason != "retain detached runners" {
+		t.Fatalf("recovery-first options = %+v", recovery.Options)
+	}
+	if _, err := ParseScenarioSingleStartArgs("restart", false, []string{"agent-manager", "--force-lifecycle"}); err == nil {
+		t.Fatal("expected recovery-first restart to require an audit reason")
+	}
+
 	if _, err := ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
 		t.Fatal("expected missing --path value to fail")
 	}

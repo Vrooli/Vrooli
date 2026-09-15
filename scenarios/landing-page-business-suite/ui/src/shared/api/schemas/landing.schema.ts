@@ -68,6 +68,7 @@ export const PricingOverviewSchema = z.object({
   bundle: BundleProductSchema,
   monthly: z.array(PlanOptionSchema),
   yearly: z.array(PlanOptionSchema),
+  credit_topups: z.array(PlanOptionSchema).default([]),
   updated_at: z.string(),
 });
 

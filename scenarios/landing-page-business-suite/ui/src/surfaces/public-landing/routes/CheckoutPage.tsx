@@ -15,9 +15,9 @@ function formatCurrency(amount: number, currency = 'usd') {
 
 function describePlan(plan?: PlanOption) {
   if (!plan) return '';
-  const interval = plan.billing_interval === 'year' ? 'year' : 'month';
+  const interval = plan.billing_interval === 'one_time' ? 'one-time' : plan.billing_interval === 'year' ? 'year' : 'month';
   const price = typeof plan.amount_cents === 'number' && plan.amount_cents > 0 ? formatCurrency(plan.amount_cents, plan.currency) : 'Custom';
-  return `${price} / ${interval}`;
+  return interval === 'one-time' ? price : `${price} / ${interval}`;
 }
 
 function getPlanFeatures(plan: PlanOption): string[] {
@@ -136,7 +136,8 @@ export function CheckoutPage() {
     if (!pricing) return undefined;
     const monthlyPlans = Array.isArray(pricing.monthly) ? pricing.monthly : [];
     const yearlyPlans = Array.isArray(pricing.yearly) ? pricing.yearly : [];
-    const candidates = [...monthlyPlans, ...yearlyPlans].filter((plan) => plan.display_enabled);
+    const creditTopupPlans = Array.isArray(pricing.credit_topups) ? pricing.credit_topups : [];
+    const candidates = [...monthlyPlans, ...yearlyPlans, ...creditTopupPlans].filter((plan) => plan.display_enabled);
     if (priceParam) {
       return candidates.find((plan) => plan.stripe_price_id === priceParam);
     }
@@ -410,7 +411,7 @@ export function CheckoutPage() {
                 <Button variant="ghost" onClick={() => { navigate('/'); }}>Back to landing</Button>
               </div>
               <p className="pt-4 text-xs text-slate-500">
-                By continuing you agree to the terms and acknowledge this subscription powers the Silent Founder OS suite.
+                By continuing you agree to the terms and acknowledge this subscription powers the Aquila suite.
               </p>
             </CardContent>
           </Card>

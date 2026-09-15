@@ -33,7 +33,7 @@ export function PublicRouteGuard({ children }: { children: ReactNode }) {
     return (
       <main
         aria-busy="true"
-        aria-label="Preparing Silent Founder OS"
+        aria-label="Preparing Aquila"
         data-testid="landing-experience-surface"
         data-experience-surface="public-landing"
         data-experience-state="loading"
@@ -41,7 +41,7 @@ export function PublicRouteGuard({ children }: { children: ReactNode }) {
       >
         <div className="border-b border-white/10 bg-surface-deep/80 px-6 py-5">
           <div className="mx-auto flex max-w-6xl items-center justify-between">
-            <span className="text-sm font-semibold tracking-wide">Silent Founder OS</span>
+            <span className="text-sm font-semibold tracking-wide">Aquila</span>
             <span className="h-9 w-24 animate-pulse rounded-full bg-white/10" aria-hidden="true" />
           </div>
         </div>

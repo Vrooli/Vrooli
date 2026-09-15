@@ -31,6 +31,9 @@ const (
 			requires_entitlement = EXCLUDED.requires_entitlement,
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()`
+	seedDownloadVisibilityMigrationSQL = `UPDATE download_apps
+		SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{enabled}', 'false'::jsonb, true), updated_at = NOW()
+		WHERE bundle_key = $1 AND app_key <> 'web-console' AND NOT (COALESCE(metadata, '{}'::jsonb) ? 'enabled')`
 	seedTierLimitCountSQL = `SELECT COUNT(*) FROM subscription_tier_limits`
 	seedTierLimitSQL      = `INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, app_bundle_key)
 		VALUES ($1, $2, $3, $4, $5)

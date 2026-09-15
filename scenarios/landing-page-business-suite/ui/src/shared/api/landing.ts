@@ -105,7 +105,7 @@ function normalizePricing(value: unknown): PricingOverview | undefined {
   if (value == null) return undefined;
   const pricing = asRecord(value);
   const bundle = asRecord(field(pricing, 'bundle', 'bundle'));
-  const normalizePlans = (name: string) => arrayValue(field(pricing, name, name === 'monthly' ? 'monthly' : 'yearly')).map(normalizePlanOption);
+  const normalizePlans = (name: string, camelName = name) => arrayValue(field(pricing, name, camelName)).map(normalizePlanOption);
   return {
     bundle: {
       id: field(bundle, 'id', 'id') == null ? undefined : numberValue(field(bundle, 'id', 'id')),
@@ -120,6 +120,7 @@ function normalizePricing(value: unknown): PricingOverview | undefined {
     },
     monthly: normalizePlans('monthly'),
     yearly: normalizePlans('yearly'),
+    credit_topups: normalizePlans('credit_topups', 'creditTopups'),
     updated_at: normalizeTimestampOrNow(field(pricing, 'updated_at', 'updatedAt')),
   };
 }
@@ -411,6 +412,9 @@ export function getPlans() {
     const yearlyPlans = (pricing?.yearly ?? [])
       .map((p) => normalizePlan(p))
       .filter((p): p is PlanOption => p !== null);
+    const creditTopupPlans = (pricing?.creditTopups ?? [])
+      .map((p) => normalizePlan(p))
+      .filter((p): p is PlanOption => p !== null);
 
     const overview: PricingOverview = {
       bundle: {
@@ -425,6 +429,7 @@ export function getPlans() {
       },
       monthly: monthlyPlans,
       yearly: yearlyPlans,
+      credit_topups: creditTopupPlans,
       updated_at: updatedAt,
     };
 

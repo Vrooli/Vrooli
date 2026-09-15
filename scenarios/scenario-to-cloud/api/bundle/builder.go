@@ -140,6 +140,18 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	sort.Strings(roots)
 
 	excludes := append([]string(nil), resolvedProfile.Exclude...)
+	// Autoheal must be self-repairable on the target. Its CLI freshness
+	// contract includes cli/**, so the generic profile exclusion cannot apply
+	// to that selected maintenance scenario.
+	if manifest.Bundle.IncludeAutoheal {
+		filtered := excludes[:0]
+		for _, pattern := range excludes {
+			if pattern != "cli/**" {
+				filtered = append(filtered, pattern)
+			}
+		}
+		excludes = filtered
+	}
 
 	manifestForBundle := manifest
 	// Secrets are fetched/provisioned during deployment execution and do not need to be
@@ -240,6 +252,11 @@ func buildMiniGoWork(repoRoot string, includeRoots, excludes []string) (string, 
 	if err != nil {
 		return "", err
 	}
+	for _, dir := range moduleDirs {
+		if candidate, ok := goDirective(filepath.Join(repoRoot, filepath.FromSlash(dir), "go.mod")); ok && newerGoVersion(candidate, version) {
+			version = candidate
+		}
+	}
 
 	var out strings.Builder
 	out.WriteString("go " + version + "\n\n")
@@ -249,6 +266,56 @@ func buildMiniGoWork(repoRoot string, includeRoots, excludes []string) (string, 
 	}
 	out.WriteString(")\n")
 	return out.String(), nil
+}
+
+func goDirective(path string) (string, bool) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(contents), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "go ") {
+			value := strings.TrimSpace(strings.TrimPrefix(line, "go "))
+			if value != "" {
+				return value, true
+			}
+		}
+	}
+	return "", false
+}
+
+func newerGoVersion(candidate, current string) bool {
+	parse := func(value string) (major, minor, patch int, ok bool) {
+		parts := strings.Split(strings.TrimSpace(value), ".")
+		if len(parts) < 2 || len(parts) > 3 {
+			return 0, 0, 0, false
+		}
+		if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
+			return 0, 0, 0, false
+		}
+		if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
+			return 0, 0, 0, false
+		}
+		if len(parts) == 3 {
+			if _, err := fmt.Sscanf(parts[2], "%d", &patch); err != nil {
+				return 0, 0, 0, false
+			}
+		}
+		return major, minor, patch, true
+	}
+	cMajor, cMinor, cPatch, cOK := parse(candidate)
+	vMajor, vMinor, vPatch, vOK := parse(current)
+	if !cOK || !vOK {
+		return false
+	}
+	if cMajor != vMajor {
+		return cMajor > vMajor
+	}
+	if cMinor != vMinor {
+		return cMinor > vMinor
+	}
+	return cPatch > vPatch
 }
 
 func parseGoWorkVersion(contents string) string {
@@ -269,10 +336,19 @@ func discoverGoModDirs(repoRoot string, includeRoots, excludes []string) ([]stri
 	add := func(rel string) {
 		rel = filepath.ToSlash(filepath.Clean(rel))
 		rel = strings.TrimPrefix(rel, "./")
-		if rel == "" || rel == "." || strings.HasPrefix(rel, "..") {
+		if rel == "" || strings.HasPrefix(rel, "..") {
 			return
 		}
 		found[rel] = struct{}{}
+	}
+	// The repository root is a module too. It owns root-level maintenance
+	// commands such as cmd/vrooli-watchdog; omitting it from the generated
+	// workspace makes those commands look like packages outside the workspace
+	// when setup rebuilds them on a target.
+	if info, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err == nil && !info.IsDir() {
+		add(".")
+	} else if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	for _, root := range includeRoots {

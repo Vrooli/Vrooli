@@ -6,7 +6,13 @@
     "credits_per_usd": 1000000,
     "display_credits_multiplier": 0.001,
     "display_credits_label": "credits",
-    "environment": "production"
+    "environment": "production",
+    "metadata": {
+      "credit_policy": "subscriptions grant entitlements; credits are separate, non-expiring, one-time purchases",
+      "credit_topup_amounts_cents": [1000, 5000, 10000],
+      "credit_expiry": "never",
+      "subscription_credits": false
+    }
   },
   "plans": [
     {

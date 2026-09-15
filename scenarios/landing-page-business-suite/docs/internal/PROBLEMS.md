@@ -6,6 +6,13 @@ This file tracks known issues and technical debt that need attention.
 
 ## Work ladder
 
+### Stripe subscriptions and credits plan
+
+- Rung: W3 / implementation evidence
+- Evidence: `business-health validate scenario landing-page-business-suite` and `vrooli scenario requirements validate landing-page-business-suite` pass; focused Stripe, commerce, credit, account, download, UI, and lifecycle checks are green. The remaining plan obligations require real Stripe test catalog readback, signed delivery through `https://vrooli.com/api/v1/webhooks/stripe`, and browser-to-Stripe-to-Postgres receipts, which are not available in the current environment.
+- Blocker: operator-authorized Stripe test credentials/catalog and working canonical HTTPS ingress are required for the real-provider evidence. Local Stripe CLI has no authenticated configuration. No live payment is authorized.
+- Measured: 2026-09-15
+
 ## Landing configuration orchestration crosses sibling domains
 
 **Severity:** Architecture blocker

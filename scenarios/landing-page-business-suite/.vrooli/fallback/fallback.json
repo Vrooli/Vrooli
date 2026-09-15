@@ -2,8 +2,8 @@
   "variant": {
     "id": 0,
     "slug": "control",
-    "name": "Silent Founder OS",
-    "description": "Offline-safe fallback for the Silent Founder control experience.",
+    "name": "Aquila",
+    "description": "Offline-safe fallback for the Aquila experience.",
     "axes": {
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",
@@ -12,8 +12,8 @@
     "header_config": {
       "branding": {
         "mode": "logo_and_name",
-        "label": "Silent Founder OS",
-        "subtitle": "Vrooli Ascension today · More tools soon",
+        "label": "Aquila",
+        "subtitle": "Your calm Vrooli command center",
         "mobile_preference": "logo"
       },
       "nav": {
@@ -36,8 +36,8 @@
   "header": {
     "branding": {
       "mode": "logo_and_name",
-      "label": "Silent Founder OS",
-      "subtitle": "Vrooli Ascension today · More tools soon",
+      "label": "Aquila",
+      "subtitle": "Your calm Vrooli command center",
       "mobile_preference": "logo"
     },
     "nav": {
@@ -62,23 +62,22 @@
       "order": 1,
       "enabled": true,
       "content": {
-        "title": "Record once. Automate forever",
-        "subtitle": "And turn every recording into a polished, professional demo video",
-        "cta_text": "Start free",
-        "cta_url": "/checkout?price_id=price_free",
-        "secondary_cta_text": "Watch video",
-        "secondary_cta_url": "#video-sf-2",
-        "image_url": "/assets/hero/silent-founder.png"
+        "title": "Your work, in one calm command center",
+        "subtitle": "Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand.",
+        "cta_text": "Open Aquila",
+        "cta_url": "/app/web-console",
+        "secondary_cta_text": "See how it works",
+        "secondary_cta_url": "#features-3"
       }
     },
     {
       "section_type": "video",
       "order": 2,
-      "enabled": true,
+      "enabled": false,
       "content": {
-        "title": "See Vrooli Ascension in action",
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "caption": "Visual workflows, replay-as-movie exports, and how the suite grows over time."
+        "title": "Aquila in action",
+        "videoUrl": "",
+        "caption": "Explore durable sessions, pane-based workflows, and AI-assisted input in the live Aquila workspace."
       }
     },
     {
@@ -86,14 +85,14 @@
       "order": 3,
       "enabled": true,
       "content": {
-        "title": "Your quiet operating system for shipping products",
-        "subtitle": "Vrooli Ascension is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
+        "title": "The workspace that stays with you",
+        "subtitle": "Aquila is live today. More Vrooli capabilities will appear in the same workspace as they become ready.",
         "features": [
-          { "title": "Visual workflow builder", "description": "Record or point-and-click to build browser flows that automate back-office work and admin panels.", "icon": "mouse-pointer-click" },
-          { "title": "Your flows are your tests", "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.", "icon": "shield-check" },
-          { "title": "Replay as a movie", "description": "Share fake-browser recordings with smooth cursor motion, zooms, and highlights; export MP4 for docs or marketing.", "icon": "video" },
-          { "title": "UX metrics (coming soon)", "description": "See clicks, duration, and visual zig-zag patterns for every flow to spot friction before users do.", "icon": "activity" },
-          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with swarm-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
+          { "title": "Durable sessions", "description": "Keep terminal work available across reconnects so context does not disappear when the browser does.", "icon": "shield-check" },
+          { "title": "Pane-based focus", "description": "See multiple terminal sessions together and keep the important work in view.", "icon": "layout-dashboard" },
+          { "title": "AI-assisted input", "description": "Turn intent into useful command suggestions while keeping the operator in control.", "icon": "sparkles" },
+          { "title": "Browser-first access", "description": "Work from desktop or mobile without giving up the capabilities your workspace depends on.", "icon": "layers" },
+          { "title": "A growing suite", "description": "Your subscription is the front door to additional Vrooli capabilities as they become ready.", "icon": "sparkles" }
         ]
       }
     },
@@ -103,11 +102,11 @@
       "enabled": true,
       "content": {
         "title": "Proof for people who prefer to ship quietly",
-        "subtitle": "Operators and solo founders are already using Vrooli Ascension to run the business in the background.",
+        "subtitle": "Operators and solo founders are already using the Vrooli Business Suite to run the business in the background.",
         "testimonials": [
-          { "name": "Jessie Patel", "role": "Solo founder", "company": "Quiet Systems", "content": "The replay-as-movie exports replaced client calls. I send a video, they pay the invoice. No meetings required.", "rating": 5 },
+          { "name": "Jessie Patel", "role": "Solo founder", "company": "Quiet Systems", "content": "Aquila keeps the work visible without adding another meeting or another tab.", "rating": 5 },
           { "name": "Marco Lu", "role": "Automation lead", "company": "Northstack", "content": "Workflows double as tests, so QA stopped being a separate job. The browser recordings cut debug time in half.", "rating": 5 },
-          { "name": "Alina Gomez", "role": "Marketing ops", "company": "Brightlab", "content": "Recording the flows in a fake browser frame gives us instant launch videos. It feels like a built-in studio.", "rating": 5 }
+          { "name": "Alina Gomez", "role": "Marketing ops", "company": "Brightlab", "content": "Aquila keeps the work visible without adding another meeting or another tab.", "rating": 5 }
         ]
       }
     },
@@ -122,7 +121,7 @@
           {
             "name": "Free",
             "price": "$0",
-            "description": "Quietly try Vrooli Ascension",
+            "description": "Quietly try the Vrooli Business Suite",
             "features": ["50 runs/month", "Watermarked MP4 exports", "Replay viewer", "No sales calls ever"],
             "cta_text": "Start free",
             "cta_url": "/checkout?price_id=price_free"
@@ -168,8 +167,8 @@
       "order": 6,
       "enabled": true,
       "content": {
-        "title": "Download Vrooli Ascension",
-        "subtitle": "macOS, Windows, and Linux installers stay entitlement-aware by default."
+        "title": "Vrooli Business Suite",
+        "subtitle": "Open Aquila in your browser and see the rest of the suite come online."
       }
     },
     {
@@ -178,10 +177,10 @@
       "enabled": true,
       "content": {
         "title": "Quiet founder FAQs",
-        "subtitle": "Everything you need to know before you start the Silent Founder OS journey.",
+        "subtitle": "Everything you need to know before you start with Aquila.",
         "faqs": [
           { "question": "Do I need sales calls to upgrade?", "answer": "No. All plans are self-serve with flat pricing. No per-seat traps or discovery calls." },
-          { "question": "What happens when more apps ship?", "answer": "You keep Vrooli Ascension today. Future Vrooli Business Suite apps are added to your subscription automatically." },
+          { "question": "What happens when more apps ship?", "answer": "Future Vrooli Business Suite apps appear in your catalog as they become ready, with access controlled by your plan and usage credits." },
           { "question": "Are replays watermarked?", "answer": "Free and Solo exports keep a watermark. Pro and above remove it and allow custom branding on Studio+." },
           { "question": "Can I use this for testing?", "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes." }
         ]
@@ -193,7 +192,7 @@
       "enabled": true,
       "content": {
         "title": "Start as a silent founder today",
-        "subtitle": "Vrooli Ascension ships now. The rest of the suite arrives automatically as we build it.",
+        "subtitle": "Aquila ships now. The rest of the suite arrives automatically as we build it.",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free"
       }
@@ -203,8 +202,8 @@
       "order": 9,
       "enabled": true,
       "content": {
-        "company_name": "Silent Founder OS · Vrooli Business Suite",
-        "tagline": "Build the business quietly. Your tools and agents do the talking.",
+        "company_name": "Aquila · Vrooli Business Suite",
+        "tagline": "A calm command center for your tools and agents.",
         "columns": [
           {
             "title": "Product",
@@ -244,7 +243,7 @@
     "bundle": {
       "id": 0,
       "bundle_key": "business_suite",
-      "name": "Silent Founder OS",
+      "name": "Aquila",
       "stripe_product_id": "prod_business_suite",
       "credits_per_usd": 1000000,
       "display_credits_multiplier": 0.001,
@@ -415,9 +414,9 @@
     {
       "bundle_key": "business_suite",
       "app_key": "browser-automation-studio",
-      "name": "Vrooli Ascension",
-      "tagline": "Desktop workflows, tests, and replay-as-movie exports",
-      "description": "Desktop suite for visual workflows, replay-as-movie exports, and back-office automation.",
+      "name": "Browser Automation Studio",
+      "tagline": "Browser workflows and replay evidence",
+      "description": "A separate staged product for visual browser workflows, testing, and replay evidence.",
       "install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
       "install_steps": [
         "Download the installer for your OS",
@@ -425,6 +424,7 @@
         "Sign in with your subscription email to unlock the workspace"
       ],
       "storefronts": [],
+      "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk" },
       "platforms": [
         {
           "bundle_key": "business_suite",
@@ -432,7 +432,7 @@
           "platform": "windows",
           "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
           "release_version": "1.0.0",
-          "release_notes": "Initial GA release with Vrooli Ascension.",
+          "release_notes": "Initial Browser Automation Studio release.",
           "requires_entitlement": true,
           "metadata": { "size_mb": 210 }
         },
@@ -461,23 +461,25 @@
     {
       "bundle_key": "business_suite",
       "app_key": "landing-page-business-suite",
-      "name": "Silent Founder OS",
+      "name": "Aquila",
       "tagline": "The subscription authority",
       "description": "The hosted account and entitlement authority for the business suite.",
       "install_overview": "Hosted service; no local installer.",
       "install_steps": [],
       "storefronts": [],
+      "metadata": { "enabled": false, "catalog_status": "platform", "source": "offer-desk" },
       "platforms": []
     },
     {
       "bundle_key": "business_suite",
       "app_key": "web-console",
-      "name": "Vrooli Web Console",
-      "tagline": "The shared Vrooli workspace",
-      "description": "Web console with entitlement-aware voice capabilities.",
-      "install_overview": "Use the hosted web console.",
+      "name": "Aquila",
+      "tagline": "Your calm Vrooli command center",
+      "description": "Browser command center for durable sessions, pane-based workflows, and AI-assisted input.",
+      "install_overview": "Open Aquila in your browser.",
       "install_steps": [],
       "storefronts": [],
+      "metadata": { "enabled": true, "catalog_status": "live", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"], "web_url": "/app/web-console" },
       "platforms": []
     },
     {
@@ -489,7 +491,113 @@
       "install_overview": "Hosted service; audio-tools is provisioned as part of the Vrooli workspace.",
       "install_steps": [],
       "storefronts": [],
+      "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "voice_minutes", "ai_credits"] },
       "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "git-control-tower", "name": "Git Control Tower",
+      "tagline": "A calmer command center for shipping code",
+      "description": "A focused Git workflow surface for solo developers and small teams.",
+      "install_overview": "Hosted capability; desktop and store releases can be added here when published.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "agent-manager", "name": "Agent Manager",
+      "tagline": "Coordinate capable agents with confidence",
+      "description": "Supervise agent runs, budgets, and execution evidence from one place.",
+      "install_overview": "Hosted capability; release links are configured independently from the catalog record.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "swarm-manager", "name": "Swarm Manager",
+      "tagline": "Turn a backlog into measured progress",
+      "description": "Plan, supervise, and review autonomous work across your projects.",
+      "install_overview": "Hosted capability; release links are configured when the deployment gate clears.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "prompt-manager", "name": "Prompt Manager",
+      "tagline": "A durable home for skills and teams",
+      "description": "Organize prompts, skills, teams, and reusable agent operating knowledge.",
+      "install_overview": "Hosted capability; publication and download links are added through admin settings.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "app-library", "name": "App Library",
+      "tagline": "Discover the capabilities you already own",
+      "description": "Browse and launch the growing collection of Vrooli business capabilities.",
+      "install_overview": "Hosted capability; public launch follows its deployment readiness review.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "scenario-to-plugin", "name": "Scenario to Plugin",
+      "tagline": "Publish trusted capabilities for agents",
+      "description": "Compose, validate, attest, and release Agent Plugins with evidence-backed gates.",
+      "install_overview": "Agent-facing capability; publication links are configured after a release gate passes.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "enabling", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"], "agent_plugin": true }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "vrooli-onboarding", "name": "Vrooli Onboarding",
+      "tagline": "Get from idea to useful capability faster",
+      "description": "A guided path through setup, account access, and the first useful workflow.",
+      "install_overview": "Hosted capability; release links are configured through admin settings.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "vrooli-bridge", "name": "Vrooli Bridge",
+      "tagline": "Connect local capability to the suite",
+      "description": "A bridge for composing local scenarios and shared bundle services.",
+      "install_overview": "Hosted and local deployment links are configured when the release is ready.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "workflow_executions"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "notification-hub", "name": "Notification Hub",
+      "tagline": "Keep important work moving",
+      "description": "Route reliable notifications across the workflows your business depends on.",
+      "install_overview": "Hosted capability; channels and release links are configured through admin settings.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "device-control", "name": "Device Control",
+      "tagline": "Bring useful local actions into your workflows",
+      "description": "Coordinate approved device and local-machine actions from Vrooli workflows.",
+      "install_overview": "Local capability; desktop release links are configured after qualification.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "switchboard", "name": "Switchboard",
+      "tagline": "See the work and choose the next move",
+      "description": "A clear operating surface for coordinating business capabilities and decisions.",
+      "install_overview": "Hosted capability; release links are configured through admin settings.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "treasury", "name": "Treasury",
+      "tagline": "Make business finances easier to operate",
+      "description": "A future financial operations surface for revenue, costs, and business posture.",
+      "install_overview": "Hosted capability; release links are configured when the financial surface is ready.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "system-monitor", "name": "System Monitor",
+      "tagline": "Know what your local stack is doing",
+      "description": "A calm operational view of local resources, scenario health, and the signals that keep work moving.",
+      "install_overview": "Hosted capability; desktop and local deployment links are configured after qualification.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "portal", "name": "Vrooli Portal",
+      "tagline": "One front door for your Vrooli workspace",
+      "description": "A focused home for discovering, launching, and understanding the business capabilities in your suite.",
+      "install_overview": "Hosted capability; public launch follows its deployment readiness review.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription"] }, "platforms": []
+    },
+    {
+      "bundle_key": "business_suite", "app_key": "vrooli-memory", "name": "Vrooli Memory",
+      "tagline": "Keep valuable context available",
+      "description": "Durable memory and learning signals that help your Vrooli capabilities improve over time.",
+      "install_overview": "Hosted capability; release links are configured when the memory surface is ready.",
+      "install_steps": [], "storefronts": [], "metadata": { "enabled": false, "catalog_status": "planned", "source": "offer-desk", "feature_gates": ["subscription", "ai_credits"] }, "platforms": []
     }
   ]
 }

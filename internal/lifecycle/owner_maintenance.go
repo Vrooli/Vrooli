@@ -22,8 +22,19 @@ import (
 
 // ErrOwnerMaintenanceRequired means no lifecycle effect may follow this read.
 // It is deliberately not an instruction to acquire elevated owner authority.
-var ErrOwnerMaintenanceRequired = errors.New("execution owner maintenance precondition failed")
-var errOwnerAdmissionUnavailable = errors.New("owner admission unavailable")
+var (
+	ErrOwnerMaintenanceRequired  = errors.New("execution owner maintenance precondition failed")
+	errOwnerAdmissionUnavailable = errors.New("owner admission unavailable")
+)
+
+type ownerAdmissionReadError struct {
+	status int
+	body   []byte
+}
+
+func (e *ownerAdmissionReadError) Error() string {
+	return fmt.Sprintf("owner read returned HTTP %d", e.status)
+}
 
 // retireAbsentOwner is a Start-only bootstrap recovery, never a bypass for
 // Stop/Restart/setup. A stale row is not proof of death: inspect all active
@@ -185,6 +196,71 @@ func (r *Runner) requireOwnerMaintenance(ctx context.Context, item scenario.Scen
 	return state.Revision, nil
 }
 
+// allowRecoveryFirstRestart admits an explicitly audited control-plane
+// replacement while detached Agent Manager executors continue doing work. It
+// is intentionally narrower than a general maintenance bypass: admission must
+// already be closed, the owner observation must be complete, and every active
+// executor must have an identity. Unknown physical scope or an identified
+// executor in the current caller remains a refusal.
+func (r *Runner) allowRecoveryFirstRestart(ctx context.Context, item scenario.Scenario) (int64, error) {
+	if item.Slug != "agent-manager" {
+		return 0, fmt.Errorf("recovery-first restart is only supported for agent-manager")
+	}
+	if currentExecutorIdentified() {
+		return 0, fmt.Errorf("recovery-first restart refused while the current executor is identified")
+	}
+	read := r.deps.readOwnerMaintenance
+	if read == nil {
+		read = r.readOwnerMaintenance
+	}
+	state, err := read(ctxOrBackground(ctx), item)
+	if err != nil {
+		if revision, ok := recoveryUnavailableAdmission(err); ok {
+			return revision, nil
+		}
+		return 0, fmt.Errorf("recovery-first owner observation unavailable: %w", err)
+	}
+	if !state.Closed || state.Revision <= 0 || state.Admitting == nil || *state.Admitting != 0 || state.Remaining == nil || *state.Remaining < 0 {
+		return 0, fmt.Errorf("recovery-first restart requires closed admission and complete remaining-work accounting")
+	}
+	inv := state.Inventory
+	if inv == nil || inv.Remaining == nil || *inv.Remaining != *state.Remaining || len(inv.Executors) == 0 || len(inv.Unknown) != 0 {
+		return 0, fmt.Errorf("recovery-first restart requires identified executor inventory without unknown physical scope")
+	}
+	for _, raw := range inv.Executors {
+		var executor struct {
+			ID    string `json:"id"`
+			Alive *bool  `json:"alive"`
+		}
+		if err := json.Unmarshal(raw, &executor); err != nil || strings.TrimSpace(executor.ID) == "" || (executor.Alive != nil && !*executor.Alive) {
+			return 0, fmt.Errorf("recovery-first executor inventory contains an unidentified or inactive executor")
+		}
+	}
+	return state.Revision, nil
+}
+
+// recoveryUnavailableAdmission recognizes only the owner's typed startup
+// recovery response. This is a recovery escape hatch, not a generic
+// unavailable-owner bypass: admission must already be durably closed, no
+// caller may be admitting work, and the lifecycle interlock must match.
+func recoveryUnavailableAdmission(err error) (int64, bool) {
+	var readErr *ownerAdmissionReadError
+	if !errors.As(err, &readErr) || readErr.status != http.StatusServiceUnavailable {
+		return 0, false
+	}
+	var response struct {
+		State ownerMaintenanceStanding `json:"state"`
+		Error string                   `json:"error"`
+	}
+	if json.Unmarshal(readErr.body, &response) != nil || response.Error != "startup recovery is not ready" {
+		return 0, false
+	}
+	if !response.State.Closed || response.State.Revision <= 0 || response.State.Admitting == nil || *response.State.Admitting != 0 || response.State.LifecycleInterlock != "scenario-lock-v1" {
+		return 0, false
+	}
+	return response.State.Revision, true
+}
+
 // Accounting retention is not active execution. This exception never changes
 // accounting or the owner's drained projection; every original child must be
 // proved terminal through the owner, with physical exclusion already established.
@@ -340,9 +416,6 @@ func fetchOwnerBytes(ctx context.Context, port int, path string) ([]byte, error)
 		return nil, err
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("owner read returned HTTP %d", response.StatusCode)
-	}
 	const maxBytes = 256 << 10
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
 	if err != nil {
@@ -350,6 +423,9 @@ func fetchOwnerBytes(ctx context.Context, port int, path string) ([]byte, error)
 	}
 	if len(body) > maxBytes {
 		return nil, fmt.Errorf("owner read exceeds bounded response size")
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, &ownerAdmissionReadError{status: response.StatusCode, body: body}
 	}
 	return body, nil
 }

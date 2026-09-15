@@ -204,7 +204,7 @@ describe('PublicLanding header rails', () => {
     );
 
     expect(screen.getByTestId('landing-experience-header')).toHaveProperty('tagName', 'HEADER');
-    expect(screen.getByTestId('landing-nav-cta')).toHaveClass('min-h-11');
+    expect(screen.getByTestId('landing-nav-cta')).toHaveClass('min-h-10');
     const downloadButton = screen.getByTestId('landing-nav-download');
     expect(downloadButton).toBeInTheDocument();
     expect(screen.getByTestId('landing-nav-mobile').querySelector('a')).toHaveClass('min-h-11');
@@ -279,7 +279,7 @@ describe('PublicLanding header rails', () => {
 
     render(<BrowserRouter><PublicLanding /></BrowserRouter>);
 
-    expect(screen.getByTestId('fallback-signal-banner')).toHaveTextContent('Offline-safe fallback variant is active');
+    expect(screen.queryByTestId('fallback-signal-banner')).not.toBeInTheDocument();
     expect(screen.getByText('FV')).toBeInTheDocument();
     expect(screen.queryByTestId('branding-logo')).not.toBeInTheDocument();
   });
@@ -459,8 +459,8 @@ describe('PublicLanding header rails', () => {
 
     render(<BrowserRouter><PublicLanding /></BrowserRouter>);
 
-    expect(screen.getByTestId('variant-source-banner')).toHaveTextContent('Control');
-    expect(screen.getByTestId('fallback-signal-banner')).toHaveTextContent('Using cached configuration');
+    expect(screen.queryByTestId('variant-source-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('fallback-signal-banner')).not.toBeInTheDocument();
     expect(screen.getByText('Debug Info')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Hero' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Features' })).toBeInTheDocument();
@@ -516,7 +516,7 @@ describe('PublicLanding header rails', () => {
 
     render(<BrowserRouter><PublicLanding /></BrowserRouter>);
 
-    expect(screen.getByText('Configured')).toBeInTheDocument();
+    expect(screen.getAllByText('Configured').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Talk to us' })).toHaveAttribute('href', '/contact');
     expect(screen.getByRole('link', { name: 'Install now' })).toHaveAttribute('href', '#downloads-section');
     expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '#faq-2');
@@ -530,7 +530,7 @@ describe('PublicLanding header rails', () => {
     expect(screen.getAllByText('Get the app')).toHaveLength(2);
     expect(screen.queryByText('Hidden feature')).not.toBeInTheDocument();
     expect(screen.queryByText('Not rendered')).not.toBeInTheDocument();
-    expect(screen.getByText('Download Vrooli Ascension')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Aquila is live' })).toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith('Unknown section type: unsupported');
     warn.mockRestore();
   });

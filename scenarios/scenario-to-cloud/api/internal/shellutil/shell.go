@@ -31,7 +31,7 @@ func QuotedRemoteVrooliPath(workdir string) string {
 // SSH non-interactive commands don't source shell profiles, so we make the deployment-local
 // binary location explicit because the VPS install is a sealed artifact.
 func VrooliCommand(workdir, cmd string) string {
-	pathSetup := `export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`
+	pathSetup := fmt.Sprintf(`export VROOLI_PRIVILEGE_BROKER_SOCKET=/run/vrooli/privilege-broker.sock; export VROOLI_ROOT=%s; export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`, QuoteSingle(workdir))
 	trimmed := strings.TrimSpace(cmd)
 	switch {
 	case trimmed == "vrooli":

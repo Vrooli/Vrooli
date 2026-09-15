@@ -43,6 +43,18 @@ export interface AppFormValues {
   installOverview: string;
   installSteps: string;
   displayOrder: number;
+  /** Controls public visibility without deleting the app's catalog record. */
+  enabled?: boolean;
+  /** Preserve catalog metadata such as plugin publication and capability links. */
+  metadata?: Record<string, unknown>;
+  /** Optional same-origin or hosted URL for a live web app. */
+  webUrl: string;
+  /** Comma-separated monetization capabilities shown to operators. */
+  featureGates: string;
+  /** Operator-controlled readiness label, e.g. live, enabling, planned. */
+  catalogStatus: string;
+  /** Marks a catalog entry as an agent-facing plugin capability. */
+  agentPlugin: boolean;
   appleEnabled: boolean;
   appleLabel: string;
   appleUrl: string;
@@ -68,6 +80,34 @@ function normalizeDownloadAssets(value: unknown): DownloadAsset[] {
     return [];
   }
   return value.filter(isDownloadAsset);
+}
+
+function normalizeMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeMetadataValue);
+  if (!value || typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  if ('stringValue' in record || 'string_value' in record) return record.stringValue ?? record.string_value;
+  if ('boolValue' in record || 'bool_value' in record) return record.boolValue ?? record.bool_value;
+  if ('numberValue' in record || 'number_value' in record) return record.numberValue ?? record.number_value;
+  if ('intValue' in record || 'int_value' in record) return record.intValue ?? record.int_value;
+  if ('listValue' in record || 'list_value' in record) {
+    const list = (record.listValue ?? record.list_value) as Record<string, unknown> | undefined;
+    return Array.isArray(list?.values) ? list.values.map(normalizeMetadataValue) : [];
+  }
+  if ('structValue' in record || 'struct_value' in record) return normalizeMetadata(record.structValue ?? record.struct_value);
+  if ('fields' in record) return normalizeMetadata(record);
+  return value;
+}
+
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const fields = record.fields;
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return record;
+  return Object.fromEntries(
+    Object.entries(fields as Record<string, unknown>).map(([key, field]) => [key, normalizeMetadataValue(field)]),
+  );
 }
 
 /**
@@ -115,6 +155,7 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
   const rawPlatforms: unknown = app.platforms;
   const platforms = normalizeDownloadAssets(rawPlatforms);
   const rawName: unknown = app.name;
+  const metadata = normalizeMetadata(app.metadata);
 
   const platformMap: Record<PlatformKey, PlatformFormValues> = PLATFORM_KEYS.reduce((acc, key) => {
     const asset = platforms.find((platform) => platform.platform === key);
@@ -136,6 +177,14 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
     installOverview: app.install_overview ?? '',
     installSteps: (app.install_steps ?? []).join('\n'),
     displayOrder: app.display_order ?? 0,
+    enabled: metadata.enabled !== false,
+    metadata,
+    webUrl: typeof metadata.web_url === 'string' ? metadata.web_url : '',
+    featureGates: Array.isArray(metadata.feature_gates)
+      ? metadata.feature_gates.filter((value): value is string => typeof value === 'string').join(', ')
+      : '',
+    catalogStatus: typeof metadata.catalog_status === 'string' ? metadata.catalog_status : '',
+    agentPlugin: metadata.agent_plugin === true,
     appleEnabled,
     appleLabel: appleStore?.label ?? 'App Store',
     appleUrl: appleStore?.url ?? '',
@@ -173,6 +222,12 @@ export function buildDefaultAppValues(appKey = ''): AppFormValues {
     installOverview: '',
     installSteps: '',
     displayOrder: 0,
+    enabled: true,
+    metadata: {},
+    webUrl: '',
+    featureGates: '',
+    catalogStatus: 'planned',
+    agentPlugin: false,
     appleEnabled: false,
     appleLabel: 'App Store',
     appleUrl: '',
@@ -240,6 +295,20 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
     return platform.artifact_url.length > 0;
   });
 
+  const metadata: Record<string, unknown> = { ...(values.metadata ?? {}) };
+  metadata.enabled = values.enabled !== false;
+  const webUrl = values.webUrl.trim();
+  if (webUrl) metadata.web_url = webUrl;
+  else delete metadata.web_url;
+  const featureGates = values.featureGates.split(',').map((gate) => gate.trim()).filter(Boolean);
+  if (featureGates.length > 0) metadata.feature_gates = featureGates;
+  else delete metadata.feature_gates;
+  const catalogStatus = values.catalogStatus.trim();
+  if (catalogStatus) metadata.catalog_status = catalogStatus;
+  else delete metadata.catalog_status;
+  if (values.agentPlugin) metadata.agent_plugin = true;
+  else delete metadata.agent_plugin;
+
   return {
     app_key: values.appKey.trim(),
     name: values.name.trim(),
@@ -252,6 +321,7 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
     display_order: values.displayOrder,
     storefronts,
     platforms,
+    metadata,
   };
 }
 

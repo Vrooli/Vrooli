@@ -59,10 +59,12 @@ function normalizePricing(pricing?: Partial<PricingOverview>): PricingOverview |
   if (!pricing || !pricing.bundle) return undefined;
   const monthly = Array.isArray(pricing.monthly) ? pricing.monthly.map(normalizePlan) : [];
   const yearly = Array.isArray(pricing.yearly) ? pricing.yearly.map(normalizePlan) : [];
+  const creditTopups = Array.isArray(pricing.credit_topups) ? pricing.credit_topups.map(normalizePlan) : [];
   return {
     bundle: pricing.bundle,
     monthly,
     yearly,
+    credit_topups: creditTopups,
     updated_at: pricing.updated_at ?? new Date().toISOString(),
   };
 }

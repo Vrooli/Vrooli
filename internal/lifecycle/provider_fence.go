@@ -33,7 +33,18 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 		return nil, fmt.Errorf("lifecycle emergency override for %q requires a reason", item.Slug)
 	}
 	view, err := r.lookupRegistryRuntime(ctx, item)
-	if err != nil || !view.Authoritative || view.Ports["API_PORT"] <= 0 {
+	if err != nil {
+		return nil, fmt.Errorf("lifecycle provider for %q is not authoritative", item.Slug)
+	}
+	// Agent Manager owns the authoritative maintenance admission used by the
+	// lifecycle gate. When its registry view is stale or lacks an API port,
+	// defer to that owner read instead of failing here before the owner
+	// precondition can run. The subsequent requireOwnerMaintenance call still
+	// fails closed when the owner cannot provide a complete observation.
+	if item.Slug == "agent-manager" && (!view.Authoritative || view.Ports["API_PORT"] <= 0) {
+		return nil, nil
+	}
+	if !view.Authoritative || view.Ports["API_PORT"] <= 0 {
 		return nil, fmt.Errorf("lifecycle provider for %q is not authoritative", item.Slug)
 	}
 	client, err := apilifecycle.NewClient(&http.Client{Timeout: 10 * time.Second}, fmt.Sprintf("http://127.0.0.1:%d", view.Ports["API_PORT"]))

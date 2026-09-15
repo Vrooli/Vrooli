@@ -558,6 +558,9 @@ func ConvertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]inte
 
 // ResolvePlansPath finds the plans.json file.
 func ResolvePlansPath() string {
+	if configured := strings.TrimSpace(envx.Get("STRIPE_PLANS_PATH")); configured != "" {
+		return configured
+	}
 	candidates := []string{
 		filepath.Join("..", ".vrooli", "plans.json"),
 		filepath.Join(".", ".vrooli", "plans.json"),

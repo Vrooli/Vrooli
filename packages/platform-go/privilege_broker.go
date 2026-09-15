@@ -15,6 +15,9 @@ func PrivilegeBrokerSocketPath() string {
 	if runtime.GOOS == "windows" {
 		return `\\.\pipe\vrooli-privilege-broker`
 	}
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_PRIVILEGE_BROKER_SOCKET")); configured != "" {
+		return configured
+	}
 	if runtimeRoot := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR")); runtimeRoot != "" {
 		return filepath.Join(runtimeRoot, "vrooli", "privilege-broker.sock")
 	}

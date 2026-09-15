@@ -1,6 +1,12 @@
 package commerce
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+)
 
 // BundleProductReader is the narrow catalog dependency needed to turn a
 // provider payment into wallet credits.
@@ -33,8 +39,17 @@ func (s *CreditTopupService) Apply(customerEmail string, amountCents int64, plan
 	if plan == nil {
 		return errors.New("plan required for credit top-up")
 	}
+	if !strings.EqualFold(plan.PlanTier, "credits") && plan.Kind != shared.PlanKind_PLAN_KIND_CREDITS_TOPUP {
+		return errors.New("plan is not a credit top-up")
+	}
+	if plan.IsVariableAmount || !IsApprovedCreditTopupAmount(plan.AmountCents) {
+		return fmt.Errorf("credit top-up price %d cents is not approved", plan.AmountCents)
+	}
 	if amountCents == 0 {
 		amountCents = plan.AmountCents
+	}
+	if amountCents != plan.AmountCents {
+		return fmt.Errorf("credit top-up amount %d cents does not match catalog price %d cents", amountCents, plan.AmountCents)
 	}
 	if s.plans == nil {
 		return errors.New("plan catalog unavailable for credit top-up")

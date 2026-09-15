@@ -4,6 +4,7 @@ import {
   formatDownloadPlatform,
   getDownloadButtonLabel,
   hasDownloadTargets,
+  isDownloadAppEnabled,
 } from './navigation.service';
 import type { DownloadApp, LandingSection } from '../../../shared/api';
 
@@ -21,6 +22,12 @@ describe('public landing navigation service', () => {
     expect(hasDownloadTargets(app())).toBe(false);
     expect(hasDownloadTargets(app({ platforms: [{ platform: 'windows' }] as DownloadApp['platforms'] }))).toBe(true);
     expect(hasDownloadTargets(app({ storefronts: [{ store: 'app_store', label: 'App Store', url: 'https://example.test' }] }))).toBe(true);
+  });
+
+  it('keeps catalog records visible unless they are explicitly disabled', () => {
+    expect(isDownloadAppEnabled(app())).toBe(true);
+    expect(isDownloadAppEnabled(app({ metadata: { enabled: true } }))).toBe(true);
+    expect(isDownloadAppEnabled(app({ metadata: { enabled: false } }))).toBe(false);
   });
 
   it('treats a malformed missing platforms field as having no download target', () => {

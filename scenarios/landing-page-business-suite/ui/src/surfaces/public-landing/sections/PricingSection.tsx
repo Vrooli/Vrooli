@@ -174,6 +174,25 @@ function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assign
   };
 }
 
+function buildCreditTopupTier(option: PlanOption, bundle: PricingOverview['bundle']): PricingTier {
+  const credits = option.monthly_included_credits > 0
+    ? option.monthly_included_credits
+    : option.one_time_bonus_credits;
+  const creditsLabel = bundle.display_credits_label || 'credits';
+  const amount = typeof option.amount_cents === 'number' ? option.amount_cents : 0;
+
+  return {
+    name: option.plan_name,
+    description: 'One-time credit top-up',
+    price: amount > 0 ? formatCurrency(amount, option.currency) : 'Contact sales',
+    features: [formatCredits(credits, bundle.display_credits_multiplier, creditsLabel)],
+    cta_text: 'Buy credits',
+    cta_url: option.stripe_price_id ? `/checkout?price_id=${option.stripe_price_id}` : undefined,
+    highlighted: false,
+    subtitle: 'Credits never expire',
+  };
+}
+
 function getTierFeatures(tier: PricingTier): string[] {
   if (Array.isArray(tier.features)) {
     return tier.features;
@@ -196,14 +215,14 @@ const DEFAULT_FALLBACK_TIERS: PricingTier[] = [
   {
     name: 'Solo',
     price: '$39',
-    description: 'Ship silently with Vrooli Ascension',
+    description: 'Ship silently with Vrooli Business Suite',
     features: [
-      'Vrooli Ascension desktop + updates',
+      'Aquila + Business Suite updates',
       'Unlimited workflows & retries',
       'Auto screen-recording exports',
       'Email support',
     ],
-    cta_text: 'Start with Ascension',
+    cta_text: 'Start with Aquila',
     cta_url: '/checkout?plan=solo',
     highlighted: false,
     badge: 'Founder-friendly',
@@ -386,6 +405,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
   const bundle = pricing?.bundle;
   const monthlyPlansRaw = pricing?.monthly ?? EMPTY_PLAN_OPTIONS;
   const yearlyPlansRaw = pricing?.yearly ?? EMPTY_PLAN_OPTIONS;
+  const creditTopupsRaw = pricing?.credit_topups ?? EMPTY_PLAN_OPTIONS;
   const monthlyPlans = useMemo(
     () =>
       bundle
@@ -412,6 +432,21 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
           )
         : [],
     [bundle, yearlyPlansRaw],
+  );
+  const creditTopups = useMemo(
+    () =>
+      bundle
+        ? creditTopupsRaw.filter(
+            (plan) =>
+              !isDemoPlanOption(plan) &&
+              normalizeInterval(plan.billing_interval) === 'one_time' &&
+              plan.kind === 'credits_topup' &&
+              typeof plan.amount_cents === 'number' &&
+              plan.amount_cents > 0 &&
+              !plan.is_variable_amount,
+          )
+        : [],
+    [bundle, creditTopupsRaw],
   );
 
   const sortByAmount = useCallback((plans: PlanOption[]) =>
@@ -462,13 +497,20 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
         : [],
     [bundle, findAssignedCoupon, sortByAmount, yearlyPlans],
   );
+  const creditTopupTiers = useMemo(
+    () =>
+      bundle
+        ? sortByAmount(creditTopups).map((option) => buildCreditTopupTier(option, bundle))
+        : [],
+    [bundle, creditTopups, sortByAmount],
+  );
 
   const freeTier = useMemo<PricingTier>(
     () => ({
       name: 'Free Monthly',
       price: 'Free',
-      description: '50 runs/month with builder and watermark exports',
-      features: ['50 runs/month', 'Builder + replay viewer (watermark)', 'Email support'],
+      description: 'A practical starting point for an Aquila workspace',
+      features: ['Durable browser sessions', 'Workspace access', 'Email support'],
       cta_text: 'Download',
       cta_url: '#downloads-section',
       highlighted: monthlyTiers.length === 0,
@@ -554,7 +596,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
           <h2 className="text-4xl font-semibold">{content.title || 'Built to scale from demo to production'}</h2>
           <p className="text-lg text-slate-600">
             {content.subtitle ||
-              'Silent Founder OS starts with Vrooli Ascension. Early adopters lock pricing as we drop new business apps into the same stack.'}
+              'Aquila starts the workspace. Your subscription grows as we add new Business Suite capabilities to the same stack.'}
           </p>
         </div>
 
@@ -599,6 +641,26 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
           ))}
         </div>
 
+        {creditTopupTiers.length > 0 && (
+          <div className="mt-10 space-y-4">
+            <div>
+              <h3 className="text-2xl font-semibold">Add credits</h3>
+              <p className="mt-1 text-slate-600">Top up separately from your subscription when you need more capacity.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {creditTopupTiers.map((tier, index) => (
+                <PricingTierCard
+                  key={`${tier.name}-${tier.price}`}
+                  tier={tier}
+                  index={paddedTiers.length + index}
+                  redirectingPrice={redirectingPrice}
+                  onSelect={(selectedTier) => { void handleTierSelect(selectedTier); }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {sessionError && (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {sessionError}
@@ -607,7 +669,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
 
       </div>
       {featuredTier && !stickyDismissed && (
-        <div className="fixed bottom-4 left-1/2 z-20 w-[min(480px,92vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-700/30 md:hidden">
+        <div className="fixed bottom-4 left-1/2 z-20 hidden w-[min(480px,92vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-700/30 sm:block md:hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Featured</p>

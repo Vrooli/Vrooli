@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"landing-page-business-suite-api/internal/envx"
+
 	"google.golang.org/protobuf/proto"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -39,6 +41,15 @@ func (ps *PlanStore) LoadAll() error {
 	}
 	if err := NormalizeBundle(bundle, ps.bundleKey, ps.displayEnv); err != nil {
 		return fmt.Errorf("invalid bundle config: %w", err)
+	}
+	if mode := strings.ToLower(strings.TrimSpace(envx.Get("STRIPE_MODE"))); mode == "test" || mode == "live" {
+		expectedEnvironment := "production"
+		if mode == "test" {
+			expectedEnvironment = "test"
+		}
+		if !strings.EqualFold(bundle.Environment, expectedEnvironment) {
+			return fmt.Errorf("Stripe mode %s requires a %s catalog, got %s", mode, expectedEnvironment, bundle.Environment)
+		}
 	}
 	plans := make([]*PlanOption, 0, len(fileData.Plans))
 	seenPriceIDs := make(map[string]struct{}, len(fileData.Plans))

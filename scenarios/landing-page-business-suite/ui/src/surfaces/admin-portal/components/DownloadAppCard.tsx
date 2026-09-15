@@ -125,6 +125,19 @@ export function DownloadAppCard({
         </div>
 
         <div className="grid gap-4">
+          <label className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-slate-200">
+            <input
+              type="checkbox"
+              checked={form.values.enabled !== false}
+              onChange={(event) => { onFieldChange(form.key, 'enabled', event.target.checked); }}
+              className="mt-0.5 rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
+              data-testid={`download-enabled-${form.key}`}
+            />
+            <span>
+              <span className="block font-medium text-emerald-200">Advertise this app publicly</span>
+              <span className="mt-1 block text-xs text-slate-400">Keep the catalog record and all release/store metadata when disabled. Enable it only when the app is ready for the landing page.</span>
+            </span>
+          </label>
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Name</label>
             <input
@@ -151,6 +164,62 @@ export function DownloadAppCard({
               rows={3}
               className={textareaLargeClassName}
             />
+          </div>
+
+          <div className={`${surfacePanelClassName} space-y-4`}>
+            <div>
+              <p className="text-sm font-semibold text-white">Catalog metadata</p>
+              <p className="mt-1 text-xs text-slate-500">Control how this app is positioned and launched from the Business Suite catalog. These fields stay editable while the app is disabled.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Web app URL</label>
+                <input
+                  type="url"
+                  value={form.values.webUrl}
+                  onChange={(event) => { onFieldChange(form.key, 'webUrl', event.target.value); }}
+                  className={inputLargeClassName}
+                  placeholder="/app/web-console"
+                  data-testid={`download-web-url-${form.key}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Catalog status</label>
+                <input
+                  type="text"
+                  value={form.values.catalogStatus}
+                  onChange={(event) => { onFieldChange(form.key, 'catalogStatus', event.target.value); }}
+                  className={inputLargeClassName}
+                  placeholder="planned, enabling, or live"
+                  data-testid={`download-catalog-status-${form.key}`}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Feature gates</label>
+              <input
+                type="text"
+                value={form.values.featureGates}
+                onChange={(event) => { onFieldChange(form.key, 'featureGates', event.target.value); }}
+                className={inputLargeClassName}
+                placeholder="subscription, ai_credits"
+                data-testid={`download-feature-gates-${form.key}`}
+              />
+              <p className="text-xs text-slate-500">Comma-separated keys used by the app’s entitlement and credit UX. Enforcement remains owned by the app and LPBS.</p>
+            </div>
+            <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={form.values.agentPlugin}
+                onChange={(event) => { onFieldChange(form.key, 'agentPlugin', event.target.checked); }}
+                className="mt-0.5 rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
+                data-testid={`download-agent-plugin-${form.key}`}
+              />
+              <span>
+                <span className="block font-medium text-white">Agent-facing plugin capability</span>
+                <span className="mt-1 block text-xs text-slate-500">Marks this entry as suitable for Scenario to Plugin publication and agent discovery.</span>
+              </span>
+            </label>
           </div>
 
           {/* App Images Section */}

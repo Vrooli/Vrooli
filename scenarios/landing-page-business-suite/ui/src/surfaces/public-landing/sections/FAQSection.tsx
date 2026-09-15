@@ -33,12 +33,12 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
 
   const faqs = content.faqs || [
     {
-      question: 'What is Vrooli Ascension?',
-      answer: 'Vrooli Ascension automates browser workflows and exports studio-quality screen recordings. Record your browser actions once, then replay them forever—no coding required. Perfect for product demos, onboarding walkthroughs, and repetitive browser tasks.',
+      question: 'What is Vrooli Business Suite?',
+      answer: 'Vrooli Business Suite starts with Aquila: durable sessions, pane-based workflows, and subscription-aware usage controls in your browser.',
     },
     {
       question: 'Do I need technical skills to use it?',
-      answer: 'Not at all. Vrooli Ascension records your browser actions as you work—just click, type, and navigate normally. The system captures everything and lets you turn any sequence into a reusable automation or polished video.',
+      answer: 'Not at all. Aquila is designed for browser-based work and keeps your sessions available across reconnects.',
     },
     {
       question: 'What kinds of tasks can I automate?',

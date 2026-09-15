@@ -333,10 +333,14 @@ Create `api/internal/<domain>/configuration/<slug>.env` with production values:
 # Database
 DATABASE_URL=postgres://prod_user:secure_password@db.example.com:5432/landing_prod
 
-# Stripe credentials are provisioned through the credential authority:
-vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-publishable-key
-vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key
-vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-webhook-secret
+# Stripe credentials are provisioned through the credential authority. Select
+# one mode and provision only that mode's values:
+STRIPE_MODE=test # use live only after test acceptance and operator approval
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-publishable-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-secret-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-webhook-secret
+
+# For the separate live configuration, use the corresponding stripe-live-* fields.
 
 # Application
 NODE_ENV=production
