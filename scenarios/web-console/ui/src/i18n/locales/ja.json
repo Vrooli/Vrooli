@@ -24,7 +24,7 @@
       "retrying": "再試行中..."
     },
     "loading": "読み込み中...",
-    "title": "Web Console"
+    "title": "Aquila"
   },
   "appearance": {
     "addSecondaryColor": "2色目を追加してグラデーションにする",
@@ -141,7 +141,7 @@
       "discoveryFailed": "audio-tools サービスに接続できませんでした。音声入力と音声合成は無効です。",
       "envMisconfigured": "audio-tools の URL が設定されていません。AUDIO_TOOLS_URL を設定するか、audio-tools シナリオを起動してください。",
       "generic": "audio-tools を利用できません（{{reason}}）。",
-      "resolverNotConfigured": "このビルドの Web Console では audio-tools の検出が構成されていません。",
+      "resolverNotConfigured": "このビルドの Aquila では audio-tools の検出が構成されていません。",
       "scenarioNotRunning": "audio-tools シナリオが実行されていません。音声機能を使うには起動してください。",
       "startFailed": "audio-tools の起動に失敗しました。ログを確認してから再度起動してください。",
       "starting": "audio-tools を起動しています。音声機能はまもなく利用できます。",
@@ -369,7 +369,7 @@
     "actionRunning": "実行中...",
     "activeCount": "{{active}}/{{total}}件 有効",
     "checking": "統合を確認中...",
-    "connectedScenariosDescription": "このウェブコンソールが採用できる他の Vrooli シナリオ。以下の機能は、シナリオがインストールおよび実行されているかに依存します。",
+    "connectedScenariosDescription": "Aquila が採用できる他の Vrooli シナリオ。以下の機能は、シナリオがインストールおよび実行されているかに依存します。",
     "connectedScenariosHeading": "接続済みシナリオ",
     "runtimeDependenciesHeading": "ランタイム依存関係",
     "needsAttentionHeading": "要対応",
@@ -846,7 +846,7 @@
     "restoreFailed": "前回の位置を復元できませんでした",
     "copyMessageTitle": "メッセージをコピー",
     "dismissError": "エラーを閉じる",
-    "fileNotPreviewable": "このファイル形式はwebコンソールでプレビューできません。",
+    "fileNotPreviewable": "このファイル形式は Aquila でプレビューできません。",
     "fileOpenFailed": "ファイル参照を開けませんでした",
     "jumpToBottomAria": "末尾へジャンプ",
     "liveDisconnected": "ライブ更新が切断されました — 再接続中",
@@ -870,7 +870,7 @@
       "pendingTitle": "最初の応答を待っています",
       "retry": "再試行",
       "showDetails": "詳細を表示",
-      "unavailableBody": "web コンソールはこのセッションのメッセージ履歴を読み取れません。",
+      "unavailableBody": "Aquila はこのセッションのメッセージ履歴を読み取れません。",
       "unavailableTitle": "メッセージを記録できていません"
     },
     "viewAsMarkdownTitle": "マークダウンで表示",
@@ -1627,7 +1627,7 @@
     "closeAriaLabel": "ランチャーを閉じる",
     "codexSignIn": "Codexにサインイン",
     "codexSignInDescription": "ターミナルでCodexデバイス認証を開始します。",
-    "codexSignInHint": "ターミナルに一度限りのURLとコードが表示されます。Web Consoleは認証情報を保存しません。",
+    "codexSignInHint": "ターミナルに一度限りのURLとコードが表示されます。Aquila は認証情報を保存しません。",
     "commandPlaceholder": "コマンドを入力...",
     "configuredEmpty": "Bridgeには接続していますが、登録されたリモートノードがありません。",
     "creating": "セッションを作成中...",
@@ -1651,7 +1651,7 @@
     "offline": "オフライン",
     "permissionGranted": "このマシンではインタラクティブセッションが許可されています。",
     "permissionUnavailable": "このマシンではインタラクティブセッションが許可されていません。",
-    "persistentHint": "永続セッションはtmuxを使用してwebコンソール再起動後も維持されます。",
+    "persistentHint": "永続セッションはtmuxを使用して Aquila 再起動後も維持されます。",
     "platform": "プラットフォーム",
     "readiness": "準備状態",
     "refreshTargets": "場所を更新",
@@ -1665,7 +1665,7 @@
     "thisMachine": "このマシン",
     "timeoutLabel": "タイムアウト:",
     "unavailable": "利用不可",
-    "unconfigured": "このWeb Consoleではリモートノードが設定されていません。",
+    "unconfigured": "Aquila ではリモートノードが設定されていません。",
     "workingDirectory": "作業ディレクトリ",
     "workingDirectoryPlaceholder": "既定の作業ディレクトリ"
   },

@@ -149,7 +149,7 @@ export default function AccountSection() {
         level={2}
         eyebrow="Account"
         title="Subscription and access"
-        description="Manage the account that powers Vrooli services on this machine. Web Console remains fully useful without an account."
+        description="Manage the account that powers Vrooli services on this machine. Aquila remains fully useful without an account."
         leading={<div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-wc-accent/15 text-wc-accent"><UserRound className="h-5 w-5" aria-hidden="true" /></div>}
         actions={<ActionButton onClick={() => void refresh()} icon={<RefreshCw className={`h-4 w-4 ${busy === "refresh" ? "animate-spin" : ""}`} aria-hidden="true" />}>Refresh</ActionButton>}
         testId="settings-account-header"

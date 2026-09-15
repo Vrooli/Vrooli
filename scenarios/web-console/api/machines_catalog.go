@@ -791,9 +791,9 @@ func controlPlaneError(action string, err error) error {
 	if classification, ok := scenarioProxyClassification(err); ok {
 		switch classification {
 		case "target_incompatible":
-			return connect.NewError(connect.CodeFailedPrecondition, errors.New("target_onboarding_incompatible: the target onboarding API is missing a required procedure; refresh or redeploy vrooli-onboarding on the target, then refresh this machine"))
+			return connect.NewError(connect.CodeFailedPrecondition, errors.New(targetSkewMessage("target_onboarding_incompatible", "its onboarding API is missing a procedure this console needs", err)))
 		case "contract_mismatch":
-			return connect.NewError(connect.CodeFailedPrecondition, errors.New("target_onboarding_contract_mismatch: the target onboarding API rejected the current contract; refresh or redeploy vrooli-onboarding on the target"))
+			return connect.NewError(connect.CodeFailedPrecondition, errors.New(targetSkewMessage("target_onboarding_contract_mismatch", "its onboarding API rejected this console's contract", err)))
 		case "target_unauthorized":
 			return connect.NewError(connect.CodePermissionDenied, errors.New("target_onboarding_unauthorized: the target refused the onboarding API call; refresh the target trust or permission grant"))
 		case "target_timeout":
@@ -818,6 +818,35 @@ func controlPlaneError(action string, err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewError(connect.CodeUnavailable, fmt.Errorf("could not %s: %w", action, err))
+}
+
+// targetSkewMessage explains a contract failure as the version skew it is: the
+// machine runs an older Vrooli than this console. Restarting or re-applying the
+// old build cannot add the missing procedure, so the sentence names the update.
+// Bridge attaches both revisions and the one update command that can work on
+// this node; without them the sentence still names the right repair.
+func targetSkewMessage(code, symptom string, err error) string {
+	var target, controlPlane, command, path string
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		target = strings.TrimSpace(connectErr.Meta().Get("X-Vrooli-Target-Revision"))
+		controlPlane = strings.TrimSpace(connectErr.Meta().Get("X-Vrooli-Control-Plane-Revision"))
+		command = strings.TrimSpace(connectErr.Meta().Get("X-Vrooli-Update-Command"))
+		path = strings.TrimSpace(connectErr.Meta().Get("X-Vrooli-Update-Path"))
+	}
+	if path == "restart" && command != "" {
+		// The machine already has this console's revision; only its running
+		// onboarding service predates it. Re-shipping the tree would not help.
+		return fmt.Sprintf("%s: this machine already has this console's Vrooli revision (%s), but its onboarding service is still running an older build, so %s; restart it with `%s`, then refresh this machine", code, target, symptom, command)
+	}
+	message := code + ": this machine runs an older Vrooli than this console, so " + symptom
+	if target != "" && controlPlane != "" {
+		message += fmt.Sprintf(" (machine revision %s, control plane revision %s)", target, controlPlane)
+	}
+	if command != "" {
+		return message + "; update the machine with `" + command + "`, then refresh this machine"
+	}
+	return message + "; update Vrooli on the machine, then refresh this machine"
 }
 
 func scenarioProxyClassification(err error) (string, bool) {

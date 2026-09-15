@@ -82,7 +82,7 @@ func (a openCodeRewindAdapter) Verify(ctx context.Context, event ConversationEve
 	if a.client == nil || event.NativeProvenance == nil || strings.TrimSpace(target) == "" {
 		return false, nil
 	}
-	sessions, err := a.client.ListSessions(ctx)
+	sessions, err := a.client.ListSessions(ctx, "")
 	if err != nil {
 		return false, err
 	}

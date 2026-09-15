@@ -155,7 +155,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         status: "registry-error",
         targets: [],
         message: "The target catalog could not be loaded.",
-        recovery_action: "Check Web Console and Bridge health, then try again.",
+        recovery_action: "Check Aquila and Bridge health, then try again.",
       });
     } finally {
       setTargetsLoading(false);

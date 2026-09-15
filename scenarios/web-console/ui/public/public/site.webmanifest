@@ -1,6 +1,6 @@
 {
-  "name": "Web Console",
-  "short_name": "Web Console",
+  "name": "Aquila",
+  "short_name": "Aquila",
   "description": "Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar.",
   "id": "/",
   "start_url": "/",

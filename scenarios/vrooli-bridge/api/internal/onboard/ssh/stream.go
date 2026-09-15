@@ -82,10 +82,20 @@ func (s *Service) RunStreaming(ctx context.Context, cfg ConnectionConfig, comman
 	stderr := newBoundedBuffer(opts.Run.maxOutput())
 	cmd.Stderr = stderr
 
+	// A ControlMaster=auto session can leave a persisted master holding this
+	// client's stdout and stderr. Killing the client on cancel then never
+	// delivers EOF, so the scan below and Wait block forever and the op can
+	// never be cancelled (2026-09-15: a hung remote setup held an onboarding in
+	// "bootstrapping" after cancel). Close our read end on cancel, and bound how
+	// long Wait waits for inherited pipes once the client has exited.
+	cmd.WaitDelay = 5 * time.Second
+
 	start := time.Now()
 	if err := cmd.Start(); err != nil {
 		return Result{}, newCommandError(err, Result{}, cfg.Host)
 	}
+	stopClosingOnCancel := context.AfterFunc(ctx, func() { _ = stdoutPipe.Close() })
+	defer stopClosingOnCancel()
 
 	// Scan stdout line-by-line on this goroutine; the bootstrap stream is small
 	// and strictly ordered, so a single consumer keeps the persisted event order

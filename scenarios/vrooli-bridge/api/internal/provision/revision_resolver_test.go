@@ -54,7 +54,7 @@ func (f *fakeRevResolver) Expand(_ context.Context, requested string) (string, e
 func newResolverService(t *testing.T, res provision.RevisionResolver) (provision.Service, *mocks.FakeRepository, *mocks.FakeCommandPusher, *mocks.FakeAuditSink) {
 	t.Helper()
 	repo := mocks.NewFakeRepository()
-	nodes := &mocks.FakeNodeReader{Nodes: map[string]provision.TargetNode{"n1": {ID: "n1"}}}
+	nodes := &mocks.FakeNodeReader{Nodes: map[string]provision.TargetNode{"n1": {ID: "n1", Provisioning: provision.ProvisioningReadiness{Known: true, Ready: true}}}}
 	pres := &mocks.FakePresence{Online: map[string]bool{"n1": true}}
 	audit := &mocks.FakeAuditSink{}
 	pusher := &mocks.FakeCommandPusher{Delivered: 1}

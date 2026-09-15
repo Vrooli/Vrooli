@@ -333,7 +333,8 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		requested = selection.Apply
 	}
 	if requested && s.handoff == nil {
-		detail := "onboarding handoff is unavailable; start vrooli-onboarding on the target and retry configuration"
+		// The handoff is this control plane's dependency, not the target's.
+		detail := "onboarding handoff is not wired on this control plane; start vrooli-onboarding on the control plane, restart vrooli-bridge, and retry configuration"
 		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
 		s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(res.ExitCode), detail, res.Diagnostics)
 		return
@@ -342,9 +343,26 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		handoffRequest := onboarding.HandoffRequest{Target: nodeID, MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind}
 		if requested {
 			desired := selection
+			// The operator's selection names the durable machine; the handoff
+			// names the node that machine now runs as. They are one machine, so
+			// the selection is re-targeted to the node before onboarding's
+			// target fence compares them. A selection for any other machine is
+			// left as-is and still refused (2026-09-15: every onboarding with a
+			// selection failed "selection target … does not match handoff
+			// target …").
+			if target := strings.TrimSpace(desired.Target); target == "" || target == strings.TrimSpace(in.MachineID) {
+				desired.Target = nodeID
+			}
 			handoffRequest.DesiredSelection = &desired
 		}
 		resolved, handoffErr := s.handoff.Resolve(ctx, handoffRequest)
+		if handoffErr != nil && !requested {
+			// Nothing was asked of the handoff, so its absence must not undo a
+			// node that is already paired and online: record why configuration
+			// was skipped and finish as pairing-only.
+			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusSkipped, "configuration handoff unavailable; node onboarded pairing-only: "+handoffErr.Error())
+			resolved, handoffErr = selection, nil
+		}
 		if handoffErr != nil {
 			detail := "onboarding handoff failed: " + handoffErr.Error()
 			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)

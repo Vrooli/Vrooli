@@ -13,7 +13,29 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/api-core/operatorsession"
 )
+
+// LocalOwnerCredential returns this machine's local owner session as a
+// scheme-carrying credential ("LocalSession <token>"). vrooli-onboarding
+// accepts it from loopback callers, so a control plane without a configured
+// service token can still hand configuration to its own onboarding service.
+func LocalOwnerCredential() (string, error) {
+	store, err := operatorsession.DefaultFileStore()
+	if err != nil {
+		return "", err
+	}
+	resolution, err := (operatorsession.LocalResolver{Store: store}).Resolve()
+	if err != nil {
+		return "", err
+	}
+	token := strings.TrimSpace(resolution.Token)
+	if token == "" {
+		return "", fmt.Errorf("no local owner session is available")
+	}
+	return operatorsession.LocalSessionScheme + " " + token, nil
+}
 
 // Selection is intentionally capability-shaped rather than an operator-state
 // document. It can therefore cross a deployment boundary without coupling
@@ -101,18 +123,43 @@ func HandoffEndpoint(baseURL string) string {
 type HTTPHandoffClient struct {
 	Endpoint string
 	// Token is a service-to-service owner credential. It is never included in
-	// the handoff document or persisted operation state.
-	Token  string
-	Client *http.Client
+	// the handoff document or persisted operation state. A value that already
+	// carries an auth scheme ("LocalSession …") is sent as-is; a bare value is
+	// sent as a Bearer token.
+	Token string
+	// ResolveEndpoint and ResolveToken, when set, are consulted on every call
+	// instead of Endpoint/Token. Resolving once at startup left a control plane
+	// that booted before vrooli-onboarding was reachable, or without an env
+	// token, silently pairing-only until its next restart.
+	ResolveEndpoint func(context.Context) (string, error)
+	ResolveToken    func(context.Context) (string, error)
+	Client          *http.Client
 }
 
 func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) (Selection, error) {
-	if strings.TrimSpace(c.Endpoint) == "" {
-		return Selection{}, fmt.Errorf("onboarding handoff endpoint is not configured; start vrooli-onboarding on the target and retry configuration")
+	// The handoff is served by this control plane's own vrooli-onboarding, not
+	// the target's; the remedies below name the machine that must change.
+	endpoint := strings.TrimSpace(c.Endpoint)
+	if c.ResolveEndpoint != nil {
+		resolved, err := c.ResolveEndpoint(ctx)
+		if err != nil {
+			return Selection{}, fmt.Errorf("onboarding handoff is unavailable on this control plane (%v); start vrooli-onboarding on the control plane and retry configuration", err)
+		}
+		endpoint = HandoffEndpoint(resolved)
 	}
-	if strings.TrimSpace(c.Token) == "" {
-		return Selection{}, fmt.Errorf("onboarding handoff authorization is not configured; set VROOLI_ONBOARDING_API_TOKEN and retry configuration")
+	if endpoint == "" {
+		return Selection{}, fmt.Errorf("onboarding handoff endpoint is not configured; start vrooli-onboarding on the control plane and retry configuration")
 	}
+	token := strings.TrimSpace(c.Token)
+	if token == "" && c.ResolveToken != nil {
+		if resolved, err := c.ResolveToken(ctx); err == nil {
+			token = strings.TrimSpace(resolved)
+		}
+	}
+	if token == "" {
+		return Selection{}, fmt.Errorf("onboarding handoff authorization is not configured on the control plane; set VROOLI_ONBOARDING_API_TOKEN for vrooli-bridge (or sign in locally) and retry configuration")
+	}
+	c.Endpoint, c.Token = endpoint, token
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return Selection{}, fmt.Errorf("encode onboarding handoff: %w", err)
@@ -122,7 +169,11 @@ func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) 
 		return Selection{}, fmt.Errorf("create onboarding handoff request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.Token))
+	if strings.Contains(c.Token, " ") {
+		req.Header.Set("Authorization", c.Token)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 	client := c.Client
 	if client == nil {
 		client = http.DefaultClient

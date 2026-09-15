@@ -43,7 +43,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		TimeoutSeconds: parseInt64(ctx.Flag("timeout")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("run cross-OS gate (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
+		return cliapp.WrapAPIErrorWithAuthHint("run cross-OS gate", "set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no gate response")

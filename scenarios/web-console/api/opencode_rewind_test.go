@@ -13,7 +13,7 @@ type fakeRewindClient struct {
 	message string
 }
 
-func (f *fakeRewindClient) ListSessions(context.Context) ([]opencode.Session, error) {
+func (f *fakeRewindClient) ListSessions(context.Context, string) ([]opencode.Session, error) {
 	if f.seen == nil {
 		return nil, nil
 	}

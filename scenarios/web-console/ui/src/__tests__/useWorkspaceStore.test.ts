@@ -457,6 +457,19 @@ describe("useWorkspaceStore", () => {
     });
   });
 
+  describe("display mode default", () => {
+    it("opens a fresh profile in the sidebar layout", () => {
+      expect(useWorkspaceStore.getInitialState().displayMode).toBe("sidebar");
+    });
+
+    it("keeps a persisted grid choice instead of forcing the new default", () => {
+      const migrate = useWorkspaceStore.persist.getOptions().migrate;
+      if (!migrate) throw new Error("migrate function missing");
+      const migrated = migrate({ displayMode: "grid" }, 23) as Record<string, unknown>;
+      expect(migrated.displayMode).toBe("grid");
+    });
+  });
+
   describe("persist migration v14→v15", () => {
     it("seeds new fields without dropping existing persisted state", () => {
       const migrate = useWorkspaceStore.persist.getOptions().migrate;

@@ -85,7 +85,7 @@ export async function startSignIn(): Promise<void> {
   sessionStorage.setItem(AUTH_STATE_KEY, state);
   const authURL = new URL("/auth/login", LANDING_PAGE_URL);
   authURL.searchParams.set("redirect_uri", window.location.href);
-  authURL.searchParams.set("app", "Vrooli Web Console");
+  authURL.searchParams.set("app", "Aquila");
   authURL.searchParams.set("state", state);
   window.location.assign(authURL.toString());
 }

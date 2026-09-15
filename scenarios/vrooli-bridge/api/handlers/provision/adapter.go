@@ -3,9 +3,11 @@ package provision
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/channelsign"
+	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/provision"
 
@@ -155,7 +157,27 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (provision.
 		}
 		return provision.TargetNode{}, err
 	}
-	return provision.TargetNode{ID: n.ID, Kind: n.Kind, Revoked: n.Revoked()}, nil
+	return provision.TargetNode{
+		ID: n.ID, Kind: n.Kind, Revoked: n.Revoked(),
+		WorkingTree:  onboard.IsWorkingTreeRevision(n.Revision),
+		Provisioning: provisioningReadiness(n),
+	}, nil
+}
+
+// provisioningReadiness reads the node's own provisioning report. A missing
+// observation's detail is prefixed with a stable reason code ("code: prose").
+func provisioningReadiness(n registry.Node) provision.ProvisioningReadiness {
+	item, ok := n.ProvisioningObservation()
+	if !ok {
+		return provision.ProvisioningReadiness{}
+	}
+	readiness := provision.ProvisioningReadiness{Known: true, Ready: item.State == "ready", Detail: item.Detail}
+	if !readiness.Ready {
+		if code, _, found := strings.Cut(item.Detail, ":"); found && !strings.ContainsAny(code, " `") {
+			readiness.Reason = code
+		}
+	}
+	return readiness
 }
 
 // auditSinkAdapter wraps the audit Sink for the provision AuditSink seam,

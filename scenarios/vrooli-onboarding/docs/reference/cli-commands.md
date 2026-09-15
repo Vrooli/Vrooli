@@ -141,21 +141,23 @@ path named.
 ## Apply and readiness
 
 ```bash
-vrooli-onboarding start --target local
-vrooli-onboarding plan --target local --json
-vrooli-onboarding review --target local --json
-vrooli-onboarding status --target local --json
-vrooli-onboarding cancel --target local --run-id "<run-id>" --json
+vrooli-onboarding apply start --target local
+vrooli-onboarding apply plan --target local --json
+vrooli-onboarding apply review --target local --json
+vrooli-onboarding apply status --target local --run-id "<run-id>" --json
+vrooli-onboarding apply cancel --target local --run-id "<run-id>" --json
 vrooli-onboarding readiness --target local --json
 vrooli-onboarding acknowledge-degraded --target local --digest "<digest>"
 vrooli-onboarding wizard status --json
+vrooli-onboarding status
 ```
 
-`status` is the stable overall onboarding verdict and does not require an
-apply-run identifier. Apply-run inspection remains available through the
-`apply status --run-id <run-id>` command when a caller needs individual step
-events. `--json` writes only the typed response to standard output so scripts
-can parse it; human diagnostics use the human renderer or standard error.
+Top-level `status` is the cli-core API health check. `readiness` is the stable
+overall onboarding verdict and does not require an apply-run identifier.
+`apply status` and `apply cancel` inspect or cancel one apply run and reject a
+missing `--run-id` as a usage error before any request is sent. `--json` writes
+only the typed response to standard output so scripts can parse it; human
+diagnostics use the human renderer or standard error.
 
 `readiness` prints every blocker with its reason and remediation, then exits
 non-zero while one remains. Automation cannot branch on prose; the exit code is

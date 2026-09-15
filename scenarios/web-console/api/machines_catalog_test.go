@@ -301,6 +301,51 @@ func TestControlPlaneErrorPreservesTargetCompatibilityClassification(t *testing.
 	if !strings.HasPrefix(connectErr.Message(), "target_onboarding_incompatible:") {
 		t.Fatalf("classification was not surfaced: %s", connectErr.Message())
 	}
+	if strings.Contains(connectErr.Message(), "redeploy") {
+		t.Fatalf("a missing procedure is version skew; redeploying the old build cannot fix it: %s", connectErr.Message())
+	}
+}
+
+// When Bridge knows both revisions and the update path, the operator gets the
+// skew and the one command that can close it — not "refresh or redeploy".
+func TestControlPlaneErrorExplainsTargetVersionSkew(t *testing.T) {
+	wire := connect.NewError(connect.CodeFailedPrecondition, errors.New("target scenario is missing a procedure"))
+	wire.Meta().Set("X-Vrooli-Error-Code", "target_incompatible")
+	wire.Meta().Set("X-Vrooli-Target-Revision", "8ec19147c85f+dirty")
+	wire.Meta().Set("X-Vrooli-Control-Plane-Revision", "1911dc4aea6")
+	wire.Meta().Set("X-Vrooli-Update-Command", "vrooli-bridge onboard connect --host minimouse.local --source working-tree")
+
+	err := controlPlaneError("read target configuration questions", wire)
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("target incompatibility reported as %v, want failed_precondition", err)
+	}
+	for _, want := range []string{"older Vrooli", "8ec19147c85f+dirty", "1911dc4aea6", "`vrooli-bridge onboard connect --host minimouse.local --source working-tree`"} {
+		if !strings.Contains(connectErr.Message(), want) {
+			t.Errorf("message %q does not contain %q", connectErr.Message(), want)
+		}
+	}
+}
+
+// A machine already on this console's revision whose onboarding API still
+// lacks the procedure is running a stale service: the remedy is its restart.
+func TestControlPlaneErrorNamesRestartForAStaleService(t *testing.T) {
+	wire := connect.NewError(connect.CodeFailedPrecondition, errors.New("target scenario is missing a procedure"))
+	wire.Meta().Set("X-Vrooli-Error-Code", "target_incompatible")
+	wire.Meta().Set("X-Vrooli-Target-Revision", "8585f56f4765+dirty")
+	wire.Meta().Set("X-Vrooli-Control-Plane-Revision", "8585f56f4765")
+	wire.Meta().Set("X-Vrooli-Update-Path", "restart")
+	wire.Meta().Set("X-Vrooli-Update-Command", `vrooli-bridge relay call --node-id n1 --scenario vrooli-onboarding --command "scenario restart"`)
+
+	err := controlPlaneError("read target configuration questions", wire)
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("got %v", err)
+	}
+	msg := connectErr.Message()
+	if !strings.HasPrefix(msg, "target_onboarding_incompatible:") || !strings.Contains(msg, "already has this console's Vrooli revision") || !strings.Contains(msg, "scenario restart") || strings.Contains(msg, "older Vrooli than this console") {
+		t.Fatalf("stale-service message is wrong: %s", msg)
+	}
 }
 
 // The handoff to the control plane's own interface is the one link on this

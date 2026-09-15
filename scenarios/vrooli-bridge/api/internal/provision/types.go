@@ -146,6 +146,60 @@ type TargetNode struct {
 	ID      string
 	Kind    string
 	Revoked bool
+	// WorkingTree is true when the node was onboarded from a shipped working
+	// tree ("<sha>+dirty"): there is no fetchable commit for a sync to converge.
+	WorkingTree bool
+	// Provisioning is the node's own report of whether its privileged helper can
+	// run a sync, read from its heartbeat capability inventory.
+	Provisioning ProvisioningReadiness
+}
+
+// ProvisioningReadiness is the node-reported provisioning capability. Known is
+// false for agents that predate the report; Reason is the stable code the agent
+// prefixes onto a missing observation (for example "helper_not_installed").
+type ProvisioningReadiness struct {
+	Known  bool
+	Ready  bool
+	Reason string
+	Detail string
+}
+
+// Stable refusal codes for ErrProvisioningUnavailable. Callers branch on these
+// rather than on the prose.
+const (
+	UnavailableWorkingTree = "working_tree_source"
+	UnavailableUnreported  = "readiness_unreported"
+	UnavailableNodeBlocked = "node_blocked"
+)
+
+// ErrProvisioningUnavailable — the node cannot execute a provisioning op, so
+// dispatching one would only fail on the node. Refusing up front turns a silent
+// node-side failure into an operator-visible precondition with a remedy.
+type ErrProvisioningUnavailable struct {
+	ID     string
+	Reason string
+	Detail string
+}
+
+func (e ErrProvisioningUnavailable) Error() string {
+	return fmt.Sprintf("node %q cannot be updated by provisioning (%s): %s", e.ID, e.Reason, e.Detail)
+}
+
+// provisioningBlocker returns the refusal for a node whose own facts already
+// rule provisioning out. An unreported readiness is not a blocker here: it is
+// only judged once the node is known to be online and able to report.
+func provisioningBlocker(node TargetNode) (ErrProvisioningUnavailable, bool) {
+	switch {
+	case node.WorkingTree:
+		return ErrProvisioningUnavailable{ID: node.ID, Reason: UnavailableWorkingTree, Detail: "the node runs a tree shipped by working-tree onboarding, which has no git revision to fetch; update it by re-running `vrooli-bridge onboard connect` for this machine"}, true
+	case node.Provisioning.Known && !node.Provisioning.Ready:
+		reason := node.Provisioning.Reason
+		if reason == "" {
+			reason = UnavailableNodeBlocked
+		}
+		return ErrProvisioningUnavailable{ID: node.ID, Reason: reason, Detail: node.Provisioning.Detail}, true
+	}
+	return ErrProvisioningUnavailable{}, false
 }
 
 type ErrUnsupportedNodeKind struct{ ID, Kind string }

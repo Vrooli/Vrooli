@@ -88,7 +88,12 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
   const [granting, setGranting] = useState(false);
 
   const issues = machineIssues(machine);
-  const targetOnboardingIncompatible = loadFailure.includes("target_onboarding_incompatible");
+  // A missing procedure on a reachable machine is version skew: the machine
+  // runs an older Vrooli than this console. Re-apply runs the same old build,
+  // so it is withheld; the API supplies the one update command that can work.
+  const targetOnboardingIncompatible =
+    loadFailure.includes("target_onboarding_incompatible") || loadFailure.includes("target_onboarding_contract_mismatch");
+  const updateCommand = targetOnboardingIncompatible ? (/`([^`]+)`/.exec(loadFailure)?.[1] ?? "") : "";
 
   const loadConfiguration = useCallback(async () => {
     try {
@@ -210,7 +215,19 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
         <ErrorState
           title={targetOnboardingIncompatible ? t(strings.machines.configIncompatibleTitle) : t(strings.machines.configUnavailableTitle)}
           message={targetOnboardingIncompatible
-            ? t(strings.machines.configIncompatibleBody)
+            ? (
+              <>
+                {t(strings.machines.configIncompatibleBody)}
+                {updateCommand && (
+                  <code
+                    data-testid="machine-configuration-update-command"
+                    className="mt-2 block select-all break-all rounded-md bg-wc-surface-input px-2 py-1 text-left font-mono text-[12px]"
+                  >
+                    {updateCommand}
+                  </code>
+                )}
+              </>
+            )
             : "The Bridge path could not retrieve configuration questions. Check the technical detail below and refresh after the target onboarding service is healthy; re-apply may not fix a missing backend route."}
           detail={loadFailure}
           detailLabel={t(strings.machines.technicalDetail)}
@@ -226,16 +243,18 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
               >
                 {t(strings.machines.refresh)}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                data-testid="machine-configuration-reapply"
-                pending={reapplying}
-                pendingLabel={t(strings.machines.reapplying)}
-                onClick={reapply}
-              >
-                {t(strings.machines.reapply)}
-              </Button>
+              {!targetOnboardingIncompatible && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-testid="machine-configuration-reapply"
+                  pending={reapplying}
+                  pendingLabel={t(strings.machines.reapplying)}
+                  onClick={reapply}
+                >
+                  {t(strings.machines.reapply)}
+                </Button>
+              )}
             </div>
           }
         />

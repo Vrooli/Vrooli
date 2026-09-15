@@ -59,9 +59,15 @@ type MessageWithParts struct {
 
 // Event is one `data:` frame from the `GET /event` SSE stream. Properties is
 // left as a decoded map so callers can pull sessionID without a type per event.
+//
+// The global stream (`GET /global/event`) wraps the same event under a
+// "payload" key and adds the source directory/project. Payload carries that
+// wrapper so decoding one shape covers both streams; the client unwraps it
+// before handing the event to callers.
 type Event struct {
 	Type       string                 `json:"type"`
 	Properties map[string]interface{} `json:"properties"`
+	Payload    *Event                 `json:"payload,omitempty"`
 }
 
 // SessionID extracts the affected session id from an event's properties, looking

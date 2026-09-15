@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func Module(svc internal.Service) module.Module {
-	h := NewHandler(Deps{Service: svc})
+func Module(svc internal.Service, facts TargetFacts) module.Module {
+	h := NewHandler(Deps{Service: svc, Facts: facts})
 	return module.Module{
 		Name: "scenario-proxy",
 		Mount: func(r *mux.Router) {

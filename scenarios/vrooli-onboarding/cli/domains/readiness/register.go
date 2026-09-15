@@ -59,15 +59,6 @@ func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandl
 				return readinessExit(response)
 			},
 		),
-		"status": cliapp.ProtoOperationalWithExit(
-			readinessResponse,
-			func(_ cliapp.OperationContext, response *readinessv1.GetReadinessResponse) cliapp.OperationalReport {
-				return operationalReport(response)
-			},
-			func(_ cliapp.OperationContext, response *readinessv1.GetReadinessResponse) error {
-				return readinessExit(response)
-			},
-		),
 	}
 }
 

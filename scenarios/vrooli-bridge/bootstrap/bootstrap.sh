@@ -272,7 +272,7 @@ done
 
 # --- derived paths & validation ----------------------------------------------
 
-[ -n "$CONTROL_PLANE_URL" ] || { log "error: --control-plane-url (or \$BRIDGE_CONTROL_PLANE_URL) is required"; usage; exit 2; }
+[ -n "$CONTROL_PLANE_URL" ] || [ "${BOOTSTRAP_SOURCE_ONLY:-0}" = "1" ] || { log "error: --control-plane-url (or \$BRIDGE_CONTROL_PLANE_URL) is required"; usage; exit 2; }
 [ -n "$NODE_NAME" ] || NODE_NAME="$(hostname)"
 
 # Defence-in-depth: the API boundary already rejects shell metacharacters in the
@@ -851,12 +851,27 @@ step_finalize_setup() {
   fi
   [ "$CREDENTIAL_PASSPHRASE_STDIN" -eq 1 ] && cmd+=(--credential-passphrase-stdin)
   cmd+=(--result-file "$setup_result")
-  if ( cd "$CHECKOUT_DIR" && "${cmd[@]}" ) >"$out" 2>&1; then
+  # Finalization prepares the host only; configuration is applied later through
+  # the typed onboarding handoff, so the operator onboarding handoff (browser or
+  # detached scenario start on the node's screen) must not run here.
+  cmd+=(--onboarding none)
+  # Nothing may wait on the SSH session's stdin unless the passphrase is being
+  # piped on purpose, and the step is bounded and visibly alive: on 2026-09-15
+  # this step sat silent for 40+ minutes (a 1m44s step on 2026-09-01) with its
+  # output buffered until exit and no deadline.
+  local finalize_timeout="${BRIDGE_SETUP_FINALIZE_TIMEOUT:-1800}" stdin_mode=null last
+  [ "$CREDENTIAL_PASSPHRASE_STDIN" -eq 1 ] && stdin_mode=pipe
+  if run_bounded_setup "$out" "$finalize_timeout" "$stdin_mode" "$CHECKOUT_DIR" -- "${cmd[@]}"; then
     rc=0
   else
     rc=$?
   fi
   cat "$out" >&2
+  if [ "$rc" -eq 124 ]; then
+    last="$(tail -n 1 "$out" 2>/dev/null | tr -d '\r"' | cut -c1-200)"
+    rm -f "$out" "$setup_result"
+    fail 1 "native macOS vrooli setup did not finish within ${finalize_timeout}s (last output: ${last:-none}); a package compiled from source (for example a Homebrew formula without a bottle) or a macOS permission dialog on this Mac's screen is the usual cause — let the build finish or approve the dialog, then re-run onboarding"
+  fi
   if [ "$rc" -ne 0 ]; then
     rm -f "$out" "$setup_result"
     fail 1 "native macOS vrooli setup failed (exit ${rc}) — see output above"
@@ -864,6 +879,42 @@ step_finalize_setup() {
   rm -f "$out" "$setup_result"
   touch "$sentinel"
   step_ok "complete setup applied with the native Keychain-enabled CLI"
+}
+
+# run_bounded_setup <out-file> <budget-seconds> <null|pipe> <dir> -- <command...>
+# Runs a long setup command from <dir> with its output captured in <out-file>,
+# stdin from /dev/null unless "pipe" (a passphrase piped on purpose), and a
+# step-start heartbeat for CURRENT_STEP carrying the latest output line every
+# BRIDGE_SETUP_HEARTBEAT_SECONDS (default 60). It returns the command's exit
+# code, or 124 after stopping a command that outlived its budget, so a blocked
+# command can never hold an onboarding silent and open-ended.
+run_bounded_setup() {
+  local out="$1" budget="$2" stdin_mode="$3" dir="$4"
+  shift 5
+  local heartbeat="${BRIDGE_SETUP_HEARTBEAT_SECONDS:-60}" waited=0 pid last
+  [ "$heartbeat" -gt 0 ] 2>/dev/null || heartbeat=60
+  if [ "$stdin_mode" = pipe ]; then
+    ( cd "$dir" && exec "$@" ) >"$out" 2>&1 &
+  else
+    ( cd "$dir" && exec "$@" ) >"$out" 2>&1 </dev/null &
+  fi
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$waited" -ge "$budget" ]; then
+      kill "$pid" 2>/dev/null
+      sleep 1
+      kill -9 "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+    waited=$((waited + 1))
+    if [ $((waited % heartbeat)) -eq 0 ]; then
+      last="$(tail -n 1 "$out" 2>/dev/null | tr -d '\r"' | cut -c1-160)"
+      marker step-start "$CURRENT_STEP" "still running after ${waited}s: ${last:-no output yet}"
+    fi
+  done
+  wait "$pid"
 }
 
 step_build_agent() {
@@ -1219,4 +1270,8 @@ main() {
   log "bootstrap complete: node ${NODE_ID} is paired, online, and set to auto-start."
 }
 
-main "$@"
+# Tests source this file with BOOTSTRAP_SOURCE_ONLY=1 to exercise its helpers
+# without running an onboarding.
+if [ "${BOOTSTRAP_SOURCE_ONLY:-0}" != "1" ]; then
+  main "$@"
+fi

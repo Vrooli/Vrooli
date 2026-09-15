@@ -90,7 +90,7 @@ function metaFor(
   // agent that is missing in the position a reader takes for the one that is
   // present. A problem has to be phrased as a problem.
   const capabilityFailure = capabilityFacts.find((fact) => fact.state !== "ready");
-  if (target.kind === "local" && !capabilityFacts.length) return "Web Console host";
+  if (target.kind === "local" && !capabilityFacts.length) return "Aquila host";
   if (transportFailure || capabilityFailure || headlessFailure) {
     const missing = capabilityFailure ? capabilityMissing(capabilityFailure.label || capabilityFailure.key.slice("capability:".length)) : undefined;
     return [platform, capabilitySummary, transportFailure?.label, missing, headlessFailure?.detail, headlessFailure?.recovery_action].filter(Boolean).join(" · ");

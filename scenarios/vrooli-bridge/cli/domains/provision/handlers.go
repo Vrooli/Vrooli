@@ -37,7 +37,7 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 		TimeoutSeconds:   parseInt64(ctx.Flag("timeout")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("sync node to revision (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
+		return cliapp.WrapAPIErrorWithAuthHint("sync node to revision", "set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no provisioning response")

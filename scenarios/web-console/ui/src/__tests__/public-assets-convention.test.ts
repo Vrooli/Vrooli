@@ -30,6 +30,8 @@ interface ManifestIcon {
 }
 
 interface WebManifest {
+  name?: string;
+  short_name?: string;
   start_url?: string;
   scope?: string;
   id?: string;
@@ -51,6 +53,31 @@ function resolvesUnderPublic(ref: string): boolean {
 }
 
 describe("public-assets convention: web-console branding/PWA/OG under /public/", () => {
+  it("presents Aquila in browser, installation, and share metadata", () => {
+    const html = new DOMParser().parseFromString(INDEX_HTML, "text/html");
+    expect(html.title).toBe("Aquila");
+    for (const selector of [
+      'meta[name="application-name"]',
+      'meta[name="apple-mobile-web-app-title"]',
+      'meta[property="og:site_name"]',
+      'meta[property="og:title"]',
+      'meta[name="twitter:title"]',
+    ]) {
+      expect(html.querySelector(selector)?.getAttribute("content"), selector).toBe("Aquila");
+    }
+    expect(readManifest()).toMatchObject({ name: "Aquila", short_name: "Aquila" });
+  });
+
+  it("names the public logo Aquila for assistive technology", () => {
+    const svg = new DOMParser().parseFromString(
+      readFileSync(resolve(PUBLIC_DIR, "logo.svg"), "utf8"),
+      "image/svg+xml",
+    );
+    expect(svg.documentElement.getAttribute("role")).toBe("img");
+    expect(svg.documentElement.getAttribute("aria-label")).toBe("Aquila");
+    expect(svg.querySelector("title")?.textContent).toBe("Aquila");
+  });
+
   it("every <link> icon/apple-touch/manifest href resolves under /public/", () => {
     const re = /<link\b[^>]*\brel="(icon|apple-touch-icon|manifest)"[^>]*\bhref="([^"]+)"/g;
     const refs: Array<{ rel: string; href: string }> = [];

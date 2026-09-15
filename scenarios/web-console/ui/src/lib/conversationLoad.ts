@@ -45,7 +45,7 @@ export function describeLoadFailure(error: unknown): ConversationLoadError {
         return { message: "This session's messages couldn't be requested.", code: "invalid_argument", retryable: false };
       case Code.Unavailable:
       case Code.DeadlineExceeded:
-        return { message: "Web Console couldn't reach the server.", code: "unavailable", retryable: true };
+        return { message: "Aquila couldn't reach the server.", code: "unavailable", retryable: true };
       default:
         return {
           message: error.rawMessage || "Messages couldn't be loaded.",

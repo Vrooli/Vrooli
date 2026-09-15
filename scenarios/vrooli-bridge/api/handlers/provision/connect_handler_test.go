@@ -24,7 +24,7 @@ func ownerCtx() context.Context {
 func newHarness(t *testing.T) (*connectHandler, internalprovision.Service) {
 	t.Helper()
 	repo := provmocks.NewFakeRepository()
-	nodes := &provmocks.FakeNodeReader{Nodes: map[string]internalprovision.TargetNode{"n1": {ID: "n1"}}}
+	nodes := &provmocks.FakeNodeReader{Nodes: map[string]internalprovision.TargetNode{"n1": {ID: "n1", Provisioning: internalprovision.ProvisioningReadiness{Known: true, Ready: true}}}}
 	pres := &provmocks.FakePresence{Online: map[string]bool{"n1": true}}
 	pusher := &provmocks.FakeCommandPusher{Delivered: 1}
 	svc := internalprovision.NewService(repo, nodes, pres, &provmocks.FakeAuditSink{}, pusher, schedule.System())

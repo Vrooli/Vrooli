@@ -26,6 +26,7 @@ func ToConnectError(err error) error {
 		revoked   ErrNodeRevoked
 		offline   ErrNodeOffline
 		kind      ErrUnsupportedNodeKind
+		blocked   ErrProvisioningUnavailable
 		delivery  ErrDeliveryFailed
 	)
 	switch {
@@ -43,6 +44,11 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, offline)
 	case errors.As(err, &kind):
 		return connect.NewError(connect.CodeFailedPrecondition, kind)
+	case errors.As(err, &blocked):
+		out := connect.NewError(connect.CodeFailedPrecondition, blocked)
+		out.Meta().Set("X-Vrooli-Error-Code", "provisioning_unavailable")
+		out.Meta().Set("X-Vrooli-Provisioning-Blocker", blocked.Reason)
+		return out
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
 	default:

@@ -12,7 +12,7 @@ export const BACKEND_OPTIONS: BackendOptionConst[] = [
   {
     id: "standard",
     label: "Standard",
-    description: "Lightweight session. Lost if web console restarts.",
+    description: "Lightweight session. Lost if Aquila restarts.",
     survivesRestart: false,
   },
   {

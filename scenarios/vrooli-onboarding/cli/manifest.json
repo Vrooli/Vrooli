@@ -97,31 +97,6 @@
           }
         },
         {
-          "name": "status",
-          "description": "Show stable overall onboarding status",
-          "flags": [
-            {
-              "name": "target",
-              "description": "Explicit onboarding target"
-            }
-          ],
-          "binding": {
-            "kind": "local",
-            "handler": "status"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
           "name": "acknowledge-degraded",
           "description": "Acknowledge the current degraded readiness set",
           "flags": [
@@ -155,7 +130,6 @@
     },
     {
       "name": "apply",
-      "flat": true,
       "description": "Apply and inspect node configuration",
       "commands": [
         {
@@ -194,7 +168,8 @@
             },
             {
               "name": "run-id",
-              "description": "Apply run id"
+              "description": "Apply run id",
+              "required": true
             }
           ],
           "binding": {
@@ -261,7 +236,8 @@
             },
             {
               "name": "run-id",
-              "description": "Apply run id"
+              "description": "Apply run id",
+              "required": true
             }
           ],
           "binding": {"kind": "connect-rpc", "service": "ApplyService", "method": "CancelApply"},
@@ -1043,9 +1019,8 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "SelectionService",
-            "method": "AcceptRecommendation"
+            "kind": "local",
+            "handler": "wizard.commit"
           },
           "governance": {
             "effect": "write",
@@ -1056,7 +1031,10 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "exception": {
+              "class": "external_delegation",
+              "reason": "Commit reads a selection document from a local path and sends it as a message; the generic request builder cannot map a path flag onto a message field."
+            }
           }
         },
         {
@@ -1207,6 +1185,11 @@
     ]
   },
   "omitted": [
+    {
+      "service": "SelectionService",
+      "method": "AcceptRecommendation",
+      "reason": "Exposed through the local wizard.commit exception, which reads the selection document from a path and still calls the typed RPC."
+    },
     {
       "service": "OperatorStateService",
       "method": "PatchOperatorState",

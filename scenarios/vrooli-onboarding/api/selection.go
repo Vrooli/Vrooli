@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"connectrpc.com/connect"
 	apicoreset "github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/vrooli/internal/app/supervision"
@@ -276,7 +277,9 @@ func (s *Server) createHandoff(ctx context.Context, request *selectionv1.CreateH
 	}
 	if target := strings.TrimSpace(request.GetTarget()); target != "" {
 		if selectedTarget := strings.TrimSpace(selection.GetTarget()); selectedTarget != "" && selectedTarget != target {
-			return nil, fmt.Errorf("selection target %q does not match handoff target %q", selectedTarget, target)
+			// A caller contract error, not a server fault: the REST adapter maps
+			// FailedPrecondition to 412 so callers stop reading it as a 500.
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("selection target %q does not match handoff target %q", selectedTarget, target))
 		}
 		selection.Target = target
 	}

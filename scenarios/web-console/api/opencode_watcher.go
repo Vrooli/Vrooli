@@ -205,7 +205,7 @@ func (w *OpenCodeWatcher) loadExistingClaims() {
 }
 
 func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Client) {
-	sessions, err := client.ListSessions(ctx)
+	sessions, err := w.listCandidateSessions(ctx, client)
 	if err != nil {
 		log.Printf("opencode-watcher: list sessions: %v", err)
 		return
@@ -222,6 +222,61 @@ func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Clie
 	for ocID, wcID := range pairs {
 		w.reconcileSession(ctx, client, ocID, wcID)
 	}
+}
+
+// listCandidateSessions fetches sessions for every directory a live opencode
+// pane might occupy. A managed `opencode serve` scopes GET /session to its own
+// working directory, so one unscoped list only ever exposes panes that share
+// that directory and silently hides the rest. Listing each pane cwd closes that
+// gap; the unscoped list stays as a fallback for panes whose cwd is unknown.
+func (w *OpenCodeWatcher) listCandidateSessions(ctx context.Context, client opencode.Client) ([]opencode.Session, error) {
+	queries := append([]string{""}, w.opencodePaneDirectories(ctx)...)
+	seen := make(map[string]bool)
+	var sessions []opencode.Session
+	var firstErr error
+	for _, directory := range queries {
+		found, err := client.ListSessions(ctx, directory)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		for _, session := range found {
+			if seen[session.ID] {
+				continue
+			}
+			seen[session.ID] = true
+			sessions = append(sessions, session)
+		}
+	}
+	if len(sessions) == 0 && firstErr != nil {
+		return nil, firstErr
+	}
+	return sessions, nil
+}
+
+// opencodePaneDirectories returns the distinct cwds of opencode panes that are
+// still awaiting attribution — the directories a session could be started in.
+// Claimed panes reconcile through the claim map, so they need no listing.
+func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string {
+	if w.server == nil || w.server.sessionStore == nil {
+		return nil
+	}
+	metas, err := w.server.sessionStore.List(ctx)
+	if err != nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var directories []string
+	for _, m := range metas {
+		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || m.CWD == "" || seen[m.CWD] {
+			continue
+		}
+		seen[m.CWD] = true
+		directories = append(directories, m.CWD)
+	}
+	return directories
 }
 
 // attribute binds unclaimed opencode sessions to live web-console panes that

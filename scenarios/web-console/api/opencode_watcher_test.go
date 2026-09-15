@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -31,8 +33,15 @@ type fakeOpenCodeClient struct {
 	// eventsFn, if set, drives the SSE seam; nil blocks until ctx cancel.
 	eventsFn   func(ctx context.Context, onEvent func(opencode.Event)) error
 	listCalls  int
+	listDirs   []string
 	eventCalls int
 	replies    []string // "requestID:reply" per ReplyPermission call
+
+	// scopeByDirectory makes ListSessions behave like a real managed server:
+	// an empty directory resolves to serverDirectory and only sessions whose
+	// Directory matches the resolved scope are returned.
+	scopeByDirectory bool
+	serverDirectory  string
 }
 
 func (f *fakeOpenCodeClient) ReplyPermission(_ context.Context, requestID, reply string) error {
@@ -42,10 +51,23 @@ func (f *fakeOpenCodeClient) ReplyPermission(_ context.Context, requestID, reply
 	return nil
 }
 
-func (f *fakeOpenCodeClient) ListSessions(_ context.Context) ([]opencode.Session, error) {
+func (f *fakeOpenCodeClient) ListSessions(_ context.Context, directory string) ([]opencode.Session, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.listCalls++
+	f.listDirs = append(f.listDirs, directory)
+	if f.scopeByDirectory {
+		if directory == "" {
+			directory = f.serverDirectory
+		}
+		var scoped []opencode.Session
+		for _, s := range f.sessions {
+			if s.Directory == directory {
+				scoped = append(scoped, s)
+			}
+		}
+		return scoped, nil
+	}
 	return append([]opencode.Session(nil), f.sessions...), nil
 }
 
@@ -80,15 +102,23 @@ func ocSession(id, dir string) opencode.Session {
 	return s
 }
 
+// ocUser builds a user message with the native ids OpenCode always supplies.
+// The ids matter: AppendNativeEvent dedups on provenance, so fixtures without
+// them collapse distinct messages into one.
 func ocUser(created int64, text string) opencode.MessageWithParts {
-	m := opencode.MessageWithParts{Parts: []opencode.Part{{Type: "text", Text: text}}}
+	id := fmt.Sprintf("msg_user_%d", created)
+	m := opencode.MessageWithParts{Parts: []opencode.Part{{ID: id + "_part", Type: "text", Text: text}}}
+	m.Info.ID = id
 	m.Info.Role = "user"
 	m.Info.Time.Created = created
 	return m
 }
 
-func ocAssistant(created, completed int64, text string) opencode.MessageWithParts {
-	m := opencode.MessageWithParts{Parts: []opencode.Part{{Type: "text", Text: text}}}
+func ocAssistant(parent string, created, completed int64, text string) opencode.MessageWithParts {
+	id := fmt.Sprintf("msg_asst_%d_%d", created, completed)
+	m := opencode.MessageWithParts{Parts: []opencode.Part{{ID: id + "_part", Type: "text", Text: text}}}
+	m.Info.ID = id
+	m.Info.ParentID = parent
 	m.Info.Role = "assistant"
 	m.Info.Time.Created = created
 	m.Info.Time.Completed = completed
@@ -124,11 +154,20 @@ func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 	client := &fakeOpenCodeClient{
 		sessions: []opencode.Session{ocSession("ses_a", "/work")},
 		messages: map[string][]opencode.MessageWithParts{
-			"ses_a": {ocUser(10, "hi"), ocAssistant(20, 30, "hello back")},
+			"ses_a": {ocUser(10, "hi"), ocAssistant("msg_user_10", 20, 30, "hello back")},
 		},
 	}
 
 	w.reconcileAll(context.Background(), client)
+
+	// The managed server scopes listing to its own directory, so the watcher
+	// must also query each live pane's cwd to discover cross-directory sessions.
+	client.mu.Lock()
+	dirs := append([]string(nil), client.listDirs...)
+	client.mu.Unlock()
+	if !slices.Contains(dirs, "/work") {
+		t.Fatalf("watcher did not query the pane cwd; queried %v", dirs)
+	}
 
 	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 {
@@ -147,12 +186,35 @@ func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 	}
 }
 
+// A single managed `opencode serve` scopes its session listing to its own
+// working directory. A pane started elsewhere is invisible to that unscoped
+// list, and used to be silently uncaptured. The watcher must query the pane's
+// own cwd to find it.
+func TestOpenCodeWatcher_DiscoversSessionsOutsideServerScope(t *testing.T) {
+	srv, w, paneID := newOpenCodeWatcherTest(t) // pane cwd is /work
+	client := &fakeOpenCodeClient{
+		scopeByDirectory: true,
+		serverDirectory:  "/server", // server runs in a different directory
+		sessions:         []opencode.Session{ocSession("ses_a", "/work")},
+		messages: map[string][]opencode.MessageWithParts{
+			"ses_a": {ocUser(10, "hi"), ocAssistant("msg_user_10", 20, 30, "hello")},
+		},
+	}
+
+	w.reconcileAll(context.Background(), client)
+
+	state := srv.conversations.ListSession(context.Background(), paneID)
+	if len(state.Events) != 2 {
+		t.Fatalf("session in the pane's directory must be discovered; got %d events: %+v", len(state.Events), state.Events)
+	}
+}
+
 func TestOpenCodeWatcher_ReconcileIsIdempotent(t *testing.T) {
 	srv, w, paneID := newOpenCodeWatcherTest(t)
 	client := &fakeOpenCodeClient{
 		sessions: []opencode.Session{ocSession("ses_a", "/work")},
 		messages: map[string][]opencode.MessageWithParts{
-			"ses_a": {ocUser(10, "hi"), ocAssistant(20, 30, "hello")},
+			"ses_a": {ocUser(10, "hi"), ocAssistant("msg_user_10", 20, 30, "hello")},
 		},
 	}
 	ctx := context.Background()
@@ -254,7 +316,7 @@ func TestOpenCodeWatcher_ReconnectsAndReconciles(t *testing.T) {
 	client := &fakeOpenCodeClient{
 		sessions: []opencode.Session{ocSession("ses_a", "/work")},
 		messages: map[string][]opencode.MessageWithParts{
-			"ses_a": {ocUser(10, "hi"), ocAssistant(20, 30, "hello")},
+			"ses_a": {ocUser(10, "hi"), ocAssistant("msg_user_10", 20, 30, "hello")},
 		},
 	}
 	// First Events call returns immediately (simulating a dropped stream); the
@@ -314,7 +376,7 @@ func TestOpenCodeWatcher_RestoresClaimsAfterRestart(t *testing.T) {
 	client := &fakeOpenCodeClient{
 		sessions: []opencode.Session{ocSession("ses_a", "/work")},
 		messages: map[string][]opencode.MessageWithParts{
-			"ses_a": {ocUser(10, "resumed"), ocAssistant(20, 30, "after restart")},
+			"ses_a": {ocUser(10, "resumed"), ocAssistant("msg_user_10", 20, 30, "after restart")},
 		},
 	}
 	w.reconcileAll(context.Background(), client)

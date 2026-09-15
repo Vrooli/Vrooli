@@ -70,6 +70,22 @@ type CapabilityObservation struct {
 	Detail     string    `json:"detail,omitempty"`
 }
 
+// ProvisioningCapabilityID is the heartbeat observation id the node agent uses
+// to report whether Bridge can update it with `provision sync`
+// (agent/internal/health.ProvisioningID); keep the two in lockstep.
+const ProvisioningCapabilityID = "bridge-provisioner"
+
+// ProvisioningObservation returns the node's own provisioning-readiness report.
+// ok is false for agents that predate the report.
+func (n Node) ProvisioningObservation() (CapabilityObservation, bool) {
+	for _, item := range n.CapabilityInventory {
+		if item.ID == ProvisioningCapabilityID {
+			return item, true
+		}
+	}
+	return CapabilityObservation{}, false
+}
+
 // Revoked reports whether the node has been revoked. A revoked node is always
 // surfaced as REVOKED regardless of any lingering channel.
 func (n Node) Revoked() bool { return !n.RevokedAt.IsZero() }

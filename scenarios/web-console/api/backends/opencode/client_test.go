@@ -25,7 +25,7 @@ func TestHTTPClient_ListSessionsAndMessages(t *testing.T) {
 	c := NewHTTPClient(srv.URL)
 	ctx := context.Background()
 
-	sessions, err := c.ListSessions(ctx)
+	sessions, err := c.ListSessions(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,6 +39,44 @@ func TestHTTPClient_ListSessionsAndMessages(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].Info.Role != "user" || msgs[0].Parts[0].Text != "hi" {
 		t.Fatalf("unexpected messages: %+v", msgs)
+	}
+}
+
+func TestHTTPClient_ListSessionsScopesByDirectory(t *testing.T) {
+	var mu sync.Mutex
+	gotDirectory := ""
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotDirectory = r.URL.Query().Get("directory")
+		mu.Unlock()
+		fmt.Fprint(w, `[]`)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL)
+	if _, err := c.ListSessions(context.Background(), "/work dir"); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	directory := gotDirectory
+	mu.Unlock()
+	if directory != "/work dir" {
+		t.Fatalf("directory query = %q, want %q", directory, "/work dir")
+	}
+
+	mu.Lock()
+	gotDirectory = "unset"
+	mu.Unlock()
+	if _, err := c.ListSessions(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	directory = gotDirectory
+	mu.Unlock()
+	if directory != "" {
+		t.Fatalf("empty directory must omit the query, got %q", directory)
 	}
 }
 
@@ -63,6 +101,98 @@ func TestHTTPClient_StatusAndRevert(t *testing.T) {
 	}
 	if gotBody != `{"messageID":"msg_1","partID":"part_1"}` {
 		t.Fatalf("revert body = %s", gotBody)
+	}
+}
+
+func TestHTTPClient_EventsUnwrapsGlobalEnvelope(t *testing.T) {
+	var mu sync.Mutex
+	gotPath := ""
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotPath = r.URL.Path
+		mu.Unlock()
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatal("no flusher")
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"directory\":\"/work\",\"project\":\"p\",\"payload\":{\"type\":\"session.created\",\"properties\":{\"sessionID\":\"ses_x\"}}}\n\n")
+		flusher.Flush()
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var mu2 sync.Mutex
+	var got Event
+	done := make(chan struct{})
+	go func() {
+		_ = c.Events(ctx, func(e Event) {
+			mu2.Lock()
+			got = e
+			mu2.Unlock()
+			cancel()
+		})
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Events did not return")
+	}
+
+	mu.Lock()
+	path := gotPath
+	mu.Unlock()
+	if path != "/global/event" {
+		t.Fatalf("stream path = %q, want /global/event", path)
+	}
+	mu2.Lock()
+	defer mu2.Unlock()
+	if got.Type != "session.created" || got.SessionID() != "ses_x" || got.Payload != nil {
+		t.Fatalf("global event not unwrapped: %+v", got)
+	}
+}
+
+func TestHTTPClient_EventsFallsBackToScopedStream(t *testing.T) {
+	var mu sync.Mutex
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		if r.URL.Path == "/global/event" {
+			http.NotFound(w, r)
+			return
+		}
+		flusher, _ := w.(http.Flusher)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"type\":\"server.connected\",\"properties\":{}}\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		_ = c.Events(ctx, func(Event) { cancel() })
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Events did not return")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(paths) < 2 || paths[0] != "/global/event" || paths[1] != "/event" {
+		t.Fatalf("expected global then scoped fallback, got %v", paths)
 	}
 }
 

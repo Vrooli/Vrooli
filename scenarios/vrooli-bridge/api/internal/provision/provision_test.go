@@ -20,7 +20,7 @@ func newService(t *testing.T) (provision.Service, *mocks.FakeRepository, *mocks.
 	t.Helper()
 	repo := mocks.NewFakeRepository()
 	nodes := &mocks.FakeNodeReader{Nodes: map[string]provision.TargetNode{
-		"n1": {ID: "n1"},
+		"n1": {ID: "n1", Provisioning: provision.ProvisioningReadiness{Known: true, Ready: true}},
 	}}
 	pres := &mocks.FakePresence{Online: map[string]bool{"n1": true}}
 	audit := &mocks.FakeAuditSink{}
@@ -121,6 +121,53 @@ func TestSync_NonAgentNodeRejected(t *testing.T) {
 	require.Empty(t, pusher.PushedCommands())
 	require.Len(t, audit.Recorded(), 1)
 	require.False(t, audit.Recorded()[0].Accepted)
+}
+
+// A node that cannot execute provisioning is refused before any op exists, with
+// a stable reason, instead of dispatching an op that fails on the node (the
+// minimouse failure: exit 127 "helper is not installed", exit 128 "not a git
+// repository").
+func TestSync_RefusesNodeThatCannotProvision(t *testing.T) {
+	cases := []struct {
+		name   string
+		node   provision.TargetNode
+		reason string
+	}{
+		{"working-tree source", provision.TargetNode{ID: "n1", WorkingTree: true, Provisioning: provision.ProvisioningReadiness{Known: true, Ready: true}}, provision.UnavailableWorkingTree},
+		{"helper not installed", provision.TargetNode{ID: "n1", Provisioning: provision.ProvisioningReadiness{Known: true, Reason: "helper_not_installed", Detail: "helper_not_installed: no socket"}}, "helper_not_installed"},
+		{"agent never reported", provision.TargetNode{ID: "n1"}, provision.UnavailableUnreported},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, repo, nodes, _, audit, pusher := newService(t)
+			nodes.Nodes["n1"] = tc.node
+
+			_, err := svc.Sync(context.Background(), provision.SyncInput{Actor: "owner", NodeID: "n1", TargetRevision: "rev-B"})
+			var blocked provision.ErrProvisioningUnavailable
+			require.ErrorAs(t, err, &blocked)
+			require.Equal(t, tc.reason, blocked.Reason)
+			require.NotEmpty(t, blocked.Detail, "the refusal carries a remedy")
+			require.Empty(t, pusher.PushedCommands())
+			ops, listErr := repo.List(context.Background(), provision.ListFilter{})
+			require.NoError(t, listErr)
+			require.Empty(t, ops, "no durable op is created for a node that cannot run it")
+			require.Len(t, audit.Recorded(), 1)
+			require.False(t, audit.Recorded()[0].Accepted)
+
+			connectErr := provision.ToConnectError(err)
+			require.Contains(t, connectErr.Error(), "failed_precondition")
+		})
+	}
+}
+
+// A dry-run reports a known blocker too, so an operator learns it before
+// committing to a sync.
+func TestSync_DryRunReportsKnownBlocker(t *testing.T) {
+	svc, _, nodes, _, _, _ := newService(t)
+	nodes.Nodes["n1"] = provision.TargetNode{ID: "n1", WorkingTree: true}
+	_, err := svc.Sync(context.Background(), provision.SyncInput{Actor: "owner", NodeID: "n1", TargetRevision: "rev-B", DryRun: true})
+	var blocked provision.ErrProvisioningUnavailable
+	require.ErrorAs(t, err, &blocked)
 }
 
 // [REQ:BRG-P0-006] An offline node cannot receive the privileged push; the

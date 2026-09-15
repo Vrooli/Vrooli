@@ -821,23 +821,28 @@ func main() {
 			return internalonboard.FirewallAdmissionResult{Status: result.Status, Code: result.Code, Changed: result.Changed, Managed: result.Evidence.Managed}, err
 		})),
 	}
-	handoffCtx, handoffCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(handoffCtx, "vrooli-onboarding"); handoffErr == nil {
-		handoffURL := internalonboarding.HandoffEndpoint(handoffEndpoint)
-		handoffToken := strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_API_TOKEN"))
-		if handoffToken == "" {
-			handoffToken = strings.TrimSpace(os.Getenv("VROOLI_API_TOKEN"))
-		}
-		if handoffToken == "" {
-			log.Printf("onboard: configuration handoff unavailable; VROOLI_ONBOARDING_API_TOKEN is not configured")
-		} else {
-			onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffURL, Token: handoffToken}))
-			log.Printf("onboard: scenario selection handoff enabled at %s", handoffURL)
-		}
-	} else {
-		log.Printf("onboard: configuration handoff unavailable; pairing-only onboarding remains available: %v", handoffErr)
-	}
-	handoffCancel()
+	// The configuration handoff resolves vrooli-onboarding and its credential
+	// on every operation. Resolving once here left a Bridge that started before
+	// onboarding was reachable, or without VROOLI_ONBOARDING_API_TOKEN (the
+	// normal lifecycle start), pairing-only until its next restart — and the
+	// failure then blamed the target. The credential falls back to the local
+	// owner session, which onboarding accepts from loopback.
+	onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{
+		ResolveEndpoint: func(ctx context.Context) (string, error) {
+			resolveCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return discovery.ResolveScenarioURLDefault(resolveCtx, "vrooli-onboarding")
+		},
+		ResolveToken: func(context.Context) (string, error) {
+			for _, key := range []string{"VROOLI_ONBOARDING_API_TOKEN", "VROOLI_API_TOKEN"} {
+				if token := strings.TrimSpace(os.Getenv(key)); token != "" {
+					return token, nil
+				}
+			}
+			return internalonboarding.LocalOwnerCredential()
+		},
+	}))
+	log.Printf("onboard: configuration handoff resolves vrooli-onboarding and its credential per operation")
 	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
 	} else {
@@ -915,7 +920,20 @@ func main() {
 		// delegated to the same dispatch policy before the signed node frame is
 		// emitted; the response is bounded and correlated to this call.
 		relayH.Module(relaySvc, logger),
-		scenarioH.Module(scenarioSvc),
+		scenarioH.Module(scenarioSvc, scenarioH.NewVersionFacts(registrySvc, revResolver.ControlPlaneCommit, func(ctx context.Context, nodeID string) (scenarioH.OnboardTarget, bool) {
+			// Newest-first: the latest onboarding of this node names the SSH
+			// identity a re-onboard remedy should reuse.
+			ops, err := onboardSvc.ListOps(ctx, internalonboard.ListFilter{Limit: 500})
+			if err != nil {
+				return scenarioH.OnboardTarget{}, false
+			}
+			for _, op := range ops {
+				if op.NodeID == nodeID && op.Host != "" {
+					return scenarioH.OnboardTarget{Host: op.Host, User: op.User}, true
+				}
+			}
+			return scenarioH.OnboardTarget{}, false
+		})),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
 		// queue (OT-P1-004): read-only control-plane view over the per-node

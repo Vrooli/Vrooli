@@ -528,6 +528,36 @@ set +e; run_prebuilt_setup_failure unsupported_platform 3 "$OUTUNSUPPORTED"; rcu
 check "explicit unsupported-platform result maps to exit 3" "$([ "$rcunsupported" -eq 3 ] && echo 0 || echo 1)"
 check "unsupported result has platform guidance" "$(grep -q 'platform is unsupported' "${OUTUNSUPPORTED}.err" && echo 0 || echo 1)"
 
+echo "== long setup steps are bounded and visibly alive (never a silent hang) =="
+# 2026-09-15: setup-finalize sat silent for 40+ minutes on a Mac — output
+# buffered until exit, no deadline, stdin inherited from the SSH session.
+BOUNDED_OUT="${WORKROOT}/bounded.out"
+set +e
+# A prefix assignment on `.` lasts only while the file is sourced, so the
+# heartbeat interval is exported inside the subshell; the helper is called in
+# an `if`, exactly as step_finalize_setup calls it, so the script's error
+# trap does not reinterpret its return code.
+(
+  BOOTSTRAP_SOURCE_ONLY=1 . "$SCRIPT"
+  export BRIDGE_SETUP_HEARTBEAT_SECONDS=1
+  CURRENT_STEP=setup-finalize
+  if run_bounded_setup "${WORKROOT}/bounded.cap" 3 null "$WORKROOT" -- bash -c 'echo waiting-on-a-dialog; read -r _ || true; sleep 30'; then rc=0; else rc=$?; fi
+  exit "$rc"
+) >"$BOUNDED_OUT" 2>&1
+rcbounded=$?
+(
+  BOOTSTRAP_SOURCE_ONLY=1 . "$SCRIPT"
+  CURRENT_STEP=setup-finalize
+  if run_bounded_setup "${WORKROOT}/bounded-exit.cap" 30 null "$WORKROOT" -- bash -c 'exit 7'; then rc=0; else rc=$?; fi
+  exit "$rc"
+) >/dev/null 2>&1
+rcexit=$?
+set -e
+check "a command that outlives its budget is stopped with 124" "$([ "$rcbounded" -eq 124 ] && echo 0 || echo 1)"
+check "the step heartbeats while it runs" "$(grep -q 'event=step-start step=setup-finalize.*still running after' "$BOUNDED_OUT" && echo 0 || echo 1)"
+check "the heartbeat carries the command's latest output" "$(grep -q 'still running after.*waiting-on-a-dialog' "$BOUNDED_OUT" && echo 0 || echo 1)"
+check "a command that finishes keeps its own exit code" "$([ "$rcexit" -eq 7 ] && echo 0 || echo 1)"
+
 echo "== toolchain guard recovers a tool installed OFF the non-interactive PATH =="
 # go/pnpm are absent from PATH (TOOLBIN withheld; TOOLLESS has no toolchains) but
 # present in a known install dir under a controlled HOME ($HOME/.vrooli/bin) — the

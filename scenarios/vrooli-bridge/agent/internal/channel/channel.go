@@ -259,7 +259,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		logger:      log.Default(),
 		now:         time.Now,
 		ephemeral:   credentialpush.NewEphemeralStore(),
-		sampler:     health.NewSystemSampler(cfg.StateDir),
+		sampler:     health.NewSystemSampler(cfg.StateDir, health.WithProvisioning(cfg.ProvisionSocket, cfg.WorkDir)),
 		minBackoff:  defaultMinBackoff,
 		maxBackoff:  defaultMaxBackoff,
 	}

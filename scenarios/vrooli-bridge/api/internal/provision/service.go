@@ -154,6 +154,10 @@ func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 		s.auditReject(ctx, in, "node kind does not support privileged provisioning")
 		return Decision{}, ErrUnsupportedNodeKind{ID: nodeID, Kind: node.Kind}
 	}
+	if blocked, ok := provisioningBlocker(node); ok {
+		s.auditReject(ctx, in, "provisioning unavailable: "+blocked.Reason)
+		return Decision{}, blocked
+	}
 
 	// 3. Resolve the rollback revision: an explicit one wins; otherwise the
 	//    node's last recorded version, so a failed setup returns the node to
@@ -186,6 +190,12 @@ func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 	if !s.presence.IsOnline(nodeID) {
 		s.auditReject(ctx, in, "node offline")
 		return Decision{}, ErrNodeOffline{ID: nodeID}
+	}
+	// An online agent that never reported provisioning readiness predates the
+	// report; nothing proves its helper exists, so do not dispatch into the dark.
+	if !node.Provisioning.Known {
+		s.auditReject(ctx, in, "provisioning unavailable: "+UnavailableUnreported)
+		return Decision{}, ErrProvisioningUnavailable{ID: nodeID, Reason: UnavailableUnreported, Detail: "the node agent does not report whether its provisioning helper is installed; refresh the agent by re-running `vrooli-bridge onboard connect` for this machine"}
 	}
 
 	// 6. Create the durable op.

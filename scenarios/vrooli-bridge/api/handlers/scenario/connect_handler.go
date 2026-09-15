@@ -17,7 +17,32 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Deps struct{ Service internal.Service }
+type Deps struct {
+	Service internal.Service
+	// Facts, when set, explains a contract failure in version terms. It is only
+	// consulted on the failure path.
+	Facts TargetFacts
+}
+
+// TargetFacts supplies what turns "the target is missing a procedure" into an
+// actionable answer: which revision the target runs, which the control plane
+// runs, and the one update path that can close the gap.
+type TargetFacts interface {
+	VersionFacts(ctx context.Context, nodeID, scenario string) VersionFacts
+}
+
+// VersionFacts is the version context attached to a contract failure. Empty
+// fields are unknown and are omitted from the wire.
+type VersionFacts struct {
+	TargetRevision       string
+	ControlPlaneRevision string
+	// UpdatePath is "provision" when `provision sync` can update the node,
+	// "reonboard" when only re-running onboarding can, or "restart" when the
+	// node already has the control plane's revision and only the scenario's
+	// running process predates it.
+	UpdatePath    string
+	UpdateCommand string
+}
 
 type handler struct{ deps Deps }
 
@@ -31,6 +56,31 @@ type scenarioProxyFailure struct {
 	message        string
 	retry          bool
 	upstreamStatus int
+	version        VersionFacts
+}
+
+// withVersionFacts explains a contract failure as the version skew it almost
+// always is. A missing procedure on a reachable target means the target runs an
+// older build than its caller, so the remedy is to update the target, not to
+// retry or re-apply.
+func (f scenarioProxyFailure) withVersionFacts(facts VersionFacts) scenarioProxyFailure {
+	if f.classification != "target_incompatible" && f.classification != "contract_mismatch" {
+		return f
+	}
+	f.version = facts
+	switch {
+	case facts.UpdatePath == "restart":
+		// Same revision on both sides: the source is not behind, the running
+		// process is. "Update the target" would send the operator to re-ship a
+		// tree that is already there.
+		f.message += fmt.Sprintf("; the target already has revision %s but its running scenario has not restarted onto it", facts.TargetRevision)
+	case facts.TargetRevision != "" && facts.ControlPlaneRevision != "" && facts.TargetRevision != facts.ControlPlaneRevision:
+		f.message += fmt.Sprintf("; the target runs revision %s and the control plane runs %s", facts.TargetRevision, facts.ControlPlaneRevision)
+	}
+	if facts.UpdateCommand != "" {
+		f.message += "; fix it with `" + facts.UpdateCommand + "`"
+	}
+	return f
 }
 
 // classifyScenarioProxyFailure turns the node agent's bounded response into a
@@ -91,6 +141,16 @@ func writeScenarioProxyFailure(w http.ResponseWriter, r *http.Request, failure s
 	if failure.upstreamStatus != 0 {
 		connectErr.Meta().Set("X-Vrooli-Upstream-Status", strconv.Itoa(failure.upstreamStatus))
 	}
+	for key, value := range map[string]string{
+		"X-Vrooli-Target-Revision":        failure.version.TargetRevision,
+		"X-Vrooli-Control-Plane-Revision": failure.version.ControlPlaneRevision,
+		"X-Vrooli-Update-Path":            failure.version.UpdatePath,
+		"X-Vrooli-Update-Command":         failure.version.UpdateCommand,
+	} {
+		if value != "" {
+			connectErr.Meta().Set(key, value)
+		}
+	}
 	if err := connect.NewErrorWriter().Write(w, r, connectErr); err != nil {
 		http.Error(w, failure.message, http.StatusBadGateway)
 	}
@@ -132,7 +192,11 @@ func (h *handler) Call(w http.ResponseWriter, r *http.Request) {
 		Body:       body, TimeoutSeconds: 30, MaxResponseBytes: internal.MaxResponseBytes,
 	})
 	if err != nil {
-		writeScenarioProxyFailure(w, r, classifyScenarioProxyFailure(err, scenarioName, "/"+strings.Trim(vars["procedure"], "/")))
+		failure := classifyScenarioProxyFailure(err, scenarioName, "/"+strings.Trim(vars["procedure"], "/"))
+		if h.deps.Facts != nil && (failure.classification == "target_incompatible" || failure.classification == "contract_mismatch") {
+			failure = failure.withVersionFacts(h.deps.Facts.VersionFacts(r.Context(), nodeID, scenarioName))
+		}
+		writeScenarioProxyFailure(w, r, failure)
 		return
 	}
 	w.Header().Set("Content-Type", "application/proto")

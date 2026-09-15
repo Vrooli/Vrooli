@@ -830,3 +830,24 @@ server was cleared so new sessions inherit color-capable defaults.
   because the target-side onboarding route returns 404, so this repair does
   not yet close the remote target compatibility defect above.
 - Measured: 2026-09-10.
+
+## Work ladder
+
+- Rung: W3 (misleading remedy on a correctly classified failure)
+- Evidence: the Configuration tab told the operator to "refresh or redeploy
+  vrooli-onboarding on the target" and offered Re-apply for minimouse, whose
+  onboarding API is missing `ListOperatorInputs` because the machine runs
+  `8ec19147c85f+dirty` (2026-09-01), 108 commits behind the control plane.
+  Neither action can add a procedure to an older build.
+- Repair: `targetSkewMessage` renders Bridge's `X-Vrooli-Target-Revision`,
+  `X-Vrooli-Control-Plane-Revision` and `X-Vrooli-Update-Command`; the tab
+  titles the state "running an older version of Vrooli", shows the update
+  command, and withholds Re-apply. api-core `targetmodel` provisioning readiness
+  now requires the node's `bridge-provisioner` report and a non-working-tree
+  revision instead of mirroring headless readiness.
+- Evidence of repair: `TestControlPlaneErrorExplainsTargetVersionSkew`,
+  `TestProvisioningReadinessRequiresTheNodesOwnReport`, ConfigurationTab vitest
+  "names the update command for an older machine and withholds re-apply".
+  Unrelated pre-existing failures in the same runs: `TestDocsNoStaleOldPaths`,
+  `TestOpenCodeWatcher_*`, and `locales.test.ts` (ar.json missing 67 keys).
+- Measured: 2026-09-15

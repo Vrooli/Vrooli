@@ -3,6 +3,7 @@ package onboarding
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,6 +39,37 @@ func TestHTTPHandoffClientRefusesWithoutAuthorization(t *testing.T) {
 	_, err := (HTTPHandoffClient{Endpoint: "http://example.test/api/v2/handoff"}).Resolve(context.Background(), HandoffRequest{NodeID: "node-1"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "VROOLI_ONBOARDING_API_TOKEN")
+}
+
+// A control plane that booted before vrooli-onboarding was reachable, or
+// without an env token, must not stay pairing-only until restart: the handoff
+// resolves its endpoint and credential on every call, and a credential that
+// already names its scheme (LocalSession) is sent as-is.
+func TestHTTPHandoffClientResolvesEndpointAndCredentialPerCall(t *testing.T) {
+	var authorization string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"apply":false}`))
+	}))
+	defer server.Close()
+	client := HTTPHandoffClient{
+		ResolveEndpoint: func(context.Context) (string, error) { return server.URL, nil },
+		ResolveToken:    func(context.Context) (string, error) { return "LocalSession abc", nil },
+	}
+	if _, err := client.Resolve(context.Background(), HandoffRequest{Target: "node-1"}); err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if authorization != "LocalSession abc" {
+		t.Fatalf("Authorization = %q, want the scheme-carrying credential unchanged", authorization)
+	}
+
+	unavailable := HTTPHandoffClient{
+		ResolveEndpoint: func(context.Context) (string, error) { return "", errors.New("vrooli-onboarding not registered") },
+	}
+	_, err := unavailable.Resolve(context.Background(), HandoffRequest{Target: "node-1"})
+	if err == nil || !strings.Contains(err.Error(), "control plane") || strings.Contains(err.Error(), "on the target") {
+		t.Fatalf("error = %v, want a remedy naming the control plane, not the target", err)
+	}
 }
 
 func TestHandoffEndpointUsesStableRoute(t *testing.T) {

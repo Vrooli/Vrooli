@@ -175,6 +175,13 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 // behavior while the surrounding command tree is loaded from the manifest.
 func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
 	return map[string]cliapp.PrimitiveHandler{
+		// commit reads a selection document from a path and sends it as a
+		// message; the generic connect-rpc builder cannot turn a path flag into
+		// a message field, so Bridge's remote apply failed with "field
+		// selection has unsupported kind message" (2026-09-15).
+		"wizard.commit": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return apply(core, contextArgs(ctx))
+		}),
 		"wizard.export": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
 			return exportSelection(core, contextArgs(ctx))
 		}),

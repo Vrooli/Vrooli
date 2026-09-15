@@ -101,6 +101,22 @@ const tokensPerBase = (catalog: Catalog): Map<string, Set<string>> => {
 };
 
 describe("locale catalogs", () => {
+  it.each(Object.entries(catalogs))("%s presents the Aquila product name across public copy", (_locale, catalog) => {
+    const copy = flatten(catalog);
+    expect(copy["app.title"]).toBe("Aquila");
+    for (const key of [
+      "banners.audioUnavailable.resolverNotConfigured",
+      "integrationsPanel.connectedScenariosDescription",
+      "messagesPane.fileNotPreviewable",
+      "messagesPane.state.unavailableBody",
+      "terminalLauncher.codexSignInHint",
+      "terminalLauncher.persistentHint",
+      "terminalLauncher.unconfigured",
+    ]) {
+      expect(copy[key], key).toContain("Aquila");
+    }
+  });
+
   const reference = catalogs.en;
   if (!reference) {
     throw new Error("en.json must exist as the canonical reference catalog");

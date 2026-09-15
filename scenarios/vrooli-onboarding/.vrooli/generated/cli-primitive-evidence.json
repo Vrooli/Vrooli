@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-onboarding",
   "generator": "v1.0.0",
-  "manifest_hash": "73162d210e1f89c79878db93e8e9b748ad07758e16c7458e43eebdb9928be4c5",
+  "manifest_hash": "f9b526f7a066437126275aa13507dbfa4b63ed715f20a5fa9ec17fe014b2d7d1",
   "commands": [
     {
       "path": "apply cancel",
@@ -231,14 +231,6 @@
       "observed_primitive": "operational"
     },
     {
-      "path": "readiness status",
-      "group": "readiness",
-      "command": "status",
-      "binding": ".",
-      "declared_primitive": "operational",
-      "observed_primitive": "operational"
-    },
-    {
       "path": "resources get",
       "group": "resources",
       "command": "get",
@@ -290,9 +282,9 @@
       "path": "wizard commit",
       "group": "wizard",
       "command": "commit",
-      "binding": "SelectionService.AcceptRecommendation",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
     },
     {
       "path": "wizard core-set",

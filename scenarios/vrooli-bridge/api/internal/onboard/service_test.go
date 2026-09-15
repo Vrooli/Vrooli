@@ -78,11 +78,12 @@ func (p *fakeProtectionProvisioner) ProvisionProtection(_ context.Context, _ onb
 type recordingHandoff struct {
 	request   onboarding.HandoffRequest
 	selection onboarding.Selection
+	err       error
 }
 
 func (h *recordingHandoff) Resolve(_ context.Context, request onboarding.HandoffRequest) (onboarding.Selection, error) {
 	h.request = request
-	return h.selection, nil
+	return h.selection, h.err
 }
 
 type onboardingRunnerDriver struct {
@@ -200,8 +201,11 @@ func TestStart_RequestedConfigurationRefusesMissingHandoff(t *testing.T) {
 			handoffFailure = event.Detail
 		}
 	}
-	require.Contains(t, handoffFailure, "onboarding handoff is unavailable")
-	require.Contains(t, handoffFailure, "start vrooli-onboarding")
+	// The handoff is the control plane's dependency; the remedy must name the
+	// control plane, never send the operator to the target.
+	require.Contains(t, handoffFailure, "onboarding handoff is not wired on this control plane")
+	require.Contains(t, handoffFailure, "start vrooli-onboarding on the control plane")
+	require.NotContains(t, handoffFailure, "on the target")
 }
 
 func TestProtectOnboardingFreshMaterialRecordsNamedStep(t *testing.T) {
@@ -281,6 +285,71 @@ func TestStart_FinalKeyVerificationFailsClosed(t *testing.T) {
 	require.Equal(t, onboard.StateFailed, op.State)
 	require.Equal(t, onboard.FailureVerifyOnline, op.FailureReason)
 	require.Equal(t, 1, driver.VerifyKeyCalls)
+}
+
+// The handoff is now always wired and resolved per operation. When it cannot
+// answer and nothing was requested of it, a node that is already paired and
+// online must still finish as pairing-only, with the reason recorded — not be
+// failed by a control-plane dependency the operator never asked to use.
+func TestStart_UnavailableHandoffWithoutRequestFinishesPairingOnly(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	handoff := &recordingHandoff{err: errors.New("onboarding handoff authorization is not configured on the control plane")}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithOnboardingHandoff(handoff),
+	)
+
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StatePaired, op.State, "pairing-only is the designed terminal state, not a failure")
+	_, events, err := svc.GetOp(context.Background(), dec.OpID)
+	require.NoError(t, err)
+	var skipped string
+	for _, event := range events {
+		if event.StepID == onboard.StepApplySelection && event.Status == onboard.StepStatusSkipped {
+			skipped = event.Detail
+		}
+	}
+	require.Contains(t, skipped, "pairing-only")
+	require.Contains(t, skipped, "control plane")
+}
+
+// onboard connect supplies a selection that names the durable machine, while
+// the handoff names the node. vrooli-onboarding refuses a handoff whose target
+// differs from its selection's, so the selection must reach it re-targeted to
+// the node; a selection for a different machine is not rewritten.
+func TestStart_MachineTargetedSelectionReachesHandoffAsTheNode(t *testing.T) {
+	for _, tc := range []struct {
+		name, selectionTarget, wantTarget string
+	}{
+		{"machine id becomes the node", "machine-1", testNodeID},
+		{"empty target becomes the node", "", testNodeID},
+		{"another machine is left for onboarding to refuse", "machine-2", "machine-2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			driver := &onboardingRunnerDriver{
+				FakeSSHDriver: &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)},
+				results:       []onboarding.Result{{ExitCode: 0, Stdout: `{"status":"applied"}`}, {ExitCode: 0, Stdout: `{"status":"ready"}`}},
+			}
+			handoff := &recordingHandoff{selection: onboarding.Selection{Scenarios: []string{"system-monitor"}, Apply: true}}
+			svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+				onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+				onboard.WithOnboardingHandoff(handoff),
+			)
+			in := validInput()
+			in.MachineID = "machine-1"
+			in.Selection = &onboarding.Selection{SchemaVersion: "v1", Target: tc.selectionTarget, Apply: true, Scenarios: []string{"system-monitor"}}
+			dec, err := svc.Start(context.Background(), in)
+			require.NoError(t, err)
+			waitTerminal(t, svc, dec.OpID)
+			require.NotNil(t, handoff.request.DesiredSelection)
+			require.Equal(t, tc.wantTarget, handoff.request.DesiredSelection.Target)
+			require.Equal(t, testNodeID, handoff.request.Target)
+		})
+	}
 }
 
 func TestStart_OnboardingHandoffReceivesIdentityAndAppliesReturnedSelection(t *testing.T) {

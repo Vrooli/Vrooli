@@ -42,21 +42,20 @@ func TestReadinessManifestBindingPreservesExitCodeContract(t *testing.T) {
 		if group.Name != "readiness" {
 			continue
 		}
-		if len(group.Commands) < 3 || string(group.Commands[0].Binding) == "" || string(group.Commands[1].Binding) == "" || string(group.Commands[2].Binding) == "" {
+		// readiness is a flat group, so a "status" command here would shadow the
+		// cli-core health command at the top level. The verdict is `readiness`.
+		if len(group.Commands) != 2 || string(group.Commands[0].Binding) == "" || string(group.Commands[1].Binding) == "" {
 			t.Fatalf("readiness manifest commands = %+v", group.Commands)
 		}
-		var readBinding, statusBinding, ackBinding struct{ Kind, Service, Method string }
+		var readBinding, ackBinding struct{ Kind, Service, Method string }
 		if err := json.Unmarshal(group.Commands[0].Binding, &readBinding); err != nil {
 			t.Fatal(err)
 		}
-		if err := json.Unmarshal(group.Commands[1].Binding, &statusBinding); err != nil {
+		if err := json.Unmarshal(group.Commands[1].Binding, &ackBinding); err != nil {
 			t.Fatal(err)
 		}
-		if err := json.Unmarshal(group.Commands[2].Binding, &ackBinding); err != nil {
-			t.Fatal(err)
-		}
-		if readBinding.Kind != "connect-rpc" || readBinding.Service != "ReadinessService" || readBinding.Method != "GetReadiness" || statusBinding.Kind != "local" || ackBinding.Kind != "connect-rpc" || ackBinding.Service != "ReadinessService" || ackBinding.Method != "AcknowledgeDegradedReadiness" {
-			t.Fatalf("readiness bindings = %+v / %+v / %+v", readBinding, statusBinding, ackBinding)
+		if readBinding.Kind != "connect-rpc" || readBinding.Service != "ReadinessService" || readBinding.Method != "GetReadiness" || ackBinding.Kind != "connect-rpc" || ackBinding.Service != "ReadinessService" || ackBinding.Method != "AcknowledgeDegradedReadiness" {
+			t.Fatalf("readiness bindings = %+v / %+v", readBinding, ackBinding)
 		}
 		// The manifest binds the readiness command to the typed service; the
 		// command's existing exit contract is verified by the focused domain

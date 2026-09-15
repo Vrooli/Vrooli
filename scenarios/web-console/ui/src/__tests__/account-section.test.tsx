@@ -48,6 +48,7 @@ describe("AccountSection", () => {
     expect(screen.getByTestId("account-free-access-card")).toBeInTheDocument();
     expect(screen.getByLabelText("Optional refresh token")).toBeInTheDocument();
     expect(screen.getByText("Local Ollama generation")).toBeInTheDocument();
+    expect(screen.getByText(/Aquila remains fully useful without an account/)).toBeInTheDocument();
   });
 
   it("renders connected plan, credits, and pending sync details", async () => {

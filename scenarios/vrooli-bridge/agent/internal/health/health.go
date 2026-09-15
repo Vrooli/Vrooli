@@ -16,13 +16,82 @@ package health
 import (
 	"context"
 	"math"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 )
+
+// The provisioning observation is the node's own answer to "can Bridge update
+// this machine with `provision sync`?". Bridge keys on ProvisioningID and on the
+// reason code that prefixes a missing observation's detail; keep these strings
+// in lockstep with the Bridge provision adapter and api-core targetmodel.
+const (
+	ProvisioningCapability = "bridge-provisioning"
+	ProvisioningID         = "bridge-provisioner"
+	ProvisioningLabel      = "Remote updates (Bridge provisioning)"
+
+	// ProvisioningHelperNotInstalled — the agent has no provisioning socket, so
+	// every pushed provisioning command is refused on the node.
+	ProvisioningHelperNotInstalled = "helper_not_installed"
+	// ProvisioningCheckoutNotGit — the checkout the helper would fetch into is
+	// not a git repository (typically a tree shipped by working-tree onboarding).
+	ProvisioningCheckoutNotGit = "checkout_not_git"
+)
+
+// Option customises a SystemSampler before its refresh loop starts.
+type Option func(*SystemSampler)
+
+// WithProvisioning makes the sampler report whether the privileged provisioning
+// path can run: socket is the helper IPC endpoint (empty = not installed) and
+// checkoutDir is the directory the helper fetches into (empty = the agent's
+// working directory).
+func WithProvisioning(socket, checkoutDir string) Option {
+	return func(s *SystemSampler) {
+		s.provisioning = &provisioningConfig{socket: strings.TrimSpace(socket), checkoutDir: strings.TrimSpace(checkoutDir)}
+	}
+}
+
+type provisioningConfig struct {
+	socket      string
+	checkoutDir string
+}
+
+// ProvisioningObservation reports provisioning readiness as a capability
+// observation. It is missing with every blocker named, so an operator sees the
+// whole repair rather than discovering the second blocker after fixing the first.
+func ProvisioningObservation(socket, checkoutDir string, now time.Time) capabilityprobe.Observation {
+	observation := capabilityprobe.Observation{
+		Capability: ProvisioningCapability, ID: ProvisioningID, Label: ProvisioningLabel,
+		State: capabilityprobe.Ready, ProbedAt: now.UTC(),
+		Detail: "Bridge can update this node with `vrooli-bridge provision sync`",
+	}
+	dir := checkoutDir
+	if dir == "" {
+		if wd, err := os.Getwd(); err == nil {
+			dir = wd
+		}
+	}
+	var blockers []string
+	if socket == "" {
+		blockers = append(blockers, ProvisioningHelperNotInstalled+": the privileged provisioning helper is not installed, so `vrooli-bridge provision sync` is refused on this node")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		blockers = append(blockers, ProvisioningCheckoutNotGit+": "+dir+" is not a git checkout, so provisioning has no revision to fetch")
+	}
+	if len(blockers) == 0 {
+		return observation
+	}
+	observation.State = capabilityprobe.Missing
+	observation.Path = dir
+	observation.Detail = strings.Join(blockers, "; ") + "; update this node by re-running `vrooli-bridge onboard connect` for it"
+	return observation
+}
 
 // Snapshot mirrors channel.HealthSnapshot in the agent's own vocabulary so the
 // sampler never imports proto types. channel.snapshotToProto translates it.
@@ -53,12 +122,16 @@ type SystemSampler struct {
 	capabilitiesAt            time.Time
 	toolchainPresent          bool
 	containerRuntimeUp        bool
+	provisioning              *provisioningConfig
 }
 
 // NewSystemSampler constructs a SystemSampler measuring headroom on workDir
 // (the agent passes its state dir, which lives on the work volume).
-func NewSystemSampler(workDir string) *SystemSampler {
+func NewSystemSampler(workDir string, opts ...Option) *SystemSampler {
 	s := &SystemSampler{WorkDir: workDir, Now: time.Now, CapabilityRefreshInterval: 10 * time.Minute}
+	for _, opt := range opts {
+		opt(s)
+	}
 	go s.refreshLoop()
 	return s
 }
@@ -79,6 +152,9 @@ func (s *SystemSampler) refreshLoop() {
 func (s *SystemSampler) refresh() {
 	capabilities := capabilityprobe.Probe(context.Background(), capabilityprobe.AITools)
 	now := time.Now().UTC()
+	if s.provisioning != nil {
+		capabilities = append(capabilities, ProvisioningObservation(s.provisioning.socket, s.provisioning.checkoutDir, now))
+	}
 	s.mu.Lock()
 	s.capabilities = append([]capabilityprobe.Observation(nil), capabilities...)
 	s.capabilitiesAt = now

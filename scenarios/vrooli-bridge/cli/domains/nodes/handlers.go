@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -227,8 +228,35 @@ func formatNode(n *registryv1.Node) string {
 	if n.CreatedAt != nil {
 		created = n.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — %s [%s kind=%s/%s status=%s online=%t channel=%t heartbeat=%t age=%ds protocol=%t dispatchable=%t rev=%s scopes=%d created=%s]",
-		n.Id, n.Name, n.Os, n.Kind.String(), n.Arch, statusLabel(n.Status), n.Online, n.ChannelHeld, n.HeartbeatFresh, n.HeartbeatAgeSeconds, n.ProtocolCompatible, n.Dispatchable, formatRevision(n.Revision), len(n.Scopes), created)
+	return fmt.Sprintf("%s — %s [%s kind=%s/%s status=%s online=%t channel=%t heartbeat=%t age=%ds protocol=%t dispatchable=%t rev=%s update=%s scopes=%d created=%s]",
+		n.Id, n.Name, n.Os, n.Kind.String(), n.Arch, statusLabel(n.Status), n.Online, n.ChannelHeld, n.HeartbeatFresh, n.HeartbeatAgeSeconds, n.ProtocolCompatible, n.Dispatchable, formatRevision(n.Revision), formatUpdatePath(n), len(n.Scopes), created)
+}
+
+// formatUpdatePath says how this node can be brought to a new revision, so a
+// node that `provision sync` cannot reach is visible before a sync fails on it.
+// "provision" means `provision sync` works; "reonboard(<reason>)" means only
+// re-running `onboard connect` can update it. The reason is the agent's own
+// stable code, or "working-tree"/"unreported" when Bridge knows better.
+func formatUpdatePath(n *registryv1.Node) string {
+	if n.GetKind() != registryv1.NodeKind_NODE_KIND_AGENT {
+		return "-"
+	}
+	if strings.HasSuffix(strings.TrimSpace(n.GetRevision()), "+dirty") {
+		return "reonboard(working-tree)"
+	}
+	for _, item := range n.GetCapabilityInventory() {
+		if item.GetId() != "bridge-provisioner" {
+			continue
+		}
+		if item.GetState() == sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY {
+			return "provision"
+		}
+		if code, _, ok := strings.Cut(item.GetDetail(), ":"); ok && !strings.ContainsAny(code, " `") {
+			return "reonboard(" + code + ")"
+		}
+		return "reonboard(blocked)"
+	}
+	return "reonboard(unreported)"
 }
 
 // formatRevision renders a node's provenance revision for a one-line listing,

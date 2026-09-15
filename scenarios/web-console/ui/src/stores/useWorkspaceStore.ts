@@ -473,7 +473,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       activePane: null,
       appearanceModalPane: null,
       isMinimapVisible: true,
-      displayMode: "grid",
+      displayMode: "sidebar",
       toolbarPrefs: DEFAULT_TOOLBAR_PREFS,
       settingsModalOpen: false,
       settingsInitialTab: null,

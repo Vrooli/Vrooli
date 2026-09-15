@@ -59,6 +59,25 @@ describe("ConfigurationTab", () => {
     expect(screen.getByText("machines.configIncompatibleBody")).toBeInTheDocument();
   });
 
+  it("names the update command for an older machine and withholds re-apply", async () => {
+    apiMocks.getConfiguration.mockRejectedValueOnce(
+      new Error(
+        "target_onboarding_incompatible: this machine runs an older Vrooli than this console, so its onboarding API is missing a procedure this console needs (machine revision 8ec19147c85f+dirty, control plane revision 1911dc4aea6); update the machine with `vrooli-bridge onboard connect --host minimouse.local --source working-tree`, then refresh this machine",
+      ),
+    );
+    apiMocks.listCredentialGrants.mockResolvedValueOnce({ grants: [] });
+
+    render(<ConfigurationTab machine={machine()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("machine-configuration-update-command")).toHaveTextContent(
+        "vrooli-bridge onboard connect --host minimouse.local --source working-tree",
+      );
+    });
+    expect(screen.getByTestId("machine-configuration-refresh")).toBeInTheDocument();
+    expect(screen.queryByTestId("machine-configuration-reapply")).not.toBeInTheDocument();
+  });
+
   it("offers a safe refresh before the consequential re-apply action", async () => {
     apiMocks.getConfiguration
       .mockRejectedValueOnce(new Error("502 Bad Gateway: ListOperatorInputs returned 404"))

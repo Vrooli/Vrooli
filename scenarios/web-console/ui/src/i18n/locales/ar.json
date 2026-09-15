@@ -24,7 +24,7 @@
       "retrying": "جارٍ إعادة المحاولة..."
     },
     "loading": "جارٍ التحميل...",
-    "title": "Web Console"
+    "title": "Aquila"
   },
   "appearance": {
     "addSecondaryColor": "أضف لونًا ثانيًا لإنشاء تدرّج",
@@ -144,7 +144,7 @@
       "discoveryFailed": "تعذر الوصول إلى خدمة audio-tools. تم تعطيل الإدخال الصوتي والتركيب الصوتي.",
       "envMisconfigured": "لم يتم ضبط عنوان audio-tools. عيّن AUDIO_TOOLS_URL أو شغّل سيناريو audio-tools.",
       "generic": "audio-tools غير متاح ({{reason}}).",
-      "resolverNotConfigured": "اكتشاف audio-tools غير مُهيأ في هذه النسخة من Web Console.",
+      "resolverNotConfigured": "اكتشاف audio-tools غير مُهيأ في هذه النسخة من Aquila.",
       "scenarioNotRunning": "سيناريو audio-tools غير قيد التشغيل. شغّله لتفعيل ميزات الصوت.",
       "startFailed": "فشل تشغيل audio-tools. راجع السجلات ثم أعد تشغيله.",
       "starting": "جارٍ تشغيل audio-tools — ستعود ميزات الصوت قريبًا.",
@@ -372,7 +372,7 @@
     "actionRunning": "جارٍ التشغيل...",
     "activeCount": "{{active}}/{{total}} نشط",
     "checking": "جارٍ فحص التكاملات...",
-    "connectedScenariosDescription": "سيناريوهات Vrooli الأخرى التي يمكن لوحدة التحكم هذه استخدامها. تعتمد الميزات أدناه على تثبيت السيناريو وتشغيله.",
+    "connectedScenariosDescription": "سيناريوهات Vrooli الأخرى التي يمكن لـ Aquila استخدامها. تعتمد الميزات أدناه على تثبيت السيناريو وتشغيله.",
     "connectedScenariosHeading": "السيناريوهات المتصلة",
     "runtimeDependenciesHeading": "اعتماديات وقت التشغيل",
     "needsAttentionHeading": "يحتاج إلى انتباه",
@@ -855,7 +855,7 @@
     "restoreFailed": "تعذّر استعادة موضعك",
     "copyMessageTitle": "نسخ الرسالة",
     "dismissError": "إغلاق الخطأ",
-    "fileNotPreviewable": "لا يمكن معاينة هذا النوع من الملفات في وحدة التحكم.",
+    "fileNotPreviewable": "لا يمكن معاينة هذا النوع من الملفات في Aquila.",
     "fileOpenFailed": "فشل فتح مرجع الملف",
     "jumpToBottomAria": "الانتقال إلى الأسفل",
     "liveDisconnected": "انقطعت التحديثات المباشرة — جارٍ إعادة الاتصال",
@@ -881,7 +881,7 @@
       "pendingTitle": "في انتظار أول رد",
       "retry": "إعادة المحاولة",
       "showDetails": "عرض التفاصيل",
-      "unavailableBody": "تعذّر على وحدة التحكم قراءة سجل رسائل هذه الجلسة.",
+      "unavailableBody": "تعذّر على Aquila قراءة سجل رسائل هذه الجلسة.",
       "unavailableTitle": "لا يجري تسجيل الرسائل"
     },
     "viewAsMarkdownTitle": "عرض كماركداون",
@@ -1638,7 +1638,7 @@
     "closeAriaLabel": "إغلاق المشغّل",
     "codexSignIn": "تسجيل الدخول إلى Codex",
     "codexSignInDescription": "افتح مصادقة جهاز Codex في الطرفية.",
-    "codexSignInHint": "سيظهر رابط ورمز لمرة واحدة في الطرفية. لا تخزن وحدة التحكم بيانات الاعتماد.",
+    "codexSignInHint": "سيظهر رابط ورمز لمرة واحدة في الطرفية. لا تخزن Aquila بيانات الاعتماد.",
     "commandPlaceholder": "أدخل أمراً...",
     "configuredEmpty": "Bridge متصل، لكن لا توجد عقد بعيدة مسجلة.",
     "creating": "جارٍ إنشاء الجلسة...",
@@ -1662,7 +1662,7 @@
     "offline": "غير متصل",
     "permissionGranted": "الجلسات التفاعلية مسموحة على هذا الجهاز.",
     "permissionUnavailable": "الجلسات التفاعلية غير مسموحة على هذا الجهاز.",
-    "persistentHint": "الجلسات الدائمة تظل قائمة عبر إعادة تشغيل وحدة التحكم باستخدام tmux.",
+    "persistentHint": "الجلسات الدائمة تظل قائمة عبر إعادة تشغيل Aquila باستخدام tmux.",
     "platform": "المنصة",
     "readiness": "الجاهزية",
     "refreshTargets": "تحديث المواقع",
@@ -1676,7 +1676,7 @@
     "thisMachine": "هذا الجهاز",
     "timeoutLabel": "المهلة:",
     "unavailable": "غير متاح",
-    "unconfigured": "العقد البعيدة غير مهيأة لوحدة التحكم هذه.",
+    "unconfigured": "العقد البعيدة غير مهيأة لـ Aquila.",
     "workingDirectory": "مجلد العمل",
     "workingDirectoryPlaceholder": "مجلد العمل الافتراضي"
   },

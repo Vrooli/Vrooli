@@ -95,11 +95,23 @@ bundle is not provided.
 | `--setup-resources` | `BRIDGE_SETUP_RESOURCES` | *(node default)* | Node-side `vrooli setup --resources`: `enabled` \| `none` \| `<comma-list>`. |
 | `--setup-scenarios` | `BRIDGE_SETUP_SCENARIOS` | *(node default)* | Node-side `vrooli setup --scenarios`: `none` \| `all` \| `<comma-list>`. |
 | `--include-optional` | *(none — flag)* | off | Also apply optional (non-required) host safeguards. |
+| *(none — env only)* | `BRIDGE_SETUP_FINALIZE_TIMEOUT` | `1800` | Seconds the Darwin native `vrooli setup` (`setup-finalize`) may run before it is stopped and the step fails with its last output line. |
+| *(none — env only)* | `BRIDGE_SETUP_HEARTBEAT_SECONDS` | `60` | Interval of the `setup-finalize` step-start heartbeat, which carries the latest setup output line to Bridge. |
 
 For Darwin nodes receiving prebuilt bootstrap artifacts, omitted resource and
 scenario selections are finalized as `none`. This prevents the target checkout
 from installing enabled workloads before the paired node's typed onboarding
 selection is applied. Explicit selections remain authoritative.
+
+Finalization runs with `--onboarding none` and stdin from `/dev/null` (unless the
+credential passphrase is piped on purpose), so nothing in it can open the
+operator onboarding handoff or wait on the SSH session. It is bounded by
+`BRIDGE_SETUP_FINALIZE_TIMEOUT` and heartbeats while it runs: a step that stops
+making progress fails with its last output line instead of holding the
+onboarding silent. The usual causes are a package compiled from source (on
+2026-09-15 an Intel Mac spent over an hour building Rust for a Homebrew formula
+with no bottle) and a macOS permission dialog on the node's screen; the
+heartbeat's last output line tells them apart.
 
 ### Elevated, profile-driven setup
 

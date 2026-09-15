@@ -771,3 +771,77 @@ Focused evidence: `go test ./handlers/scenario ./internal/scenario` in
 `scenarios/vrooli-bridge/api`, plus the Web Console configuration and error
 mapping regressions. The target-side minimouse route remains unresolved until
 an authorized refresh or redeployment supplies the missing procedure.
+
+## Work ladder
+
+- Rung: W3 (localized implementation defect; expected behavior established)
+- Evidence: minimouse runs `8ec19147c85f+dirty` (2026-09-01); `OperatorInputsService`
+  first exists in `f09f8354db9` (2026-09-10). Its only onboarding is working-tree
+  (`sync-tree` ok, `provisioner-install` skipped: `BRIDGE_PROVISION_SERVICE_USER is
+  unset`). Provisioning ops `0a20bc86` (exit 128, not a git repository) and
+  `dc45c664` (exit 127, helper is not installed) were dispatched and failed on
+  the node; nothing surfaced either. 94 of its onboarding ops failed
+  (41 `onboarding_apply_failed` on credential readiness blockers).
+- Repair: agent heartbeat reports `bridge-provisioner` readiness with stable
+  blocker codes; `provision sync` refuses up front (`ErrProvisioningUnavailable`);
+  contract failures carry target/control-plane revisions and the one working
+  update command; `nodes list` prints `update=`. See DECISIONS 2026-09-15.
+- Evidence of repair: `go test ./handlers/scenario ./handlers/provision
+  ./internal/provision ./internal/registry ./handlers/registry ./handlers/fleet
+  ./internal/fleet` (api), `./internal/health ./internal/channel` (agent),
+  `./domains/nodes` (cli) pass.
+- Remaining: minimouse still cannot be provisioned; its update path is re-running
+  `onboard connect --source working-tree`. Enabling provisioning there needs a
+  pinned git checkout plus a dedicated `--provision-service-user` and sudo — an
+  operator decision.
+- Follow-on defects found while re-onboarding minimouse (same day):
+  1. `setup-finalize` failed on darwin: `keyring_daemon_limits` and
+     `agent_session_containment` reported `unsupported` off Linux although both
+     manifests declare macOS not applicable (13 more safeguards had the same
+     contradiction; the shared hostreqkit suite required `unsupported`). The
+     runtime now honors manifest `platform_status` in `inspectRequirement`;
+     guard `TestSafeguardInspectHonorsDeclaredNotApplicablePlatforms`.
+  2. Apply-selection failed with "onboarding handoff is unavailable; start
+     vrooli-onboarding on the target": Bridge resolved the handoff once at boot
+     and a lifecycle start has no `VROOLI_ONBOARDING_API_TOKEN`, so it went
+     pairing-only and blamed the target. The handoff now resolves endpoint and
+     credential per operation (env token, else the local owner session) and its
+     errors name the control plane; an unavailable handoff with nothing
+     requested finishes `paired` instead of failing.
+  3. The node's vrooli-onboarding could not restart onto the new tree: the
+     `@vrooli/react-component-library` runtime build shells out to `ast-grep`,
+     which setup never declared or installed (manual tool, absent from
+     `.vrooli/service.json`), and the build died on a TypeError. ast-grep is now
+     a required macOS host tool acquired from its checksum-verified release
+     (brew fallback), and the build names the missing binary.
+  4. The next re-onboard sat silent in `setup-finalize` for 50+ minutes (1m44s
+     on 2026-09-01): bootstrap buffered setup output until exit, inherited the
+     SSH session's stdin, had no deadline, and ran the operator onboarding
+     handoff. It now runs through `run_bounded_setup` (stdin from /dev/null,
+     `--onboarding none`, a step-start heartbeat with the latest output line,
+     and a `BRIDGE_SETUP_FINALIZE_TIMEOUT` failure that names the likely
+     causes). Harness: "long setup steps are bounded and visibly alive". The
+     proven cause (next run's lock error): `brew install ast-grep` on an Intel
+     Mac with no bottle was compiling Rust from source; the tool now installs
+     from its verified release instead.
+  5. `onboard cancel` could not end that op, and the next Bridge restart hung in
+     shutdown: `RunStreaming` scanned the ssh client's stdout, which a
+     ControlMaster=auto master kept open after the client was killed. It now
+     closes the pipe on cancel and sets `cmd.WaitDelay`;
+     `TestRunStreamingReturnsOnCancelWhileAnInheritedPipeStaysOpen`.
+  6. With setup passing, the node's vrooli-onboarding still could not restart:
+     the component library's runtime build type-checks `useVoiceInput` v3
+     against `packages/audio-capture-browser/dist`, a gitignored output a
+     working-tree ship (and any fresh checkout) does not carry, and the
+     lifecycle only provisions a scenario's direct governed dependencies. The
+     governed manifest now declares `lifecycle.requires`; the lifecycle adds
+     and orders requirements (`TestSharedPackageRequirementsProvisionBeforeTheirDependents`).
+     Rollout hazard hit on the way: adding the key before rebuilding the
+     strict-decoding control-plane CLI made `vrooli scenario restart` fail
+     with `unknown field "requires"`; readers were rebuilt with `make install`
+     before the key was re-added.
+  7. The handoff then reached onboarding and was refused: the operator's
+     selection named the machine id while the request named the node id. The
+     orchestrator now re-targets a machine-targeted selection to the node, and
+     onboarding reports the fence as 412 instead of 500.
+- Measured: 2026-09-15

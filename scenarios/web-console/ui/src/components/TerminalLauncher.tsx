@@ -125,7 +125,7 @@ const localFallback: TerminalTarget = {
   state: "dispatchable",
   status: "LOCAL",
   online: true,
-  readiness: [{ key: "local", label: "Web Console process", passed: true, detail: "Available on this machine" }],
+  readiness: [{ key: "local", label: "Aquila process", passed: true, detail: "Available on this machine" }],
 };
 
 function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | null {

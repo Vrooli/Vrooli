@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/registry"
 	internal "vrooli-bridge/internal/scenario"
 
@@ -20,6 +21,94 @@ func (r nodeReader) GetTarget(ctx context.Context, id string) (internal.TargetNo
 		return internal.TargetNode{}, err
 	}
 	return internal.TargetNode{ID: node.ID, Scopes: append([]string(nil), node.Scopes...), Revoked: node.Revoked()}, nil
+}
+
+// OnboardTarget is the SSH identity an owner last onboarded a node through, so
+// a re-onboard remedy can be a command rather than a description.
+type OnboardTarget struct {
+	Host string
+	User string
+}
+
+// versionFacts answers TargetFacts from the registry, the control plane's own
+// commit, and the node's onboarding history.
+type versionFacts struct {
+	registry     registry.Service
+	controlPlane func(context.Context) (string, error)
+	onboardedAs  func(context.Context, string) (OnboardTarget, bool)
+}
+
+// NewVersionFacts builds the failure-path version context. controlPlane and
+// onboardedAs may be nil; the corresponding facts are then omitted.
+func NewVersionFacts(registrySvc registry.Service, controlPlane func(context.Context) (string, error), onboardedAs func(context.Context, string) (OnboardTarget, bool)) TargetFacts {
+	return versionFacts{registry: registrySvc, controlPlane: controlPlane, onboardedAs: onboardedAs}
+}
+
+func (v versionFacts) VersionFacts(ctx context.Context, nodeID, scenario string) VersionFacts {
+	var facts VersionFacts
+	if v.controlPlane != nil {
+		if commit, err := v.controlPlane(ctx); err == nil {
+			facts.ControlPlaneRevision = shortRevision(commit)
+		}
+	}
+	node, err := v.registry.Get(ctx, nodeID)
+	if err != nil {
+		return facts
+	}
+	facts.TargetRevision = shortRevision(node.Revision)
+	// The node already carries the control plane's revision, so the source is
+	// not behind: the scenario's running process predates the update (a
+	// re-onboard ships a tree but does not restart running scenarios).
+	if scenario != "" && facts.ControlPlaneRevision != "" && strings.TrimSuffix(facts.TargetRevision, "+dirty") == strings.TrimSuffix(facts.ControlPlaneRevision, "+dirty") {
+		facts.UpdatePath = "restart"
+		facts.UpdateCommand = fmt.Sprintf("vrooli-bridge relay call --node-id %s --scenario %s --command \"scenario restart\"", node.ID, scenario)
+		return facts
+	}
+	observation, reported := node.ProvisioningObservation()
+	if reported && observation.State == "ready" && !onboard.IsWorkingTreeRevision(node.Revision) {
+		facts.UpdatePath = "provision"
+		facts.UpdateCommand = "vrooli-bridge provision sync " + node.ID
+		return facts
+	}
+	// Provisioning cannot run on this node (no helper, no git checkout, or an
+	// agent too old to say), so re-running onboarding is the update path.
+	facts.UpdatePath = "reonboard"
+	command := "vrooli-bridge onboard connect"
+	if target, ok := v.lookupOnboardTarget(ctx, node.ID); ok {
+		command += " --host " + target.Host
+		if target.User != "" {
+			command += " --user " + target.User
+		}
+	} else {
+		command += " --host <host>"
+	}
+	if onboard.IsWorkingTreeRevision(node.Revision) {
+		command += " --source working-tree"
+	}
+	facts.UpdateCommand = command
+	return facts
+}
+
+func (v versionFacts) lookupOnboardTarget(ctx context.Context, nodeID string) (OnboardTarget, bool) {
+	if v.onboardedAs == nil {
+		return OnboardTarget{}, false
+	}
+	target, ok := v.onboardedAs(ctx, nodeID)
+	return target, ok && target.Host != ""
+}
+
+// shortRevision keeps a revision readable in a sentence: a 12-character commit
+// with the working-tree marker preserved, so a dirty node still reads as one.
+func shortRevision(revision string) string {
+	revision = strings.TrimSpace(revision)
+	base, dirty := strings.CutSuffix(revision, "+dirty")
+	if len(base) > 12 {
+		base = base[:12]
+	}
+	if dirty {
+		return base + "+dirty"
+	}
+	return base
 }
 
 // NewService wires catalog-derived per-method authorization into the proxy.

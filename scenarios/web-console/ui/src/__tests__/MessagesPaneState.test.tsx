@@ -4,6 +4,8 @@ import { screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPaneState from "../components/MessagesPaneState";
 import { strings } from "../consts/strings";
 import { UNKNOWN_CAPTURE, type MessageCaptureStatus } from "../api/messageCapture";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { describeLoadFailure } from "../lib/conversationLoad";
 
 /**
  * The Messages pane used to answer every one of these situations with the same
@@ -32,16 +34,16 @@ describe("MessagesPaneState", () => {
     expect(screen.queryByTestId("messages-state-unavailable")).toBeNull();
   });
 
-  it("offers a retry for a retryable failure and states the reason", () => {
+  it.each([Code.Unavailable, Code.DeadlineExceeded])("offers a retry and names Aquila for transport failure %s", (code) => {
     render(
       <MessagesPaneState
-        view={{ kind: "failed", error: { message: "Web Console couldn't reach the server.", code: "unavailable", retryable: true } }}
+        view={{ kind: "failed", error: describeLoadFailure(new ConnectError("transport failed", code)) }}
         onRetry={onRetry}
       />,
     );
 
     expect(screen.getByTestId("messages-state-failed")).toBeInTheDocument();
-    expect(screen.getByText("Web Console couldn't reach the server.")).toBeInTheDocument();
+    expect(screen.getByText("Aquila couldn't reach the server.")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("messages-state-failed-action"));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
