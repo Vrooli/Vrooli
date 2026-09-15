@@ -143,7 +143,7 @@ func Apply(push *channelv1.CredentialPush, nodeID string, private *ecdh.PrivateK
 		zero(plaintext)
 		receipt.Accepted = false
 		receipt.Reason = fmt.Sprintf("credential push: store durable value: %v", err)
-		return Result{Receipt: receipt}, errors.New(receipt.Reason)
+		return Result{Receipt: receipt}, fmt.Errorf("credential push: store durable value: %w", err)
 	}
 	zero(plaintext)
 	receipt.Accepted = true

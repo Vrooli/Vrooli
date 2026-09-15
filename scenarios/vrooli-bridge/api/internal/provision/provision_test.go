@@ -133,7 +133,8 @@ func TestSync_RefusesNodeThatCannotProvision(t *testing.T) {
 		node   provision.TargetNode
 		reason string
 	}{
-		{"working-tree source", provision.TargetNode{ID: "n1", WorkingTree: true, Provisioning: provision.ProvisioningReadiness{Known: true, Ready: true}}, provision.UnavailableWorkingTree},
+		{"working-tree source never reported", provision.TargetNode{ID: "n1", WorkingTree: true}, provision.UnavailableWorkingTree},
+		{"working-tree source without git base", provision.TargetNode{ID: "n1", WorkingTree: true, Provisioning: provision.ProvisioningReadiness{Known: true, Reason: "checkout_not_git", Detail: "checkout_not_git: no .git"}}, "checkout_not_git"},
 		{"helper not installed", provision.TargetNode{ID: "n1", Provisioning: provision.ProvisioningReadiness{Known: true, Reason: "helper_not_installed", Detail: "helper_not_installed: no socket"}}, "helper_not_installed"},
 		{"agent never reported", provision.TargetNode{ID: "n1"}, provision.UnavailableUnreported},
 	}
@@ -399,4 +400,14 @@ func TestGetNodeVersion_NeverProvisioned(t *testing.T) {
 	_, err := svc.GetNodeVersion(context.Background(), "n1")
 	var none provision.ErrNoNodeVersion
 	require.ErrorAs(t, err, &none)
+}
+
+// A working-tree node whose agent reports a ready helper has a git base under
+// the shipped tree, so a sync to a pushed revision is dispatched.
+func TestSync_DispatchesToWorkingTreeNodeWithReadyHelper(t *testing.T) {
+	svc, _, nodes, _, _, pusher := newService(t)
+	nodes.Nodes["n1"] = provision.TargetNode{ID: "n1", WorkingTree: true, Provisioning: provision.ProvisioningReadiness{Known: true, Ready: true}}
+	_, err := svc.Sync(context.Background(), provision.SyncInput{Actor: "owner", NodeID: "n1", TargetRevision: "rev-B"})
+	require.NoError(t, err)
+	require.Len(t, pusher.PushedCommands(), 1)
 }

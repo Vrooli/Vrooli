@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strconv"
 
 	"vrooli-bridge/internal/auth"
 	internalmachines "vrooli-bridge/internal/machines"
@@ -42,6 +43,7 @@ type Deps struct {
 	HostKeyResetter HostKeyResetter
 	NodeRevoker     NodeRevoker
 	Repairer        Repairer
+	StoreRotator    StoreRotator
 	Logger          *log.Logger
 }
 
@@ -80,6 +82,13 @@ type NodeRevoker interface {
 // SSH, key reuse, and reconnect semantics.
 type Repairer interface {
 	Repair(context.Context, internalmachines.Machine) (opID, attemptID string, err error)
+}
+
+// StoreRotator replaces a Machine's node credential-store passphrase. The
+// handler owns the API seam; the onboarding domain owns the node commands,
+// the escrow, and the crash-safe ordering.
+type StoreRotator interface {
+	Rotate(context.Context, internalmachines.Machine) (internalonboard.RotateCredentialStoreResult, error)
 }
 
 type connectHandler struct{ deps Deps }
@@ -385,6 +394,56 @@ func (h *connectHandler) RepairMachine(ctx context.Context, req *connect.Request
 	}
 	h.record(ctx, machine.ID, "repair", opID)
 	return connect.NewResponse(&machinesv1.RepairMachineResponse{Machine: domainToProto(machine), OnboardingOpId: opID, EnrollmentAttemptId: attemptID}), nil
+}
+
+func (h *connectHandler) RotateMachineCredentialStore(ctx context.Context, req *connect.Request[machinesv1.RotateMachineCredentialStoreRequest]) (*connect.Response[machinesv1.RotateMachineCredentialStoreResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if h.deps.StoreRotator == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("credential-store rotation is unavailable on this control plane"))
+	}
+	machine, err := h.deps.Service.Get(ctx, req.Msg.GetMachineId())
+	if err != nil {
+		return nil, h.error("RotateMachineCredentialStore", err)
+	}
+	result, err := h.deps.StoreRotator.Rotate(ctx, machine)
+	if err != nil {
+		h.record(ctx, machine.ID, "credential-store-rotate-failed", rotationAuditDetail(err))
+		return nil, rotationError(err, h.error)
+	}
+	h.record(ctx, machine.ID, "credential-store-rotate", "agent_unlock="+result.AgentUnlock+" resumed="+strconv.FormatBool(result.Resumed))
+	return connect.NewResponse(&machinesv1.RotateMachineCredentialStoreResponse{
+		MachineId: machine.ID, NodeId: result.NodeID, Resumed: result.Resumed, AgentUnlock: result.AgentUnlock, Detail: result.Detail,
+	}), nil
+}
+
+// rotationError maps the rotation's stable codes onto status codes: a
+// precondition the operator must change, a node or escrow that can be
+// retried, or a machine-record error mapped as usual.
+func rotationError(err error, fallback func(string, error) error) error {
+	var rotation internalonboard.ErrCredentialStoreRotation
+	if !errors.As(err, &rotation) {
+		return fallback("RotateMachineCredentialStore", err)
+	}
+	code := connect.CodeFailedPrecondition
+	switch rotation.Code {
+	case internalonboard.RotationNodeUnreachable:
+		code = connect.CodeUnavailable
+	case internalonboard.RotationEscrowUnavailable, internalonboard.RotationNodeCommandFailed:
+		code = connect.CodeAborted
+	}
+	connectErr := connect.NewError(code, rotation)
+	connectErr.Meta().Set("X-Vrooli-Error-Code", rotation.Code)
+	return connectErr
+}
+
+func rotationAuditDetail(err error) string {
+	var rotation internalonboard.ErrCredentialStoreRotation
+	if errors.As(err, &rotation) {
+		return rotation.Code
+	}
+	return "error"
 }
 
 func (h *connectHandler) MergeMachines(ctx context.Context, req *connect.Request[machinesv1.MergeMachinesRequest]) (*connect.Response[machinesv1.MergeMachinesResponse], error) {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
+	"strings"
 	"time"
 
 	"vrooli-bridge/internal/auth"
@@ -209,12 +211,34 @@ func (h *handler) SyncNode(ctx context.Context, nodeID string) error {
 	if err != nil {
 		return err
 	}
-	for _, grant := range grants {
+	// The node's own store passphrase goes first: every durable value after it
+	// is written into that store, which stays locked until the passphrase
+	// arrives (2026-09-15: minimouse refused vrooli/openrouter on every
+	// reconnect because its older grant was delivered first).
+	for _, grant := range deliveryOrder(grants) {
 		if err := h.deliverGrant(ctx, grant); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// nodeStorePassphrasePrefix names the grants that carry a node's own store
+// passphrase (see internal/onboard.CredentialStoreEscrowNamespace).
+const nodeStorePassphrasePrefix = "vrooli-bridge/node-credential-store/"
+
+func opensNodeStore(grant internalgrant.Grant) bool {
+	return strings.HasPrefix(grant.LogicalID, nodeStorePassphrasePrefix)
+}
+
+// deliveryOrder puts the grants that open the node's store first and keeps
+// every other grant in its original order.
+func deliveryOrder(grants []internalgrant.Grant) []internalgrant.Grant {
+	ordered := append([]internalgrant.Grant(nil), grants...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return opensNodeStore(ordered[i]) && !opensNodeStore(ordered[j])
+	})
+	return ordered
 }
 
 // deliverGrant seals and pushes the node-bound credential value.

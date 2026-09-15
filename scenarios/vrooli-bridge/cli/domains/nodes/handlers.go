@@ -8,8 +8,8 @@ import (
 
 	"connectrpc.com/connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"vrooli-bridge/cli/internal/session"
@@ -241,9 +241,7 @@ func formatUpdatePath(n *registryv1.Node) string {
 	if n.GetKind() != registryv1.NodeKind_NODE_KIND_AGENT {
 		return "-"
 	}
-	if strings.HasSuffix(strings.TrimSpace(n.GetRevision()), "+dirty") {
-		return "reonboard(working-tree)"
-	}
+	workingTree := strings.HasSuffix(strings.TrimSpace(n.GetRevision()), "+dirty")
 	for _, item := range n.GetCapabilityInventory() {
 		if item.GetId() != "bridge-provisioner" {
 			continue
@@ -251,10 +249,16 @@ func formatUpdatePath(n *registryv1.Node) string {
 		if item.GetState() == sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY {
 			return "provision"
 		}
+		if workingTree {
+			return "reonboard(working-tree)"
+		}
 		if code, _, ok := strings.Cut(item.GetDetail(), ":"); ok && !strings.ContainsAny(code, " `") {
 			return "reonboard(" + code + ")"
 		}
 		return "reonboard(blocked)"
+	}
+	if workingTree {
+		return "reonboard(working-tree)"
 	}
 	return "reonboard(unreported)"
 }

@@ -10,9 +10,17 @@ import "syscall"
 // uint32 on darwin), so both are widened through uint64 explicitly. The caller
 // (Sample) clamps the unsigned result into the proto's int64.
 func diskFreeBytes(path string) (uint64, error) {
+	free, _, err := diskUsage(path)
+	return free, err
+}
+
+// diskUsage returns the bytes available to a non-privileged user and the
+// volume's total size.
+func diskUsage(path string) (free, total uint64, err error) {
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(path, &st); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return uint64(st.Bavail) * uint64(st.Bsize), nil // #nosec G115 -- statfs exposes non-negative filesystem counts; widening preserves the byte calculation.
+	bsize := uint64(st.Bsize) // #nosec G115 -- statfs exposes non-negative filesystem counts; widening preserves the byte calculation.
+	return uint64(st.Bavail) * bsize, uint64(st.Blocks) * bsize, nil
 }

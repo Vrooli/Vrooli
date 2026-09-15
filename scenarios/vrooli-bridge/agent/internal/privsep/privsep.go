@@ -18,6 +18,7 @@ package privsep
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	osuser "os/user"
@@ -78,7 +79,11 @@ type Helper struct {
 	clientHome           string
 	deferredServiceNames []string
 	cleanupWorkDir       string
-	now                  func() time.Time
+	restartStale         bool
+	// owner is the account steps run as for the current provision (nil: the
+	// helper itself).
+	owner *principal
+	now   func() time.Time
 }
 
 // Option customises a Helper.
@@ -95,6 +100,11 @@ func WithRevisionResolver(r RevisionResolver) Option { return func(h *Helper) { 
 
 // WithGitBin overrides the git binary name/path.
 func WithGitBin(bin string) Option { return func(h *Helper) { h.gitBin = strings.TrimSpace(bin) } }
+
+// WithStaleScenarioRestart makes a successful provision restart every running
+// scenario whose build is stale against the new checkout, so the node runs the
+// revision it reports instead of processes started from the previous one.
+func WithStaleScenarioRestart() Option { return func(h *Helper) { h.restartStale = true } }
 
 // WithSealingSeedPath points at the node's independent X25519 private key.
 // The raw key is read only for the duration of opening an operator envelope.
@@ -189,20 +199,27 @@ func NewHelper(vrooliBin, workDir string, reporter Reporter, opts ...Option) *He
 // command sequence are directly testable. Returns an error (not steps) when the
 // target is empty or any revision token carries a shell metacharacter.
 //
-//	[git, fetch, --all, --tags]
-//	[git, checkout, <target>]
+//	[git, fetch, --no-tags, origin, <target>]
+//	[git, checkout, --force, --detach, FETCH_HEAD]
+//	[git, clean, -fd]
 //	[vrooli, setup]
+//
+// The checkout is Bridge-managed: a working-tree ship may have left edits and
+// new files on top of the git base, and a provision replaces them with the
+// target revision. `clean -fd` removes untracked files but never ignored ones,
+// so scenario data, build output, and node_modules survive.
 func Steps(gitBin, vrooliBin, target string) ([][]string, error) {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return nil, fmt.Errorf("target revision is required")
 	}
-	if err := cliresolve.ValidateArgvToken(target); err != nil || strings.ContainsAny(target, " \t\n\r") {
+	if err := cliresolve.ValidateArgvToken(target); err != nil || strings.ContainsAny(target, " \t\n\r") || strings.HasPrefix(target, "-") {
 		return nil, fmt.Errorf("unsafe revision %q: contains a disallowed shell or whitespace character", target)
 	}
 	return [][]string{
-		{gitBin, "fetch", "--all", "--tags"},
-		{gitBin, "checkout", target},
+		{gitBin, "fetch", "--no-tags", "origin", target},
+		{gitBin, "checkout", "--force", "--detach", "FETCH_HEAD"},
+		{gitBin, "clean", "-fd"},
 		{vrooliBin, "setup"},
 	}, nil
 }
@@ -228,14 +245,24 @@ func (h *Helper) Provision(ctx context.Context, cmd *channelv1.ProvisionCommand)
 		return emit(exitEvent(setupFailExitCode))
 	}
 
+	owner, err := checkoutPrincipal(h.workDir, h.clientUID)
+	if err != nil {
+		_ = emit(statusEvent("rejected: " + err.Error()))
+		return emit(exitEvent(setupFailExitCode))
+	}
+	h.owner = owner
+
 	if err := emit(statusEvent("provisioning to " + cmd.GetTargetRevision())); err != nil {
 		return err
 	}
 
-	// Run fetch + checkout + setup. A non-zero exit on any step (or a start
-	// failure) triggers the rollback path.
+	// Run fetch + checkout + clean + setup. A non-zero exit on any step (or a
+	// start failure) triggers the rollback path.
 	exitCode, runErr := h.runSteps(ctx, steps, emit)
 	if runErr == nil && exitCode == 0 {
+		if h.restartStale {
+			h.restartStaleScenarios(ctx, emit)
+		}
 		return h.finishSuccess(ctx, emit)
 	}
 
@@ -250,7 +277,7 @@ func (h *Helper) Provision(ctx context.Context, cmd *channelv1.ProvisionCommand)
 func (h *Helper) runSteps(ctx context.Context, steps [][]string, emit func(*provisionv1.ProvisionEvent) error) (int, error) {
 	for _, argv := range steps {
 		_ = emit(statusEvent("step: " + strings.Join(argv, " ")))
-		code, err := h.step.Run(ctx, argv, h.workDir, func(chunk string) { _ = emit(logEvent(chunk)) })
+		code, err := h.runOne(ctx, argv, func(chunk string) { _ = emit(logEvent(chunk)) })
 		if err != nil {
 			_ = emit(statusEvent("error: " + err.Error()))
 			if code == 0 {
@@ -263,6 +290,73 @@ func (h *Helper) runSteps(ctx context.Context, steps [][]string, emit func(*prov
 		}
 	}
 	return 0, nil
+}
+
+// runOne runs one step as the checkout owner when the runner supports it.
+func (h *Helper) runOne(ctx context.Context, argv []string, onLog func(string)) (int, error) {
+	if runner, ok := h.step.(principalRunner); ok && h.owner != nil {
+		return runner.RunAs(ctx, argv, h.workDir, h.owner, onLog)
+	}
+	return h.step.Run(ctx, argv, h.workDir, onLog)
+}
+
+// restartStaleScenarios restarts each running scenario whose build is stale
+// against the checkout just provisioned. It is best-effort: the provision has
+// already succeeded, and a scenario that fails to restart is reported, not
+// rolled back.
+func (h *Helper) restartStaleScenarios(ctx context.Context, emit func(*provisionv1.ProvisionEvent) error) {
+	var listing strings.Builder
+	if code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "list", "--json"}, func(chunk string) { listing.WriteString(chunk) }); err != nil || code != 0 {
+		_ = emit(statusEvent("warning: could not list running scenarios to restart stale ones"))
+		return
+	}
+	for _, name := range runningScenarios(listing.String()) {
+		var freshness strings.Builder
+		if code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "freshness", name, "--json"}, func(chunk string) { freshness.WriteString(chunk) }); err != nil || code != 0 || !scenarioStale(freshness.String()) {
+			continue
+		}
+		_ = emit(statusEvent("restarting stale scenario " + name))
+		if code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "restart", name}, func(chunk string) { _ = emit(logEvent(chunk)) }); err != nil || code != 0 {
+			_ = emit(statusEvent("warning: scenario " + name + " did not restart cleanly"))
+		}
+	}
+}
+
+// runningScenarios reads `vrooli scenario list --json` output.
+func runningScenarios(output string) []string {
+	var listing struct {
+		Scenarios []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+		} `json:"scenarios"`
+	}
+	if err := json.Unmarshal([]byte(jsonObject(output)), &listing); err != nil {
+		return nil
+	}
+	var names []string
+	for _, item := range listing.Scenarios {
+		if item.Status == "running" && cliresolve.ValidateArgvToken(item.Name) == nil && !strings.HasPrefix(item.Name, "-") {
+			names = append(names, item.Name)
+		}
+	}
+	return names
+}
+
+// scenarioStale reads `vrooli scenario freshness --json` output.
+func scenarioStale(output string) bool {
+	var report struct {
+		Stale bool `json:"stale"`
+	}
+	return json.Unmarshal([]byte(jsonObject(output)), &report) == nil && report.Stale
+}
+
+// jsonObject trims log noise around the one JSON object a command printed.
+func jsonObject(output string) string {
+	start, end := strings.Index(output, "{"), strings.LastIndex(output, "}")
+	if start < 0 || end < start {
+		return ""
+	}
+	return output[start : end+1]
 }
 
 // finishSuccess resolves and reports the node's resulting revision, then emits a

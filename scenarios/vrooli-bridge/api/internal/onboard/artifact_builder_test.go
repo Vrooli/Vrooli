@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -169,6 +170,10 @@ func TestArtifactBuilderCachesBySnapshotAndBuildsExecutablesInParallel(t *testin
 	var calls int
 	active := 0
 	maxActive := 0
+	// Each fake build waits until all three have started (or a generous
+	// deadline passes), so overlap is observed deterministically instead of
+	// depending on how quickly an instant fake returns.
+	allStarted := make(chan struct{})
 	b := &controlPlaneArtifactBuilder{
 		cacheRoot: cacheRoot,
 		lookPath:  func(string) (string, error) { return "/usr/bin/go", nil },
@@ -179,12 +184,19 @@ func TestArtifactBuilderCachesBySnapshotAndBuildsExecutablesInParallel(t *testin
 			if active > maxActive {
 				maxActive = active
 			}
+			if calls == 3 {
+				close(allStarted)
+			}
 			callsMu.Unlock()
 			defer func() {
 				callsMu.Lock()
 				active--
 				callsMu.Unlock()
 			}()
+			select {
+			case <-allStarted:
+			case <-time.After(5 * time.Second):
+			}
 			var output string
 			for i, arg := range args {
 				if (arg == "--output" || arg == "-o") && i+1 < len(args) {

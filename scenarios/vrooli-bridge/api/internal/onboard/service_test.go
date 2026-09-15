@@ -809,3 +809,42 @@ func TestWait_TimesOutWhileRunning(t *testing.T) {
 	_, _ = svc.Cancel(context.Background(), dec.OpID)
 	waitTerminal(t, svc, dec.OpID)
 }
+
+// An update whose selection applied but still waits on operator input (an
+// unset credential, a check still settling) is a successful update with an
+// incomplete configuration, not a failed onboarding.
+func TestStart_IncompleteConfigurationFinishesSucceededAndNamesBlockers(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	blocked := "Error: configuration is not complete: 2 blocking item(s) remain; blockers: credential vrooli/openrouter:api-key — the credential is declared and not configured. | readiness credential_store — credential_store status is still being checked."
+	driver := &onboardingRunnerDriver{
+		FakeSSHDriver: &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)},
+		results: []onboarding.Result{
+			{ExitCode: onboarding.ExitConfigurationIncomplete, Stderr: blocked},
+			{ExitCode: onboarding.ExitConfigurationIncomplete, Stderr: blocked, Stdout: `{"status":"READINESS_STATE_MISSING"}`},
+		},
+	}
+	handoff := &recordingHandoff{selection: onboarding.Selection{Scenarios: []string{"system-monitor"}, Apply: true}}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithOnboardingHandoff(handoff),
+	)
+	in := validInput()
+	in.MachineID = "machine-1"
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Empty(t, op.FailureReason)
+
+	_, events, err := svc.GetOp(context.Background(), dec.OpID)
+	require.NoError(t, err)
+	var detail string
+	for _, event := range events {
+		if event.StepID == onboard.StepApplySelection && event.Status == onboard.StepStatusOK {
+			detail = event.Detail
+		}
+	}
+	require.Contains(t, detail, "configuration is incomplete")
+	require.Contains(t, detail, "credential vrooli/openrouter:api-key")
+	require.Contains(t, detail, "readiness credential_store")
+}

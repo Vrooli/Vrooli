@@ -110,8 +110,9 @@ func TestSteps_TypedPlan(t *testing.T) {
 	steps, err := privsep.Steps("git", "vrooli", "a1b2c3d")
 	require.NoError(t, err)
 	require.Equal(t, [][]string{
-		{"git", "fetch", "--all", "--tags"},
-		{"git", "checkout", "a1b2c3d"},
+		{"git", "fetch", "--no-tags", "origin", "a1b2c3d"},
+		{"git", "checkout", "--force", "--detach", "FETCH_HEAD"},
+		{"git", "clean", "-fd"},
 		{"vrooli", "setup"},
 	}, steps)
 }
@@ -119,7 +120,7 @@ func TestSteps_TypedPlan(t *testing.T) {
 // [REQ:BRG-P0-006] A revision token carrying a shell metacharacter is rejected
 // before any step runs — a smuggled shell construct can never reach the helper.
 func TestSteps_RejectsUnsafeRevision(t *testing.T) {
-	for _, bad := range []string{"a; rm -rf /", "$(whoami)", "a && b", "a`id`", "a b"} {
+	for _, bad := range []string{"a; rm -rf /", "$(whoami)", "a && b", "a`id`", "a b", "--upload-pack=x"} {
 		_, err := privsep.Steps("git", "vrooli", bad)
 		require.Error(t, err, "revision %q must be rejected", bad)
 	}
@@ -143,8 +144,9 @@ func TestProvision_Success(t *testing.T) {
 
 	ran := step.ran()
 	require.Equal(t, [][]string{
-		{"git", "fetch", "--all", "--tags"},
-		{"git", "checkout", "rev-B"},
+		{"git", "fetch", "--no-tags", "origin", "rev-B"},
+		{"git", "checkout", "--force", "--detach", "FETCH_HEAD"},
+		{"git", "clean", "-fd"},
 		{"vrooli", "setup"},
 	}, ran, "the helper runs a typed argv plan, never a shell string")
 
@@ -196,7 +198,7 @@ func TestProvision_RollbackOnFailedSetup(t *testing.T) {
 	ran := step.ran()
 	// Expect the target plan (fetch, checkout rev-B, setup [fails]) then the
 	// rollback plan (fetch, checkout rev-A, setup).
-	require.Contains(t, flatten(ran), "git checkout rev-A", "the helper checked out the rollback revision")
+	require.Contains(t, flatten(ran), "git fetch --no-tags origin rev-A", "the helper checked out the rollback revision")
 	require.Equal(t, "rev-A", rep.lastVersion(), "the node is reported back on the rollback revision")
 	term := rep.terminal()
 	require.Equal(t, provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_EXIT, term.Kind)
@@ -218,7 +220,7 @@ func TestProvision_DegradedFailureNoRollback(t *testing.T) {
 		OpId: "op-1", TargetRevision: "rev-B",
 	}))
 
-	require.NotContains(t, flatten(step.ran()), "git checkout rev-A", "no rollback is attempted with no rollback revision")
+	require.NotContains(t, flatten(step.ran()), "git fetch --no-tags origin rev-A", "no rollback is attempted with no rollback revision")
 	require.NotEqual(t, int32(0), rep.terminal().ExitCode)
 }
 

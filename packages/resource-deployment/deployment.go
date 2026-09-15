@@ -165,9 +165,13 @@ type ManagedService struct {
 	// no Unix-domain sockets at all.
 	ArgumentsByPlatform map[string][]string `json:"arguments_by_platform,omitempty"`
 	Environment         map[string]string   `json:"environment,omitempty"`
-	Bootstrap           *ServiceBootstrap   `json:"bootstrap,omitempty"`
-	ProcessLimits       *ProcessLimits      `json:"process_limits,omitempty"`
-	Shutdown            *ServiceShutdown    `json:"shutdown,omitempty"`
+	// RunAsUser is the operating-system account used for the managed service
+	// process and bootstrap. It is needed by services such as PostgreSQL that
+	// refuse to initialize or run as root.
+	RunAsUser     string            `json:"run_as_user,omitempty"`
+	Bootstrap     *ServiceBootstrap `json:"bootstrap,omitempty"`
+	ProcessLimits *ProcessLimits    `json:"process_limits,omitempty"`
+	Shutdown      *ServiceShutdown  `json:"shutdown,omitempty"`
 	// EnvironmentFile is an optional resource-owned, line-oriented KEY=VALUE
 	// file loaded from RESOURCE_DATA_DIR immediately before launch. It gives a
 	// resource a durable, non-shell model/config switch without granting the

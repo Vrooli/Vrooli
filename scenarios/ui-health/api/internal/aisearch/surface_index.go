@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -125,17 +126,36 @@ func (s *surfaceSource) LoadAll(ctx context.Context) ([]pkg.SourceDoc, error) {
 		return nil, err
 	}
 	out := make([]pkg.SourceDoc, 0, 128)
+	var failed []string
+	var firstErr error
 	for _, scenario := range scenarios {
 		records, err := s.discovery.Discover(ctx, scenario)
 		if err != nil {
-			log.Printf("[ui-health/aisearch] discover %s: %v", scenario, err)
+			failed = append(failed, scenario)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		for i := range records {
 			out = append(out, surfaceToSourceDoc(records[i]))
 		}
 	}
+	// One line per sync, not one per scenario: when the component library is
+	// down every scenario fails the same way, and the per-scenario lines were
+	// most of a 75 MB log after a month of five-minute syncs.
+	if len(failed) > 0 {
+		log.Printf("[ui-health/aisearch] discovery skipped %d of %d scenarios (%s); first error: %v", len(failed), len(scenarios), summarizeScenarios(failed, 5), firstErr)
+	}
 	return out, nil
+}
+
+// summarizeScenarios names up to limit scenarios and counts the rest.
+func summarizeScenarios(names []string, limit int) string {
+	if len(names) <= limit {
+		return strings.Join(names, ", ")
+	}
+	return fmt.Sprintf("%s, and %d more", strings.Join(names[:limit], ", "), len(names)-limit)
 }
 
 // PointIDForSurface returns the deterministic Qdrant point ID for a surface.

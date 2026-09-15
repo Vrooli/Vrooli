@@ -42,7 +42,18 @@ func (osStepRunner) RunWithInput(ctx context.Context, argv []string, dir string,
 	return osStepRunner{}.RunWithInputEnvironment(ctx, argv, dir, input, nil, onLog)
 }
 
+// RunAs runs the step as the checkout owner (see principal.go).
+func (osStepRunner) RunAs(ctx context.Context, argv []string, dir string, p *principal, onLog func(string)) (int, error) {
+	return runStep(ctx, argv, dir, nil, nil, p, onLog)
+}
+
 func (osStepRunner) RunWithInputEnvironment(ctx context.Context, argv []string, dir string, input []byte, env []string, onLog func(string)) (int, error) {
+	return runStep(ctx, argv, dir, input, env, nil, onLog)
+}
+
+var _ principalRunner = osStepRunner{}
+
+func runStep(ctx context.Context, argv []string, dir string, input []byte, env []string, p *principal, onLog func(string)) (int, error) {
 	if len(argv) == 0 {
 		return startFailureExitCode, errors.New("empty argv")
 	}
@@ -58,6 +69,7 @@ func (osStepRunner) RunWithInputEnvironment(ctx context.Context, argv []string, 
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)
 	}
+	p.apply(cmd)
 
 	stdout, err := os.CreateTemp("", "vrooli-bridge-step-stdout-*")
 	if err != nil {

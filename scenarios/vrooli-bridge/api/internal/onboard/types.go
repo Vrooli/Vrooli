@@ -369,6 +369,11 @@ type StartInput struct {
 	// record complete provenance. Empty in pinned mode (TargetRevision is the commit).
 	BaseRevision string
 
+	// GitBaseBranch is the control plane's branch for a working-tree ship. The
+	// bootstrap fetches it as the node checkout's git base when BaseRevision
+	// itself was never pushed.
+	GitBaseBranch string
+
 	DryRun bool
 }
 

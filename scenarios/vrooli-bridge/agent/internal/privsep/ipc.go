@@ -161,7 +161,9 @@ func serveConn(ctx context.Context, conn net.Conn, vrooliBin, workDir string, al
 			return
 		}
 		reporter := &ipcReporter{conn: conn}
-		helper := NewHelper(vrooliBin, workDir, reporter)
+		// Steps run as the checkout owner, and a successful provision restarts
+		// scenarios left running on the previous revision.
+		helper := NewHelper(vrooliBin, workDir, reporter, WithClientUID(allowedClientUID), WithStaleScenarioRestart())
 		if err := helper.Provision(ctx, &command); err != nil && ctx.Err() == nil {
 			_ = writeIPC(conn, ipcResponse{Version: ipcProtocolVersion, Error: "provisioning event transport failed"})
 		}

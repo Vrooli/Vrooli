@@ -244,3 +244,26 @@ func formatMachine(m *machinesv1.Machine) string {
 	}
 	return fmt.Sprintf("%s — lifecycle=%s version=%d locators=%d lineage=%d profile=%s@%s created=%s", m.Id, m.Lifecycle, m.Version, len(m.Locators), len(m.NodeLineage), m.DesiredProfileId, m.DesiredProfileVersion, created)
 }
+
+func (h *handlers) rotateStore(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.RotateMachineCredentialStore(context.Background(), connect.NewRequest(&machinesv1.RotateMachineCredentialStoreRequest{MachineId: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("rotate credential store for machine %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no rotation result")
+	}
+	result := fmt.Sprintf("Rotated the credential-store passphrase for Machine %s.", id)
+	if resp.Msg.Resumed {
+		result = fmt.Sprintf("Finished an interrupted credential-store rotation for Machine %s.", id)
+	}
+	report := cliapp.MutationReport{
+		Result:  []string{result},
+		Changes: []string{fmt.Sprintf("node=%s agent_unlock=%s", resp.Msg.NodeId, resp.Msg.AgentUnlock), resp.Msg.Detail},
+	}
+	if resp.Msg.AgentUnlock == "unverified" {
+		report.NextCommand = []string{fmt.Sprintf("`machines get %s` — confirm the node reconnected; its agent receives the new passphrase on reconnect", id)}
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, report)
+}

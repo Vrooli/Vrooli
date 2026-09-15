@@ -41,9 +41,10 @@ func TestStripSmokeTestFlag(t *testing.T) {
 func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-demo",
-		ScenarioName: "test-scenario",
-		Status:       "running",
+		SmokeTestID:    "test-demo",
+		ScenarioName:   "test-scenario",
+		Status:         "running",
+		DeploymentMode: "bundled",
 		RecordingConfig: &smoketest.ScreenRecordingConfig{
 			Enabled:       true,
 			DisplayWidth:  1920,
@@ -99,6 +100,19 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	// Verify 2 execute calls: headless + demo
 	if len(executor.ExecuteCalls) != 2 {
 		t.Fatalf("Expected 2 execute calls (headless + demo), got %d", len(executor.ExecuteCalls))
+	}
+	if executor.ExecuteCalls[0].Timeout != 60*time.Second {
+		t.Fatalf("bundled smoke timeout = %v, want 60s", executor.ExecuteCalls[0].Timeout)
+	}
+	smokeEnvMap := make(map[string]string)
+	for _, e := range executor.ExecuteCalls[0].Env {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			smokeEnvMap[parts[0]] = parts[1]
+		}
+	}
+	if smokeEnvMap["SMOKE_TEST_TIMEOUT_MS"] != "60000" {
+		t.Fatalf("bundled smoke timeout env = %q, want 60000", smokeEnvMap["SMOKE_TEST_TIMEOUT_MS"])
 	}
 
 	// Second call should be the demo launch

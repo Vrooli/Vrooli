@@ -11,19 +11,20 @@ const GroupName = "machines"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"MachineService.CreateMachine":            h.create,
-		"MachineService.GetMachine":               h.get,
-		"MachineService.ListMachines":             h.list,
-		"MachineService.ArchiveMachine":           h.archive,
-		"MachineService.RemoveMachine":            h.remove,
-		"MachineService.GetMachineTrust":          h.getTrust,
-		"MachineService.ReviewMachineHostKey":     h.reviewHostKey,
-		"MachineService.RequestMachineSSHCleanup": h.requestSSHCleanup,
-		"MachineService.UpdateMachineCleanup":     h.updateCleanup,
-		"MachineService.ApplyMachinePolicy":       h.applyPolicy,
-		"MachineService.RevokeMachineNode":        h.revokeNode,
-		"MachineService.RepairMachine":            h.repair,
-		"MachineService.MergeMachines":            h.merge,
+		"MachineService.CreateMachine":                h.create,
+		"MachineService.GetMachine":                   h.get,
+		"MachineService.ListMachines":                 h.list,
+		"MachineService.ArchiveMachine":               h.archive,
+		"MachineService.RemoveMachine":                h.remove,
+		"MachineService.GetMachineTrust":              h.getTrust,
+		"MachineService.ReviewMachineHostKey":         h.reviewHostKey,
+		"MachineService.RequestMachineSSHCleanup":     h.requestSSHCleanup,
+		"MachineService.UpdateMachineCleanup":         h.updateCleanup,
+		"MachineService.ApplyMachinePolicy":           h.applyPolicy,
+		"MachineService.RevokeMachineNode":            h.revokeNode,
+		"MachineService.RepairMachine":                h.repair,
+		"MachineService.MergeMachines":                h.merge,
+		"MachineService.RotateMachineCredentialStore": h.rotateStore,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
@@ -37,9 +38,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 func RegisterConfiguration(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"MachineService.GetMachineConfiguration":    h.get,
+		"MachineService.GetMachineConfiguration":   h.get,
 		"MachineService.ApplyMachineConfiguration": h.applyPolicy,
-		"MachineService.GetMachineDrift":            h.get,
+		"MachineService.GetMachineDrift":           h.get,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, "configuration", bindings)
 	if err != nil {

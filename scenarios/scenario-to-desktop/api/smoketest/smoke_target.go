@@ -32,6 +32,13 @@ func resolveSmokeTarget(ctx context.Context, status *Status) (JourneyTarget, err
 		return resolveBundledTarget(ctx, status.SmokeTestID)
 	}
 	target := status.ScenarioName + "@" + isolatedSmokeVariant
+	// An exact running instance is already lifecycle-owned. Accept its
+	// non-overlapping ports directly; the desktop journey performs the target
+	// readiness check before interacting with the application. This also avoids
+	// turning a healthy reused instance into a second StartScenario request.
+	if resolved, err := resolveIsolatedTarget(ctx, status.ScenarioName, target); err == nil {
+		return resolved, nil
+	}
 	if existing, ok := resolveHealthyIsolatedTarget(ctx, status.ScenarioName, target); ok {
 		return existing, nil
 	}

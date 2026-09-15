@@ -123,17 +123,101 @@ type SystemSampler struct {
 	toolchainPresent          bool
 	containerRuntimeUp        bool
 	provisioning              *provisioningConfig
+
+	// HealthRefreshInterval paces the machine-health reading (disk, memory,
+	// swap). Directory sizes are re-measured at most every dirRefreshInterval.
+	HealthRefreshInterval time.Duration
+	// Home is the node user's home, where onboarding artifacts and Vrooli logs
+	// live. Empty resolves os.UserHomeDir.
+	Home          string
+	health        []capabilityprobe.Observation
+	artifacts     dirUsage
+	logs          dirUsage
+	dirsMeasured  time.Time
+	readHost      func() hostMetrics
+	readDiskUsage func(string) (uint64, uint64, error)
 }
+
+// dirRefreshInterval bounds how often directory trees are walked; their size
+// changes slowly and a walk is the only non-constant-time part of a reading.
+const dirRefreshInterval = 10 * time.Minute
 
 // NewSystemSampler constructs a SystemSampler measuring headroom on workDir
 // (the agent passes its state dir, which lives on the work volume).
 func NewSystemSampler(workDir string, opts ...Option) *SystemSampler {
-	s := &SystemSampler{WorkDir: workDir, Now: time.Now, CapabilityRefreshInterval: 10 * time.Minute}
+	s := &SystemSampler{WorkDir: workDir, Now: time.Now, CapabilityRefreshInterval: 10 * time.Minute, HealthRefreshInterval: time.Minute}
 	for _, opt := range opts {
 		opt(s)
 	}
 	go s.refreshLoop()
+	go s.healthLoop()
 	return s
+}
+
+func (s *SystemSampler) healthLoop() {
+	interval := s.HealthRefreshInterval
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	s.refreshHealth()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.refreshHealth()
+	}
+}
+
+// refreshHealth takes one machine-health reading. It runs off the heartbeat
+// path so a slow volume or a large directory never delays liveness.
+func (s *SystemSampler) refreshHealth() {
+	now := time.Now().UTC()
+	if s.Now != nil {
+		now = s.Now().UTC()
+	}
+	dir := s.WorkDir
+	if dir == "" {
+		dir = "."
+	}
+	readDisk := s.readDiskUsage
+	if readDisk == nil {
+		readDisk = diskUsage
+	}
+	readHost := s.readHost
+	if readHost == nil {
+		readHost = readHostMetrics
+	}
+	in := HealthInputs{DiskPath: dir, Host: readHost(), Now: now}
+	free, total, err := readDisk(dir)
+	if err != nil {
+		in.DiskErr = err.Error()
+	} else {
+		in.DiskFree, in.DiskTotal = free, total
+	}
+
+	s.mu.RLock()
+	artifacts, logs, measured := s.artifacts, s.logs, s.dirsMeasured
+	s.mu.RUnlock()
+	if measured.IsZero() || now.Sub(measured) >= dirRefreshInterval {
+		home := s.Home
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		if home == "" {
+			artifacts = dirUsage{Err: "the node user's home directory is unknown"}
+			logs = artifacts
+		} else {
+			artifacts = measureDir(BootstrapArtifactsDir(home))
+			logs = measureDir(VrooliLogsDir(home))
+		}
+		measured = now
+	}
+	in.Artifacts, in.Logs = artifacts, logs
+	observations := HealthObservations(in)
+
+	s.mu.Lock()
+	s.health = observations
+	s.artifacts, s.logs, s.dirsMeasured = artifacts, logs, measured
+	s.mu.Unlock()
 }
 
 func (s *SystemSampler) refreshLoop() {
@@ -201,6 +285,7 @@ func (s *SystemSampler) Sample() Snapshot {
 	toolchainPresent := s.toolchainPresent
 	containerRuntimeUp := s.containerRuntimeUp
 	capabilities := append([]capabilityprobe.Observation(nil), s.capabilities...)
+	capabilities = append(capabilities, s.health...)
 	s.mu.RUnlock()
 	return Snapshot{
 		ToolchainPresent:   toolchainPresent,

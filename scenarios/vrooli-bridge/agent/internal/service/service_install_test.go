@@ -276,8 +276,11 @@ func TestLaunchdInstall_Idempotent(t *testing.T) {
 // privileged operation behind non-interactive sudo.
 func TestLaunchdInstall_HeadlessUsesSystemDaemon(t *testing.T) {
 	runner := &fakeRunner{}
+	agentDir := t.TempDir()
+	stale := filepath.Join(agentDir, "com.vrooli.bridge.vrooli-bridge-agent.plist")
+	require.NoError(t, os.WriteFile(stale, []byte("<plist/>"), 0o644))
 	m := launchdManager{
-		agentDir: func() (string, error) { return t.TempDir(), nil },
+		agentDir: func() (string, error) { return agentDir, nil },
 		uid:      func() int { return 501 },
 		domain:   func() string { return "user/501" },
 		runner:   runner,
@@ -298,6 +301,8 @@ func TestLaunchdInstall_HeadlessUsesSystemDaemon(t *testing.T) {
 	require.Equal(t, "sudo -n launchctl bootstrap system /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist", calls[4])
 	require.Equal(t, "sudo -n launchctl enable system/com.vrooli.bridge.vrooli-bridge-agent", calls[5])
 	require.Equal(t, "sudo -n launchctl kickstart -k system/com.vrooli.bridge.vrooli-bridge-agent", calls[6])
+	_, statErr := os.Stat(stale)
+	require.True(t, os.IsNotExist(statErr), "a stale same-label LaunchAgent file is removed")
 }
 
 func TestLaunchdUserDomainsAreExactAndStable(t *testing.T) {

@@ -30,6 +30,31 @@ type sshDriver struct {
 	svc        *ssh.Service
 	scriptPath string
 	scpRunner  ssh.SCPRunner
+	// stream overrides svc.RunStreaming (tests run the remote commands locally).
+	stream func(ctx context.Context, cfg ssh.ConnectionConfig, command string, opts ssh.StreamOptions) (ssh.Result, error)
+	// shipRecords overrides the control-plane record of past working-tree ships.
+	shipRecords shipRecordStore
+}
+
+func (d *sshDriver) runStreaming(ctx context.Context, cfg ssh.ConnectionConfig, command string, opts ssh.StreamOptions) (ssh.Result, error) {
+	if d.stream != nil {
+		return d.stream(ctx, cfg, command, opts)
+	}
+	return d.svc.RunStreaming(ctx, cfg, command, opts)
+}
+
+// shipRecordStore returns where past ships are recorded: beside the Bridge SSH
+// keys, which are already per-control-plane and owner-only. Without a state
+// directory every ship is a full one and nothing is deleted.
+func (d *sshDriver) shipRecordStore() shipRecordStore {
+	if d.shipRecords != nil {
+		return d.shipRecords
+	}
+	dir, err := ssh.ResolveStateDir()
+	if err != nil || strings.TrimSpace(dir) == "" {
+		return nil
+	}
+	return fileShipRecordStore{dir: filepath.Join(dir, "ship-records")}
 }
 
 // NewSSHDriver constructs the production SSHDriver over an ssh.Service and the
@@ -180,46 +205,98 @@ func shortRunOptions() ssh.RunOptions {
 	return o
 }
 
-// SyncTree ships the control plane's working tree to the node by piping a tar
-// archive of p.Files (relative to p.RepoDir) into a remote staging directory.
-// The staging directory is atomically swapped into the requested destination,
-// so deleted local files cannot survive from an earlier working-tree shipment.
-// Filenames with spaces/newlines survive because the tar format encodes names —
-// nothing is shell-word-split. The tar is streamed (never buffered whole in
-// memory) and its byte count is measured for the step detail.
+// SyncTree updates the node's checkout in place from the control plane's
+// working tree (see tree_delta.go): it probes the destination, deletes files a
+// previous ship delivered that the snapshot dropped, streams a tar of the files
+// that changed, and records the completed ship on both sides. Paths the node
+// owns — gitignored data, build output, .git — are never touched. Filenames
+// with spaces or newlines survive because tar encodes names and deletions are
+// NUL-separated; nothing is shell-word-split.
 func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, error) {
 	cfg := d.config(p.Conn)
-	remoteCmd := buildSyncRemoteCommandForPlatform(p.DestDir, p.Platform.OS)
+	targetOS := p.Platform.OS
 
-	// Produce the tar on a background goroutine writing into a pipe; the ssh
-	// command reads the pipe as its stdin. A counting reader measures what actually
-	// crossed the wire.
-	pr, pw := io.Pipe()
-	counter := &countingReader{r: pr}
-	go func() {
-		pw.CloseWithError(writeTarStream(pw, p.RepoDir, p.Files))
-	}()
-
-	var resolvedDest string
-	res, err := d.svc.RunStreaming(ctx, cfg, remoteCmd, ssh.StreamOptions{
-		Run:         syncRunOptions(),
-		StdinReader: counter,
+	var dest, nodeDigest string
+	probe, err := d.runStreaming(ctx, cfg, buildTreeProbeCommand(p.DestDir, targetOS), ssh.StreamOptions{
+		Run: syncRunOptions(),
 		OnStdoutLine: func(line string) {
+			line = strings.TrimSpace(line)
 			if v, ok := strings.CutPrefix(line, syncDestMarker); ok {
-				resolvedDest = strings.TrimSpace(v)
+				dest = strings.TrimSpace(v)
+			} else if v, ok := strings.CutPrefix(line, syncDigestMarker); ok {
+				nodeDigest = strings.TrimSpace(v)
 			}
 		},
 	})
 	if err != nil {
 		return SyncResult{}, err
 	}
-	if res.ExitCode != 0 {
-		return SyncResult{}, fmt.Errorf("remote tar extract failed (exit %d): %s", res.ExitCode, res.Stderr)
+	if probe.ExitCode != 0 {
+		return SyncResult{}, fmt.Errorf("remote checkout probe failed (exit %d): %s", probe.ExitCode, probe.Stderr)
 	}
-	if resolvedDest == "" || !validRemotePath(resolvedDest, p.Platform.OS) {
+	if dest == "" || !validRemotePath(dest, targetOS) {
 		return SyncResult{}, fmt.Errorf("remote sync did not report a destination directory")
 	}
-	return SyncResult{BytesTransferred: counter.n, ResolvedDestDir: resolvedDest}, nil
+
+	records := d.shipRecordStore()
+	key := shipRecordKey(p.Conn, dest)
+	var prev shipRecord
+	havePrev := false
+	if records != nil {
+		prev, havePrev = records.Load(key)
+		if havePrev && prev.Dest != dest {
+			havePrev = false
+		}
+	}
+	delta := planTreeDelta(p.Files, p.Entries, prev, havePrev, nodeDigest)
+	result := SyncResult{ResolvedDestDir: dest, Incremental: delta.Incremental}
+
+	if len(delta.Delete) > 0 {
+		res, err := d.runStreaming(ctx, cfg, buildTreeDeleteCommand(dest, targetOS), ssh.StreamOptions{Run: syncRunOptions(), Stdin: nulList(delta.Delete)})
+		if err != nil {
+			return SyncResult{}, err
+		}
+		if res.ExitCode != 0 {
+			return SyncResult{}, fmt.Errorf("remote removal of retired files failed (exit %d): %s", res.ExitCode, res.Stderr)
+		}
+		result.FilesDeleted = len(delta.Delete)
+	}
+
+	if len(delta.Transfer) > 0 {
+		// Produce the tar on a background goroutine writing into a pipe; the
+		// ssh command reads the pipe as its stdin. A counting reader measures
+		// what actually crossed the wire.
+		pr, pw := io.Pipe()
+		counter := &countingReader{r: pr}
+		go func() {
+			pw.CloseWithError(writeTarStream(pw, p.RepoDir, delta.Transfer))
+		}()
+		res, err := d.runStreaming(ctx, cfg, buildTreeExtractCommand(dest, targetOS), ssh.StreamOptions{Run: syncRunOptions(), StdinReader: counter})
+		_ = pr.CloseWithError(io.ErrClosedPipe)
+		if err != nil {
+			return SyncResult{}, err
+		}
+		if res.ExitCode != 0 {
+			return SyncResult{}, fmt.Errorf("remote tar extract failed (exit %d): %s", res.ExitCode, res.Stderr)
+		}
+		result.BytesTransferred = counter.n
+		result.FilesTransferred = len(delta.Transfer)
+	}
+
+	if digest := strings.TrimSpace(p.Digest); digest != "" {
+		res, err := d.runStreaming(ctx, cfg, buildTreeFinalizeCommand(dest, targetOS, digest), ssh.StreamOptions{Run: shortRunOptions()})
+		if err != nil {
+			return SyncResult{}, err
+		}
+		if res.ExitCode != 0 {
+			return SyncResult{}, fmt.Errorf("remote ship record failed (exit %d): %s", res.ExitCode, res.Stderr)
+		}
+		if records != nil && p.Entries != nil {
+			// A lost record only costs the next ship its incremental transfer.
+			_ = records.Save(key, shipRecord{Dest: dest, Digest: digest, Entries: p.Entries, At: time.Now().UTC()})
+		}
+	}
+	return result, nil
 }
 
 // DetectPlatform asks the node for its kernel/architecture after first touch and
@@ -510,38 +587,6 @@ func remoteArtifactDirName() (string, error) {
 	return "artifacts-" + hex.EncodeToString(b[:]), nil
 }
 
-// buildSyncRemoteCommand renders the remote shell that resolves the destination,
-// extracts into a same-parent staging directory, reports the destination (the
-// VBSYNCDEST marker), and swaps the complete snapshot into place. The old
-// destination is removed only after the new tree is fully extracted; this is the
-// convergence guarantee that makes deleted working-tree files disappear without
-// exposing a partially extracted checkout to the bootstrap.
-// An explicit destDir is shell-quoted; an empty one defaults to $HOME/vrooli,
-// resolved on the node (the control plane cannot know the node's home).
-func buildSyncRemoteCommand(destDir string) string {
-	var assign string
-	if d := strings.TrimSpace(destDir); d != "" {
-		assign = "dest=" + shellQuote(d)
-	} else {
-		assign = `dest="$HOME/vrooli"`
-	}
-	return assign + `; parent=$(dirname "$dest"); base=$(basename "$dest"); stage="$parent/.${base}.bridge-sync-$$"; backup="$parent/.${base}.bridge-old-$$"; rm -rf "$stage" "$backup"; mkdir -p "$stage" && printf '` + syncDestMarker + `%s\n' "$dest" && tar -xf - -C "$stage" && { [ ! -e "$dest" ] || mv "$dest" "$backup"; } && mv "$stage" "$dest" && rm -rf "$backup"`
-}
-
-func buildSyncRemoteCommandForPlatform(destDir, targetOS string) string {
-	if targetOS != "windows" {
-		return buildSyncRemoteCommand(destDir)
-	}
-	dest := strings.TrimSpace(destDir)
-	if dest == "" {
-		dest = "$env:USERPROFILE\\vrooli"
-	}
-	if strings.HasPrefix(dest, "$env:") {
-		return `powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $dest=` + dest + `; $parent=Split-Path -Parent $dest; $base=Split-Path -Leaf $dest; $stage=Join-Path $parent ('.'+$base+'.bridge-sync-'+[guid]::NewGuid().ToString('N')); $backup=Join-Path $parent ('.'+$base+'.bridge-old-'+[guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $stage | Out-Null; [Console]::WriteLine('` + syncDestMarker + `'+$dest); tar.exe -xf - -C $stage; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}; if(Test-Path -LiteralPath $dest){Move-Item -Force -LiteralPath $dest -Destination $backup}; Move-Item -Force -LiteralPath $stage -Destination $dest; if(Test-Path -LiteralPath $backup){Remove-Item -Recurse -Force -LiteralPath $backup}"`
-	}
-	return `powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $dest='` + windowsPowerShellLiteral(dest) + `'; $parent=Split-Path -Parent $dest; $base=Split-Path -Leaf $dest; $stage=Join-Path $parent ('.'+$base+'.bridge-sync-'+[guid]::NewGuid().ToString('N')); $backup=Join-Path $parent ('.'+$base+'.bridge-old-'+[guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $stage | Out-Null; [Console]::WriteLine('` + syncDestMarker + `'+$dest); tar.exe -xf - -C $stage; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}; if(Test-Path -LiteralPath $dest){Move-Item -Force -LiteralPath $dest -Destination $backup}; Move-Item -Force -LiteralPath $stage -Destination $dest; if(Test-Path -LiteralPath $backup){Remove-Item -Recurse -Force -LiteralPath $backup}"`
-}
-
 func validRemotePath(value, targetOS string) bool {
 	if targetOS == "windows" {
 		return len(value) >= 3 && ((value[1] == ':' && (value[2] == '\\' || value[2] == '/')) || strings.HasPrefix(value, `\\\\`))
@@ -724,7 +769,11 @@ func diagnosticsTail(stderr string) string {
 // config builds the ssh.ConnectionConfig for a resolved Conn, pinned to the bridge-owned
 // known_hosts the first touch populated.
 func (d *sshDriver) config(conn Conn) ssh.ConnectionConfig {
-	return ssh.NewConfig(conn.Host, conn.Port, conn.User, conn.KeyPath, d.svc.KnownHostsPath())
+	knownHosts := ""
+	if d.svc != nil {
+		knownHosts = d.svc.KnownHostsPath()
+	}
+	return ssh.NewConfig(conn.Host, conn.Port, conn.User, conn.KeyPath, knownHosts)
 }
 
 // bootstrapRunOptions extends the default run options with a generous command

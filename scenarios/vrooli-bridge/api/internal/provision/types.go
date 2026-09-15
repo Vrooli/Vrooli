@@ -190,14 +190,16 @@ func (e ErrProvisioningUnavailable) Error() string {
 // only judged once the node is known to be online and able to report.
 func provisioningBlocker(node TargetNode) (ErrProvisioningUnavailable, bool) {
 	switch {
-	case node.WorkingTree:
-		return ErrProvisioningUnavailable{ID: node.ID, Reason: UnavailableWorkingTree, Detail: "the node runs a tree shipped by working-tree onboarding, which has no git revision to fetch; update it by re-running `vrooli-bridge onboard connect` for this machine"}, true
 	case node.Provisioning.Known && !node.Provisioning.Ready:
 		reason := node.Provisioning.Reason
 		if reason == "" {
 			reason = UnavailableNodeBlocked
 		}
 		return ErrProvisioningUnavailable{ID: node.ID, Reason: reason, Detail: node.Provisioning.Detail}, true
+	case node.WorkingTree && !node.Provisioning.Known:
+		// A working-tree tree is provisionable once the node reports a helper
+		// and a git base; until the agent says so, nothing proves either.
+		return ErrProvisioningUnavailable{ID: node.ID, Reason: UnavailableWorkingTree, Detail: "the node runs a tree shipped by working-tree onboarding and has not reported a git base or provisioning helper; update it by re-running `vrooli-bridge onboard connect` for this machine, which installs both"}, true
 	}
 	return ErrProvisioningUnavailable{}, false
 }

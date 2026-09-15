@@ -1,11 +1,20 @@
 import { request as httpRequest } from "node:http";
-import { hostname, tmpdir } from "node:os";
+import { createHash } from "node:crypto";
+import { hostname, platform, tmpdir } from "node:os";
 import path from "node:path";
 
 const EXCHANGE_PATH = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeMachinePrincipal";
 
+// Mirrors authn.LocalAuthenticatorSocket in packages/api-core: the canonical
+// name overflows the 104-byte macOS sun_path under /var/folders/<id>/T/, so a
+// path that does not fit uses the short name the authenticator binds instead.
 function defaultSocketPath(): string {
-    return path.join(tmpdir(), "vrooli-scenario-authenticator-scenario-authenticator.sock");
+    const name = "vrooli-scenario-authenticator-scenario-authenticator";
+    const canonical = path.join(tmpdir(), `${name}.sock`);
+    const limit = ["darwin", "freebsd", "netbsd", "openbsd"].includes(platform()) ? 103 : 107;
+    if (Buffer.byteLength(canonical) <= limit) return canonical;
+    const digest = createHash("sha256").update(name).digest("hex").slice(0, 12);
+    return path.join(tmpdir(), `vrooli-auth-${digest}.sock`);
 }
 
 /**

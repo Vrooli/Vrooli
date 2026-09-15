@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/cli/domains/credentials"
 	"vrooli-bridge/cli/domains/dispatch"
 	"vrooli-bridge/cli/domains/fleet"
+	"vrooli-bridge/cli/domains/follow"
 	"vrooli-bridge/cli/domains/gate"
 	"vrooli-bridge/cli/domains/machines"
 	"vrooli-bridge/cli/domains/nodes"
@@ -76,6 +77,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		artifacts.Register,
 		onboard.Register,
 		readiness.Register,
+		follow.Register,
 		session.Register,
 	}
 	groups := make([]cliapp.SubcommandGroup, 0, len(registrars))

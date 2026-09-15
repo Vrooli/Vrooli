@@ -27,13 +27,17 @@ func TestRemoteScriptPathUsesWindowsHomeRelativePowerShellPath(t *testing.T) {
 	require.NotContains(t, path, "\\")
 }
 
-func TestWindowsSyncCommandUsesNativeExtractionAndAtomicSwap(t *testing.T) {
-	command := buildSyncRemoteCommandForPlatform(`C:\Users\node\Vrooli`, "windows")
-	require.Contains(t, command, "powershell.exe -NoProfile -NonInteractive")
-	require.Contains(t, command, "tar.exe -xf -")
-	require.Contains(t, command, syncDestMarker)
-	require.Contains(t, command, "Move-Item")
-	require.NotContains(t, command, "chmod")
+func TestWindowsShipCommandsExtractInPlace(t *testing.T) {
+	extract := buildTreeExtractCommand(`C:\Users\node\Vrooli`, "windows")
+	require.Contains(t, extract, "powershell.exe -NoProfile -NonInteractive")
+	require.Contains(t, extract, "tar.exe -xUf - -C $dest")
+	require.NotContains(t, extract, "chmod")
+	// The checkout is never moved aside: node-owned ignored data lives in it.
+	require.NotContains(t, extract, "Move-Item -Force -LiteralPath $dest")
+	probe := buildTreeProbeCommand(`C:\Users\node\Vrooli`, "windows")
+	require.Contains(t, probe, syncDestMarker)
+	require.Contains(t, probe, syncDigestMarker)
+	require.NotContains(t, buildTreeDeleteCommand("", "windows"), `"`+"'")
 }
 
 func TestWindowsArtifactPathsAndValidationUseAbsolutePaths(t *testing.T) {

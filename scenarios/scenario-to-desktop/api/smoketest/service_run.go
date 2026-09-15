@@ -418,11 +418,17 @@ func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath stri
 }
 
 func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string, displayWidth, displayHeight int) (*ExecutionResult, error) {
+	smokeTimeout := s.config.Timeout()
+	smokeTimeoutMS := s.config.TimeoutMS()
+	if status, ok := s.store.Get(smokeTestID); ok {
+		smokeTimeout = s.config.TimeoutForDeploymentMode(status.DeploymentMode)
+		smokeTimeoutMS = s.config.TimeoutMSForDeploymentMode(status.DeploymentMode)
+	}
 	// Build environment
 	uploadURL := telemetryIngestURL(s.port)
 	env := []string{
 		"SMOKE_TEST=1",
-		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
+		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", smokeTimeoutMS),
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
 		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
 		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "protocol")),
@@ -444,7 +450,7 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 
 	// Execute
 	workDir := filepath.Dir(artifactPath)
-	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, s.config.Timeout())
+	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, smokeTimeout)
 
 	// Harvest process metrics.
 	s.harvestMonitor(monitor, smokeTestID)

@@ -30,6 +30,7 @@ import (
 	credentialgrantH "vrooli-bridge/handlers/credentialgrant"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
+	followH "vrooli-bridge/handlers/follow"
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	identityH "vrooli-bridge/handlers/identity"
@@ -95,6 +96,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, relayH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, readinessH.Endpoints...)
+	out = append(out, followH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
 	return out
 }
@@ -172,6 +174,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(provisionH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
 		apidb.SchemaProviderFunc(readinessH.Schema),
+		apidb.SchemaProviderFunc(followH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),
 		apidb.SchemaProviderFunc(internalrelay.Schema),
 	}

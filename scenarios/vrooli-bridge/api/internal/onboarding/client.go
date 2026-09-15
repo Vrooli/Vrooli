@@ -351,6 +351,39 @@ func joinOutput(first, second string) string {
 	return first + "\n" + second
 }
 
+// ExitConfigurationIncomplete is vrooli-onboarding's exit code for a
+// selection that was applied while configuration items still need an operator
+// (a credential to provide) or are still being checked. The node itself is
+// updated; it is not a failed apply.
+const ExitConfigurationIncomplete = 2
+
+// IncompleteBlockers names the items behind an ExitConfigurationIncomplete
+// result, from vrooli-onboarding's "configuration is not complete: …;
+// blockers: A — why | B — why" message (or its "degraded:" form).
+func IncompleteBlockers(output string) []string {
+	var list string
+	for _, marker := range []string{"blockers: ", "degraded: "} {
+		if _, after, found := strings.Cut(output, marker); found {
+			list = after
+			break
+		}
+	}
+	if list == "" {
+		return nil
+	}
+	if line, _, found := strings.Cut(list, "\n"); found {
+		list = line
+	}
+	var names []string
+	for _, item := range strings.Split(list, " | ") {
+		name, _, _ := strings.Cut(item, " — ")
+		if name = strings.TrimSpace(name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
 // ReadinessExitCode is the bridge-facing policy: onboarding's exit code is
 // authoritative, while an unavailable remote process is a distinct failure.
 func ReadinessExitCode(result Result, transportErr error) (int, error) {

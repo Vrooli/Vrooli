@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	connectrpc.com/connect v1.19.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
@@ -42,3 +43,5 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

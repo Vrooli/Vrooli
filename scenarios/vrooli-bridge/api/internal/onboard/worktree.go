@@ -25,9 +25,10 @@ import (
 // minus ignored build junk — the whole point of the mode is that uncommitted work
 // onboards without a commit. Required offline source inputs, such as the Proto
 // vendor snapshots, are explicitly unignored and checked by the source-closure
-// validator below. The .git directory is deliberately NOT shipped; the node
-// builds from a plain checkout and its provenance is the base HEAD + digest the
-// op records, not an on-node git history.
+// validator below. The .git directory is never shipped and never touched on the
+// node: a node checkout may carry its own git base (for branch updates), and
+// its provenance for a working-tree ship is the base HEAD + digest the op
+// records. The ship itself is an in-place delta (tree_delta.go).
 type gitWorkingTreeSource struct {
 	repoDir string
 	run     func(ctx context.Context, dir, name string, args ...string) ([]byte, error)
@@ -99,6 +100,12 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 		return WorkingTreeSnapshot{}, fmt.Errorf("resolve control-plane HEAD: %w", err)
 	}
 	base := strings.TrimSpace(string(headOut))
+	branch := ""
+	if branchOut, branchErr := g.run(ctx, root, "git", "rev-parse", "--abbrev-ref", "HEAD"); branchErr == nil {
+		if value := strings.TrimSpace(string(branchOut)); value != "HEAD" {
+			branch = value
+		}
+	}
 
 	// -z gives NUL-terminated paths so filenames with spaces/newlines survive; -c
 	// tracked, -o untracked, --exclude-standard honours .gitignore.
@@ -118,16 +125,18 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 		return WorkingTreeSnapshot{}, err
 	}
 
-	digest, err := digestFiles(root, files)
+	digest, entries, err := digestFileEntries(root, files)
 	if err != nil {
 		return WorkingTreeSnapshot{}, err
 	}
 
 	return WorkingTreeSnapshot{
-		BaseHEAD: base,
-		Digest:   digest,
-		RepoDir:  root,
-		Files:    files,
+		BaseHEAD:   base,
+		BaseBranch: branch,
+		Digest:     digest,
+		RepoDir:    root,
+		Files:      files,
+		Entries:    entries,
 	}, nil
 }
 
@@ -267,37 +276,55 @@ func dedupeSorted(in []string) []string {
 // content-addressed: the same working tree yields the same digest, and any
 // content or link-target change changes it.
 func digestFiles(root string, files []string) (string, error) {
+	digest, _, err := digestFileEntries(root, files)
+	return digest, err
+}
+
+// digestFileEntries returns the snapshot digest and, for every file present on
+// disk, a fingerprint of its kind, executable bit, and content hash.
+func digestFileEntries(root string, files []string) (string, map[string]string, error) {
 	h := sha256.New()
+	entries := make(map[string]string, len(files))
 	for _, rel := range files {
 		fh := sha256.New()
 		kind := byte('f')
+		exec := byte('-')
+		present := true
 		abs := filepath.Join(root, rel)
 		info, err := os.Lstat(abs)
 		switch {
 		case os.IsNotExist(err):
+			present = false
 			// absorbed as the empty 'f' hash below
 		case err != nil:
-			return "", fmt.Errorf("stat %s: %w", rel, err)
+			return "", nil, fmt.Errorf("stat %s: %w", rel, err)
 		case info.Mode()&os.ModeSymlink != 0:
 			target, lerr := os.Readlink(abs)
 			if lerr != nil {
-				return "", fmt.Errorf("readlink %s: %w", rel, lerr)
+				return "", nil, fmt.Errorf("readlink %s: %w", rel, lerr)
 			}
 			kind = 'l'
 			fh.Write([]byte(target))
 		case info.Mode().IsRegular():
+			if info.Mode()&0o111 != 0 {
+				exec = 'x'
+			}
 			f, oerr := os.Open(abs)
 			if oerr == nil {
 				if _, cerr := io.Copy(fh, f); cerr != nil {
 					_ = f.Close()
-					return "", fmt.Errorf("hash %s: %w", rel, cerr)
+					return "", nil, fmt.Errorf("hash %s: %w", rel, cerr)
 				}
 				_ = f.Close()
 			} else if !os.IsNotExist(oerr) {
-				return "", fmt.Errorf("open %s: %w", rel, oerr)
+				return "", nil, fmt.Errorf("open %s: %w", rel, oerr)
 			}
 		}
-		fmt.Fprintf(h, "%s\x00%c%s\n", rel, kind, hex.EncodeToString(fh.Sum(nil)))
+		sum := hex.EncodeToString(fh.Sum(nil))
+		fmt.Fprintf(h, "%s\x00%c%s\n", rel, kind, sum)
+		if present {
+			entries[rel] = string([]byte{kind, exec}) + ":" + sum
+		}
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil)), entries, nil
 }

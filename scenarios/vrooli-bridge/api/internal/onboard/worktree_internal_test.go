@@ -101,15 +101,15 @@ func TestDigestFiles_HashesSymlinksWithoutFollowing(t *testing.T) {
 	}
 }
 
-func TestBuildSyncRemoteCommand_DefaultAndExplicit(t *testing.T) {
-	def := buildSyncRemoteCommand("")
+func TestTreeCommands_DefaultAndExplicitDestination(t *testing.T) {
+	def := buildTreeProbeCommand("", "linux")
 	if !strings.Contains(def, `$HOME/vrooli`) {
-		t.Fatalf("default sync command should resolve $HOME/vrooli: %s", def)
+		t.Fatalf("default ship command should resolve $HOME/vrooli: %s", def)
 	}
-	if !strings.Contains(def, syncDestMarker) {
-		t.Fatalf("sync command must emit the dest marker: %s", def)
+	if !strings.Contains(def, syncDestMarker) || !strings.Contains(def, syncDigestMarker) {
+		t.Fatalf("probe must report the destination and the last ship digest: %s", def)
 	}
-	explicit := buildSyncRemoteCommand("/opt/checkout dir")
+	explicit := buildTreeExtractCommand("/opt/checkout dir", "linux")
 	if !strings.Contains(explicit, `'/opt/checkout dir'`) {
 		t.Fatalf("explicit dest with a space must be shell-quoted: %s", explicit)
 	}

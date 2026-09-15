@@ -197,3 +197,14 @@ func (r *sequenceRunner) Run(_ context.Context, _ Target, command string) (Resul
 	r.results = r.results[1:]
 	return result, nil
 }
+
+func TestIncompleteBlockersNamesEachBlockingItem(t *testing.T) {
+	stderr := "Error: configuration is not complete: 2 blocking item(s) remain; blockers: credential vrooli/openrouter:api-key — the credential is declared and not configured. Next: Provide it. | readiness credential_store — credential_store status is still being checked. Next: Retry.\nmore output"
+	got := IncompleteBlockers(stderr)
+	if len(got) != 2 || got[0] != "credential vrooli/openrouter:api-key" || got[1] != "readiness credential_store" {
+		t.Fatalf("IncompleteBlockers = %#v", got)
+	}
+	if IncompleteBlockers("remote failure: exit 70") != nil {
+		t.Fatal("a message without a blocker list names no blockers")
+	}
+}

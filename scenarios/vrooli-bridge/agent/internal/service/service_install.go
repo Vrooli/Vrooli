@@ -381,6 +381,13 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 		for _, userDomain := range launchdUserDomains(m.uid()) {
 			_, _ = runSudo(ctx, m.runner, "launchctl", "bootout", userDomain+"/"+LaunchdLabel(d.Name))
 		}
+		// Remove the same-label LaunchAgent file too. Unloaded, it still loads
+		// at the owner's next GUI login and starts a second agent with whatever
+		// node identity it was written for (minimouse carried one for a deleted
+		// node from Aug 8 to Sep 15).
+		if dir, dirErr := m.agentDir(); dirErr == nil {
+			_ = os.Remove(filepath.Join(dir, LaunchdLabel(d.Name)+".plist"))
+		}
 	}
 	if _, err := run(ctx, "launchctl", "bootstrap", serviceDomain, plistPath); err != nil {
 		return InstallResult{}, err

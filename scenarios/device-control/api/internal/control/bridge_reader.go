@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
@@ -211,7 +212,7 @@ func readOwnerTokenFile() (string, error) {
 func exchangeLocalOwnerToken(ctx context.Context) (string, error) {
 	socketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
 	if socketPath == "" {
-		socketPath = filepath.Join(os.TempDir(), "vrooli-scenario-authenticator-scenario-authenticator.sock")
+		socketPath = authn.DefaultLocalAuthenticatorSocket()
 	}
 	machineID, err := os.Hostname()
 	if err != nil || strings.TrimSpace(machineID) == "" {

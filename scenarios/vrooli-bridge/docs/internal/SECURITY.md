@@ -249,6 +249,15 @@ accidentally move a secret to weaker custody.
   (asserted by test; details are also redacted). Residue: the authority API is
   string-typed, so the loaded value is an unzeroable process-memory copy, like
   the `KeyCopier` residue below. See DECISIONS 2026-09-15.
+  A TPM-only store gets the escrowed passphrase as an extra recovery wrap; its
+  unattended wrap is never replaced. `machines rotate-store` writes the new
+  value to a second field, `passphrase-next`, before the node changes and
+  promotes it only after the node proves it opens, so an interruption always
+  leaves an escrowed value that opens the node; no grant names the pending
+  field, so it is never pushed. Custody of the escrow is the control plane's
+  store file: the encrypted root copy covers it, manifest-driven
+  `recovery export --all` does not, and on 2026-09-15 this control plane had no
+  configured root copy (sink disabled, no receipt), so the escrow had no backup.
 - **Credential authority is the ordinary boundary.** A dev-mode, root-token
   Vault on the same host is not stronger than the native credential authority
   or operator-controlled encrypted backup and adds a hard runtime dependency to

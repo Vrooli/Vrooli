@@ -90,6 +90,12 @@ type SyncParams struct {
 	RepoDir  string
 	Files    []string
 	DestDir  string
+	// Entries fingerprints each file (see WorkingTreeSnapshot.Entries); nil
+	// transfers every file.
+	Entries map[string]string
+	// Digest identifies the whole snapshot; the node records it once the ship
+	// completes so the next ship can be incremental.
+	Digest string
 }
 
 // SyncResult is the outcome of a working-tree ship.
@@ -103,6 +109,12 @@ type SyncResult struct {
 	// otherwise. The orchestrator threads it into the bootstrap `--source-dir` and
 	// `--checkout-dir` so the script verifies exactly where the tree was unpacked.
 	ResolvedDestDir string
+
+	// FilesTransferred and FilesDeleted count what the ship changed on the node;
+	// Incremental reports that only changed files were sent.
+	FilesTransferred int
+	FilesDeleted     int
+	Incremental      bool
 }
 
 // NodePlatform is the cross-compile target reported by the node over the
@@ -224,6 +236,8 @@ type NodeCommandResult struct {
 type WorkingTreeSnapshot struct {
 	// BaseHEAD is the control plane's HEAD commit the tree sits on.
 	BaseHEAD string
+	// BaseBranch is the control plane's current branch ("" when detached).
+	BaseBranch string
 	// Digest is a deterministic hash over the file list + per-file content, so
 	// re-shipping changed work is detectable (it re-keys the node's setup sentinel).
 	Digest string
@@ -232,6 +246,9 @@ type WorkingTreeSnapshot struct {
 	// Files are the repo-relative paths to ship (tracked + modified +
 	// untracked-non-ignored), from `git ls-files -z -c -o --exclude-standard`.
 	Files []string
+	// Entries maps each file to a fingerprint of its kind, executable bit, and
+	// content, so the next ship can send only what changed.
+	Entries map[string]string
 }
 
 // WorkingTreeSource snapshots the control plane's local working tree for a

@@ -116,11 +116,15 @@ type Client struct {
 	credentialSink credentialpush.Sink
 	ephemeral      *credentialpush.EphemeralStore
 	storeUnlock    *storeunlock.Holder
-	cpVerifier     *cpverify.Verifier
-	logger         *log.Logger
-	now            func() time.Time
-	minBackoff     time.Duration
-	maxBackoff     time.Duration
+	// lockedPushes holds durable pushes the node store refused while locked;
+	// they are applied again once this node's store passphrase arrives.
+	lockedMu     sync.Mutex
+	lockedPushes map[string]*channelv1.CredentialPush
+	cpVerifier   *cpverify.Verifier
+	logger       *log.Logger
+	now          func() time.Time
+	minBackoff   time.Duration
+	maxBackoff   time.Duration
 
 	// rejectedFrames counts control-plane pushes dropped because they did not
 	// verify against the pinned control-plane key (unsigned, mis-signed, or
@@ -699,6 +703,10 @@ func (c *Client) handleCredentialPush(push *channelv1.CredentialPush) {
 	}
 	result, err := credentialpush.Apply(push, c.cfg.NodeID, private, c.grantStore, c.credentialSink)
 	if err != nil {
+		var refusal credentialpush.StoreRefusal
+		if errors.As(err, &refusal) && refusal.State == "locked" && c.storeUnlock != nil {
+			c.holdLockedPush(push)
+		}
 		c.rejectedCredentialPushes.Add(1)
 		c.logger.Printf("channel: credential push refused for logical_id=%q field=%q: %v", push.GetLogicalId(), push.GetField(), err)
 		if result.Receipt != nil {
@@ -721,10 +729,34 @@ func (c *Client) handleCredentialPush(push *channelv1.CredentialPush) {
 		// the job that needs it.
 		if storeunlock.Owns(push.GetLogicalId(), push.GetField()) && c.storeUnlock != nil {
 			c.storeUnlock.Put(result.Ephemeral)
+			defer c.replayLockedPushes()
 		} else if c.ephemeral != nil {
 			_ = c.ephemeral.Put(push.GetLogicalId(), push.GetField(), result.Ephemeral)
 		}
 		credentialpush.Zero(result.Ephemeral)
+	}
+}
+
+// holdLockedPush keeps the latest push per address refused by a locked store.
+func (c *Client) holdLockedPush(push *channelv1.CredentialPush) {
+	c.lockedMu.Lock()
+	defer c.lockedMu.Unlock()
+	if c.lockedPushes == nil {
+		c.lockedPushes = make(map[string]*channelv1.CredentialPush)
+	}
+	c.lockedPushes[push.GetLogicalId()+"\x00"+push.GetField()] = push
+}
+
+// replayLockedPushes applies the pushes a locked store refused, now that the
+// store can open. Each is applied once; a push still refused is held again.
+func (c *Client) replayLockedPushes() {
+	c.lockedMu.Lock()
+	held := c.lockedPushes
+	c.lockedPushes = nil
+	c.lockedMu.Unlock()
+	for _, push := range held {
+		c.logger.Printf("channel: store unlocked; applying held credential push for logical_id=%q field=%q", push.GetLogicalId(), push.GetField())
+		c.handleCredentialPush(push)
 	}
 }
 

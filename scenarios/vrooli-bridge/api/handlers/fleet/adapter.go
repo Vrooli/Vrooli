@@ -101,10 +101,16 @@ func (a nodeListerAdapter) ListNodes(ctx context.Context) ([]fleet.NodeRef, erro
 		// A node's provenance revision carrying the dirty working-tree marker means
 		// it was onboarded from the control plane's local tree — not a fetchable
 		// commit — so a revision roll must exclude it (needs-reprovision).
+		// A working-tree node whose agent reports a ready helper has a git base
+		// and is rollable like any other.
+		ready := false
+		if observation, ok := n.ProvisioningObservation(); ok {
+			ready = observation.State == "ready"
+		}
 		out = append(out, fleet.NodeRef{
 			ID:          n.ID,
 			Revoked:     n.Revoked(),
-			WorkingTree: onboard.IsWorkingTreeRevision(n.Revision),
+			WorkingTree: onboard.IsWorkingTreeRevision(n.Revision) && !ready,
 		})
 	}
 	return out, nil

@@ -69,3 +69,16 @@ func TestDeliverGrantSendsMetadataAndSealedValueWithoutPlaintext(t *testing.T) {
 	require.Equal(t, secret, string(plain))
 	require.Equal(t, sealing.CredentialContext("node-1", "vrooli/test", "api-key", 3), push.GetAad())
 }
+
+// A node's store passphrase must reach it before any durable value that is
+// written into that store.
+func TestDeliveryOrderSendsTheNodeStorePassphraseFirst(t *testing.T) {
+	grants := []internalgrant.Grant{
+		{ID: "a", LogicalID: "vrooli/openrouter"},
+		{ID: "b", LogicalID: "vrooli/postgres"},
+		{ID: "c", LogicalID: nodeStorePassphrasePrefix + "machine-1"},
+	}
+	ordered := deliveryOrder(grants)
+	require.Equal(t, []string{"c", "a", "b"}, []string{ordered[0].ID, ordered[1].ID, ordered[2].ID})
+	require.Equal(t, "a", grants[0].ID, "the caller's slice is left in place")
+}

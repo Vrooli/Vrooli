@@ -1634,6 +1634,57 @@
       ]
     },
     {
+      "id": "machines_rotate_credential_store",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RotateMachineCredentialStore",
+      "method": "POST",
+      "summary": "Rotate a Machine's credential-store passphrase",
+      "description": "Generates and escrows a new passphrase for the node's own encrypted credential store, swaps it in over Bridge-managed SSH in a crash-safe order, and re-pushes the agent's unlock grant; a re-run finishes an interrupted rotation. No passphrase crosses the API. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "agent_unlock": "string (verified|not_required|unverified)",
+          "detail": "string",
+          "machine_id": "string",
+          "node_id": "string",
+          "resumed": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Store not escrowed, escrow mismatch, outdated node CLI, unsupported platform, or no verified SSH trust"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Interrupted; re-run to reconcile"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Node unreachable"
+        }
+      ]
+    },
+    {
       "id": "machines_merge",
       "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/MergeMachines",
       "method": "POST",
@@ -3518,6 +3569,154 @@
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Owner-only typed host action; the broker rejects arbitrary commands and this wrapper requires explicit confirmation for mutation.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-follow-list",
+      "path": "/api/v1/follow",
+      "method": "GET",
+      "summary": "List branch-follow policies",
+      "description": "Every node set to follow a git branch, with the outcome of its last check.",
+      "category": "system",
+      "response": {
+        "type": "BranchFollowPolicies",
+        "properties": {
+          "policies": "array"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only node update setting with a dedicated CLI wrapper (`vrooli-bridge follow`).",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-follow-set",
+      "path": "/api/v1/follow/{node}",
+      "method": "PUT",
+      "summary": "Set a node to follow a branch",
+      "description": "The node is updated by provisioning whenever the branch receives a new commit; update_now also sends the current head.",
+      "category": "system",
+      "request": {
+        "type": "BranchFollowRequest",
+        "properties": {
+          "branch": "string",
+          "repo_url": "string",
+          "update_now": "boolean"
+        }
+      },
+      "response": {
+        "type": "BranchFollowPolicy",
+        "properties": {
+          "branch": "string",
+          "last_checked_at": "string",
+          "last_op_id": "string",
+          "last_result": "string",
+          "last_seen_head": "string",
+          "node_id": "string",
+          "repo_url": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only node update setting with a dedicated CLI wrapper (`vrooli-bridge follow`).",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-follow-unset",
+      "path": "/api/v1/follow/{node}",
+      "method": "DELETE",
+      "summary": "Stop following a branch",
+      "description": "The node keeps its current revision; Bridge stops updating it from the branch.",
+      "category": "system",
+      "response": {
+        "type": "BranchFollowUnset",
+        "properties": {
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only node update setting with a dedicated CLI wrapper (`vrooli-bridge follow`).",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-follow-check",
+      "path": "/api/v1/follow/{node}/check",
+      "method": "POST",
+      "summary": "Check a followed node now",
+      "description": "Reads the branch head and dispatches an update when it moved.",
+      "category": "system",
+      "response": {
+        "type": "BranchFollowPolicy",
+        "properties": {
+          "branch": "string",
+          "last_checked_at": "string",
+          "last_op_id": "string",
+          "last_result": "string",
+          "last_seen_head": "string",
+          "node_id": "string",
+          "repo_url": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only node update setting with a dedicated CLI wrapper (`vrooli-bridge follow`).",
         "proto_payloads": {
           "request": {
             "transport": "json",

@@ -1,5 +1,5 @@
 const CACHE_NAME = "{{SCENARIO_ID}}-app-shell-v1";
-const APP_SHELL_URLS = ["./", "./site.webmanifest"];
+const APP_SHELL_URLS = ["./", "./public/site.webmanifest", "./public/logo.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -65,7 +65,7 @@ func (v versionFacts) VersionFacts(ctx context.Context, nodeID, scenario string)
 		return facts
 	}
 	observation, reported := node.ProvisioningObservation()
-	if reported && observation.State == "ready" && !onboard.IsWorkingTreeRevision(node.Revision) {
+	if reported && observation.State == "ready" {
 		facts.UpdatePath = "provision"
 		facts.UpdateCommand = "vrooli-bridge provision sync " + node.ID
 		return facts

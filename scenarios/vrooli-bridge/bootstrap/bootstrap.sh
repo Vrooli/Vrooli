@@ -158,6 +158,12 @@ PROVISION_SERVICE_USER="${BRIDGE_PROVISION_SERVICE_USER:-}"
 # state directory because /run is unavailable/read-only on normal macOS hosts.
 # An explicit BRIDGE_PROVISION_SOCKET/--provision-socket always wins.
 PROVISION_SOCKET="${BRIDGE_PROVISION_SOCKET:-}"
+# auto: install the provisioning helper as root whenever passwordless sudo is
+# available and no separate principal was named; off: never install it.
+PROVISION_HELPER="${BRIDGE_PROVISION_HELPER:-auto}"
+# The control plane's branch for a working-tree ship; the checkout's git base
+# falls back to it when the base revision itself was never pushed.
+GIT_BASE_BRANCH="${BRIDGE_GIT_BASE_BRANCH:-}"
 CAPABILITIES="${BRIDGE_CAPABILITIES:-}"
 PRESENCE_ONLY="${BRIDGE_PRESENCE_ONLY:-true}"
 VERIFY_TIMEOUT="${BRIDGE_VERIFY_TIMEOUT:-120}"
@@ -206,6 +212,8 @@ Options (flag overrides env in parentheses):
                             Separate OS principal for privileged provisioning.
                             (BRIDGE_PROVISION_SERVICE_USER; optional)
   --provision-socket PATH   Root-owned local IPC socket for provisioning.
+  --no-provision-helper     Do not install the provisioning helper (no branch updates).
+  --git-base-branch BRANCH  Branch a working-tree checkout's git base falls back to.
                             (BRIDGE_PROVISION_SOCKET; default: platform-specific)
   --capabilities LIST       Comma-separated verb namespaces.  (BRIDGE_CAPABILITIES)
   --presence-only BOOL      Hold presence only; reject jobs/provisioning. (BRIDGE_PRESENCE_ONLY; default: true)
@@ -250,6 +258,8 @@ while [ $# -gt 0 ]; do
     --service-user)      SERVICE_USER="$2"; shift 2 ;;
     --provision-service-user) PROVISION_SERVICE_USER="$2"; shift 2 ;;
     --provision-socket)  PROVISION_SOCKET="$2"; shift 2 ;;
+    --no-provision-helper) PROVISION_HELPER=off; shift ;;
+    --git-base-branch)   GIT_BASE_BRANCH="$2"; shift 2 ;;
     --capabilities)      CAPABILITIES="$2"; shift 2 ;;
     --presence-only)     PRESENCE_ONLY="$2"; shift 2 ;;
     --verify-timeout)    VERIFY_TIMEOUT="$2"; shift 2 ;;
@@ -560,10 +570,11 @@ step_clone() {
       REVISION_SHA="working-tree"
     fi
     SETUP_DIGEST_KEY="$SOURCE_DIGEST"
+    ensure_git_base "$SOURCE_DIR"
     if [ -n "$SOURCE_DIGEST" ]; then
-      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA}, digest ${SOURCE_DIGEST})"
+      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA}, digest ${SOURCE_DIGEST}); ${GIT_BASE_NOTE}"
     else
-      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA})"
+      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA}); ${GIT_BASE_NOTE}"
     fi
     return
   fi
@@ -594,6 +605,116 @@ step_clone() {
   sha="$(git -C "$CHECKOUT_DIR" rev-parse HEAD)"
   REVISION_SHA="$sha"
   step_ok "at ${sha}"
+}
+
+# ensure_git_base <dir> — give a shipped working tree a git base so Bridge can
+# later move it to a pushed revision (provisioning, branch updates). The shipped
+# files are left exactly as shipped: only .git and its index are written. The
+# base is a shallow fetch of the shipped base revision, or of the control
+# plane's branch when that revision was never pushed. Failure is reported, not
+# fatal: the node still runs the shipped tree.
+GIT_BASE_NOTE=""
+ensure_git_base() {
+  local dir="$1" ref
+  if ! git --version >/dev/null 2>&1; then
+    GIT_BASE_NOTE="no git base: git is not usable on this node"
+    return 0
+  fi
+  if git -C "$dir" rev-parse --git-dir >/dev/null 2>&1; then
+    git -C "$dir" remote get-url origin >/dev/null 2>&1 || git -C "$dir" remote add origin "$REPO_URL" >&2
+    GIT_BASE_NOTE="git base present"
+    return 0
+  fi
+  if ! { git -C "$dir" init -q >&2 && git -C "$dir" remote add origin "$REPO_URL" >&2; }; then
+    rm -rf "${dir}/.git"
+    GIT_BASE_NOTE="no git base: git init failed"
+    return 0
+  fi
+  for ref in "$REVISION" "$GIT_BASE_BRANCH"; do
+    [ -n "$ref" ] || continue
+    if git -C "$dir" fetch -q --depth=1 --no-tags origin "$ref" >&2 2>/dev/null && git -C "$dir" reset -q FETCH_HEAD >&2; then
+      GIT_BASE_NOTE="git base ${ref} from ${REPO_URL}"
+      return 0
+    fi
+  done
+  GIT_BASE_NOTE="git base has no history yet (neither ${REVISION:-the base revision} nor ${GIT_BASE_BRANCH:-a branch} could be fetched from ${REPO_URL})"
+}
+
+# repair_identity_ownership — the runner's identity tree must belong to the
+# runner. An older root provisioning helper ran break-glass commands as root
+# with HOME set here and left the tree root-owned, so the node's own Bridge API
+# could no longer read its key. Repair only this exact Bridge-managed path.
+repair_identity_ownership() {
+  local dir="$HOME/.vrooli/identity"
+  [ -e "$dir" ] || return 0
+  [ -n "$(find "$dir" ! -user "$(id -u)" -print 2>/dev/null | head -n 1)" ] || return 0
+  if have_passwordless_sudo; then
+    as_root chown -R "$(id -u)" "$dir" && log "    returned ${dir} to $(id -un)"
+  else
+    log "    warning: ${dir} holds entries not owned by $(id -un) and no passwordless sudo is available to repair them"
+  fi
+}
+
+# step_restart_stale — restart running scenarios whose build is stale against
+# the tree just installed, so the node runs what it reports.
+step_restart_stale() {
+  step_start restart-stale "restart running scenarios left on older code"
+  if [ -z "$RUNTIME_VROOLI_BIN" ] || [ ! -x "$RUNTIME_VROOLI_BIN" ]; then
+    step_skip "no runtime vrooli CLI to restart scenarios with"
+    return
+  fi
+  local listing names name restarted=0 failed=""
+  if ! listing="$("$RUNTIME_VROOLI_BIN" scenario list --json 2>/dev/null)"; then
+    step_skip "could not list running scenarios"
+    return
+  fi
+  names="$(printf '%s' "$listing" | jq -r '.scenarios[]? | select(.status == "running") | .name' 2>/dev/null || true)"
+  for name in $names; do
+    if "$RUNTIME_VROOLI_BIN" scenario freshness "$name" --json 2>/dev/null | jq -e '.stale == true' >/dev/null 2>&1; then
+      if "$RUNTIME_VROOLI_BIN" scenario restart "$name" >&2; then
+        restarted=$((restarted + 1))
+      else
+        failed="${failed} ${name}"
+      fi
+    fi
+  done
+  if [ -n "$failed" ]; then
+    step_ok "restarted ${restarted} stale scenario(s); did not restart cleanly:${failed}"
+  else
+    step_ok "restarted ${restarted} stale scenario(s)"
+  fi
+}
+
+# forget_install_prefix <dir> — drop install-record entries under dir.
+forget_install_prefix() {
+  local prefix="$1" tmp
+  [ -s "$INSTALL_RECORD_PATH" ] || return 0
+  tmp="$(mktemp "${INSTALL_RECORD_PATH}.tmp.XXXXXX")"
+  if jq --arg p "${prefix}/" '.entries = ((.entries // []) | map(select(((.path + "/") | startswith($p)) | not)))' "$INSTALL_RECORD_PATH" >"$tmp"; then
+    mv "$tmp" "$INSTALL_RECORD_PATH"
+    chmod 600 "$INSTALL_RECORD_PATH" 2>/dev/null || true
+  else
+    rm -f "$tmp"
+  fi
+}
+
+# step_prune_artifacts — each onboarding stages its binaries in a fresh
+# artifacts-* directory; keep only this run's (minimouse had 130, 6.8 GB).
+step_prune_artifacts() {
+  step_start prune-artifacts "remove earlier onboarding artifacts"
+  local root="$HOME/.local/lib/vrooli-bridge/bootstrap" current="" dir removed=0
+  [ "$PREBUILT_MODE" -eq 1 ] && current="$(dirname "$VROOLI_BIN_OVERRIDE")"
+  if [ ! -d "$root" ]; then
+    step_skip "no onboarding artifacts on this node"
+    return
+  fi
+  for dir in "$root"/artifacts-*; do
+    [ -d "$dir" ] || continue
+    [ "$dir" = "$current" ] && continue
+    rm -rf "$dir" && removed=$((removed + 1))
+    forget_install_prefix "$dir"
+  done
+  step_ok "removed ${removed} earlier artifact directories; kept ${current:-none}"
 }
 
 step_setup() {
@@ -1039,9 +1160,20 @@ step_pin_verify() {
 
 step_provisioner_install() {
   step_start provisioner-install "install privileged provisioning helper"
-  if [ -z "$PROVISION_SERVICE_USER" ]; then
-    step_skip "BRIDGE_PROVISION_SERVICE_USER is unset; provisioning remains unavailable until a separate principal is configured"
+  if [ "$PROVISION_HELPER" = "off" ]; then
+    step_skip "disabled with --no-provision-helper; Bridge cannot update this node to a pushed revision"
     return
+  fi
+  if [ -z "$PROVISION_SERVICE_USER" ]; then
+    if have_passwordless_sudo && { [ "$OS" = linux ] || [ "$OS" = darwin ]; }; then
+      # The helper is the root tier of the two-tier design. It runs every git,
+      # setup, and restart step as the checkout owner, so root is used only to
+      # hold the IPC boundary the runner cannot forge.
+      PROVISION_SERVICE_USER=root
+    else
+      step_skip "no passwordless sudo and no BRIDGE_PROVISION_SERVICE_USER; Bridge cannot update this node to a pushed revision"
+      return
+    fi
   fi
   id -u "$PROVISION_SERVICE_USER" >/dev/null 2>&1 || fail 1 "provisioning service user ${PROVISION_SERVICE_USER} does not exist; create a dedicated non-login OS principal before onboarding"
   have_passwordless_sudo || fail 1 "installing the machine-wide provisioning helper requires non-interactive sudo (or root); no privileged fallback is attempted"
@@ -1055,25 +1187,34 @@ step_provisioner_install() {
   esac
   # The helper enforces the caller UID with Unix peer credentials. The shared
   # directory is searchable by the runner, while the socket itself is removed
-  # and recreated by the helper on each supervised start.
+  # and recreated by the helper on each supervised start. An existing directory
+  # (the runner's own state directory on macOS) keeps its owner and mode.
   local socket_dir
   socket_dir="${PROVISION_SOCKET%/*}"
   [ -n "$socket_dir" ] || socket_dir=/
-  as_root install -d -m 0755 "$socket_dir"
+  [ -d "$socket_dir" ] || as_root install -d -m 0755 "$socket_dir"
+  # The helper must never execute a file its runner can replace: that would let
+  # the runner become the helper's principal. Run it from a root-owned copy.
+  local root_group=root helper_dir=/usr/local/libexec/vrooli-bridge helper_bin
+  [ "$OS" = darwin ] && root_group=wheel
+  helper_bin="${helper_dir}/vrooli-bridge-agent"
+  as_root install -d -o root -g "$root_group" -m 0755 "$helper_dir" || fail 1 "could not create ${helper_dir}"
+  as_root install -o root -g "$root_group" -m 0755 "$AGENT_BIN" "$helper_bin" || fail 1 "could not install the root-owned helper binary at ${helper_bin}"
   local cfg=(--state-dir "$STATE_DIR" --provision-helper --provision-socket "$PROVISION_SOCKET"
-    --provision-client-uid "$runner_uid" --service-user "$PROVISION_SERVICE_USER"
+    --provision-client-uid "$runner_uid" --provision-client-home "$HOME" --service-user "$PROVISION_SERVICE_USER"
     --system-service --work-dir "$WORK_DIR" --vrooli-bin "$RUNTIME_VROOLI_BIN")
   local result
-  result="$(as_root "$AGENT_BIN" service install "${cfg[@]}" --json)" || fail 1 "privileged provisioning helper install failed"
+  result="$(as_root "$helper_bin" service install "${cfg[@]}" --json)" || fail 1 "privileged provisioning helper install failed"
   local running
   running="$(printf '%s' "$result" | jq -r '.running // false')"
   [ "$running" = true ] || fail 1 "provisioning helper installed but is not running — inspect the ${PROVISIONER_UNIT_NAME} service"
+  record_install_artifact agent binary "$helper_bin" "$helper_dir" || fail 1 "could not record the root-owned helper binary"
   record_install_artifact agent service \
     "$(printf '%s' "$result" | jq -r '.unit_path // .unitPath // empty')" \
     "$(printf '%s' "$result" | jq -r '.unit_path // .unitPath // empty' | xargs dirname)" \
     "$( [ "$OS" = darwin ] && printf launchd || printf systemd )" \
     "$(printf '%s' "$result" | jq -r '.unit_name // .unitName // empty')" || fail 1 "could not record privileged provisioning service install"
-  step_ok "helper running as ${PROVISION_SERVICE_USER} (uid ${helper_uid}); runner uid ${runner_uid}; socket ${PROVISION_SOCKET}"
+  step_ok "helper running as ${PROVISION_SERVICE_USER} (uid ${helper_uid}) from ${helper_bin}; runner uid ${runner_uid}; socket ${PROVISION_SOCKET}"
 }
 
 step_service_install() {
@@ -1250,10 +1391,12 @@ main() {
   # control plane's pre-synced source directory.
   [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
   ensure_state_dir_access
+  repair_identity_ownership
   step_setup
   step_toolchain_guard
   step_build_native_vrooli
   step_finalize_setup
+  step_restart_stale
   step_build_agent
   step_install_stable_agent
   step_build_cli
@@ -1266,6 +1409,7 @@ main() {
   step_autostart
   step_record_install
   step_verify_online
+  step_prune_artifacts
   marker run-ok "" "node ${NODE_ID} paired and online"
   log "bootstrap complete: node ${NODE_ID} is paired, online, and set to auto-start."
 }

@@ -336,6 +336,12 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 		clock = RealClock{}
 	}
 	started := clock.Now().UTC()
+	if !rec.recordingStartedAt.IsZero() {
+		// Recorded journeys include application startup. Anchor the first
+		// chapter to the producer-owned recording so startup frames are part of
+		// the activate/readiness chapter instead of becoming unclassified video.
+		started = rec.recordingStartedAt
+	}
 	input := JourneyInput{SmokeTestID: smokeTestID, ScenarioName: scenarioName, Platform: platform, Display: rec.displayID, DisplayWidth: rec.displayWidth, DisplayHeight: rec.displayHeight}
 	if s.store != nil {
 		if status, ok := s.store.Get(smokeTestID); ok {
@@ -690,6 +696,13 @@ func setVideoOffsets(step *deliveryramp.JourneyStep, recordingStartedAt time.Tim
 	end := step.CompletedAt.Sub(recordingStartedAt).Milliseconds()
 	if start < 0 || end < start {
 		return
+	}
+	// The first activation chapter owns the generated app's startup and
+	// readiness window. Target resolution happens after recording begins, so
+	// preserve that producer-owned interval in the chapter instead of leaving
+	// the startup frames unclassified.
+	if step.ID == "activate" {
+		start = 0
 	}
 	step.VideoStartOffsetMs = &start
 	step.VideoEndOffsetMs = &end

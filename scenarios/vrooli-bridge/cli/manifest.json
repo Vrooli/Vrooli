@@ -401,6 +401,30 @@
           }
         },
         {
+          "name": "rotate-store",
+          "description": "Rotate the passphrase of a Machine's own credential store; the new one is escrowed here and pushed to its agent. A re-run finishes an interrupted rotation",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Machine id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "RotateMachineCredentialStore"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "merge",
           "description": "Merge a duplicate Machine into an explicitly selected target",
           "positionals": [
@@ -2269,6 +2293,48 @@
           ],
           "binding": { "kind": "local" },
           "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        }
+      ]
+    },
+    {
+      "name": "follow",
+      "description": "Keep nodes on the tip of a git branch: Bridge provisions each new commit",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Show every node following a branch and its last check",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "set",
+          "description": "Follow a branch: Bridge provisions the node to each new commit",
+          "flags": [
+            { "name": "node", "required": true, "description": "Node id" },
+            { "name": "branch", "required": true, "description": "Branch to follow, e.g. agi" },
+            { "name": "repo-url", "description": "Source repository (default https://github.com/Vrooli/Vrooli.git)" },
+            { "name": "now", "bool": true, "description": "Also update the node to the branch's current head now" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "unset",
+          "description": "Stop following; the node keeps its current revision",
+          "flags": [
+            { "name": "node", "required": true, "description": "Node id" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "check",
+          "description": "Check a followed node now and dispatch an update if the branch moved",
+          "flags": [
+            { "name": "node", "required": true, "description": "Node id" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
         }
       ]
     }

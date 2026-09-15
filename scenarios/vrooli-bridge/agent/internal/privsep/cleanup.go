@@ -356,6 +356,9 @@ func (h *Helper) runCLI(ctx context.Context, args []string, input []byte) ([]byt
 			code, err = h.step.Run(ctx, argv, workDir, onLog)
 		}
 	}
+	if len(args) > 0 && args[0] == "break-glass" {
+		h.returnIdentityToClient()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -388,4 +391,20 @@ func zeroBytes(b []byte) {
 		b[i] = 0
 	}
 	runtime.KeepAlive(b)
+}
+
+// returnIdentityToClient hands the runner's identity tree back to the runner
+// after a break-glass command. The command runs as root with HOME set to the
+// runner's home, so anything it creates there would otherwise be root-owned
+// and unreadable by the runner's own services.
+func (h *Helper) returnIdentityToClient() {
+	home := h.resolvedClientHome()
+	if home == "" {
+		return
+	}
+	owner, err := clientPrincipal(h.clientUID)
+	if err != nil || owner == nil {
+		return
+	}
+	_ = chownTree(filepath.Join(home, ".vrooli", "identity"), owner)
 }

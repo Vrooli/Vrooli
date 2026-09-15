@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 
 	internalmachines "vrooli-bridge/internal/machines"
@@ -29,7 +30,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, sshSvc *ssh.Service, regi
 	svc := internalmachines.NewService(repo)
 	audit, _ := repo.(auditAppender)
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptReader)
-	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc, trust: svc}, Logger: logger}))
+	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc, trust: svc}, StoreRotator: newStoreRotator(onboardSvc, svc, registrySvc, sshSvc), Logger: logger}))
 	return module.Module{
 		Name:      "machines",
 		Mount:     func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) },
@@ -153,3 +154,71 @@ func (r nodeRevoker) RevokeMachineNode(ctx context.Context, nodeID string) error
 }
 
 func Schema() string { return internalmachines.Schema() }
+
+// machineStoreRotator resolves the Machine's current node, platform, and
+// Bridge-managed SSH connection, then hands the rotation to the onboarding
+// domain. Rotation runs only over verified SSH trust, the same boundary the
+// typed SSH cleanup transport requires.
+type machineStoreRotator struct {
+	rotator  internalonboard.CredentialStoreRotator
+	trust    machineTrustReader
+	registry registry.Service
+	keyDir   string
+}
+
+// newStoreRotator returns nil when the onboarding service cannot rotate (for
+// example a test double), so the handler reports rotation as unavailable.
+func newStoreRotator(onboardSvc internalonboard.Service, trust machineTrustReader, registrySvc registry.Service, sshSvc *ssh.Service) StoreRotator {
+	rotator, ok := onboardSvc.(internalonboard.CredentialStoreRotator)
+	if !ok || sshSvc == nil || registrySvc == nil {
+		return nil
+	}
+	return machineStoreRotator{rotator: rotator, trust: trust, registry: registrySvc, keyDir: sshSvc.StateDir()}
+}
+
+func (r machineStoreRotator) Rotate(ctx context.Context, machine internalmachines.Machine) (internalonboard.RotateCredentialStoreResult, error) {
+	nodeID := ""
+	for _, lineage := range machine.Lineage {
+		if lineage.Current {
+			nodeID = lineage.NodeID
+			break
+		}
+	}
+	if nodeID == "" {
+		return internalonboard.RotateCredentialStoreResult{}, internalmachines.ErrInvalid{Field: "lineage", Reason: "machine has no current node; repair it first"}
+	}
+	node, err := r.registry.Get(ctx, nodeID)
+	if err != nil {
+		return internalonboard.RotateCredentialStoreResult{}, fmt.Errorf("resolve the machine's node: %w", err)
+	}
+	trusted, err := r.trust.GetTrust(ctx, machine.ID)
+	if err != nil {
+		return internalonboard.RotateCredentialStoreResult{}, internalmachines.ErrInvalid{Field: "trust", Reason: fmt.Sprintf("machine trust unavailable: %v", err)}
+	}
+	if !trusted.SSHManagementEstablished() {
+		return internalonboard.RotateCredentialStoreResult{}, internalmachines.ErrInvalid{Field: "ssh.management", Reason: "machine SSH trust is not verified; review its host key or repair it first"}
+	}
+	keyName := strings.TrimPrefix(strings.TrimSpace(trusted.ClientKeyRef), "ssh-key://")
+	if keyName == "" || filepath.Base(keyName) != keyName {
+		return internalonboard.RotateCredentialStoreResult{}, internalmachines.ErrInvalid{Field: "ssh.management", Reason: "machine trust has no Bridge-owned client key"}
+	}
+	host := ""
+	for _, locator := range machine.Locators {
+		if locator.Kind == "hostname" || locator.Kind == "ip" || locator.Kind == "ssh" {
+			host = locator.Value
+			break
+		}
+	}
+	if host == "" {
+		return internalonboard.RotateCredentialStoreResult{}, internalmachines.ErrInvalid{Field: "locators", Reason: "machine has no hostname, IP, or SSH locator"}
+	}
+	port := trusted.SSHPort
+	if port == 0 {
+		port = 22
+	}
+	return r.rotator.RotateCredentialStore(ctx, internalonboard.RotateCredentialStoreInput{
+		MachineID: machine.ID, NodeID: nodeID,
+		Conn:     internalonboard.Conn{Host: host, Port: port, User: trusted.SSHUser, KeyPath: filepath.Join(r.keyDir, keyName)},
+		Platform: internalonboard.NodePlatform{OS: node.OS, Arch: node.Arch},
+	})
+}

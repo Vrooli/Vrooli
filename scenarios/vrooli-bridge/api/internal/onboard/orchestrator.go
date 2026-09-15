@@ -140,6 +140,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		}
 		syncRes, syErr := s.driver.SyncTree(ctx, SyncParams{
 			Conn: conn, Platform: platform, RepoDir: snap.RepoDir, Files: snap.Files, DestDir: trimField(in.CheckoutDir),
+			Entries: snap.Entries, Digest: snap.Digest,
 		})
 		if syErr != nil {
 			if s.cancelled(ctx) {
@@ -152,9 +153,10 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		}
 		wtDigest = snap.Digest
 		wtSourceDir = syncRes.ResolvedDestDir
+		in.GitBaseBranch = snap.BaseBranch
 		s.recordDigest(ctx, opID, wtDigest)
 		s.emit(ctx, opID, &seq, StepSyncTree, StepStatusOK, fmt.Sprintf(
-			"shipped %d file(s), %s, digest %s → %s", len(snap.Files), humanBytes(syncRes.BytesTransferred), shortDigest(wtDigest), wtSourceDir))
+			"%s, digest %s → %s", shipSummary(syncRes, len(snap.Files)), shortDigest(wtDigest), wtSourceDir))
 		if s.cancelled(ctx) {
 			s.finishCancelled(ctx, opID, &seq)
 			return
@@ -387,6 +389,20 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusStarted, "applying the committed onboarding selection")
 		remote, applyErr := onboarding.ApplyAndReadiness(ctx, runner, onboarding.Target{Host: conn.Host, Port: conn.Port, User: conn.User, Key: conn.KeyPath}, selection)
 		s.recordConfigurationDispositions(ctx, opID, remote.Dispositions)
+		if applyErr == nil && remote.ExitCode == onboarding.ExitConfigurationIncomplete {
+			// The node is updated and its selection applied; what remains is
+			// operator input (credentials) or checks still settling. Recording
+			// that as a failed onboarding made every re-ship of minimouse read
+			// "failed" while the node ran the new tree (2026-09-15).
+			blockers := onboarding.IncompleteBlockers(remote.Stderr + "\n" + remote.Stdout)
+			detail := "selection applied; configuration is incomplete"
+			if len(blockers) > 0 {
+				detail += fmt.Sprintf(": %d item(s) need operator input or are still being checked: %s", len(blockers), strings.Join(blockers, "; "))
+			}
+			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusOK, detail)
+			s.finishOutcome(ctx, opID, StateSucceeded, "", int32(res.ExitCode), nodeID, "", ConfigurationIncomplete, blockers)
+			return
+		}
 		if applyErr != nil || remote.ExitCode != 0 {
 			detail := fmt.Sprintf("remote onboarding readiness exited %d", remote.ExitCode)
 			if applyErr != nil {
@@ -505,6 +521,9 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 		args = append(args, "--work-dir", wtSourceDir)
 		if wtDigest != "" {
 			args = append(args, "--source-digest", wtDigest)
+		}
+		if branch := trimField(in.GitBaseBranch); branch != "" && !strings.HasPrefix(branch, "-") {
+			args = append(args, "--git-base-branch", branch)
 		}
 	}
 	if artifacts.Vrooli != "" {
@@ -737,7 +756,21 @@ func (s *service) finishCancelled(ctx context.Context, opID string, seq *uint64)
 
 // finish drives an op to a terminal state and wakes block-once waiters. It never
 // re-terminalises an already-terminal op.
+// ConfigurationIncomplete is the node configuration outcome for an update
+// whose selection applied while operator input is still outstanding.
+const ConfigurationIncomplete = "configuration_incomplete"
+
 func (s *service) finish(ctx context.Context, opID string, state State, reason FailureReason, exitCode int32, nodeID, diagnostics string) {
+	var unmet []string
+	if reason != "" {
+		unmet = []string{string(reason)}
+	}
+	s.finishOutcome(ctx, opID, state, reason, exitCode, nodeID, diagnostics, state.String(), unmet)
+}
+
+// finishOutcome drives an op to its terminal state and records the node's
+// configuration outcome (configState, with the unmet items behind it).
+func (s *service) finishOutcome(ctx context.Context, opID string, state State, reason FailureReason, exitCode int32, nodeID, diagnostics, configState string, unmet []string) {
 	op, err := s.repo.Get(ctx, opID)
 	if err != nil {
 		return
@@ -767,11 +800,10 @@ func (s *service) finish(ctx context.Context, opID string, state State, reason F
 		return
 	}
 	if recorder, ok := s.linker.(ConfigurationRecorder); ok {
-		unmet := []string{}
-		if reason != "" {
-			unmet = append(unmet, string(reason))
+		if unmet == nil {
+			unmet = []string{}
 		}
-		if err := recorder.RecordConfigurationOutcome(ctx, op.CorrelationID, op.NodeID, state.String(), unmet, now); err != nil {
+		if err := recorder.RecordConfigurationOutcome(ctx, op.CorrelationID, op.NodeID, configState, unmet, now); err != nil {
 			log.Printf("onboard: record configuration outcome for op %s: %v", op.ID, err)
 		}
 	}

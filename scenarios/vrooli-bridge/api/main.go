@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -71,6 +72,7 @@ import (
 	credentialgrantH "vrooli-bridge/handlers/credentialgrant"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
+	followH "vrooli-bridge/handlers/follow"
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	identityH "vrooli-bridge/handlers/identity"
@@ -84,6 +86,7 @@ import (
 	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
 	scenarioH "vrooli-bridge/handlers/scenario"
+	internalfollow "vrooli-bridge/internal/follow"
 )
 
 // registrarAdapter bridges the registry service to the pairing domain's
@@ -269,7 +272,57 @@ func deriveControlPlaneURL() string {
 	if err != nil {
 		log.Printf("control-plane address is not routable: %v; using loopback for local onboarding", err)
 	}
+	if host := localMDNSName(ip, os.Hostname, lookupHostIPv4); host != "" {
+		return "http://" + net.JoinHostPort(host, port)
+	}
 	return "http://" + net.JoinHostPort(ip, port)
+}
+
+// localMDNSName returns "<hostname>.local" when this host's mDNS name
+// resolves to ip, the address nodes would otherwise be given. A node that
+// dials the name keeps finding Bridge after a DHCP address change; one given
+// the raw address silently disconnects (minimouse dialed 192.168.1.173).
+// Candidate admission still proves the name resolves from each node.
+func localMDNSName(ip string, hostname func() (string, error), lookup func(context.Context, string) ([]string, error)) string {
+	if ip == "" || ip == "127.0.0.1" {
+		return ""
+	}
+	name, err := hostname()
+	if err != nil {
+		return ""
+	}
+	short, _, _ := strings.Cut(strings.TrimSpace(name), ".")
+	if short == "" || strings.EqualFold(short, "localhost") {
+		return ""
+	}
+	host := short + ".local"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	addrs, err := lookup(ctx, host)
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if addr == ip {
+			return host
+		}
+	}
+	return ""
+}
+
+// lookupHostIPv4 resolves through the host's name service switch (getent),
+// which carries mDNS on Linux, and falls back to Go's resolver.
+func lookupHostIPv4(ctx context.Context, host string) ([]string, error) {
+	if out, err := exec.CommandContext(ctx, "getent", "ahostsv4", host).Output(); err == nil {
+		var addrs []string
+		for _, line := range strings.Split(string(out), "\n") {
+			if fields := strings.Fields(line); len(fields) > 0 {
+				addrs = append(addrs, fields[0])
+			}
+		}
+		return addrs, nil
+	}
+	return net.DefaultResolver.LookupHost(ctx, host)
 }
 
 func canonicalControlPlaneEndpoint() (string, string) {
@@ -320,6 +373,17 @@ func startMDNSResponder(logger *log.Logger) *mdns.Responder {
 		logger.Printf("mDNS advertisement disabled: %v", err)
 	}
 	return responder
+}
+
+// followInterval is how often followed branches are checked
+// (BRIDGE_FOLLOW_INTERVAL, a Go duration; default five minutes).
+func followInterval() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv("BRIDGE_FOLLOW_INTERVAL")); raw != "" {
+		if value, err := time.ParseDuration(raw); err == nil && value >= time.Minute {
+			return value
+		}
+	}
+	return 5 * time.Minute
 }
 
 func bridgeAPIPort() int {
@@ -887,10 +951,15 @@ func main() {
 	artifactsModule, artifactReceiptRecorder := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
 		artifactsH.NewArtifactPlacementPusher(presenceHub, cpKeypair))
 
+	// Branch follow: nodes set to a branch are provisioned to its new commits.
+	followSvc := internalfollow.NewService(db, internalfollow.GitHeads{}, followH.NewProvisioner(provisionSvc), followH.NewNodeChecker(registrySvc), nil)
+	go followH.RunScheduler(context.Background(), followSvc, followInterval(), logger)
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
 		readinessH.Module(db, onboardSvc, endpointStore, true, internalonboard.NewUFWObserver(), hostbroker.NewSocketClient()),
+		followH.Module(followSvc),
 		// identity: same-origin owner sign-in / registration facade. The browser
 		// never calls scenario-authenticator cross-origin; it calls this bridge RPC,
 		// which forwards to the authenticator (resolved by name via the shared

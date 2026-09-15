@@ -179,6 +179,11 @@ func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 			rollback = v.Revision
 		}
 	}
+	// A working-tree revision ("<sha>+dirty") names no fetchable commit, so it
+	// cannot be a git rollback target; returning to it takes another ship.
+	if strings.HasSuffix(rollback, "+dirty") {
+		rollback = ""
+	}
 
 	// 4. Dry-run: the request validated and would be dispatched, but we create
 	//    no op, write no audit, and push nothing.

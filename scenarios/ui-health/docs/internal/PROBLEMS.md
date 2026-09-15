@@ -72,3 +72,26 @@ a migration handoff with a planned retirement path back into
 ## 2026-09-07 — Shared selector consolidation
 
 W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. Selector composition checks use declared UI paths, require library composition, and verify generated manifest source hashes. Focused composition and adoption doc cases pass. Broad run 20260907-213022-122303cc remains FAIL on UI discovery, provider wrapper and other rule cases. Direct full checks also observed missing standard_shell_ownership doc cases, reported as knw-1788818073139349494. Shared evidence and limitations: `packages/ui-selectors/README.md`.
+
+## 2026-09-15 — API log grew to 75 MB on a month-old node
+
+W3 implementation fix; no W0–W2 claim.
+
+**Symptom:** On minimouse, `~/.vrooli/logs/scenarios/ui-health/vrooli.develop.ui-health.start-api.log` reached 75 MB after 32 days of uptime.
+
+**Root cause:** Three writers, none of them bounded.
+- Every five-minute aisearch sync logged one line per scenario when react-component-library was unavailable: about 40 identical failures per sync, 1,947 syncs.
+- Every health probe was logged twice, by the local `internal/middleware` request logger and by api-core's access log.
+- The lifecycle never bounded a live process's log.
+
+**Real fix (done):**
+- `aisearch.surfaceSource.LoadAll` writes one summary line per sync (`TestLoadAllSummarizesDiscoveryFailuresInOneLine`).
+- The duplicate local request logger was removed.
+- api-core logs a `/health` probe only when its status changes.
+- The runtime supervisor bounds every scenario log (`process.BoundLogs`).
+
+**Remaining:**
+- react-component-library and qdrant are not running on minimouse, so surface search stays degraded there. The failure is now logged once per sync.
+- 75 other scenarios generated from `templates/scenarios/react-vite` still carry the duplicate request logger. The template still emits it.
+
+**Refs:** `api/internal/aisearch/surface_index.go`, `packages/api-core/server/server.go`, `internal/process/logbounds.go`.

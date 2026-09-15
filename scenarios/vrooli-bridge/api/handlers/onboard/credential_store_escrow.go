@@ -24,7 +24,7 @@ func (authorityEscrow) identity(key string) (credentialauthority.Identity, error
 	return credentialauthority.ParseIdentity(internalonboard.CredentialStoreLogicalID(key))
 }
 
-func (e authorityEscrow) Load(_ context.Context, key string) ([]byte, bool, error) {
+func (e authorityEscrow) load(_ context.Context, key, field string) ([]byte, bool, error) {
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return nil, false, fmt.Errorf("control-plane credential authority unavailable: %w", err)
@@ -33,7 +33,7 @@ func (e authorityEscrow) Load(_ context.Context, key string) ([]byte, bool, erro
 	if err != nil {
 		return nil, false, err
 	}
-	status := authority.Status(identity, internalonboard.CredentialStoreEscrowField)
+	status := authority.Status(identity, field)
 	if !status.Configured {
 		if state := string(status.ProviderState); state != "" && state != "available" {
 			return nil, false, fmt.Errorf("control-plane credential store is %s: %s", state, status.ProviderDetail)
@@ -49,7 +49,26 @@ func (e authorityEscrow) Load(_ context.Context, key string) ([]byte, bool, erro
 	return []byte(value), true, nil
 }
 
-func (e authorityEscrow) Save(_ context.Context, key string, secret []byte) error {
+func (e authorityEscrow) Load(ctx context.Context, key string) ([]byte, bool, error) {
+	return e.load(ctx, key, internalonboard.CredentialStoreEscrowField)
+}
+
+func (e authorityEscrow) Save(ctx context.Context, key string, secret []byte) error {
+	return e.save(ctx, key, internalonboard.CredentialStoreEscrowField, secret)
+}
+
+// LoadPending, SavePending, and ClearPending hold a rotation's new passphrase
+// at a second field of the same address. No grant names that field, so it is
+// never pushed to a node.
+func (e authorityEscrow) LoadPending(ctx context.Context, key string) ([]byte, bool, error) {
+	return e.load(ctx, key, internalonboard.CredentialStoreEscrowPendingField)
+}
+
+func (e authorityEscrow) SavePending(ctx context.Context, key string, secret []byte) error {
+	return e.save(ctx, key, internalonboard.CredentialStoreEscrowPendingField, secret)
+}
+
+func (e authorityEscrow) ClearPending(_ context.Context, key string) error {
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return fmt.Errorf("control-plane credential authority unavailable: %w", err)
@@ -58,7 +77,22 @@ func (e authorityEscrow) Save(_ context.Context, key string, secret []byte) erro
 	if err != nil {
 		return err
 	}
-	if err := authority.Put(identity, internalonboard.CredentialStoreEscrowField, string(secret)); err != nil {
+	if err := authority.Delete(identity, internalonboard.CredentialStoreEscrowPendingField); err != nil {
+		return fmt.Errorf("clear pending node passphrase: %w", err)
+	}
+	return nil
+}
+
+func (e authorityEscrow) save(_ context.Context, key, field string, secret []byte) error {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("control-plane credential authority unavailable: %w", err)
+	}
+	identity, err := e.identity(key)
+	if err != nil {
+		return err
+	}
+	if err := authority.Put(identity, field, string(secret)); err != nil {
 		return fmt.Errorf("escrow node passphrase: %w", err)
 	}
 	return nil

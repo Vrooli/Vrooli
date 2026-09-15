@@ -958,3 +958,65 @@ an authorized refresh or redeployment supplies the missing procedure.
   - `TestArtifactBuilderCachesBySnapshotAndBuildsExecutablesInParallel` is a
     timing flake (5/5 then 3/5 passing in consecutive runs), unrelated.
 - Measured: 2026-09-15
+
+## Work ladder
+
+- Rung: W3 (scoped repair) — node health was invisible until something broke
+- Evidence: minimouse carried 130 leftover onboarding folders (6.8 GiB), 2.8 of
+  4 GiB swap and an 8 GiB memory ceiling, and none of it reached the operator;
+  the heartbeat's only health signal was disk headroom, which nothing rendered.
+- Repair: the agent's `health.SystemSampler` takes a machine-health reading
+  every minute (directory walks at most every 10 minutes, bounded to 50k
+  entries) and reports it through the existing capability inventory as five
+  observations under capability `node-health`, ids `node-health.{disk,memory,
+  swap,bootstrap-artifacts,logs}`. Healthy = `ready` with the measurement;
+  unhealthy = `missing` with `<code>: <measurement>; <remedy>`. Codes:
+  `disk_low` (<10 GiB or <5%), `disk_critical` (<2 GiB or <2%),
+  `memory_pressure` / `memory_critical` (darwin
+  `kern.memorystatus_vm_pressure_level` 2 / 4; linux MemAvailable <10% / <5%
+  or PSI some avg60 >=10%), `swap_high` (fixed swap >=75% full, or swap >= half
+  of RAM while memory is under pressure — macOS swap grows on demand and linux
+  cold pages are harmless), `bootstrap_artifacts_large` (>3 folders or >2 GiB
+  under `~/.local/lib/vrooli-bridge/bootstrap`), `logs_large` (`~/.vrooli/logs`
+  >5 GiB or one file >1 GiB). No proto change; readers are stdlib-only
+  (statfs, `/proc/meminfo`, `/proc/pressure/memory`, darwin sysctl) and read
+  `unknown` on other platforms.
+- Evidence of repair: `go test ./internal/health/` (threshold, walk, sampler
+  and live-host tests); cross-vet darwin/{amd64,arm64}, windows/amd64,
+  freebsd/amd64. The darwin test binary run on minimouse read disk 169.9 of
+  233.5 GiB, 8 GiB + pressure normal, swap 1.5 of 3.0 GiB and flagged
+  `bootstrap_artifacts_large` (130 folders, 6.8 GiB) — matching raw sysctl.
+- Not yet live: the running agents do not carry this code until the agent is
+  rebuilt and shipped; until then Web Console says the machine's agent does not
+  report health yet.
+- Not covered: crash-looping services. The node's scenario state lives in the
+  control plane's `runtime.db`; reading it from the agent would couple to that
+  schema, so it belongs to a control-plane status verb the agent can call.
+- Measured: 2026-09-15
+
+### 2026-09-15 — Node credential-store lifecycle: TPM escrow, rotation, backup gap
+
+- Rung: W3 (implementation) for the zero-touch node store.
+- Problem: a store `vrooli setup` created behind a TPM/host-bound wrap alone
+  was never escrowed (the step skipped it), so losing the TPM binding lost the
+  node's values; a node passphrase could only be changed at the node; Windows
+  nodes were skipped with a one-line note.
+- Repair: node CLI verbs `vrooli credentials store add-passphrase` and
+  `verify-passphrase` (`internal/securestore` `AddPassphraseWrap` /
+  `VerifyPassphrase`); the credential-store step adds, proves, or reports the
+  escrowed recovery wrap and finishes an interrupted rotation; new
+  `vrooli-bridge machines rotate-store <machine>` with a pending escrow field
+  and crash-safe ordering (DECISIONS 2026-09-15). Windows skip reason is now
+  explicit in the step event and docs.
+- Evidence of repair: `go test ./internal/securestore/` (add/verify/rotation
+  follow tests); `go test ./internal/onboard/ -run 'CredentialStore|Rotation'`
+  (idempotent TPM escrow, old-CLI refusal, interruption at every rotation
+  step checked against the "some escrow opens the node" invariant).
+- Open: live rotation on minimouse needs its node CLI updated (it answers
+  "Unknown subcommand" until the working tree is re-shipped) and a Bridge
+  restart. Backup gap: this control plane's `credentials store copy` sink is
+  disabled (points at an Aug 18 test path, no receipt), so neither its store
+  nor the node escrow in it is backed up; choosing a sink is an operator
+  decision (`vrooli credentials store copy configure --sink …`). Windows node
+  escrow is unimplemented and unvalidated (no Windows node).
+- Measured: 2026-09-15
