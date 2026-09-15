@@ -35,6 +35,15 @@ func init() {
 	actionRegistry["inject_env"] = &InjectEnvAction{}
 	actionRegistry["resize_display"] = &ResizeDisplayAction{}
 
+	// Window and input control
+	actionRegistry["window_activate"] = &WindowActivateAction{}
+	actionRegistry["window_maximize"] = &WindowMaximizeAction{}
+	actionRegistry["window_resize"] = &WindowResizeAction{}
+	actionRegistry["window_move"] = &WindowMoveAction{}
+	actionRegistry["pointer_click"] = &PointerClickAction{}
+	actionRegistry["key_press"] = &KeyPressAction{}
+	actionRegistry["window_geometry"] = &WindowGeometryAction{}
+
 	// Advanced
 	actionRegistry["clipboard_read"] = &ClipboardReadAction{}
 	actionRegistry["clipboard_write"] = &ClipboardWriteAction{}

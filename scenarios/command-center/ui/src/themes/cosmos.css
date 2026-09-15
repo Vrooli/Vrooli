@@ -1,0 +1,12 @@
+[data-theme="cosmos"] {
+  --color-background: #06041a;
+  --color-background-deep: #02010b;
+  --color-surface: rgba(22, 16, 54, 0.72);
+  --color-foreground: #ede8ff;
+  --color-muted-foreground: #9a90c8;
+  --color-primary: #a06bff;
+  --color-accent: #d3b8ff;
+  --color-glow: rgba(160, 107, 255, 0.5);
+  --color-border: rgba(160, 107, 255, 0.24);
+  --color-gap: #ffb3e2;
+}

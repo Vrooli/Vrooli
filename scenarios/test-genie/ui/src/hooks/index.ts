@@ -1,12 +1,11 @@
 export { useScenarios, useFilteredScenarios } from "./useScenarios";
 export type { ScenarioDirectoryEntry } from "./useScenarios";
+export { useTargets } from "./useTargets";
 export { useExecutions, useScenarioHistory, useFilteredExecutions } from "./useExecutions";
 export { useExecutionPlan } from "./useExecutionPlan";
-export { useHealth } from "./useHealth";
-export { useRequests, useFilteredRequests, useFocusQueueStats } from "./useRequests";
 export { useDocsManifest, useDocContent } from "./useDocs";
 export type { DocsManifest, DocSection } from "./useDocs";
 export { useRequirements, useRequirementsCoverage } from "./useRequirements";
 export type { RequirementsCoverage } from "./useRequirements";
-export { useAgentUpdates } from "./useAgentUpdates";
-export { useFix, useFixDetails } from "./useFix";
+export { useRemediation } from "./useRemediation";
+export { useRunArtifacts } from "./useRunArtifacts";

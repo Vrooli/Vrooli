@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.pagination",
+    "name": "Pagination",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The page navigation control with first, previous, next, last, compact ranges, loading treatment, responsive collapse, and accessible current-page semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "semantic-structure",
+    "responsive-transformation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading"
+  ]
+}

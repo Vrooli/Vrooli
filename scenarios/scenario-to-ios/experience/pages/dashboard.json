@@ -1,0 +1,331 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Delivery matrix",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer the operator's first question — which iOS targets can I prove right now, what did the last run show, and what is standing between me and shipping this.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every target row shows a probed disposition, never an assumed one.",
+      "notes": "A host being Linux does not imply anything except that the native iOS row is terminal. Every other row reflects what the last probe proved."
+    },
+    {
+      "statement": "A permanently unsupported row is visibly a different kind of answer from a blocked one.",
+      "notes": "This ramp is the only one with rows that will never pass. Reading them as merely blocked sends the operator hunting for a fix that cannot exist."
+    },
+    {
+      "statement": "An unavailable target names its missing capability and next action inline.",
+      "notes": "'Unavailable' with no reason forces the operator into the CLI to find out why, which defeats the surface."
+    },
+    {
+      "statement": "The gate verdict and the release-readiness summary are both visible without navigating.",
+      "notes": "The two axes are independent. A green matrix beside an unstarted ladder is the normal state, and hiding either one is how an owner discovers at upload time that they cannot publish."
+    },
+    {
+      "statement": "Wherever work executes remotely, the executing node is named.",
+      "notes": "Remote execution is the normal path for this ramp. An unnamed remote failure is indistinguishable from a local one."
+    },
+    {
+      "statement": "A passing row carries the grade of the evidence that produced it.",
+      "notes": "Two rows can both be green and mean different things. A pass produced by the pixel-grade mirror strategy cannot gate a release, and the matrix is where that has to be visible — it is the page the operator actually looks at."
+    }
+  ],
+  "elements": [
+    {
+      "id": "target-matrix",
+      "role": "table",
+      "name": "Target matrix",
+      "description": "One row per probed target: ramp, device kind, node, disposition, last run."
+    },
+    {
+      "id": "target-disposition",
+      "role": "status",
+      "name": "Target disposition",
+      "description": "The closed-vocabulary disposition for one target row, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "gate-verdict",
+      "role": "status",
+      "name": "Release gate",
+      "description": "The fail-closed gate verdict computed from the matrix."
+    },
+    {
+      "id": "readiness-summary",
+      "role": "status",
+      "name": "Release readiness",
+      "description": "Summary of the Apple readiness ladder, shown as a peer of the gate verdict rather than behind navigation."
+    },
+    {
+      "id": "executing-node",
+      "role": "note",
+      "name": "Executing node",
+      "description": "The bridge node that executed or would execute the cell."
+    },
+    {
+      "id": "generate-project",
+      "role": "button",
+      "name": "Generate project",
+      "description": "The primary action when no generated project exists yet."
+    },
+    {
+      "id": "row-promotability",
+      "role": "status",
+      "name": "Evidence grade",
+      "description": "Whether the evidence behind a passing row was produced by a semantic strategy and can therefore gate a release, or by a pixel-grade strategy and cannot."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The matrix as the live system reports it, with a macOS node online.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Target inventory is being probed; no dispositions are asserted yet.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No generated project exists yet. Explains how to generate one rather than showing an empty table.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Targets are listed and at least one is unavailable — the normal working state, not a degraded one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Dispositions are from a probe old enough that they may no longer hold; age is shown rather than the data being silently presented as current.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The inventory request failed. The matrix reports the failure rather than rendering an empty or all-unavailable table.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "no-mac-node",
+      "description": "No macOS node is reachable. The native-Linux row is terminal and the simulator rows are blocked-but-fixable — two different answers shown side by side.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "no-mac-node"
+        }
+      }
+    },
+    {
+      "id": "validate-only-host",
+      "description": "The fulfilling build host can still validate but can no longer produce submittable builds. The third category, and a dated one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "validate-only-host"
+        }
+      }
+    },
+    {
+      "id": "gate-failed",
+      "description": "A required cell failed. The gate reads failed and names the contributing cell.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "gate-failed"
+        }
+      }
+    },
+    {
+      "id": "mirror-passed",
+      "description": "Every chapter passed, but the physical row was driven by the pixel-grade mirror strategy, so the row is green and non-promotable at the same time.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "mirror-passed"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "both-axes-visible-together",
+      "type": "element-present",
+      "elements": [
+        "gate-verdict",
+        "readiness-summary"
+      ],
+      "states": [
+        "default",
+        "partial",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "The release gate verdict and the release-readiness summary are both present on the matrix without navigating away.",
+      "rationale": "S2I-P0-010. Validation readiness and release readiness are independent axes. Collapsing them is how a fully passing matrix gets read as ready to ship."
+    },
+    {
+      "id": "matrix-readable-without-video",
+      "type": "element-present",
+      "elements": [
+        "target-matrix",
+        "target-disposition"
+      ],
+      "states": [
+        "default",
+        "partial",
+        "gate-failed",
+        "validate-only-host"
+      ],
+      "tier": "machine",
+      "statement": "Every verdict on this page is carried by the matrix and its disposition labels, so no recording has to be played to read it.",
+      "rationale": "Journey video is evidence, not interface."
+    },
+    {
+      "id": "execution-node-is-explicit",
+      "type": "element-present",
+      "elements": [
+        "executing-node"
+      ],
+      "states": [
+        "default",
+        "validate-only-host",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "Every state in which work executes on a node names that node.",
+      "rationale": "S2I-P0-004. Remote execution is this ramp's normal path; an unnamed remote failure is indistinguishable from a local one."
+    },
+    {
+      "id": "validate-only-is-its-own-state",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "validate-only-host"
+      ],
+      "tier": "machine",
+      "statement": "A validate-only host renders distinguishably from a fully capable one.",
+      "rationale": "S2I-P0-004. A host that can validate but not ship is a third category. An operator who cannot see it discovers it when an upload is rejected."
+    },
+    {
+      "id": "terminal-and-blocked-render-differently",
+      "type": "state-distinct",
+      "states": [
+        "no-mac-node",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A matrix containing terminal rows renders distinguishably from one where every row is live.",
+      "rationale": "S2I-P0-003. The defining distinction of this ramp. If the two read the same, the operator cannot tell a missing machine from a category error."
+    },
+    {
+      "id": "empty-state-offers-generation",
+      "type": "element-present",
+      "elements": [
+        "generate-project"
+      ],
+      "states": [
+        "empty"
+      ],
+      "tier": "machine",
+      "statement": "The empty state presents the generate action rather than an empty table.",
+      "rationale": "An empty table is indistinguishable from a broken probe."
+    },
+    {
+      "id": "disposition-is-not-colour-alone",
+      "type": "custom",
+      "statement": "Every disposition is distinguishable without relying on hue — each carries a shape or text label as well as a status colour.",
+      "tier": "manual",
+      "rationale": "DESIGN.md accessibility floor. 'unsupported' and 'unavailable' are semantically opposite — terminal versus actionable — and must not depend on colour discrimination to tell apart."
+    },
+    {
+      "id": "row-evidence-grade-is-visible",
+      "type": "element-present",
+      "elements": [
+        "row-promotability"
+      ],
+      "states": [
+        "default",
+        "mirror-passed",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "Every matrix row that carries a verdict also carries the grade of the evidence behind it.",
+      "rationale": "S2I-P0-010. Evidence grade is a property of a pass, not a footnote on the run page. Without it on the matrix, an operator reads promotable and non-promotable greens as the same result."
+    },
+    {
+      "id": "green-rows-differ-by-grade",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "mirror-passed"
+      ],
+      "tier": "machine",
+      "statement": "A matrix in which every row passed still renders distinguishably when one of those passes cannot gate a release.",
+      "rationale": "S2I-P0-010. This is the run-review promotability distinction propagated to the surface the operator reads first. If it stops at run review, the mirror strategy quietly manufactures shippable-looking results."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "target-matrix": {
+        "testid": "dashboard-target-matrix"
+      },
+      "target-disposition": {
+        "testid": "dashboard-target-disposition"
+      },
+      "gate-verdict": {
+        "testid": "dashboard-gate-verdict"
+      },
+      "readiness-summary": {
+        "testid": "dashboard-readiness-summary"
+      },
+      "executing-node": {
+        "testid": "dashboard-executing-node"
+      },
+      "generate-project": {
+        "testid": "dashboard-generate-project"
+      },
+      "row-promotability": {
+        "testid": "dashboard-row-promotability"
+      }
+    }
+  }
+}

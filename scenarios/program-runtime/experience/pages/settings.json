@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id":"settings","title":"Settings","routes":["/settings"],"purpose":"Configure local appearance and locale preferences."},
+  "priorities": [],
+  "states": [
+    {"id":"default","description":"Theme and locale controls are visible."},
+    {"id":"loading","description":"Preferences are loading."},
+    {"id":"request-error","description":"The preference error is visible."},
+    {"id":"empty","description":"No optional preferences are configured."},
+    {"id":"partial","description":"Some preferences are available while others are pending."},
+    {"id":"stale","description":"The settings surface identifies stale preference data."}
+  ],
+  "elements": [
+    {"id":"settings-region","role":"region","name":"Settings"}
+  ],
+  "claims": [
+    {"id":"settings-region-present","type":"element-present","statement":"The settings page exposes a named settings region.","tier":"machine","elements":["settings-region"],"states":["default"]}
+  ],
+  "bindings": {"elements":{"settings-region":{"testid":"page-settings"}}}
+}

@@ -17,6 +17,12 @@ import (
 // AppHandler handles application-related endpoints
 type AppHandler struct {
 	appService *services.AppService
+	// Optional request seams keep handler tests deterministic without replacing
+	// the business service in production wiring.
+	getAppsSummary func(context.Context) ([]repository.App, error)
+	getApps        func(context.Context) ([]repository.App, error)
+	stopApp        func(context.Context, string) error
+	getApp         func(context.Context, string) (*repository.App, error)
 }
 
 // NewAppHandler creates a new app handler
@@ -28,19 +34,31 @@ func NewAppHandler(appService *services.AppService) *AppHandler {
 
 // GetAppsSummary returns a fast-loading set of applications using cached CLI metadata
 func (h *AppHandler) GetAppsSummary(c *gin.Context) {
-	HandleServiceCallRaw(c, h.appService.GetAppsSummary, "Failed to fetch apps summary")
+	fn := h.appService.GetAppsSummary
+	if h.getAppsSummary != nil {
+		fn = h.getAppsSummary
+	}
+	HandleServiceCallRaw(c, fn, "Failed to fetch apps summary")
 }
 
 // GetApps returns all applications
 func (h *AppHandler) GetApps(c *gin.Context) {
-	HandleServiceCallRaw(c, h.appService.GetApps, "Failed to fetch apps")
+	fn := h.appService.GetApps
+	if h.getApps != nil {
+		fn = h.getApps
+	}
+	HandleServiceCallRaw(c, fn, "Failed to fetch apps")
 }
 
 // GetApp returns a single application by ID
 func (h *AppHandler) GetApp(c *gin.Context) {
 	id := c.Param("id")
+	get := h.appService.GetApp
+	if h.getApp != nil {
+		get = h.getApp
+	}
 	HandleServiceCall(c, func(ctx context.Context) (*repository.App, error) {
-		return h.appService.GetApp(ctx, id)
+		return get(ctx, id)
 	}, "App not found")
 }
 
@@ -55,8 +73,12 @@ func (h *AppHandler) StartApp(c *gin.Context) {
 // StopApp stops an application
 func (h *AppHandler) StopApp(c *gin.Context) {
 	id := c.Param("id")
+	stop := h.appService.StopApp
+	if h.stopApp != nil {
+		stop = h.stopApp
+	}
 	HandleServiceAction(c, func(ctx context.Context) error {
-		return h.appService.StopApp(ctx, id)
+		return stop(ctx, id)
 	}, "App stopped successfully", "Failed to stop app")
 }
 
@@ -239,11 +261,11 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, structuredLogs)
 }
 
-// GetAppIssues returns existing issues for an application from app-issue-tracker.
-func (h *AppHandler) GetAppIssues(c *gin.Context) {
+// GetAppFixes returns existing Swarm Manager fix backlog items for an application.
+func (h *AppHandler) GetAppFixes(c *gin.Context) {
 	id := c.Param("id")
 
-	issuesSummary, err := h.appService.ListScenarioIssues(c.Request.Context(), id)
+	fixesSummary, err := h.appService.ListScenarioFixes(c.Request.Context(), id)
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
@@ -251,7 +273,7 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 			status = http.StatusBadRequest
 		case errors.Is(err, services.ErrAppNotFound):
 			status = http.StatusNotFound
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -261,39 +283,21 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    issuesSummary,
+		"data":    fixesSummary,
 	})
 }
 
-// GetFallbackDiagnostics retrieves console logs, network requests, and page status using browserless
-// This is used when the iframe bridge fails to provide diagnostics
-func (h *AppHandler) GetFallbackDiagnostics(c *gin.Context) {
-	appID := c.Param("id")
-
-	var payload struct {
-		URL string `json:"url" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse("URL is required"))
-		return
-	}
-
-	result, err := h.appService.GetFallbackDiagnostics(c.Request.Context(), appID, payload.URL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse(fmt.Sprintf("Failed to retrieve fallback diagnostics: %v", err)))
-		return
-	}
-
-	c.JSON(http.StatusOK, successResponse(result))
+func (h *AppHandler) GetAppIssues(c *gin.Context) {
+	h.GetAppFixes(c)
 }
 
-// ReportAppIssue forwards an application issue report to the issue tracker scenario
-func (h *AppHandler) ReportAppIssue(c *gin.Context) {
+// ReportAppFix creates a Swarm Manager fix backlog item with App Monitor evidence.
+func (h *AppHandler) ReportAppFix(c *gin.Context) {
 	appID := c.Param("id")
 
 	var payload services.IssueReportRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse("Invalid issue report payload"))
+		c.JSON(http.StatusBadRequest, errorResponse("Invalid fix report payload"))
 		return
 	}
 
@@ -306,14 +310,21 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 	}
 
 	data := gin.H{"message": result.Message}
-	if result.IssueID != "" {
-		data["issue_id"] = result.IssueID
+	if result.Kind != "" {
+		data["kind"] = result.Kind
 	}
-	if result.IssueURL != "" {
-		data["issue_url"] = result.IssueURL
+	if result.Name != "" {
+		data["name"] = result.Name
+	}
+	if result.URL != "" {
+		data["url"] = result.URL
 	}
 
 	c.JSON(http.StatusOK, successResponse(data))
+}
+
+func (h *AppHandler) ReportAppIssue(c *gin.Context) {
+	h.ReportAppFix(c)
 }
 
 // CheckAppIframeBridge evaluates iframe bridge diagnostics via scenario-auditor.
@@ -585,53 +596,11 @@ func (h *AppHandler) CheckAppInteropCompliance(c *gin.Context) {
 	})
 }
 
-// GetInteropStandards returns interop violations in scenario-auditor quality format.
-func (h *AppHandler) GetInteropStandards(c *gin.Context) {
-	name := c.Param("name")
-
-	result, err := h.appService.GetInteropStandards(c.Request.Context(), name)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// GetRuleDefs returns rule metadata, optionally filtered by scenario, tech stack, severity, or category.
-func (h *AppHandler) GetRuleDefs(c *gin.Context) {
-	req := services.RulesGuideRequest{
-		Scenario: c.Query("scenario"),
-		Category: c.Query("category"),
-	}
-
-	if ts := c.Query("tech_stack"); ts != "" {
-		for _, t := range strings.Split(ts, ",") {
-			if t = strings.TrimSpace(t); t != "" {
-				req.TechStack = append(req.TechStack, t)
-			}
-		}
-	}
-
-	if sev := c.Query("severity"); sev != "" {
-		for _, s := range strings.Split(sev, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				req.Severity = append(req.Severity, s)
-			}
-		}
-	}
-
-	result, err := h.appService.GetRulesGuide(c.Request.Context(), req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
-}
+// NOTE: GetInteropStandards (the scenario-auditor quality endpoint) and
+// GetRuleDefs (the rules-guide metadata endpoint) were removed when the static
+// UI-interop rules engine moved to ui-health, which is now the single authority.
+// Interop compliance is still exposed via CheckAppInteropCompliance, now sourced
+// from ui-health over Connect (see services/interop_client.go).
 
 // GetAppCompleteness returns completeness score metrics for an application
 func (h *AppHandler) GetAppCompleteness(c *gin.Context) {

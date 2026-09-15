@@ -1,0 +1,4 @@
+name,amount,status
+alpha,10,ready
+beta,20,ready
+gamma,30,pending

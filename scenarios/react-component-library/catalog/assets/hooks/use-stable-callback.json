@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-stable-callback",
+    "name": "useStableCallback",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A callback primitive that keeps a stable function identity while always invoking the latest logic, so listeners and subscriptions do not churn on every render.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  }
+}

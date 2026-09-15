@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { fetchEmptyResponse, installFetchMock, type FetchMock } from '@/test-utils';
 import {
   useViewportSyncManager,
   viewportsEqual,
@@ -24,19 +25,18 @@ vi.mock('@/config', () => ({
   }),
 }));
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
 describe('ViewportSyncManager', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValue({ ok: true });
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue(fetchEmptyResponse());
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   describe('useViewportSyncManager hook', () => {
@@ -138,7 +138,7 @@ describe('ViewportSyncManager', () => {
       });
 
       // No sync yet
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
 
       // Wait for debounce
       await act(async () => {
@@ -147,8 +147,8 @@ describe('ViewportSyncManager', () => {
       });
 
       // Should only sync once with final viewport
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
         'http://test-api/recordings/live/test-session/viewport',
         expect.objectContaining({
           method: 'POST',
@@ -174,7 +174,7 @@ describe('ViewportSyncManager', () => {
         await Promise.resolve();
       });
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('should skip sync when viewport unchanged', async () => {
@@ -193,10 +193,10 @@ describe('ViewportSyncManager', () => {
         vi.advanceTimersByTime(150);
         await Promise.resolve();
       });
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
       // Same viewport - should not sync again
-      mockFetch.mockClear();
+      fetchMock.mockClear();
       act(() => {
         result.current.updateFromBounds({ width: 800, height: 600 });
       });
@@ -204,7 +204,7 @@ describe('ViewportSyncManager', () => {
         vi.advanceTimersByTime(150);
         await Promise.resolve();
       });
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('should reset state on session change', () => {
@@ -227,7 +227,7 @@ describe('ViewportSyncManager', () => {
     });
 
     it('should handle sync errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() =>
         useViewportSyncManager({
@@ -265,7 +265,7 @@ describe('ViewportSyncManager', () => {
         await result.current.forceSync();
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

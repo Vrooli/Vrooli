@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "stat-card",
+    "title": "StatCard",
+    "purpose": "StatCard preserves semantic structure and token ownership.",
+    "storyRef": "../../library/components/StatCard/versions/1.0.9/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default content is available."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The quiet state remains understandable."
+    }
+  ],
+  "elements": [
+    { "id": "card", "role": "region", "description": "The metric card surface." },
+    { "id": "value", "role": "x-value", "description": "The primary metric value." }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "StatCard preserves semantic structure and token ownership.",
+      "tier": "manual",
+      "states": ["default", "empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "card": { "selector": "article" },
+      "value": { "testid": "stat-value" }
+    }
+  }
+}

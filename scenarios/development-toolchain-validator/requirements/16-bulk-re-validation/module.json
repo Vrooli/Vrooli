@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-006",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "title": "Bulk Re-Validation",
+  "description": "Single CLI/UI operations: re-run all stale tuples for a golden, or re-run a single skill across all goldens. Concurrency limits to avoid agent-manager queue saturation.",
+  "requirements": [
+    {
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "title": "Bulk orchestrator + concurrency control",
+      "description": "Service that fans out validation runs respecting a configured concurrency cap (default low, e.g. 2). Surfaces estimated cost (sum of historical baselines) before kick-off; allows abort.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

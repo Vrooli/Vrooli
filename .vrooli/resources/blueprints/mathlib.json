@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "mathlib",
+  "display_name": "Mathlib (Lean)",
+  "category": "formal-methods",
+  "summary": "Lean and Mathlib environment for formal theorem proving, proof checking, and mathematically rigorous automation.",
+  "why_it_matters": "Mathlib preserves strong formal-verification capability knowledge, but there is no current validated scenario that needs Vrooli to support it as an active project-level resource.",
+  "when_to_use": [
+    "A future scenario needs formal proof checking or theorem exploration.",
+    "Operators want a Lean-based workflow for mathematical verification.",
+    "The workflow depends on the Mathlib ecosystem rather than generic symbolic math."
+  ],
+  "example_scenarios": [
+    "Formal verification assistants",
+    "Math research tooling",
+    "Proof-backed educational systems"
+  ],
+  "integration_kind": "library",
+  "platform_support": {
+    "notes": "The toolchain is portable, but practical support depends on editor, CLI, and package-manager conventions.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Lean toolchain strategy",
+    "Project and dependency management conventions",
+    "Validated proof or library workflows"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate one or two concrete proof workflows instead of generic theorem-prover support.",
+    "Keep editor tooling separate from CLI proof execution.",
+    "Do not maintain speculative wrappers when the underlying toolchain already has its own workflow."
+  ],
+  "operational_notes": [
+    "Version pinning matters for proof reproducibility.",
+    "Validation should run a real Lean check, not only detect binaries.",
+    "The core value is correctness, so shallow health checks are not enough."
+  ],
+  "risks": [
+    "Formal tools create maintenance load if not tied to an active workflow.",
+    "A wrapper can add little value over direct tool usage."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "mathlib"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/mathlib"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

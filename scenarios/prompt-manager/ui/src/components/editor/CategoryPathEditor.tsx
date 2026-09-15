@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Plus, X, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 
 interface CategoryPathEditorProps {
   value: string[]
@@ -80,13 +81,12 @@ function Combobox({
   useEffect(() => {
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
     }
-  }, [isOpen, handleClickOutside, handleEscape])
+  }, [isOpen, handleClickOutside])
+  useGlobalKeydown(handleEscape, { enabled: isOpen, target: 'document' })
 
   // Filter suggestions based on input
   const filteredSuggestions = useMemo(() => {

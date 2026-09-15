@@ -66,7 +66,6 @@ export function AppLimitsSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="App Limits"
           description="Configure per-app limits for each subscription tier"
           icon={AppWindow}
@@ -86,7 +85,7 @@ export function AppLimitsSettings() {
               <Button
                 key={app.value}
                 variant={selectedApp === app.value ? 'default' : 'outline'}
-                onClick={() => setSelectedApp(app.value)}
+                onClick={() => { setSelectedApp(app.value); }}
                 className="gap-2"
               >
                 <AppWindow className="h-4 w-4" />
@@ -111,7 +110,7 @@ export function AppLimitsSettings() {
               <p className="text-slate-400 mb-4">
                 No app-specific limits configured for {getSelectedAppLabel(selectedApp)}
               </p>
-              <Button onClick={() => setShowAddLimit(true)} className="gap-2">
+              <Button onClick={() => { setShowAddLimit(true); }} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add First Limit
               </Button>
@@ -175,7 +174,7 @@ export function AppLimitsSettings() {
                                   id={editKey}
                                   type="text"
                                   value={getEditedOrDisplayValue(editKey, limit)}
-                                  onChange={(e) => setEditedValue(editKey, e.target.value)}
+                                  onChange={(e) => { setEditedValue(editKey, e.target.value); }}
                                   className="w-32 pl-8"
                                   placeholder="0.00"
                                 />
@@ -183,7 +182,7 @@ export function AppLimitsSettings() {
                             </div>
                             <Button
                               size="sm"
-                              onClick={() => onSave(tierID, limit)}
+                              onClick={() => { void onSave(tierID, limit); }}
                               disabled={!isEdited(editKey) || saving === editKey}
                               className="gap-1"
                             >
@@ -193,7 +192,8 @@ export function AppLimitsSettings() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => onDeleteLimit(tierID, limitKey)}
+                              aria-label={`Delete ${limitKey} limit for ${getTierLabel(tierID)}`}
+                              onClick={() => { void onDeleteLimit(tierID, limitKey); }}
                               disabled={saving === `delete:${tierID}:${limitKey}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function AppLimitsSettings() {
             ))}
 
             {/* Add New Limit Button */}
-            <Button onClick={() => setShowAddLimit(true)} variant="outline" className="gap-2 w-full">
+            <Button onClick={() => { setShowAddLimit(true); }} variant="outline" className="gap-2 w-full">
               <Plus className="h-4 w-4" />
               Add New Limit Type
             </Button>
@@ -229,7 +229,7 @@ export function AppLimitsSettings() {
                   <select
                     id="new-tier"
                     value={newLimit.tier_id}
-                    onChange={(e) => setNewLimit({ tier_id: e.target.value })}
+                    onChange={(e) => { setNewLimit({ tier_id: e.target.value }); }}
                     className={inputClassName}
                   >
                     {TIER_OPTIONS.map((tier) => (
@@ -247,7 +247,7 @@ export function AppLimitsSettings() {
                   <input
                     id="new-limit-key"
                     value={newLimit.limit_key}
-                    onChange={(e) => setNewLimit({ limit_key: e.target.value })}
+                    onChange={(e) => { setNewLimit({ limit_key: e.target.value }); }}
                     placeholder="e.g., workflow_exports"
                     className={inputClassName}
                   />
@@ -263,7 +263,7 @@ export function AppLimitsSettings() {
                       id="new-display-dollars"
                       type="text"
                       value={newLimit.display_dollars}
-                      onChange={(e) => setNewLimit({ display_dollars: e.target.value })}
+                      onChange={(e) => { setNewLimit({ display_dollars: e.target.value }); }}
                       placeholder="0.00"
                       className={`${inputClassName} pl-8`}
                     />
@@ -279,7 +279,7 @@ export function AppLimitsSettings() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={onAddLimit} disabled={saving === 'new'}>
+                  <Button onClick={() => { void onAddLimit(); }} disabled={saving === 'new'}>
                     {saving === 'new' ? 'Creating...' : 'Create Limit'}
                   </Button>
                 </div>

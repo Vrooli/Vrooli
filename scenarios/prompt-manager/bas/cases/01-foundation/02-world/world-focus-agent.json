@@ -1,0 +1,191 @@
+{
+  "metadata": {
+    "name": "world-focus-agent",
+    "description": "Focus an agent from the 2D list, read its card, close it with the close button",
+    "labels": {
+      "reset": "none",
+      "safety": "isolated-ui-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?intro=0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the world"
+        }
+      }
+    },
+    {
+      "id": "wait-summary",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.summary",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the HUD"
+        }
+      }
+    },
+    {
+      "id": "open-2d",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.twoDToggle"
+        },
+        "metadata": {
+          "label": "Switch to 2D mode"
+        }
+      }
+    },
+    {
+      "id": "wait-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.actorList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the actor list"
+        }
+      }
+    },
+    {
+      "id": "focus-first",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid^='world-hud-actor-list-']"
+        },
+        "metadata": {
+          "label": "Focus the first agent"
+        }
+      }
+    },
+    {
+      "id": "assert-card",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.agentCard",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Agent card did not open"
+        },
+        "metadata": {
+          "label": "Agent card visible"
+        }
+      }
+    },
+    {
+      "id": "assert-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.agentState",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "State chip missing"
+        },
+        "metadata": {
+          "label": "State chip visible"
+        }
+      }
+    },
+    {
+      "id": "shot-card",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Agent card"
+        }
+      }
+    },
+    {
+      "id": "close-card",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.agentCardClose"
+        },
+        "metadata": {
+          "label": "Close the card"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-summary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-summary",
+      "target": "open-2d",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-2d",
+      "target": "wait-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-list",
+      "target": "focus-first",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "focus-first",
+      "target": "assert-card",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-card",
+      "target": "assert-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-state",
+      "target": "shot-card",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "shot-card",
+      "target": "close-card",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

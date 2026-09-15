@@ -88,7 +88,7 @@ export function useTemplateState(): UseTemplateStateReturn {
       }
     }
 
-    loadTemplates();
+    void loadTemplates();
     return () => { mounted = false; };
   }, []);
 

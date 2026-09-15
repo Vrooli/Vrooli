@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "description": "Target profiles and apply: declare what a scenario ships, render it, and write it to the /public/* layout and the electron assets.",
+    "module": "targets",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TARGET-001",
+      "title": "Branding declaration in service.json",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "targets",
+      "criticality": "P0",
+      "description": "The service.json schema gains an optional branding block (brand slug plus a targets enum) with a matching control-plane model; profiles.Resolve reads it and returns the declared profiles, dropping electron-v1 when platforms/electron is absent.",
+      "tags": [
+        "targets",
+        "schema",
+        "control-plane"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "profiles tests, declared-icon-targets rule tests, apply scratch-tree/idempotency tests; old root writer and derive-icons deleted."
+        }
+      ]
+    },
+    {
+      "id": "TARGET-002",
+      "title": "web-public-v1 and electron-v1 defined once",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "targets",
+      "criticality": "P0",
+      "description": "The profiles package defines both profiles as Go data matching the concept document, and is the single source render, apply and validation read.",
+      "tags": [
+        "targets",
+        "profiles"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "profiles tests, declared-icon-targets rule tests, apply scratch-tree/idempotency tests; old root writer and derive-icons deleted."
+        }
+      ]
+    },
+    {
+      "id": "TARGET-003",
+      "title": "declared-icon-targets validation rule",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "targets",
+      "criticality": "P0",
+      "description": "A validation rule checks each declared target's existence, format, exact dimensions, opacity for opaque variants, maskable safe-zone containment, marker block presence, relative manifest srcs, and known placeholder hashes, at WARNING severity.",
+      "tags": [
+        "targets",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "profiles tests, declared-icon-targets rule tests, apply scratch-tree/idempotency tests; old root writer and derive-icons deleted."
+        }
+      ]
+    },
+    {
+      "id": "TARGET-004",
+      "title": "Apply writes the /public/* layout and electron assets",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "targets",
+      "criticality": "P0",
+      "description": "Apply writes every declared target to its profile path, rewrites only the marked index.html block, merges a relative-src site.webmanifest, updates og/twitter meta, and writes the electron PNGs, icon.ico and icon.icns from a staging directory.",
+      "tags": [
+        "targets",
+        "apply"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "profiles tests, declared-icon-targets rule tests, apply scratch-tree/idempotency tests; old root writer and derive-icons deleted."
+        }
+      ]
+    },
+    {
+      "id": "TARGET-005",
+      "title": "The old root-layout writer and derive-icons are deleted",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "targets",
+      "criticality": "P0",
+      "description": "The root-layout icon writer (ui/public, manifest.json, src:/<file>) and the derive-icons command/RPC are removed, and every caller is updated in the same change.",
+      "tags": [
+        "targets",
+        "cleanup"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "profiles tests, declared-icon-targets rule tests, apply scratch-tree/idempotency tests; old root writer and derive-icons deleted."
+        }
+      ]
+    }
+  ]
+}

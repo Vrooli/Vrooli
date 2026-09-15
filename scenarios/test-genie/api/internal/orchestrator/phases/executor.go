@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 )
 
@@ -14,10 +13,10 @@ import (
 //
 // Usage:
 //
-//	return RunPhase(ctx, logWriter, "unit", func() (*unit.RunResult, error) {
+//	return RunPhase(ctx, logWriter, "descriptor-key", func() (*provider.RunResult, error) {
 //	    runner := unit.New(config, unit.WithLogger(logWriter))
 //	    return runner.Run(ctx), nil
-//	}, func(r *unit.RunResult) PhaseResult[unit.Observation] {
+//	}, func(r *provider.RunResult) PhaseResult[provider.Observation] {
 //	    return PhaseResult[unit.Observation]{...}
 //	})
 func RunPhase[TResult any, TObs StandardObservation](
@@ -80,74 +79,6 @@ type PhaseResult[TObs any] struct {
 	// Optional summary (if set, ResultToReportWithSummary is used)
 	Summary     string
 	SummaryIcon string
-}
-
-// RunPhaseWithExpectations executes a phase that requires loading expectations.
-//
-// Usage:
-//
-//	return RunPhaseWithExpectations(ctx, env, logWriter, "structure",
-//	    structure.LoadExpectations,
-//	    func(exp *structure.Expectations) (*structure.RunResult, error) {
-//	        runner := structure.New(config, structure.WithLogger(logWriter))
-//	        return runner.Run(ctx), nil
-//	    },
-//	    func(r *structure.RunResult) PhaseResult[structure.Observation] {...},
-//	)
-func RunPhaseWithExpectations[TExpect any, TResult any, TObs StandardObservation](
-	ctx context.Context,
-	env workspace.Environment,
-	logWriter io.Writer,
-	phaseName string,
-	loadExpectations func(string) (TExpect, error),
-	execute func(expectations TExpect) (*TResult, error),
-	extract func(*TResult) PhaseResult[TObs],
-) RunReport {
-	// Check context first
-	if report := CheckContext(ctx); report != nil {
-		return *report
-	}
-
-	// Load expectations
-	loadResult := LoadExpectationsOrFail(logWriter, env.ScenarioDir, loadExpectations, phaseName)
-	if loadResult.FailReport != nil {
-		return *loadResult.FailReport
-	}
-
-	// Execute with expectations
-	result, err := execute(loadResult.Expectations)
-	if err != nil {
-		shared.LogError(logWriter, "%s execution failed: %v", phaseName, err)
-		return RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassSystem,
-			Remediation:           fmt.Sprintf("Check %s configuration and try again.", phaseName),
-		}
-	}
-
-	// Extract and convert
-	phaseResult := extract(result)
-	observations := ConvertObservationsGeneric(phaseResult.Observations, ExtractStandardObservation[TObs])
-
-	adapter := RunnerResultAdapter{
-		Success:      phaseResult.Success,
-		Error:        phaseResult.Error,
-		FailureClass: phaseResult.FailureClass,
-		Remediation:  phaseResult.Remediation,
-		Observations: observations,
-	}
-
-	// Return with or without summary
-	if phaseResult.Summary != "" {
-		return ResultToReportWithSummary(
-			adapter,
-			phaseResult.SummaryIcon,
-			phaseResult.Summary,
-			phaseName+" complete",
-			logWriter,
-		)
-	}
-	return ResultToReport(adapter, phaseName+" complete", logWriter)
 }
 
 // ExtractSimple creates a PhaseResult from common RunResult fields.

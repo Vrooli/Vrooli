@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+// DeployTarget is a durable release destination configuration. It identifies
+// the remote deployment scenario and profile; credentials remain local-only.
+message DeployTarget {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string label = 2;
+  string scenario_name = 3 [(buf.validate.field).string.min_len = 1];
+  string remote_profile = 4 [(buf.validate.field).string.min_len = 1];
+  optional string deployment_manager_profile_id = 5;
+}
+
+message DeployTargetNameRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListDeployTargetsRequest {}
+
+message ListDeployTargetsResponse {
+  repeated DeployTarget targets = 1;
+}
+
+message GetDeployTargetResponse {
+  DeployTarget target = 1;
+}
+
+message SaveDeployTargetRequest {
+  DeployTarget target = 1;
+}
+
+message SaveDeployTargetResponse {
+  DeployTarget target = 1;
+}
+
+message DeleteDeployTargetResponse {
+  string name = 1;
+  bool deleted = 2;
+}
+
+message TestDeployTargetRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  bool require_service_auth = 2;
+}
+
+message TestDeployTargetResponse {
+  DeployTarget target = 1;
+  bool service_auth_checked = 2;
+}
+
+// DeployTargetReadinessCheck records one independently actionable readiness
+// observation. It is intentionally typed so local, bridge, and future
+// deployment-manager evidence can be rendered and stored uniformly.
+message DeployTargetReadinessCheck {
+  string name = 1;
+  bool required = 2;
+  bool passed = 3;
+  bool blocked = 4;
+  string detail = 5;
+}
+
+message DiagnoseDeployTargetResponse {
+  DeployTarget target = 1;
+  bool ready = 2;
+  repeated DeployTargetReadinessCheck checks = 3;
+  repeated string next_steps = 4;
+}
+
+service DeployTargetService {
+  rpc ListDeployTargets(ListDeployTargetsRequest) returns (ListDeployTargetsResponse);
+  rpc GetDeployTarget(DeployTargetNameRequest) returns (GetDeployTargetResponse);
+  rpc SaveDeployTarget(SaveDeployTargetRequest) returns (SaveDeployTargetResponse);
+  rpc DeleteDeployTarget(DeployTargetNameRequest) returns (DeleteDeployTargetResponse);
+  rpc TestDeployTarget(TestDeployTargetRequest) returns (TestDeployTargetResponse);
+  rpc DiagnoseDeployTarget(DeployTargetNameRequest) returns (DiagnoseDeployTargetResponse);
+}

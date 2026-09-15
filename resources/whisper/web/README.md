@@ -67,8 +67,8 @@ python -m http.server 8000
 - For RDP users: Use file-upload-test.html instead
 
 ### Transcription Errors
-- Verify Whisper is running: `docker ps | grep whisper`
-- Check Whisper logs: `docker logs whisper`
+- Verify Whisper is running: `vrooli resource status whisper`
+- Check Whisper logs: `vrooli resource logs whisper --tail 100`
 - Test API directly: `curl http://localhost:8090/docs`
 
 ## Development Notes

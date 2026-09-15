@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.graph;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1";
+
+// =============================================================================
+// PROMPT-MANAGER GRAPH DOMAIN — health-score read contract
+// =============================================================================
+//
+// @stability beta
+//
+// First Connect-RPC contract for prompt-manager, which is otherwise a
+// hand-rolled gorilla/mux REST API with no proto. This contract covers ONLY
+// the single read MoM (meta-optimization-manager) consumes for its Guide
+// numerator: the per-node graph health scores. It is mounted additively
+// alongside the legacy REST GET /api/v1/graph/health route; full proto/Connect
+// adoption of the other graph + prompt-manager domains is deferred to a
+// dedicated adoption plan.
+//
+// Wire parity: the message fields below mirror the legacy REST JSON shape
+// (api/graph/models.go HealthScore/HealthMessage). proto snake_case fields
+// serialize to the same camelCase keys (nodeId, score, factors, messages)
+// under default protojson, so the additive Connect surface does not diverge
+// from the REST surface.
+//
+// Consumed by:
+//   - API: scenarios/prompt-manager/api/handlers/graph/connect_handler.go
+//          implements the generated GraphServiceHandler interface, delegating
+//          to the existing graph index/scoring logic.
+//   - meta-optimization-manager: its Guide numerator joiner calls the generated
+//          GraphServiceClient.GetHealthScores over a discovery-resolved base URL.
+// =============================================================================
+
+service GraphService {
+  rpc GetGraph(GetGraphRequest) returns (GraphIndex);
+  rpc RegenerateGraph(RegenerateGraphRequest) returns (GraphIndex);
+  rpc ListOrphanedSkills(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListSkilllessAgents(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListEmptyTeams(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListUnaffiliatedAgents(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListPopularNodes(ListPopularNodesRequest) returns (ListNodesResponse);
+  rpc ListCycles(ListCyclesRequest) returns (ListCyclesResponse);
+  rpc GetNode(GetNodeRequest) returns (NodeDetail);
+  rpc ListNodeEdges(ListNodeEdgesRequest) returns (ListEdgesResponse);
+  // GetHealthScores returns the computed per-node health scores from the
+  // current graph index. Read-only; the response mirrors the legacy REST
+  // GET /api/v1/graph/health body.
+  rpc GetHealthScores(GetHealthScoresRequest) returns (GetHealthScoresResponse);
+  rpc GetHealthConfig(GetHealthConfigRequest) returns (HealthConfig);
+  rpc UpdateHealthConfig(UpdateHealthConfigRequest) returns (HealthConfig);
+}
+
+message GetGraphRequest {}
+message RegenerateGraphRequest {}
+message ListNodesRequest {}
+message ListPopularNodesRequest { int32 limit = 1; }
+message ListCyclesRequest {}
+message GetNodeRequest { string node_id = 1; }
+message ListNodeEdgesRequest { string node_id = 1; }
+message GetHealthConfigRequest {}
+message UpdateHealthConfigRequest { HealthConfig config = 1; }
+
+message GraphIndex { string generated_at = 1; Graph graph = 2; }
+message Graph { repeated Node nodes = 1; repeated Edge edges = 2; repeated HealthScore health_scores = 3; }
+message Node { string id = 1; string type = 2; string label = 3; string description = 4; string status = 5; repeated string tags = 6; }
+message Edge { string from = 1; string to = 2; string kind = 3; string category = 4; string command = 5; string subcommand = 6; string command_text = 7; string source_file = 8; int32 line_number = 9; }
+message ListNodesResponse { repeated Node nodes = 1; }
+message ListEdgesResponse { repeated Edge edges = 1; }
+message ListCyclesResponse { repeated Cycle cycles = 1; }
+message Cycle { repeated string node_ids = 1; }
+message NodeDetail { Node node = 1; repeated Edge adjacent_edges = 2; HealthScore health_score = 3; }
+
+message HealthWeights {
+  double outgoing_edges = 1; double incoming_edges = 2; double code_usage = 3;
+  double recent_activity = 4; double skill_content_length = 5; double agent_context_load = 6;
+  double team_member_count_balance = 7; double team_role_coverage = 8;
+  double action_contract = 9; double action_command = 10; double action_examples = 11; double action_owner = 12;
+}
+message CLIHealthConfig { repeated string neutral_commands = 1; double external_tool_score = 2; double scenario_fallback_score = 3; }
+message HealthConfig { HealthWeights team = 1; HealthWeights agent = 2; HealthWeights skill = 3; HealthWeights action = 4; CLIHealthConfig cli = 5; }
+
+// GetHealthScoresRequest currently carries no parameters; add filters here.
+message GetHealthScoresRequest {}
+
+// GetHealthScoresResponse is the body returned by GraphService.GetHealthScores.
+message GetHealthScoresResponse {
+  // Health scores for every scored node in the current graph index.
+  repeated HealthScore scores = 1;
+}
+
+// HealthScore contains computed health metrics for a single graph node.
+message HealthScore {
+  // Stable graph node id (e.g. "skill:scientific-debugging").
+  string node_id = 1;
+
+  // Composite health score in [0,1]; higher is healthier.
+  double score = 2;
+
+  // Per-factor contributions keyed by factor name.
+  map<string, double> factors = 3;
+
+  // Human-readable diagnostics and recommendations.
+  repeated HealthMessage messages = 4;
+}
+
+// HealthMessage explains why a node's health was scored a certain way and
+// suggests concrete follow-up actions.
+message HealthMessage {
+  // Stable message key for deduplication / UI grouping.
+  string key = 1;
+
+  // Severity: info | warning | critical.
+  string severity = 2;
+
+  // The health factor this message pertains to (optional).
+  string factor = 3;
+
+  // Short one-line summary.
+  string summary = 4;
+
+  // Longer free-form detail (optional).
+  string detail = 5;
+
+  // Recommended concrete follow-up action (optional).
+  string recommendation = 6;
+
+  // The numeric metric value behind this message (optional).
+  double metric_value = 7;
+
+  // A target/threshold the metric is compared against (optional).
+  string target = 8;
+}

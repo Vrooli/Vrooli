@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "privacy-preserving-defaults",
+    "description": "Privacy and retention defaults for household and small-office use.",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-008",
+      "title": "Sensitive network metadata is retention-limited by default",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "privacy",
+      "criticality": "P0",
+      "description": "The scenario shall default to minimal retention for DNS query visibility and device activity, make query-log visibility explicit, and separate household privacy defaults from small-office audit defaults.",
+      "tags": ["privacy", "retention", "query-logs"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add policy and settings tests tagged [REQ:NM-P0-008] for default retention, visibility gates, and profile-specific audit behavior."
+        }
+      ]
+    }
+  ]
+}

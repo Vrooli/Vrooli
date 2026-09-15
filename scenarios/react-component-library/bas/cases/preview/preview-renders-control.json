@@ -1,0 +1,96 @@
+{
+  "metadata": {
+    "name": "preview-renders-control",
+    "description": "Previews IconButton, a ControlBase-derived control, in a real browser and requires every specimen to render. A control that throws during render - the class of defect that bundler-injected environment reads cause, which jsdom and vite-node cannot reproduce because they materialize import.meta.env - leaves this gallery short of ready.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-preview",
+      "spec_entry_id": "component-preview-workspace",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-status-badge-editor",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/assets/react-component-library%3AIconButton?tab=preview",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the IconButton workbench"
+        }
+      }
+    },
+    {
+      "id": "wait-editor-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Editor panel visible"
+        }
+      }
+    },
+    {
+      "id": "wait-preview-loading",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.workspacePane[data-experience-state=\"loading\"], @selector/components.editor.workspacePane[data-experience-state=\"ready\"], @selector/components.editor.workspacePane[data-experience-state=\"partial\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Component preview region reports loading"
+        }
+      }
+    },
+    {
+      "id": "assert-preview-region",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-preview\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The component preview workspace did not expose its authored component-preview experience region."
+        },
+        "metadata": {
+          "label": "Component preview region visible"
+        }
+      }
+    },
+    {
+      "id": "assert-control-preview-fully-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-preview\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The IconButton preview did not reach a fully ready gallery. A ControlBase-derived control that throws during render leaves specimens unrendered; check the browser console for a render-time TypeError before relaxing this."
+        },
+        "metadata": {
+          "label": "Require every control specimen to render"
+        }
+      }
+    }
+  ]
+}

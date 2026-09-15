@@ -6,6 +6,7 @@
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import type { ScenarioDesktopStatus } from "../scenario-inventory/types";
+import { selectors } from "../../consts/selectors";
 
 export interface ScenarioSelectorProps {
   scenarioName: string;
@@ -24,7 +25,7 @@ export function ScenarioSelector({
   onOpenScenarioModal,
   onLoadSaved,
   locked = false,
-  onUnlock
+  onUnlock,
 }: ScenarioSelectorProps) {
   const displayName = selectedScenario?.display_name || scenarioName;
 
@@ -32,7 +33,9 @@ export function ScenarioSelector({
     return (
       <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Scenario</p>
+          <p className="text-xs uppercase tracking-wide text-slate-400">
+            Scenario
+          </p>
           <p className="text-sm font-semibold text-slate-100">{scenarioName}</p>
         </div>
         {onUnlock && (
@@ -76,13 +79,24 @@ export function ScenarioSelector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-100">
-              {displayName || (loadingScenarios ? "Loading scenarios..." : "Select a scenario")}
+              {displayName ||
+                (loadingScenarios
+                  ? "Loading scenarios..."
+                  : "Select a scenario")}
             </p>
             <p className="text-xs text-slate-400">
-              {scenarioName ? `Slug: ${scenarioName}` : "Browse scenarios to choose a desktop target."}
+              {scenarioName
+                ? `Slug: ${scenarioName}`
+                : "Browse scenarios to choose a desktop target."}
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={onOpenScenarioModal}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onOpenScenarioModal}
+            data-testid={selectors.generator.scenarioPicker}
+          >
             Browse scenarios
           </Button>
         </div>

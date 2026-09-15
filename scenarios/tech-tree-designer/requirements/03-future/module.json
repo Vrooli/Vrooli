@@ -1,0 +1,58 @@
+{
+  "_metadata": {
+    "description": "Expanded September 2026 target obligations; planned protocols are not execution evidence.",
+    "module": "03-future",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TTD-SOURCE-003",
+      "title": "Owner-sourced enrichment",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "description": "TTD MAY enrich ecosystem entities and edges through qualified owners while retaining explicit coverage and avoiding duplicate repository scanners.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SOURCE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-STRATEGY-001",
+      "title": "Advisory strategic analysis",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "After deterministic workflows are qualified, TTD MAY suggest decompositions and opportunities with provenance, uncertainty and explicit human disposition before canonical changes.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned STRATEGY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-HORIZON-001",
+      "title": "Revisable civilization-scale horizon",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "description": "TTD MAY curate a sector-based horizon for civilization-scale simulation and coordination while distinguishing aspiration from implementation, exhaustive coverage and execution authority.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ONTOLOGY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    }
+  ]
+}

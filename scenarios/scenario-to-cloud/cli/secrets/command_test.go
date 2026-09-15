@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/cli-core/cliutil"
-
 	"scenario-to-cloud/cli/deployment"
+	"scenario-to-cloud/cli/internal/transport"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func secretsTestClient(baseURL string) *Client {
@@ -23,14 +24,7 @@ func secretsTestClient(baseURL string) *Client {
 }
 
 func secretsTestDeploymentClient(baseURL string) *deployment.Client {
-	apiClient := cliutil.NewAPIClient(
-		cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
-		func() cliutil.APIBaseOptions {
-			return cliutil.APIBaseOptions{Override: baseURL}
-		},
-		nil,
-	)
-	return deployment.NewClient(apiClient)
+	return deployment.NewClient(transport.ForBaseURL(baseURL))
 }
 
 func TestParseTargets(t *testing.T) {
@@ -126,7 +120,7 @@ func TestRunVerifyPassesWhenFingerprintsMatch(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	if err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment-id", "dep-1"}); err != nil {
+	if err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"}); err != nil {
 		t.Fatalf("runVerify returned error: %v", err)
 	}
 }
@@ -147,7 +141,7 @@ func TestRunVerifyFailsWhenFingerprintsMismatch(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment-id", "dep-1"})
+	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
 	if err == nil {
 		t.Fatal("expected verification failure on mismatched secret values")
 	}
@@ -173,7 +167,7 @@ func TestRunVerifyHandlesMissingSecretAsVerificationFailure(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment-id", "dep-1"})
+	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
 	if err == nil {
 		t.Fatal("expected verification failure when one target is missing")
 	}

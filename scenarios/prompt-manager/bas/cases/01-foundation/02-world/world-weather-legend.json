@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "name": "world-weather-legend",
+    "description": "A pinned storm exposes the swarm-health weather legend",
+    "labels": { "reset": "none", "safety": "read-only" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?view=3d&intro=0&actors=25&weather=rain&pressure=0.9",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open a pinned degraded-health storm" }
+      }
+    },
+    {
+      "id": "assert-weather",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.weather",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "timeout_ms": 30000,
+          "failure_message": "Weather health legend is missing",
+          "expected": { "string_value": "Rain" }
+        },
+        "metadata": { "label": "Weather legend explains the storm" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "assert-weather", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

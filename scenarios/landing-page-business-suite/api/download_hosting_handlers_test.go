@@ -12,13 +12,14 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	downloadhttp "landing-page-business-suite-api/handlers/delivery"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- handleAdminGetDownloadStorage Tests ---
 
 func TestHandleAdminGetDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert test settings
@@ -33,7 +34,7 @@ func TestHandleAdminGetDownloadStorage_Success(t *testing.T) {
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	handler := handleAdminGetDownloadStorage(hosting, plans)
+	handler := downloadhttp.GetStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/downloads/storage", nil)
 	w := httptest.NewRecorder()
@@ -60,13 +61,12 @@ func TestHandleAdminGetDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminGetDownloadStorage_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "unconfigured_bundle")
 
-	handler := handleAdminGetDownloadStorage(hosting, plans)
+	handler := downloadhttp.GetStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/downloads/storage", nil)
 	w := httptest.NewRecorder()
@@ -96,13 +96,12 @@ func TestHandleAdminGetDownloadStorage_NotConfigured(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "update_test")
 
-	handler := handleAdminUpdateDownloadStorage(hosting, plans)
+	handler := downloadhttp.UpdateStorage(downloadAdminDependencies(hosting, plans))
 
 	body := `{"bucket": "new-bucket", "region": "eu-west-1", "signed_url_ttl_seconds": 1800}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/downloads/storage", strings.NewReader(body))
@@ -131,13 +130,12 @@ func TestHandleAdminUpdateDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "validation_test")
 
-	handler := handleAdminUpdateDownloadStorage(hosting, plans)
+	handler := downloadhttp.UpdateStorage(downloadAdminDependencies(hosting, plans))
 
 	// Invalid endpoint URL
 	body := `{"bucket": "test-bucket", "endpoint": "not-a-valid-url"}`
@@ -154,12 +152,11 @@ func TestHandleAdminUpdateDownloadStorage_ValidationError(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "invalid_json")
 
-	handler := handleAdminUpdateDownloadStorage(hosting, plans)
+	handler := downloadhttp.UpdateStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/downloads/storage", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -176,7 +173,6 @@ func TestHandleAdminUpdateDownloadStorage_InvalidJSON(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: nil}
@@ -194,7 +190,7 @@ func TestHandleAdminTestDownloadStorage_Success(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminTestDownloadStorage(hosting, plans)
+	handler := downloadhttp.TestStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/storage/test", nil)
 	w := httptest.NewRecorder()
@@ -208,7 +204,6 @@ func TestHandleAdminTestDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_Failure(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: errors.New("connection failed")}
@@ -226,7 +221,7 @@ func TestHandleAdminTestDownloadStorage_Failure(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminTestDownloadStorage(hosting, plans)
+	handler := downloadhttp.TestStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/storage/test", nil)
 	w := httptest.NewRecorder()
@@ -240,13 +235,12 @@ func TestHandleAdminTestDownloadStorage_Failure(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "not_configured")
 
-	handler := handleAdminTestDownloadStorage(hosting, plans)
+	handler := downloadhttp.TestStorage(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/storage/test", nil)
 	w := httptest.NewRecorder()
@@ -262,7 +256,6 @@ func TestHandleAdminTestDownloadStorage_NotConfigured(t *testing.T) {
 
 func TestHandleAdminListDownloadArtifacts_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -297,7 +290,7 @@ func TestHandleAdminListDownloadArtifacts_Success(t *testing.T) {
 		}
 	}
 
-	handler := handleAdminListDownloadArtifacts(hosting, plans)
+	handler := downloadhttp.ListArtifacts(downloadAdminDependencies(hosting, plans))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/downloads/artifacts", nil)
 	w := httptest.NewRecorder()
@@ -320,7 +313,6 @@ func TestHandleAdminListDownloadArtifacts_Success(t *testing.T) {
 
 func TestHandleAdminListDownloadArtifacts_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -355,7 +347,7 @@ func TestHandleAdminListDownloadArtifacts_Pagination(t *testing.T) {
 		}
 	}
 
-	handler := handleAdminListDownloadArtifacts(hosting, plans)
+	handler := downloadhttp.ListArtifacts(downloadAdminDependencies(hosting, plans))
 
 	// Test with page and page_size params
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/downloads/artifacts?page=2&page_size=5", nil)
@@ -390,7 +382,6 @@ func TestHandleAdminListDownloadArtifacts_Pagination(t *testing.T) {
 
 func TestHandleAdminPresignUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -411,7 +402,7 @@ func TestHandleAdminPresignUpload_Success(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminPresignUploadDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignUpload(downloadAdminDependencies(hosting, plans))
 
 	body := `{"filename": "test-app.zip", "content_type": "application/zip", "platform": "windows"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/presign-upload", strings.NewReader(body))
@@ -439,13 +430,12 @@ func TestHandleAdminPresignUpload_Success(t *testing.T) {
 
 func TestHandleAdminPresignUpload_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "not_configured")
 
-	handler := handleAdminPresignUploadDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignUpload(downloadAdminDependencies(hosting, plans))
 
 	body := `{"filename": "test.zip"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/presign-upload", strings.NewReader(body))
@@ -461,7 +451,6 @@ func TestHandleAdminPresignUpload_NotConfigured(t *testing.T) {
 
 func TestHandleAdminPresignUpload_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{}
@@ -479,7 +468,7 @@ func TestHandleAdminPresignUpload_ValidationError(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminPresignUploadDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignUpload(downloadAdminDependencies(hosting, plans))
 
 	// Missing filename
 	body := `{"content_type": "application/zip"}`
@@ -498,7 +487,6 @@ func TestHandleAdminPresignUpload_ValidationError(t *testing.T) {
 
 func TestHandleAdminCommitArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -521,7 +509,7 @@ func TestHandleAdminCommitArtifact_Success(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminCommitDownloadArtifact(hosting, plans)
+	handler := downloadhttp.CommitArtifact(downloadAdminDependencies(hosting, plans))
 
 	body := `{
 		"bucket": "test-bucket",
@@ -555,7 +543,6 @@ func TestHandleAdminCommitArtifact_Success(t *testing.T) {
 
 func TestHandleAdminCommitArtifact_HeadError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -575,7 +562,7 @@ func TestHandleAdminCommitArtifact_HeadError(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminCommitDownloadArtifact(hosting, plans)
+	handler := downloadhttp.CommitArtifact(downloadAdminDependencies(hosting, plans))
 
 	body := `{"bucket": "test-bucket", "object_key": "nonexistent/file.zip"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/commit", strings.NewReader(body))
@@ -593,7 +580,6 @@ func TestHandleAdminCommitArtifact_HeadError(t *testing.T) {
 
 func TestHandleAdminPresignGet_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -627,7 +613,7 @@ func TestHandleAdminPresignGet_Success(t *testing.T) {
 		t.Fatalf("CommitArtifact failed: %v", err)
 	}
 
-	handler := handleAdminPresignGetDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignGet(downloadAdminDependencies(hosting, plans))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/downloads/artifacts/{artifact_id}/presign", handler).Methods("GET")
@@ -654,7 +640,6 @@ func TestHandleAdminPresignGet_Success(t *testing.T) {
 
 func TestHandleAdminPresignGet_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -670,7 +655,7 @@ func TestHandleAdminPresignGet_NotFound(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminPresignGetDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignGet(downloadAdminDependencies(hosting, plans))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/downloads/artifacts/{artifact_id}/presign", handler).Methods("GET")
@@ -687,12 +672,11 @@ func TestHandleAdminPresignGet_NotFound(t *testing.T) {
 
 func TestHandleAdminPresignGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "presign_invalid")
 
-	handler := handleAdminPresignGetDownloadArtifact(hosting, plans)
+	handler := downloadhttp.PresignGet(downloadAdminDependencies(hosting, plans))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/downloads/artifacts/{artifact_id}/presign", handler).Methods("GET")
@@ -711,7 +695,6 @@ func TestHandleAdminPresignGet_InvalidID(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 	cleanupDownloadAssets(t, db)
@@ -757,7 +740,7 @@ func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 		t.Fatalf("CommitArtifact failed: %v", err)
 	}
 
-	handler := handleAdminApplyDownloadArtifact(downloads, hosting, plans)
+	handler := downloadhttp.ApplyArtifact(downloadAdminAssetDependencies(downloads, hosting, plans))
 
 	body := `{
 		"app_key": "my-app",
@@ -790,13 +773,12 @@ func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_MissingFields(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "apply_missing")
 
-	handler := handleAdminApplyDownloadArtifact(downloads, hosting, plans)
+	handler := downloadhttp.ApplyArtifact(downloadAdminAssetDependencies(downloads, hosting, plans))
 
 	// Missing app_key
 	body := `{"platform": "windows", "artifact_id": 1}`
@@ -813,7 +795,6 @@ func TestHandleAdminApplyArtifact_MissingFields(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_ArtifactNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -830,7 +811,7 @@ func TestHandleAdminApplyArtifact_ArtifactNotFound(t *testing.T) {
 		t.Fatalf("Failed to insert settings: %v", err)
 	}
 
-	handler := handleAdminApplyDownloadArtifact(downloads, hosting, plans)
+	handler := downloadhttp.ApplyArtifact(downloadAdminAssetDependencies(downloads, hosting, plans))
 
 	body := `{
 		"app_key": "my-app",
@@ -861,7 +842,7 @@ func testContext(t *testing.T) context.Context {
 }
 
 // newTestPlanService creates a PlanService with a specific bundle key for testing
-func newTestPlanService(t *testing.T, bundleKey string) *PlanService {
+func newTestPlanService(t *testing.T, bundleKey string) *commerce.PlanService {
 	t.Helper()
 	t.Setenv("BUNDLE_KEY", bundleKey)
 	return NewPlanService(nil) // db is not used for BundleKey()

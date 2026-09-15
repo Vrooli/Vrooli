@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-07-21T21:23:51Z",
+  "description": "Calibration-only treatment prompt for measured skill experiments",
+  "entry": "SKILL.md",
+  "id": "skill-experiment-calibration-treatment",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "name": "skill-experiment-calibration-treatment",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "calibration",
+    "skill-experiment"
+  ],
+  "updatedAt": "2026-07-21T21:23:51Z"
+}

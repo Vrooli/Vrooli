@@ -200,7 +200,8 @@ export CODEX_MINI_PRICE_OUTPUT="6.00"  # per 1M tokens
 secrets:
   api_keys:
     - name: "openai_api_key"
-      path: "secret/resources/codex/api/openai"
+      logical_id: "vrooli/openai"
+      field: "api-key"
       description: "OpenAI API key for Codex CLI and models"
       required: true
       supports:
@@ -269,7 +270,7 @@ resource-codex agent "Create a REST API with FastAPI including tests"
 ## Next Steps
 
 1. **Install Codex CLI**: `npm install -g @openai/codex`
-2. **Configure API key**: Already stored in Vault
+2. **Configure API key**: Resolved from the canonical credential authority and injected into the process
 3. **Update resource-codex**: Implement Phase 1 changes
 4. **Test integration**: Verify both modes work
 5. **Document usage**: Update README with examples

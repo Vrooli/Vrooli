@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.reasoning-status",
+    "name": "ReasoningStatus",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The restrained activity indicator communicating that the agent is planning, searching, executing, or waiting, without fabricating a narrative of private reasoning.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "primitives.spinner",
+        "reason": "Indeterminate activity uses the shared indicator."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Announcements go through the one shared live region so nothing talks over anything else."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error"
+  ],
+  "rationale": "Deliberately reports observable activity only. Presenting invented inner monologue as the agent's reasoning is a truthfulness problem, not a presentation choice, and this component exists to make the honest version the easy one."
+}

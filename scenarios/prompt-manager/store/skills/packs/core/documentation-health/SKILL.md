@@ -1,4 +1,14 @@
+---
+name: "documentation-health"
+description: "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards."
+license: "CC-BY-4.0"
+metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "architecture-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 49, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-06T13:42:36Z"}
+---
+For agent task knowledge and source applicability, load `prompt-manager skill read knowledge-observatory`. For cleanup, consolidation, reorganization, promotion, moves and retirement, load `prompt-manager skill read knowledge-observatory-maintenance`. This skill owns placement and code/document traceability; the maintenance skill owns dispositions and preservation judgment. The KO usage skill owns the single recall/capture loop. Use `knowledge-observatory-improve` for recurring retrieval or maintenance failures.
+
 ## Steer focus: Documentation Health
+
+> **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **documentation quality, consistency, and bidirectional traceability** between code and documentation across this scenario.
 
@@ -7,7 +17,7 @@ Your goal is to ensure documentation remains accurate, discoverable, and tightly
 Do **not** change core business logic or introduce new features. All changes focus on documentation structure, references, and validation infrastructure.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -30,7 +40,7 @@ This skill provides concrete patterns that ensure agents across multiple session
 Documentation should align with the mental model hierarchy used in screaming-architecture-audit:
 
 Required reading:
-- `prompt-manager skills read screaming-architecture-audit`
+- `prompt-manager skill read screaming-architecture-audit`
 
 ```
                       PRD.md
@@ -53,19 +63,7 @@ Required reading:
                (The actual solution)
 ```
 
-**Decision Tree: Where Does This Doc Belong?**
-
-```
-                    What type of content?
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-    Business/Why      Technical How     Reference/API
-         │                 │                 │
-         ▼                 ▼                 ▼
-    PRD.md or         docs/guides/      docs/reference/
-    docs/concepts/    docs/architecture/ or inline JSDoc
-```
+**Genre placement follows the Diátaxis model** (diataxis.fr): every reader-facing doc is one of tutorial, how-to guide, reference, or explanation — decide which *before* writing, and never mix modes in one document. Repo mapping: tutorial → `QUICKSTART.md`, how-to → `docs/guides/`, reference → `docs/reference/`, explanation → `docs/concepts/`. `docs/internal/` is deliberately outside Diátaxis: it is agent memory, not reader documentation.
 
 ---
 
@@ -93,9 +91,8 @@ docs/
 │   ├── ASSUMPTIONS.md     # Implicit beliefs not yet validated (optional)
 │   ├── ERROR-SEMANTICS.md # Error categories, recovery paths (optional)
 │   ├── SECURITY-POSTURE.md # Security hardening status (optional)
-│   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions (optional)
-│   ├── COHERENCE-NOTES.md # React coherence audit (React UIs only)
-│   └── EXPERIENCE-AUDIT.md # UX friction analysis (user-facing only)
+│   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions, workflow maturity (optional)
+│   └── (other focused docs only when they own a durable contract)
 └── plans/                 # Architecture decisions, proposals
 ```
 
@@ -109,7 +106,8 @@ docs/
 | CLI usage | docs/reference/cli-commands.md | --help output |
 | Config options | docs/reference/configuration.md | Schema files |
 | Known issues | docs/internal/PROBLEMS.md | GitHub Issues |
-| Architecture decisions | docs/plans/ | ADR format |
+| Architecture decisions | docs/strategy/ or promoted docs/plans/ | ADR format |
+| Scratch implementation plans | `plan-manager author start/continue/finalize` | Plan Manager structured record + rendered mirror |
 | Code behavior | Inline comments | docs/reference/ |
 
 ---
@@ -242,7 +240,7 @@ Every scenario with UI documentation should include a `docs/manifest.json`:
 ```
 
 **Manifest Rules:**
-- All docs in `docs/` should be registered in the manifest
+- Register durable documentation in the manifest. Review loose plan supplements through knowledge-observatory-maintenance; relocate them through Plan Manager instead of promoting their authority by registration.
 - Use `visibility: "developers-only"` for internal docs
 - Group related docs into sections
 - Provide descriptions for discoverability
@@ -264,15 +262,26 @@ The audit checks:
 - **Manifest registration**: orphaned docs not listed in manifest.json
 - **Deduplication**: duplicate heading titles across doc files
 - **PRD alignment**: operational targets (OT-*) without corresponding docs
+- **Derived counts**: drift-prone hardcoded numbers in prose (the `numbers` check, surfaced by `docs health`)
 
 Use `--json` for machine-readable output.
+
+`docs health` checks are tagged **generic** (apply to any docs) vs **scenario** (need a scenario contract). Targeting works two ways:
+
+```bash
+knowledge-observatory docs health {{SCENARIO}}                 # all checks for a scenario
+knowledge-observatory docs health --scope=path --path docs/    # generic checks over project-level docs
+knowledge-observatory docs health {{SCENARIO}} --checks=numbers # narrow to one check
+```
+
+Use `knowledge-observatory knowledge-base health --scope path-exact --path "<directory>"` for a selected family without scenario-wide promotion. The legacy `docs health --scope=path` behavior remains: a scenario (or a path inside one) runs every check; a project-level path (`docs/`, `VISION.md`, `docs/<team>/`) runs only the generic checks. The `numbers` check is generic, so it runs in both — and runs automatically in every scenario's test-genie docs phase at warning severity.
 
 #### Red Flags Checklist
 
 - [ ] Missing `docs/manifest.json` → Create manifest for navigation
 - [ ] Files with 500+ lines and no DOC: references → Add documentation links
 - [ ] Broken `[CODE: ...]` references → Update paths or remove stale references
-- [ ] Orphaned docs not in manifest → Add to manifest or delete if obsolete
+- [ ] Orphaned docs not in manifest → Review ownership and preservation through knowledge-observatory-maintenance; register durable docs or relocate supplements through their plan owner
 - [ ] Duplicate documentation titles → Consolidate or differentiate
 - [ ] PRD operational targets without docs → Create implementation docs
 
@@ -289,7 +298,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 | Skill | Focus | When to Use Together |
 |-------|-------|---------------------|
 | screaming-architecture-audit | Mental model alignment | Documentation-health provides the docs that screaming-architecture reads first |
-| react-coherence | Code organization | Coherence patterns should be documented; docs should reference coherence decisions |
+| ui-health | Code organization | Coherence patterns should be documented; docs should reference coherence decisions |
 | refactor | Code cleanup | After refactoring, update DOC: references and [CODE: ...] links |
 | code-cleanup | Dead code removal | Remove documentation for deleted code |
 
@@ -327,8 +336,10 @@ You **must**:
 **Avoid:**
 * Documentation that restates the code without adding context
 * Over-documenting trivial functions
-* Creating documentation that will immediately become stale
+* Creating documentation that will immediately become stale — in particular, **don't freeze a derived current-state count or enumeration in prose** ("N teams", "30+ resources", "the four X"). It is a projection of a source of truth that drifts the moment the SoT changes. Omit it, or point at the SoT (a directory / registry / canonical list); reserve an inline number for cases where it is genuinely load-bearing for the reader, and then prefer generating or guarding it. Numbers that have an owner and a reason — targets, thresholds, prices, version pins, design decisions — are fine: they change by decision, they don't silently drift. **The derived-count lint enforces this**: `docs health` runs a `numbers` check that flags untagged counts in prose at warning severity. To keep an owner-backed number, tag it with the `num[<category>]` marker (`num[target]:1000`, `num[threshold]:100`, categories ∈ target/threshold/price/version/decision/sot — see `path:docs/reference/machine-readable-references.md`). Default to rewording out; tagging is the documented exception, and a `num` marker with no category is itself flagged.
 * Duplicating information that belongs in a single source of truth
+
+**Known-issue ledgers are tracked gaps, not clutter.** `docs/internal/PROBLEMS.md` and `docs/internal/PROGRESS.md` are core internal docs (the "Always — never skip" rows above). **Never delete one to "clean up" a scenario** — that erases the only record that the gap or the history exists. Entries leave a ledger because the work was *done* (then you update/migrate the entry), never because the file was *removed*. Deleting a ledger reads as metric-gaming and the controller flags it (see `improvement-do-and-dont`).
 
 Focus on **documentation that helps agents quickly understand the scenario** and maintain accurate mental models across sessions.
 
@@ -336,17 +347,19 @@ Focus on **documentation that helps agents quickly understand the scenario** and
 
 ### **11. Internal Document Templates**
 
-The `docs/internal/` directory serves as **persistent agent memory** - documents written by agents to share findings with future agents. These are NOT user-facing documentation.
+The `path:docs/internal/` directory serves as **persistent agent memory** - documents written by agents to share findings with future agents. These are NOT user-facing documentation.
 
 Fetch templates and their purposes on demand via the knowledge-observatory CLI:
 
 ```bash
 knowledge-observatory docs templates              # List types with purpose descriptions
-knowledge-observatory docs template <type>         # Get template content
+knowledge-observatory docs template "<type>"         # Get template content
 ```
 
-Available types: seams, problems, progress, invariants, assumptions,
-error-semantics, security-posture, temporal-flows, coherence-notes, experience-audit
+Available types: seams, problems, progress, invariants, error-semantics,
+security-posture, temporal-flows. Legacy `COHERENCE-NOTES.md`,
+`EXPERIENCE-AUDIT.md`, and similarly named audit snapshots may be read during
+migration, but new durable findings belong in an existing canonical document.
 
 #### When to Create vs. Skip Files
 
@@ -355,10 +368,8 @@ error-semantics, security-posture, temporal-flows, coherence-notes, experience-a
 | SEAMS.md | Always - core internal doc | Never skip |
 | PROBLEMS.md | Always - core internal doc | Never skip |
 | PROGRESS.md | Always - core internal doc | Never skip |
-| INVARIANTS.md | System has critical contracts | Simple CRUD with no invariants |
-| ASSUMPTIONS.md | Code makes implicit assumptions | Well-typed, explicit code |
+| INVARIANTS.md | System has critical contracts or cross-cutting rules; also tracks unenforced-but-relied-on rules in Gaps section (see `invariant-discovery-and-enforcement`) | Simple CRUD with no invariants |
 | ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
 | SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
-| TEMPORAL-FLOWS.md | Async/concurrent operations | Purely synchronous code |
-| COHERENCE-NOTES.md | React UI exists | No React UI |
-| EXPERIENCE-AUDIT.md | User-facing scenario | Backend-only service |
+| TEMPORAL-FLOWS.md | Async/concurrent operations, lifecycle flows, workflow maturity/spec status | Purely synchronous code |
+| Existing canonical architecture/problem doc | A durable contract or unresolved issue exists | Finding is only a temporary audit transcript |

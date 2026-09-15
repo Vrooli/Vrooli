@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "case_id": "REACH-04",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-024"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture",
+    "configuration_digest": "fixture-configuration",
+    "closure_digest": "sha256:fixture-stateless-web"
+  },
+  "target": {
+    "machine_id": "package-lane-fixture",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./reach/bridge/ -run TestNegotiateDistinguishesNodeStates; go test ./reach/sshadapter/ -run TestNegotiateReportsNativeCLI",
+  "artifact_refs": [],
+  "assertions": [
+    "offline, protocol-incompatible, revoked and missing-scope states are distinct typed results"
+  ],
+  "observed_at": "2026-09-09T15:59:13Z",
+  "limitations": [
+    "package lane: fake transports; QEMU (EXT-06) and real-VPS/real relay (EXT-01) lanes pending"
+  ]
+}

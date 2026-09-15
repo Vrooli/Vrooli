@@ -34,9 +34,10 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import type { TeamSharedFileEntry } from '@/types/team'
 import type { HighlightRequest } from '@/lib/highlight'
-import type { ContentSearchMatch } from '@/lib/schemas'
+import type { ContentSearchMatch, EffortWorkspace, EffortWorkspaceFile } from '@/lib/schemas'
 import { createHighlightMatch } from '@/lib/highlight'
 import * as teamService from '@/services/teamService'
 import { SkillContentEditor } from '../SkillContentEditor'
@@ -45,6 +46,8 @@ import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
 
 interface TeamFilesTabProps {
   teamId: string
+  /** Only finite delivery teams have a linked effort workspace projection. */
+  showEffortWorkspaces?: boolean
   /** Cross-reference highlight request */
   highlightRequest?: HighlightRequest | null
   /** Called after highlight is applied (clears URL params) */
@@ -114,7 +117,7 @@ function isMarkdownFile(path: string): boolean {
   return path.toLowerCase().endsWith('.md')
 }
 
-export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, className }: TeamFilesTabProps) {
+export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRequest, onHighlightHandled, className }: TeamFilesTabProps) {
   const {
     width: filesSidebarWidth,
     isResizing: isFilesSidebarResizing,
@@ -132,7 +135,11 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
   })
 
   const [files, setFiles] = useState<TeamSharedFileEntry[]>([])
+  const [effortWorkspaces, setEffortWorkspaces] = useState<EffortWorkspace[]>([])
+  const [effortWorkspacesUnavailable, setEffortWorkspacesUnavailable] = useState<Array<{ effortRef: string; reason: string }>>([])
+  const [effortWorkspacesLoading, setEffortWorkspacesLoading] = useState(false)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [selectedEffortFile, setSelectedEffortFile] = useState<{ workspace: EffortWorkspace; file: EffortWorkspaceFile } | null>(null)
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [fileContent, setFileContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
@@ -149,6 +156,8 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     isDir: boolean
   } | null>(null)
   const skipFileLoadRef = useRef<string | null>(null)
+  const loadGenerationRef = useRef(0)
+  const loadedTeamRef = useRef<string | null>(null)
 
   // Cross-reference highlight state
   const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
@@ -170,13 +179,29 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
 
   const isDirectorySelected = selectedEntry?.isDir ?? false
   const isFileEditorActive = Boolean(selectedPath && !isDirectorySelected)
-  const isFileDirty = isFileEditorActive && fileContent !== originalContent
+  const isEffortFileSelected = selectedEffortFile !== null
+  const isFileDirty = isFileEditorActive && !isEffortFileSelected && fileContent !== originalContent
 
   const refreshFiles = useCallback(async () => {
+    const generation = ++loadGenerationRef.current
+
+    // Team navigation must never show a previous team's shared files. Clear the
+    // listing synchronously when the target team changes; the generation guard
+    // discards any in-flight response for the previous team.
+    if (loadedTeamRef.current !== teamId) {
+      loadedTeamRef.current = teamId
+      setFiles([])
+      setSelectedPath(null)
+      setFileContent('')
+      setOriginalContent('')
+    }
+
     try {
       const entries = await teamService.listTeamSharedFiles(teamId)
+      if (generation !== loadGenerationRef.current) return
       setFiles(entries)
     } catch (error) {
+      if (generation !== loadGenerationRef.current) return
       console.warn('[TeamFilesTab] Failed to load shared files:', error)
       toast({
         title: 'Unable to load shared files',
@@ -189,11 +214,37 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     void refreshFiles()
   }, [refreshFiles])
 
+  const refreshEffortWorkspaces = useCallback(async () => {
+    if (!showEffortWorkspaces) {
+      setEffortWorkspaces([])
+      setEffortWorkspacesUnavailable([])
+      return
+    }
+    setEffortWorkspacesLoading(true)
+    try {
+      const result = await teamService.listEffortWorkspaces(teamId)
+      setEffortWorkspaces(result.workspaces)
+      setEffortWorkspacesUnavailable(result.unavailable)
+    } catch (error) {
+      console.warn('[TeamFilesTab] Failed to load effort workspaces:', error)
+      setEffortWorkspaces([])
+      setEffortWorkspacesUnavailable([{ effortRef: 'linked effort', reason: error instanceof Error ? error.message : 'Unable to load effort workspaces' }])
+    } finally {
+      setEffortWorkspacesLoading(false)
+    }
+  }, [showEffortWorkspaces, teamId])
+
+  useEffect(() => {
+    void refreshEffortWorkspaces()
+  }, [refreshEffortWorkspaces])
+
   useEffect(() => {
     setExpandedPaths(new Set())
+    setSelectedEffortFile(null)
   }, [teamId])
 
   useEffect(() => {
+    if (selectedEffortFile) return
     if (files.length === 0) {
       setSelectedPath(null)
       return
@@ -208,9 +259,10 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
       files[0]?.path ??
       null
     setSelectedPath(preferred)
-  }, [files, selectedPath])
+  }, [files, selectedPath, selectedEffortFile])
 
   useEffect(() => {
+    if (selectedEffortFile) return
     if (!selectedPath || isDirectorySelected) {
       if (skipFileLoadRef.current === selectedPath) {
         skipFileLoadRef.current = null
@@ -249,7 +301,34 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     return () => {
       cancelled = true
     }
-  }, [teamId, selectedPath, isDirectorySelected])
+  }, [teamId, selectedPath, isDirectorySelected, selectedEffortFile])
+
+  useEffect(() => {
+    if (!selectedEffortFile) return
+    let cancelled = false
+    setIsFileLoading(true)
+    setFileContent('')
+    setOriginalContent('')
+    teamService.getEffortWorkspaceContent(selectedEffortFile.workspace.effortRef, selectedEffortFile.file.path)
+      .then((result) => {
+        if (!cancelled) setFileContent(result.content)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        console.warn('[TeamFilesTab] Failed to load effort workspace file:', error)
+        toast({
+          title: 'Unable to load effort file',
+          description: 'The linked effort workspace may no longer be available.',
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setIsFileLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedEffortFile])
 
   // Handle highlight request: auto-select file and create match decorations
   useEffect(() => {
@@ -341,8 +420,17 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     }
 
     ensureExpandedForPath(path)
+    setSelectedEffortFile(null)
     setSelectedPath(path)
   }, [ensureExpandedForPath, isFileDirty, selectedPath])
+
+  const handleSelectEffortFile = useCallback((workspace: EffortWorkspace, file: EffortWorkspaceFile) => {
+    if (file.isDir) return
+    if (isFileDirty && !window.confirm('You have unsaved changes. Discard them?')) return
+    setContextMenu(null)
+    setSelectedPath(null)
+    setSelectedEffortFile({ workspace, file })
+  }, [isFileDirty])
 
   const handleSaveFile = useCallback(async () => {
     if (!selectedPath || !isFileEditorActive || !isFileDirty) return
@@ -607,7 +695,8 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
 
   return (
     <>
-      <div ref={filesContainerRef} className={cn('h-full flex min-h-0', isFilesSidebarResizing && 'select-none', className)}>
+      <div className={cn('flex h-full min-h-0 flex-col', className)}>
+        <div ref={filesContainerRef} className={cn('flex min-h-0 flex-1', isFilesSidebarResizing && 'select-none')}>
         {isFilesSidebarCollapsed ? (
           <div className="flex-shrink-0 w-10 border-r border-border flex flex-col items-center py-2">
             <button
@@ -623,7 +712,7 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
           <>
             <div className="flex-shrink-0 border-r border-border flex flex-col min-h-0" style={{ width: filesSidebarWidth }}>
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Shared Files</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Files</span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -635,7 +724,7 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
                   </button>
                   <button
                     type="button"
-                    onClick={() => void refreshFiles()}
+                    onClick={() => { void refreshFiles(); void refreshEffortWorkspaces() }}
                     className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                     title="Refresh"
                   >
@@ -653,12 +742,50 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
               </div>
 
               <div className="flex-1 overflow-y-auto px-2 py-2">
+                <div className="mb-3">
+                  <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Team shared</div>
                 {files.length === 0 ? (
                   <div className="text-xs text-muted-foreground px-2 py-4">
                     No shared files yet. Create a file to get started.
                   </div>
                 ) : (
                   renderNode(tree)
+                )}
+                </div>
+                {showEffortWorkspaces && (
+                  <div className="border-t border-border pt-3">
+                    <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Effort workspaces</div>
+                    {effortWorkspacesLoading ? <div className="px-2 py-2 text-xs text-muted-foreground">Loading linked workspaces…</div> : null}
+                    {!effortWorkspacesLoading && effortWorkspaces.length === 0 && effortWorkspacesUnavailable.length === 0 ? (
+                      <div className="px-2 py-2 text-xs text-muted-foreground">No linked workspace files.</div>
+                    ) : null}
+                    {effortWorkspacesUnavailable.length > 0 ? (
+                      <div className="px-2 py-2 text-xs text-muted-foreground" title={effortWorkspacesUnavailable.map((item) => `${item.effortRef}: ${item.reason}`).join('\n')}>
+                        Linked workspace unavailable
+                      </div>
+                    ) : null}
+                    {effortWorkspaces.map((workspace) => (
+                      <div key={workspace.effortRef} className="mt-2">
+                        <div className="px-2 text-xs font-medium text-foreground" title={workspace.effortRef}>{workspace.slug}</div>
+                        {workspace.files.map((file) => (
+                          <button
+                            key={`${workspace.effortRef}:${file.path}`}
+                            type="button"
+                            disabled={file.isDir}
+                            onClick={() => handleSelectEffortFile(workspace, file)}
+                            className={cn(
+                              'w-full flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground',
+                              selectedEffortFile?.workspace.effortRef === workspace.effortRef && selectedEffortFile.file.path === file.path ? 'bg-primary/15 text-primary' : 'hover:bg-muted',
+                              file.isDir && 'cursor-default'
+                            )}
+                          >
+                            {file.isDir ? <Folder className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                            <span className="truncate">{file.path}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -674,19 +801,31 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
         )}
 
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-          {!selectedPath && (
+          {!selectedPath && !selectedEffortFile && (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Select a file to view or edit.
             </div>
           )}
 
-          {selectedPath && isDirectorySelected && (
+          {selectedEffortFile && (
+            <div className="flex h-full min-h-0 flex-col overflow-auto p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="break-all text-sm font-medium">{selectedEffortFile.file.path}</h4>
+                  <p className="text-xs text-muted-foreground">{selectedEffortFile.workspace.slug} · Read only</p>
+                </div>
+              </div>
+              {isFileLoading ? <p className="text-sm text-muted-foreground">Loading file…</p> : <pre className="whitespace-pre-wrap break-words rounded border border-border bg-muted/20 p-3 font-mono text-xs">{fileContent}</pre>}
+            </div>
+          )}
+
+          {selectedPath && !selectedEffortFile && isDirectorySelected && (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Select a file to view or edit.
             </div>
           )}
 
-          {selectedPath && isFileEditorActive && (
+          {selectedPath && !selectedEffortFile && isFileEditorActive && (
             <div className="flex-1 min-h-0">
               {isFileLoading ? (
                 <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
@@ -712,6 +851,7 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -862,23 +1002,21 @@ function TeamFileContextMenu({
       }
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
     }, 0)
 
     return () => {
       clearTimeout(timer)
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
     }
   }, [onClose])
+
+  useGlobalKeydown((event) => {
+    if (event.key === 'Escape') {
+      onClose()
+    }
+  }, { target: 'document' })
 
   useEffect(() => {
     if (!menuRef.current) return

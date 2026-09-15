@@ -1,0 +1,419 @@
+[
+  {
+    "bundle_key": "business_suite",
+    "app_key": "browser-automation-studio",
+    "name": "Browser Automation Studio",
+    "tagline": "Browser workflows and replay evidence",
+    "description": "A separate staged product for visual browser workflows, testing, and replay evidence.",
+    "install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
+    "install_steps": [
+      "Download the installer for your OS",
+      "Launch the setup wizard and finish the install",
+      "Sign in with your subscription email to unlock the workspace"
+    ],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk"
+    },
+    "platforms": [
+      {
+        "bundle_key": "business_suite",
+        "app_key": "browser-automation-studio",
+        "platform": "windows",
+        "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
+        "release_version": "1.0.0",
+        "release_notes": "Initial Browser Automation Studio release.",
+        "requires_entitlement": true,
+        "metadata": {
+          "size_mb": 210
+        }
+      },
+      {
+        "bundle_key": "business_suite",
+        "app_key": "browser-automation-studio",
+        "platform": "mac",
+        "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
+        "release_version": "1.0.0",
+        "release_notes": "Universal build for Apple Silicon and Intel.",
+        "requires_entitlement": true,
+        "metadata": {
+          "size_mb": 190
+        }
+      },
+      {
+        "bundle_key": "business_suite",
+        "app_key": "browser-automation-studio",
+        "platform": "linux",
+        "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
+        "release_version": "1.0.0",
+        "release_notes": "AppImage bundle tested on Ubuntu/Debian.",
+        "requires_entitlement": true,
+        "metadata": {
+          "size_mb": 205
+        }
+      }
+    ]
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "landing-page-business-suite",
+    "name": "Aquila",
+    "tagline": "The subscription authority",
+    "description": "The hosted account and entitlement authority for the business suite.",
+    "install_overview": "Hosted service; no local installer.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "platform",
+      "source": "offer-desk"
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "web-console",
+    "name": "Aquila",
+    "tagline": "Your calm Vrooli command center",
+    "description": "Browser command center for durable sessions, pane-based workflows, and AI-assisted input.",
+    "install_overview": "Open Aquila in your browser.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": true,
+      "catalog_status": "live",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ],
+      "web_url": "/app/web-console",
+      "signing_notice": {
+        "enabled": true,
+        "title": "Preview release: code signing in progress",
+        "body": "This build ships ahead of full platform code signing, so your operating system may show an unidentified-developer warning. Download only from vrooli.com, verify the checksum shown with the release, and review the full source in our public repository.",
+        "severity": "info",
+        "link_label": "Review the source",
+        "link_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console"
+      }
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "audio-tools",
+    "name": "Vrooli Audio Tools",
+    "tagline": "Durable voice infrastructure",
+    "description": "Hosted audio capability for long-form dictation, speech synthesis, and speaker services.",
+    "install_overview": "Hosted service; audio-tools is provisioned as part of the Vrooli workspace.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "voice_minutes",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "git-control-tower",
+    "name": "Git Control Tower",
+    "tagline": "A calmer command center for shipping code",
+    "description": "A focused Git workflow surface for solo developers and small teams.",
+    "install_overview": "Hosted capability; desktop and store releases can be added here when published.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "agent-manager",
+    "name": "Agent Manager",
+    "tagline": "Coordinate capable agents with confidence",
+    "description": "Supervise agent runs, budgets, and execution evidence from one place.",
+    "install_overview": "Hosted capability; release links are configured independently from the catalog record.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "swarm-manager",
+    "name": "Swarm Manager",
+    "tagline": "Turn a backlog into measured progress",
+    "description": "Plan, supervise, and review autonomous work across your projects.",
+    "install_overview": "Hosted capability; release links are configured when the deployment gate clears.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "prompt-manager",
+    "name": "Prompt Manager",
+    "tagline": "A durable home for skills and teams",
+    "description": "Organize prompts, skills, teams, and reusable agent operating knowledge.",
+    "install_overview": "Hosted capability; publication and download links are added through admin settings.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "app-library",
+    "name": "App Library",
+    "tagline": "Discover the capabilities you already own",
+    "description": "Browse and launch the growing collection of Vrooli business capabilities.",
+    "install_overview": "Hosted capability; public launch follows its deployment readiness review.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "scenario-to-plugin",
+    "name": "Scenario to Plugin",
+    "tagline": "Publish trusted capabilities for agents",
+    "description": "Compose, validate, attest, and release Agent Plugins with evidence-backed gates.",
+    "install_overview": "Agent-facing capability; publication links are configured after a release gate passes.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "enabling",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ],
+      "agent_plugin": true
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "vrooli-onboarding",
+    "name": "Vrooli Onboarding",
+    "tagline": "Get from idea to useful capability faster",
+    "description": "A guided path through setup, account access, and the first useful workflow.",
+    "install_overview": "Hosted capability; release links are configured through admin settings.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "vrooli-bridge",
+    "name": "Vrooli Bridge",
+    "tagline": "Connect local capability to the suite",
+    "description": "A bridge for composing local scenarios and shared bundle services.",
+    "install_overview": "Hosted and local deployment links are configured when the release is ready.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "workflow_executions"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "notification-hub",
+    "name": "Notification Hub",
+    "tagline": "Keep important work moving",
+    "description": "Route reliable notifications across the workflows your business depends on.",
+    "install_overview": "Hosted capability; channels and release links are configured through admin settings.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "device-control",
+    "name": "Device Control",
+    "tagline": "Bring useful local actions into your workflows",
+    "description": "Coordinate approved device and local-machine actions from Vrooli workflows.",
+    "install_overview": "Local capability; desktop release links are configured after qualification.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "switchboard",
+    "name": "Switchboard",
+    "tagline": "See the work and choose the next move",
+    "description": "A clear operating surface for coordinating business capabilities and decisions.",
+    "install_overview": "Hosted capability; release links are configured through admin settings.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "treasury",
+    "name": "Treasury",
+    "tagline": "Make business finances easier to operate",
+    "description": "A future financial operations surface for revenue, costs, and business posture.",
+    "install_overview": "Hosted capability; release links are configured when the financial surface is ready.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "system-monitor",
+    "name": "System Monitor",
+    "tagline": "Know what your local stack is doing",
+    "description": "A calm operational view of local resources, scenario health, and the signals that keep work moving.",
+    "install_overview": "Hosted capability; desktop and local deployment links are configured after qualification.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "portal",
+    "name": "Vrooli Portal",
+    "tagline": "One front door for your Vrooli workspace",
+    "description": "A focused home for discovering, launching, and understanding the business capabilities in your suite.",
+    "install_overview": "Hosted capability; public launch follows its deployment readiness review.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription"
+      ]
+    },
+    "platforms": []
+  },
+  {
+    "bundle_key": "business_suite",
+    "app_key": "vrooli-memory",
+    "name": "Vrooli Memory",
+    "tagline": "Keep valuable context available",
+    "description": "Durable memory and learning signals that help your Vrooli capabilities improve over time.",
+    "install_overview": "Hosted capability; release links are configured when the memory surface is ready.",
+    "install_steps": [],
+    "storefronts": [],
+    "metadata": {
+      "enabled": false,
+      "catalog_status": "planned",
+      "source": "offer-desk",
+      "feature_gates": [
+        "subscription",
+        "ai_credits"
+      ]
+    },
+    "platforms": []
+  }
+]
+

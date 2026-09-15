@@ -17,6 +17,10 @@ func TestSanitizeAppName(t *testing.T) {
 		{"leading/trailing whitespace", "  My App  ", "my-app"},
 		{"uppercase", "MYAPP", "myapp"},
 		{"mixed case", "MyApp", "myapp"},
+		{"dot", "My App 2.0", "my-app-2-0"},
+		{"punctuation", "Acme Ltd.", "acme-ltd"},
+		{"unicode", "Café Tools", "café-tools"},
+		{"underscore", "app_v1", "app-v1"},
 	}
 
 	for _, tt := range tests {

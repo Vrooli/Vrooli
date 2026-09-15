@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
-func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
+func TestPrinterKeepsFailureReportConcise(t *testing.T) {
 	tmp := t.TempDir()
 
 	unitLog := filepath.Join(tmp, "unit.log")
@@ -44,14 +45,14 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	pr.Print(resp)
 
 	out := buf.String()
-	for _, token := range []string{
-		"QUICK FIX GUIDE:",
-		"PHASE-SPECIFIC DEBUG GUIDES:",
-		"UI bundle",
-		"artifact roots:",
-	} {
+	for _, token := range []string{"ERROR DIGEST:", "UI bundle", "artifact roots:"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("expected output to contain %q\n----\n%s\n----", token, out)
+		}
+	}
+	for _, token := range []string{"QUICK FIX GUIDE:", "PHASE-SPECIFIC DEBUG GUIDES:", "DOCUMENTATION:"} {
+		if strings.Contains(out, token) {
+			t.Fatalf("failure report should not reintroduce redundant section %q\n----\n%s\n----", token, out)
 		}
 	}
 }
@@ -107,12 +108,12 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 func TestPrintPrePlanShowsDocs(t *testing.T) {
 	var buf bytes.Buffer
 	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
-	pr.PrintPreExecution([]string{"lint"})
+	pr.PrintPreExecution([]string{"quality"})
 
 	out := buf.String()
-	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/lint/README.md")
+	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/quality/README.md")
 	if !strings.Contains(out, "docs: "+expectedDoc) {
-		t.Fatalf("expected lint doc link in plan, got:\n%s", out)
+		t.Fatalf("expected quality doc link in plan, got:\n%s", out)
 	}
 }
 

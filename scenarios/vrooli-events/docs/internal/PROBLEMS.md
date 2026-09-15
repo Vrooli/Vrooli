@@ -8,8 +8,10 @@ Access control rules, CRUD API, evaluation engine, violation logging, circuit br
 ### P1 — Discovery integration fully implemented (Phase 13.4)
 All 7 discovery-integration requirements are complete. Packages: internal/emitter (fire-and-forget), internal/headers (X-Source-Scenario injection), internal/fallback (zero-dep fallback), internal/resolver (EmittingResolver with sender-side policy cache), internal/middleware (receiver-side policy middleware with graceful degradation). Each has dedicated tests.
 
-### P1 — Persistent subscriptions complete
-CRUD API, glob pattern validation, health tracking endpoint, test endpoint, and webhook delivery infrastructure are all implemented.
+### P1 — Persistent subscription fan-out now has a durable delivery path
+CRUD API, glob pattern validation, health tracking, signed webhook delivery,
+idempotent queue rows, retry, and dead-letter accounting are implemented. The
+remaining operational proof is a live receiver run in the scenario suite.
 
 ### P2 — Retention settings are hardcoded
 Pruning uses hardcoded 30-day retention and 2GB size cap. Configurable settings via API/UI are specified in REQ-ES-004 but not yet implemented.
@@ -28,6 +30,19 @@ OT-P2-008 specifies event replay (re-emit historical events to a subscription). 
 ### Metrics export format
 OT-P2-009 specifies Prometheus-compatible /metrics endpoint. Deferred until there's a concrete Grafana/monitoring integration need.
 
+### Aggregate/count surface over receipts — resolved 2026-08-18
+`meta-optimization-manager`'s Condition axis names this scenario as the **single fleet-wide source for the Exercise signal family** — how often each capability is actually invoked. See `path:../meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Fleet-wide exercise". The design is deliberate: `vrooli.events.receipt.v1` is emitted target-side by every scenario served by `api-core/server.Run`, caller-agnostic, so one aggregate here serves all four projections at once and no projection owner has to implement exercise counting independently.
+
+The aggregate path is now implemented:
+
+- `ReceiptAggregateService.AggregateReceipts` groups durable receipt envelopes by target scenario and operation over a bounded window, returning invocation counts, verified distinct callers, unattributed remainder, and last-invoked timestamps.
+- The operation is exposed through the governed CLI manifest as `vrooli-events aggregate` in the Events command group, with verified `proto_list` primitive evidence.
+- The command declares the `receipts.invocations` measure, and Program Runtime consumes one fleet aggregate for each condition window rather than fanning out per scenario.
+
+Distinct-caller counts remain bounded by attribution: only verified Agent Manager identity claims may set a receipt's subject and agent correlation, so the aggregate reports the unattributed remainder rather than silently undercounting. Invocation counts and last-invoked timestamps are unaffected. SQLite single-writer scaling remains a separate deferred decision below.
+
+Validation: store grouping/window/attribution tests, API tests, CLI tests, and `cli-health validate scenario vrooli-events --include-execution` all pass for the new surface. The post-fix authoritative scenario suite `20260818-220718-e21f40ec` passes 21/21; its remaining UI, standards, docs, security, and template findings are advisory maturity debt, not failed phases.
+
 ### SQLite single-writer scaling
 At very high throughput, SQLite's single-writer model could become a bottleneck. Current mitigations (WAL mode, async ingestion) should handle the current scale. If this becomes a real problem, options include:
 - Write-ahead buffer with batch commits
@@ -37,6 +52,20 @@ At very high throughput, SQLite's single-writer model could become a bottleneck.
 This is explicitly deferred as a non-goal for the current phase.
 
 ## Tech Debt
+
+### P2 — subscribeSSE double-dispatches unnamed messages (discovered via new SSE seam, 2026-04-20)
+`ui/src/lib/api.ts#subscribeSSE` attaches the same `handleSSEData` callback both as
+`addEventListener("message", ...)` and as `es.onmessage`. In a real EventSource both
+listeners fire for the same default (unnamed) server event, so `opts.onEvent` runs twice
+per message. The new `api.behavior.test.ts > parses incoming message data` test locks in
+the current behavior (`toHaveBeenCalledTimes(2)`) and the new `mockEventSource` seam made
+this visible for the first time.
+Fix direction: either (a) register only `addEventListener("message", ...)` and delete
+the `es.onmessage = handleSSEData` line (the `addEventListener` path already handles both
+unnamed SSE messages and the jsdom-style fallback we care about), or (b) wrap the handler
+in a once-per-event de-duplicator keyed on `e.data + e.lastEventId`. Option (a) is
+simpler and matches EventSource semantics. Deferred to a dedicated UI-behavior phase so we
+can also add named-event support (`event: policy_update`) via `addEventListener(name, …)`.
 
 ### PRD emoji formatting (blocks standards phase)
 The scenario-auditor requires PRD subsections to use emoji prefixes (🔴 P0, 🟠 P1, 🟢 P2) but the PRD uses plain text. PRD is read-only per task instructions. This is the sole remaining HIGH violation (3 violations) blocking the standards test phase.

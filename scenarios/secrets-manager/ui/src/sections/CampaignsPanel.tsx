@@ -44,7 +44,7 @@ export const CampaignsPanel = ({
           acc.count += 1;
           acc.covered += summary?.strategized_secrets ?? 0;
           acc.total += summary?.total_secrets ?? 0;
-          const blockers = summary?.requires_action ?? (campaign.blockers > 0 ? campaign.blockers : defaultBlockedTiers);
+          const blockers = summary ? summary.requires_action : (campaign.blockers > 0 ? campaign.blockers : defaultBlockedTiers);
           acc.blockers += blockers;
           return acc;
         },
@@ -187,7 +187,9 @@ export const CampaignsPanel = ({
                 ) : (
                   filtered.map((campaign) => {
                     const isActive = campaign.scenario === selectedScenario;
-                    const blockers = campaign.blockers > 0 ? campaign.blockers : defaultBlockedTiers;
+                    const blockers = campaign.summary
+                      ? campaign.summary.requires_action
+                      : (campaign.blockers > 0 ? campaign.blockers : defaultBlockedTiers);
                     const coverage =
                       campaign.summary && campaign.summary.total_secrets > 0
                         ? `${campaign.summary.strategized_secrets}/${campaign.summary.total_secrets}`

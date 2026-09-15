@@ -1,6 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "api-library",
     "displayName": "API Library",
@@ -28,6 +32,9 @@
       "url": "https://github.com/Vrooli/Vrooli",
       "directory": "/scenarios/api-library"
     },
+    "capabilities": [
+      "search"
+    ],
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
@@ -42,7 +49,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "dependencies": {
@@ -50,35 +57,26 @@
       "postgres": {
         "enabled": true,
         "database": "api_library",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "enabled": true,
         "collection": "api_embeddings",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/config.json",
-            "type": "config"
-          }
-        ]
+        "startup_policy": "try_start"
       },
       "redis": {
         "enabled": false,
-        "purpose": "API data caching"
+        "purpose": "Optional response cache, currently disabled. The Go code carries a client but the resource is not enabled, so no runtime path depends on Redis being present.",
+        "required": false,
+        "startup_policy": "try_start"
       },
       "ollama": {
         "enabled": false,
-        "model": "nomic-embed-text",
-        "purpose": "Generate embeddings for semantic search"
+        "model_roles": [
+          "embedding.default"
+        ],
+        "purpose": "Generate embeddings for semantic search",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -108,117 +106,97 @@
           "interval": 30000
         }
       ]
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "api-library",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
     },
-    "setup": {
-      "description": "Initialize API Library",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/api-library-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "api-library",
-            "targets": [
-              "api-library"
-            ]
-          }
-        ]
+    "invoke": {
+      "kind": "installed_command",
+      "command": "api-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
       },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "VROOLI_LIFECYCLE_MANAGED": "true"
         },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o api-library-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace --filter api-library-ui --config.lockfile-dir=./ --no-frozen-lockfile",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
-          "description": "Display service access URLs"
-        }
-      ]
+        "port": "api",
+        "cwd": "api"
+      }
     },
-    "shutdown": {
-      "description": "Shutdown order: ui -> api -> qdrant -> postgres (allow 10s between components)"
-    },
-    "stop": {
-      "description": "Stop api-library services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"api-library-api\" || true; sleep 1; pkill -9 -f \"api-library-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/api-library/ui\" || true; sleep 1; pkill -9 -f \"scenarios/api-library/ui\" 2>/dev/null || true",
-          "description": "Stop UI process"
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator, currently disabled. The scenario runs without Redis."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
         }
-      ]
-    },
-    "develop": {
-      "description": "Development mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && unset POSTGRES_URL && VROOLI_LIFECYCLE_MANAGED=true API_PORT=${API_PORT:-15100} POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=lUq9qvemypKpuEeXCV6Vnxak1 POSTGRES_DB=api_library QDRANT_URL=http://localhost:6333 OLLAMA_URL=http://localhost:11434 ./api-library-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/api-library-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start production UI server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
-          "description": "Display running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for api-library",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute api-library --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

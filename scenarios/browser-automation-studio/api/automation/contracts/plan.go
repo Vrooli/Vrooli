@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 const (
@@ -121,6 +122,10 @@ type CompiledInstruction struct {
 	Metadata    map[string]string `json:"metadata,omitempty"` // Freeform, engine-agnostic hints (e.g., labels).
 	// Action is the typed action definition with full type safety.
 	Action *basactions.ActionDefinition `json:"action,omitempty"`
+	// Telemetry carries per-step collection intent to the driver. Omitted means
+	// "use driver defaults", so an instruction built without it behaves exactly
+	// as it did before the directive existed.
+	Telemetry *basexecution.StepTelemetryDirective `json:"telemetry,omitempty"`
 }
 
 // PlanGraph preserves branching/loop metadata from the compiled workflow so

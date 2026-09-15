@@ -1,0 +1,89 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "vrooli-memory.choose-option",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Choose among current caller-approved options using exact-context structured memory advice, retaining a deterministic fallback without executing any option.",
+  "inputs": {
+    "options": {
+      "type": "array",
+      "required": true
+    },
+    "default_id": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "The domain owner supplies the allowed set",
+    "Memory is advice, never execution authority"
+  ],
+  "invariants": [
+    "No binding or model is called",
+    "No option outside the allowed set is returned",
+    "Conflicting and truncated advice cannot override the fallback"
+  ],
+  "bindings": [],
+  "verbs": [
+    "tasks.current"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "selected_id": "Allowed recommendation",
+      "source": "advice or default",
+      "conflicting": "Multiple matching preferences disagree",
+      "learning": "Explicit advice decisions for parent capture"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "advice_unavailable",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Matched advice entry IDs; not task outcome proof"
+  },
+  "budget": {
+    "wall_ms": 1000,
+    "async": true,
+    "async_reason": "The choice read can cross the memory service boundary beyond the one-second synchronous budget; callers wait once for its terminal result.",
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-options",
+      "inputs": {
+        "options": [],
+        "default_id": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "vrooli-memory"
+}

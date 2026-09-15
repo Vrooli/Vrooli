@@ -1,0 +1,21 @@
+{
+  "scenario": "go-mislocated",
+  "languages": ["go"],
+  "files": [
+    { "id": "f-right-service", "path": "api/internal/right/service.go", "package_id": "p-right", "language": "go", "lines": 8 }
+  ],
+  "packages": [
+    { "id": "p-right", "import_path": "example.com/go-mislocated/api/internal/right", "repo_path": "api/internal/right", "language": "go", "internal": true }
+  ],
+  "symbols": [
+    {
+      "id": "s-wrong-reporter",
+      "name": "WrongThingReporter",
+      "package_id": "p-right",
+      "file_id": "f-right-service",
+      "kind": "go_type",
+      "exported": true
+    }
+  ],
+  "imports": []
+}

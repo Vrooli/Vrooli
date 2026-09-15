@@ -1,0 +1,7 @@
+{
+  "source": "shared-cli-scope-catalog",
+  "default_grants": ["read", "write"],
+  "outputs": [
+    {"verb": "scenario screenshot", "entries": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]}
+  ]
+}

@@ -260,6 +260,9 @@ func payloadFromActionParams(action *basactions.ActionDefinition) map[string]int
 		if nav.TimeoutMs != nil {
 			payload["timeoutMs"] = nav.GetTimeoutMs()
 		}
+		if nav.WaitUntil != nil {
+			payload["waitUntil"] = navigateWaitEventString(nav.GetWaitUntil())
+		}
 	case *basactions.ActionDefinition_Scroll:
 		scroll := params.Scroll
 		if scroll == nil {
@@ -348,6 +351,19 @@ func payloadFromActionParams(action *basactions.ActionDefinition) map[string]int
 	}
 
 	return payload
+}
+
+func navigateWaitEventString(event basactions.NavigateWaitEvent) string {
+	switch event {
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD:
+		return "load"
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED:
+		return "domcontentloaded"
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE:
+		return "networkidle"
+	default:
+		return ""
+	}
 }
 
 func jsonValueToInterface(value *commonv1.JsonValue) interface{} {

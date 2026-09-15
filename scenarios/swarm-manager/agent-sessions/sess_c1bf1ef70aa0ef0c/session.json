@@ -1,0 +1,13 @@
+{
+  "id": "sess_c1bf1ef70aa0ef0c",
+  "title": "Discuss Advanced Diff UX for Initiative Proposals",
+  "kind": "meta_orchestration",
+  "status": "draft",
+  "skill_id": "swarm-manager-meta-orchestrator",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-14T01:54:23Z",
+  "updated_at": "2026-07-14T01:54:23Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

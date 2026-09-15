@@ -75,6 +75,10 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
           testId: 'nav-customization',
         },
         {
+          id: 'presentation', name: 'Presentation', description: 'Edit and preview published product pages',
+          icon: Layers, path: '/admin/presentation', testId: 'nav-presentation',
+        },
+        {
           id: 'analytics',
           name: 'Analytics',
           description: 'View conversion metrics and performance data',
@@ -278,6 +282,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   '/admin/usage': 'Usage',
   '/admin/branding': 'Branding',
   '/admin/customization': 'Customization',
+  '/admin/presentation': 'Presentation',
   '/admin/customization/agent': 'Agent',
   '/admin/analytics': 'Analytics',
   '/admin/tiers': 'Plans',

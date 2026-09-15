@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Agent Inbox UI manifest",
+  "description": "Declares the conversation-family shell disposition for Agent Inbox.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/App.tsx",
+    "export": "default"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "slots": {
+    "layout-shell": {
+      "dir": "ui/src"
+    }
+  }
+}

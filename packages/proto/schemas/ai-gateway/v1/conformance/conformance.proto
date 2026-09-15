@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.conformance;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance;conformance_v1";
+
+message ConformanceFinding {
+  string rule_id = 1;
+  string severity = 2;
+  string path = 3;
+  string message = 4;
+  string remediation = 5;
+}
+
+message ScanScenarioRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message ScanScenarioResponse {
+  string scenario = 1;
+  string maturity_level = 2;
+  repeated ConformanceFinding findings = 3;
+  repeated string recommendations = 4;
+}
+
+service ConformanceService {
+  rpc ScanScenario(ScanScenarioRequest) returns (ScanScenarioResponse);
+}

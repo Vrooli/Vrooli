@@ -1,0 +1,42 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "prompt-manager",
+  "phase": "skill-set",
+  "displayName": "Skill Set",
+  "description": "Validates scenario skill declarations and their reachable sources.",
+  "source": "validation-provider",
+  "orderHint": 18,
+  "timeout": "90s",
+  "findingSource": "skills",
+  "validation": {"contract": "scenario-validation/v1", "includeExecution": false},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "applicability": {"default": "applies"},
+  "policy": {"selection": "default_when_applicable", "providerReadiness": "best_effort", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "advisory", "unavailable": "skip_without_failing"},
+  "runnability": {},
+  "concurrency": {"mode": "provider-serial"},
+  "docs": {"path": "scenarios/test-genie/docs/phases/skill-set/README.md"},
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {"id": "L0", "name": "Skill set unavailable", "description": "The declaration cannot be read.", "status_label": "Unavailable", "next_unlock": "Readable service metadata."},
+      {"id": "L1", "name": "Skill set inspectable", "description": "Declared roles can be inspected.", "status_label": "Foundation", "next_unlock": "Clear declaration findings."},
+      {"id": "L2", "name": "Skill set clean", "description": "Declared skill roles point to reachable sources.", "status_label": "Complete", "capability_summary": "Scenario skill declarations are readable and reachable."}
+    ],
+    "capabilities": [
+      {"id": "declaration_integrity", "label": "Declaration Integrity", "description": "Skill role declarations are readable and point to existing sources.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Declaration unavailable.", "next_unlock": "Readable metadata."}, {"id": "L1", "name": "Readable", "description": "Declaration readable.", "next_unlock": "Reachable sources."}, {"id": "L2", "name": "Clean", "description": "Sources reachable.", "capability_summary": "Skill role declarations are clean."}]},
+      {"id": "role_coverage", "label": "Role Coverage", "description": "Every structurally owed skill role is declared or explicitly waived.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Role triggers cannot be read.", "next_unlock": "Readable metadata."}, {"id": "L1", "name": "Inspectable", "description": "Role triggers are readable.", "next_unlock": "Covered roles."}, {"id": "L2", "name": "Covered", "description": "Owed roles are covered.", "capability_summary": "Every owed role has an explicit owner."}]},
+      {"id": "dialect_conformance", "label": "Dialect Conformance", "description": "Declared skills use the governed frontmatter dialect.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Skill sources cannot be read.", "next_unlock": "Readable sources."}, {"id": "L1", "name": "Inspectable", "description": "Skill sources can be checked.", "next_unlock": "Conformant dialect."}, {"id": "L2", "name": "Conformant", "description": "Skill sources use the governed dialect.", "capability_summary": "Skill declarations are consumable by the registry."}]}
+    ],
+    "findings": {
+      "skill-set.service_missing": {"capability_id": "declaration_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": []},
+      "skill-set.service_malformed": {"capability_id": "declaration_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": []},
+      "skill-set.source_missing": {"capability_id": "declaration_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required", "recommended_skill_ids": []}
+      ,"skill-set.role_missing": {"capability_id": "role_coverage", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required", "recommended_skill_ids": ["skill-set-authoring"]}
+      ,"skill-set.waiver_invalid": {"capability_id": "declaration_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["skill-set-authoring"]}
+      ,"skill-set.source_unreadable": {"capability_id": "declaration_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["skill-set-authoring"]}
+      ,"skill-set.dialect_invalid": {"capability_id": "dialect_conformance", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "standards", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["skill-set-authoring"]}
+    },
+    "fallback": {"capability_id": "declaration_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required"}
+  }
+}

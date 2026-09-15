@@ -192,7 +192,7 @@ All P0 and P1 requirements tested and verified working:
   - Availability checking with time range validation
 
 **Technical Enhancements**:
-- Added initialization/postgres/resources.sql schema
+- Added api/internal/<domain>/resources.sql schema
 - Created ResourceManager
 - Integrated resource booking into main API router
 - Added support for multiple resource types

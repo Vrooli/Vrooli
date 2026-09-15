@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "music-tools",
+    "displayName": "Music Tools",
+    "description": "Local-first music capability primitive: generation, transformation, and analysis via CLI, UI, and API",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-19T04:25:07Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a900506f4c658fdc0235b6b3b36665d7cd18676723f90e3184e0c6b69864d342"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "music-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "music-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

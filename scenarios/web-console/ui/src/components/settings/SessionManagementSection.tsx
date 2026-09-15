@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
+  Archive,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -9,16 +10,22 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../../consts/strings";
 import { HEADER_COLORS } from "../../consts/config";
 import { BACKEND_OPTIONS } from "../../consts/backend-options";
 import { POLICY_OPTIONS, parsePolicySelection, policyKey } from "../../consts/policy-options";
 import { useCountdown } from "../../hooks/useCountdown";
 import { useWorkspaceSync } from "../../hooks/useWorkspaceSync";
-import type { BackendID, PolicyMode, SessionInfo } from "../../lib/api";
-import { toErrorInfo, updateSessionPolicy, getSessionDefaults, updateSessionDefaults, fetchCapabilities } from "../../lib/api";
+import type { ArchiveRetentionSnapshot, BackendID, PolicyMode, SessionInfo } from "../../api/sessions";
+import { getArchiveRetention, updateSessionPolicy } from "../../api/sessions";
+import { toErrorInfo } from "../../lib/errors";
+import { getSessionDefaults, updateSessionDefaults } from "../../api/settings";
+import { fetchCapabilities } from "../../api/capabilities";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 function SessionPolicyControl({
   session,
@@ -60,6 +67,7 @@ function SessionPolicyControl({
 }
 
 function SessionDefaultsControl() {
+  const { t } = useTranslation();
   const [defaultBackend, setDefaultBackend] = useState<BackendID>("standard");
   const [defaultPolicyKey, setDefaultPolicyKey] = useState<string>("never");
   const [availableBackends, setAvailableBackends] = useState<BackendID[]>(["standard"]);
@@ -119,17 +127,17 @@ function SessionDefaultsControl() {
   const backendOptions = BACKEND_OPTIONS.filter((b) => availableBackends.includes(b.id));
 
   return (
-    <SettingsCard className="space-y-3">
+    <SettingsList.Group>
       <div>
-        <div className="text-sm font-medium text-wc-text-secondary">Session Defaults</div>
+        <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultsTitle)}</div>
         <div className="text-[11px] text-wc-text-muted">
-          These defaults pre-populate the launch dialog. You can override per session.
+          {t(strings.settings.sessionsSection.defaultsHint)}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {showBackendSelector && (
           <div className="flex items-center gap-2">
-            <label className="text-xs text-wc-text-secondary">Default backend:</label>
+            <label className="text-xs text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultBackendLabel)}</label>
             <select
               data-testid="session-defaults-backend"
               className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -144,7 +152,7 @@ function SessionDefaultsControl() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-wc-text-secondary">Default timeout:</label>
+          <label className="text-xs text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultTimeoutLabel)}</label>
           <select
             data-testid="session-defaults-policy"
             className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -160,8 +168,20 @@ function SessionDefaultsControl() {
           </select>
         </div>
       </div>
-    </SettingsCard>
+    </SettingsList.Group>
   );
+}
+
+function formatStorageBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[index]}`;
 }
 
 interface SessionManagementSectionProps {
@@ -175,17 +195,20 @@ export default function SessionManagementSection({
   onDeleteSession,
   onRequestClose,
 }: SessionManagementSectionProps) {
+  const { t } = useTranslation();
   const panes = useWorkspaceStore((state) => state.panes);
+  const activePane = useWorkspaceStore((state) => state.activePane);
   const movePaneToIndex = useWorkspaceStore((state) => state.movePaneToIndex);
   const setActivePane = useWorkspaceStore((state) => state.setActivePane);
   const setPaneColor = useWorkspaceStore((state) => state.setPaneColor);
   const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
   const resetLayout = useWorkspaceStore((state) => state.resetLayout);
-  const { syncActivePane } = useWorkspaceSync();
+  const { syncActivePane, syncPaneOrder, syncPaneUpdate } = useWorkspaceSync();
 
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [policyError, setPolicyError] = useState<string | null>(null);
+  const [archiveRetention, setArchiveRetention] = useState<ArchiveRetentionSnapshot | null>(null);
   const policyErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -194,6 +217,18 @@ export default function SessionManagementSection({
         clearTimeout(policyErrorTimer.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getArchiveRetention()
+      .then((snapshot) => {
+        if (!cancelled) setArchiveRetention(snapshot);
+      })
+      .catch(() => {
+        if (!cancelled) setArchiveRetention(null);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const handlePolicyChange = useCallback(async (sessionId: string, mode: PolicyMode, duration?: string) => {
@@ -213,21 +248,46 @@ export default function SessionManagementSection({
   const sessionMap = new Map(sessions.map((item) => [item.session.id, item.session]));
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
-        eyebrow="Terminal Runtime"
-        title="Sessions"
-        description="Inspect active terminals, change expiration policies, reorder panes, and jump directly to the pane you need."
+    <SettingsList>
+      <SettingsList.Intro
+        eyebrow={t(strings.settings.sessionsSection.eyebrow)}
+        title={t(strings.settings.sessionsSection.title)}
+        description={t(strings.settings.sessionsSection.description)}
       />
 
       <SessionDefaultsControl />
 
-      <SettingsCard className="space-y-4">
+      <div
+        data-testid="archive-storage-summary"
+        data-entry-count={archiveRetention?.stats.entry_count ?? ""}
+        data-total-bytes={archiveRetention?.stats.total_bytes ?? ""}
+      >
+        <SettingsList.Group>
+          <div className="flex items-start gap-3">
+            <Archive className="mt-0.5 h-4 w-4 text-wc-accent" />
+            <div>
+              <div className="text-sm font-medium text-wc-text-secondary">
+                {t(strings.settings.sessionsSection.archiveStorageTitle)}
+              </div>
+              <div className="text-[11px] text-wc-text-muted">
+                {archiveRetention
+                  ? t(strings.settings.sessionsSection.archiveStorageSummary, {
+                      count: archiveRetention.stats.entry_count,
+                      size: formatStorageBytes(archiveRetention.stats.total_bytes),
+                    })
+                  : t(strings.settings.sessionsSection.archiveStorageLoading)}
+              </div>
+            </div>
+          </div>
+        </SettingsList.Group>
+      </div>
+
+      <SettingsList.Group>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-wc-text-secondary">Open terminals</div>
+            <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.openTerminals)}</div>
             <div className="text-[11px] text-wc-text-muted">
-              Sessions are server-side processes. Panes are their workspace views.
+              {t(strings.settings.sessionsSection.openTerminalsHint)}
             </div>
           </div>
           <Button
@@ -237,8 +297,8 @@ export default function SessionManagementSection({
             className="h-8 px-3 text-xs"
             onClick={resetLayout}
           >
-            <RotateCcw className="mr-1 h-3 w-3" />
-            Reset layout
+            <RotateCcw className="me-1 h-3 w-3" />
+            {t(strings.settings.sessionsSection.resetLayout)}
           </Button>
         </div>
 
@@ -253,9 +313,9 @@ export default function SessionManagementSection({
         )}
 
         {panes.length === 0 ? (
-          <div className="py-6 text-center text-xs text-wc-text-faint">No terminals open</div>
+          <div className="py-6 text-center text-xs text-wc-text-faint">{t(strings.settings.sessionsSection.noTerminalsOpen)}</div>
         ) : (
-          <div className="space-y-3">
+          <div>
             {panes.map((pane, index) => {
               const session = sessionMap.get(pane.sessionId);
               return (
@@ -277,19 +337,25 @@ export default function SessionManagementSection({
                                   : "rgb(var(--wc-surface-input))",
                             }}
                           />
-                          <div className="absolute left-0 top-full z-10 mt-1 hidden gap-1 rounded-xl border border-wc-default bg-wc-surface-raised p-2 shadow-xl group-hover:flex">
+                          <div className="absolute left-0 top-full z-wc-chrome mt-1 hidden gap-1 rounded-xl border border-wc-default bg-wc-surface-raised p-2 shadow-xl group-hover:flex">
                             <button
                               className="h-4 w-4 rounded-full border border-wc-default"
                               style={{ backgroundColor: "rgb(var(--wc-surface-input))" }}
-                              onClick={() => setPaneColor(pane.sessionId, "transparent")}
-                              title="No color"
+                              onClick={() => {
+                                setPaneColor(pane.sessionId, "transparent");
+                                syncPaneUpdate(pane.sessionId, { header_color: "transparent" });
+                              }}
+                              title={t(strings.settings.sessionsSection.noColor)}
                             />
                             {HEADER_COLORS.map((color) => (
                               <button
                                 key={color}
                                 className="h-4 w-4 rounded-full border border-wc-default"
                                 style={{ backgroundColor: color }}
-                                onClick={() => setPaneColor(pane.sessionId, color)}
+                                onClick={() => {
+                                  setPaneColor(pane.sessionId, color);
+                                  syncPaneUpdate(pane.sessionId, { header_color: color });
+                                }}
                                 title={color}
                               />
                             ))}
@@ -303,12 +369,20 @@ export default function SessionManagementSection({
                             autoFocus
                             onChange={(event) => setEditValue(event.target.value)}
                             onBlur={() => {
-                              if (editValue.trim()) renamePaneById(pane.sessionId, editValue.trim());
+                              if (editValue.trim()) {
+                                const trimmed = editValue.trim();
+                                renamePaneById(pane.sessionId, trimmed);
+                                syncPaneUpdate(pane.sessionId, { name: trimmed });
+                              }
                               setEditingName(null);
                             }}
                             onKeyDown={(event) => {
                               if (event.key === "Enter") {
-                                if (editValue.trim()) renamePaneById(pane.sessionId, editValue.trim());
+                                if (editValue.trim()) {
+                                  const trimmed = editValue.trim();
+                                  renamePaneById(pane.sessionId, trimmed);
+                                  syncPaneUpdate(pane.sessionId, { name: trimmed });
+                                }
                                 setEditingName(null);
                               } else if (event.key === "Escape") {
                                 setEditingName(null);
@@ -317,12 +391,12 @@ export default function SessionManagementSection({
                           />
                         ) : (
                           <button
-                            className="truncate text-left text-sm font-medium text-wc-text-secondary"
+                            className="truncate text-start text-sm font-medium text-wc-text-secondary"
                             onClick={() => {
                               setEditingName(pane.sessionId);
                               setEditValue(pane.name);
                             }}
-                            title="Rename pane"
+                            title={t(strings.settings.sessionsSection.renamePane)}
                           >
                             {pane.name}
                           </button>
@@ -333,7 +407,7 @@ export default function SessionManagementSection({
                         <div className="flex items-center gap-3">
                           {session.backend === "persistent" && (
                             <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-300">
-                              Persistent
+                              {t(strings.settings.sessionsSection.persistent)}
                             </span>
                           )}
                           <SessionPolicyControl session={session} onPolicyChange={handlePolicyChange} />
@@ -346,10 +420,18 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-up-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         disabled={index === 0}
-                        onClick={() => movePaneToIndex(pane.sessionId, index - 1)}
-                        title="Move up"
+                        onClick={() => {
+                          movePaneToIndex(pane.sessionId, index - 1);
+                          const reordered = [...panes];
+                          const removed = reordered.splice(index, 1);
+                          const moved = removed[0];
+                          if (moved) reordered.splice(index - 1, 0, moved);
+                          syncPaneOrder(reordered.map((entry) => entry.sessionId), activePane);
+                        }}
+                        title={t(strings.settings.sessionsSection.moveUp)}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
@@ -357,10 +439,18 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-down-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         disabled={index === panes.length - 1}
-                        onClick={() => movePaneToIndex(pane.sessionId, index + 1)}
-                        title="Move down"
+                        onClick={() => {
+                          movePaneToIndex(pane.sessionId, index + 1);
+                          const reordered = [...panes];
+                          const removed = reordered.splice(index, 1);
+                          const moved = removed[0];
+                          if (moved) reordered.splice(index + 1, 0, moved);
+                          syncPaneOrder(reordered.map((entry) => entry.sessionId), activePane);
+                        }}
+                        title={t(strings.settings.sessionsSection.moveDown)}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
                       </Button>
@@ -368,13 +458,14 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-focus-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         onClick={() => {
                           setActivePane(pane.sessionId);
                           syncActivePane(panes.map((entry) => entry.sessionId), pane.sessionId);
                           onRequestClose();
                         }}
-                        title="Focus pane"
+                        title={t(strings.settings.sessionsSection.focusPane)}
                       >
                         <Focus className="h-3.5 w-3.5" />
                       </Button>
@@ -382,9 +473,10 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-remove-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         onClick={() => onDeleteSession(pane.sessionId)}
-                        title="Terminate session"
+                        title={t(strings.settings.sessionsSection.terminateSession)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-wc-error-detail" />
                       </Button>
@@ -395,7 +487,7 @@ export default function SessionManagementSection({
             })}
           </div>
         )}
-      </SettingsCard>
-    </div>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "name": "collection-page-layout-phone",
+    "description": "Verify collection and inspector placement on phone and reject horizontal page overflow.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "collection-page",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library%3ACollectionPage/harness.html?story=composed-regions",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-collection-inspector]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "layout",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {const a=document.querySelector('[data-rcl-collection-primary]').getBoundingClientRect(),b=document.querySelector('[data-rcl-collection-inspector]').getBoundingClientRect(); const wide=window.innerWidth>=896; if(wide ? !(b.x>=a.right && Math.abs(a.y-b.y)<2) : !(b.y>=a.bottom && Math.abs(a.x-b.x)<2))throw Error('Incorrect collection/detail layout');if(document.documentElement.scrollWidth>window.innerWidth)throw Error('Horizontal overflow');return {wide,collection:{x:a.x,y:a.y,width:a.width},inspector:{x:b.x,y:b.y,width:b.width}};})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "0",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "1",
+      "source": "ready",
+      "target": "layout"
+    }
+  ]
+}

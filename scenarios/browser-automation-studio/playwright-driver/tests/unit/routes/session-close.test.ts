@@ -1,4 +1,4 @@
-import { handleSessionClose } from '../../../src/routes/session-close';
+import { handleSessionClose, handleSessionForceClose } from '../../../src/routes/session-close';
 import { SessionManager } from '../../../src/session/manager';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 import { promises as fs } from 'node:fs';
@@ -46,7 +46,7 @@ describe('Session Close Route', () => {
 
   it('should close existing session', async () => {
     // Create session first
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -55,7 +55,7 @@ describe('Session Close Route', () => {
       required_capabilities: {},
     });
 
-    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: 'exec-123', lease_id: leaseId } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
@@ -66,7 +66,7 @@ describe('Session Close Route', () => {
   });
 
   it('should return 404 for non-existent session', async () => {
-    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/non-existent/close' });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/non-existent/close', body: { execution_id: 'exec-123', lease_id: 'lease-123' } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, 'non-existent', sessionManager);
@@ -76,7 +76,7 @@ describe('Session Close Route', () => {
 
   it('should remove session from manager', async () => {
     // Create session first
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -85,7 +85,7 @@ describe('Session Close Route', () => {
       required_capabilities: {},
     });
 
-    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: 'exec-123', lease_id: leaseId } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
@@ -94,12 +94,33 @@ describe('Session Close Route', () => {
     expect(() => sessionManager.getSession(sessionId)).toThrow();
   });
 
+  it('force-closes only for a loopback caller holding the recovery secret', async () => {
+    const config = createTestConfig({ server: { adminSecret: 'recovery-secret' } });
+    const { sessionId } = await sessionManager.startSession({
+      execution_id: 'exec-force-close', workflow_id: 'workflow-force-close', base_url: 'https://example.com',
+      viewport: { width: 1280, height: 720 }, reuse_mode: 'fresh', required_capabilities: {},
+    });
+    const unauthorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close` });
+    Object.assign(unauthorized, { socket: { remoteAddress: '127.0.0.1' } });
+    const unauthorizedRes = createMockHttpResponse();
+    await handleSessionForceClose(unauthorized, unauthorizedRes, sessionId, sessionManager, config);
+    expect(unauthorizedRes.statusCode).toBe(403);
+    expect(() => sessionManager.peekSession(sessionId)).not.toThrow();
+
+    const authorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' } });
+    Object.assign(authorized, { socket: { remoteAddress: '127.0.0.1' } });
+    const authorizedRes = createMockHttpResponse();
+    await handleSessionForceClose(authorized, authorizedRes, sessionId, sessionManager, config);
+    expect(authorizedRes.statusCode).toBe(200);
+    expect(() => sessionManager.peekSession(sessionId)).toThrow();
+  });
+
   it('should return video paths when available', async () => {
     const config = createTestConfig();
     sessionManager = new SessionManager(config);
 
     const executionId = 'exec-video-123';
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: executionId,
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -122,7 +143,7 @@ describe('Session Close Route', () => {
         path: (): Promise<string | null> => Promise.resolve(sourcePath),
       });
 
-      const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+      const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: executionId, lease_id: leaseId } });
       const mockRes = createMockHttpResponse();
 
       await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);

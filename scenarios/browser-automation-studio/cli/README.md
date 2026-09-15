@@ -7,13 +7,14 @@ Cross-platform CLI for managing workflows, executions, playbooks, and recordings
 ```
 cli/
 - main.go                # Entry point
-- app.go                 # App wiring & command registration
+- app.go                 # Standard cli-core bootstrap
+- domains/               # Canonical command aggregation
 - status/                # DOMAIN: Health & status checks
 - playbooks/             # DOMAIN: Playbook registry management
 - workflows/             # DOMAIN: Workflow CRUD & execution
 - executions/            # DOMAIN: Execution monitoring & exports
 - recordings/            # DOMAIN: Recording import
-- internal/              # Shared helpers (API, output, utils)
+- internal/              # Shared helpers (output, utils)
 ```
 
 ## Install

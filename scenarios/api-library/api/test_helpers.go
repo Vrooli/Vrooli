@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -38,10 +37,10 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	DB         *sql.DB
-	Redis      *redis.Client
-	Router     *mux.Router
-	Cleanup    func()
+	DB      *sql.DB
+	Redis   *redis.Client
+	Router  *mux.Router
+	Cleanup func()
 }
 
 // setupTestDB creates a test database connection

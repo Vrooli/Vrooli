@@ -61,6 +61,7 @@ describe('Session Start Route', () => {
     const json = mockRes.getJSON();
     expect(json.session_id).toBeDefined();
     expect(typeof json.session_id).toBe('string');
+    expect(typeof json.lease_id).toBe('string');
     // New response fields from signal improvements
     expect(json.phase).toBe('ready');
     expect(json.created_at).toBeDefined();

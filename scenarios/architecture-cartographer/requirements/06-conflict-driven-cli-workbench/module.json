@@ -1,0 +1,94 @@
+{
+  "description": "Deliver a CLI that lets agents review unresolved conflicts, read source on demand, assign chunks to domains, mark resolutions, and run validate to re-verify; the CLI is a decision-tracker, verifier, and mechanical executor — not a business-logic author.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-009",
+        "REQ-P0-010"
+      ],
+      "description": "Cartographer must deliver a CLI workbench that enables agents to review unresolved conflicts, read source on demand, assign chunks to domains, mark resolutions, and re-verify. Commands must include: conflict list and queue display (AC-CLI-CONFLICTS-LIST), conflict show with on-demand source read (AC-CLI-CONFLICT-SHOW), chunk assignment (AC-CLI-CONFLICT-ASSIGN), resolve and validate (AC-CLI-CONFLICT-RESOLVE, AC-CLI-VALIDATE). The CLI is a decision-tracker, verifier, and mechanical executor — not a business-logic author. Every conflict surfaced by the CLI must include: classified pattern, ranked fix suggestions, evidence, and caveats (AC-CLI-CONTRACT). All CLI commands must map 1:1 to proto methods per Connect-RPC parity.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Conflict-Driven CLI Workbench for Agent Decision-Tracking",
+      "validation": [
+        {
+          "notes": "AC-CLI-CONFLICTS-LIST: List command outputs conflict IDs, types, severities, and statuses in a stable machine-readable format",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-CONFLICT-SHOW: Show command for a known conflict ID returns pattern classification, ranked fixes, evidence, and caveats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-CONFLICT-ASSIGN: Assign command records a domain assignment against a conflict ID and persists it to analytics",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-CONFLICT-RESOLVE: Resolve command marks a conflict as resolved with a resolution method and persists it",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CLI-VALIDATE: Validate command re-runs the drift engine and reports whether previously resolved conflicts are still resolved",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI workbench round-trip: arch-cart conflicts list → arch-cart conflict show \u003cid\u003e → arch-cart conflict assign → arch-cart conflict resolve → arch-cart validate against a temp fixture scenario succeeds end-to-end",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: conflict show output for a cross-domain cycle conflict contains non-empty pattern, at least one ranked fix, and at least one evidence entry",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: keyboard-only navigation through conflict list and show commands completes without mouse interaction",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An agent can complete a full resolve-and-validate cycle for a single conflict without reading source code unless explicitly needed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The CLI never auto-applies fixes; it only records decisions and delegates execution to the apply command",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Conflict-Driven CLI Workbench"
+}

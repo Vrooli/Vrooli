@@ -1,0 +1,197 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "matrix",
+    "title": "Traceability Matrix",
+    "routes": ["/matrix"],
+    "purpose": "Answer, for one scenario, whether its stated intent is proven: which operational targets are backed by requirements, which requirements are proven by live evidence, and where the unproven risk sits — with every verdict one interaction away from the evidence behind it.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "priorities": [
+    { "statement": "The overall verdict — is this scenario's business contract healthy, and how large is the debt — is answerable at first glance." },
+    { "statement": "Unproven and failing requirements surface before healthy detail and registry bookkeeping." },
+    { "statement": "Every verdict is one interaction away from the evidence that justifies it." },
+    { "statement": "The status vocabulary (planned, in-progress, complete, failing, unproven) is legible without a legend." }
+  ],
+  "states": [
+    { "id": "no-scenario", "description": "No scenario chosen yet; the page guides selection instead of presenting a dead end." },
+    { "id": "loading", "description": "Matrix for the chosen scenario is being fetched." },
+    { "id": "default", "description": "Matrix rendered: operational-target groups with requirement rows, statuses, and live evidence." },
+    { "id": "drilled", "description": "A requirement's detail drawer is open: evidence detail plus manual attestation." },
+    { "id": "empty", "description": "Scenario chosen but its registry has no requirements." },
+    { "id": "request-error", "description": "Matrix fetch failed; cause stated, path forward offered." },
+    { "id": "partial", "description": "Evidence is degraded (e.g. syncer unavailable); verdicts are marked reduced-confidence rather than silently overstated." }
+  ],
+  "elements": [
+    { "id": "scenario-picker", "role": "form", "name": "Scenario", "description": "Choose which scenario's contract to inspect; remembers recents." },
+    { "id": "verdict-headline", "role": "status", "description": "INTENT, not yet built: a single at-a-glance verdict of contract health (e.g. proven/total with debt emphasis)." },
+    { "id": "unproven-signal", "role": "status", "description": "INTENT, partially built: the count of unproven requirements, exposed as a status — today a decorative chip without the number." },
+    { "id": "registry-summary", "role": "region", "description": "Registry bookkeeping (module/requirement/target counts). Belongs after the problems, not before them." },
+    { "id": "requirement-drill", "role": "button", "description": "Per-requirement drill-in affordance opening the detail drawer." },
+    { "id": "requirement-drawer", "role": "dialog", "description": "INTENT: the drill-in drawer announced as a dialog; today an unannounced overlay div." },
+    { "id": "error-alert", "role": "alert", "description": "Fetch failure surfaced assertively." },
+    { "id": "degraded-banner", "role": "status", "description": "Reduced-confidence notice when evidence is degraded." }
+  ],
+  "claims": [
+    {
+      "id": "verdict-at-a-glance",
+      "type": "element-present",
+      "statement": "A single overall verdict of contract health is perceivable without scanning the groups.",
+      "tier": "machine",
+      "elements": ["verdict-headline"],
+      "states": ["default", "partial"],
+      "rationale": "Priority 1. The current build computes group/unproven data but never rolls it up into one glanceable verdict."
+    },
+    {
+      "id": "unproven-exposed-as-status",
+      "type": "element-present",
+      "statement": "When unproven requirements exist, that signal is exposed as a status element assistive tech announces, not a decorative chip.",
+      "tier": "machine",
+      "elements": ["unproven-signal"],
+      "states": ["default"],
+      "rationale": "Reconciliation fixture must use a scenario with unproven requirements (bas/ seed concern, not a spec concern)."
+    },
+    {
+      "id": "problems-before-bookkeeping",
+      "type": "reading-order",
+      "statement": "The unproven/problem signal reads before registry bookkeeping; counts of modules are never the first thing communicated.",
+      "tier": "machine",
+      "elements": ["unproven-signal", "registry-summary"],
+      "states": ["default"],
+      "locales": ["en", "ja", "ar"]
+    },
+    {
+      "id": "drill-affordance-per-row",
+      "type": "element-present",
+      "statement": "Every requirement row offers a drill-in affordance to its detail and evidence.",
+      "tier": "machine",
+      "elements": ["requirement-drill"],
+      "states": ["default"]
+    },
+    {
+      "id": "drill-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Drilling into a requirement is fully keyboard operable.",
+      "tier": "machine",
+      "elements": ["requirement-drill"],
+      "states": ["default"]
+    },
+    {
+      "id": "drawer-announced",
+      "type": "element-present",
+      "statement": "The requirement detail drawer is announced as a dialog when it opens, not silently overlaid.",
+      "tier": "machine",
+      "elements": ["requirement-drawer"],
+      "states": ["drilled"]
+    },
+    {
+      "id": "error-is-alert",
+      "type": "element-present",
+      "statement": "A failed matrix fetch is surfaced as an alert with the cause stated.",
+      "tier": "machine",
+      "elements": ["error-alert"],
+      "states": ["request-error"]
+    },
+    {
+      "id": "degraded-never-silent",
+      "type": "element-present",
+      "statement": "Degraded evidence is always visibly disclosed; the matrix never overstates confidence.",
+      "tier": "machine",
+      "elements": ["degraded-banner"],
+      "states": ["partial"]
+    },
+    {
+      "id": "no-scenario-covered",
+      "type": "state-covered",
+      "statement": "Arriving without a scenario renders dedicated guidance, not a blank or broken surface.",
+      "tier": "machine",
+      "states": ["no-scenario"]
+    },
+    {
+      "id": "empty-covered",
+      "type": "state-covered",
+      "statement": "A scenario with no requirements renders a dedicated empty state.",
+      "tier": "machine",
+      "states": ["empty"]
+    },
+    {
+      "id": "no-scenario-next-step",
+      "type": "custom",
+      "statement": "The no-scenario guidance offers a concrete next step (recent scenarios, or the fleet view), never a dead-end sentence.",
+      "tier": "manual",
+      "states": ["no-scenario"]
+    },
+    {
+      "id": "empty-offers-scaffold",
+      "type": "custom",
+      "statement": "The empty-registry state points at the scaffolding wizard as the way forward.",
+      "tier": "manual",
+      "states": ["empty"]
+    },
+    {
+      "id": "status-vocab-distinct",
+      "type": "custom",
+      "statement": "planned, in-progress, complete, and failing are visually distinct from one another without a legend.",
+      "tier": "manual",
+      "states": ["default"],
+      "rationale": "The current tone mapping flattens planned and in-progress into identical neutral chips."
+    },
+    {
+      "id": "unproven-count-numeric",
+      "type": "custom",
+      "statement": "The number of unproven requirements is stated numerically, not merely flagged.",
+      "tier": "manual",
+      "states": ["default"],
+      "rationale": "The count is computed in the current build and then never rendered."
+    },
+    {
+      "id": "shareable-url",
+      "type": "custom",
+      "statement": "The matrix for a chosen scenario is shareable and deep-linkable by URL.",
+      "tier": "manual",
+      "states": ["default"]
+    },
+    {
+      "id": "risk-pulls-the-eye",
+      "type": "custom",
+      "statement": "P0 groups and unproven rows visually outweigh healthy P2 detail; risk is where the eye lands first.",
+      "tier": "aspirational",
+      "states": ["default"],
+      "rationale": "Becomes checkable with the P2 saliency tier (importance ranking, never fake seconds)."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "scenario-picker": { "testid": "scenario-picker-form" },
+      "verdict-headline": { "testid": "matrix-verdict", "note": "PLANNED — element does not exist in the current build; its absence is the expected reconciliation finding for verdict-at-a-glance." },
+      "unproven-signal": { "testid": "matrix-unproven-count", "note": "PLANNED — current build renders an unnamed chip with no count and no status role." },
+      "registry-summary": { "testid": "matrix-registry-summary" },
+      "requirement-drill": { "selector": "[data-testid^='matrix-drill-']", "note": "Dynamic per-requirement testid pattern matrix-drill-${requirementId}." },
+      "requirement-drawer": { "testid": "matrix-drawer", "note": "Exists, but as an unannounced div — the dialog role is the intent." },
+      "error-alert": { "testid": "matrix-error" },
+      "degraded-banner": { "testid": "matrix-degraded-banner" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "picker-band", "grid": { "x": 0, "y": 0, "w": 12, "h": 1 }, "elements": ["scenario-picker"] },
+      { "id": "verdict-band", "grid": { "x": 0, "y": 1, "w": 8, "h": 1 }, "elements": ["verdict-headline"] },
+      { "id": "risk-band", "grid": { "x": 8, "y": 1, "w": 4, "h": 1 }, "elements": ["unproven-signal"] },
+      { "id": "groups", "grid": { "x": 0, "y": 2, "w": 12, "h": 6 }, "elements": ["requirement-drill"], "note": "OT groups, risk-first ordering; drawer opens from rows." },
+      { "id": "bookkeeping", "grid": { "x": 0, "y": 8, "w": 12, "h": 1 }, "elements": ["registry-summary"], "note": "Registry counts live BELOW the content they describe — inverted from the current build." }
+    ]
+  },
+  "x-spike": {
+    "authored": "2026-07-04",
+    "verdict-source": "Operator judgment: business-health UX is directionally correct but unpolished — exactly what experience-manager must detect.",
+    "expected-reconciliation-failures": {
+      "machine": ["verdict-at-a-glance", "unproven-exposed-as-status", "problems-before-bookkeeping", "drawer-announced"],
+      "manual": ["no-scenario-next-step", "empty-offers-scaffold", "status-vocab-distinct", "unproven-count-numeric"]
+    },
+    "expected-passes": ["drill-affordance-per-row", "drill-keyboard-reachable", "error-is-alert", "degraded-never-silent", "no-scenario-covered", "empty-covered", "shareable-url"],
+    "notes": "registry-summary is bound but is a plain div today; if reconciliation cross-checks its region role, that extra finding is genuine (bookkeeping unlabelled for AT), not spec error."
+  }
+}

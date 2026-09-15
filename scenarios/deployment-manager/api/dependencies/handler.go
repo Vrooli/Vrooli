@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"deployment-manager/fitness"
@@ -41,18 +42,18 @@ func (h *Handler) AnalyzeDependencies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	analyzerURL := fmt.Sprintf("%s/api/v1/analyze/%s", analyzerBaseURL, scenarioName)
+	analyzerURL := fmt.Sprintf("%s/api/v1/analyze/%s", analyzerBaseURL, url.PathEscape(scenarioName))
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", analyzerURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", analyzerURL, nil) //nolint:gosec // analyzerBaseURL passed the shared service URL validation boundary
 	if err != nil {
 		http.Error(w, `{"error":"failed to create request"}`, http.StatusInternalServerError)
 		return
 	}
 
-	resp, err := shared.GetHTTPClient(ctx).Do(req)
+	resp, err := shared.GetHTTPClient(ctx).Do(req) //nolint:gosec // request target is the validated analyzer service
 	if err != nil {
 		shared.JSONError(w, fmt.Sprintf("failed to call dependency analyzer: %s", err.Error()), http.StatusServiceUnavailable)
 		return

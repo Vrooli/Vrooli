@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "esphome",
+  "display_name": "ESPHome",
+  "category": "iot",
+  "summary": "Firmware and device configuration framework for ESP32 and ESP8266 based IoT hardware.",
+  "why_it_matters": "ESPHome captures useful IoT device capability knowledge, but current Vrooli usage does not justify claiming supported end-to-end firmware and hardware workflows.",
+  "when_to_use": [
+    "A future scenario needs custom sensor or actuator firmware on ESP devices.",
+    "Operators want YAML-driven embedded device configuration instead of custom firmware development.",
+    "The workflow needs local device management tied to home automation or telemetry scenarios."
+  ],
+  "example_scenarios": [
+    "Smart building control",
+    "Environmental sensor networks",
+    "Embedded automation prototypes"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "The build tooling is broadly portable, but flashing, serial access, and device support depend heavily on host hardware and drivers.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Supported ESP hardware",
+    "Serial or OTA flashing strategy",
+    "Configuration and secret handling model for device firmware"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should define device lifecycle ownership from config generation through flashing.",
+    "Keep hardware-specific support boundaries explicit.",
+    "Future support should prioritize a small number of validated board types."
+  ],
+  "operational_notes": [
+    "Hardware access is the main portability constraint.",
+    "OTA updates and secret rotation need deliberate handling.",
+    "Validation should prove a real compile and device deployment path."
+  ],
+  "risks": [
+    "Hardware-dependent tooling is easy to overstate as cross-platform.",
+    "A generic wrapper would not guarantee that any real board workflow works."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "esphome"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/esphome"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

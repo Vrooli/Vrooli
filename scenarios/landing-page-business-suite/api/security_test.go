@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // ============================================================================
@@ -21,7 +23,7 @@ func TestSecurity_XFFSpoofing_UntrustedSourceIgnored(t *testing.T) {
 	// Attacker tries to spoof their IP via X-Forwarded-For
 	// but their connection is NOT from a trusted proxy
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
-	req.RemoteAddr = "203.0.113.50:12345" // Attacker's real IP (not in trusted range)
+	req.RemoteAddr = "203.0.113.50:12345"        // Attacker's real IP (not in trusted range)
 	req.Header.Set("X-Forwarded-For", "1.2.3.4") // Spoofed IP
 
 	ip := getClientIP(req)
@@ -107,8 +109,8 @@ func TestSecurity_XFFSpoofing_InvalidIPInHeader(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -132,7 +134,7 @@ func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldCookies != "" {
 			os.Setenv("LPBS_SECURE_COOKIES", oldCookies)
@@ -149,8 +151,8 @@ func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_DisabledByDefault_InDevelopment(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -187,9 +189,9 @@ func TestSecurity_EmailValidation_RejectsInvalidFormats(t *testing.T) {
 		"user@example.com; rm -rf /",
 		"user@example.com\x00evil",
 		"@example.com",          // Missing local part
-		"user@",                  // Missing domain
-		"user@@example.com",      // Double @
-		"user example@test.com",  // Space in local part
+		"user@",                 // Missing domain
+		"user@@example.com",     // Double @
+		"user example@test.com", // Space in local part
 	}
 
 	for _, input := range maliciousInputs {
@@ -252,8 +254,8 @@ func TestSecurity_URLValidation_AcceptsLegitimateURLs(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_APIKeyEncryption_ProductionRequiresKey(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)

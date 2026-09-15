@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "studio",
+    "title": "Studio",
+    "routes": ["/studio", "/studio/:scenario/:page"],
+    "purpose": "Author and workshop a page's experience spec cheaply: edit claims in a form beside a live wireframe, compare variants side by side, and promote the chosen one.",
+    "prd_refs": ["OT-P0-004", "OT-P1-001"]
+  },
+  "priorities": [
+    { "statement": "The spec form and its live wireframe read as one linked surface — edit here, see it there." },
+    { "statement": "There is exactly one obvious way forward at any moment: Save while editing, Promote while comparing." },
+    { "statement": "Validation feedback lands next to the field that caused it, at the moment it is caused." }
+  ],
+  "states": [
+    { "id": "default", "description": "Editing a spec: form beside live wireframe.", "setup": { "route": "/studio/experience-manager/fleet", "settleMs": 5000 } },
+    { "id": "empty", "description": "Nothing selected; guides picking a scenario/page to spec." },
+    { "id": "comparing", "description": "Two or more variants rendered side by side, promote affordance per variant.", "setup": { "route": "/studio/experience-manager/fleet", "settleMs": 5000 } },
+    { "id": "saving", "description": "Save acknowledged immediately; busy state, duplicate submission prevented." },
+    { "id": "validation-error", "description": "Contract findings from live validation, placed field-level with a form-level summary." },
+    { "id": "request-error", "description": "Save failed; user input preserved, retry available." }
+  ],
+  "regions": [{"id":"studio-spec","purpose":"Render the Studio's loading, ready, empty, partial, or failed specification editing surface.","component":{"library":{"component":"experience-surface","version":"1.0.3"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    { "id": "spec-form", "role": "form", "name": "Spec editor" },
+    { "id": "wireframe-preview", "role": "region", "name": "Wireframe preview", "description": "Deterministic render of the spec being edited, claims annotated in place." },
+    { "id": "variant-rail", "role": "list", "name": "Variants", "description": "Side-by-side variant wireframes during compare." },
+    { "id": "save-action", "role": "button", "name": "Save spec" },
+    { "id": "promote-action", "role": "button", "name": "Promote variant" },
+    { "id": "validation-summary", "role": "alert", "name": "Validation summary", "description": "Form-level summary shown on failed submit; field-level messages sit beside their fields." }
+  ],
+  "claims": [
+    {
+      "id": "save-dominates-while-editing",
+      "type": "single-dominant-action",
+      "statement": "While editing, Save is the single dominant action; nothing competes with it.",
+      "tier": "machine",
+      "elements": ["save-action"],
+      "states": ["default", "validation-error"]
+    },
+    {
+      "id": "promote-dominates-while-comparing",
+      "type": "single-dominant-action",
+      "statement": "While comparing variants, Promote is the single dominant action.",
+      "tier": "machine",
+      "elements": ["promote-action"],
+      "states": ["comparing"]
+    },
+    {
+      "id": "form-and-preview-present",
+      "type": "element-present",
+      "statement": "The spec form and the wireframe preview are both perceivable while editing.",
+      "tier": "machine",
+      "elements": ["spec-form", "wireframe-preview"],
+      "states": ["default", "validation-error"]
+    },
+    {
+      "id": "variants-side-by-side",
+      "type": "element-present",
+      "statement": "During compare, the variant rail exposes each variant as a distinct list entry.",
+      "tier": "machine",
+      "elements": ["variant-rail"],
+      "states": ["comparing"]
+    },
+    {
+      "id": "empty-guides-selection",
+      "type": "state-covered",
+      "statement": "The nothing-selected state guides the author to pick a scenario and page — never a blank canvas with no path.",
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
+    },
+    {
+      "id": "validation-summary-on-failure",
+      "type": "element-present",
+      "statement": "A failed submit produces a form-level validation summary exposed as an alert.",
+      "tier": "manual",
+      "elements": ["validation-summary"],
+      "states": ["validation-error"],
+      "rationale": "Requires a scripted failed-submit interaction; route-level capture cannot force the alert state yet."
+    },
+    {
+      "id": "live-preview-no-refresh",
+      "type": "custom",
+      "statement": "Edits reflect in the wireframe preview without an explicit refresh action.",
+      "tier": "manual",
+      "elements": ["spec-form", "wireframe-preview"],
+      "rationale": "Behavioral liveness; attested until a scripted BAS interaction check exists (promotion candidate via OT-P1-002 scaffolding)."
+    },
+    {
+      "id": "validation-near-field",
+      "type": "custom",
+      "statement": "Field-level validation appears adjacent to the offending field at the moment it is caused, per the DESIGN.md feedback contract.",
+      "tier": "manual",
+      "states": ["validation-error"]
+    },
+    {
+      "id": "input-survives-failure",
+      "type": "custom",
+      "statement": "The form preserves all user input across a failed save; nothing is retyped.",
+      "tier": "manual",
+      "states": ["request-error"]
+    },
+    {
+      "id": "one-linked-surface",
+      "type": "custom",
+      "statement": "Form and wireframe are simultaneously visible on desktop and read as one linked surface, not two competing panels.",
+      "tier": "aspirational",
+      "viewports": ["desktop", "wide"],
+      "rationale": "The Studio's identity claim; becomes checkable with the P2 saliency tier."
+    }
+  ],
+  "bindings": {
+    "regions": {"studio-spec":{"selector":"[data-experience-surface=\"studio-spec\"]"}},
+    "elements": {
+      "spec-form": { "testid": "studio-spec-form" },
+      "wireframe-preview": { "testid": "studio-wireframe" },
+      "variant-rail": { "testid": "studio-variant-rail" },
+      "save-action": { "testid": "studio-save" },
+      "promote-action": { "testid": "studio-promote" },
+      "validation-summary": { "testid": "studio-validation-summary" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "form-pane", "grid": { "x": 0, "y": 0, "w": 5, "h": 10 }, "elements": ["spec-form", "validation-summary", "save-action"] },
+      { "id": "preview-pane", "grid": { "x": 5, "y": 0, "w": 7, "h": 10 }, "elements": ["wireframe-preview", "variant-rail", "promote-action"] }
+    ]
+  }
+}

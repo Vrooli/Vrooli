@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "plan-investigation-policy/v1",
+  "version": "recommended-read-only.v1",
+  "mode": "shadow",
+  "rules": [
+    {"kind": "no_material_progress", "afterSeconds": 900, "ignoreKnownOwnerWaits": true},
+    {"kind": "repeated_failure", "minDistinctAttempts": 3, "windowSeconds": 1800},
+    {"kind": "phase_elapsed", "afterSeconds": 3600, "minimumNewEvidence": 1},
+    {"kind": "budget_fraction", "fraction": 0.8, "requireObservedBudget": true},
+    {"kind": "terminal_mismatch"}
+  ],
+  "limits": {
+    "cooldownSeconds": 1800,
+    "maxInvestigationsPerExecution": 3,
+    "maxConcurrentPerExecution": 1,
+    "maxConcurrentGlobal": 4,
+    "maxInvestigatorDepth": 1
+  },
+  "deduplication": {
+    "basis": ["executionId", "phaseId", "phaseGeneration", "policyVersion", "matchedRuleKinds"],
+    "reopenOn": "newEvidenceOrPolicyVersion"
+  },
+  "recommendations": {
+    "autoApply": false,
+    "allowedKinds": ["observe", "request_evidence", "nudge", "escalate"]
+  },
+  "exclusions": {
+    "investigationWorkloads": true,
+    "disabledExecutions": true,
+    "terminalExecutions": true
+  }
+}

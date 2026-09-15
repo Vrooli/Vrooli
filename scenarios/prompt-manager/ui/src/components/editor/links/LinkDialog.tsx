@@ -20,7 +20,7 @@ export interface LinkDialogProps {
   /** Callback when dialog is closed */
   onClose: () => void
   /** Ref for the input element */
-  inputRef: React.RefObject<HTMLInputElement>
+  inputRef: React.RefObject<HTMLInputElement | null>
   /** Additional CSS classes */
   className?: string
 }

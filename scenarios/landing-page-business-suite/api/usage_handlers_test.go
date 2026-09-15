@@ -9,6 +9,10 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/testutil"
 )
 
 // requestWithUserAuth creates a test request with user claims injected into the context.
@@ -21,7 +25,7 @@ func requestWithUserAuth(method, url string, body []byte, userEmail string) *htt
 		req = httptest.NewRequest(method, url, nil)
 	}
 	// Inject user claims into context (simulating authenticated user)
-	claims := &UserClaims{
+	claims := &administration.UserClaims{
 		Email:  userEmail,
 		UserID: "test-user-id",
 	}
@@ -29,17 +33,31 @@ func requestWithUserAuth(method, url string, body []byte, userEmail string) *htt
 	return req.WithContext(ctx)
 }
 
+func usageReportHandler(svc *commerce.UsageService) http.HandlerFunc {
+	deps := usageHTTPDependencies()
+	deps.UserEmail = func(context.Context) string { return "user@example.com" }
+	return billinghttp.ReportUsage(svc, deps)
+}
+
+func usageCheckHandler(svc *commerce.UsageService) http.HandlerFunc {
+	return billinghttp.CheckLimit(svc, usageHTTPDependencies())
+}
+
+func usageSummaryHandler(svc *commerce.UsageService) http.HandlerFunc {
+	return billinghttp.GetUsageSummary(svc, nil, usageHTTPDependencies())
+}
+
 // ============================================================================
 // POST /api/v1/usage/report Handler Tests
 // ============================================================================
 
 func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -54,9 +72,7 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify DB record was created
 	var usageAmount int64
@@ -72,86 +88,24 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	}
 }
 
-func TestHandleReportUsage_MissingAuthHeader_Returns401(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+func TestHandleReportUsage_MissingVerifiedIdentity_Returns401(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
-
-	body := UsageReportRequest{
-		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
-		Amount:       100000,
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	// No Authorization header
-
+	deps := usageHTTPDependencies()
+	deps.UserEmail = func(context.Context) string { return "" }
+	handler := billinghttp.ReportUsage(svc, deps)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte(`[{"limit_key":"ai_credits","amount":100000}]`)))
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
-}
-
-func TestHandleReportUsage_InvalidAuthToken_Returns401(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
-	defer db.Close()
-
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
-
-	body := UsageReportRequest{
-		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
-		Amount:       100000,
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer wrong-token")
-
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
-}
-
-func TestHandleReportUsage_AuthWithoutBearerPrefix_Returns401(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
-	defer db.Close()
-
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
-
-	body := UsageReportRequest{
-		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
-		Amount:       100000,
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "test-secret-token") // Missing "Bearer " prefix
-
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte("not valid json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -160,27 +114,17 @@ func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 	testCases := []struct {
 		name string
-		body UsageReportRequest
+		body commerce.UsageReportRequest
 	}{
 		{
-			name: "missing user_identity",
-			body: UsageReportRequest{
-				UserIdentity: "",
-				LimitKey:     "ai_credits",
-				Amount:       100000,
-			},
-		},
-		{
 			name: "missing limit_key",
-			body: UsageReportRequest{
+			body: commerce.UsageReportRequest{
 				UserIdentity: "user@example.com",
 				LimitKey:     "",
 				Amount:       100000,
@@ -188,7 +132,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 		},
 		{
 			name: "zero amount without BYOK",
-			body: UsageReportRequest{
+			body: commerce.UsageReportRequest{
 				UserIdentity: "user@example.com",
 				LimitKey:     "ai_credits",
 				Amount:       0,
@@ -199,10 +143,10 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+			svc, _, db := createTestUsageService(t)
 			defer db.Close()
 
-			handler := svc.requireServiceAuth(handleReportUsage(svc))
+			handler := usageReportHandler(svc)
 
 			bodyBytes, _ := json.Marshal(tc.body)
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
@@ -212,20 +156,18 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 			w := httptest.NewRecorder()
 			handler(w, req)
 
-			if w.Code != http.StatusBadRequest {
-				t.Errorf("Expected status 400 for %s, got %d", tc.name, w.Code)
-			}
+			testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 		})
 	}
 }
 
 func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000, // Should be ignored
@@ -241,9 +183,7 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify DB record was created with 0 amount
 	var usageAmount int64
@@ -279,20 +219,16 @@ func TestHandleCheckLimit_ValidCheck_ReturnsCanProceedAndRemaining(t *testing.T)
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != true {
 		t.Errorf("Expected can_proceed=true, got %v", resp["can_proceed"])
@@ -319,20 +255,16 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != false {
 		t.Errorf("Expected can_proceed=false, got %v", resp["can_proceed"])
@@ -347,15 +279,13 @@ func TestHandleCheckLimit_MissingParams_Returns400(t *testing.T) {
 		svc, _, db := createTestUsageService(t)
 		defer db.Close()
 
-		handler := handleCheckLimit(svc)
+		handler := usageCheckHandler(svc)
 
 		req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo", nil, "user@example.com")
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400 for missing limit_key, got %d", w.Code)
-		}
+		testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 	})
 }
 
@@ -363,16 +293,14 @@ func TestHandleCheckLimit_Unauthenticated_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	// Request without auth context
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 for unauthenticated request, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T) {
@@ -381,20 +309,16 @@ func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=business&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != true {
 		t.Errorf("Expected can_proceed=true for unlimited tier, got %v", resp["can_proceed"])
@@ -427,20 +351,16 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleGetUsageSummary(svc, nil)
+	handler := usageSummaryHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
-	var resp UsageSummary
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	var resp commerce.UsageSummary
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Total usage should be 100000000 + 50000000 = 150000000
 	if resp.Usage["ai_credits"] != 150000000 {
@@ -467,20 +387,16 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleGetUsageSummary(svc, nil)
+	handler := usageSummaryHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "newuser@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
-	var resp UsageSummary
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	var resp commerce.UsageSummary
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// New user should have 0 usage
 	if resp.Usage["ai_credits"] != 0 {
@@ -494,17 +410,18 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 }
 
 // ============================================================================
-// Service Token Edge Cases
+// Trust-boundary and replay cases
 // ============================================================================
 
-func TestHandleReportUsage_EmptyConfiguredToken_RejectsAll(t *testing.T) {
-	// When no token is configured, all requests should be rejected
-	svc, _, db := createTestUsageServiceWithToken(t, "") // Empty token
+func TestHandleReportUsage_BearerOnly_Returns401(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	deps := usageHTTPDependencies()
+	deps.UserEmail = func(context.Context) string { return "" }
+	handler := billinghttp.ReportUsage(svc, deps)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -513,38 +430,61 @@ func TestHandleReportUsage_EmptyConfiguredToken_RejectsAll(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer any-token")
+	req.Header.Set("Authorization", "Bearer service-secret")
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 when no token configured, got %d", w.Code)
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
+}
+
+func TestHandleReportUsage_BodyIdentityIsIgnored(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	handler := usageReportHandler(svc)
+
+	body := commerce.UsageReportRequest{
+		UserIdentity: "stranger@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
+	var user string
+	if err := db.QueryRow(`SELECT user_identity FROM usage_records WHERE limit_key = ?`, "ai_credits").Scan(&user); err != nil {
+		t.Fatalf("query usage identity: %v", err)
+	}
+	if user != "user@example.com" {
+		t.Fatalf("usage identity = %q, want verified identity", user)
 	}
 }
 
-func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+func TestHandleReportUsage_BatchReplayIsIdempotent(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
-
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
-
-	body := UsageReportRequest{
-		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
-		Amount:       100000,
-	}
+	handler := usageReportHandler(svc)
+	operationID := "11111111-1111-1111-1111-111111111111"
+	body := []commerce.UsageReportRequest{{UserIdentity: "stranger@example.com", LimitKey: "ai_credits", Amount: 100, OperationID: &operationID}}
 	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer    ") // Whitespace only
-
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 for whitespace token, got %d", w.Code)
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
+		w := httptest.NewRecorder()
+		handler(w, req)
+		testutil.RequireHTTPStatus(t, w, http.StatusOK)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE operation_id = ?`, operationID).Scan(&count); err != nil {
+		t.Fatalf("count usage records: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("usage rows = %d, want 1 after replay", count)
 	}
 }
 
@@ -553,12 +493,12 @@ func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
 // ============================================================================
 
 func TestHandleReportUsage_WithMetadata(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -578,15 +518,11 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Metadata is logged but not stored - just verify the request succeeded
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 	if resp["success"] != true {
 		t.Errorf("Expected success=true, got %v", resp["success"])
 	}
@@ -597,12 +533,12 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 // ============================================================================
 
 func TestHandleReportUsage_ResponseFormat(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -624,9 +560,7 @@ func TestHandleReportUsage_ResponseFormat(t *testing.T) {
 
 	// Verify response is valid JSON
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Errorf("Response is not valid JSON: %v", err)
-	}
+	assertJSONResponse(t, w.Body.Bytes(), &resp)
 }
 
 func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
@@ -635,7 +569,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
@@ -649,9 +583,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	// Verify response structure
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Errorf("Response is not valid JSON: %v", err)
-	}
+	assertJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Required fields
 	if _, ok := resp["can_proceed"]; !ok {

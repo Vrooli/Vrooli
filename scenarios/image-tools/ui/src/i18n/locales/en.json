@@ -1,0 +1,914 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Image Tools are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Lume",
+    "tagline": "Light, handled well."
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Primary navigation (mobile)",
+    "mainContentLabel": "Main content",
+    "nav": {
+      "home": "Home",
+      "workspace": "Workspace",
+      "library": "Library",
+      "activity": "Activity",
+      "models": "Models",
+      "settings": "Settings",
+      "select": "Select",
+      "compare": "Compare"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "settings": {
+    "fontScale": {
+      "label": "Text size",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large",
+      "xlarge": "Extra large"
+    },
+    "reducedMotion": {
+      "label": "Motion",
+      "description": "Reduce animations across the app.",
+      "system": "Match system",
+      "always": "Reduce",
+      "never": "Allow"
+    },
+    "textDirection": {
+      "label": "Text direction",
+      "auto": "Auto (follow language)",
+      "ltr": "Left to right",
+      "rtl": "Right to left"
+    },
+    "handedness": {
+      "label": "Handedness",
+      "description": "Which side mobile actions favor.",
+      "left": "Left",
+      "right": "Right"
+    },
+    "responsibleUse": {
+      "loading": "Loading the responsible-use policy…",
+      "error": "Couldn't load the responsible-use policy.",
+      "tierLabel": "Deployment tier",
+      "tier": {
+        "unspecified": "Unspecified",
+        "local": "Local",
+        "public": "Public"
+      },
+      "controlsHeading": "Enforced controls",
+      "consent": "Consent required for identity edits",
+      "nsfwScan": "AI output auto-scanned for unsafe content",
+      "provenance": "Outputs marked with provenance",
+      "rateLimit": "Rate limit: {{count}} submits/min",
+      "rateLimitNone": "Rate limit: none",
+      "on": "On",
+      "off": "Off",
+      "weightsHeading": "Operation consent weights",
+      "weightOperation": "Operation",
+      "weightLevel": "Consent weight",
+      "weight": {
+        "unspecified": "Unspecified",
+        "none": "None",
+        "low": "Low",
+        "high": "High"
+      },
+      "empty": "No operation weights are configured."
+    }
+  },
+  "pages": {
+    "home": {
+      "title": "Home"
+    },
+    "library": {
+      "title": "Library"
+    },
+    "activity": {
+      "title": "Activity"
+    },
+    "models": {
+      "title": "Models"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "displayHeading": "Display & accessibility",
+      "responsibleUseHeading": "Responsible use"
+    },
+    "workspace": {
+      "title": "Workspace"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "jobs": {
+    "title": "Recent jobs",
+    "loading": "Loading jobs…",
+    "empty": "No jobs yet.",
+    "stateLabel": "State:",
+    "progressLabel": "{{count}}% complete",
+    "errorLabel": "Error:",
+    "liveBadge": "Live",
+    "cancel": "Cancel",
+    "lane": {
+      "unspecified": "Unspecified",
+      "gpu": "GPU",
+      "cpu": "CPU"
+    },
+    "state": {
+      "unspecified": "Unspecified",
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    }
+  },
+  "home": {
+    "greeting": "What are we making?",
+    "entry": {
+      "title": "Drop an image, paste, or choose a file",
+      "hint": "PNG · JPEG · WebP · AVIF · HEIC · GIF · TIFF · BMP · SVG",
+      "choose": "Choose file",
+      "camera": "Camera",
+      "sample": "Try a sample",
+      "dropActive": "Drop to open",
+      "fileLabel": "Choose an image file"
+    },
+    "group": {
+      "quickEdits": "Quick edits",
+      "enhance": "Enhance",
+      "create": "Create",
+      "analyze": "Analyze"
+    },
+    "needsModel": "Needs model",
+    "analyzeTile": "Analyze an image",
+    "recent": {
+      "heading": "Recent",
+      "viewAll": "View library",
+      "empty": "Your edits and creations show up here.",
+      "alt": "Recent result of {{operation}}"
+    },
+    "firstRun": "New here? Try a sample — remove a background in one tap.",
+    "samples": {
+      "heading": "Or start from a sample",
+      "product": "Product photo",
+      "portrait": "Portrait",
+      "blurry": "Blurry shot",
+      "receipt": "Receipt"
+    }
+  },
+  "library": {
+    "description": "Every image you've created or edited. Open one to keep working on it.",
+    "loading": "Loading your library…",
+    "empty": "No outputs yet. Make something in the workspace and it lands here.",
+    "searchLabel": "Filter by operation",
+    "searchPlaceholder": "Filter by operation…",
+    "noMatches": "No results match that filter.",
+    "count": "{{count}} items",
+    "count_one": "{{count}} item",
+    "selected": "{{count}} selected",
+    "selectAll": "Select all",
+    "clearSelection": "Clear",
+    "downloadSelected": "Download selected",
+    "open": "Open in workspace",
+    "thumbnailAlt": "Result of {{operation}}",
+    "tryWorkspace": "Open the workspace"
+  },
+  "looks": {
+    "title": "Looks & Styles",
+    "description": "Reusable transformation recipes — apply a film, camera, or style look in one tap. Film and camera looks render a live preview; style looks run in the workspace.",
+    "loading": "Loading the look library…",
+    "empty": "No looks yet.",
+    "preview": "Preview",
+    "refresh": "Refresh preview",
+    "rendering": "Rendering…",
+    "noPreview": "No preview yet",
+    "deferred": "Style steps render in the workspace",
+    "builtinBadge": "Built-in",
+    "customBadge": "Custom",
+    "thumbnailAlt": "Preview of the {{name}} look",
+    "kind": {
+      "style": "Style",
+      "film": "Film",
+      "camera": "Camera",
+      "enhance": "Enhance",
+      "custom": "Custom",
+      "unspecified": "Look"
+    }
+  },
+  "activity": {
+    "description": "Live and recent operations. Long-running AI work survives a page refresh.",
+    "thumbnailAlt": "Result of {{operation}}",
+    "openOutput": "Open output"
+  },
+  "backends": {
+    "title": "Background engines",
+    "description": "Optional AI engines installed on demand. Default setup never downloads these.",
+    "loading": "Checking engines…",
+    "empty": "No optional engines to install.",
+    "operationsLabel": "Powers",
+    "ready": "Installed",
+    "notInstalled": "Not installed",
+    "install": "Install",
+    "installing": "Installing…",
+    "installStarted": "Installing (job {{jobId}}, ~{{eta}}s)",
+    "alreadyInstalled": "Already installed",
+    "manualHint": "{{detail}}",
+    "remediationLabel": "Run: {{cmd}}"
+  },
+  "models": {
+    "title": "Model registry",
+    "loading": "Loading models…",
+    "empty": "No models registered.",
+    "tierLabel": "Tier:",
+    "backendLabel": "Backend:",
+    "operationsLabel": "Operations:",
+    "sizeLabel": "Size:",
+    "sizeValue": "{{mb}} MB",
+    "hardwareLabel": "Hardware:",
+    "hardware": {
+      "gpuRequired": "Needs a GPU",
+      "gpuAvailable": "✓ Runs on your GPU",
+      "gpuShort": "Needs ~{{gb}} GB more VRAM",
+      "cpuOk": "✓ Runs on your CPU",
+      "vram": "Needs ≥ {{gb}} GB VRAM",
+      "ram": "Needs ≥ {{gb}} GB RAM",
+      "speedNote": "{{note}}"
+    },
+    "licenseLabel": "License:",
+    "commercialLabel": "Commercial use:",
+    "commercial": {
+      "unspecified": "Unknown",
+      "yes": "Allowed",
+      "no": "Not allowed",
+      "conditional": "Conditional"
+    },
+    "commercialNotesLabel": "Commercial-use notes:",
+    "nsfwBadge": "NSFW capable",
+    "customBadge": "custom",
+    "defaultForBadge": "Default",
+    "defaultForLabel": "Default for:",
+    "downloadSizeLabel": "Download:",
+    "diskSizeLabel": "On disk:",
+    "installState": {
+      "installed": "Installed",
+      "notInstalled": "Not installed"
+    },
+    "install": "Install",
+    "installing": "Installing…",
+    "installStarted": "Install started (job {{jobId}}, ~{{eta}}s)",
+    "alreadyInstalled": "Already installed",
+    "remove": "Remove",
+    "removing": "Removing…",
+    "enabledLabel": "Enabled",
+    "disabledLabel": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "blocklist": {
+      "title": "Blocked models",
+      "loading": "Loading blocklist…",
+      "empty": "No models are blocked.",
+      "licenseLabel": "License:",
+      "reasonLabel": "Reason:",
+      "operationsLabel": "Operations:",
+      "onnxWarning": "Exporting to ONNX/GGUF would falsely appear to lift this restriction — it does not."
+    },
+    "addCustom": {
+      "title": "Add a custom model",
+      "idLabel": "Model ID",
+      "operationsLabel": "Operations (comma-separated)",
+      "backendLabel": "Backend",
+      "localPathLabel": "Local path",
+      "downloadUrlLabel": "Download URL (optional)",
+      "submit": "Add model",
+      "submitting": "Adding…",
+      "success": "Custom model added."
+    },
+    "defaults": {
+      "title": "Default model per operation",
+      "loading": "Loading defaults…",
+      "empty": "No operations available.",
+      "modelLabel": "Default model",
+      "sourceLabel": "Source",
+      "source": {
+        "seed": "Built-in",
+        "override": "Pinned"
+      },
+      "useDefault": "Use built-in default",
+      "clear": "Clear",
+      "none": "None"
+    },
+    "picker": {
+      "titleFor": "Model for {{op}}",
+      "close": "Close",
+      "loading": "Finding models for your hardware…",
+      "size": "{{size}} MB",
+      "manualTitle": "Manual setup",
+      "trigger": {
+        "label": "Model",
+        "loading": "Choosing a model…",
+        "none": "No model available",
+        "change": "Change"
+      },
+      "host": {
+        "gpu": "{{name}} · {{total}} GB VRAM ({{free}} GB free)",
+        "gpuUnknown": "{{name}} · VRAM unknown",
+        "noGpu": "No GPU detected — CPU only",
+        "specs": "{{cores}} cores · {{ram}} GB RAM"
+      },
+      "fit": {
+        "gpu": "Runs on your GPU",
+        "cpu": "Runs on your CPU",
+        "cpuFallback": "Runs on CPU (won't fit your GPU right now)",
+        "insufficientVram": "Needs ~{{gb}} GB more free VRAM",
+        "noGpu": "Requires a GPU (none detected)",
+        "unsupportedOs": "No build for {{os}}/{{arch}}"
+      },
+      "state": {
+        "ready": "Ready",
+        "needsModel": "Weights not downloaded",
+        "needsBackend": "Engine not installed",
+        "needsBackendManual": "Engine needs manual setup",
+        "needsBoth": "Weights + engine needed",
+        "disabled": "Disabled in settings",
+        "insufficient": "Can't run on your hardware",
+        "unsupported": "Not available for your OS",
+        "derivedUnproven": "Via workflow (not yet proven)"
+      },
+      "support": {
+        "native": "Native",
+        "viaWorkflow": "Via workflow"
+      },
+      "caveatBanner": "Runs {{op}} via a derived technique — {{caveat}}",
+      "action": {
+        "select": "Use",
+        "useAnyway": "Use anyway",
+        "selected": "In use",
+        "installModel": "Download",
+        "installBackend": "Install engine",
+        "enable": "Enable",
+        "manualSteps": "Setup steps",
+        "installing": "Installing…"
+      },
+      "footer": {
+        "all": "Showing all {{count}} models for this task — ones you can't run yet are shown so you can see why.",
+        "none": "No other models available for this task."
+      }
+    },
+    "import": {
+      "title": "Import a model",
+      "sourceLabel": "Source (Hugging Face repo id, URL, or local path)",
+      "inspect": "Inspect",
+      "inspecting": "Inspecting…",
+      "layoutLabel": "Layout",
+      "architectureInferred": "Architecture",
+      "licenseLabel": "License",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "Approx. size",
+      "offeredOpsLabel": "Operations offered",
+      "idLabel": "Entry ID",
+      "nameLabel": "Display name",
+      "architectureLabel": "Confirm architecture",
+      "selectArchitecture": "Select an architecture…",
+      "attestLabel": "I hold commercial rights (allow public/BYOK serving)",
+      "import": "Import & install",
+      "importing": "Importing…",
+      "success": "Import started — the model will appear once its download finishes.",
+      "needsArchitecture": "No architecture detected — select one to import."
+    }
+  },
+  "workspace": {
+    "loading": "Loading operations…",
+    "error": "Unable to load operations.",
+    "uploadLabel": "Source image",
+    "overlayLabel": "Watermark image",
+    "run": "Apply",
+    "running": "Applying…",
+    "empty": "Pick an operation and apply it to build your edit.",
+    "originalLabel": "Original",
+    "resultLabel": "Result",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "Metadata",
+    "canvas": {
+      "empty": "Drop an image to begin, or choose a file.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomFit": "Fit",
+      "zoomActual": "Actual size",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "Before / after",
+      "replace": "Replace"
+    },
+    "actions": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "reset": "Reset",
+      "download": "Download"
+    },
+    "history": {
+      "title": "History",
+      "empty": "No edits yet.",
+      "source": "Source",
+      "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "Edit",
+      "enhance": "Enhance",
+      "create": "Create",
+      "analyze": "Analyze",
+      "switcherLabel": "Workspace mode"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "Inspect image",
+        "desc": "Read dimensions, format, EXIF, and the dominant palette."
+      },
+      "ocr": {
+        "label": "Extract text",
+        "desc": "Recognize text and outline each region on the canvas."
+      },
+      "nsfw_classify": {
+        "label": "Safety check",
+        "desc": "Classify the image for not-safe-for-work content."
+      },
+      "duplicate_detect": {
+        "label": "Find duplicates",
+        "desc": "Compute perceptual fingerprints to spot near-duplicate images."
+      },
+      "quality_assessment": {
+        "label": "Assess quality",
+        "desc": "Score sharpness, exposure, and contrast instantly."
+      }
+    },
+    "analyze": {
+      "intro": "Read information out of the current image — nothing is changed.",
+      "loading": "Loading analysis tools…",
+      "error": "Couldn't load the analysis tools.",
+      "needsImage": "Add an image to analyze.",
+      "modelNote": "Uses a model — installs on first run.",
+      "run": "Analyze",
+      "running": "Analyzing…",
+      "retry": "Try again",
+      "failed": "Analysis failed.",
+      "probe": {
+        "dimensions": "Dimensions",
+        "format": "Format",
+        "colorModel": "Color model",
+        "alpha": "Transparency",
+        "frames": "Frames",
+        "megapixels": "Megapixels",
+        "size": "File size",
+        "exif": "EXIF metadata",
+        "gps": "GPS location",
+        "orientation": "Orientation",
+        "palette": "Dominant colors",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "ocr": {
+        "copy": "Copy text",
+        "copied": "Copied",
+        "empty": "No text found.",
+        "language": "Language: {{language}}",
+        "blocks": "{{count}} text regions"
+      },
+      "nsfw": {
+        "flagged": "Flagged",
+        "safe": "Looks safe",
+        "score": "Score {{score}}%",
+        "threshold": "threshold {{threshold}}%"
+      },
+      "duplicate": {
+        "hint": "Compare these fingerprints to find near-duplicates.",
+        "phash": "Perceptual hash (pHash)",
+        "ahash": "Average hash (aHash)",
+        "bits": "{{count}}-bit hash",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "quality": {
+        "overall": "Overall quality",
+        "sharpness": "Sharpness",
+        "blurry": "Looks blurry",
+        "sharp": "Looks sharp",
+        "brightness": "Brightness",
+        "contrast": "Contrast",
+        "exposure": "Exposure: {{exposure}}",
+        "notesHeading": "Notes"
+      }
+    },
+    "aiOp": {
+      "background_removal": {
+        "label": "Remove background",
+        "desc": "Erase the background to transparency."
+      },
+      "upscale": {
+        "label": "Upscale",
+        "desc": "Enlarge and sharpen with super-resolution."
+      },
+      "denoise": {
+        "label": "Unblur & denoise",
+        "desc": "Reduce noise and recover blurred detail."
+      },
+      "naturalize": {
+        "label": "Naturalize",
+        "desc": "Re-add realistic texture to over-smoothed photos."
+      },
+      "colorize": {
+        "label": "Colorize",
+        "desc": "Add natural color to a black-and-white photo."
+      },
+      "depth_map": {
+        "label": "Depth map",
+        "desc": "Estimate a depth map from the image."
+      }
+    },
+    "enhance": {
+      "intro": "One-tap AI enhancement — pick an action, then Enhance.",
+      "loading": "Loading AI enhancements…",
+      "error": "Unable to load AI operations.",
+      "needsImage": "Add an image to enhance first.",
+      "scaleLabel": "Scale",
+      "targetResolution": "{{from}} → {{to}}",
+      "memoryWarning": "Large result — may be slow on low-memory hosts.",
+      "run": "Enhance",
+      "running": "Enhancing…",
+      "progress": "{{percent}}%",
+      "cancel": "Cancel",
+      "retry": "Try again",
+      "succeeded": "Done — added to the canvas.",
+      "failed": "Couldn't finish the enhancement.",
+      "warningsLabel": "Heads up",
+      "tier": {
+        "localGpu": "Running on your GPU",
+        "localCpu": "Running on your CPU",
+        "byokCloud": "Running on cloud (BYOK)"
+      },
+      "install": {
+        "title": "{{model}} isn't installed yet",
+        "cpu": "Runs on your CPU",
+        "gpu": "Needs a GPU with ≥{{vram}} GB VRAM",
+        "size": "{{size}} MB download",
+        "run": "Install & run",
+        "installing": "Installing model…"
+      },
+      "naturalize": {
+        "realismLabel": "Realism",
+        "realismHint": "Higher adds more texture and grain.",
+        "subtle": "Subtle",
+        "strong": "Strong",
+        "faceAware": "Emphasize faces & skin",
+        "suggestTitle": "Result looking a little plastic?",
+        "suggest": "Naturalize this result"
+      }
+    },
+    "createOp": {
+      "text_to_image": {
+        "label": "Generate",
+        "desc": "Create a new image from a text prompt."
+      },
+      "image_to_image": {
+        "label": "Transform",
+        "desc": "Reimagine the current image guided by a prompt."
+      },
+      "edit_instruct": {
+        "label": "Instruct edit",
+        "desc": "Edit with a natural-language instruction; keeps the rest intact."
+      },
+      "inpaint": {
+        "label": "Inpaint",
+        "desc": "Repaint a masked region from a prompt."
+      },
+      "object_removal": {
+        "label": "Remove object",
+        "desc": "Erase a masked object and fill the gap."
+      },
+      "outpaint": {
+        "label": "Outpaint",
+        "desc": "Extend the image beyond a masked edge from a prompt."
+      },
+      "background_replace": {
+        "label": "Replace background",
+        "desc": "Swap the masked background for a new prompted scene."
+      }
+    },
+    "create": {
+      "intro": "Describe what you want, then Generate. Results arrive as variations you can send to the canvas.",
+      "loading": "Loading generators…",
+      "error": "Unable to load AI operations.",
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "A serene mountain lake at golden hour…",
+      "negativeLabel": "Negative prompt",
+      "negativePlaceholder": "blurry, low quality, watermark",
+      "sizeLabel": "Size",
+      "size": {
+        "square": "Square",
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "seedLabel": "Seed",
+      "seedRandom": "Random",
+      "seedLock": "Lock seed",
+      "seedRandomize": "Randomize seed",
+      "variationsLabel": "Variations",
+      "byokLabel": "Allow paid cloud (BYOK)",
+      "advanced": "Advanced",
+      "usesCurrent": "Uses the current canvas image.",
+      "needsImage": "Add an image to transform first.",
+      "needsMask": "Paint or upload a mask first.",
+      "run": "Generate",
+      "running": "Generating…",
+      "produced": "Produced {{done}}/{{total}}",
+      "progress": "{{percent}}%",
+      "cancel": "Cancel",
+      "retry": "Try again",
+      "succeeded": "Generated {{count}} — pick one to send to the canvas.",
+      "failed": "Couldn't finish the generation.",
+      "warningsLabel": "Heads up",
+      "consent": {
+        "label": "I have the right to edit the people in this image.",
+        "required": "Confirm you have the right to edit the people in this image before continuing."
+      },
+      "result": {
+        "heading": "Variations",
+        "slot": "Variation {{index}}",
+        "pending": "Generating…",
+        "sendToCanvas": "Send to canvas",
+        "sendToEnhance": "Enhance",
+        "download": "Download"
+      }
+    },
+    "mask": {
+      "title": "Mask",
+      "hint": "Paint over the area to change — white marks the affected region.",
+      "brushSize": "Brush size",
+      "clear": "Clear mask",
+      "uploadLabel": "Upload a mask image instead",
+      "painted": "Mask ready.",
+      "uploaded": "Mask uploaded: {{name}}",
+      "empty": "No mask yet."
+    },
+    "operationLabelGroup": "Operation",
+    "op": {
+      "resize": {
+        "label": "Resize",
+        "desc": "Scale the image to new dimensions."
+      },
+      "crop": {
+        "label": "Crop",
+        "desc": "Cut out a rectangular region — drag the box on the canvas."
+      },
+      "rotate": {
+        "label": "Rotate",
+        "desc": "Turn the image by an angle."
+      },
+      "flip": {
+        "label": "Flip",
+        "desc": "Mirror the image horizontally or vertically."
+      },
+      "deskew": {
+        "label": "Deskew",
+        "desc": "Straighten a tilted scan or photo."
+      },
+      "thumbnail": {
+        "label": "Thumbnail",
+        "desc": "Make a small preview that fits a box."
+      },
+      "canvas": {
+        "label": "Canvas",
+        "desc": "Place the image on a larger background."
+      },
+      "adjust": {
+        "label": "Adjust",
+        "desc": "Tune brightness, contrast, color, and gamma."
+      },
+      "filter": {
+        "label": "Filter",
+        "desc": "Apply a visual effect like grayscale or sepia."
+      },
+      "convert": {
+        "label": "Convert",
+        "desc": "Change the file format and quality."
+      },
+      "compress": {
+        "label": "Compress",
+        "desc": "Shrink the file toward a target size."
+      },
+      "overlay": {
+        "label": "Watermark",
+        "desc": "Stamp text or an image onto the picture."
+      },
+      "metadata": {
+        "label": "Metadata",
+        "desc": "Strip or read EXIF and orientation data."
+      }
+    },
+    "fitOption": {
+      "fit": "Fit",
+      "fill": "Fill",
+      "stretch": "Stretch"
+    },
+    "axisOption": {
+      "horizontal": "Horizontal",
+      "vertical": "Vertical"
+    },
+    "filterOption": {
+      "grayscale": "Grayscale",
+      "sepia": "Sepia",
+      "invert": "Invert",
+      "blur": "Blur",
+      "sharpen": "Sharpen"
+    },
+    "position": {
+      "name": {
+        "topLeft": "Top left",
+        "top": "Top",
+        "topRight": "Top right",
+        "left": "Left",
+        "center": "Center",
+        "right": "Right",
+        "bottomLeft": "Bottom left",
+        "bottom": "Bottom",
+        "bottomRight": "Bottom right"
+      }
+    },
+    "crop": {
+      "aspect": {
+        "label": "Aspect ratio",
+        "free": "Free",
+        "square": "1:1",
+        "standard": "4:3",
+        "wide": "16:9",
+        "original": "Original"
+      },
+      "advanced": "Advanced",
+      "hint": "Drag the box to set the crop, or use the arrow keys to nudge it.",
+      "boxLabel": "Crop region"
+    },
+    "control": {
+      "reset": "Reset to default"
+    },
+    "color": {
+      "alpha": "Opacity",
+      "clear": "Clear color"
+    },
+    "target": {
+      "kb": "KB",
+      "mb": "MB",
+      "noLimit": "No size limit"
+    },
+    "compare": {
+      "before": "Before",
+      "after": "After",
+      "slider": "Comparison slider"
+    },
+    "field": {
+      "width": "Width",
+      "height": "Height",
+      "fit": "Fit",
+      "gravity": "Gravity",
+      "x": "X",
+      "y": "Y",
+      "angle": "Angle",
+      "background": "Background",
+      "axis": "Axis",
+      "brightness": "Brightness",
+      "contrast": "Contrast",
+      "gamma": "Gamma",
+      "saturation": "Saturation",
+      "hue": "Hue",
+      "filter": "Filter",
+      "amount": "Amount",
+      "format": "Format",
+      "quality": "Quality",
+      "lossless": "Lossless",
+      "targetBytes": "Target bytes",
+      "text": "Text",
+      "position": "Position",
+      "opacity": "Opacity",
+      "color": "Color",
+      "fontSize": "Font size",
+      "stripAll": "Strip all",
+      "stripGps": "Strip GPS",
+      "autoOrient": "Auto-orient"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "select": {
+    "title": "Smart Select",
+    "description": "Click a region in your image to select it — the edge snaps to the silhouette — then pick a context-aware edit.",
+    "chooseImage": "Choose an image",
+    "pointerHint": "Click the image to select a region, or use the controls below.",
+    "autoSelect": "Auto-select subject",
+    "selectPoint": "Select point",
+    "pointX": "X (%)",
+    "pointY": "Y (%)",
+    "tolerance": "Detail tolerance",
+    "segmenting": "Selecting…",
+    "region": "Region: {{class}}",
+    "confidence": "{{percent}}% confidence",
+    "editsHeading": "Suggested edits",
+    "noEdits": "No edits available for this region.",
+    "promptPlaceholder": "Describe the change…",
+    "applying": "Applying…",
+    "submitted": "Submitted as job {{jobId}} — track it in Activity.",
+    "gate": "This edit needs a model backend. Install one in Models, or enable BYOK.",
+    "reset": "Start over",
+    "imageAlt": "Your image",
+    "maskAlt": "Selected region mask",
+    "error": "Could not complete the selection.",
+    "class": {
+      "person": "Person",
+      "sky": "Sky",
+      "foliage": "Foliage",
+      "background": "Background",
+      "object": "Object"
+    }
+  },
+  "compare": {
+    "title": "Visual Compare",
+    "description": "Drop in two images — a base and a candidate — to see exactly what changed: a verdict, a heat-map of the differences, and the metrics behind it.",
+    "baseLabel": "Base image",
+    "compareLabel": "Compare image",
+    "chooseBase": "Choose base image",
+    "chooseCompare": "Choose compare image",
+    "dropHint": "Drop an image here, or choose a file.",
+    "baseAlt": "Base image",
+    "compareAlt": "Compare image",
+    "mode": "Comparison mode",
+    "modePixel": "Pixel",
+    "modePerceptual": "Perceptual",
+    "tolerance": "Pixel tolerance",
+    "toleranceReset": "Reset tolerance",
+    "run": "Compare",
+    "reset": "Start over",
+    "comparing": "Comparing…",
+    "error": "Could not complete the comparison.",
+    "verdictHeading": "Verdict",
+    "verdictIdentical": "Identical",
+    "verdictSimilar": "Similar",
+    "verdictDifferent": "Different",
+    "dimensionsMismatch": "Images differ in size — the compare image was resized to the base.",
+    "heatmapHeading": "Difference heat-map",
+    "heatmapAlt": "Heat-map highlighting the changed pixels",
+    "metricsHeading": "Metrics",
+    "metricChanged": "Changed pixels",
+    "metricChangedValue": "{{percent}}% ({{changed}} of {{total}})",
+    "metricMae": "MAE",
+    "metricRmse": "RMSE",
+    "metricPsnr": "PSNR",
+    "metricPsnrValue": "{{value}} dB",
+    "metricPhashDistance": "pHash distance",
+    "metricPhashSimilarity": "pHash similarity",
+    "metricSsim": "SSIM",
+    "warningsHeading": "Warnings"
+  }
+}

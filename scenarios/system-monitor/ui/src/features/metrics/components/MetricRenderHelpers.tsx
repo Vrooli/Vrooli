@@ -1,7 +1,6 @@
 import type { DiskInfo } from '../../../types';
 import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatBytes } from '../../../shared/utils/formatters';
-import { getRiskLevelColor } from '../../../shared/utils/colors';
 
 // ── Render Helpers ─────────────────────────────────────────────────────────
 
@@ -11,7 +10,7 @@ export const buildDiskUsageCard = (
 ) => {
   if (!diskUsage) {
     return (
-      <div className="card" style={{ padding: 'var(--spacing-lg)' }}>
+      <div className="card" data-sm-style="sm-style-a796e75e8f">
         <h3 className="section-heading">{options?.title ?? 'Disk Utilization'}</h3>
         <div className="text-muted">
           Disk usage metrics are unavailable.
@@ -23,14 +22,14 @@ export const buildDiskUsageCard = (
   const freeBytes = Number(diskUsage.total) - Number(diskUsage.used);
 
   return (
-    <div className="card flex-col-gap-md" style={{ padding: 'var(--spacing-lg)' }}>
+    <div className="card flex-col-gap-md" data-sm-style="sm-style-a796e75e8f">
       <div>
         <h3 className="section-heading">{options?.title ?? 'Disk Utilization'}</h3>
         <div className="card-subtitle">
           {options?.subtitle ?? 'Current usage across monitored volumes'}
         </div>
       </div>
-      <div className="progress-bar progress-bar-lg" style={{ borderRadius: 'var(--radius-sm)' }}>
+      <div className="progress-bar progress-bar-lg" data-sm-style="sm-style-dce622b2b5">
         <div
           className="progress-fill"
           style={{
@@ -52,9 +51,9 @@ export const buildDiskUsageCard = (
 };
 
 export const renderProcessTable = (
-  processes: Array<{ name: string; pid: number; cpuPercent?: number; memoryMb?: number }> | undefined,
+  processes: Array<{ name: string; pid: number; cpuPercent?: number; memoryMb?: number; majorFaultsPerSecond?: number; cpuSeconds?: number }> | undefined,
   valueLabel: string,
-  valueAccessor: (process: { cpuPercent?: number; memoryMb?: number }) => number | undefined
+  valueAccessor: (process: { cpuPercent?: number; memoryMb?: number; majorFaultsPerSecond?: number; cpuSeconds?: number }) => number | undefined
 ) => {
   if (!processes || processes.length === 0) {
     return (
@@ -65,7 +64,7 @@ export const renderProcessTable = (
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div data-sm-style="sm-style-d383f0755e">
       <table className="data-table">
         <thead>
           <tr>
@@ -79,9 +78,9 @@ export const renderProcessTable = (
             const value = valueAccessor(process);
             return (
               <tr key={`${process.name}-${process.pid}`}>
-                <td style={{ color: 'var(--color-text-heading)' }}>{process.name}</td>
-                <td style={{ color: 'var(--color-text)' }}>{process.pid}</td>
-                <td style={{ color: 'var(--color-primary)' }}>
+                <td data-sm-style="sm-style-dbed1e5364">{process.name}</td>
+                <td data-sm-style="sm-style-bb03b2fa99">{process.pid}</td>
+                <td data-sm-style="sm-style-392c7463c7">
                   {value !== undefined ? value.toFixed(1) : '—'}
                 </td>
               </tr>
@@ -89,38 +88,6 @@ export const renderProcessTable = (
           })}
         </tbody>
       </table>
-    </div>
-  );
-};
-
-export const renderGrowthPatterns = (
-  patterns: Array<{ process: string; growthMbPerHour: number; riskLevel: string }> | undefined
-) => {
-  if (!patterns || patterns.length === 0) {
-    return (
-      <div className="text-muted">
-        No anomalous growth patterns detected.
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-      {patterns.slice(0, 8).map(pattern => (
-        <div
-          key={`${pattern.process}-${pattern.growthMbPerHour}`}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 'var(--text-sm)'
-          }}
-        >
-          <span style={{ color: 'var(--color-text)' }}>{pattern.process}</span>
-          <span style={{ color: getRiskLevelColor(pattern.riskLevel) }}>
-            {pattern.growthMbPerHour.toFixed(1)} MB/hr ({pattern.riskLevel})
-          </span>
-        </div>
-      ))}
     </div>
   );
 };

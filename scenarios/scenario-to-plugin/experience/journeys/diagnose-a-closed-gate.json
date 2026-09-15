@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "diagnose-a-closed-gate",
+    "title": "Diagnose a closed gate",
+    "purpose": "Take an operator from a package that will not advance to the specific finding that blocks it and the remedy for it, without guessing which page to open.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-003"
+    ]
+  },
+  "steps": [
+    {
+      "page": "packages",
+      "state": "default",
+      "intent": "Find the package that is not advancing."
+    },
+    {
+      "page": "package-detail",
+      "state": "blocked",
+      "intent": "See which rung closed and read the remedy."
+    },
+    {
+      "page": "conformance-findings",
+      "state": "default",
+      "intent": "Read the finding with its rule, file, and offset."
+    },
+    {
+      "page": "conformance-findings",
+      "state": "default",
+      "intent": "For a drift failure, read the pinned manifest revision to decide whether the skill or the CLI moved."
+    }
+  ]
+}

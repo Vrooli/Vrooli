@@ -1,0 +1,256 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.machines;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines;machines_v1";
+
+// MachineService is the intent-oriented owner surface. Registry Nodes and live
+// Presence are composed on reads; neither is copied into Machine persistence.
+service MachineService {
+  rpc CreateMachine(CreateMachineRequest) returns (CreateMachineResponse);
+  rpc GetMachine(GetMachineRequest) returns (GetMachineResponse);
+  rpc ListMachines(ListMachinesRequest) returns (ListMachinesResponse);
+  rpc ArchiveMachine(ArchiveMachineRequest) returns (ArchiveMachineResponse);
+  rpc RemoveMachine(RemoveMachineRequest) returns (RemoveMachineResponse);
+  rpc GetMachineTrust(GetMachineTrustRequest) returns (GetMachineTrustResponse);
+  rpc ReviewMachineHostKey(ReviewMachineHostKeyRequest) returns (ReviewMachineHostKeyResponse);
+  rpc RequestMachineSSHCleanup(RequestMachineSSHCleanupRequest) returns (RequestMachineSSHCleanupResponse);
+  rpc UpdateMachineCleanup(UpdateMachineCleanupRequest) returns (UpdateMachineCleanupResponse);
+  rpc ApplyMachinePolicy(ApplyMachinePolicyRequest) returns (ApplyMachinePolicyResponse);
+  rpc GetMachineConfiguration(GetMachineRequest) returns (GetMachineResponse);
+  rpc ApplyMachineConfiguration(ApplyMachinePolicyRequest) returns (ApplyMachinePolicyResponse);
+  rpc GetMachineDrift(GetMachineRequest) returns (GetMachineResponse);
+  rpc RevokeMachineNode(RevokeMachineNodeRequest) returns (RevokeMachineNodeResponse);
+  rpc RepairMachine(RepairMachineRequest) returns (RepairMachineResponse);
+  rpc MergeMachines(MergeMachinesRequest) returns (MergeMachinesResponse);
+}
+
+message ConnectionLocator {
+  string kind = 1;
+  string value = 2;
+  int32 ordinal = 3;
+}
+
+message NodeLineage {
+  string node_id = 1;
+  bool current = 2;
+  google.protobuf.Timestamp linked_at = 3;
+  google.protobuf.Timestamp superseded_at = 4;
+  string correlation_id = 5;
+}
+
+message Machine {
+  string id = 1;
+  string lifecycle = 2;
+  int64 version = 3;
+  string desired_profile_id = 4;
+  string desired_profile_version = 5;
+  repeated ConnectionLocator locators = 6;
+  repeated NodeLineage node_lineage = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  google.protobuf.Timestamp archived_at = 10;
+  google.protobuf.Timestamp removed_at = 11;
+  string applied_profile_id = 12;
+  string applied_profile_version = 13;
+  google.protobuf.Timestamp applied_at = 14;
+  string desired_selection_json = 15;
+  string applied_selection_json = 16;
+}
+
+message CreateMachineRequest {
+  repeated ConnectionLocator locators = 1;
+  string desired_profile_id = 2;
+  string desired_profile_version = 3;
+}
+message CreateMachineResponse {
+  Machine machine = 1;
+}
+message GetMachineRequest {
+  string id = 1;
+}
+
+// EnrollmentAttempt is immutable recovery history. It deliberately carries no
+// passwords, pairing codes, private-key references, or mutable Node facts.
+message EnrollmentAttempt {
+  string id = 1;
+  string retry_of_attempt_id = 2;
+  string correlation_id = 3;
+  string state = 4;
+  string terminal_result = 5;
+  string diagnostics = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp terminal_at = 8;
+}
+
+// CurrentNodeProjection is read-time data owned by Registry and Presence. It
+// is intentionally absent from Machine persistence.
+message CurrentNodeProjection {
+  string node_id = 1;
+  string name = 2;
+  repeated string capabilities = 3;
+  bool online = 4;
+}
+message MachineAuditEvent {
+  string id = 1;
+  string action = 2;
+  string actor = 3;
+  string detail = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// MachineReadiness is a read-time explanation derived from independently owned
+// intent, trust, Registry, and Presence facts. It is never persisted as a
+// mutable Machine field and it never grants suggested scopes.
+message MachineReadiness {
+  bool ready = 1;
+  repeated string reasons = 2;
+}
+message MachineDrift {
+  string kind = 1;
+  string name = 2;
+  string reason = 3;
+}
+message GetMachineResponse {
+  Machine machine = 1;
+  repeated EnrollmentAttempt enrollment_attempts = 2;
+  CurrentNodeProjection current_node = 3;
+  repeated MachineAuditEvent audit_events = 4;
+  MachineReadiness readiness = 5;
+  // Durable local cleanup effects are returned with the Machine detail so an
+  // operator can distinguish a pending remote action from confirmed history.
+  repeated MachineCleanup cleanup_tombstones = 6;
+  repeated MachineDrift drift = 7;
+  EffectivePolicy effective_policy = 8;
+}
+message ListMachinesRequest {}
+message ListMachinesResponse {
+  repeated Machine machines = 1;
+}
+message ArchiveMachineRequest {
+  string id = 1;
+  int64 version = 2;
+}
+message ArchiveMachineResponse {
+  Machine machine = 1;
+}
+message RemoveMachineRequest {
+  string id = 1;
+  int64 version = 2;
+}
+message RemoveMachineResponse {
+  Machine machine = 1;
+}
+
+// Public trust metadata is deliberately fingerprint-only; private key material
+// and filesystem paths never cross this boundary.
+message MachineTrust {
+  string client_key_fingerprint = 1;
+  string host_key_fingerprint = 2;
+  string host_key_state = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  string ssh_user = 5;
+  int32 ssh_port = 6;
+  string connection_state = 7;
+}
+message GetMachineTrustRequest {
+  string machine_id = 1;
+}
+message GetMachineTrustResponse {
+  MachineTrust trust = 1;
+}
+message ReviewMachineHostKeyRequest {
+  string machine_id = 1;
+  string replacement_host_key_fingerprint = 2;
+}
+message ReviewMachineHostKeyResponse {
+  MachineTrust trust = 1;
+}
+
+// Cleanup is an explicit durable effect, separate from local revocation and
+// Machine removal. A request does not claim an unreachable host was changed.
+message MachineCleanup {
+  string id = 1;
+  string machine_id = 2;
+  string action = 3;
+  string status = 4;
+  string detail = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  google.protobuf.Timestamp acknowledged_at = 8;
+}
+message RequestMachineSSHCleanupRequest {
+  string machine_id = 1;
+}
+message RequestMachineSSHCleanupResponse {
+  MachineCleanup cleanup = 1;
+}
+message UpdateMachineCleanupRequest {
+  string id = 1;
+  string status = 2;
+  string detail = 3;
+}
+message UpdateMachineCleanupResponse {
+  MachineCleanup cleanup = 1;
+}
+
+message EffectivePolicy {
+  string profile_id = 1;
+  string profile_version = 2;
+  string setup_preset = 3;
+  repeated string suggested_scopes = 4;
+  repeated string required_capabilities = 5;
+  string snapshot_json = 6;
+  repeated string scenarios = 8;
+  repeated string optional_resources = 9;
+}
+message ApplyMachinePolicyRequest {
+  string machine_id = 1;
+  int64 version = 2;
+  string profile_id = 3;
+  string profile_version = 4;
+  map<string, string> overrides = 5;
+  string reason = 6;
+  // Required when this policy transition removes required capability or scope intent.
+  bool confirm_removal = 7;
+}
+message ApplyMachinePolicyResponse {
+  Machine machine = 1;
+  EffectivePolicy policy = 2;
+}
+
+// Revocation is deliberately separate from Machine archive/removal and SSH
+// cleanup. It revokes the current paired Node locally first.
+message RevokeMachineNodeRequest {
+  string machine_id = 1;
+}
+message RevokeMachineNodeResponse {
+  Machine machine = 1;
+  string revoked_node_id = 2;
+}
+
+// Repair reuses the durable Machine identity and Bridge-managed SSH key. The
+// server starts a normal enrollment attempt; it never creates a replacement
+// Machine as a side effect.
+message RepairMachineRequest {
+  string machine_id = 1;
+}
+message RepairMachineResponse {
+  Machine machine = 1;
+  string onboarding_op_id = 2;
+  string enrollment_attempt_id = 3;
+}
+
+// Merge is an explicit, audited reconciliation of duplicate durable records.
+// The source is archived after locators and lineage are folded into target;
+// history is retained and the operation is owner-gated.
+message MergeMachinesRequest {
+  string from_machine_id = 1;
+  string into_machine_id = 2;
+}
+message MergeMachinesResponse {
+  Machine machine = 1;
+  string archived_machine_id = 2;
+}

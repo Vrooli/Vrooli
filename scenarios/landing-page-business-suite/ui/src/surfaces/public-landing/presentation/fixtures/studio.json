@@ -1,0 +1,505 @@
+{
+  "presentation": {
+    "schema_version": 1,
+    "mode": "bundle",
+    "scope": "bundle",
+    "page": {
+      "id": "bundle-studio",
+      "locale": "en",
+      "title": "Vrooli Business Suite",
+      "description": "A place for your AI work. A canvas for your ideas. Thoughtful apps for people who love to make things.",
+      "theme": {
+        "variant": "studio",
+        "primary": "#30372c",
+        "background": "#f6f4ec",
+        "accent": "#ab4829"
+      },
+      "navigation": {
+        "label": "Main navigation",
+        "items": [
+          {
+            "label": "The apps",
+            "accessible_label": "The apps",
+            "target": "#apps"
+          },
+          {
+            "label": "The idea",
+            "accessible_label": "The idea",
+            "target": "#details"
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "id": "hero",
+          "kind": "bundle-hero",
+          "version": 1,
+          "variant": "editorial",
+          "content": {
+            "bundle_hero": {
+              "eyebrow": "A SMALL SUITE FOR BIG IDEAS",
+              "title": "The tools. The possibilities.",
+              "description": "A place for your AI work. A canvas for your ideas. Thoughtful apps for people who love to make things.",
+              "accessibility_label": "Explore the apps in this composition",
+              "hero_items": [
+                {
+                  "app_key": "web-console",
+                  "visual_ref": "",
+                  "exhibit_kind": "product-view",
+                  "detail_label": "Your agent workspace"
+                },
+                {
+                  "app_key": "backdrop-studio",
+                  "visual_ref": "",
+                  "exhibit_kind": "artwork",
+                  "detail_label": "Your visual studio"
+                }
+              ],
+              "actions": [
+                {
+                  "kind": "anchor",
+                  "label": "Meet the apps",
+                  "accessible_label": "Meet the apps",
+                  "target": "#apps"
+                },
+                {
+                  "kind": "anchor",
+                  "label": "Find your starting point",
+                  "accessible_label": "Find your starting point",
+                  "target": "#apps"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "apps",
+          "kind": "app-spotlights",
+          "version": 1,
+          "variant": "grid",
+          "content": {
+            "app_spotlights": {
+              "heading": "Good on their own. Better in your day.",
+              "app_keys": [
+                "web-console",
+                "backdrop-studio"
+              ],
+              "detail_link_label": "Explore"
+            }
+          }
+        },
+        {
+          "id": "details",
+          "kind": "product-story",
+          "version": 1,
+          "variant": "three-column",
+          "content": {
+            "product_story": {
+              "heading": "Big ideas. Thoughtful tools.",
+              "body": "The best tools give you room to think. Each app has a clear purpose, a considered interface, and a place in the work you want to do.",
+              "items": [
+                {
+                  "title": "Choose your starting point.",
+                  "description": "Start with the app that solves today’s problem. Explore the rest when you need it."
+                },
+                {
+                  "title": "Keep the work in focus.",
+                  "description": "Distinct tools, each with its own clear purpose. Understand what an app does before you open it."
+                },
+                {
+                  "title": "Make it feel like yours.",
+                  "description": "From the way you arrange your workspace to the visual world around your product, the choices stay with you."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "get-started",
+          "kind": "closing-action",
+          "version": 1,
+          "variant": "artwork",
+          "content": {
+            "closing_action": {
+              "heading": "Good things start here.",
+              "description": "Find a little more room for your next big idea.",
+              "actions": [
+                {
+                  "kind": "anchor",
+                  "label": "Find your app",
+                  "accessible_label": "Find your app",
+                  "target": "#apps"
+                }
+              ],
+              "visual_ref": "tidal-halftone"
+            }
+          }
+        }
+      ],
+      "footer": {
+        "label": "Footer",
+        "links": [
+          {
+            "label": "Explore the suite",
+            "accessible_label": "Explore the suite",
+            "target": "/"
+          },
+          {
+            "label": "Aquila",
+            "accessible_label": "Explore Aquila",
+            "target": "/apps/aquila"
+          }
+        ]
+      },
+      "display": {
+        "shell": {
+          "brand_name": "Vrooli",
+          "brand_mark": "suite",
+          "brand_target": "/",
+          "brand_subtitle": "THE BUSINESS SUITE",
+          "skip_label": "Skip to content",
+          "menu_label": "Toggle navigation",
+          "footer_brand_name": "Vrooli",
+          "footer_brand_mark": "suite",
+          "footer_brand_target": "/",
+          "footer_tagline": "Tools for people with things to make.",
+          "copyright": "Vrooli © 2026",
+          "footer_note": "Design concept. Product UI and release availability require validation.",
+          "unavailable_reason": "Release availability is not connected in this preview.",
+          "preview_label": "Design fixture · illustrative bundle membership; Backdrop Studio is not published.",
+          "header_action": {
+            "kind": "anchor",
+            "label": "Explore the apps",
+            "accessible_label": "Explore the apps",
+            "target": "#apps"
+          }
+        },
+        "asset_labels": {
+          "survey-relief": {
+            "alt": "survey relief abstract art study"
+          },
+          "pale-moon": {
+            "alt": "pale moon abstract art study"
+          },
+          "tidal-halftone": {
+            "alt": "tidal halftone abstract art study"
+          }
+        },
+        "fixture_display": {
+          "workspace": {
+            "mark": "letter-a",
+            "avatar": "M",
+            "time": "9:41",
+            "tabs_label": "Explore the workspace",
+            "terminal_label": "Terminal",
+            "messages_label": "Conversation",
+            "file_changes": {
+              "Hero.tsx": "+24",
+              "ProductStory.tsx": "+48",
+              "design-tokens.css": "+16"
+            }
+          },
+          "art-studies": {
+            "mark": "landscape"
+          },
+          "hero-art-studies": {
+            "mark": "landscape"
+          }
+        },
+        "blocks": {
+          "hero": {
+            "note": "Made to earn a place in your everyday.",
+            "accessibility_label": "Illustrative product view · design concept",
+            "heading_breaks": [
+              11
+            ],
+            "hero_fixture_refs": {
+              "web-console": "workspace",
+              "backdrop-studio": "hero-art-studies"
+            }
+          },
+          "details": {
+            "eyebrow": "BUILT AROUND THE WAY YOU MAKE",
+            "heading_breaks": [
+              11
+            ]
+          },
+          "apps": {
+            "eyebrow": "MEET YOUR NEW EVERYDAY TOOLS",
+            "description": "A focused workspace for your AI work. A visual studio for what comes next. Find the tool that moves your idea forward.",
+            "heading_breaks": [
+              19
+            ]
+          },
+          "get-started": {
+            "eyebrow": "WHAT WILL YOU MAKE NEXT?"
+          }
+        },
+        "apps": {
+          "web-console": {
+            "mark": "letter-a",
+            "tone": "amber",
+            "detail_label": "Explore Aquila",
+            "fixture_ref": "workspace"
+          },
+          "backdrop-studio": {
+            "mark": "landscape",
+            "tone": "sage",
+            "detail_label": "Explore Backdrop Studio",
+            "fixture_ref": "art-studies"
+          }
+        }
+      }
+    },
+    "selected_app_keys": [
+      "web-console",
+      "backdrop-studio"
+    ],
+    "spotlights": [
+      {
+        "app_key": "web-console",
+        "slug": "aquila",
+        "name": "Aquila",
+        "tagline": "Bring your agents into focus.",
+        "description": "Organize your agent sessions. Talk, listen, and catch up with AI summaries. Open the plans, previews, and evidence they create.",
+        "detail_route": "/apps/aquila"
+      },
+      {
+        "app_key": "backdrop-studio",
+        "slug": "backdrop-studio",
+        "name": "Backdrop Studio",
+        "tagline": "Give good ideas a visual world.",
+        "description": "Explore distinctive backdrops. Shape a palette, compose for your canvas, and make every surface feel intentional.",
+        "detail_route": "/apps/backdrop-studio"
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "remote-machines",
+        "label": "Remote computers",
+        "benefits": [
+          "Connect to remote machines from your Aquila workspace."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      },
+      {
+        "id": "android-control",
+        "label": "Android devices",
+        "benefits": [
+          "Bring Android device control into the same place as your agent work."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      },
+      {
+        "id": "iphone-control",
+        "label": "iPhone control",
+        "benefits": [
+          "Extend the workspace to controlling your iPhone, too."
+        ],
+        "status": "coming-soon",
+        "status_label": "COMING SOON"
+      }
+    ],
+    "diagnostics": {
+      "preview": true,
+      "noindex": true,
+      "no_store": true,
+      "resolved_revision": "design-review-v2-feature-depth",
+      "eligible_app_keys": [
+        "web-console",
+        "backdrop-studio"
+      ]
+    },
+    "assets": [
+      {
+        "id": "survey-relief",
+        "public_url": "/presentation/survey-relief.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-survey-relief",
+        "content_hash": "0f32434728ead47372779d04db03019b7370fbca3e9285fbd242083c8fb4d9ea",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "survey-relief"
+        },
+        "overlay_regions": []
+      },
+      {
+        "id": "pale-moon",
+        "public_url": "/presentation/pale-moon.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-pale-moon",
+        "content_hash": "05384e483727b34a647013d752fd80e657f887ec100420403e445b1c0f07a299",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "pale-moon"
+        },
+        "overlay_regions": []
+      },
+      {
+        "id": "tidal-halftone",
+        "public_url": "/presentation/tidal-halftone.png",
+        "width": 1440,
+        "height": 720,
+        "release_ref": "review-v2-tidal-halftone",
+        "content_hash": "ce4ba8c17a93fca4900dc38c443dfd743bd89631831cdfbf988298c4367639e4",
+        "mime": "image/png",
+        "surface": "illustration",
+        "responsive_alternatives": [],
+        "focal_point": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "crop_policy": "contain",
+        "provenance": {
+          "provider": "review-fixture",
+          "job_ref": "review-v2",
+          "candidate_ref": "tidal-halftone"
+        },
+        "overlay_regions": []
+      }
+    ],
+    "fixtures": [
+      {
+        "id": "workspace",
+        "kind": "workspace",
+        "workspace": {
+          "title": "Aquila",
+          "group": "Website refresh",
+          "group_label": "YOUR WORK",
+          "groups": [
+            "Website refresh",
+            "Side project",
+            "Notes & experiments"
+          ],
+          "sessions_label": "SESSIONS",
+          "sessions": [
+            "Build the experience",
+            "Review the changes",
+            "Run the checks"
+          ],
+          "role": "Builder",
+          "model": "Claude Code",
+          "reviewer": "Reviewer",
+          "reviewer_model": "Codex",
+          "branch": "website / main",
+          "prompt": "Let’s give the homepage a little more room to breathe.",
+          "answer": "I’ll simplify the layout, keep the product in focus, and make the mobile experience feel just as considered.",
+          "file_label": "CHANGES IN THIS SESSION",
+          "diff": [
+            "+  A clearer first impression",
+            "+  One story at every screen size",
+            "+  Space for the work to stand out"
+          ],
+          "command": "$ pnpm test homepage",
+          "checks": [
+            "✓ Hero content is visible",
+            "✓ Product links resolve",
+            "✓ Mobile layout fits the screen"
+          ],
+          "ready": "Ready for your review",
+          "composer": "What would you like to work on?",
+          "return_label": "AI RESPONSE SUMMARY",
+          "return_title": "The useful part, up front.",
+          "review_message": "The layout is updated. Mobile checks pass. The new product story is ready to review.",
+          "message_label": "YOU",
+          "reply_label": "CLAUDE CODE",
+          "status": "Session connected",
+          "today": "Today",
+          "keyboard": [
+            "esc",
+            "ctrl",
+            "tab",
+            "↑",
+            "↓",
+            "↵"
+          ],
+          "files": [
+            "Hero.tsx",
+            "ProductStory.tsx",
+            "design-tokens.css"
+          ]
+        }
+      },
+      {
+        "id": "art-studies",
+        "kind": "backdrop",
+        "backdrop": {
+          "title": "Backdrop Studio",
+          "label": "YOUR COLLECTION",
+          "selected": "Survey Relief",
+          "styles": [
+            "Survey Relief",
+            "Pale Moon",
+            "Tidal Halftone"
+          ],
+          "surface": "Website hero",
+          "palette": "Palette",
+          "panel": "A visual language, made yours.",
+          "caption": "Three studies. One considered palette.",
+          "export": "Export composition",
+          "options": [
+            "Composition",
+            "Palette",
+            "Surface"
+          ],
+          "badge": "BACKDROP STUDIES",
+          "asset_refs": [
+            "survey-relief",
+            "pale-moon",
+            "tidal-halftone"
+          ]
+        }
+      },
+      {
+        "id": "hero-art-studies",
+        "kind": "backdrop",
+        "backdrop": {
+          "title": "Backdrop Studio",
+          "label": "YOUR COLLECTION",
+          "selected": "Survey Relief",
+          "styles": [
+            "Survey Relief",
+            "Pale Moon"
+          ],
+          "surface": "Website hero",
+          "palette": "Palette",
+          "panel": "A visual language, made yours.",
+          "caption": "Three studies. One considered palette.",
+          "export": "Export composition",
+          "options": [
+            "Composition",
+            "Palette",
+            "Surface"
+          ],
+          "badge": "BACKDROP STUDIES",
+          "asset_refs": [
+            "survey-relief",
+            "pale-moon"
+          ]
+        }
+      }
+    ]
+  }
+}

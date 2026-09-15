@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P2-001",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "title": "Cross-Golden Consistency",
+  "description": "When the same skill is validated against multiple goldens, verify verdicts and mutation patterns are coherent across templates. Diverging behavior may indicate template-shape divergence.",
+  "requirements": [
+    {
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "title": "Cross-golden verdict comparator",
+      "description": "Service that, per skill, groups latest verdicts across all goldens and flags divergent patterns (pass on A, unexpected-mutation on B; same paths mutated differently across templates).",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

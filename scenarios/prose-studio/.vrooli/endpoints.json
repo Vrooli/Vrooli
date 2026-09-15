@@ -1,0 +1,144 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.prose_studio.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.prose_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "prose_registry",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Registry",
+      "method": "POST",
+      "summary": "List governed sampler, policy, metric, and transform kinds",
+      "description": "",
+      "category": "prose"
+    },
+    {
+      "id": "prose_create_style",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateStyle",
+      "method": "POST",
+      "summary": "Create a versioned writing style",
+      "description": "",
+      "category": "styles"
+    },
+    {
+      "id": "prose_resolve_profile",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ResolveProfile",
+      "method": "POST",
+      "summary": "Resolve a profile and inspect its exact instruction",
+      "description": "",
+      "category": "profiles"
+    },
+    {
+      "id": "prose_generate",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Generate",
+      "method": "POST",
+      "summary": "Generate and measure a candidate set through ai-gateway",
+      "description": "",
+      "category": "generation"
+    },
+    {
+      "id": "prose_reroll",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Reroll",
+      "method": "POST",
+      "summary": "Reroll a session with pinned and rejected context",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "prose_session_action",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/SessionAction",
+      "method": "POST",
+      "summary": "Pin, unpin, reject, refine, or abandon a session",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "prose_reindex_declarations",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ReindexDeclarations",
+      "method": "POST",
+      "summary": "Register consumer-owned declaration files",
+      "description": "",
+      "category": "declarations"
+    },
+    {
+      "id": "prose_validate_declarations",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ValidateDeclarations",
+      "method": "POST",
+      "summary": "Validate declarations without test-genie",
+      "description": "",
+      "category": "declarations"
+    },
+    {
+      "id": "prose_create_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateDocument",
+      "method": "POST",
+      "summary": "Create a section-composed document",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_assemble_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/AssembleDocument",
+      "method": "POST",
+      "summary": "Assemble committed sections to ordered text",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_resume_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ResumeDocument",
+      "method": "POST",
+      "summary": "Resume a partially committed document",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_conformance",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Conformance",
+      "method": "POST",
+      "summary": "Report style targets and lexicon spans",
+      "description": "",
+      "category": "styles"
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+package byok
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+
+	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
+)
+
+// OpenAIWhisperSTT calls OpenAI's audio/transcriptions endpoint.
+// Model: whisper-1. Audio bytes are uploaded as multipart form-data.
+type OpenAIWhisperSTT struct {
+	Endpoint string
+	Doer     httpc.Doer
+	Clock    schedule.Clock
+}
+
+func NewOpenAIWhisperSTT() *OpenAIWhisperSTT {
+	return &OpenAIWhisperSTT{
+		Endpoint: "https://api.openai.com/v1/audio/transcriptions",
+		Doer:     httpc.DefaultDoer(),
+		Clock:    schedule.System(),
+	}
+}
+
+func (a *OpenAIWhisperSTT) ID() string    { return "openai-whisper" }
+func (a *OpenAIWhisperSTT) Model() string { return "whisper-1" }
+
+func (a *OpenAIWhisperSTT) IsAvailable(ctx context.Context, key string) bool {
+	return key != ""
+}
+
+// StreamingCapability — OpenAI whisper-1 is HTTP-only; native streaming
+// goes through the separate OpenAI Realtime API (registered as a
+// distinct "openai-realtime" adapter in Phase E). This adapter declines
+// streaming.
+func (a *OpenAIWhisperSTT) StreamingCapability() bool { return false }
+
+func (a *OpenAIWhisperSTT) TranscribeStreaming(_ context.Context, _ string, _ sttchain.StreamStart, _ <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+	return nil, nil
+}
+
+func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttchain.Request) (*sttchain.Result, error) {
+	if key == "" {
+		return nil, fmt.Errorf("openai-whisper: missing API key")
+	}
+	body := &bytes.Buffer{}
+	mw := multipart.NewWriter(body)
+
+	fw, err := mw.CreateFormFile("file", "audio."+req.Format)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(fw, bytes.NewReader(req.Audio)); err != nil {
+		return nil, err
+	}
+	_ = mw.WriteField("model", "whisper-1")
+	if req.Language != "" {
+		_ = mw.WriteField("language", req.Language)
+	}
+	if req.InitialPrompt != "" {
+		_ = mw.WriteField("prompt", req.InitialPrompt)
+	}
+	if err := mw.Close(); err != nil {
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.Endpoint, body)
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+key)
+	httpReq.Header.Set("Content-Type", mw.FormDataContentType())
+
+	clk := a.Clock
+	if clk == nil {
+		clk = schedule.System()
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("openai-whisper: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("openai-whisper: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
+	}
+
+	var out struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("openai-whisper: decode response: %w", err)
+	}
+	return &sttchain.Result{
+		Text:             out.Text,
+		DetectedLanguage: req.Language,
+		ModelID:          "whisper-1",
+		Latency:          clk.Now().Sub(start),
+	}, nil
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}

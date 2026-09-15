@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.trend;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/trend;trend_v1";
+
+// =============================================================================
+// PERFORMANCE TREND SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// TrendService reads the persisted per-scenario performance trend (build time,
+// startup, LCP, component hotspots) from the SQLite trend store. Writes are
+// additive (never destructive); reads are newest-first. Modeled on
+// structure-health's perf store and the test-genie self-health snapshots.
+// =============================================================================
+
+service TrendService {
+  // GetTrend returns a scenario's persisted performance samples, newest first.
+  rpc GetTrend(GetTrendRequest) returns (GetTrendResponse);
+}
+
+message GetTrendRequest {
+  string scenario = 1;
+  // Maximum samples to return (0 = a server default).
+  int32 limit = 2;
+}
+
+message GetTrendResponse {
+  string scenario = 1;
+  repeated TrendSample samples = 2;
+}
+
+// TrendSample is one persisted performance sample.
+message TrendSample {
+  string scenario = 1;
+  // RFC3339Nano UTC capture time.
+  string captured_at = 2;
+  int64 go_build_ms = 3;
+  int64 ui_build_ms = 4;
+  int64 bundle_bytes = 5;
+  int64 lcp_ms = 6;
+  // Cumulative Layout Shift (unitless).
+  double cls = 13;
+  // PerformanceNavigationTiming phases, milliseconds from navigation start.
+  int64 response_end_ms = 14;
+  int64 dom_interactive_ms = 15;
+  int64 dom_content_loaded_ms = 16;
+  int64 load_event_end_ms = 17;
+  // Navigation kind; a reload is not comparable with a cold navigate.
+  string navigation_type = 18;
+  int64 startup_ms = 7;
+  // Optional human note (e.g. degraded reason, axes captured).
+  string note = 8;
+  // The slowest component (by average commit time) observed this run, if any.
+  string slowest_component = 10;
+  // The slowest component's average commit time in milliseconds (0 = none).
+  double slowest_component_avg_ms = 11;
+  // The slowest component's max commit time in milliseconds (0 = none).
+  double slowest_component_max_ms = 12;
+  // Field 9 was p95_ms — removed: no honest p95 latency producer exists, so the
+  // axis could never trip. Reserved to prevent accidental reuse.
+  reserved 9;
+  reserved "p95_ms";
+}

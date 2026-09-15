@@ -9,7 +9,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )
@@ -79,17 +79,18 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	// Create a profile
 	profile := &domain.AgentProfile{
-		ID:              uuid.New(),
-		Name:            "consecutive-test-profile",
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		Model:           "claude-3-opus",
-		RequiresSandbox: false, // In-place execution
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:   uuid.New(),
+		Name: "consecutive-test-profile",
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, // In-place execution
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(), RoleRef: "code.default",
 	}
 	createdProfile, err := svc.CreateProfile(ctx, profile)
 	if err != nil {
@@ -242,16 +243,18 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:              uuid.New(),
-		Name:            "heartbeat-test-profile",
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:   uuid.New(),
+		Name: "heartbeat-test-profile",
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(), RoleRef: "code.default",
 	}
 	createdProfile, err := svc.CreateProfile(ctx, profile)
 	if err != nil {
@@ -307,7 +310,7 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 }
 
 // waitForRunCompletion polls for run completion with a timeout.
-func waitForRunCompletion(t *testing.T, ctx context.Context, svc orchestration.Service, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
+func waitForRunCompletion(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
 	t.Helper()
 
 	deadline := time.Now().Add(timeout)

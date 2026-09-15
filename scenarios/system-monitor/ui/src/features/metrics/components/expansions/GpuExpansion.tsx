@@ -10,7 +10,7 @@ export const GpuExpansion = ({ details }: GpuExpansionProps) => {
   const gpuMetrics = details?.metrics;
   if (!gpuMetrics) {
     return (
-      <div style={{ marginTop: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
+      <div data-sm-style="sm-style-8b5a895ea0">
         GPU metrics unavailable. Ensure compatible NVIDIA drivers are installed.
       </div>
     );
@@ -19,26 +19,26 @@ export const GpuExpansion = ({ details }: GpuExpansionProps) => {
   const { summary, devices, errors: gpuErrors } = gpuMetrics;
 
   return (
-    <div className="metric-details flex-col-gap-md" style={{ marginTop: 'var(--spacing-md)' }}>
+    <div className="metric-details flex-col-gap-md" data-sm-style="sm-style-323fdcc1e0">
       {summary && (
         <div className="metric-grid-auto">
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>Devices:</span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>{summary.deviceCount}</span>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">Devices:</span>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">{summary.deviceCount}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>Average Utilization:</span>
-            <span className="detail-value" style={{ color: 'var(--color-primary)' }}>{summary.averageUtilizationPercent?.toFixed(1) ?? '—'}%</span>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">Average Utilization:</span>
+            <span className="detail-value" data-sm-style="sm-style-392c7463c7">{summary.averageUtilizationPercent?.toFixed(1) ?? '—'}%</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>Memory:</span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">Memory:</span>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {summary.usedMemoryMb?.toFixed(0) ?? '—'} / {summary.totalMemoryMb?.toFixed(0) ?? '—'} MB
             </span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>Avg Temp:</span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">Avg Temp:</span>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {summary.deviceCount > 0 && summary.averageTemperatureC > 0 ? `${summary.averageTemperatureC.toFixed(1)}\u00B0C` : '—'}
             </span>
           </div>
@@ -46,25 +46,19 @@ export const GpuExpansion = ({ details }: GpuExpansionProps) => {
       )}
 
       {gpuMetrics.driverVersion && (
-        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-          Driver Version: <span style={{ color: 'var(--color-text-heading)' }}>{gpuMetrics.driverVersion}</span>
+        <div data-sm-style="sm-style-3078a903f6">
+          Driver Version: <span data-sm-style="sm-style-dbed1e5364">{gpuMetrics.driverVersion}</span>
         </div>
       )}
 
       {gpuMetrics.primaryModel && (
-        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-          Primary Model: <span style={{ color: 'var(--color-text-heading)' }}>{gpuMetrics.primaryModel}</span>
+        <div data-sm-style="sm-style-3078a903f6">
+          Primary Model: <span data-sm-style="sm-style-dbed1e5364">{gpuMetrics.primaryModel}</span>
         </div>
       )}
 
       {gpuErrors && gpuErrors.length > 0 && (
-        <div style={{
-          border: '1px solid var(--color-warning)',
-          padding: 'var(--spacing-sm) var(--spacing-md)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--color-warning)',
-          fontSize: 'var(--text-sm)'
-        }}>
+        <div data-sm-style="sm-style-345204f43b">
           {gpuErrors.join(' \u2022 ')}
         </div>
       )}
@@ -76,13 +70,13 @@ export const GpuExpansion = ({ details }: GpuExpansionProps) => {
           ))}
         </div>
       ) : (
-        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
+        <div data-sm-style="sm-style-3078a903f6">
           No GPU devices detected.
         </div>
       )}
 
       {details.lastUpdated && (
-        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
+        <div data-sm-style="sm-style-39e2159503">
           Updated {formatTime(details.lastUpdated)}
         </div>
       )}

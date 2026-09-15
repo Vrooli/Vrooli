@@ -1,0 +1,162 @@
+{
+  "description": "A Go CLI and the documented REST/Connect API let other scenarios and agents deliver an artifact to one of the owner's devices; all CLI commands emit structured JSON for scripting; the API contract is versioned and stable.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P1-008",
+        "REQ-P0-005"
+      ],
+      "description": "A Go CLI binary (device-sync CLI) allows other scenarios and agents to deliver files or text snippets to one of the owner's trusted devices by name or device_id. All CLI commands emit structured JSON output for scripting. The CLI authenticates using an owner API token (not interactive login). Commands include: send-file, send-text, list-devices, list-items. The CLI communicates with the hub's REST/Connect API. Flags: --device, --retention, --output=json|pretty. The CLI is distributed as a static binary with no runtime dependencies.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Programmatic Go CLI for Artifact Delivery",
+      "validation": [
+        {
+          "notes": "Unit test: send-file command constructs correct multipart upload request with filename, retention, and target device fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: send-text command constructs correct JSON body with content, retention, and target device fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: list-devices command outputs valid JSON array with id, name, and presence fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: all commands return exit code 1 and JSON error object on API error response",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: --output=json flag produces minified JSON; --output=pretty produces indented JSON",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: run CLI send-file against a live hub instance; assert file appears in target device's item list",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: run CLI list-devices; assert output matches devices returned by REST API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: run CLI with invalid API token; assert exit code 1 and JSON error with code=unauthorized",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Documentation review: CLI --help output documents all flags and examples for send-file and send-text",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Scripting test: pipe CLI list-devices output to jq; confirm valid JSON is parseable without errors",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "The hub exposes a versioned REST API (and optionally Connect/gRPC) enabling other scenarios and agents to deliver artifacts and manage devices programmatically. The API version is encoded in the URL path (e.g., /v1/). All endpoints are documented with request/response schemas. Breaking changes increment the major version. The API contract is stable within a major version: no request field removals, no response field removals, and no semantic changes without a version bump. The API is the canonical backend for both the web UI and the CLI.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Versioned REST/Connect API Contract for Programmatic Access",
+      "validation": [
+        {
+          "notes": "Unit test: all route registrations include the /v1/ prefix",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: API response structs are validated against OpenAPI schema definitions in CI (schema contract test)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: no endpoint omits authentication middleware",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: POST /v1/items with valid auth returns 201 and item metadata conforming to the documented schema",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: unknown endpoint returns 404 with structured JSON error body",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: schema contract test suite passes against a running hub instance with no violations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Documentation review: OpenAPI spec is published and covers all P0/P1 endpoints with request/response examples",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Versioning review: confirm no v1 endpoint has changed its response schema without a version bump in the current release",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Programmatic CLI \u0026 API Surface"
+}

@@ -1,0 +1,1 @@
+{"gate":"version-mirror-integrity","assetId":"calibration.version-mirror-integrity","kind":"component","runner":"static","requiredFailureCode":"catalog.version_mirror_missing","description":"The mirror database is intentionally absent in the isolated calibration runner."}

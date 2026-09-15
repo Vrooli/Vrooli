@@ -1,0 +1,171 @@
+{
+  "_metadata": {
+    "module": "desktop-transport",
+    "description": "Portal Everywhere mandatory acceptance obligations; planned evidence is not completion.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-01",
+      "title": "Terminal parity",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given an existing PTY session is running, when desktop support is enabled, vrooli-bridge shall ensure: Terminal byte and resize semantics remain correct.",
+      "tags": [
+        "portal-everywhere",
+        "REM-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-01 in the vrooli-bridge producer suite. Required assertion: Terminal byte and resize semantics remain correct. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-02",
+      "title": "Protocol confusion",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given a terminal frame is sent to a desktop session, when admission evaluates it, vrooli-bridge shall ensure: It rejects the wrong protocol.",
+      "tags": [
+        "portal-everywhere",
+        "REM-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-02 in the vrooli-bridge producer suite. Required assertion: It rejects the wrong protocol. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-03",
+      "title": "Node revocation",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given media and input channels are active, when the node is revoked, vrooli-bridge shall ensure: Existing channels lose authority.",
+      "tags": [
+        "portal-everywhere",
+        "REM-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-03 in the vrooli-bridge producer suite. Required assertion: Existing channels lose authority. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-04",
+      "title": "Loss before effect",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given the route disconnects before command admission, when the client reconnects, vrooli-bridge shall ensure: The owner can safely resume the unperformed step.",
+      "tags": [
+        "portal-everywhere",
+        "REM-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-04 in the vrooli-bridge producer suite. Required assertion: The owner can safely resume the unperformed step. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-05",
+      "title": "Loss after effect",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given the route disconnects after submission, when an alternate provider is available, vrooli-bridge shall ensure: The original receipt is reconciled before fallback.",
+      "tags": [
+        "portal-everywhere",
+        "REM-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-05 in the vrooli-bridge producer suite. Required assertion: The original receipt is reconciled before fallback. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-06",
+      "title": "Slow viewer",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given a viewer cannot consume frames, when the stream continues, vrooli-bridge shall ensure: Queues remain bounded and stop remains responsive.",
+      "tags": [
+        "portal-everywhere",
+        "REM-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-06 in the vrooli-bridge producer suite. Required assertion: Queues remain bounded and stop remains responsive. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-07",
+      "title": "Relay only",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given direct peer connectivity is unavailable, when a supported relay route is selected, vrooli-bridge shall ensure: Authorized viewing works with recorded cost and latency.",
+      "tags": [
+        "portal-everywhere",
+        "REM-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-07 in the vrooli-bridge producer suite. Required assertion: Authorized viewing works with recorded cost and latency. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "VROOLIBRIDGE-EVERYWHERE-REM-08",
+      "title": "Attached revoke",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "rem",
+      "criticality": "P0",
+      "description": "Given a device grant is revoked while the host stays online, when device input arrives, vrooli-bridge shall ensure: Device control stops without revoking unrelated host sessions.",
+      "tags": [
+        "portal-everywhere",
+        "REM-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case REM-08 in the vrooli-bridge producer suite. Required assertion: Device control stops without revoking unrelated host sessions. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    }
+  ]
+}

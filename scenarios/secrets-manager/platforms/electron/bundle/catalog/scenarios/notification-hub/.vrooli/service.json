@@ -1,0 +1,233 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "service": {
+    "name": "notification-hub",
+    "displayName": "Notification Hub",
+    "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "notifications",
+      "multi-tenant",
+      "email",
+      "sms",
+      "push-notifications",
+      "infrastructure",
+      "communication",
+      "api",
+      "rate-limiting",
+      "analytics",
+      "compliance",
+      "go-api",
+      "nodejs-server",
+      "postgres-storage",
+      "redis-cache"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/notification-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Notification Hub API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Notification Hub dashboard port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Notification Hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Notification Hub with multi-tenant capabilities",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/notification-hub-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "notification-hub",
+            "targets": [
+              "notification-hub"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o notification-hub-api .",
+          "description": "Build Go API server binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Notification Hub with Go API server and Node.js dashboard",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./notification-hub-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notification-hub-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js dashboard server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for notification-hub",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute notification-hub --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"notification-hub-api\" || true; sleep 1; pkill -9 -f \"notification-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/notification-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/notification-hub.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Notification queues, rate limiting counters, and caching"
+      }
+    },
+    "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "notification-hub",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "notification-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

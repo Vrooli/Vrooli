@@ -25,7 +25,6 @@ import (
 // for a new user from checkout through subscription activation.
 func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -57,6 +56,12 @@ func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -175,7 +180,6 @@ func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 // already used intro don't get the coupon again.
 func TestFlow_ReturningUser_NoCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -215,7 +219,6 @@ func TestFlow_ReturningUser_NoCoupon(t *testing.T) {
 // TestFlow_CreditPurchase_BalanceUpdated verifies the complete credit purchase flow.
 func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -247,6 +250,12 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -263,6 +272,12 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
@@ -332,7 +347,6 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 // TestFlow_SubscriptionCancel_StatusUpdated verifies subscription cancellation flow.
 func TestFlow_SubscriptionCancel_StatusUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -391,7 +405,6 @@ func TestFlow_SubscriptionCancel_StatusUpdated(t *testing.T) {
 // TestFlow_EmailChange_AllTablesMigrated verifies complete email migration flow.
 func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -439,6 +452,12 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE TABLE intro_coupon_usage (
@@ -530,7 +549,6 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 // case variations is prevented.
 func TestFlow_CouponAbuse_CaseVariation_Blocked(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -582,7 +600,6 @@ func TestFlow_CouponAbuse_CaseVariation_Blocked(t *testing.T) {
 // attempts by the same user.
 func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -602,6 +619,12 @@ func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -667,7 +690,6 @@ func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 // idempotently.
 func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -699,6 +721,12 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -715,6 +743,12 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
@@ -779,7 +813,6 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 // refresh subscription status correctly.
 func TestFlow_InvoicePaid_RefreshesSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table

@@ -24,6 +24,7 @@ const (
 	PreflightTLSALPNID       = "tls_alpn_compat"
 
 	PreflightSSHConnectID      = "ssh_connect"
+	PreflightPrivilegeID       = "privilege_strategy"
 	PreflightOSReleaseID       = "os_release"
 	PreflightPortsEdgeID       = "ports_80_443"
 	PreflightOutboundNetworkID = "outbound_network"

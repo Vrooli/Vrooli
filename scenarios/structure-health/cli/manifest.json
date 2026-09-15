@@ -1,0 +1,411 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "structure-health",
+  "description": "Structure Health CLI surface. Single source of truth for the `validate` domain: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate scenario structure and lifecycle wiring",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a scenario's skeleton and lifecycle wiring by reconciling code-facts ground truth against declared service.json intent",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resource",
+          "description": "Validate a resource target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "tool",
+          "description": "Validate a tool target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "safeguard",
+          "description": "Validate a safeguard target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "team",
+          "description": "Validate a team target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "package",
+          "description": "Validate a package target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "control-plane",
+          "description": "Validate a control-plane target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "docs",
+          "description": "Validate the documentation target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "project",
+          "description": "Validate the repository project target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "all",
+          "description": "Validate every enumerated repository target",
+          "flags": [{"name": "path", "description": "Repository root to enumerate"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "rules",
+      "description": "Inspect the structural rule catalog and computed coverage",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every structural rule",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        },
+        {
+          "name": "coverage",
+          "description": "Show rule coverage and target-kind reachability",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        },
+        {
+          "name": "docs",
+          "description": "Render generated catalog documentation",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}, {"name": "output", "description": "Write generated Markdown to this path", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"]}
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Deterministic offender queries over the whole fleet's structure conformance",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Roll up structure conformance across every discovered scenario (or a requested subset): per-scenario rollups, profile distribution, per-rule conformance, and auto-fixable coverage",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Restrict the scan to one or more scenario slugs (repeatable / comma-separated); default scans every discovered scenario",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "census",
+          "description": "Measure every scenario manifest directly from disk for deterministic lifecycle-migration evidence without code-facts reconciliation",
+          "flags": [
+        {
+          "name": "include-steps",
+          "description": "Include the complete lifecycle-step inventory in the JSON result"
+        },
+        {
+          "name": "output",
+          "description": "Write the census JSON to this repository-relative or absolute path"
+        },
+        {
+          "name": "steps-output",
+          "description": "Write the complete lifecycle-step inventory to this repository-relative or absolute path"
+        },
+        {
+          "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+      "governance": {
+        "effect": "write",
+        "run_eligible": false,
+        "permissions": [
+          "filesystem:read",
+          "filesystem:write"
+        ]
+      }
+        }
+      ]
+    },
+    {
+      "name": "fix-config",
+      "description": "Preview or apply deterministic structure and service.json fixes",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Preview (or, with --apply, apply) deterministic structure/service.json fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the fixes (default is a dry-run preview)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "PreviewFixConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic structure/service.json fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ApplyFixConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign-fixed",
+          "description": "Assign a free in-band fixed port to a scenario (range to fixed) so it can be exposed as a scenario route; previews unless --apply",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to switch"
+            }
+          ],
+          "flags": [
+            {
+              "name": "port-name",
+              "description": "Listener port to switch (default ui; only api/ui/websocket have bands)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Write the edit (default previews the format-preserving diff)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "AssignFixedPort"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "release-fixed",
+          "description": "Release a scenario fixed port back to its canonical range (fixed to range); previews unless --apply",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to switch"
+            }
+          ],
+          "flags": [
+            {
+              "name": "port-name",
+              "description": "Listener port to switch (default ui; only api/ui/websocket have bands)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Write the edit (default previews the format-preserving diff)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ReleaseFixedPort"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Shared cross-scenario fix surface exposed alongside this scenario's own ValidationService; the CLI 'fix-config' commands target the scenario-local ValidationService autofix path."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Shared cross-scenario fix surface exposed alongside this scenario's own ValidationService; the CLI 'fix-config' commands target the scenario-local ValidationService autofix path."
+    }
+  ]
+}

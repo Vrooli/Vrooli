@@ -17,7 +17,7 @@ import { DEBUG_OVERLAY_ITEMS } from "./components/SceneDebugPanel";
 import useExperienceStore from "./state/store";
 import { getGreeting } from "./utils/timeUtils";
 
-const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT || "16902";
+const DEFAULT_API_PORT = globalThis.__VROOLI_CONFIG__?.apiPort || "16902";
 const API_URL =
   process.env.NODE_ENV === "production"
     ? "/api"

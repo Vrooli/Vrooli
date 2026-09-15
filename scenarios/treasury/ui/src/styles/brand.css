@@ -1,0 +1,9 @@
+/* brand-manager:colors - Auto-generated brand colors */
+:root {
+  --brand-primary: #2563eb; /* brand-manager:primary */
+  --brand-secondary: #020617; /* brand-manager:secondary */
+  --brand-accent: #0891b2; /* brand-manager:accent */
+  --brand-background: #f8fafc; /* brand-manager:background */
+  --brand-surface: #ffffff; /* brand-manager:surface */
+  --brand-text: #0f172a; /* brand-manager:text */
+}

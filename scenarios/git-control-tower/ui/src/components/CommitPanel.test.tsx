@@ -1,11 +1,13 @@
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
 import { CommitPanel } from "./CommitPanel";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 describe("CommitPanel", () => {
   it("shows push action when ahead even without a new commit", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={0}
         commitMessage=""
@@ -22,8 +24,28 @@ describe("CommitPanel", () => {
     expect(screen.getByText(/push \(3\)/i)).toBeInTheDocument();
   });
 
+  it("reports the push phase and elapsed time while a push runs", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onPush={vi.fn()}
+        canPush
+        aheadCount={3}
+        isPushing
+        pushProgressLabel="Pushing 2m 04s"
+      />
+    );
+
+    expect(screen.getByTestId("push-button")).toHaveTextContent("Pushing 2m 04s");
+    expect(screen.getByTestId("push-button")).toBeDisabled();
+  });
+
   it("disables amend when upstream is not available", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: adjust"
@@ -40,4 +62,389 @@ describe("CommitPanel", () => {
     expect(amendCheckbox).toBeDisabled();
     expect(screen.getByText(/set upstream before amending/i)).toBeInTheDocument();
   });
+
+  it("shows read-only authority and blocks commit without human authorization", () => {
+    const onCommit = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: protected"
+        onCommitMessageChange={() => {}}
+        onCommit={onCommit}
+        isCommitting={false}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: true,
+          principalId: "agent",
+          email: "agent@example.test",
+          realm: "test",
+          callerKind: "vrooli-agent",
+          canMutate: false,
+          reason: "agents are read-only",
+          capabilities: [],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("authority-status")).toHaveTextContent(/read-only authority/i);
+    expect(screen.getByTestId("commit-button")).toBeDisabled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("offers a same-origin sign-in action while preserving the read-only path", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onAuthoritySignedIn={vi.fn()}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: false,
+          principalId: "",
+          email: "",
+          realm: "default",
+          callerKind: "unknown",
+          canMutate: false,
+          reason: "sign in through scenario-authenticator to authorize repository mutations",
+          capabilities: [],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("open-authenticator-sign-in"));
+    expect(screen.getByTestId("authenticator-sign-in")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue read-only" })).toBeInTheDocument();
+  });
+
+  it("uses the Cloudflare recovery path without opening a second authenticator login", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onAuthoritySignedIn={vi.fn()}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: false,
+          principalId: "",
+          email: "",
+          realm: "default",
+          callerKind: "unknown",
+          canMutate: false,
+          reason: "Cloudflare Access session expired",
+          authSource: "cloudflare_access",
+          authState: "expired",
+          recoveryUrl: "https://team.example.test/cdn-cgi/access/login",
+          failureClass: "expired",
+          capabilities: [],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("auth-recovery")).toHaveAttribute(
+      "href",
+      "https://team.example.test/cdn-cgi/access/login"
+    );
+    expect(screen.queryByTestId("open-authenticator-sign-in")).not.toBeInTheDocument();
+  });
+
+  it("keeps the authority surface quiet for a verified human", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: protected"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        authorityStatus={create(AuthorityStatusSchema, { authenticated: true, principalId: "human", email: "human@example.test", realm: "test", callerKind: "human", canMutate: true, reason: "", capabilities: [] })}
+      />
+    );
+
+    expect(screen.queryByTestId("authority-status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("commit-button")).toBeEnabled();
+  });
+
+  it("shows live precommit progress panel with elapsed and tail", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={true}
+        precommitProgress={{
+          running: true,
+          command: "vrooli hygiene --fail-on error",
+          elapsedMs: 12500,
+          tail: ["check 1 ok", "check 2 ok", "running drift..."],
+          onCancel: vi.fn(),
+        }}
+      />
+    );
+
+    const progress = screen.getByTestId("commit-precommit-progress");
+    expect(progress).toBeInTheDocument();
+    expect(progress).toHaveTextContent(/Running pre-commit/i);
+    expect(progress).toHaveTextContent(/12\.5s/);
+    expect(progress).toHaveTextContent(/running drift/);
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it("hides precommit progress panel when not running and no failure", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        precommitProgress={{ running: false, elapsedMs: 0, tail: [] }}
+      />
+    );
+    expect(screen.queryByTestId("commit-precommit-progress")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("commit-precommit-failure")).not.toBeInTheDocument();
+  });
+
+  it("renders persistent failure panel with output and actions when precommit failed", () => {
+    const onDismiss = vi.fn();
+    const onCommitAnyway = vi.fn();
+    const onRunAgain = vi.fn();
+    const onDisable = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        precommitProgress={{
+          running: false,
+          elapsedMs: 12500,
+          tail: [],
+          failedResult: {
+            status: "failed",
+            exit_code: 1,
+            summary: "Precommit checks failed",
+            stdout: "running hygiene...",
+            stderr: "drift detected",
+            duration_ms: 12500,
+            override_allowed: true,
+            timestamp: "2026-05-20T22:14:59Z",
+          },
+          onDismissFailure: onDismiss,
+          onCommitAnyway,
+          onRunAgain,
+          onDisable,
+        }}
+      />
+    );
+
+    const failure = screen.getByTestId("commit-precommit-failure");
+    expect(failure).toBeInTheDocument();
+    expect(failure).toHaveTextContent(/Pre-commit checks did not pass/i);
+    expect(failure).toHaveTextContent(/Precommit checks failed/);
+    expect(failure).toHaveTextContent(/drift detected/);
+    expect(failure).toHaveTextContent(/exit 1/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Again/i }));
+    expect(onRunAgain).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Commit Anyway/i }));
+    expect(onCommitAnyway).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Disable Checks/i }));
+    expect(onDisable).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText(/Dismiss pre-commit failure/i));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides Commit Anyway when override is not allowed", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        precommitProgress={{
+          running: false,
+          elapsedMs: 0,
+          tail: [],
+          failedResult: {
+            status: "failed",
+            exit_code: 1,
+            summary: "Precommit checks failed",
+            stdout: "",
+            stderr: "",
+            duration_ms: 0,
+            override_allowed: false,
+            timestamp: "2026-05-20T22:14:59Z",
+          },
+          onCommitAnyway: vi.fn(),
+        }}
+      />
+    );
+    expect(screen.queryByRole("button", { name: /Commit Anyway/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show the failure panel while the stream is still running", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={true}
+        precommitProgress={{
+          running: true,
+          elapsedMs: 1000,
+          tail: ["line"],
+          failedResult: {
+            status: "failed",
+            exit_code: 1,
+            summary: "old failure",
+            stdout: "",
+            stderr: "",
+            duration_ms: 0,
+            override_allowed: true,
+            timestamp: "2026-05-20T22:14:59Z",
+          },
+        }}
+      />
+    );
+    expect(screen.getByTestId("commit-precommit-progress")).toBeInTheDocument();
+    expect(screen.queryByTestId("commit-precommit-failure")).not.toBeInTheDocument();
+  });
+
+  it("shows commit checks in history mode", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        isHistoryMode
+        historyCommit={{
+          hash: "abc1234",
+          subject: "fix: adjust",
+          checks: [{
+            kind: "precommit",
+            status: "failed",
+            command: "custom check",
+            exit_code: 7,
+            summary: "checks failed",
+            stderr: "nope",
+            duration_ms: 25,
+            timestamp: "2026-05-09T12:00:00Z"
+          }]
+        }}
+      />
+    );
+
+    expect(screen.getByText("Commit Checks")).toBeInTheDocument();
+    expect(screen.getByText("custom check")).toBeInTheDocument();
+    expect(screen.getByText("failed")).toBeInTheDocument();
+    expect(screen.getByText("nope")).toBeInTheDocument();
+  });
+
+  it("passes skipHooks to onCommit when the skip-hooks checkbox is set", () => {
+    const onCommit = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: bypass"
+        onCommitMessageChange={() => {}}
+        onCommit={onCommit}
+        isCommitting={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+    fireEvent.click(screen.getByTestId("skip-hooks-checkbox"));
+    fireEvent.click(screen.getByTestId("commit-button"));
+
+    expect(onCommit).toHaveBeenCalledWith(
+      "fix: bypass",
+      expect.objectContaining({ skipHooks: true }),
+    );
+  });
+
+  it("offers Commit Anyway inside the running progress box", () => {
+    const onCommitAnyway = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={true}
+        precommitProgress={{
+          running: true,
+          elapsedMs: 3000,
+          tail: [],
+          onCancel: vi.fn(),
+          onCommitAnyway,
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("commit-anyway-running"));
+    expect(onCommitAnyway).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces a reuse retry next to a commit error when a passed pre-commit can be reused", () => {
+    const onRetryWithoutPrecommit = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        commitError="fatal: Unable to create '.git/index.lock': File exists."
+        onRetryWithoutPrecommit={onRetryWithoutPrecommit}
+        canRetryWithoutPrecommit
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("retry-without-precommit"));
+    expect(onRetryWithoutPrecommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the reuse retry when no passed pre-commit is available", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        commitError="some error"
+        onRetryWithoutPrecommit={vi.fn()}
+        canRetryWithoutPrecommit={false}
+      />
+    );
+    expect(screen.queryByTestId("retry-without-precommit")).not.toBeInTheDocument();
+  });
+});
+
+
+it("lets the user compose a message while pending file updates block only committing", () => {
+ const commit=vi.fn();
+ renderWithProviders(<CommitPanel stagedCount={1} commitMessage="source change" onCommitMessageChange={()=>{}} onCommit={commit} isCommitting={false} isUpdatingIndex />);
+ expect(screen.getByTestId("commit-button")).toHaveTextContent("Updating files…");
+ expect(screen.getByTestId("commit-button")).toBeDisabled();
+ expect(screen.getByTestId("commit-message-input")).toBeEnabled();
+ fireEvent.click(screen.getByTestId("commit-button"));
+ expect(commit).not.toHaveBeenCalled();
+});
+
+it("names authorization preparation before a commit is submitted", () => {
+ renderWithProviders(<CommitPanel stagedCount={1} commitMessage="source change" onCommitMessageChange={()=>{}} onCommit={()=>{}} isCommitting commitProgressLabel="Preparing commit…" />);
+ expect(screen.getByTestId("commit-button")).toHaveTextContent("Preparing commit…");
+ expect(screen.getByTestId("commit-button")).toBeDisabled();
 });

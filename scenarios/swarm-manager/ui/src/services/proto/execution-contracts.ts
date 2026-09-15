@@ -19,6 +19,7 @@ import type {
   FinalizationScopeSource,
   FinalizationStatus,
   ReviewClassification,
+  ExecutionScopeExtension,
 } from "../../types";
 import { EXECUTION_STATUSES, EXECUTION_MODES } from "../../types";
 import { createProtoSchema } from "./shared";
@@ -65,6 +66,15 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     fixupAttempt: proto.fixupAttempt ?? 0,
     createdAt: proto.createdAt ?? "",
     updatedAt: proto.updatedAt ?? "",
+    ...(proto.executionPreferences ? { executionPreferences: proto.executionPreferences } : {}),
+    ...(proto.actualRunner ? { actualRunner: proto.actualRunner } : {}),
+    ...(proto.actualModel ? { actualModel: proto.actualModel } : {}),
+    ...(proto.selectionReason ? { selectionReason: proto.selectionReason } : {}),
+    ...(proto.continuationOf ? { continuationOf: proto.continuationOf } : {}),
+    ...(proto.continuationChildIds?.length ? { continuationChildIds: proto.continuationChildIds } : {}),
+    ...(((proto as ProtoExecutionRecord & { scopeExtensions?: ExecutionScopeExtension[] }).scopeExtensions?.length)
+      ? { scopeExtensions: (proto as ProtoExecutionRecord & { scopeExtensions?: ExecutionScopeExtension[] }).scopeExtensions }
+      : {}),
   };
   if (proto.finalization) {
     record.finalization = mapProtoFinalization(proto.finalization);

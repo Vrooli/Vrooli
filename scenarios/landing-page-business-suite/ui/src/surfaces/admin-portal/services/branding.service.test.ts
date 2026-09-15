@@ -27,9 +27,9 @@ type GetBrandingFn = typeof getBranding;
 type UpdateBrandingFn = typeof updateBranding;
 type ClearBrandingFieldFn = typeof clearBrandingField;
 
-const getBrandingMock = vi.fn<Parameters<GetBrandingFn>, ReturnType<GetBrandingFn>>();
-const updateBrandingMock = vi.fn<Parameters<UpdateBrandingFn>, ReturnType<UpdateBrandingFn>>();
-const clearBrandingFieldMock = vi.fn<Parameters<ClearBrandingFieldFn>, ReturnType<ClearBrandingFieldFn>>();
+const getBrandingMock = vi.fn<GetBrandingFn>();
+const updateBrandingMock = vi.fn<UpdateBrandingFn>();
+const clearBrandingFieldMock = vi.fn<ClearBrandingFieldFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

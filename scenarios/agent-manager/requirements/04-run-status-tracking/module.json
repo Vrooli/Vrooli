@@ -1,50 +1,45 @@
 {
-  "description": "Track and update run status with timestamps",
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-005"
-      ],
-      "description": "Track and update run status through defined lifecycle states with timestamps",
       "id": "REQ-P0-006",
-      "prd_ref": "OT-P0-004",
-      "status": "implemented",
       "title": "Run Status Lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "description": "Track and update run status through defined lifecycle states with timestamps",
       "validation": [
         {
-          "notes": "Test run status transitions",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRunStatus_CanTransitionTo",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test run status transitions"
         },
         {
-          "notes": "Test run stoppability based on status",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test run outcome classification",
           "phase": "unit",
-          "ref": "api/internal/domain/decisions_test.go::TestClassifyRunOutcome",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test run stoppability based on status"
         },
         {
-          "notes": "Verify run listing reflects status",
-          "phase": "integration",
+          "type": "test",
+          "ref": "api/internal/domain/decisions_test.go::TestClassifyRunOutcome",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test run outcome classification"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestListRuns",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify run listing reflects status"
         }
       ]
     }
-  ],
-  "title": "Run Status Tracking"
+  ]
 }

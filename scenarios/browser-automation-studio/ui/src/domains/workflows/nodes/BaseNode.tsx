@@ -61,7 +61,12 @@ const BaseNode: FC<BaseNodeProps> = ({
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''} ${className}`.trim()}>
       {showTopHandle && (
-        <Handle type="target" position={Position.Top} className="node-handle" />
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="node-handle"
+          data-testid="workflow-node-target-handle"
+        />
       )}
 
       <div className="flex items-center gap-2 mb-2">
@@ -72,7 +77,12 @@ const BaseNode: FC<BaseNodeProps> = ({
       {children}
 
       {showBottomHandle && (
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="node-handle"
+          data-testid="workflow-node-source-handle"
+        />
       )}
     </div>
   );

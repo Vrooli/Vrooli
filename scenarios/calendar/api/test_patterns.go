@@ -167,7 +167,7 @@ func invalidJSONPattern(urlPath string) ErrorTestPattern {
 			return HTTPTestRequest{
 				Method: "POST",
 				Path:   urlPath,
-				Body:   map[string]interface{}{
+				Body: map[string]interface{}{
 					"invalid": "missing required fields",
 				},
 				Headers: map[string]string{

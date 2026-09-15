@@ -1,0 +1,9 @@
+{
+  "name": "embedded-text-baseline",
+  "version": "0.1.0",
+  "license": "MIT",
+  "runtime": "pure-go",
+  "languages": ["eng"],
+  "mode": "cpu",
+  "notes": "A deterministic local baseline model. Text-bearing page inputs are segmented into positioned runs; raster inputs use the same bounded local recognizer contract and never fetch a model at runtime."
+}

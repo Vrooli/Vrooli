@@ -4,6 +4,27 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ## Open Issues
 
+### Behavior config seam — deferred follow-ups (2026-05-21)
+
+- **Wire-level override.** Today the rejection-message template comes
+  from the API-side scenario config (`<scenarioDir>/.vrooli/config.json`
+  `behavior.protected.gitDenyMessageTemplate`). The per-sandbox
+  `types.ProtectedConfig` (sent by agent-manager) does not carry a
+  template override. Add a `GitDenyMessageTemplate` wire field once a
+  real use case for per-sandbox messaging appears.
+- **Operator override plumbing.** The behavior loader supports custom
+  templates via `.vrooli/config.json`, but the runtime
+  `VROOLI_*_CONFIG_OVERRIDE_<key>=<json>` env-var override pattern
+  hinted at in the plan (§6) is intentionally deferred — only add the
+  loader path until an operator asks.
+- **Per-mode allowlist.** Today the `behavior.protected.gitAllowlist`
+  applies whenever the sandbox carries a non-empty
+  `ProtectedConfig.GitAllowlist`. If protected mode grows tiers ("read-
+  only", "minimal-write", "full"), the config schema would gain a
+  per-mode block. Defer until a second mode lands.
+
+
+
 ### Linux-Only Implementation
 - **Issue**: Primary driver (overlayfs + bwrap) only works on Linux
 - **Impact**: macOS and Windows users cannot use the sandbox
@@ -44,7 +65,7 @@ This document tracks known issues, open questions, and ideas deferred for future
 ### Single-Server Design
 - Current design assumes all sandboxes on one server
 - Distributed scenarios would need additional coordination
-- Metadata in PostgreSQL supports future distributed index
+- Metadata in SQLite supports future distributed index
 
 ### Git Operations Blocked by Convention
 - safe-git wrapper provides guidance, not enforcement
@@ -157,3 +178,9 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 
 *Last updated: 2025-12-17 by Claude Opus 4.5 (Security Fixes + Test Infrastructure Investigation)*
 *Next review: After test-genie path resolution issues are resolved*
+
+## Resolved Incidents
+
+### R-001: SSE exit-event race (2026-04-28)
+**Symptom**: Fast-failing processes (e.g. bwrap chdir failures, exit in ~10ms) closed the SSE log stream before `spawnExitReaper` called `RecordExit`. `StreamProcessLogs`'s best-effort `GetExitInfo` lookup returned nil, so no `event: exit` frame was ever sent. Agent-manager's SandboxLauncher treated the missing frame as a clean success.
+**Fix**: `process.Tracker.WaitForExit` blocks on a per-process `exitCh` channel that `RecordExit` closes; `StreamProcessLogs` awaits it with a 5s bounded timeout before emitting `event: exit` (or `event: error` if the timeout fires). See `scenarios/workspace-sandbox/docs/SEAMS.md` (Process Tracker seam).

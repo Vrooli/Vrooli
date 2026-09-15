@@ -1,4 +1,27 @@
+---
+name: "polish"
+description: "Final touches - consistency, edge cases, error messages"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","polish"]
+  tags: ["skill"]
+  icon: "sparkles"
+  status: "active"
+  targetDimensions: ["visual","tidiness","standards"]
+  revision: 46
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-05T01:01:57Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Polish
+
+> **Ladder position:** R3 (features hardened — consistency, edge cases, finish). Polish is the *right* move only once the scenario is past the lower rungs and its features actually exist; don't reach for it while a feature is missing (that's R4 work — see the ladder skill). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **overall quality, coherence, and finish** across the scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
@@ -7,7 +30,7 @@ Avoid large structural refactors or new feature work — focus on **refinement, 
 The goal of this phase is to make the scenario feel **reliable, intentional, and “done”**.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 

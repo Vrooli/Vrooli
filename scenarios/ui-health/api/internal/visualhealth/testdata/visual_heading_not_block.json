@@ -1,0 +1,11 @@
+{
+  "elements": [
+    {
+      "selector": "#adopted-asset-showcase-title",
+      "role": "heading",
+      "display": "inline-block",
+      "text": "Adopted foundation reference",
+      "rect": {"x": 397, "y": 119, "width": 362.765625, "height": 30}
+    }
+  ]
+}

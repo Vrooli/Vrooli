@@ -1,0 +1,1836 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "device-control",
+  "description": "Device Control CLI surface. Runtime commands are grouped by device, strategy, session, flow, audit, agent, and physical conformance concerns.",
+  "groups": [
+    {
+      "name": "device",
+      "description": "Inventory and onboard governed devices",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List devices",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "relations",
+          "description": "List unconfirmed transport correlation candidates",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "diagnostics",
+          "description": "List retained stale device observations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+      "name": "state",
+      "description": "Read live state from a device",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "volume",
+          "description": "Execute a semantic volume operation with owned lease and honest verification",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "goal"
+            },
+            {
+              "name": "operation"
+            },
+            {
+              "name": "value"
+            },
+            {
+              "name": "direction"
+            },
+            {
+              "name": "verification-policy",
+              "default": "physical_output"
+            },
+            {
+              "name": "operation-id"
+            },
+            {
+              "name": "actor",
+              "default": "cli"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "ExecuteVolume"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+          "permissions": [
+            "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "discover",
+          "description": "Browse the LAN for DNS-SD device services",
+          "flags": [
+            {
+              "name": "service"
+            },
+            {
+              "name": "timeout-seconds",
+              "default": "10"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "pair",
+          "description": "Pair a Google TV Android TV Remote transport",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "pin"
+            },
+            {
+              "name": "pin-stdin",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "merge",
+          "description": "Merge two device identities under an owner-asserted hardware claim",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "member",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "claim",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "split",
+          "description": "Split a previously merged device identity",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "actuate",
+          "description": "Send one direct lease-owned device command",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "key"
+            },
+            {
+              "name": "text"
+            },
+            {
+              "name": "media"
+            },
+            {
+              "name": "property"
+            },
+            {
+              "name": "value"
+            },
+            {
+              "name": "transport"
+            },
+            {
+              "name": "lease",
+              "required": true
+            },
+            {
+              "name": "actor"
+            },
+            {
+              "name": "repeat",
+              "default": "1"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Print state changes until interrupted",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "describe",
+          "description": "Describe one device and every transport capability profile",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "connect",
+          "description": "Show device onboarding",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Device kind"
+            },
+            {
+              "name": "watch",
+              "description": "Re-probe until onboarding is ready or the watch window expires",
+              "local_only": true,
+              "bind_waiver": "The CLI handler performs the bounded re-probe loop locally after the initial kind request; these flags are intentionally not part of ConnectDeviceRequest."
+            },
+            {
+              "name": "watch-seconds",
+              "description": "Maximum live re-probe window in seconds",
+              "local_only": true,
+              "bind_waiver": "The CLI handler performs the bounded re-probe loop locally after the initial kind request; this flag is intentionally not part of ConnectDeviceRequest."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "ConnectDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote an onboarded Android device to wireless ADB",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "transport",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconnect",
+          "description": "Reconnect a promoted Android device over wireless ADB",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "ReconnectDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "forget",
+          "description": "Forget a retained device identity",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "description": "Manage device authentication profiles and verified unlocks",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List authentication profiles",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "ListProfiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a reference-only authentication profile",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "CreateProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Inspect an authentication profile",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "GetProfile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update authentication profile metadata",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "UpdateProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "test",
+          "description": "Check provider/profile readiness",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "TestProfile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke an authentication profile",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "RevokeProfile"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "provision",
+          "description": "Provision a profile credential from stdin",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete-credential",
+          "description": "Delete the authority-held credential for a profile",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unlock",
+          "description": "Unlock a device and verify the live postcondition",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthenticationService",
+            "method": "UnlockDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "strategy",
+      "description": "Inspect and verify control strategies",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List strategies",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StrategyService",
+            "method": "ListStrategies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Verify a strategy",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StrategyService",
+            "method": "VerifyStrategy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "session",
+      "description": "Manage exclusive device leases",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List sessions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "ListSessions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "acquire",
+          "description": "Acquire a lease",
+          "flags": [
+            {
+              "name": "device",
+              "required": true,
+              "bind": {
+                "field": "device_id"
+              }
+            },
+            {
+              "name": "actor",
+              "required": true
+            },
+            {
+              "name": "ttl-seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "AcquireSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "kill",
+          "description": "Kill a session",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "KillSession"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "release",
+          "description": "Release a session",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "ReleaseSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "flow",
+      "description": "Validate and run bounded device flows",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a flow",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "bind": {
+                "field": "flow",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "strategy",
+              "required": true,
+              "bind": {
+                "field": "strategy_id"
+              }
+            },
+            {
+              "name": "baseline-id"
+            },
+            {
+              "name": "expected-version"
+            },
+            {
+              "name": "require-assertion",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "ValidateFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run a flow with chaptered evidence",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "bind": {
+                "field": "flow",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "device",
+              "required": true,
+              "bind": {
+                "field": "device_id"
+              }
+            },
+            {
+              "name": "actor",
+              "description": "Audit actor",
+              "default": "cli"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "RunFlow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "export",
+          "description": "Export a completed run as a replayable flow",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List reusable flows for an exact device and context",
+          "flags": [
+            {
+              "name": "device-id",
+              "required": true
+            },
+            {
+              "name": "context-key",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "ListSavedFlows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read an immutable saved flow revision",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "version",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "GetSavedFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "save",
+          "description": "Persist a passing device run or repair a saved revision",
+          "flags": [
+            {
+              "name": "run-id",
+              "required": true
+            },
+            {
+              "name": "device-id",
+              "required": true
+            },
+            {
+              "name": "context-key",
+              "required": true
+            },
+            {
+              "name": "id",
+              "required": false
+            },
+            {
+              "name": "expected-version",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "SaveValidatedFlow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "replay",
+          "description": "Replay one exact saved flow on its bound device",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "version",
+              "required": true
+            },
+            {
+              "name": "device-id",
+              "required": true
+            },
+            {
+              "name": "context-key",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowService",
+            "method": "RunSavedFlow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Review device verb audit records",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List audit records",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ListAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "agent",
+      "description": "Run deterministic skill-gated device agents",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start a bounded agent run",
+          "flags": [
+            {
+              "name": "goal",
+              "required": true
+            },
+            {
+              "name": "device",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "default": "cli"
+            },
+            {
+              "name": "skill-available",
+              "bool": true
+            },
+            {
+              "name": "dry-run",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Abort an agent run",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote a passing agent run to a deterministic flow",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "conformance",
+      "description": "Run governed physical-device conformance plans",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Show the Android physical conformance chapters",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run the Android physical conformance plan",
+          "flags": [
+            {
+              "name": "device",
+              "required": true
+            },
+            {
+              "name": "apk",
+              "required": true
+            },
+            {
+              "name": "package",
+              "required": true
+            },
+            {
+              "name": "deep-link",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "default": "cli"
+            },
+            {
+              "name": "lease"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "desktop",
+      "description": "Exact desktop sessions through authenticated local owner IPC",
+      "commands": [
+        {
+          "name": "open",
+          "description": "Desktop owner open",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "observe",
+          "description": "Desktop owner observe",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "output",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "act",
+          "description": "Desktop owner act",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Desktop owner stop",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "applications",
+          "description": "Desktop owner applications",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Desktop owner resolve",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-flow",
+          "description": "Run a bounded desktop flow under the existing lease",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote-flow",
+          "description": "Promote an asserted desktop run to a scoped revision",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get-saved-flow",
+          "description": "Read an exact scoped desktop flow revision",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-saved-flow",
+          "description": "Execute an exact saved desktop flow revision under the existing lease",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "read-cleanup",
+          "description": "Read exact desktop cleanup evidence without repeating Stop; missing evidence remains unknown",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-admissions",
+          "description": "List actor-scoped desktop admission history without restoring control; follow next_page_token for subsequent pages",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-open",
+          "description": "Cancel an unforwarded Open request or return its exact forwarding binding; does not retry helper admission",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "capture-activation",
+          "description": "Capture ephemeral pre-focus desktop context; replaces previous context without input",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "read-activation",
+          "description": "Read an exact ephemeral activation context without recapturing",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "DesktopAccountService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "GetSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ListAdmissions",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "PromoteFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReconcileOpen",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "RunFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "RunSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "CaptureCompanionActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ClaimFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "FinishFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "CaptureCompanionActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Describe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "GetSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ListAdmissions",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "PromoteFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReconcileOpen",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "RunFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "RunSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    }
+  ]
+}

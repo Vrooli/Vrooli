@@ -1,0 +1,11 @@
+{
+  "gate": "field-ownership",
+  "assetId": "calibration.field-ownership",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.field_ownership",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "field-ownership",
+  "description": "The source carries a duplicated catalog-owned description header."
+}

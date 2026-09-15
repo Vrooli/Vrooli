@@ -1,167 +1,166 @@
-# Configuration
+# Configuration — Development Toolchain Validator
 
-This document describes all tunable levers (configuration options) for the Development Toolchain Validator. Configuration is organized into coherent groups that reflect how operators think about tuning behavior.
+How this scenario is configured — env vars consumed by the binaries,
+the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
-## Control Surface Overview
+The lifecycle (`vrooli scenario start`, `make start`) sets every
+required variable automatically. You only need this reference when
+running a binary by hand or when a scenario adds a new variable.
 
-| Group | Lever | Environment Variable | Default | Impact |
-|-------|-------|---------------------|---------|--------|
-| Server | API Port | `API_PORT` | dynamic | Port for Go API server |
-| Server | UI Port | `UI_PORT` | dynamic | Port for React UI |
-| Server | CORS Origins | `CORS_ALLOWED_ORIGINS` | localhost | Origins allowed for API requests |
-| Data | Database URL | `DATABASE_URL` | - | PostgreSQL connection |
-| Pagination | Default Limit | `DTV_PAGINATION_DEFAULT_LIMIT` | 20 | Results per page when unspecified |
-| Pagination | Max Limit | `DTV_PAGINATION_MAX_LIMIT` | 100 | Hard cap on results per page |
-| Validation | Slug Min Length | `DTV_SLUG_MIN_LENGTH` | 2 | Minimum reference slug length |
-| Validation | Slug Max Length | `DTV_SLUG_MAX_LENGTH` | 100 | Maximum reference slug length |
-| Integration | prompt-manager URL | `PROMPT_MANAGER_API_URL` | auto-detect | External API integration |
-| CLI | Default Timeout | `DTV_CLI_TIMEOUT_DEFAULT` | 60 | CLI tool assertion timeout |
+## Environment variables
 
-## Environment Variables
+### Required at runtime (set by the lifecycle)
 
-### Required Variables
+| Variable | Range / format | Purpose |
+|---|---|---|
+| `API_PORT` | `15000-19999` | Port for the Go API server |
+| `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
 
-| Variable | Description |
-|----------|-------------|
-| `API_PORT` | Port for the Go API server (range 15000-19999) |
-| `UI_PORT` | Port for the React UI (range 35000-39999) |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `PROMPT_MANAGER_API_URL` | URL of prompt-manager's API (e.g., `http://localhost:18XXX/api/v1`) |
+If the scenario adds WebSocket channels on the existing API or UI server, do
+not add another `ports` entry. Declare an additional port only when the
+scenario starts a separate listener process.
 
-### Optional Variables
+The canonical bands all sit below 32768 so Linux never hands out the
+ports as outbound source ports. See the project-level
+[port-allocation reference](../../../../docs/reference/port-allocation.md)
+for the full policy.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VROOLI_PROJECT_ROOT` | auto-detected | Override for Vrooli project root path |
-| `DTV_CLI_TIMEOUT_DEFAULT` | 60 | Default timeout for CLI tool assertions in seconds |
+### Optional overrides
 
-## API Configuration
+| Variable | Default | Purpose |
+|---|---|---|
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
+| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
-### Pagination Levers
+The browser UI does not read `API_PORT` directly. It resolves API calls through
+the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
+RPC namespace to the API process using the lifecycle-provided `API_PORT`.
 
-These levers control list endpoint behavior. Higher limits increase response payload size but reduce API calls needed to retrieve all results.
+### Scenario-prefixed CLI variables
 
-| Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `DTV_PAGINATION_DEFAULT_LIMIT` | 20 | 1-MaxLimit | Applied when no limit is specified or limit is invalid |
-| `DTV_PAGINATION_MAX_LIMIT` | 100 | 1-1000 | Upper bound for requested limits; prevents resource exhaustion |
+`cli-core` derives a standard set of env vars from the scenario name.
+For `development-toolchain-validator` the prefix is the scenario id upper-cased with
+hyphens replaced by underscores (so `my-scenario` → `MY_SCENARIO`).
+The following are recognised, in precedence order (first-found wins);
+substitute your scenario's prefix for `<PREFIX>`:
 
-**Tradeoff**: Higher default/max limits mean fewer API calls but larger response payloads. For mobile clients or slow networks, lower values may be preferable.
+| Purpose | Variables |
+|---|---|
+| API base URL | `<PREFIX>_API_BASE`, `<PREFIX>_API_URL`, `VROOLI_API_BASE` |
+| API port | `<PREFIX>_API_PORT` |
+| API token | `<PREFIX>_API_TOKEN`, `VROOLI_API_TOKEN` |
+| Config dir | `<PREFIX>_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
+| HTTP timeout | `<PREFIX>_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
 
-**Example**:
-```bash
-# Production with higher throughput needs
-export DTV_PAGINATION_DEFAULT_LIMIT=50
-export DTV_PAGINATION_MAX_LIMIT=200
+> **Do not** set the un-prefixed `API_PORT` for a CLI invocation —
+> when CLIs run inside web-console terminals it leaks across scenarios.
+> Use the scenario-prefixed form or the `--api-base` flag.
 
-# Constrained environment
-export DTV_PAGINATION_DEFAULT_LIMIT=10
-export DTV_PAGINATION_MAX_LIMIT=25
-```
+## Service manifest (`.vrooli/service.json`)
 
-### Validation Levers
+Single source of truth for everything the lifecycle needs to know.
 
-These levers control what input values are accepted by the API.
+| Section | Owns |
+|---|---|
+| `service` | name, display name, description, version, category, maintainers, repository URL |
+| `ports` | port-name → env-var + range mapping (lifecycle allocates from these) |
+| `cli` | command name, install scripts (per OS), invoke shape, freshness inputs |
+| `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
+| `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
+| `lifecycle.develop` | how to start the running scenario |
+| `lifecycle.stop` | how to shut down cleanly |
+| `environment` | static env vars set for every lifecycle step |
+| `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
 
-| Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `DTV_SLUG_MIN_LENGTH` | 2 | 1-SlugMaxLength | Minimum allowed slug length |
-| `DTV_SLUG_MAX_LENGTH` | 100 | 1-255 | Maximum allowed slug length (capped by DB VARCHAR) |
+The template ships with `dependencies.resources: {}` — SQLite is
+in-process, so no resource is required. Scenarios add resources here
+when they need shared infrastructure.
 
-**Why constrained**: Slug constraints ensure URL-friendly identifiers. The regex pattern `^[a-z0-9][a-z0-9-]*[a-z0-9]$` is fixed and cannot be changed via configuration to maintain cross-system consistency.
+## Schema bootstrap
 
-### CORS Configuration
+Schema is owned per-domain. `api/internal/<dom>/schema.sql` declares
+each domain's tables and is embedded into the binary via `go:embed`
+from `api/internal/<dom>/schema.go::Schema()`. Cross-cutting
+infrastructure (postgres extensions, custom types, cross-domain views)
+lives in `api/internal/database/system.sql` — empty by default in
+SQLite scenarios.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CORS_ALLOWED_ORIGINS` | localhost variants | Comma-separated list of allowed origins |
+The shared registry at `api/internal/modules/registry.go::AllSchemas()`
+collects them in order (system first, then domains alphabetical), and
+`apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from
+`api-core/database` applies them at startup. The path is idempotent —
+all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
+IF NOT EXISTS`, so re-runs on every boot are no-ops.
 
-**Default origins** (for development):
-- `http://localhost:3000`
-- `http://localhost:5173`
-- `http://127.0.0.1:3000`
-- `http://127.0.0.1:5173`
+Adding a column lands in the same diff as the Go struct field, the
+repository scan, and the proto wire shape — single location, single
+edit. Drops/renames in production data need the brownfield
+versioned-migration helpers (`Migrate` / `MigrationProvider` in
+`api-core/database`, deferred until the first scenario hits the pain).
 
-**Production example**:
-```bash
-export CORS_ALLOWED_ORIGINS="https://app.example.com,https://admin.example.com"
-```
+See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
+for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
+for the per-seam table including `notes.Schema` and
+`database.SystemSchema`.
 
-## PostgreSQL
+## CLI config file
 
-DTV uses PostgreSQL for all persistent data. The schema is initialized via migration files in `initialization/postgres/`.
+The scenario CLI persists per-user configuration to a JSON file.
+Resolution order (first match wins):
 
-Database name: `development-toolchain-validator` (configurable via `DATABASE_URL`).
+1. `${<PREFIX>_CONFIG_DIR}/config.json` (the scenario-prefixed env var; see "Scenario-prefixed CLI variables" above)
+2. `${XDG_CONFIG_HOME}/vrooli/development-toolchain-validator/config.json`
+3. `~/.vrooli/config/development-toolchain-validator/config.json`
+4. `~/.config/vrooli/development-toolchain-validator/config.json`
 
-## prompt-manager Integration
+File shape:
 
-DTV connects to prompt-manager's API to:
-- Fetch skill metadata, content, and version history
-- Check for skill drift via content hashes
-
-The API URL must be configured. DTV will attempt to auto-detect prompt-manager's port using `vrooli scenario port prompt-manager API_PORT` if `PROMPT_MANAGER_API_URL` is not set.
-
-## CLI Configuration
-
-The CLI stores configuration at:
-- Linux: `~/.config/vrooli/development-toolchain-validator/config.json`
-- Fallback: `~/.vrooli/config/development-toolchain-validator/config.json`
-
-Configuration fields:
 ```json
 {
-  "api_base": "http://localhost:18XXX/api/v1",
-  "token": ""
+  "api_base": "http://localhost:15001/api/v1",
+  "token": "optional-auth-token"
 }
 ```
 
-Set via:
-```bash
-development-toolchain-validator configure api_base <url>
-development-toolchain-validator configure token <value>
-```
-
-## Assertion Timeout Configuration
-
-Default timeouts can be overridden per-assertion when creating CLI tool expectations:
+Set values via the CLI rather than editing the file directly:
 
 ```bash
-development-toolchain-validator expectations add cli-tool \
-  --connection api-steer:reference-react-vite \
-  --command "test-genie execute reference-react-vite --preset comprehensive --json" \
-  --path "$.success" --op eq --value true \
-  --timeout 900 \
-  --description "Full test suite passes"
+development-toolchain-validator configure api_base http://localhost:15001/api/v1
+development-toolchain-validator configure token <token>
 ```
 
-Recommended timeouts by tool:
+## API-base resolution precedence
 
-| Tool | Recommended | Default |
-|------|------------|---------|
-| scenario-auditor | 240s | 60s |
-| test-genie (comprehensive) | 900s | 60s |
-| test-genie (quick) | 120s | 60s |
-| scenario-completeness-scoring | 120s | 60s |
-| knowledge-observatory | 60s | 60s |
+When the CLI calls the API, the base URL is resolved in this order
+(first match wins):
 
-## Service Configuration
+1. `--api-base <url>` flag
+2. Scenario-prefixed env vars (above)
+3. CLI config file (`api_base` field)
+4. Vrooli lifecycle port detection (`vrooli scenario port development-toolchain-validator API_PORT`)
+5. Compile-time default (only set if explicitly configured in `app.go`)
 
-The `.vrooli/service.json` file configures lifecycle, ports, and dependencies. See the generated file for the full configuration.
+If none of these resolve, the command exits with an actionable error
+("API not available — try `--auto-start` or `vrooli scenario start
+development-toolchain-validator`").
 
-Key sections:
-- **ports**: API (15000-19999), UI (35000-39999)
-- **lifecycle**: setup (build API/UI/CLI), develop (start servers), test (test-genie), stop
-- **dependencies**: PostgreSQL (required)
+## Test/CI configuration
 
-## What Is NOT Configurable (And Why)
+| File | Owns |
+|---|---|
+| `.vrooli/testing.json` | Test categories — lint, unit, business checks (endpoints, CLI commands), Lighthouse, bundle size |
+| `.vrooli/lighthouse.json` | Lighthouse pages, thresholds, Chrome flags |
+| `.vrooli/endpoints.json` | API endpoint manifest (path, method, status codes, request/response shapes, CLI mapping) |
+| `.github/workflows/test.yml` | CI gate — UI lint + test, Go vet + race + coverage, E2E binary smoke |
 
-Some values are intentionally **not** exposed as levers:
+These files are read by tooling (`vrooli scenario test`, `test-genie`,
+the doc viewer) — keep them in sync with the code they describe.
 
-| Value | Location | Why Not Configurable |
-|-------|----------|---------------------|
-| Slug regex pattern | `domain/reference/service.go` | Cross-system consistency; changing would break URL routing |
-| Health check paths | `.vrooli/service.json` | Infrastructure standard; changing breaks orchestration |
-| Database schema | `initialization/postgres/schema.sql` | Migrations should handle changes, not runtime config |
-| API version prefix | `handlers/reference.go` | Breaking changes need versioned endpoints, not config |
+## Cross-references
 
-These represent **conscious architectural decisions** where runtime configurability would introduce more risk than benefit.
+- [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes
+- [`api-endpoints.md`](api-endpoints.md) — endpoint reference
+- [`cli-commands.md`](cli-commands.md) — CLI command reference
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist

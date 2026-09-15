@@ -1,0 +1,183 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.control;
+
+import "search-hub/v1/eval/eval.proto";
+import "search-hub/v1/registry/registry.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1";
+
+// =============================================================================
+// SEARCH-HUB CONTROL DOMAIN — secured reindex + config-write control plane
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain control
+// @stability beta
+//
+// Wire contract for SearchControlService — the ONE shared, token-gated control
+// plane that any search provider implements. It replaces the per-scenario
+// reindex contract (formerly cli-health's private reindex proto, now deleted and
+// repointed onto this service): every provider that owns a searchable corpus now
+// speaks the same reindex + config-write RPCs so search-hub's sweep can drive
+// index-time experiments uniformly.
+//
+// SECURITY: every RPC here mutates index or config state, so every request
+// carries the control_token search-hub minted for the provider at first
+// registration (registry.RegisterProviderResponse.control_token). The provider
+// rejects any call whose token does not match. There is no unauthenticated
+// control verb — public search (routing.Query without overrides) is the only
+// token-free path. As defense in depth the implementing provider also gates the
+// whole service behind a per-environment flag (default off).
+//
+// Reindex is long-running: Reindex starts a job and returns a job_id;
+// ReindexStatus polls; ReindexCancel requests cooperative cancellation. dry_run
+// returns planned upsert/delete counts without touching the vector store.
+//
+// WriteConfig is the sweep's write-back verb: it validates a new tuning block
+// against the provider's search.json schema, writes it atomically, and triggers
+// a reindex automatically when an INDEX-TIME factor changed (engine /
+// embed_model / embed_task_prefix). Query-time-only changes take effect without
+// a reindex.
+//
+// WriteCorpus is the CORPUS write-back verb — the symmetric twin of WriteConfig
+// for the `tests` block. The optimizer (e.g. `evals generate --apply`) holds the
+// control token and calls WriteCorpus to persist a new corpus into the provider's
+// search.json atomically; the scenario remains the ONLY writer of its own file
+// (search-hub never touches a scenario's search.json directly). The corpus rides
+// the wire as the eval domain's EvalSuite so there is exactly one corpus shape on
+// the wire and in the store; the scenario converts it to its file shape. After
+// WriteCorpus the file is authoritative and the scenario re-registers the corpus,
+// so the store mirror re-syncs with no reverse drift (corpusStoreMirrorsFile).
+//
+// See docs/plans/search-self-tuning-system-*.md Phase 3/5 and
+// docs/plans/search-corpus-file-ssot-bidirectional-sync-*.md.
+// =============================================================================
+
+service SearchControlService {
+  // Start an async corpus reconcile job; returns a job_id to poll.
+  rpc Reindex(ReindexRequest) returns (ReindexResponse);
+  // Poll a reindex job by id.
+  rpc ReindexStatus(ReindexStatusRequest) returns (ReindexStatusResponse);
+  // Cooperatively cancel a reindex job (idempotent; terminal jobs are a no-op).
+  rpc ReindexCancel(ReindexCancelRequest) returns (ReindexCancelResponse);
+  // Validate + persist a new tuning block into the provider's search.json,
+  // reindexing automatically if an index-time factor changed.
+  rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse);
+  // Validate + persist a new evaluation corpus (the `tests` block) into the
+  // provider's search.json atomically. The scenario is the only writer of its
+  // own file; the corpus then re-registers so the eval store mirror re-syncs.
+  rpc WriteCorpus(WriteCorpusRequest) returns (WriteCorpusResponse);
+}
+
+// ReindexRequest starts a reconcile job. `scope` is a provider-defined sub-scope
+// filter (e.g. cli-health interprets it as a scenario filter); empty means the
+// provider's full corpus. dry_run computes planned upserts/deletes without
+// writing to the vector store.
+message ReindexRequest {
+  string scope = 1;
+  bool dry_run = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+  // Optional migration action. Empty preserves the ordinary full-corpus
+  // reconcile contract. Shadow builds and pointer changes remain provider-owned
+  // operations behind the same authenticated endpoint.
+  string action = 4;
+  string shadow_collection = 5;
+  string rollback_collection = 6;
+  string embedding_model = 7;
+  string embedding_role = 8;
+  int32 embedding_dimensions = 9;
+  string embedding_policy_schema_version = 10;
+}
+
+// ReindexResponse returns the assigned job_id plus the planned upsert/delete
+// counts computed before execution. Counts are exact for dry_run; for real runs
+// they are the planned (pre-execution) figures.
+message ReindexResponse {
+  string job_id = 1;
+  int32 planned_upserts = 2;
+  int32 planned_deletes = 3;
+  bool dry_run = 4;
+}
+
+// ReindexStatusRequest looks up a job by its assigned id.
+message ReindexStatusRequest {
+  string job_id = 1;
+  string control_token = 2;
+}
+
+// ReindexStatusResponse reports progress and terminal state for a job. State
+// values: "pending", "running", "succeeded", "failed", "cancelled".
+message ReindexStatusResponse {
+  string job_id = 1;
+  string state = 2;
+  int32 processed = 3;
+  int32 total = 4;
+  // Empty unless state == "failed".
+  string error = 5;
+}
+
+// ReindexCancelRequest requests cooperative cancellation. Idempotent;
+// cancelling a terminal job is a no-op.
+message ReindexCancelRequest {
+  string job_id = 1;
+  string control_token = 2;
+}
+
+// ReindexCancelResponse reports whether the cancel signal was accepted. False
+// when the job was already terminal at the time of the request.
+message ReindexCancelResponse {
+  string job_id = 1;
+  bool cancelled = 2;
+}
+
+// WriteConfigRequest persists a new tuning block (the sweep's winner) into the
+// provider's search.json. The provider validates it against the search.json
+// schema before writing.
+message WriteConfigRequest {
+  // The leaf whose tuning is being rewritten, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // The new tuning to persist (full replacement of the `tuning` block).
+  vrooli.search_hub.v1.registry.Tuning tuning = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+  // dry_run validates + diffs without writing or reindexing.
+  bool dry_run = 4;
+}
+
+// WriteConfigResponse reports what the write did.
+message WriteConfigResponse {
+  // false on dry_run or when the submitted tuning equals the current one.
+  bool written = 1;
+  // true when an INDEX-TIME factor changed and a reindex was started.
+  bool reindex_triggered = 2;
+  // Set when reindex_triggered; poll via ReindexStatus.
+  string reindex_job_id = 3;
+  // The tuning now in effect after the write (echo for confirmation).
+  vrooli.search_hub.v1.registry.Tuning effective = 4;
+}
+
+// WriteCorpusRequest persists a new evaluation corpus (the sweep/generate result)
+// into the provider's search.json `tests` block. The provider validates it before
+// writing and rewrites ONLY that block, leaving the descriptor + tuning untouched.
+message WriteCorpusRequest {
+  // The leaf whose corpus is being rewritten, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // The new corpus (full replacement of the `tests` block), carried as the eval
+  // domain's store/wire shape; the scenario converts it to its file shape.
+  vrooli.search_hub.v1.eval.EvalSuite corpus = 2;
+  // Required: the provider's control token. Rejected on mismatch.
+  string control_token = 3;
+  // dry_run validates + diffs without writing.
+  bool dry_run = 4;
+}
+
+// WriteCorpusResponse reports what the write did.
+message WriteCorpusResponse {
+  // false on dry_run or when the submitted corpus equals the current one.
+  bool written = 1;
+  // The corpus now in effect after the write (echo for confirmation), as the
+  // eval store/wire shape — the optimizer re-registers this into the eval cache.
+  vrooli.search_hub.v1.eval.EvalSuite effective = 2;
+}

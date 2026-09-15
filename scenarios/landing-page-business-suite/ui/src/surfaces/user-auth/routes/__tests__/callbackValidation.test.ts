@@ -1,35 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-// Allowed callback URL schemes for security (copied from VerifyMagicLink.tsx)
-const ALLOWED_LOCALHOST_HOSTS = ['localhost', '127.0.0.1'];
-
-/**
- * Validate that a callback URL is allowed for security.
- * Allows:
- * - vrooli:// scheme (for desktop apps)
- * - localhost/127.0.0.1 (for development)
- *
- * This is a copy of the validation function from VerifyMagicLink.tsx for testing purposes.
- */
-function isAllowedCallbackUrl(urlString: string): boolean {
-  try {
-    const url = new URL(urlString);
-
-    // Allow vrooli:// scheme for desktop deep links
-    if (url.protocol === 'vrooli:') {
-      return true;
-    }
-
-    // For http/https, only allow localhost (development)
-    if (url.protocol === 'http:' || url.protocol === 'https:') {
-      return ALLOWED_LOCALHOST_HOSTS.includes(url.hostname);
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
+import { isAllowedCallbackUrl } from '../VerifyMagicLink';
 
 describe('isAllowedCallbackUrl [REQ:AUTH-SECURITY]', () => {
   describe('vrooli:// scheme', () => {
@@ -41,8 +11,8 @@ describe('isAllowedCallbackUrl [REQ:AUTH-SECURITY]', () => {
       expect(isAllowedCallbackUrl('vrooli://anything/here')).toBe(true);
     });
 
-    it('allows vrooli:// with fragments', () => {
-      expect(isAllowedCallbackUrl('vrooli://auth/callback#token=abc')).toBe(true);
+    it('allows vrooli:// callbacks without making the callback a credential channel', () => {
+      expect(isAllowedCallbackUrl('vrooli://auth/callback')).toBe(true);
     });
 
     it('allows vrooli:// with query params', () => {

@@ -1,0 +1,84 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "data-display-tree-view",
+    "title": "TreeView",
+    "purpose": "A navigable hierarchical surface for files and structured resources.",
+    "storyRef": "../../library/components/TreeView/versions/1.0.7/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Expanded folders reveal their children with clear hierarchy and selection affordances."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Collapsed folders preserve context and expose an explicit disclosure control."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "An empty tree explains that there is nothing to display."
+    }
+  ],
+  "elements": [
+    {
+      "id": "tree",
+      "role": "x-tree",
+      "description": "The semantic hierarchy container."
+    },
+    {
+      "id": "treeitem",
+      "role": "x-treeitem",
+      "description": "A selectable node in the hierarchy."
+    },
+    {
+      "id": "empty",
+      "role": "x-status",
+      "description": "The empty-tree announcement."
+    }
+  ],
+  "claims": [
+    {
+      "id": "semantic-hierarchy",
+      "type": "element-present",
+      "statement": "The surface exposes a named tree with level-aware treeitems and groups for nested content.",
+      "tier": "machine",
+      "elements": ["tree", "treeitem"],
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "keyboard-navigation",
+      "type": "manual-review",
+      "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
+      "tier": "manual",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "responsive-legibility",
+      "type": "manual-review",
+      "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "empty-communication",
+      "type": "element-present",
+      "statement": "The empty state is announced through a status region.",
+      "tier": "machine",
+      "elements": ["empty"],
+      "states": ["empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "tree": { "selector": "[data-rcl-tree]" },
+      "treeitem": { "selector": "[role='treeitem']" },
+      "empty": { "selector": "[role='status']" }
+    }
+  }
+}

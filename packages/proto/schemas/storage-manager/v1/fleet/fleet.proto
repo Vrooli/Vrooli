@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package vrooli.storage_health.v1.fleet;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/fleet;fleet_v1";
+
+// =============================================================================
+// STORAGE FLEET SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain storage-manager
+// @stability beta
+//
+// FleetService answers deterministic, structured storage-inventory queries
+// across the whole fleet: which engines each scenario uses, whether it has
+// adopted the variant-aware namespace helpers, whether its test-isolation seams
+// are statically proven (the safety throughline), its deploy/greenfield stage,
+// and whether a data-persisting scenario has a declared backup target. These
+// are exact/structured queries (not semantic), so storage-manager is NOT a
+// search-hub data provider; the CLI verbs are discoverable through cli-health's
+// command index instead.
+//
+// Each ScanFleet persists the per-scenario rollup to storage-manager's own
+// SQLite store (a per-domain schema — storage-manager dogfoods the very
+// conventions it enforces); GetInventory returns the latest persisted snapshot
+// without re-scanning, so the dashboard loads fast.
+// =============================================================================
+
+service FleetService {
+  // ScanFleet rolls up per-scenario storage state plus fleet-wide
+  // distributions and offender counts, persisting the snapshot.
+  rpc ScanFleet(ScanFleetRequest) returns (ScanFleetResponse);
+
+  // GetInventory returns the latest persisted fleet snapshot without
+  // re-scanning. An empty snapshot (scenario_count = 0) means ScanFleet has
+  // never run.
+  rpc GetInventory(GetInventoryRequest) returns (ScanFleetResponse);
+}
+
+message ScanFleetRequest {
+  // Restrict the scan to these scenario slugs; empty means every discovered
+  // scenario.
+  repeated string scenarios = 1;
+}
+
+message GetInventoryRequest {}
+
+message ScanFleetResponse {
+  // One rollup per scanned scenario, sorted alphabetically by scenario.
+  repeated FleetScenarioEntry entries = 1;
+  // Engine adoption across the fleet (how many scenarios use each engine).
+  repeated EngineCount engine_distribution = 2;
+  // Deploy-stage distribution across the fleet.
+  repeated StageCount stage_distribution = 3;
+  // Total scenarios scanned.
+  int32 scenario_count = 4;
+  // Scenarios whose test-isolation seams are NOT statically proven (the
+  // safety offender count).
+  int32 isolation_unready_count = 5;
+  // Data-persisting scenarios with no declared backup target.
+  int32 no_backup_count = 6;
+  // Total storage findings across the fleet.
+  int32 finding_count = 7;
+  // Scenarios enumerated but not classifiable, with a short reason each.
+  repeated FleetScanError errors = 8;
+  // RFC3339 timestamp the snapshot was produced (empty for a never-scanned
+  // GetInventory).
+  string scanned_at = 9;
+  // Scenarios whose measured data directory bytes exceed their resolved budget.
+  int32 data_dir_over_budget_count = 10;
+}
+
+// FleetScenarioEntry is one scenario's storage rollup.
+message FleetScenarioEntry {
+  string scenario = 1;
+  // Storage engines the scenario uses (sqlite/postgres/qdrant/redis/file),
+  // sorted.
+  repeated string engines = 2;
+  // The dominant relational engine (postgres > sqlite), or "" when none.
+  string primary_engine = 3;
+  // Detected API-surface language (go/typescript/python/"").
+  string language = 4;
+  // Derived deploy stage (greenfield/pilot/production/sunset).
+  string storage_stage = 5;
+  // True when the 4 routed-isolation seams are statically proven wired (Go),
+  // so destructive E2E is isolation-safe by construction.
+  bool isolation_ready = 6;
+  // Short reason when isolation is not ready (which seam is unwired, or the
+  // non-Go fail-safe).
+  string isolation_reason = 7;
+  // True when the scenario uses the variant-aware namespace helpers rather than
+  // hard-coded collection/prefix names.
+  bool namespace_adopted = 8;
+  // True when a data-persisting scenario declares a backup target.
+  bool has_backup_target = 9;
+  // Total storage findings for this scenario.
+  int32 finding_count = 10;
+  // Error-severity storage findings for this scenario.
+  int32 error_count = 11;
+  // Findings a registered storage-manager autofix can remediate.
+  int32 autofixable_count = 12;
+  // Bytes measured under scenario-local and runtime data directories.
+  int64 data_dir_bytes = 13;
+  // Resolved byte budget for the scenario data directories.
+  int64 data_dir_budget_bytes = 14;
+  // data_dir_bytes / data_dir_budget_bytes. Zero when no budget is configured.
+  double data_dir_utilization = 15;
+  // True when data_dir_bytes is greater than data_dir_budget_bytes.
+  bool data_dir_over_budget = 16;
+  // Severity for the data-directory budget finding: warning, serious, critical,
+  // or empty when under budget.
+  string data_dir_severity = 17;
+  // Directories included in data_dir_bytes.
+  repeated string data_dir_paths = 18;
+}
+
+// EngineCount counts scenarios using a given engine.
+message EngineCount {
+  string engine = 1;
+  int32 scenario_count = 2;
+}
+
+// StageCount counts scenarios at a given deploy stage.
+message StageCount {
+  string stage = 1;
+  int32 scenario_count = 2;
+}
+
+// FleetScanError records a scenario enumerated but not classifiable.
+message FleetScanError {
+  string scenario = 1;
+  string reason = 2;
+}

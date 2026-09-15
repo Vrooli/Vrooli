@@ -3,16 +3,30 @@
  * These pure functions compute step statuses based on preflight state.
  */
 
-import type { BundlePreflightStep } from "./api";
-import { JOB_STEP_STATE_LABELS, type PreflightStepState, type PreflightStepStatus } from "./preflight-constants";
+import {
+  JOB_STEP_STATE_LABELS,
+  type PreflightStepState,
+  type PreflightStepStatus,
+} from "./preflight-constants";
+
+/**
+ * Local projection of pipeline stage progress for the preflight view.
+ * This is derived from the generated pipeline status, not an API payload.
+ */
+export interface PreflightJobStep {
+  id: string;
+  name: string;
+  state: "pending" | "running" | "pass" | "fail" | "warning" | "skipped";
+  detail?: string;
+}
 
 /**
  * Resolve a job step status from the step map.
  * Returns null if the step is not present.
  */
 export function resolveJobStepStatus(
-  jobStepById: Map<string, BundlePreflightStep>,
-  stepId: string
+  jobStepById: Map<string, PreflightJobStep>,
+  stepId: string,
 ): PreflightStepStatus | null {
   const step = jobStepById.get(stepId);
   if (!step) {
@@ -21,7 +35,7 @@ export function resolveJobStepStatus(
   const state = step.state === "running" ? "testing" : step.state;
   return {
     state: state as PreflightStepState,
-    label: JOB_STEP_STATE_LABELS[step.state] || step.state
+    label: JOB_STEP_STATE_LABELS[step.state] || step.state,
   };
 }
 
@@ -32,7 +46,7 @@ export function getValidationStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  validationValid?: boolean
+  validationValid?: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Testing" };
@@ -59,7 +73,7 @@ export function getSecretsStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  missingSecretsCount: number
+  missingSecretsCount: number,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Checking" };
@@ -83,7 +97,7 @@ export function getRuntimeStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasResult: boolean,
-  hasRun: boolean
+  hasRun: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Starting" };
@@ -107,7 +121,7 @@ export function getServicesStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  ready?: boolean
+  ready?: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Starting" };
@@ -134,7 +148,7 @@ export function getDiagnosticsStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  diagnosticsAvailable: boolean
+  diagnosticsAvailable: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Collecting" };

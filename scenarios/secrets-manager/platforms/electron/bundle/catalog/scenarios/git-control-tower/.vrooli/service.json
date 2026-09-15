@@ -1,0 +1,220 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "workspace-sandbox": {
+        "description": "Approved changes tracking and commit preview",
+        "required": false
+      },
+      "browser-automation-studio": {
+        "description": "Visual capture and screenshot comparison for scenario UIs",
+        "required": false
+      },
+      "test-genie": {
+        "description": "Automated test execution and reporting for scenarios",
+        "required": false
+      },
+      "tidiness-manager": {
+        "description": "Code quality analysis and tidiness scoring for scenarios",
+        "required": false
+      },
+      "agent-manager": {
+        "description": "AI agent orchestration and run management through Git Control Tower's declared role-only profile",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/reviewer.json"
+            ]
+          }
+        },
+        "required": false
+      }
+    }
+  },
+  "environment": {
+    "GCT_SQLITE_PATH": "${SCENARIO_DATA_DIR}/git-control-tower.db"
+  },
+  "lifecycle": {
+    "develop": {
+      "description": "Start Git Control Tower services for development",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/git-control-tower-api"
+          },
+          "description": "Start Go API server",
+          "name": "start-api",
+          "run": "cd api && ./git-control-tower-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle",
+          "name": "start-ui",
+          "run": "cd ui && node server.js"
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 30000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        }
+      ],
+      "description": "Git Control Tower health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "targets": [
+              "api/git-control-tower-api"
+            ],
+            "type": "binaries"
+          },
+          {
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src",
+            "type": "ui-bundle"
+          },
+          {
+            "command": "git-control-tower",
+            "targets": [
+              "git-control-tower"
+            ],
+            "type": "cli"
+          }
+        ]
+      },
+      "description": "Initialize Git Control Tower (build + install)",
+      "steps": [
+        {
+          "description": "Build Go API binary",
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o git-control-tower-api ."
+        },
+        {
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
+          "description": "Install UI dependencies",
+          "name": "install-ui-deps",
+          "run": "cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)"
+        },
+        {
+          "description": "Build production UI bundle",
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all services gracefully"
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "description": "Execute phased scenario test suite",
+          "name": "run-phased-tests",
+          "run": "vrooli scenario start git-control-tower && test-genie execute git-control-tower --preset comprehensive --skip playbooks"
+        }
+      ]
+    },
+    "version": "2.0.0"
+  },
+  "ports": {
+    "api": {
+      "description": "Git Control Tower API port",
+      "env_var": "API_PORT",
+      "port": 18710,
+      "range": "15000-19999"
+    },
+    "ui": {
+      "description": "Git Control Tower UI port",
+      "env_var": "UI_PORT",
+      "port": 21400,
+      "range": "20000-24999"
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "git-control-tower",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "git-control-tower"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "service": {
+    "category": "general",
+    "description": "Agent-friendly git repository control plane (REST API + CLI + UI)",
+    "displayName": "Git Control Tower",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "git-control-tower",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/git-control-tower",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "tags": [
+      "git",
+      "version-control",
+      "devtools",
+      "automation"
+    ],
+    "type": "scenario",
+    "version": "1.3.0"
+  },
+  "version": "2.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."}
+}

@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.observability;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability;observability";
+
+// =============================================================================
+// OBSERVABILITY DOMAIN — health/diagnostics/metrics/config proxy + debug mode.
+// =============================================================================
+//
+// @stability beta
+//
+// ObservabilityService is BAS's facade onto playwright-driver's
+// /observability surface plus the in-process debug-mode toggle. Most of
+// the payloads are free-form blobs whose schema is owned by the downstream
+// playwright-driver process; we preserve their shape with
+// google.protobuf.Struct rather than re-modeling every field. This keeps
+// API/UI/CLI contracts in lockstep (one proto-typed envelope) while still
+// letting playwright-driver evolve its internal shape freely.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/observability/service.go
+//   - UI:   ui/src/api/observability.ts (diagnostics tab)
+//   - CLI:  bas observability ...
+// =============================================================================
+
+service ObservabilityService {
+  // GetObservability returns the playwright-driver observability snapshot
+  // at the requested depth. depth/no_cache map to the legacy query
+  // parameters.
+  rpc GetObservability(GetObservabilityRequest) returns (GetObservabilityResponse);
+
+  // RefreshObservability invalidates the playwright-driver cache.
+  rpc RefreshObservability(RefreshObservabilityRequest) returns (RefreshObservabilityResponse);
+
+  // RunDiagnostics triggers a manual diagnostic run with the supplied
+  // options. The request/response shapes are owned by playwright-driver
+  // and round-tripped via google.protobuf.Struct.
+  rpc RunDiagnostics(RunDiagnosticsRequest) returns (RunDiagnosticsResponse);
+
+  // GetSessionList returns the inventory of browser sessions held by
+  // playwright-driver.
+  rpc GetSessionList(GetSessionListRequest) returns (GetSessionListResponse);
+
+  // RunCleanup triggers manual idle-session cleanup.
+  rpc RunCleanup(RunCleanupRequest) returns (RunCleanupResponse);
+
+  // GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+
+  // RunPipelineTest runs an autonomous end-to-end recording pipeline test.
+  rpc RunPipelineTest(RunPipelineTestRequest) returns (RunPipelineTestResponse);
+
+  // GetConfigRuntime returns the current state of all runtime config
+  // overrides held by playwright-driver.
+  rpc GetConfigRuntime(GetConfigRuntimeRequest) returns (GetConfigRuntimeResponse);
+
+  // UpdateConfig updates a single runtime configuration value.
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+
+  // ResetConfig resets a runtime configuration value back to its
+  // environment/default value.
+  rpc ResetConfig(ResetConfigRequest) returns (ResetConfigResponse);
+
+  // GetDebugMode reports the in-process debug-mode toggle state.
+  rpc GetDebugMode(GetDebugModeRequest) returns (DebugModeState);
+
+  // SetDebugMode enables or disables debug mode in-process.
+  rpc SetDebugMode(SetDebugModeRequest) returns (DebugModeState);
+}
+
+// ---------------------------------------------------------------------------
+// GetObservability
+// ---------------------------------------------------------------------------
+
+message GetObservabilityRequest {
+  // Optional depth selector. One of: quick | standard | deep. Empty means
+  // server default (currently "standard").
+  string depth = 1;
+  // When true the server forces a fresh fetch instead of returning a
+  // cached snapshot.
+  bool no_cache = 2;
+}
+
+message GetObservabilityResponse {
+  // Free-form snapshot whose shape is owned by playwright-driver.
+  google.protobuf.Struct snapshot = 1;
+}
+
+// ---------------------------------------------------------------------------
+// RefreshObservability
+// ---------------------------------------------------------------------------
+
+message RefreshObservabilityRequest {}
+
+message RefreshObservabilityResponse {
+  // Open-shape playwright-driver acknowledgement (timestamp, etc.).
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// RunDiagnostics
+// ---------------------------------------------------------------------------
+
+message RunDiagnosticsRequest {
+  // Free-form diagnostic request (type, session_id, options); shape is
+  // owned by playwright-driver.
+  google.protobuf.Struct options = 1;
+}
+
+message RunDiagnosticsResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Sessions
+// ---------------------------------------------------------------------------
+
+message GetSessionListRequest {}
+
+message GetSessionListResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup
+// ---------------------------------------------------------------------------
+
+message RunCleanupRequest {}
+
+message RunCleanupResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Metrics
+// ---------------------------------------------------------------------------
+
+message GetMetricsRequest {}
+
+message GetMetricsResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline test
+// ---------------------------------------------------------------------------
+
+message RunPipelineTestRequest {
+  google.protobuf.Struct options = 1;
+}
+
+message RunPipelineTestResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Runtime config
+// ---------------------------------------------------------------------------
+
+message GetConfigRuntimeRequest {}
+
+message GetConfigRuntimeResponse {
+  google.protobuf.Struct result = 1;
+}
+
+message UpdateConfigRequest {
+  // Environment variable name to update.
+  string env_var = 1 [(buf.validate.field).string = {min_len: 1}];
+  // String form of the new value; playwright-driver parses according to
+  // the env var's declared data type.
+  string value = 2;
+}
+
+message UpdateConfigResponse {
+  google.protobuf.Struct result = 1;
+}
+
+message ResetConfigRequest {
+  // Environment variable name to reset.
+  string env_var = 1 [(buf.validate.field).string = {min_len: 1}];
+}
+
+message ResetConfigResponse {
+  google.protobuf.Struct result = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Debug mode
+// ---------------------------------------------------------------------------
+
+message GetDebugModeRequest {}
+
+message SetDebugModeRequest {
+  // Whether debug mode should be enabled.
+  bool enabled = 1;
+  // Optional list of component names to scope debug logging to. Empty
+  // means all components when enabled is true.
+  repeated string components = 2;
+  // Optional auto-disable duration in minutes. <=0 falls back to the
+  // server default (30); values >120 are clamped server-side.
+  int32 duration_minutes = 3;
+}
+
+// DebugModeState is the canonical readout returned by GetDebugMode and
+// SetDebugMode.
+message DebugModeState {
+  bool enabled = 1;
+  repeated string components = 2;
+  // ISO-8601 timestamp when debug mode auto-disables. Empty when
+  // enabled is false.
+  string expires_at = 3;
+  // Whole minutes remaining before auto-disable. 0 when enabled is false.
+  int32 remaining_mins = 4;
+}

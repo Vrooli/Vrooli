@@ -1,0 +1,67 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:1bd13306-f16d-4545-a974-06d74af4389b"
+  ],
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "aquila-marketing-and-capability-maturity",
+  "displayName": "Aquila Marketing and Capability Maturity",
+  "mission": "Produce Web Console launch material while qualifying reusable marketing production capabilities.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "aquila-launch-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/requirements.json"],
+      "sharedState": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/README.md"]
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "aquila-launch-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "aquila-launch-coordinator": {
+        "lane": "Coordinate the finite marketing and capability-maturity effort; commission owner workflows, preserve asset provenance and stop at approval gates, blockers or accepted closure.",
+        "allowedWrites": [{"kind":"knowledge"},{"kind":"handoff"}],
+        "safetyCriticalRules": [
+          "The effort reference is attribution, not publication or spend authority.",
+          "Content Desk owns editorial state; Channel Manager owns distribution and metrics; Offer Desk owns commercial truth.",
+          "Do not create a private campaign database, scheduler, pricing record or publication path.",
+          "Claims and assets remain candidate until release identity, provenance, accessibility and approval are verified.",
+          "Retain exact effort, plan, run, task, revision and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {"stillWriteKnowledge":true,"stillWriteHandoff":true}
+      }
+    }
+  },
+  "revision": 1,
+  "createdAt": "2026-09-14T14:57:21Z",
+  "updatedAt": "2026-09-14T14:57:21Z"
+}

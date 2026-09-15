@@ -24,7 +24,8 @@
 //
 // This CLI command reads SANDBOX_MERGED_DIR from the environment, scans process
 // metadata to find scenarios running from that path, stops them, and restarts
-// them from the canonical repo location. See cli/commands/scenario/modules/heal.sh.
+// them from the canonical repo location via the native `vrooli scenario
+// heal-from-sandbox` implementation.
 //
 // # Hook Environment
 //
@@ -38,12 +39,13 @@
 package policy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
+	"os"
+	"strings"
 	"time"
 
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -62,9 +64,13 @@ func (p *NoOpTeardownPolicy) RunPreTeardownHooks(ctx context.Context, sandbox *t
 }
 
 // HookTeardownPolicy runs configured shell commands before sandbox teardown.
+//
+// Round 4 Phase 7: hook execution routes through process.Starter so the
+// canonical exec seam owns every external command spawn.
 type HookTeardownPolicy struct {
 	hooks         []TeardownHook
 	globalTimeout time.Duration
+	starter       process.Starter
 }
 
 // TeardownPolicyOption configures the HookTeardownPolicy.
@@ -77,11 +83,16 @@ func WithTeardownGlobalTimeout(timeout time.Duration) TeardownPolicyOption {
 	}
 }
 
-// NewHookTeardownPolicy creates a policy with the given hooks.
-func NewHookTeardownPolicy(hooks []TeardownHook, opts ...TeardownPolicyOption) *HookTeardownPolicy {
+// NewHookTeardownPolicy creates a policy with the given hooks. starter
+// routes hook execution through the canonical exec seam.
+func NewHookTeardownPolicy(starter process.Starter, hooks []TeardownHook, opts ...TeardownPolicyOption) *HookTeardownPolicy {
+	if starter == nil {
+		panic("policy.NewHookTeardownPolicy: starter is required")
+	}
 	p := &HookTeardownPolicy{
 		hooks:         hooks,
 		globalTimeout: 30 * time.Second, // Default: shorter than validation (teardown should be fast)
+		starter:       starter,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -130,33 +141,31 @@ func (p *HookTeardownPolicy) executeHook(ctx context.Context, hook TeardownHook,
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, hook.Command, hook.Args...)
-	cmd.Env = env
-
-	// Set working directory to sandbox merged directory if available
+	opts := process.StartOpts{
+		Path: hook.Command,
+		Args: append([]string(nil), hook.Args...),
+		Env:  env,
+	}
 	if sandbox.MergedDir != "" {
-		cmd.Dir = sandbox.MergedDir
+		opts.Dir = sandbox.MergedDir
 	} else if sandbox.ProjectRoot != "" {
-		cmd.Dir = sandbox.ProjectRoot
+		opts.Dir = sandbox.ProjectRoot
 	}
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	result.Output = stdout.String()
-	if stderr.Len() > 0 {
+	res, runErr := process.Run(ctx, p.starter, opts)
+	result.Output = string(res.Stdout)
+	if len(res.Stderr) > 0 {
 		if result.Output != "" {
 			result.Output += "\n"
 		}
-		result.Output += stderr.String()
+		result.Output += string(res.Stderr)
 	}
-
-	if err != nil {
+	if runErr != nil {
 		result.Success = false
-		result.Error = err
+		result.Error = runErr
+	} else if res.Exit.ExitCode != 0 {
+		result.Success = false
+		result.Error = fmt.Errorf("hook %q exited with code %d: %s", hook.Name, res.Exit.ExitCode, strings.TrimSpace(string(res.Stderr)))
 	} else {
 		result.Success = true
 	}
@@ -166,18 +175,28 @@ func (p *HookTeardownPolicy) executeHook(ctx context.Context, hook TeardownHook,
 
 // buildTeardownHookEnv creates the environment variables for teardown hook execution.
 //
-// This provides the same sandbox metadata as validation hooks (SANDBOX_ID,
-// SANDBOX_SCOPE_PATH, etc.) plus SANDBOX_TEARDOWN_REASON so the hook knows
-// why teardown is happening.
+// Inherits the parent process environment so hooks see the host's standard
+// home, path, identity, and runtime inputs. The default vrooli-heal-from-
+// sandbox hook (and any user-
+// supplied hook command) needs these to resolve the user's home, locate
+// scenario state, and invoke shells/commands. Pre-2026-04-28 this returned
+// only SANDBOX_* variables, which made every teardown hook fail with
+// "$HOME is not defined".
+//
+// On top of the inherited environment we layer the sandbox metadata
+// (SANDBOX_ID, SANDBOX_SCOPE_PATH, etc.) plus SANDBOX_TEARDOWN_REASON so
+// the hook knows what's being torn down and why.
 func buildTeardownHookEnv(sandbox *types.Sandbox, reason string) []string {
-	return []string{
+	env := os.Environ()
+	env = append(env,
 		fmt.Sprintf("SANDBOX_ID=%s", sandbox.ID.String()),
 		fmt.Sprintf("SANDBOX_SCOPE_PATH=%s", sandbox.ScopePath),
 		fmt.Sprintf("SANDBOX_PROJECT_ROOT=%s", sandbox.ProjectRoot),
 		fmt.Sprintf("SANDBOX_UPPER_DIR=%s", sandbox.UpperDir),
 		fmt.Sprintf("SANDBOX_MERGED_DIR=%s", sandbox.MergedDir),
 		fmt.Sprintf("SANDBOX_TEARDOWN_REASON=%s", reason),
-	}
+	)
+	return env
 }
 
 // Verify interfaces are implemented.

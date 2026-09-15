@@ -1,0 +1,392 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/search.schema.json",
+  "title": "Vrooli Search Configuration",
+  "description": "Scenario-owned AI-search SSOT (.vrooli/search.json): per-provider descriptor + tuning factors + evaluation corpus. Consumed by the scenario at boot (read tuning, self-register) and by search-hub (route, sweep, write-back). One file, one home — nothing search-tunable is a Go literal or a build-time seed.",
+  "type": "object",
+  "required": ["version", "providers"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Search providers this scenario exposes",
+      "items": { "$ref": "#/definitions/provider" }
+    }
+  },
+  "definitions": {
+    "provider": {
+      "type": "object",
+      "required": ["provider_id"],
+      "additionalProperties": false,
+      "properties": {
+        "provider_id": {
+          "type": "string",
+          "description": "Unique provider id (e.g. 'cli-health.commands')"
+        },
+        "provider_group": {
+          "type": "string",
+          "description": "Owning scenario / group (e.g. 'cli-health')"
+        },
+        "bucket": {
+          "type": "string",
+          "description": "Search-context bucket (DO/REUSE/KNOW/STATE), e.g. 'BUCKET_DO'"
+        },
+        "type": {
+          "type": "string",
+          "description": "Result kind (e.g. 'command', 'document', 'record')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Routing description: what to find here and when to route to it"
+        },
+        "routing_profile": {
+          "$ref": "#/definitions/routing_profile",
+          "description": "Optional provider-agnostic positive routing facets"
+        },
+        "scope": {
+          "type": "string",
+          "description": "Routing scope (e.g. 'SCOPE_PROJECT')"
+        },
+        "class": {
+          "type": "string",
+          "enum": ["local_index", "local_live", "external", "async"],
+          "description": "Operability class — the descriptor policy that tells Search Hub what control/latency posture to expect, with no scenario-name special-casing. local_index: a tunable, locally-owned indexed corpus (must expose reindex_endpoint; config_endpoint optional, pinned for hybrid-by-construction). local_live: computed live, no tunable index (no reindex/config expected). external: third-party provider, e.g. web search (no local index/control/status expected, looser latency budget). async: locally-owned corpus rebuilt asynchronously (must expose reindex_endpoint). Required for active providers by Search Hub maturity certification."
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["production", "fixture", "experimental"],
+          "default": "experimental",
+          "description": "Provider lifecycle policy. production participates in automatic routing only with live evidence; fixture is validation/support data reachable only through an explicit selector; experimental is callable explicitly while its evidence is being established. Omitting lifecycle is fail-safe and therefore experimental. This is a registrant-declared generic policy with no scenario-name special-casing."
+        },
+        "declared_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional RFC3339 declaration timestamp. Search Hub records the first registration time when omitted and uses it to age incubating providers."
+        },
+        "endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Search endpoint descriptor (search-hub registry shape)"
+        },
+        "status_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Status/health endpoint descriptor"
+        },
+        "index_timestamp_field": {
+          "type": "string",
+          "minLength": 1,
+          "default": "last_indexed_at",
+          "description": "Optional status-response field containing the last successful index/reconcile timestamp. Supports dotted paths; defaults to last_indexed_at."
+        },
+        "freshness_budget": {
+          "type": "string",
+          "minLength": 2,
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h)$",
+          "description": "Maximum age of the active index generation before Search Hub withholds the provider from automatic routing (for example 24h or 900s)."
+        },
+        "reindex_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Secured control-plane target for the shared, token-gated search-hub.v1.control.SearchControlService reindex verbs (Reindex/ReindexStatus/ReindexCancel). Declared by a provider that exposes its corpus to the sweep; absent for routable-but-not-tunable providers."
+        },
+        "config_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Secured control-plane target for the shared SearchControlService.WriteConfig verb (the sweep's write-back of a winning tuning block into this file). Token-gated; absent for providers that are not config-writable."
+        },
+        "config_writable": {
+          "type": "boolean",
+          "description": "Whether Search Hub may write tuning back through config_endpoint. Indexed providers with intentionally fixed tuning set this false and provide config_pinned_reason."
+        },
+        "config_pinned_reason": {
+          "type": "string",
+          "description": "Required when config_writable is false; explains why tuning is intentionally non-writable."
+        },
+        "result_mapping": {
+          "type": "object",
+          "description": "How to map the provider's response into normalized hits. Core keys mirror search-hub.v1.registry.ResultMapping: results_path, id_field, title_field, score_field, snippet_field, path_field, score_scale, filter_field/filter_value, presence_field, measure_field, attestation_field, confidence_field (object with weak/regime), locations_field (array of project-root-relative locations), weak_field, and regime_field.",
+          "additionalProperties": true
+        },
+        "tuning": { "$ref": "#/definitions/tuning" },
+        "scoring": { "$ref": "#/definitions/scoring" },
+        "performance": { "$ref": "#/definitions/performance" },
+        "tests": { "$ref": "#/definitions/tests" }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "description": "Opaque transport descriptor (interpreted by search-hub, not by aisearch-go).",
+      "additionalProperties": true
+    },
+    "routing_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Provider-agnostic routing facets; exclusions are diagnostic metadata and are never embedded as positive semantic evidence.",
+      "properties": {
+        "answer_spaces": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "intents": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "positive_examples": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exclusions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "anyOf": [
+        { "required": ["answer_spaces"] },
+        { "required": ["intents"] },
+        { "required": ["positive_examples"] }
+      ]
+    },
+    "tuning": {
+      "type": "object",
+      "description": "Search tuning factors. Optional: a provider that omits this block runs on the aisearch-go defaults (TuningConfig.WithDefaults — dense engine, default embed model, no rerank), so an untuned provider is still valid. INDEX-TIME factors (engine, embed_model, embed_task_prefix) change the stored vectors and require a reindex when moved; QUERY-TIME factors (rerank_*, hybrid_fusion, floor) vary per request. The sweep writes the winning values here. See packages/aisearch-go/tuning.go (the factor-taxonomy SSOT) for the per-factor tradeoff.",
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["dense", "hybrid"],
+          "description": "INDEX-TIME. dense = dense-vector only; hybrid = dense + BM25 sparse RRF fusion. N/A for hybrid-by-construction adopters (e.g. knowledge-observatory.docs): when a provider's read+index path always builds a hybrid binding and exposes no config_endpoint, this field is a fixed invariant the engine pins — set it to \"hybrid\" to match reality; a divergent value is corrected with a warning at load."
+        },
+        "embed_model": {
+          "type": "string",
+          "description": "INDEX-TIME. Dense embedding model (default nomic-embed-text)."
+        },
+        "embed_task_prefix": {
+          "type": "boolean",
+          "description": "INDEX-TIME. Apply asymmetric search_query:/search_document: prefixes (nomic). Changes the embedding space → reindex."
+        },
+        "rerank_enabled": {
+          "type": "boolean",
+          "description": "QUERY-TIME. Gate the cross-encoder/LLM rerank pass."
+        },
+        "rerank_blend": {
+          "type": "boolean",
+          "description": "QUERY-TIME. Fuse rerank order with retrieval via RRF instead of reordering outright (requires rerank_enabled)."
+        },
+        "rerank_shortlist": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "QUERY-TIME. Over-fetch depth into the reranker."
+        },
+        "rerank_preference": {
+          "type": "string",
+          "enum": ["cross_encoder_required", "cross_encoder_preferred"],
+          "default": "cross_encoder_preferred",
+          "description": "QUERY-TIME. Prefer the dedicated cross-encoder; required refuses the slower LLM fallback when the cross-encoder is unavailable."
+        },
+        "hybrid_fusion": {
+          "type": "string",
+          "enum": ["rrf", "dbsf"],
+          "description": "QUERY-TIME. Dense+sparse Qdrant fusion strategy: rrf is rank-robust; dbsf preserves score separation for exact lexical matches. Ignored by dense engines."
+        },
+        "floor": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "QUERY-TIME. Relevance-floor band (0 = let the package pick the regime default).",
+          "properties": {
+            "max_gap": { "type": "number", "minimum": 0, "maximum": 1 },
+            "hard_floor": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "description": "Corpus grading policy. Defaults apply when omitted: recall_at=5, recall_target=0.8, mrr_at=3, deep_k=50. A junk_leak_opt_out_reason is an explicit, owner-recorded reason for exempting a provider from the automatic junk-leak gate; the reason is surfaced in federation status.",
+      "additionalProperties": false,
+      "properties": {
+        "recall_at": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Acceptance recall cutoff K."
+        },
+        "recall_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum accepted recall over reviewed, non-stale positives."
+        },
+        "mrr_at": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "MRR reporting cutoff."
+        },
+        "deep_k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Referential validation probe depth. Values below recall_at are resolved up to recall_at by the shared library."
+        },
+        "junk_leak_opt_out_reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required owner rationale when this provider opts out of automatic junk-leak withholding. The rationale is observable and does not suppress eval evidence."
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Latency/reliability budget. The provider's operability class (see provider.class) is the latency class; this block tightens the class default or opts into telemetry. Omitted ⇒ the class default p95 budget applies (local_index/local_live=1500ms, external=4000ms, async=15000ms).",
+      "additionalProperties": false,
+      "properties": {
+        "p95_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "p95 query-latency budget in milliseconds. 0/omitted ⇒ use the class default. Certification reads the latest eval run's p95 latency and reports SEARCH_PERF_BUDGET_BREACH (advisory) when it exceeds this budget."
+        },
+        "degraded_rate_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum tolerated fraction of queries that return no result. Omitted ⇒ not checked. When declared, certification reports SEARCH_PERF_DEGRADED (advisory) if the latest run's empty-result rate exceeds it."
+        },
+        "telemetry_required": {
+          "type": "boolean",
+          "description": "When true, certification requires latency evidence to exist: SEARCH_PERF_BUDGET_UNPROVEN (required) fails the provider if no run latency can be measured."
+        },
+        "minimum_samples": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum evaluated cases required before latency and degradation evidence can substantiate this provider's declared SLO. 0/omitted leaves the threshold unset; production-tier providers should explicitly declare a class-appropriate value (normally 8 for local providers and 1 for external smoke-only providers)."
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "description": "The evaluation corpus — the SSOT that search-hub's eval store mirrors. One labelled corpus per provider; one case list (negatives are cases with expect_no_strong_hit). Maps 1:1 onto the search-hub eval proto's EvalSuite (modulo store-assigned suite metadata), so a scenario self-registers it at boot and every mutation writes back here.",
+      "additionalProperties": false,
+      "properties": {
+        "suite_id": {
+          "type": "string",
+          "description": "Optional override for the default suite id '<provider_id>.primary' (only a provider with more than one suite needs it)"
+        },
+        "name": { "type": "string", "description": "Human-facing suite name mirrored into the store" },
+        "description": { "type": "string", "description": "Human-facing suite description mirrored into the store" },
+        "coverage": {
+          "$ref": "#/definitions/coverage",
+          "description": "Provider-owned production coverage contract. Required tags/groups must be satisfied by reviewed positive cases before Search Hub production maturity is clean."
+        },
+        "minimum": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Registrant-declared minimum reviewed evidence required for ACTIVE production registration. Zero means the provider has not declared an additional bar.",
+          "properties": {
+            "reviewed_positive": { "type": "integer", "minimum": 0 },
+            "negative": { "type": "integer", "minimum": 0 },
+            "required_tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+          }
+        },
+        "cases": {
+          "type": "array",
+          "description": "The whole corpus: positive labelled queries AND negatives (a negative is a case with expect_no_strong_hit)",
+          "items": { "$ref": "#/definitions/test_case" }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Each tag must appear on at least one reviewed positive case. Candidate/generated positives and negatives do not count."
+        },
+        "required_tag_groups": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/coverage_group" },
+          "description": "Named provider question families. A group is satisfied by reviewed positive cases carrying any of its tags."
+        }
+      }
+    },
+    "coverage_group": {
+      "type": "object",
+      "required": ["id", "tags"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Stable coverage-family id, e.g. 'incident-response'." },
+        "description": { "type": "string", "description": "Human-readable statement of what this question family proves." },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Any tag in this set counts toward the group when present on a reviewed positive case."
+        },
+        "min_reviewed_positive": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of reviewed positive cases required across the group's tags. 0/default means 1."
+        }
+      }
+    },
+    "test_case": {
+      "type": "object",
+      "required": ["id", "query"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable case id" },
+        "query": { "type": "string", "description": "The natural-language query" },
+        "scope": {
+          "type": "string",
+          "pattern": "^(global|scenario:[^\\s].*|path:[^\\s].*)$",
+          "description": "Optional case-level query scope. Empty/default is global; scenario:<id> and path:<prefix> map to the shared SearchQuery scope."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["reviewed", "candidate"],
+          "description": "Review state. Empty/default is reviewed; generated cases enter as candidate and are excluded from acceptance recall until promoted."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Difficulty/category/provenance tags (e.g. 'strong', 'weak-real', 'hard', 'gibberish', 'generated'). 'generated' is the load-bearing marker the sweep holds out of the tuning fold."
+        },
+        "expect_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Positive label: leaf ids (per the provider's id_field, e.g. 'restart') that should appear within expect_within_top_k"
+        },
+        "expect_within_top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The expected hit must land within this rank"
+        },
+        "expect_min_score": {
+          "type": "number",
+          "description": "Optional single-regime floor for the expected hit. NOT set on rank-centric positives (cross-regime fairness)."
+        },
+        "expect_max_score": {
+          "type": "number",
+          "description": "Upper score band (used by negatives)"
+        },
+        "expect_no_strong_hit": {
+          "type": "boolean",
+          "description": "Negative: no result should exceed expect_max_score (junk-rejection case)"
+        },
+        "note": { "type": "string", "description": "Rationale / calibration note" }
+      }
+    }
+  }
+}

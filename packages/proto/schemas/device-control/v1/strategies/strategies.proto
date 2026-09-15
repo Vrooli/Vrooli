@@ -1,0 +1,45 @@
+syntax = "proto3";
+package vrooli.device_control.v1.strategies;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/strategies;strategies_v1";
+service StrategyService {
+  rpc ListStrategies(ListStrategiesRequest) returns (ListStrategiesResponse);
+  rpc VerifyStrategy(VerifyStrategyRequest) returns (ConformanceReport);
+}
+message ListStrategiesRequest {}
+message ListStrategiesResponse {
+  repeated Strategy strategies = 1;
+}
+message VerifyStrategyRequest {
+  string id = 1;
+}
+message Strategy {
+  string id = 1;
+  string description = 2;
+  string status = 3;
+  repeated Capability capabilities = 4;
+  repeated string tiers = 5;
+  repeated string executable_step_kinds = 6;
+  repeated string next_actions = 7;
+  bool promotable = 8;
+  string evidence_class = 9;
+  double minimum_useful_fps = 10;
+}
+message Capability {
+  string name = 1;
+  string status = 2;
+  string prerequisite = 3;
+  string next_action = 4;
+}
+message ConformanceReport {
+  string strategy_id = 1;
+  string status = 2;
+  repeated string passed = 3;
+  repeated string failed = 4;
+  repeated string tiers = 5;
+  repeated string executable_step_kinds = 6;
+  repeated string next_actions = 7;
+  bool promotable = 8;
+  string evidence_class = 9;
+  double minimum_useful_fps = 10;
+}

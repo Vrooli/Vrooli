@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "runtime-health-scanner",
+  "displayName": "Runtime Health Scanner",
+  "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through the strict ladder defined in its HEARTBEAT task loop (SSOT) and investigates one signal in depth. Produces durable runtime-health findings.",
+  "status": "active",
+  "appearance": {
+    "body": "#0D9488",
+    "head": "#2DD4BF",
+    "accent": "#CCFBF1"
+  },
+  "tags": [
+    "infra",
+    "runtime",
+    "health",
+    "patterns"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-04-28T00:00:00Z"
+}

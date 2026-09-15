@@ -4,136 +4,105 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
+
+	"git-control-tower/internal/dbschema"
+
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
-// Keep this in sync with initialization/sqlite/schema.sql.
-const auditSchemaSQL = `
-CREATE TABLE IF NOT EXISTS git_audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    operation TEXT NOT NULL,
-    repo_dir TEXT NOT NULL,
-    branch TEXT,
-    paths TEXT,
-    commit_hash TEXT,
-    commit_message TEXT,
-    success INTEGER NOT NULL DEFAULT 0,
-    error_message TEXT,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    metadata TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_log_operation ON git_audit_log(operation);
-CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON git_audit_log(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_log_branch ON git_audit_log(branch);
-CREATE INDEX IF NOT EXISTS idx_audit_log_op_created ON git_audit_log(operation, created_at DESC);
-`
-
-const repoSchemaSQL = `
-CREATE TABLE IF NOT EXISTS git_repos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    path TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    remote_url TEXT,
-    added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    last_opened_at TEXT,
-    is_favorite INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_git_repos_last_opened ON git_repos(last_opened_at DESC);
-CREATE INDEX IF NOT EXISTS idx_git_repos_added_at ON git_repos(added_at DESC);
-
-CREATE TABLE IF NOT EXISTS git_repo_state (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-`
-
 func ensureAuditSchema(db *sql.DB) error {
-	if db == nil {
-		return nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	for _, statement := range strings.Split(auditSchemaSQL, ";") {
-		stmt := strings.TrimSpace(statement)
-		if stmt == "" {
-			continue
-		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("apply schema: %w", err)
-		}
-	}
-
-	return nil
+	return ensureDatabaseSchema(db)
 }
 
 func ensureRepoSchema(db *sql.DB) error {
+	if err := ensureDatabaseSchema(db); err != nil {
+		return err
+	}
 	if db == nil {
 		return nil
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	return ensurePrecommitHookColumns(ctx, db)
+}
 
-	for _, statement := range strings.Split(repoSchemaSQL, ";") {
-		stmt := strings.TrimSpace(statement)
-		if stmt == "" {
-			continue
-		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("apply schema: %w", err)
-		}
+func ensureDatabaseSchema(db *sql.DB) error {
+	if db == nil {
+		return nil
 	}
-
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := coredb.EnsureSchemas(ctx, db, coredb.SchemaProviderFunc(dbschema.Schema)); err != nil {
+		return fmt.Errorf("apply schema: %w", err)
+	}
 	return nil
 }
 
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("GCT_SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
+func ensurePrecommitHookColumns(ctx context.Context, db *sql.DB) error {
+	cols, err := tableColumns(ctx, db, "git_repo_precommit")
+	if err != nil {
+		return err
 	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
+	additions := []struct {
+		name string
+		ddl  string
+	}{
+		{"hook_install_status", "ALTER TABLE git_repo_precommit ADD COLUMN hook_install_status TEXT"},
+		{"hook_install_reason", "ALTER TABLE git_repo_precommit ADD COLUMN hook_install_reason TEXT"},
+		{"hook_existing_kind", "ALTER TABLE git_repo_precommit ADD COLUMN hook_existing_kind TEXT"},
+		{"hook_installed_at", "ALTER TABLE git_repo_precommit ADD COLUMN hook_installed_at TEXT"},
 	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if dsn := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(dsn, "file:") {
-		return dsn, nil
-	}
-
-	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-	if dataRoot == "" {
-		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
-	}
-	if dataRoot == "" {
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
+	for _, addition := range additions {
+		if cols[addition.name] {
+			continue
 		}
-		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
+		if _, err := db.ExecContext(ctx, addition.ddl); err != nil {
+			return fmt.Errorf("add column %s: %w", addition.name, err)
+		}
 	}
-
-	return sqliteFileDSN(filepath.Join(dataRoot, "git-control-tower.db"))
+	return nil
 }
 
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
+func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return nil, fmt.Errorf("inspect table %s: %w", table, err)
 	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var (
+			cid     int
+			name    string
+			ctype   string
+			notnull int
+			dflt    sql.NullString
+			pk      int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return nil, fmt.Errorf("scan table_info(%s): %w", table, err)
+		}
+		cols[name] = true
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate table_info(%s): %w", table, err)
+	}
+	return cols, nil
+}
 
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
-		path,
-	), nil
+// sqliteDSN returns the DSN for git-control-tower's own database.
+//
+// The tuning deviates from the fleet default in two typed ways, both suited to
+// a repository index that is read far more than it is written: a 4 KiB page
+// size, and a 256 MiB memory map so reads bypass the page cache.
+func sqliteDSN() (string, error) {
+	return storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: "git-control-tower",
+		Tuning: storage.SQLiteTuning{
+			PageSizeBytes: 4096,
+			MMapSizeBytes: 268435456,
+		},
+	})
 }

@@ -135,7 +135,7 @@ func CopyPath(src, dst string) error {
 
 // CopyFile copies a single file preserving the given mode.
 func CopyFile(src, dst string, mode fs.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return err
 	}
 	in, err := os.Open(src)

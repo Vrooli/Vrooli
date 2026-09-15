@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "icon-button",
+    "title": "IconButton",
+    "purpose": "Provide an icon-only action with an explicit accessible name and the shared control size contract.",
+    "storyRef": "../../library/components/IconButton/versions/3.1.4/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "variant-primary",
+      "description": "Named icon-only action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "button",
+      "description": "The native icon button."
+    }
+  ],
+  "claims": [
+    { "id": "review-icon-meaning", "type": "manual-review", "statement": "A reviewer confirms the icon communicates the action without relying on decoration alone.", "tier": "manual", "states": ["default"] },
+    {
+      "id": "named-action",
+      "type": "element-present",
+      "statement": "The icon button exposes a named action.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": { "elements": { "control": { "selector": "button" } } }
+}

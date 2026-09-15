@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "coverage",
+    "title": "Catalog coverage",
+    "routes": [
+      "/coverage"
+    ],
+    "purpose": "Read catalog maturity and gate findings, or identify why a report is unavailable."
+  },
+  "priorities": [
+    {
+      "statement": "Read catalog maturity and gate findings, or identify why a report is unavailable."
+    }
+  ],
+  "claims": [{
+    "id": "coverage-report-state-covered",
+    "type": "state-covered",
+    "statement": "The coverage report is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
+  "states": [
+    {
+      "id": "default",
+      "description": "Read catalog maturity and gate findings, or identify why a report is unavailable."
+    }
+  ],
+  "regions": [
+    {
+      "id": "coverage-report",
+      "required": true,
+      "purpose": "Read catalog maturity and gate findings, or identify why a report is unavailable.",
+      "component": {
+        "local": "coverage-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "coverage-report": {
+        "testid": "coverage-page"
+      }
+    }
+  }
+}

@@ -1,0 +1,252 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "name": "vrooli-orchestrator",
+    "displayName": "Vrooli Orchestrator",
+    "description": "Contextual environment orchestration and startup profile management - intelligently configure Vrooli for different user contexts and use cases",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-core",
+      "orchestration",
+      "environment-management",
+      "profile-management",
+      "context-switching",
+      "automation",
+      "infrastructure",
+      "go-api",
+      "postgres-storage",
+      "browser-automation",
+      "resource-lifecycle"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/vrooli-orchestrator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Orchestrator management API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Profile management dashboard port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Vrooli Orchestrator health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Vrooli Orchestrator",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-orchestrator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "vrooli-orchestrator",
+            "targets": [
+              "vrooli-orchestrator"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add orchestrator data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o vrooli-orchestrator-api .",
+          "description": "Build Go orchestration API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm install --frozen-lockfile; else npm install; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm run build; else npm run build; fi",
+          "description": "Build profile management UI"
+        },
+        {
+          "name": "create-default-profiles",
+          "run": "echo 'Default orchestrator profiles are seeded via initialization/postgres/seed.sql; skipping runtime profile creation during setup'",
+          "description": "Confirm default profiles come from seeded database content",
+          "condition": {
+            "binary_exists": "vrooli-orchestrator"
+          }
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start orchestrator with API server and dashboard UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./vrooli-orchestrator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/vrooli-orchestrator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve profile management dashboard from production bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for vrooli-orchestrator",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute vrooli-orchestrator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop orchestrator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"vrooli-orchestrator-api\" || true; sleep 1; pkill -9 -f \"vrooli-orchestrator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"ui.*npm.*start\" || true; sleep 1; pkill -9 -f \"ui.*npm.*start\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store profile configurations, activation history, and usage analytics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-orchestrator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-orchestrator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

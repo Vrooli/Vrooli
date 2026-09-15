@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+message DocumentationManifestRequest {}
+
+message DocumentationManifestResponse {
+  string version = 1;
+  string title = 2;
+  optional string description = 3;
+  string default_document = 4;
+  repeated DocumentationSection sections = 5;
+  repeated string primary_navigation = 6;
+  repeated string secondary_navigation = 7;
+}
+
+message DocumentationSection {
+  string id = 1;
+  string title = 2;
+  optional string icon = 3;
+  optional string description = 4;
+  repeated DocumentationDocument documents = 5;
+}
+
+message DocumentationDocument {
+  string path = 1;
+  string title = 2;
+  optional string description = 3;
+}
+
+message DocumentationContentRequest {
+  string path = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DocumentationContentResponse {
+  string path = 1;
+  string content = 2;
+}
+
+service DocumentationService {
+  rpc GetDocumentationManifest(DocumentationManifestRequest) returns (DocumentationManifestResponse);
+  rpc GetDocumentationContent(DocumentationContentRequest) returns (DocumentationContentResponse);
+}

@@ -5,7 +5,16 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { usePreflightSection, type UsePreflightSectionProps } from "./usePreflightSection";
+import { create } from "@bufbuild/protobuf";
+import {
+  CheckStatus,
+  PreflightCheckStep,
+  PreflightResponseSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  usePreflightSection,
+  type UsePreflightSectionProps,
+} from "./usePreflightSection";
 import { usePipelineStore } from "../store";
 
 // Mock browser utilities
@@ -193,7 +202,9 @@ describe("usePreflightSection", () => {
     it("includes bundle manifest path in payload", () => {
       const { result } = renderHook(() => usePreflightSection(defaultProps));
 
-      const payload = result.current.preflightPayload as { bundle_manifest_path: string };
+      const payload = result.current.preflightPayload as {
+        bundle_manifest_path: string;
+      };
 
       expect(payload.bundle_manifest_path).toBe("/path/to/bundle.json");
     });
@@ -209,7 +220,9 @@ describe("usePreflightSection", () => {
         result.current.setPreflightSecret("API_KEY", "test-value");
       });
 
-      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe("test-value");
+      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe(
+        "test-value",
+      );
     });
 
     it("provides setPreflightOverride action", () => {
@@ -242,10 +255,10 @@ describe("usePreflightSection", () => {
       // Set up a preflight result in the store
       act(() => {
         usePipelineStore.setState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
             ready: { ready: true },
-          } as unknown as ReturnType<typeof usePipelineStore.getState>["preflightResult"],
+          }),
         });
       });
 
@@ -262,9 +275,9 @@ describe("usePreflightSection", () => {
       // Set up a preflight result
       act(() => {
         usePipelineStore.setState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
-          } as unknown as ReturnType<typeof usePipelineStore.getState>["preflightResult"],
+          }),
         });
       });
 
@@ -278,14 +291,17 @@ describe("usePreflightSection", () => {
     });
 
     it("sets copyStatus to error on failure", async () => {
-      vi.mocked(writeToClipboard).mockResolvedValueOnce({ success: false, error: "Failed" });
+      vi.mocked(writeToClipboard).mockResolvedValueOnce({
+        success: false,
+        error: "Failed",
+      });
 
       // Set up a preflight result
       act(() => {
         usePipelineStore.setState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
-          } as unknown as ReturnType<typeof usePipelineStore.getState>["preflightResult"],
+          }),
         });
       });
 
@@ -319,7 +335,7 @@ describe("usePreflightSection", () => {
 
       expect(triggerBlobDownload).toHaveBeenCalledWith(
         expect.any(Blob),
-        "preflight.json"
+        "preflight.json",
       );
     });
   });
@@ -403,28 +419,26 @@ describe("usePreflightSection", () => {
     beforeEach(() => {
       act(() => {
         usePipelineStore.setState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: {
               valid: true,
-              missing_assets: [],
-              missing_binaries: [],
             },
             ready: {
               ready: true,
-              snapshot_at: new Date().toISOString(),
-              details: {
-                api: { status: "ready", updated_at: new Date().toISOString() },
-              },
+              details: [{ serviceId: "api", ready: true }],
             },
-            ports: [{ port: 3000, status: "open" }],
+            ports: [{ serviceId: "api", name: "http", port: 3000 }],
             telemetry: { path: "/telemetry" },
             checks: [
-              { step: "validation", status: "passed" },
-              { step: "secrets", status: "passed" },
+              {
+                step: PreflightCheckStep.VALIDATION,
+                status: CheckStatus.PASSED,
+              },
+              { step: PreflightCheckStep.SECRETS, status: CheckStatus.PASSED },
             ],
             errors: [],
             secrets: [],
-          } as unknown as ReturnType<typeof usePipelineStore.getState>["preflightResult"],
+          }),
         });
       });
     });

@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -19,23 +18,6 @@ type NLPProcessor struct {
 	ollamaURL string
 	db        *sql.DB
 	config    *Config
-}
-
-type OllamaRequest struct {
-	Model    string                 `json:"model"`
-	Messages []OllamaMessage        `json:"messages"`
-	Stream   bool                   `json:"stream"`
-	Options  map[string]interface{} `json:"options,omitempty"`
-}
-
-type OllamaMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type OllamaResponse struct {
-	Message OllamaMessage `json:"message"`
-	Done    bool          `json:"done"`
 }
 
 type ParsedScheduleIntent struct {
@@ -194,52 +176,29 @@ Return a JSON object with these fields:
 Example: "Schedule a meeting with John tomorrow at 3pm"
 Response: {"action":"create","event_title":"Meeting with John","start_time":"2024-01-15T15:00:00Z","end_time":"2024-01-15T16:00:00Z","attendees":["John"],"confidence":0.9}`
 
-	// Prepare Ollama request
-	ollamaReq := OllamaRequest{
-		Model: "llama3.2", // Use a lightweight model for fast processing
-		Messages: []OllamaMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: fmt.Sprintf("Current time: %s\nUser message: %s", time.Now().Format(time.RFC3339), message)},
-		},
-		Stream: false,
-		Options: map[string]interface{}{
-			"temperature": 0.3, // Lower temperature for more consistent parsing
-			"top_p":       0.9,
-		},
-	}
-
-	jsonData, err := json.Marshal(ollamaReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Ollama request: %w", err)
-	}
-
-	// Call Ollama API
-	req, err := http.NewRequestWithContext(ctx, "POST", nlp.ollamaURL+"/api/chat", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Ollama request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	prompt := systemPrompt + "\n\n" + fmt.Sprintf("Current time: %s\nUser message: %s", time.Now().Format(time.RFC3339), message)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--role", "chat.small",
+		"--json",
+		"--temperature", "0.3",
+		"--prompt-stdin",
+	)
+	cmd.Stdin = strings.NewReader(prompt)
+	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to call Ollama: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Ollama returned status %d", resp.StatusCode)
+	var ollamaResp struct {
+		Response string `json:"response"`
 	}
-
-	// Parse Ollama response
-	var ollamaResp OllamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
+	if err := json.Unmarshal(output, &ollamaResp); err != nil {
 		return nil, fmt.Errorf("failed to decode Ollama response: %w", err)
 	}
 
 	// Enhanced JSON parsing from Ollama's message content
 	var intent ParsedScheduleIntent
-	content := strings.TrimSpace(ollamaResp.Message.Content)
+	content := strings.TrimSpace(ollamaResp.Response)
 
 	if content == "" {
 		return nil, fmt.Errorf("received empty response from Ollama")

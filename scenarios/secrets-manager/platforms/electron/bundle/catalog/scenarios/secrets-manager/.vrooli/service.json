@@ -1,0 +1,249 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-07-23T02:42:50Z",
+    "adopted": true
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "secrets-manager",
+    "displayName": "Secrets Manager",
+    "description": "Dark chrome security dashboard for discovering, validating, and provisioning secrets required by Vrooli resources",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "general",
+    "tags": [
+      "react-ui",
+      "vite",
+      "go-api",
+      "secrets-management",
+      "vault",
+      "postgres"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/secrets-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "system_required": true
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Secrets Manager API",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React Vite dashboard",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Install CLI, build API, initialize database, and produce a production UI bundle",
+      "condition": {
+        "description": "Check if binaries, CLI, and UI bundle exist",
+        "checks": [
+          {
+            "type": "binaries",
+            "paths": [
+              "api/secrets-manager-api"
+            ],
+            "description": "API binary produced by build-api step"
+          },
+          {
+            "type": "cli",
+            "command": "secrets-manager",
+            "targets": [
+              "secrets-manager"
+            ],
+            "description": "CLI must be installed"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src",
+            "description": "Production UI bundle built from source"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o secrets-manager-api .",
+          "description": "Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution"
+        },
+        {
+          "name": "create-database",
+          "run": "resource-postgres content create-database ${POSTGRES_DB:-vrooli_secrets_manager}",
+          "description": "Ensure the scenario's database exists (idempotent)"
+        },
+        {
+          "name": "initialize-database",
+          "run": "resource-postgres content execute --file initialization/storage/postgres/schema.sql",
+          "description": "Load the tracking schema into the scenario database"
+        },
+        {
+          "name": "seed-database",
+          "run": "resource-postgres content execute --file initialization/storage/postgres/seed.sql",
+          "description": "Seed baseline secret definitions"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; fi",
+          "description": "Build production UI bundle against the lifecycle-assigned API port"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start the Go API and serve production UI bundle",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./secrets-manager-api",
+          "background": true,
+          "description": "Run the API server",
+          "condition": {
+            "file_exists": "api/secrets-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && node server.cjs",
+          "background": true,
+          "description": "Serve production UI bundle via Express server",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Run phased scenario tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute secrets-manager --preset comprehensive",
+          "description": "Execute structure/unit/integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'secrets-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'pnpm run dev' || true",
+          "description": "Stop Vite dev server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": true,
+        "description": "Secure secret storage and validation"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Secrets metadata and scan history"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "description": "Launch vulnerability-fixing agents"
+      }
+    }
+  },
+  "trust_signing": {
+    "provider": "development"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "secrets-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "secrets-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "rcl-prompt-manager-ux-design-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-14T05:12:54Z",
+  "displayName": "rcl-prompt-manager-ux-design-campaign",
+  "effortRefs": [
+    "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "rcl-prompt-manager-ux-design-campaign",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Execute the finite React Component Library and Prompt Manager UX design campaign through bounded design work, durable evidence, owner handoffs, and explicit completion gates.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "rcl-prompt-manager-ux-design-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "rcl-prompt-manager-ux-design-coordinator": {
+        "lane": "Coordinate the finite UX design campaign within the exact effort boundary; preserve decisions, bounded assignments, owner references, and durable handoffs.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          },
+          {
+            "kind": "task"
+          }
+        ],
+        "safetyCriticalRules": [
+            "This team is enabled only after operator activation of its exact effort revision. Once enabled, execute all unfinished work inside that accepted destination automatically; do not request a second approval for ordinary in-boundary docs, plans, code, UX, validation, or owner handoffs.",
+            "Request a new approval only for scope expansion, a changed destination or revision, new credentials or dependencies, or effects outside the accepted effort boundary.",
+            "This is an autonomous delivery team: do not create Swarm Manager backlog items, open Plan Workshops, or wait for human plan acceptance. Spawn and manage bounded child runs through Agent Manager; use Plan Manager directly only when the selected work shape requires a plan.",
+          "Retain exact effort, team, task, run, revision, source, and evidence references.",
+          "Do not invent continuation or replace uncertain dispatch identity."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 12,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-14T21:30:50Z"
+}

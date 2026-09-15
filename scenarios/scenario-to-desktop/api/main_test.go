@@ -1,14 +1,25 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
+	"scenario-to-desktop-api/internal/testutil"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -20,9 +31,7 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/health", nil)
-		w := httptest.NewRecorder()
-
-		server.router.ServeHTTP(w, req)
+		w := testutil.Serve(t, server.router, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
 		assertFieldValue(t, response, "service", "scenario-to-desktop-api")
@@ -95,6 +104,7 @@ func TestNewServer(t *testing.T) {
 		if server.buildHandler == nil {
 			t.Error("Expected build handler to be initialized")
 		}
+		shutdownServer(t, server)
 	})
 
 	t.Run("ZeroPort", func(t *testing.T) {
@@ -105,7 +115,26 @@ func TestNewServer(t *testing.T) {
 		if server.port != 0 {
 			t.Errorf("Expected port 0, got %d", server.port)
 		}
+		shutdownServer(t, server)
 	})
+}
+
+func TestServerShutdownIsIdempotentAndStopsOwnedServices(t *testing.T) {
+	server := NewServer(0)
+	if server == nil {
+		t.Fatal("NewServer returned nil")
+	}
+	shutdownServer(t, server)
+	shutdownServer(t, server)
+}
+
+func shutdownServer(t *testing.T, server *Server) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
 }
 
 // TestServerRoutes tests that all routes are properly configured
@@ -118,11 +147,8 @@ func TestServerRoutes(t *testing.T) {
 		allow404 bool // Allow 404 for routes with path parameters (resource not found is valid)
 	}{
 		{"GET", "/api/v1/health", false},
-		{"GET", "/api/v1/status", false},
-		{"GET", "/api/v1/templates", false},
-		{"GET", "/api/v1/templates/react-vite", true}, // Template file might not exist in test env
 		// NOTE: POST /api/v1/desktop/generate, GET /api/v1/desktop/status/{id}, and
-		// POST /api/v1/desktop/build were removed - use /api/v1/pipeline/* instead
+		// POST /api/v1/desktop/build was removed; use PipelineService instead.
 		// NOTE: POST /api/v1/desktop/package was removed - use pipeline bundle stage instead
 		{"POST", "/api/v1/desktop/webhook/build-complete", false},
 	}
@@ -140,6 +166,66 @@ func TestServerRoutes(t *testing.T) {
 				t.Errorf("Route %s %s not found (status: %d)", route.method, route.path, w.Code)
 			}
 		})
+	}
+
+	for _, retired := range []string{"/api/v1/status", "/api/v1/templates", "/api/v1/templates/universal", "/api/v1/system/wine/check", "/api/v1/scenarios/desktop-status", "/api/v1/desktop/probe", "/api/v1/desktop/proxy-hints/scenario-to-desktop", "/api/v1/ports/scenario-to-desktop/api", "/api/v1/pipeline/run", "/api/v1/pipeline/example", "/api/v1/pipelines", "/api/v1/scenarios/example/pipeline/active", "/api/v1/scenarios/example/pipeline", "/api/v1/scenarios/example/pipeline/reset", "/api/v1/scenarios/example/pipeline/history", "/api/v1/scenarios/example/pipeline/start", "/api/v1/scenarios/example/bundle/clean", "/api/v1/signing/prerequisites", "/api/v1/signing/example", "/api/v1/signing/example/ready"} {
+		t.Run("retired_"+retired, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, retired, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+			if w.Code != http.StatusNotFound {
+				t.Errorf("retired REST route %s returned %d, want 404", retired, w.Code)
+			}
+		})
+	}
+
+	t.Run("system_connect_replacement", func(t *testing.T) {
+		ts := httptest.NewServer(server.Router())
+		defer ts.Close()
+		client := domainconnect.NewSystemServiceClient(ts.Client(), ts.URL)
+		status, err := client.GetSystemStatus(context.Background(), connect.NewRequest(&domainv1.GetSystemStatusRequest{}))
+		if err != nil || status.Msg.GetService().GetStatus() != "running" {
+			t.Fatalf("GetSystemStatus() = %#v, %v", status.Msg, err)
+		}
+		templates, err := client.ListTemplates(context.Background(), connect.NewRequest(&domainv1.ListTemplatesRequest{}))
+		if err != nil || templates.Msg.GetCount() != 4 {
+			t.Fatalf("ListTemplates() = %#v, %v", templates.Msg, err)
+		}
+	})
+
+	t.Run("operations_connect_replacement", func(t *testing.T) {
+		ts := httptest.NewServer(server.Router())
+		defer ts.Close()
+		client := domainconnect.NewOperationsServiceClient(ts.Client(), ts.URL)
+		response, err := client.GetProxyHints(context.Background(), connect.NewRequest(&domainv1.ProxyHintsRequest{ScenarioName: "scenario-to-desktop"}))
+		if err != nil || response.Msg.GetScenarioName() != "scenario-to-desktop" {
+			t.Fatalf("GetProxyHints() = %#v, %v", response.Msg, err)
+		}
+	})
+}
+
+func TestConnectFailuresCarryOneTypedRemediationEnvelope(t *testing.T) {
+	server := NewServer(0)
+	ts := httptest.NewServer(server.Router())
+	defer ts.Close()
+	client := pipelineconnect.NewPipelineServiceClient(ts.Client(), ts.URL)
+	_, err := client.Run(context.Background(), connect.NewRequest(&pipelinev1.PipelineRunRequest{}))
+	connectErr := new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("Run error = %v, want invalid argument Connect error", err)
+	}
+	var envelope *sharedv1.ErrorEnvelope
+	for _, detail := range connectErr.Details() {
+		value, valueErr := detail.Value()
+		if valueErr != nil {
+			t.Fatalf("decode error detail: %v", valueErr)
+		}
+		if typed, ok := value.(*sharedv1.ErrorEnvelope); ok {
+			envelope = typed
+		}
+	}
+	if envelope == nil || envelope.GetCode() == "" || envelope.GetCategory() == "" || envelope.GetRecovery() == "" || envelope.GetRecoveryHint() == "" {
+		t.Fatalf("missing actionable error envelope: %#v", envelope)
 	}
 }
 

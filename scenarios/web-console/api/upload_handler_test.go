@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -39,11 +40,11 @@ func createUploadRequest(t *testing.T, sessionID, filename, contentType string, 
 
 func TestHandleUpload_ValidPNG(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	// Minimal PNG header bytes
 	pngData := []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
@@ -75,11 +76,11 @@ func TestHandleUpload_ValidPNG(t *testing.T) {
 
 func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "photo.jpg", "image/jpeg", []byte("fake jpeg"))
 	rr := httptest.NewRecorder()
@@ -93,11 +94,11 @@ func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 
 func TestHandleUpload_AcceptsWebP(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "img.webp", "image/webp", []byte("fake webp"))
 	rr := httptest.NewRecorder()
@@ -111,11 +112,11 @@ func TestHandleUpload_AcceptsWebP(t *testing.T) {
 
 func TestHandleUpload_AcceptsGIF(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "anim.gif", "image/gif", []byte("GIF89a"))
 	rr := httptest.NewRecorder()
@@ -129,11 +130,11 @@ func TestHandleUpload_AcceptsGIF(t *testing.T) {
 
 func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "script.sh", "text/plain", []byte("#!/bin/bash"))
 	rr := httptest.NewRecorder()
@@ -154,11 +155,11 @@ func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
 
 func TestHandleUpload_RejectsOversizedFile(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	// Create a body that exceeds 20MB
 	bigData := make([]byte, 21<<20)
@@ -193,11 +194,11 @@ func TestHandleUpload_MissingSession(t *testing.T) {
 
 func TestHandleUpload_PathTraversalFilename(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "../../../etc/passwd", "image/png", []byte("data"))
 	rr := httptest.NewRecorder()

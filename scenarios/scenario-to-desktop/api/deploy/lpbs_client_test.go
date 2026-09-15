@@ -61,6 +61,39 @@ func TestListRemoteProfiles(t *testing.T) {
 	}
 }
 
+func TestLoadMonetizationManifestDefaultsEntitlement(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, []byte(`{"version":2,"bundle_key":"business_suite","app_key":"paid-app"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := LoadMonetizationManifest("", "paid-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest == nil || manifest.AppKey != "paid-app" || manifest.RequiresEntitlement == nil || !*manifest.RequiresEntitlement {
+		t.Fatalf("unexpected manifest: %+v", manifest)
+	}
+}
+
+func TestLoadMonetizationManifestRejectsMalformedDeclaration(t *testing.T) {
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, []byte(`{"version":1,"bundle_key":"business_suite","app_key":"paid-app"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMonetizationManifest(root, "paid-app"); err == nil {
+		t.Fatal("malformed monetization declaration unexpectedly accepted")
+	}
+}
+
 func TestListRemoteProfilesWrappedResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -202,6 +235,7 @@ func TestUploadArtifact(t *testing.T) {
 	defer s3Server.Close()
 
 	var proxyCallCount int
+	var commitMetadata, applyMetadata map[string]interface{}
 
 	lpbsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -224,8 +258,14 @@ func TestUploadArtifact(t *testing.T) {
 					ObjectKey: "uploads/test-app.exe",
 				})
 			case strings.Contains(path, "commit"):
+				if nested, ok := payload["body"].(map[string]interface{}); ok {
+					commitMetadata, _ = nested["metadata"].(map[string]interface{})
+				}
 				_, _ = w.Write([]byte(`{"id":99}`))
 			case strings.Contains(path, "apply"):
+				if nested, ok := payload["body"].(map[string]interface{}); ok {
+					applyMetadata, _ = nested["metadata"].(map[string]interface{})
+				}
 				_, _ = w.Write([]byte(`{"ok":true}`))
 			default:
 				t.Errorf("unexpected proxy path: %s", path)
@@ -265,6 +305,9 @@ func TestUploadArtifact(t *testing.T) {
 	if result.Platform != "windows" {
 		t.Errorf("expected platform 'windows', got %q", result.Platform)
 	}
+	if result.DestinationObject != "s3://test-bucket/uploads/test-app.exe" {
+		t.Errorf("expected immutable destination object, got %q", result.DestinationObject)
+	}
 	// 4 proxy calls: list profiles (for resolve) + presign + list profiles (for resolve) + commit + list profiles (for resolve) + apply
 	// Actually: resolveProfileID calls ListRemoteProfiles each time, so:
 	// presign: 1 list + 1 proxy = 2 admin requests
@@ -273,6 +316,118 @@ func TestUploadArtifact(t *testing.T) {
 	// = 3 proxy calls to the proxy endpoint
 	if proxyCallCount != 3 {
 		t.Errorf("expected 3 proxy calls, got %d", proxyCallCount)
+	}
+	for name, metadata := range map[string]map[string]interface{}{"commit": commitMetadata, "apply": applyMetadata} {
+		if metadata == nil {
+			t.Fatalf("%s metadata was not forwarded", name)
+		}
+		if metadata["app_key"] != "test-app" || metadata["platform"] != "windows" || metadata["release_version"] != "1.0.0" {
+			t.Errorf("%s metadata identity = %#v", name, metadata)
+		}
+		if metadata["sha256"] == "" || metadata["sha512"] == "" {
+			t.Errorf("%s metadata missing checksums: %#v", name, metadata)
+		}
+	}
+}
+
+func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
+	var promotion map[string]interface{}
+	receipt := `{"app_key":"desktop","variant_key":"default","revision":8,"predecessor_revision":7,"artifact_ids":{"windows":41,"linux":42},"release_id":"release-1","artifact_manifest_digest":"sha256:manifest","candidate_id":"candidate-1","destination_revision_id":"destination-1","authorization_epoch":7,"readiness_review_key":"review-1"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == http.MethodGet:
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{{ID: 5, Tag: "prod"}})
+		case r.URL.Path == "/api/v1/admin/remote-profiles/5/proxy" && r.Method == http.MethodPost:
+			var envelope map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&envelope)
+			path, _ := envelope["path"].(string)
+			switch {
+			case strings.Contains(path, "/download-channels/head"):
+				_, _ = w.Write([]byte(`{"revision":7}`))
+			case strings.Contains(path, "/download-channels/promote"):
+				promotion, _ = envelope["body"].(map[string]interface{})
+				_, _ = w.Write([]byte(receipt))
+			default:
+				t.Fatalf("unexpected proxy path %q", path)
+			}
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, []UploadResult{{ArtifactID: 41, Platform: "windows"}, {ArtifactID: 42, Platform: "linux"}})
+	if err != nil {
+		t.Fatalf("PromoteChannel: %v", err)
+	}
+	if promotion["expected_revision"] != float64(7) {
+		t.Fatalf("expected revision 7, got %#v", promotion["expected_revision"])
+	}
+	ids, ok := promotion["artifact_ids"].(map[string]interface{})
+	if !ok || ids["windows"] != float64(41) || ids["linux"] != float64(42) {
+		t.Fatalf("artifact set = %#v", promotion["artifact_ids"])
+	}
+	for key, want := range map[string]interface{}{
+		"release_id":               "release-1",
+		"artifact_manifest_digest": "sha256:manifest",
+		"candidate_id":             "candidate-1",
+		"destination_revision_id":  "destination-1",
+		"authorization_epoch":      float64(7),
+		"readiness_review_key":     "review-1",
+	} {
+		if promotion[key] != want {
+			t.Fatalf("promotion[%q] = %#v, want %#v", key, promotion[key], want)
+		}
+	}
+	receipt = strings.Replace(receipt, `"candidate_id":"candidate-1"`, `"candidate_id":"candidate-other"`, 1)
+	if err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, []UploadResult{{ArtifactID: 41, Platform: "windows"}, {ArtifactID: 42, Platform: "linux"}}); err == nil || !strings.Contains(err.Error(), "release identity") {
+		t.Fatalf("mismatched channel promotion receipt was accepted: %v", err)
+	}
+}
+
+func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
+	requiresEntitlement := true
+	metadata := artifactMetadata(&UploadRequest{
+		AppKey:         "browser-automation-studio",
+		Platform:       "linux",
+		ReleaseVersion: "2.4.0",
+		ReleaseID:      "release-1", ArtifactManifestDigest: "sha256:manifest",
+		CandidateID: "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, &MonetizationManifest{
+		Version:             2,
+		BundleKey:           "business_suite",
+		AppKey:              "browser-automation-studio",
+		RequiresEntitlement: &requiresEntitlement,
+	}, "sha256", "sha512", true)
+
+	for key, want := range map[string]interface{}{
+		"bundle_key":               "business_suite",
+		"app_key":                  "browser-automation-studio",
+		"platform":                 "linux",
+		"release_version":          "2.4.0",
+		"sha256":                   "sha256",
+		"sha512":                   "sha512",
+		"requires_entitlement":     true,
+		"manifest_version":         2,
+		"release_id":               "release-1",
+		"artifact_manifest_digest": "sha256:manifest",
+		"candidate_id":             "candidate-1",
+		"destination_revision_id":  "destination-1",
+		"authorization_epoch":      uint64(7),
+		"readiness_review_key":     "review-1",
+	} {
+		if metadata[key] != want {
+			t.Errorf("metadata[%q] = %#v, want %#v", key, metadata[key], want)
+		}
 	}
 }
 

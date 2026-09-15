@@ -4,10 +4,7 @@ import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
 import { ServiceWorkerController } from '../service-worker';
-import {
-  RecordingContextInitializer,
-  createRecordingContextInitializer,
-} from '../recording';
+import { RecordingContextInitializer, createRecordingContextInitializer } from '../recording';
 import {
   mergeWithPreset,
   resolveUserAgent,
@@ -18,16 +15,15 @@ import {
   mergeClientHintsWithHeaders,
   BEHAVIOR_SETTINGS_KEY,
 } from '../browser-profile';
-import {
-  resolveArtifactPaths,
-  getArtifactDir,
-} from './artifact-paths';
+import { resolveArtifactPaths, getArtifactDir } from './artifact-paths';
 import {
   logContextOptions,
   logClientHints,
   logAntiDetectionApplied,
   logAdBlockerConfig,
 } from './diagnostic-logger';
+import { generateSilentSinkPatch, type AudioStrategy } from './audio';
+import { configureInteractionState } from './interaction-state';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
@@ -55,10 +51,10 @@ export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
  * This attribution helps users understand why dimensions may differ from requested.
  */
 export type ViewportSource =
-  | 'requested'           // Used the UI-requested dimensions
-  | 'fingerprint'         // Browser profile fingerprint override
+  | 'requested' // Used the UI-requested dimensions
+  | 'fingerprint' // Browser profile fingerprint override
   | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
-  | 'default';            // Fallback defaults used
+  | 'default'; // Fallback defaults used
 
 export interface ActualViewport {
   width: number;
@@ -71,7 +67,8 @@ export interface ActualViewport {
 export async function buildContext(
   browser: Browser,
   spec: SessionSpec,
-  config: Config
+  config: Config,
+  audioStrategy: AudioStrategy = 'host_device'
 ): Promise<{
   context: BrowserContext;
   harPath?: string;
@@ -115,7 +112,12 @@ export async function buildContext(
   let viewportSource: ViewportSource;
   let viewportReason: string;
 
-  if (explicitWidth !== undefined && explicitHeight !== undefined && explicitWidth > 0 && explicitHeight > 0) {
+  if (
+    explicitWidth !== undefined &&
+    explicitHeight !== undefined &&
+    explicitWidth > 0 &&
+    explicitHeight > 0
+  ) {
     // User explicitly provided a browser_profile with complete viewport override
     viewportWidth = explicitWidth;
     viewportHeight = explicitHeight;
@@ -124,12 +126,15 @@ export async function buildContext(
   } else if (explicitHasWidth || explicitHasHeight) {
     // User provided partial fingerprint override - warn but use requested viewport
     // This is likely unintentional, so we don't apply partial overrides
-    logger.warn('Partial viewport override detected in session profile - using requested viewport instead', {
-      explicitWidth: explicitFingerprint?.viewport_width,
-      explicitHeight: explicitFingerprint?.viewport_height,
-      requestedWidth: spec.viewport.width,
-      requestedHeight: spec.viewport.height,
-    });
+    logger.warn(
+      'Partial viewport override detected in session profile - using requested viewport instead',
+      {
+        explicitWidth: explicitFingerprint?.viewport_width,
+        explicitHeight: explicitFingerprint?.viewport_height,
+        requestedWidth: spec.viewport.width,
+        requestedHeight: spec.viewport.height,
+      }
+    );
     // Fall through to use requested viewport
     if (spec.viewport.width > 0 && spec.viewport.height > 0) {
       viewportWidth = spec.viewport.width;
@@ -176,7 +181,10 @@ export async function buildContext(
   const clientHints = generateClientHints(userAgent);
 
   // Merge Client Hints with user-provided headers (user headers take precedence)
-  const finalHeaders = mergeClientHintsWithHeaders(clientHints, spec.browser_profile?.extra_headers);
+  const finalHeaders = mergeClientHintsWithHeaders(
+    clientHints,
+    spec.browser_profile?.extra_headers
+  );
 
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     viewport: {
@@ -184,12 +192,18 @@ export async function buildContext(
       height: viewportHeight,
     },
     deviceScaleFactor,
+    // A mobile capture must drive the media features applications actually
+    // branch on. A narrow desktop viewport still reports fine/hover and cannot
+    // prove pointer-independent controls or mobile action-sheet behavior.
+    hasTouch: Math.min(viewportWidth, viewportHeight) <= 480,
+    isMobile: Math.min(viewportWidth, viewportHeight) <= 480,
     baseURL: spec.base_url,
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
     userAgent,
     locale: spec.locale || fingerprint.locale || undefined,
     timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
     colorScheme: fingerprint.color_scheme || undefined,
+    reducedMotion: spec.browser_profile?.motion_preference === 'reduce' ? 'reduce' : undefined,
     extraHTTPHeaders: Object.keys(finalHeaders).length > 0 ? finalHeaders : undefined,
   };
 
@@ -258,6 +272,26 @@ export async function buildContext(
 
   // Create context
   const context = await browser.newContext(contextOptions);
+  configureInteractionState(context, spec.browser_profile?.interaction_state);
+
+  if (audioStrategy === 'synthetic_sink') {
+    await context.addInitScript({ content: generateSilentSinkPatch() });
+    logger.info('Synthetic Web Audio sink enabled for host without output device', {
+      executionId: spec.execution_id,
+    });
+  }
+
+  // A fixture is a driver-level test-only opt-in. Chromium still obtains a
+  // real getUserMedia stream; BrowserManager supplies its deterministic fake
+  // device only when BAS_FAKE_MICROPHONE_FILE is configured. The isolated
+  // qualification driver grants this permission to its sessions; normal BAS
+  // instances do neither.
+  if (config.browser.fakeMicrophoneFile) {
+    await context.grantPermissions(['microphone']);
+    logger.debug('Deterministic microphone permission granted', {
+      executionId: spec.execution_id,
+    });
+  }
 
   // Fix gray bar in video recording caused by window/viewport size mismatch.
   //
@@ -277,22 +311,25 @@ export async function buildContext(
   // See: docs/bugs/VIDEO_BOTTOM_FLICKER.md for full investigation.
   if (videoDir) {
     context.on('page', (page) => {
-      context.newCDPSession(page).then((session) => {
-        return session.send('Emulation.setDeviceMetricsOverride', {
-          width: viewportWidth,
-          height: viewportHeight,
-          deviceScaleFactor,
-          mobile: false,
-          screenWidth: viewportWidth,
-          screenHeight: viewportHeight,
+      context
+        .newCDPSession(page)
+        .then((session) => {
+          return session.send('Emulation.setDeviceMetricsOverride', {
+            width: viewportWidth,
+            height: viewportHeight,
+            deviceScaleFactor,
+            mobile: false,
+            screenWidth: viewportWidth,
+            screenHeight: viewportHeight,
+          });
+        })
+        .catch((err) => {
+          // Non-fatal: video may have gray bar but functionality is unaffected
+          logger.warn('Failed to apply video recording screen metrics override', {
+            executionId: spec.execution_id,
+            error: err instanceof Error ? err.message : String(err),
+          });
         });
-      }).catch((err) => {
-        // Non-fatal: video may have gray bar but functionality is unaffected
-        logger.warn('Failed to apply video recording screen metrics override', {
-          executionId: spec.execution_id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
     });
     logger.debug('Video recording screen metrics fix registered', {
       executionId: spec.execution_id,
@@ -339,7 +376,9 @@ export async function buildContext(
     const enabledPatches = Object.entries(antiDetection)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    await applyAntiDetection(context, antiDetection, fingerprint);
+    await applyAntiDetection(context, antiDetection, fingerprint, {
+      deterministicAudio: Boolean(spec.fake_media?.microphone_wav),
+    });
     logger.debug('Anti-detection patches applied', {
       executionId: spec.execution_id,
       patches: enabledPatches,
@@ -362,7 +401,11 @@ export async function buildContext(
       whitelistDomains: adBlockWhitelist.length,
     });
     // Log for diagnostic debugging
-    logAdBlockerConfig(spec.execution_id, antiDetection.ad_blocking_mode as string, adBlockWhitelist);
+    logAdBlockerConfig(
+      spec.execution_id,
+      antiDetection.ad_blocking_mode as string,
+      adBlockWhitelist
+    );
   }
 
   // Initialize service worker controller

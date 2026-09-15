@@ -1,0 +1,54 @@
+{
+  "version": 7,
+  "note": "Corrects the screen rulings v6 coarsened. The v6 caustics retune was right and is kept; coarsening the screens over it was not, and the perceptual gate refused both styles for the correct reason.",
+  "retune_reasons": [
+    "v6 coarsened tidal-caustic to lpi 42 and ukiyo-tide to 34 on the theory that a fine screen over a high-frequency caustic field produces mush. The gate then refused both — subject survival 0.598 and 0.345 against a 0.600 floor — and measuring the relationship showed why. The perceptual gate samples the composition on a 64-column grid, so at a 1440px width its cell is 22.5px; a 42-line screen has a 34px cell and a 34-line screen an 85px one. Once the screen cell exceeds the gate's cell, the gate is measuring the screen rather than the picture, and so is the eye: the composition is genuinely gone, not merely mismeasured.",
+    "Measured across rulings on the same source, survival runs 0.386 at lpi 34, 0.638 at 48, 0.924 at 64 and 0.891 at 96 — a knee exactly where the screen cell crosses the gate's. Both styles move to rulings above it. The v6 caustics parameters are kept, because at every ruling they score higher than the defaults did (0.924 against 0.864 at lpi 64): calming the water and deepening its lit-to-unlit gradient was the correct half of the repair.",
+    "The generator changed with them. `caustics` had a low-frequency composition too weak for any screen to preserve — a broad but shallow ambient gradient over a frame of uniformly busy filaments. It is now wider, deeper, and reaches the bottom of the ramp, because a screen laid over caustics has only two things to work with and the filaments are finer than any usable cell."
+  ],
+  "styles": [
+    {
+      "id": "tidal-caustic",
+      "name": "Tidal Caustic",
+      "version": 3,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "wabi_sabi",
+      "strategy": "procedural-treated",
+      "treatments": ["halftone"],
+      "placements": ["full_bleed", "split_panel"],
+      "inks": {
+        "$brand.primary": "#12304f",
+        "$brand.background": "#f2ece0"
+      },
+      "treatment_params": {
+        "halftone": "{\"lpi\": 78, \"angle\": 15, \"dot\": \"circle\", \"normalize\": true, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "caustics", "conditioner": "", "params_json": "{\"chop\": 0.45, \"depth\": 2.1}" }
+    },
+    {
+      "id": "ukiyo-tide",
+      "name": "Ukiyo Tide",
+      "version": 3,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "ukiyo_e",
+      "strategy": "procedural-treated",
+      "treatments": ["posterize", "halftone"],
+      "placements": ["full_bleed", "framed_inset"],
+      "inks": {
+        "$brand.primary": "#1b3a5c",
+        "$brand.background": "#f6efdd"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 5, \"normalize\": true}",
+        "halftone": "{\"lpi\": 90, \"angle\": 45, \"dot\": \"circle\", \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "caustics", "conditioner": "", "params_json": "{\"chop\": 0.35, \"depth\": 2.6, \"focal_y\": 0.62}" }
+    }
+  ]
+}

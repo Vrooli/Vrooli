@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.ledger;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1";
+
+message LedgerEmission {
+  string id = 1;
+  string charge_id = 2;
+  string external_id = 3;
+  string adapter_id = 4;
+  int64 amount_minor = 5;
+  string currency = 6;
+  string basis = 7;
+  google.protobuf.Timestamp fetched_at = 8;
+  google.protobuf.Timestamp accepted_at = 9;
+}

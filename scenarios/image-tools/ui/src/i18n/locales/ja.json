@@ -1,0 +1,910 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Image Tools のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Lume",
+    "tagline": "光を、思いどおりに。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション（モバイル）",
+    "mainContentLabel": "メインコンテンツ",
+    "nav": {
+      "home": "ホーム",
+      "workspace": "ワークスペース",
+      "library": "ライブラリ",
+      "activity": "アクティビティ",
+      "models": "モデル",
+      "settings": "設定",
+      "select": "選択",
+      "compare": "比較"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "settings": {
+    "fontScale": {
+      "label": "文字サイズ",
+      "small": "小",
+      "default": "標準",
+      "large": "大",
+      "xlarge": "特大"
+    },
+    "reducedMotion": {
+      "label": "モーション",
+      "description": "アプリ全体のアニメーションを減らします。",
+      "system": "システムに合わせる",
+      "always": "減らす",
+      "never": "許可する"
+    },
+    "textDirection": {
+      "label": "文字方向",
+      "auto": "自動（言語に従う）",
+      "ltr": "左から右",
+      "rtl": "右から左"
+    },
+    "handedness": {
+      "label": "利き手",
+      "description": "モバイルの操作をどちら側に寄せるか。",
+      "left": "左",
+      "right": "右"
+    },
+    "responsibleUse": {
+      "loading": "責任ある利用ポリシーを読み込み中…",
+      "error": "責任ある利用ポリシーを読み込めませんでした。",
+      "tierLabel": "デプロイ階層",
+      "tier": {
+        "unspecified": "未指定",
+        "local": "ローカル",
+        "public": "公開"
+      },
+      "controlsHeading": "適用される制御",
+      "consent": "本人確認が必要な編集には同意が必須",
+      "nsfwScan": "AI出力を不適切コンテンツとして自動スキャン",
+      "provenance": "出力に来歴情報を付与",
+      "rateLimit": "レート制限：1分あたり{{count}}回の送信",
+      "rateLimitNone": "レート制限：なし",
+      "on": "オン",
+      "off": "オフ",
+      "weightsHeading": "操作ごとの同意ウェイト",
+      "weightOperation": "操作",
+      "weightLevel": "同意ウェイト",
+      "weight": {
+        "unspecified": "未指定",
+        "none": "なし",
+        "low": "低",
+        "high": "高"
+      },
+      "empty": "操作ウェイトは設定されていません。"
+    }
+  },
+  "pages": {
+    "home": {
+      "title": "ホーム"
+    },
+    "library": {
+      "title": "ライブラリ"
+    },
+    "activity": {
+      "title": "アクティビティ"
+    },
+    "models": {
+      "title": "モデル"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "displayHeading": "表示とアクセシビリティ",
+      "responsibleUseHeading": "責任ある利用"
+    },
+    "workspace": {
+      "title": "ワークスペース"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "jobs": {
+    "title": "最近のジョブ",
+    "loading": "ジョブを読み込み中…",
+    "empty": "ジョブはまだありません。",
+    "stateLabel": "状態:",
+    "progressLabel": "{{count}}% 完了",
+    "cancel": "キャンセル",
+    "lane": {
+      "unspecified": "未指定",
+      "gpu": "GPU",
+      "cpu": "CPU"
+    },
+    "state": {
+      "unspecified": "未指定",
+      "queued": "待機中",
+      "running": "実行中",
+      "succeeded": "成功",
+      "failed": "失敗",
+      "canceled": "キャンセル済み"
+    },
+    "errorLabel": "エラー:",
+    "liveBadge": "ライブ"
+  },
+  "home": {
+    "greeting": "何を作りましょうか？",
+    "entry": {
+      "title": "画像をドロップ、貼り付け、またはファイルを選択",
+      "hint": "PNG · JPEG · WebP · AVIF · HEIC · GIF · TIFF · BMP · SVG",
+      "choose": "ファイルを選択",
+      "camera": "カメラ",
+      "sample": "サンプルを試す",
+      "dropActive": "ドロップして開く",
+      "fileLabel": "画像ファイルを選択"
+    },
+    "group": {
+      "quickEdits": "クイック編集",
+      "enhance": "補正",
+      "create": "生成",
+      "analyze": "解析"
+    },
+    "needsModel": "モデルが必要",
+    "analyzeTile": "画像を解析",
+    "recent": {
+      "heading": "最近",
+      "viewAll": "ライブラリを表示",
+      "empty": "編集や作成したものがここに表示されます。",
+      "alt": "{{operation}} の最近の結果"
+    },
+    "firstRun": "はじめてですか？サンプルで試しましょう — ワンタップで背景を削除できます。",
+    "samples": {
+      "heading": "またはサンプルから始める",
+      "product": "商品写真",
+      "portrait": "ポートレート",
+      "blurry": "ぼやけた写真",
+      "receipt": "レシート"
+    }
+  },
+  "library": {
+    "description": "作成・編集したすべての画像。開いて作業を続けられます。",
+    "loading": "ライブラリを読み込み中…",
+    "empty": "まだ出力がありません。ワークスペースで何か作るとここに表示されます。",
+    "searchLabel": "操作で絞り込み",
+    "searchPlaceholder": "操作で絞り込み…",
+    "noMatches": "その絞り込みに一致する結果はありません。",
+    "count": "{{count}} 件",
+    "selected": "{{count}} 件選択中",
+    "selectAll": "すべて選択",
+    "clearSelection": "クリア",
+    "downloadSelected": "選択項目をダウンロード",
+    "open": "ワークスペースで開く",
+    "thumbnailAlt": "{{operation}} の結果",
+    "tryWorkspace": "ワークスペースを開く"
+  },
+  "looks": {
+    "title": "ルック＆スタイル",
+    "description": "再利用できる変換レシピ。フィルム・カメラ・スタイルのルックをワンタップで適用します。フィルムとカメラのルックはプレビューを即時表示し、スタイルのルックはワークスペースで実行します。",
+    "loading": "ルックライブラリを読み込み中…",
+    "empty": "まだルックがありません。",
+    "preview": "プレビュー",
+    "refresh": "プレビューを更新",
+    "rendering": "生成中…",
+    "noPreview": "プレビューはまだありません",
+    "deferred": "スタイルのステップはワークスペースで描画されます",
+    "builtinBadge": "組み込み",
+    "customBadge": "カスタム",
+    "thumbnailAlt": "{{name}} ルックのプレビュー",
+    "kind": {
+      "style": "スタイル",
+      "film": "フィルム",
+      "camera": "カメラ",
+      "enhance": "強調",
+      "custom": "カスタム",
+      "unspecified": "ルック"
+    }
+  },
+  "activity": {
+    "description": "進行中および最近の操作。長時間かかるAI処理はページの再読み込みでも続行されます。",
+    "thumbnailAlt": "{{operation}} の結果",
+    "openOutput": "出力を開く"
+  },
+  "backends": {
+    "title": "バックグラウンドエンジン",
+    "description": "オンデマンドで導入する任意のAIエンジン。既定のセットアップではダウンロードされません。",
+    "loading": "エンジンを確認中…",
+    "empty": "導入可能な任意エンジンはありません。",
+    "operationsLabel": "対応操作",
+    "ready": "導入済み",
+    "notInstalled": "未導入",
+    "install": "インストール",
+    "installing": "インストール中…",
+    "installStarted": "インストール中 (ジョブ {{jobId}}、約 {{eta}} 秒)",
+    "alreadyInstalled": "導入済み",
+    "manualHint": "{{detail}}",
+    "remediationLabel": "実行: {{cmd}}"
+  },
+  "models": {
+    "title": "モデルレジストリ",
+    "loading": "モデルを読み込み中…",
+    "empty": "登録済みのモデルはありません。",
+    "tierLabel": "ティア:",
+    "backendLabel": "バックエンド:",
+    "enabledLabel": "有効",
+    "disabledLabel": "無効",
+    "enable": "有効化",
+    "disable": "無効化",
+    "operationsLabel": "操作:",
+    "sizeLabel": "サイズ:",
+    "sizeValue": "{{mb}} MB",
+    "hardwareLabel": "ハードウェア:",
+    "hardware": {
+      "gpuRequired": "GPU が必要",
+      "gpuAvailable": "✓ GPU で実行できます",
+      "gpuShort": "VRAM が約 {{gb}} GB 不足",
+      "cpuOk": "✓ お使いの CPU で動作",
+      "vram": "VRAM {{gb}} GB 以上が必要",
+      "ram": "RAM {{gb}} GB 以上が必要",
+      "speedNote": "{{note}}"
+    },
+    "licenseLabel": "ライセンス:",
+    "commercialLabel": "商用利用:",
+    "commercial": {
+      "unspecified": "不明",
+      "yes": "許可",
+      "no": "不可",
+      "conditional": "条件付き"
+    },
+    "commercialNotesLabel": "商用利用の注記:",
+    "nsfwBadge": "NSFW 対応",
+    "customBadge": "カスタム",
+    "defaultForBadge": "既定",
+    "defaultForLabel": "既定の操作:",
+    "downloadSizeLabel": "ダウンロード:",
+    "diskSizeLabel": "ディスク上:",
+    "installState": {
+      "installed": "インストール済み",
+      "notInstalled": "未インストール"
+    },
+    "install": "インストール",
+    "installing": "インストール中…",
+    "installStarted": "インストールを開始しました (ジョブ {{jobId}}、約 {{eta}} 秒)",
+    "alreadyInstalled": "インストール済み",
+    "remove": "削除",
+    "removing": "削除中…",
+    "blocklist": {
+      "title": "ブロック済みモデル",
+      "loading": "ブロックリストを読み込み中…",
+      "empty": "ブロックされたモデルはありません。",
+      "licenseLabel": "ライセンス:",
+      "reasonLabel": "理由:",
+      "operationsLabel": "操作:",
+      "onnxWarning": "ONNX/GGUF へのエクスポートでこの制限が解除されるように見えますが、実際には解除されません。"
+    },
+    "addCustom": {
+      "title": "カスタムモデルを追加",
+      "idLabel": "モデル ID",
+      "operationsLabel": "操作 (カンマ区切り)",
+      "backendLabel": "バックエンド",
+      "localPathLabel": "ローカルパス",
+      "downloadUrlLabel": "ダウンロード URL (任意)",
+      "submit": "モデルを追加",
+      "submitting": "追加中…",
+      "success": "カスタムモデルを追加しました。"
+    },
+    "defaults": {
+      "title": "操作ごとのデフォルトモデル",
+      "loading": "デフォルトを読み込み中…",
+      "empty": "利用可能な操作がありません。",
+      "modelLabel": "デフォルトモデル",
+      "sourceLabel": "ソース",
+      "source": {
+        "seed": "組み込み",
+        "override": "固定"
+      },
+      "useDefault": "組み込みデフォルトを使用",
+      "clear": "クリア",
+      "none": "なし"
+    },
+    "picker": {
+      "titleFor": "{{op}} のモデル",
+      "close": "閉じる",
+      "loading": "ハードウェアに合うモデルを検索中…",
+      "size": "{{size}} MB",
+      "manualTitle": "手動セットアップ",
+      "trigger": {
+        "label": "モデル",
+        "loading": "モデルを選択中…",
+        "none": "利用可能なモデルがありません",
+        "change": "変更"
+      },
+      "host": {
+        "gpu": "{{name}} · VRAM {{total}} GB（空き {{free}} GB）",
+        "gpuUnknown": "{{name}} · VRAM 不明",
+        "noGpu": "GPU が検出されません — CPU のみ",
+        "specs": "{{cores}} コア · RAM {{ram}} GB"
+      },
+      "fit": {
+        "gpu": "GPU で実行できます",
+        "cpu": "CPU で実行できます",
+        "cpuFallback": "CPU で実行（現在 GPU には収まりません）",
+        "insufficientVram": "空き VRAM が約 {{gb}} GB 不足",
+        "noGpu": "GPU が必要です（未検出）",
+        "unsupportedOs": "{{os}}/{{arch}} 向けビルドがありません"
+      },
+      "state": {
+        "ready": "準備完了",
+        "needsModel": "重みが未ダウンロード",
+        "needsBackend": "エンジン未インストール",
+        "needsBackendManual": "エンジンの手動セットアップが必要",
+        "needsBoth": "重みとエンジンが必要",
+        "disabled": "設定で無効",
+        "insufficient": "このハードウェアでは実行不可",
+        "unsupported": "お使いの OS では利用不可",
+        "derivedUnproven": "ワークフロー経由（未実証）"
+      },
+      "support": {
+        "native": "ネイティブ",
+        "viaWorkflow": "ワークフロー経由"
+      },
+      "caveatBanner": "派生技術で {{op}} を実行 — {{caveat}}",
+      "action": {
+        "select": "使用",
+        "useAnyway": "それでも使用",
+        "selected": "使用中",
+        "installModel": "ダウンロード",
+        "installBackend": "エンジンをインストール",
+        "enable": "有効化",
+        "manualSteps": "セットアップ手順",
+        "installing": "インストール中…"
+      },
+      "footer": {
+        "all": "このタスク向けの全 {{count}} モデルを表示 — 実行できないものも理由がわかるように表示しています。",
+        "none": "このタスク向けの他のモデルはありません。"
+      }
+    },
+    "import": {
+      "title": "モデルをインポート",
+      "sourceLabel": "ソース（Hugging Face リポジトリ ID、URL、またはローカルパス）",
+      "inspect": "検査",
+      "inspecting": "検査中…",
+      "layoutLabel": "レイアウト",
+      "architectureInferred": "アーキテクチャ",
+      "licenseLabel": "ライセンス",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "推定サイズ",
+      "offeredOpsLabel": "提供される操作",
+      "idLabel": "エントリ ID",
+      "nameLabel": "表示名",
+      "architectureLabel": "アーキテクチャを確認",
+      "selectArchitecture": "アーキテクチャを選択…",
+      "attestLabel": "商用権利を保有しています（公開/BYOK 提供を許可）",
+      "import": "インポートとインストール",
+      "importing": "インポート中…",
+      "success": "インポートを開始しました — ダウンロード完了後にモデルが表示されます。",
+      "needsArchitecture": "アーキテクチャが検出されません — 選択してインポートしてください。"
+    }
+  },
+  "workspace": {
+    "loading": "操作を読み込み中…",
+    "error": "操作を読み込めません。",
+    "uploadLabel": "元画像",
+    "overlayLabel": "ウォーターマーク画像",
+    "run": "適用",
+    "running": "適用中…",
+    "empty": "操作を選んで適用すると編集が作成されます。",
+    "originalLabel": "オリジナル",
+    "resultLabel": "結果",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "メタデータ",
+    "canvas": {
+      "empty": "画像をここにドロップするか、ファイルを選択してください。",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomFit": "フィット",
+      "zoomActual": "実寸",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "ビフォー / アフター",
+      "replace": "差し替え"
+    },
+    "actions": {
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "reset": "リセット",
+      "download": "ダウンロード"
+    },
+    "history": {
+      "title": "履歴",
+      "empty": "まだ編集がありません。",
+      "source": "ソース",
+      "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "編集",
+      "enhance": "強調",
+      "create": "生成",
+      "analyze": "解析",
+      "switcherLabel": "ワークスペースモード"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "画像を調べる",
+        "desc": "寸法・形式・EXIF・主要な配色を読み取ります。"
+      },
+      "ocr": {
+        "label": "テキスト抽出",
+        "desc": "テキストを認識し、各領域をキャンバス上に表示します。"
+      },
+      "nsfw_classify": {
+        "label": "安全性チェック",
+        "desc": "画像に不適切なコンテンツが含まれるか分類します。"
+      },
+      "duplicate_detect": {
+        "label": "重複を検出",
+        "desc": "知覚ハッシュを計算して類似画像を見つけます。"
+      },
+      "quality_assessment": {
+        "label": "品質を評価",
+        "desc": "鮮明さ・露出・コントラストを即座に採点します。"
+      }
+    },
+    "analyze": {
+      "intro": "現在の画像から情報を読み取ります。画像は変更されません。",
+      "loading": "解析ツールを読み込み中…",
+      "error": "解析ツールを読み込めませんでした。",
+      "needsImage": "解析する画像を追加してください。",
+      "modelNote": "モデルを使用します。初回実行時にインストールされます。",
+      "run": "解析",
+      "running": "解析中…",
+      "retry": "再試行",
+      "failed": "解析に失敗しました。",
+      "probe": {
+        "dimensions": "寸法",
+        "format": "形式",
+        "colorModel": "カラーモデル",
+        "alpha": "透明度",
+        "frames": "フレーム数",
+        "megapixels": "メガピクセル",
+        "size": "ファイルサイズ",
+        "exif": "EXIFメタデータ",
+        "gps": "GPS位置情報",
+        "orientation": "向き",
+        "palette": "主要な色",
+        "yes": "はい",
+        "no": "いいえ"
+      },
+      "ocr": {
+        "copy": "テキストをコピー",
+        "copied": "コピーしました",
+        "empty": "テキストが見つかりませんでした。",
+        "language": "言語: {{language}}",
+        "blocks": "{{count}} 個のテキスト領域"
+      },
+      "nsfw": {
+        "flagged": "フラグあり",
+        "safe": "問題なし",
+        "score": "スコア {{score}}%",
+        "threshold": "しきい値 {{threshold}}%"
+      },
+      "duplicate": {
+        "hint": "これらの指紋を比較して類似画像を見つけます。",
+        "phash": "知覚ハッシュ（pHash）",
+        "ahash": "平均ハッシュ（aHash）",
+        "bits": "{{count}}ビットのハッシュ",
+        "copy": "コピー",
+        "copied": "コピーしました"
+      },
+      "quality": {
+        "overall": "総合品質",
+        "sharpness": "鮮明さ",
+        "blurry": "ぼやけて見えます",
+        "sharp": "鮮明に見えます",
+        "brightness": "明るさ",
+        "contrast": "コントラスト",
+        "exposure": "露出：{{exposure}}",
+        "notesHeading": "メモ"
+      }
+    },
+    "aiOp": {
+      "background_removal": {
+        "label": "背景を削除",
+        "desc": "背景を透明に消去します。"
+      },
+      "upscale": {
+        "label": "アップスケール",
+        "desc": "超解像で拡大して鮮明にします。"
+      },
+      "denoise": {
+        "label": "ノイズ・ぼけ除去",
+        "desc": "ノイズを減らし、ぼけたディテールを回復します。"
+      },
+      "naturalize": {
+        "label": "ナチュラライズ",
+        "desc": "なめらかすぎる写真に自然な質感を戻します。"
+      },
+      "colorize": {
+        "label": "色付け",
+        "desc": "白黒写真に自然な色を追加します。"
+      },
+      "depth_map": {
+        "label": "深度マップ",
+        "desc": "画像から深度マップを推定します。"
+      }
+    },
+    "enhance": {
+      "intro": "ワンタップのAI補正 — アクションを選んで「補正」を押します。",
+      "loading": "AI補正を読み込み中…",
+      "error": "AI操作を読み込めません。",
+      "needsImage": "先に補正する画像を追加してください。",
+      "scaleLabel": "倍率",
+      "targetResolution": "{{from}} → {{to}}",
+      "memoryWarning": "結果が大きいため、メモリの少ないホストでは遅くなる場合があります。",
+      "run": "補正",
+      "running": "補正中…",
+      "progress": "{{percent}}%",
+      "cancel": "キャンセル",
+      "retry": "再試行",
+      "succeeded": "完了 — キャンバスに追加しました。",
+      "failed": "補正を完了できませんでした。",
+      "warningsLabel": "注意",
+      "tier": {
+        "localGpu": "GPUで実行中",
+        "localCpu": "CPUで実行中",
+        "byokCloud": "クラウドで実行中（BYOK）"
+      },
+      "install": {
+        "title": "{{model}} はまだインストールされていません",
+        "cpu": "CPUで実行できます",
+        "gpu": "VRAM {{vram}} GB以上のGPUが必要です",
+        "size": "{{size}} MB のダウンロード",
+        "run": "インストールして実行",
+        "installing": "モデルをインストール中…"
+      },
+      "naturalize": {
+        "realismLabel": "リアリズム",
+        "realismHint": "高くするほど質感とグレインが増えます。",
+        "subtle": "控えめ",
+        "strong": "強め",
+        "faceAware": "顔と肌を重視",
+        "suggestTitle": "仕上がりが少し作り物っぽい？",
+        "suggest": "この結果をナチュラライズ"
+      }
+    },
+    "createOp": {
+      "text_to_image": {
+        "label": "生成",
+        "desc": "テキストプロンプトから新しい画像を作成します。"
+      },
+      "image_to_image": {
+        "label": "変換",
+        "desc": "現在の画像をプロンプトに沿って再構成します。"
+      },
+      "edit_instruct": {
+        "label": "指示で編集",
+        "desc": "自然言語の指示で編集し、それ以外はそのまま保ちます。"
+      },
+      "inpaint": {
+        "label": "インペイント",
+        "desc": "マスクした領域をプロンプトから描き直します。"
+      },
+      "object_removal": {
+        "label": "オブジェクトを削除",
+        "desc": "マスクしたオブジェクトを消去して隙間を補完します。"
+      },
+      "outpaint": {
+        "label": "アウトペイント",
+        "desc": "マスクした端からプロンプトで画像を拡張します。"
+      },
+      "background_replace": {
+        "label": "背景を置換",
+        "desc": "マスクした背景をプロンプトの新しいシーンに差し替えます。"
+      }
+    },
+    "create": {
+      "intro": "作りたいものを記述して「生成」を押します。結果はキャンバスに送れるバリエーションとして届きます。",
+      "loading": "ジェネレーターを読み込み中…",
+      "error": "AI操作を読み込めません。",
+      "promptLabel": "プロンプト",
+      "promptPlaceholder": "黄金色の夕暮れの静かな山の湖…",
+      "negativeLabel": "ネガティブプロンプト",
+      "negativePlaceholder": "ぼやけ、低品質、透かし",
+      "sizeLabel": "サイズ",
+      "size": {
+        "square": "正方形",
+        "portrait": "縦長",
+        "landscape": "横長"
+      },
+      "seedLabel": "シード",
+      "seedRandom": "ランダム",
+      "seedLock": "シードを固定",
+      "seedRandomize": "シードをランダム化",
+      "variationsLabel": "バリエーション",
+      "byokLabel": "有料クラウドを許可（BYOK）",
+      "advanced": "詳細設定",
+      "usesCurrent": "現在のキャンバス画像を使用します。",
+      "needsImage": "先に変換する画像を追加してください。",
+      "needsMask": "先にマスクを描くかアップロードしてください。",
+      "run": "生成",
+      "running": "生成中…",
+      "produced": "生成済み {{done}}/{{total}}",
+      "progress": "{{percent}}%",
+      "cancel": "キャンセル",
+      "retry": "再試行",
+      "succeeded": "{{count}} 件を生成しました — キャンバスに送るものを選んでください。",
+      "failed": "生成を完了できませんでした。",
+      "warningsLabel": "注意",
+      "consent": {
+        "label": "この画像内の人物を編集する権利を持っています。",
+        "required": "続行する前に、この画像内の人物を編集する権利があることを確認してください。"
+      },
+      "result": {
+        "heading": "バリエーション",
+        "slot": "バリエーション {{index}}",
+        "pending": "生成中…",
+        "sendToCanvas": "キャンバスに送る",
+        "sendToEnhance": "補正",
+        "download": "ダウンロード"
+      }
+    },
+    "mask": {
+      "title": "マスク",
+      "hint": "変更する領域を塗ります — 白が対象範囲を示します。",
+      "brushSize": "ブラシサイズ",
+      "clear": "マスクをクリア",
+      "uploadLabel": "代わりにマスク画像をアップロード",
+      "painted": "マスクの準備ができました。",
+      "uploaded": "マスクをアップロードしました: {{name}}",
+      "empty": "まだマスクがありません。"
+    },
+    "operationLabelGroup": "操作",
+    "op": {
+      "resize": {
+        "label": "リサイズ",
+        "desc": "画像を新しいサイズに拡大縮小します。"
+      },
+      "crop": {
+        "label": "切り抜き",
+        "desc": "矩形の領域を切り出します。キャンバス上で枠をドラッグします。"
+      },
+      "rotate": {
+        "label": "回転",
+        "desc": "画像を指定した角度で回転します。"
+      },
+      "flip": {
+        "label": "反転",
+        "desc": "画像を水平または垂直に反転します。"
+      },
+      "deskew": {
+        "label": "傾き補正",
+        "desc": "傾いたスキャンや写真をまっすぐにします。"
+      },
+      "thumbnail": {
+        "label": "サムネイル",
+        "desc": "枠に収まる小さなプレビューを作成します。"
+      },
+      "canvas": {
+        "label": "キャンバス",
+        "desc": "画像を大きな背景の上に配置します。"
+      },
+      "adjust": {
+        "label": "調整",
+        "desc": "明るさ、コントラスト、色、ガンマを調整します。"
+      },
+      "filter": {
+        "label": "フィルター",
+        "desc": "グレースケールやセピアなどの効果を適用します。"
+      },
+      "convert": {
+        "label": "変換",
+        "desc": "ファイル形式と品質を変更します。"
+      },
+      "compress": {
+        "label": "圧縮",
+        "desc": "目標サイズに向けてファイルを縮小します。"
+      },
+      "overlay": {
+        "label": "ウォーターマーク",
+        "desc": "テキストや画像を写真に重ねます。"
+      },
+      "metadata": {
+        "label": "メタデータ",
+        "desc": "EXIF や向きの情報を削除または読み取ります。"
+      }
+    },
+    "fitOption": {
+      "fit": "フィット",
+      "fill": "塗りつぶし",
+      "stretch": "引き伸ばし"
+    },
+    "axisOption": {
+      "horizontal": "水平",
+      "vertical": "垂直"
+    },
+    "filterOption": {
+      "grayscale": "グレースケール",
+      "sepia": "セピア",
+      "invert": "色反転",
+      "blur": "ぼかし",
+      "sharpen": "シャープ"
+    },
+    "position": {
+      "name": {
+        "topLeft": "左上",
+        "top": "上",
+        "topRight": "右上",
+        "left": "左",
+        "center": "中央",
+        "right": "右",
+        "bottomLeft": "左下",
+        "bottom": "下",
+        "bottomRight": "右下"
+      }
+    },
+    "crop": {
+      "aspect": {
+        "label": "縦横比",
+        "free": "自由",
+        "square": "1:1",
+        "standard": "4:3",
+        "wide": "16:9",
+        "original": "元の比率"
+      },
+      "advanced": "詳細設定",
+      "hint": "枠をドラッグして切り抜き範囲を設定するか、矢印キーで微調整します。",
+      "boxLabel": "切り抜き範囲"
+    },
+    "control": {
+      "reset": "既定値に戻す"
+    },
+    "color": {
+      "alpha": "不透明度",
+      "clear": "色をクリア"
+    },
+    "target": {
+      "kb": "KB",
+      "mb": "MB",
+      "noLimit": "サイズ制限なし"
+    },
+    "compare": {
+      "before": "ビフォー",
+      "after": "アフター",
+      "slider": "比較スライダー"
+    },
+    "field": {
+      "width": "幅",
+      "height": "高さ",
+      "fit": "フィット",
+      "gravity": "重心",
+      "x": "X",
+      "y": "Y",
+      "angle": "角度",
+      "background": "背景",
+      "axis": "軸",
+      "brightness": "明るさ",
+      "contrast": "コントラスト",
+      "gamma": "ガンマ",
+      "saturation": "彩度",
+      "hue": "色相",
+      "filter": "フィルター",
+      "amount": "量",
+      "format": "形式",
+      "quality": "品質",
+      "lossless": "ロスレス",
+      "targetBytes": "目標バイト数",
+      "text": "テキスト",
+      "position": "位置",
+      "opacity": "不透明度",
+      "color": "色",
+      "fontSize": "フォントサイズ",
+      "stripAll": "すべて削除",
+      "stripGps": "GPS を削除",
+      "autoOrient": "自動回転"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  },
+  "select": {
+    "title": "スマート選択",
+    "description": "画像の領域をクリックして選択すると、エッジが輪郭にスナップします。続いて状況に応じた編集を選びます。",
+    "chooseImage": "画像を選択",
+    "pointerHint": "画像をクリックして領域を選択するか、下のコントロールを使用します。",
+    "autoSelect": "被写体を自動選択",
+    "selectPoint": "点を選択",
+    "pointX": "X（％）",
+    "pointY": "Y（％）",
+    "tolerance": "ディテール許容度",
+    "segmenting": "選択中…",
+    "region": "領域：{{class}}",
+    "confidence": "信頼度 {{percent}}％",
+    "editsHeading": "おすすめの編集",
+    "noEdits": "この領域に利用できる編集はありません。",
+    "promptPlaceholder": "変更内容を記述…",
+    "applying": "適用中…",
+    "submitted": "ジョブ {{jobId}} として送信しました。アクティビティで確認できます。",
+    "gate": "この編集にはモデルバックエンドが必要です。モデルでインストールするか、BYOK を有効にしてください。",
+    "reset": "やり直す",
+    "imageAlt": "あなたの画像",
+    "maskAlt": "選択領域のマスク",
+    "error": "選択を完了できませんでした。",
+    "class": {
+      "person": "人物",
+      "sky": "空",
+      "foliage": "植物",
+      "background": "背景",
+      "object": "オブジェクト"
+    }
+  },
+  "compare": {
+    "title": "ビジュアル比較",
+    "description": "2 枚の画像（基準画像と候補画像）をドロップすると、変更点が一目でわかります。判定結果、差分のヒートマップ、その根拠となる指標を表示します。",
+    "baseLabel": "基準画像",
+    "compareLabel": "比較画像",
+    "chooseBase": "基準画像を選択",
+    "chooseCompare": "比較画像を選択",
+    "dropHint": "ここに画像をドロップするか、ファイルを選択してください。",
+    "baseAlt": "基準画像",
+    "compareAlt": "比較画像",
+    "mode": "比較モード",
+    "modePixel": "ピクセル",
+    "modePerceptual": "知覚的",
+    "tolerance": "ピクセル許容差",
+    "toleranceReset": "許容差をリセット",
+    "run": "比較する",
+    "reset": "やり直す",
+    "comparing": "比較中…",
+    "error": "比較を完了できませんでした。",
+    "verdictHeading": "判定",
+    "verdictIdentical": "同一",
+    "verdictSimilar": "類似",
+    "verdictDifferent": "相違",
+    "dimensionsMismatch": "画像のサイズが異なります。比較画像は基準画像に合わせてリサイズされました。",
+    "heatmapHeading": "差分ヒートマップ",
+    "heatmapAlt": "変更されたピクセルを強調表示するヒートマップ",
+    "metricsHeading": "指標",
+    "metricChanged": "変更されたピクセル",
+    "metricChangedValue": "{{percent}}%（{{total}} 中 {{changed}}）",
+    "metricMae": "MAE",
+    "metricRmse": "RMSE",
+    "metricPsnr": "PSNR",
+    "metricPsnrValue": "{{value}} dB",
+    "metricPhashDistance": "pHash 距離",
+    "metricPhashSimilarity": "pHash 類似度",
+    "metricSsim": "SSIM",
+    "warningsHeading": "警告"
+  }
+}

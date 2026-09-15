@@ -13,13 +13,15 @@
  * - Sync status when viewport is being updated
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Profiler, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Palette, SlidersHorizontal, PanelLeft, Monitor, AlertTriangle, Loader2, ArrowLeft, ArrowRight, RotateCw, History } from 'lucide-react';
 import { BrowserUrlBar } from './BrowserUrlBar';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
 import type { FrameStatsAggregated } from '../hooks/usePerfStats';
 import clsx from 'clsx';
+import { onProfilerRender } from '@/lib/profiler';
+import { useRecordingFrameStats, useRecordingPageTitle } from '../stores/sessionStore';
 
 /** A single entry in the navigation stack */
 export interface NavigationStackEntry {
@@ -109,7 +111,7 @@ interface BrowserChromeProps {
   className?: string;
 }
 
-export function BrowserChrome({
+export const BrowserChrome = memo(function BrowserChrome({
   previewUrl,
   onPreviewUrlChange,
   onNavigate,
@@ -132,6 +134,7 @@ export function BrowserChrome({
   onReplayStyleToggle,
   onSettingsClick,
   isSettingsPanelOpen = false,
+  mode = 'recording',
   readOnly = false,
   onFetchNavigationStack,
   onNavigateToIndex,
@@ -143,6 +146,11 @@ export function BrowserChrome({
   viewportReason,
   className,
 }: BrowserChromeProps) {
+  const recordingPageTitle = useRecordingPageTitle();
+  const recordingFrameStats = useRecordingFrameStats();
+  const effectivePageTitle = mode === 'recording' ? (recordingPageTitle || pageTitle) : pageTitle;
+  const effectiveFrameStats = mode === 'recording' ? recordingFrameStats : frameStats;
+
   // In read-only mode, we don't allow navigation
   const handleNavigate = readOnly ? undefined : onNavigate;
   const handleGoBack = readOnly ? undefined : onGoBack;
@@ -234,6 +242,7 @@ export function BrowserChrome({
   }, [historyPopup, onNavigateToIndex]);
 
   return (
+    <Profiler id="BrowserChrome" onRender={onProfilerRender}>
     <div className={clsx(
       'border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-2 min-h-[52px]',
       className
@@ -316,14 +325,14 @@ export function BrowserChrome({
         onChange={handleUrlChange}
         onNavigate={handleNavigate ?? noopNavigate}
         placeholder={placeholder}
-        pageTitle={pageTitle}
+        pageTitle={effectivePageTitle}
         disabled={readOnly}
       />
 
       {/* Frame stats display (shown during live streaming) */}
       {showStats && (
         <FrameStatsDisplay
-          stats={frameStats ?? null}
+          stats={effectiveFrameStats ?? null}
           targetFps={targetFps}
           debugStats={debugStats ?? null}
         />
@@ -481,5 +490,6 @@ export function BrowserChrome({
         </div>
       )}
     </div>
+    </Profiler>
   );
-}
+});

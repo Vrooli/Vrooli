@@ -8,7 +8,7 @@
  * - Click to select items
  */
 
-import { useMemo, useCallback, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { buildTree } from "./itemTreeTypes";
 import { TreeNodeComponent } from "./TreeNodeComponent";
@@ -52,23 +52,6 @@ export function ItemTreeSidebar<T extends BaseItem>({
   onToggleCollapse,
 }: ItemTreeSidebarProps<T>) {
   const treeData = useMemo(() => buildTree(items), [items]);
-
-  // Auto-expand nodes that contain the selected item
-  const _expandToItem = useCallback(
-    (itemId: string) => {
-      const item = items.find((i) => i.id === itemId);
-      if (!item?.modes) return;
-
-      let path = "";
-      for (const mode of item.modes) {
-        path = path ? `${path}/${mode}` : mode;
-        if (!expandedNodes.has(path)) {
-          onToggleNode(path);
-        }
-      }
-    },
-    [items, expandedNodes, onToggleNode]
-  );
 
   const dirtyCount = dirtyItemIds.size;
 

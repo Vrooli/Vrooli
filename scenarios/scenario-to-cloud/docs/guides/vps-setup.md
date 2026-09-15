@@ -20,36 +20,32 @@ The following tools must be available (installed automatically if missing):
 - `docker` (optional, for containerized resources)
 - `systemd`
 
-## SSH Configuration
+## Target Access
 
-### 1. Bootstrap key-based SSH with scenario-to-cloud (recommended)
+The cloud never holds a private key and the manifest never names one: `target.vps` carries the locator only (`host`, `port`, `user`, `workdir`). Access is bound one of two ways.
+
+### 1. Enroll the host with Vrooli Bridge (recommended)
 
 ```bash
-# agent-safe precheck (fails with handoff instructions if password prompt is required)
-scenario-to-cloud ssh bootstrap your-vps.com --user root --non-interactive
-
-# human-run interactive bootstrap (prompts for VPS password once if needed)
-scenario-to-cloud ssh bootstrap your-vps.com --user root
+# on the VPS, after installing vrooli
+vrooli-bridge onboard
 ```
 
-### 2. Manual fallback: create SSH key (if needed)
+Onboarding pairs the machine with your Bridge, records the enrollment (machine id, node id, generation) on the deployment's target binding and lets every cloud operation reach the host through the Bridge relay with scoped grants. A revoked enrollment is a typed refusal (`enrollment_revoked`); the cloud never falls back to SSH.
+
+### 2. SSH with a credential binding
+
+When the deployment's transport is `ssh`, the cloud authenticates with the key its credential binding names: `vrooli/scenario-to-cloud:ssh-key`, a binding of class `machine_enrollment_credential` whose file target is the operator-held key path. The binding never carries key bytes. A deployment converted from an older manifest that carried `target.vps.key_path` receives this binding automatically at API start. A target with no binding (a host you are preflighting before the deployment exists) is reached with your ambient SSH identity: the agent (`SSH_AUTH_SOCK`) or your default identity files.
+
+Create the key and authorise it on the host with the standard tools:
 
 ```bash
-# On your local machine
 ssh-keygen -t ed25519 -C "your-email@example.com"
-```
-
-### 3. Manual fallback: copy key to VPS
-
-```bash
 ssh-copy-id -i ~/.ssh/id_ed25519.pub root@your-vps.com
-```
-
-### 4. Verify Access
-
-```bash
 ssh root@your-vps.com "echo 'SSH working!'"
 ```
+
+Host keys are trusted on first use into the scenario's own `known_hosts` store (`$VROOLI_STATE_DIR/known_hosts`); a changed host key is refused as `target_offline` with the ssh diagnostic in the detail.
 
 ## DNS Configuration
 

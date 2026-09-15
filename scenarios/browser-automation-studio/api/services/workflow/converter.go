@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	workflowingress "github.com/vrooli/browser-automation-studio/internal/compat"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -181,22 +182,22 @@ func buildFlowDefinition(raw map[string]any) (*basworkflows.WorkflowDefinitionV2
 	return def, nil
 }
 
-// marshalToFlowDefinition converts a map to WorkflowDefinitionV2 via JSON/protojson.
+// marshalToFlowDefinition delegates map-shaped input to the sole workflow
+// ingress adapter. The workflow service receives only typed V2 values after it.
 func marshalToFlowDefinition(defMap map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
-	// Normalize for proto serialization (wraps subflow args into JsonValue format, etc.)
-	normalizeForProto(defMap)
-
-	defBytes, err := json.Marshal(defMap)
+	raw, err := json.Marshal(defMap)
 	if err != nil {
 		return nil, err
 	}
-
-	var def basworkflows.WorkflowDefinitionV2
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(defBytes, &def); err != nil {
+	raw, err = workflowingress.NormalizeExternalWorkflowDefinitionBytes(raw)
+	if err != nil {
 		return nil, err
 	}
-
-	return &def, nil
+	definition := &basworkflows.WorkflowDefinitionV2{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, definition); err != nil {
+		return nil, err
+	}
+	return definition, nil
 }
 
 // inferFolderPath derives a logical folder path from the source file's directory.

@@ -64,15 +64,11 @@ describe('AssertionHandler', () => {
   });
 
   describe('assert - exists', () => {
-    it('should pass when element exists', async () => {
+    // exists WAITS for the element up to the assertion timeout rather than
+    // sampling the DOM once. Sampling made every exists assertion a race
+    // against whatever the previous step set in motion.
+    it('should pass when the element attaches', async () => {
       const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'exists' }, { nodeId: 'node-1' });
-
-      const mockLocator = {
-        count: jest.fn().mockResolvedValue(1),
-      };
-      mockPage.locator.mockReturnValue(
-        mockLocator as unknown as ReturnType<typeof mockPage.locator>
-      );
 
       const result = await handler.execute(instruction, context);
 
@@ -81,11 +77,30 @@ describe('AssertionHandler', () => {
       expect(assertion?.success).toBe(true);
     });
 
-    it('should fail when element does not exist', async () => {
+    it('waits for the element instead of sampling the DOM once', async () => {
+      const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'exists' }, { nodeId: 'node-1' });
+
+      await handler.execute(instruction, context);
+
+      // The regression this guards: reverting to page.$() would still report
+      // the right answer for an element that is already present, so asserting
+      // the outcome alone cannot catch it. Assert the wait actually happened.
+      const firstLocator = mockPage.locator('#element').first() as unknown as {
+        waitFor: jest.Mock;
+      };
+      expect(firstLocator.waitFor).toHaveBeenCalledWith(
+        expect.objectContaining({ state: 'attached' })
+      );
+    });
+
+    it('should fail when the element never attaches', async () => {
       const instruction = createTypedInstruction('assert', { selector: '#missing', mode: 'exists' }, { nodeId: 'node-1' });
 
-      // The assertion handler uses page.$() not page.locator()
-      mockPage.$.mockResolvedValue(null);
+      // waitFor rejects on timeout, which is how absence now surfaces.
+      const firstLocator = mockPage.locator('#missing').first() as unknown as {
+        waitFor: jest.Mock;
+      };
+      firstLocator.waitFor.mockRejectedValue(new Error('Timeout 5000ms exceeded'));
 
       const result = await handler.execute(instruction, context);
 

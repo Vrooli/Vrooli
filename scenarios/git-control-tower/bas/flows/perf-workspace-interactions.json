@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "perf-workspace-interactions",
+    "description": "Performance capture for the primary Changes-list scroll journey. Assertion-free and intentionally excluded from functional Playbooks.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "wait-shell",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=git-control-tower]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the workspace shell" }
+      }
+    },
+    {
+      "id": "scroll-changes",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "scroll": {
+          "selector": "[data-testid=changes-scroll-region]",
+          "delta_y": 900
+        },
+        "metadata": { "label": "Scroll the Changes list" }
+      }
+    },
+    {
+      "id": "settle-after-scroll",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=changes-scroll-region]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Allow the Changes list to settle" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "shell-to-scroll", "source": "wait-shell", "target": "scroll-changes" },
+    { "id": "scroll-to-settle", "source": "scroll-changes", "target": "settle-after-scroll" }
+  ]
+}

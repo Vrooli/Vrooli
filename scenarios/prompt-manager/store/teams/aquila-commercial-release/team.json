@@ -1,0 +1,67 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:90122ad0-7085-4510-b5ff-c89e85c707a7"
+  ],
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "aquila-commercial-release",
+  "displayName": "Aquila Commercial Release",
+  "mission": "Deliver the finite Aquila/Web Console commercial release through validated desktop deployment, Landing Page Business Suite monetization, paid-journey evidence, operational support and independent go/no-go acceptance.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "aquila-launch-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/requirements.json"],
+      "sharedState": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md"]
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "aquila-launch-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "aquila-launch-coordinator": {
+        "lane": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure.",
+        "allowedWrites": [{"kind":"knowledge"},{"kind":"handoff"}],
+        "safetyCriticalRules": [
+          "The effort reference is attribution, not execution authority.",
+          "Do not publish, spend, mutate production or grant dispatch without explicit owner approval.",
+          "Use deployment-manager for releases and scenario-to-desktop for desktop delivery; never create a private release path.",
+          "Treat stale facts, build output and incomplete suites as unverified until current evidence exists.",
+          "Retain exact effort, plan, run, task, revision and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {"stillWriteKnowledge":true,"stillWriteHandoff":true}
+      }
+    }
+  },
+  "revision": 1,
+  "createdAt": "2026-09-14T14:57:30Z",
+  "updatedAt": "2026-09-14T14:57:30Z"
+}

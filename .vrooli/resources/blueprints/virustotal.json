@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "virustotal",
+  "display_name": "VirusTotal",
+  "category": "security",
+  "summary": "Cloud malware and reputation scanning capability for files, URLs, and indicators.",
+  "why_it_matters": "VirusTotal is useful security capability knowledge, but it is fundamentally a cloud API integration and should not remain as speculative local resource code without real usage.",
+  "when_to_use": [
+    "A security-oriented scenario needs external file or URL reputation checks.",
+    "You need enrichment against a hosted malware intelligence service.",
+    "The workflow benefits from indicator lookups rather than local AV execution."
+  ],
+  "example_scenarios": [
+    "Security triage assistants",
+    "Artifact scanning pipelines",
+    "Threat intelligence enrichment services"
+  ],
+  "integration_kind": "cloud-api",
+  "platform_support": {
+    "notes": "Portability is mostly about credential handling and network access because the capability is API-backed.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "API key management",
+    "Rate limit expectations",
+    "Clear data handling guidance for uploaded artifacts"
+  ],
+  "dependencies": [],
+  "suggested_template": "cloud-api",
+  "implementation_notes": [
+    "Future implementation should focus on credentials, health checks, and thin typed actions.",
+    "Avoid pretending the resource is locally self-hosted.",
+    "Document privacy implications for artifact uploads."
+  ],
+  "operational_notes": [
+    "Rate limits and billing constraints should be visible.",
+    "Health checks may be config validation rather than active network probing.",
+    "Sensitive artifact handling needs explicit operator guidance."
+  ],
+  "risks": [
+    "Easy to overstate support while only wrapping a few endpoints.",
+    "Privacy and compliance constraints vary by deployment context."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "virustotal"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/virustotal"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

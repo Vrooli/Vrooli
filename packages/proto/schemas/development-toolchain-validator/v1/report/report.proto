@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.report;
+
+import "development-toolchain-validator/v1/validation_record/validation_record.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report;report_v1";
+
+// =============================================================================
+// REPORT DOMAIN — Pure composition over golden / skill / manifest /
+// record / staleness (OT-P0-008)
+// =============================================================================
+//
+// @layer 5 (api surface)
+// @domain report
+// @stability evolving
+//
+// Owns NO storage. Every method composes reads from the other DTV
+// domains into the shape the UI dashboard needs.
+// =============================================================================
+
+service ReportService {
+  rpc GetGoldenSummary(GetGoldenSummaryRequest) returns (GetGoldenSummaryResponse);
+  rpc GetTupleHistory(GetTupleHistoryRequest) returns (GetTupleHistoryResponse);
+  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+  // GetSkillFitness aggregates every validation record for one skill across all
+  // goldens into a single trust/cost/convergence fitness view. Consumed by
+  // swarm-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+  // the records, so the cross-golden fold lives here rather than client-side.
+  rpc GetSkillFitness(GetSkillFitnessRequest) returns (GetSkillFitnessResponse);
+}
+
+// TupleVerdict pairs a subject with its latest verdict against a
+// golden. Used by GoldenSummary / Coverage rows.
+message TupleVerdict {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 3;
+  string latest_record_id = 4;
+  bool stale = 5;
+}
+
+message GoldenSummary {
+  string golden_slug = 1;
+  repeated TupleVerdict skill_verdicts = 2;
+  repeated TupleVerdict tool_verdicts = 3;
+  int32 stale_count = 4;
+}
+
+message GetGoldenSummaryRequest {
+  string golden_slug = 1;
+}
+
+message GetGoldenSummaryResponse {
+  GoldenSummary summary = 1;
+}
+
+message TupleHistory {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  string golden_slug = 3;
+  repeated vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord records = 4;
+  string next_page_token = 5;
+}
+
+message GetTupleHistoryRequest {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  string golden_slug = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message GetTupleHistoryResponse {
+  TupleHistory history = 1;
+}
+
+message CoverageRow {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict verdict = 3;
+  bool stale = 4;
+  bool has_manifest = 5;
+}
+
+message Coverage {
+  string golden_slug = 1;
+  repeated CoverageRow rows = 2;
+}
+
+message GetCoverageRequest {
+  string golden_slug = 1;
+}
+
+message GetCoverageResponse {
+  Coverage coverage = 1;
+}
+
+// =============================================================================
+// SKILL FITNESS — cross-golden trust/cost/convergence aggregate for one skill.
+// =============================================================================
+
+// SkillFitnessVerdict is DTV's derived fitness classification for a skill,
+// folded across every golden it has been validated against. It answers "is this
+// skill currently fit to run unattended?" — NOT "how good is it at fixing a
+// broken target" (that is efficacy, which DTV cannot observe on pristine
+// goldens).
+enum SkillFitnessVerdict {
+  SKILL_FITNESS_VERDICT_UNSPECIFIED = 0;
+  // UNKNOWN: no validation records exist for this skill. Consumers fail open
+  // (never gate on missing data).
+  SKILL_FITNESS_VERDICT_UNKNOWN = 1;
+  // GREEN: the latest record on every validated golden is PASS.
+  SKILL_FITNESS_VERDICT_GREEN = 2;
+  // YELLOW: a latest record is UNEXPECTED_MUTATION (incoherent but runnable);
+  // no latest record is a run failure.
+  SKILL_FITNESS_VERDICT_YELLOW = 3;
+  // RED: a latest record is RUN_FAILURE (intrinsic non-convergence / crash —
+  // Flavor-1 thrashing). The skill is not fit for the autonomous fleet.
+  SKILL_FITNESS_VERDICT_RED = 4;
+}
+
+// GoldenSkillSnapshot is the per-golden slice of a skill's fitness: its latest
+// verdict against that golden, whether that validation is stale, and how many
+// records back it.
+message GoldenSkillSnapshot {
+  string golden_slug = 1;
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 2;
+  bool stale = 3;
+  int32 run_count = 4;
+}
+
+// SkillFitness is the cross-golden aggregate for one skill. Raw counts are
+// always returned so consumers can re-policy without a DTV change.
+message SkillFitness {
+  string skill_id = 1;
+
+  // Verdict counts across every record (all goldens).
+  int64 pass_count = 2;
+  int64 unexpected_mutation_count = 3;
+  int64 run_failure_count = 4;
+  int64 tool_failure_count = 5;
+  int64 total_runs = 6;
+
+  // pass_rate is pass_count / total_runs (0 when no runs).
+  double pass_rate = 7;
+
+  // Cost aggregates across every record.
+  int64 total_tokens = 8;
+  double avg_tokens = 9;
+  int64 total_cost_usd_micro = 10;
+  double avg_cost_usd_micro = 11;
+  int64 total_duration_ms = 12;
+  double avg_duration_ms = 13;
+
+  // unique_diff_hashes is the count of distinct diff hashes across all records;
+  // 1 means the skill produced an identical diff every run (converged).
+  int32 unique_diff_hashes = 14;
+  // convergence_ratio is 1/unique_diff_hashes (0 when no runs): 1.0 = fully
+  // convergent, lower = the skill keeps producing different diffs.
+  double convergence_ratio = 15;
+
+  // latest_verdict is the most-recent verdict across all goldens (by ended_at).
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 16;
+  // any_stale is true when any golden's latest validation is stale.
+  bool any_stale = 17;
+
+  SkillFitnessVerdict verdict = 18;
+
+  // by_golden maps golden_slug → that golden's slice of this skill's fitness.
+  map<string, GoldenSkillSnapshot> by_golden = 19;
+}
+
+message GetSkillFitnessRequest {
+  string skill_id = 1;
+}
+
+message GetSkillFitnessResponse {
+  SkillFitness fitness = 1;
+}

@@ -14,23 +14,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Play, RefreshCw, CheckCircle2, XCircle, Clock, BarChart3 } from 'lucide-react';
-import { getConfig } from '@/config';
+import { toJson } from '@bufbuild/protobuf';
+import { WorkflowSummarySchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
+import { getWorkflowViaApi } from '@/domains/workflows/services/workflowApi';
 import { ExecutionConfigPanel, type ExecutionConfigSettings } from './ExecutionConfigPanel';
 import { DEFAULT_EXECUTION_SETTINGS } from './executionConfigConstants';
 import type { NavigationWaitUntil } from '@/types/workflow';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
 
 interface WorkflowStats {
   execution_count: number;
@@ -132,12 +124,16 @@ export function WorkflowInfoCard({
       setIsLoading(true);
       setError(null);
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/workflows/${workflowId}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch workflow: ${response.status}`);
+        const resp = await getWorkflowViaApi(workflowId);
+        if (!resp.workflow) {
+          throw new Error('Workflow not found');
         }
-        const payload = await safeJson(response);
+        const payload = toJson(WorkflowSummarySchema, resp.workflow, { useProtoFieldName: true }) as Record<string, unknown>;
+        // Expose definition.settings_typed at the top-level key the parser
+        // expects (the proto returns flow_definition rather than definition).
+        if (isRecord(payload.flow_definition)) {
+          payload.definition = payload.flow_definition;
+        }
         const data = parseWorkflowDetails(payload);
         if (!data) {
           throw new Error('Invalid workflow response');

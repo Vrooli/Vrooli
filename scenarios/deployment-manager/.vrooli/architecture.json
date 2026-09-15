@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "contract": {
+    "kind": "scenario-architecture",
+    "schema": "scenario-architecture-manifest/v1",
+    "template": "react-vite",
+    "extensionRule": "deployment-manager keeps its HTTP composition root in api/server; the server package wires domain handlers and generated Connect handlers and owns no product behavior."
+  },
+  "zones": {
+    "pathPatterns": {
+      "transport": ["api/handlers/<domain>/"],
+      "domain": ["api/internal/<domain>/"],
+      "cli": ["cli/domains/<domain>/"],
+      "ui": ["ui/src/features/<domain>/"],
+      "composition-root": ["api/internal/app/", "api/internal/module/", "api/internal/modules/", "api/server/"],
+      "substrate": ["api/internal/<segment>/"]
+    },
+    "builtinSubstrateSegments": ["clock", "config", "database", "git", "httpc", "httpx", "middleware", "observability", "server", "suppressions", "testutil"],
+    "compositionRootSegments": ["app", "module", "modules", "server"],
+    "coordinatingArchetypes": ["aggregation", "composition-root", "infrastructure", "mutation", "orchestration", "provider", "service"]
+  }
+}

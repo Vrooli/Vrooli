@@ -1,0 +1,95 @@
+{
+  "description": "Static check groups plus fix-preview must always run with zero BAS or lifecycle calls. Runtime checks must be skipped (not failed) when BAS or the UI is unavailable. A `--static-only` CLI flag and corresponding request option must run only the static groups plus fix-preview.",
+  "module_id": "MOD-P0-016",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static check groups and fix-preview must always run without any BAS or lifecycle dependency. When BAS or the scenario UI is unavailable, the runtime/render check group must be marked skipped \u2014 not failed \u2014 so that a missing browser never produces false failures.",
+      "id": "REQ-P0-017",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "Graceful degradation: runtime skipped not failed",
+      "validation": [
+        {
+          "notes": "When BAS is unavailable, the runtime/render group reports skipped status rather than failed Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "When the scenario UI is down, runtime checks are skipped while static groups still produce results",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Static groups and fix-preview run successfully with BAS and lifecycle entirely absent",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health with BAS stopped and confirm the Report completes with runtime skipped and exit code reflecting only static results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unavailable runtime infrastructure never causes a false failure verdict",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-017"
+      ],
+      "description": "A `--static-only` CLI flag and an equivalent request option must restrict validation to the static check groups plus fix-preview, performing zero BAS or lifecycle calls even when those services are available.",
+      "id": "REQ-P0-018",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "--static-only makes zero BAS/lifecycle calls",
+      "validation": [
+        {
+          "notes": "The --static-only flag and request option restrict execution to static groups plus fix-preview",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "With --static-only set, no BAS or lifecycle calls are issued even when those services are reachable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario <name> --static-only --json` and confirm only static-group and fix-preview Findings appear",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "--static-only provides a deterministic, infrastructure-free validation mode suitable for CI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Graceful degradation + --static-only"
+}

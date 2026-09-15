@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "name": "world-run-now",
+    "description": "Run now from the agent card produces a request notice and a ticker line",
+    "labels": {
+      "reset": "none",
+      "safety": "isolated-run-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?intro=0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the world"
+        }
+      }
+    },
+    {
+      "id": "wait-summary",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.summary",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the HUD"
+        }
+      }
+    },
+    {
+      "id": "open-2d",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.twoDToggle"
+        },
+        "metadata": {
+          "label": "Switch to 2D mode"
+        }
+      }
+    },
+    {
+      "id": "wait-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.actorList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the actor list"
+        }
+      }
+    },
+    {
+      "id": "focus-first",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid^='world-hud-actor-list-']"
+        },
+        "metadata": {
+          "label": "Focus the first agent"
+        }
+      }
+    },
+    {
+      "id": "run-now",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.runNow"
+        },
+        "metadata": {
+          "label": "Run now"
+        }
+      }
+    },
+    {
+      "id": "assert-notice",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.agentNotice",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "No response to Run now"
+        },
+        "metadata": {
+          "label": "Request notice shown"
+        }
+      }
+    },
+    {
+      "id": "shot-run",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "After Run now"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-summary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-summary",
+      "target": "open-2d",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-2d",
+      "target": "wait-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-list",
+      "target": "focus-first",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "focus-first",
+      "target": "run-now",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "run-now",
+      "target": "assert-notice",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-notice",
+      "target": "shot-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

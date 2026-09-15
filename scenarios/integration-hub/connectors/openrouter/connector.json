@@ -1,0 +1,14 @@
+{
+  "id": "openrouter",
+  "display_name": "OpenRouter",
+  "description": "Use an operator-provided OpenRouter API key for model access.",
+  "auth": {
+    "kind": "api_key",
+    "field": "api-key",
+    "scopes_offered": ["models"]
+  },
+  "capabilities": ["model_inference"],
+  "obtain_url": "https://openrouter.ai/keys",
+  "handler": "openrouter_api_key",
+  "metadata_only": true
+}

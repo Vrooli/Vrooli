@@ -251,11 +251,6 @@ export function useMultiItemEditor<T extends BaseItem>({
     setPendingChanges(new Map());
   }, []);
 
-  // Computed set of dirty item IDs for the sidebar
-  const _dirtyItemIdsSet = useMemo(() => {
-    return new Set(getDirtyItemIds());
-  }, [getDirtyItemIds]);
-
   return {
     selectedItemId,
     selectedItem,

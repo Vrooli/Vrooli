@@ -3,7 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
-import { Loader2, Trash2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 import { deleteDesktopBuild } from "../../lib/api";
 
 interface DeleteButtonProps {
@@ -20,8 +26,10 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
     onSuccess: () => {
       setShowConfirm(false);
       setConfirmText("");
-      queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
-    }
+      void queryClient.invalidateQueries({
+        queryKey: ["scenarios-desktop-status"],
+      });
+    },
   });
 
   const isDeleting = deleteMutation.isPending;
@@ -77,10 +85,12 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
           <div className="flex-1 text-sm text-red-200">
             <p className="font-semibold text-red-300">⚠️ Permanent Deletion</p>
             <p className="text-red-300/90 mt-1">
-              This will <strong>permanently delete</strong> all desktop files for <strong>{scenarioName}</strong>.
+              This will <strong>permanently delete</strong> all desktop files
+              for <strong>{scenarioName}</strong>.
             </p>
             <p className="text-red-300/80 mt-2 text-xs">
-              This includes generated templates, built packages, and all configuration.
+              This includes generated templates, built packages, and all
+              configuration.
             </p>
             <p className="text-red-300/80 mt-2 text-xs font-semibold">
               This action cannot be undone!
@@ -90,13 +100,21 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
 
         <div className="flex flex-col gap-2">
           <div>
-            <label className="text-xs text-red-300 font-medium">
-              Type the scenario name "<span className="font-mono font-bold">{scenarioName}</span>" to confirm:
+            <label
+              htmlFor={`delete-confirm-${scenarioName}`}
+              className="text-xs text-red-300 font-medium"
+            >
+              Type the scenario name "
+              <span className="font-mono font-bold">{scenarioName}</span>" to
+              confirm:
             </label>
             <Input
               type="text"
+              id={`delete-confirm-${scenarioName}`}
               value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
+              onChange={(e) => {
+                setConfirmText(e.target.value);
+              }}
               placeholder={scenarioName}
               className="mt-1 font-mono text-sm"
               autoFocus
@@ -118,8 +136,10 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => deleteMutation.mutate()}
-              disabled={isDeleting || !isConfirmValid}
+              onClick={() => {
+                deleteMutation.mutate();
+              }}
+              disabled={!isConfirmValid}
             >
               <Trash2 className="h-3 w-3 mr-1" />
               Confirm Delete
@@ -134,7 +154,9 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
     <Button
       variant="outline"
       size="sm"
-      onClick={() => setShowConfirm(true)}
+      onClick={() => {
+        setShowConfirm(true);
+      }}
       disabled={isDeleting}
       className="gap-1 text-red-400 hover:text-red-300 border-red-800/30 hover:border-red-700/50"
     >

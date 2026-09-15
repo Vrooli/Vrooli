@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Run the same conformance journey unchanged against a physical iPhone through the device-control `ios-xcuitest` strategy, with the adapter changing and the chapter set staying identical. Gated on Apple Developer Program enrollment and code signing; reports `unavailable` with that next action until enrollment exists.",
+      "id": "S2I-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Physical iPhone conformance at semantic tier",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Support the device-control `ios-mirror` strategy for physical iPhones, which requires no developer account and is therefore the first usable physical-iPhone path. Its runs are recorded as non-promotable for release purposes, because OCR reads pixels rather than meaning and cannot distinguish a correct rendering from a convincing image of one.",
+      "id": "S2I-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Physical iPhone exploration via mirroring, explicitly non-promotable",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Automate IPA upload to TestFlight through the App Store Connect API once the ladder rungs it depends on are satisfied, with build notes derived from scenario metadata and an evidence record of the upload identity.",
+      "id": "S2I-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "TestFlight upload automation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A dense operational surface showing the probed target matrix with honest dispositions including the terminal `unsupported` rows, run review with chaptered evidence and video, and the Apple readiness ladder as a walkthrough that names the next action at every rung.",
+      "id": "S2I-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Operator UI for matrix, runs, and readiness",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Install version N, exercise state, install version N+1 over it, and assert user data survived, with the prior version's artifact retained as evidence.",
+      "id": "S2I-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Update and data-migration journey across versions",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bounded, evidence-visible budgets for cold start time and artifact size, reported as assertions with observed values so a regression is a failed chapter rather than a subjective judgement.",
+      "id": "S2I-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Performance budget chapters",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Generate listing assets and screenshots from journey evidence at the required device sizes, leaving privacy nutrition labels and review correspondence as explicit owner actions.",
+      "id": "S2I-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "App Store listing asset generation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

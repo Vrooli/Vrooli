@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { SavedSetsPanel } from './SavedSetsPanel'
 import * as storage from '@/lib/copySetStorage'
 import type { CopySetEntry } from '@/lib/copySetStorage'

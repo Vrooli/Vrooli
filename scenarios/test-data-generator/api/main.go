@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+
+	"github.com/vrooli/envkit-go"
 	"os/signal"
 	"syscall"
 )
@@ -21,7 +23,7 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("failed to start Node server: %v", err)

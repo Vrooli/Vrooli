@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.selection;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection;selection_v1";
+
+// =============================================================================
+// SELECTION DOMAIN — smart-select → classify → contextual-edit (IMG-P1-013)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for SelectionService: the interactive "click a thing, get a
+// mask, get the right edits for it" layer. The owner's workshop framed the
+// whole advanced-editing vision as "a selection + a class → a well-formed
+// prompt"; this domain is that pipeline made concrete:
+//
+//   1. SMART-SELECT — a click point (or box, or "auto subject") is turned into a
+//      pixel mask that snaps to the region's silhouette. The default segmenter
+//      is a built-in, deterministic region-grow that runs on ANY host with zero
+//      provisioning (the headless-completeness tenet) — the same always-runnable
+//      floor naturalize establishes. A model-backed SAM path (mobilesam /
+//      sam-2.1 / hq-sam, already seeded) is the higher-quality upgrade, gated on
+//      a backend + weights exactly like the other AI ops.
+//   2. CLASSIFY — the selected region is labelled with a coarse class (person /
+//      sky / foliage / background / object) by a deterministic heuristic
+//      (position + colour + skin-tone + border-contact). A detection-model path
+//      (yolox-tiny, seeded) is the accuracy upgrade. The class is honest about
+//      its confidence; it never claims face/identity recognition (a hard
+//      non-goal).
+//   3. CONTEXTUAL-EDIT — the class selects a menu of suggested edits, each of
+//      which COMPILES to a ready-to-submit AI request shape: an operation
+//      (object_removal / inpaint / edit_instruct / background_removal), a
+//      pre-filled prompt (or a prompt the user must supply), and whether the op
+//      consumes the produced mask. This is the compose-seam: branding-manager /
+//      AI-UGC call SuggestEdits to drive context-aware editing without
+//      re-encoding the "what edits make sense for a sky?" knowledge.
+//
+// Transport split (mirrors the analysis domain):
+//   - DISCOVERY + the pure CONTEXTUAL-EDIT compiler are Connect-RPC (typed):
+//     ListRegionClasses + SuggestEdits execute nothing.
+//   - SEGMENTATION execution rides a REST multipart edge
+//     (POST /api/v1/selection/segment): the `file` part carries the image, the
+//     `params` part carries SegmentParams (protojson). The mask is stored as a
+//     blob and the response (SegmentResult) carries its key plus the classified
+//     region and its contextual edit menu — one round-trip from click to menu.
+//
+// The produced mask feeds the existing AI submit edge unchanged: the chosen
+// SuggestedEdit names the op, and the mask blob is uploaded as the `mask` part.
+//
+// Consumed by:
+//   - API: handlers/selection/connect_handler.go (discovery + SuggestEdits) +
+//          handlers/selection/rest.go (the multipart segment edge).
+//   - CLI: cli/domains/select (segment via the REST edge; classes/suggest via
+//          the Connect client).
+//   - UI:  ui/src/api/selection.ts wraps the discovery client + the segment
+//          edge; the Workspace Smart-Select tool overlays the mask and shows
+//          the contextual edit menu.
+// =============================================================================
+
+service SelectionService {
+  // ListRegionClasses returns the region classes the classifier can label, each
+  // with its contextual edit menu. Pure discovery (executes nothing).
+  rpc ListRegionClasses(ListRegionClassesRequest) returns (ListRegionClassesResponse);
+
+  // SuggestEdits returns the contextual edit menu for a region class: the
+  // ordered suggested edits, each compiled to a ready-to-submit AI request
+  // shape. An unknown/empty class returns the generic object menu. Pure.
+  rpc SuggestEdits(SuggestEditsRequest) returns (SuggestEditsResponse);
+}
+
+// SegmentMode selects how the click/region prompt is turned into a mask.
+enum SegmentMode {
+  SEGMENT_MODE_UNSPECIFIED = 0;
+  // POINT grows a region outward from the seed point(s), snapping to the
+  // colour/edge silhouette around the click.
+  SEGMENT_MODE_POINT = 1;
+  // BOX segments the dominant foreground object inside the box (border ring is
+  // treated as background).
+  SEGMENT_MODE_BOX = 2;
+  // AUTO extracts the foreground subject (image border treated as background).
+  SEGMENT_MODE_AUTO = 3;
+}
+
+// Point is a normalized image coordinate (0..1), resolution-independent so the
+// UI can send canvas-relative clicks.
+message Point {
+  double x = 1;
+  double y = 2;
+  // negative marks an exclusion hint (a point that should NOT be in the
+  // selection). Honoured by the model-backed SAM path; the built-in region-grow
+  // treats it as a soft boundary.
+  bool negative = 3;
+}
+
+// Box is a normalized rectangle (0..1); x,y = top-left.
+message Box {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+// SegmentParams is the typed `params` envelope for the segment edge (protojson).
+message SegmentParams {
+  SegmentMode mode = 1;
+  // Seed points for POINT mode (at least one required). Ignored by AUTO.
+  repeated Point points = 2;
+  // Box for BOX mode (required for BOX). Ignored otherwise.
+  Box box = 3;
+  // Tolerance steers the region-grow colour threshold 0..1; 0/unset = a
+  // moderate default. Higher = grows across more colour variation.
+  double tolerance = 4;
+  // ModelOverride forces a SAM model id (e.g. "mobilesam") instead of the
+  // built-in region-grow. Validated for op-support + runnability; when the
+  // backend/weights are absent the edge falls back to the built-in and warns.
+  string model_override = 5;
+}
+
+// SuggestedEdit is one contextual edit for a region — a compiled, ready-to-submit
+// AI request shape. The caller submits it to the AI edge (POST /api/v1/ai/
+// {operation}) with the segment mask as the `mask` part when requires_mask.
+message SuggestedEdit {
+  // Stable action id (e.g. "remove", "replace", "recolor", "naturalize_skin").
+  string id = 1;
+  // Human menu label.
+  string label = 2;
+  // One-line description of what the edit does.
+  string description = 3;
+  // AI operation to run (object_removal / inpaint / edit_instruct /
+  // background_removal). Must exist in the AI catalog.
+  string operation = 4;
+  // Pre-filled prompt/instruction. When requires_prompt is true this is a
+  // placeholder hint the user must complete; otherwise it is ready to run.
+  string prompt = 5;
+  // requires_prompt is true when the user must supply or confirm the prompt.
+  bool requires_prompt = 6;
+  // requires_mask is true when the op consumes the produced selection mask
+  // (false for whole-image ops like background_removal).
+  bool requires_mask = 7;
+  // Extra op params merged into the AI request (e.g. strength).
+  map<string, string> params = 8;
+}
+
+// RegionClassInfo describes one region class and its contextual edit menu.
+message RegionClassInfo {
+  // Class name: "person", "sky", "foliage", "background", or "object".
+  string name = 1;
+  // One-line human summary.
+  string summary = 2;
+  // The ordered contextual edit menu for this class.
+  repeated SuggestedEdit edits = 3;
+}
+
+message ListRegionClassesRequest {}
+
+message ListRegionClassesResponse {
+  repeated RegionClassInfo classes = 1;
+}
+
+message SuggestEditsRequest {
+  // Region class to look up; empty/unknown returns the generic "object" menu.
+  string region_class = 1;
+}
+
+message SuggestEditsResponse {
+  // The class as resolved (the generic fallback when the request class was
+  // unknown).
+  string region_class = 1;
+  repeated SuggestedEdit edits = 2;
+}
+
+// SegmentResult is the protojson body returned by the segment edge: the produced
+// mask plus the classified region and its contextual edit menu — everything the
+// UI needs to render the overlay and the context menu from one click.
+message SegmentResult {
+  // Durable job id recording the segmentation (uniform observability).
+  string job_id = 1;
+  // mask_ref is the blob key of the produced binary mask (PNG, white = selected,
+  // black = unselected). Fetch via GET /api/v1/blobs/{key}; upload as the AI
+  // edge's `mask` part for a masked edit.
+  string mask_ref = 2;
+  // box is the normalized bounding box of the selection.
+  Box box = 3;
+  // region_class is the classified label of the selection.
+  string region_class = 4;
+  // confidence is the classifier's confidence 0..1 (a heuristic estimate for the
+  // built-in classifier — honest, not a model probability).
+  double confidence = 5;
+  // area_fraction is selected pixels / total pixels 0..1.
+  double area_fraction = 6;
+  // tier is where the segmentation ran: "builtin-cpu" (the deterministic
+  // region-grow) or "local-cpu"/"local-gpu" (a SAM model). Honest tier label.
+  string tier = 7;
+  // model_id is the model used ("" for the built-in region-grow).
+  string model_id = 8;
+  // suggested_edits is the contextual edit menu for the classified region.
+  repeated SuggestedEdit suggested_edits = 9;
+  // warnings carries non-fatal cautions (e.g. "requested SAM model not
+  // installed — used the built-in region-grow instead").
+  repeated string warnings = 10;
+}

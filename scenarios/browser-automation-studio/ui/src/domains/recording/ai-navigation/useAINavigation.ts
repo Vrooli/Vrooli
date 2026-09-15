@@ -281,7 +281,7 @@ const initialState: AINavigationState = {
   isNavigating: false,
   navigationId: null,
   prompt: '',
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   steps: [],
   status: 'idle',
   totalTokens: 0,
@@ -527,14 +527,14 @@ export function useAINavigation({
           throw new AINavigationError(code, message, details);
         }
 
-        navigationIdRef.current = result.data.navigation_id;
+        navigationIdRef.current = result.data.navigationId;
 
         setState((prev) => ({
           ...prev,
-          navigationId: result.data.navigation_id,
+          navigationId: result.data.navigationId,
         }));
 
-        return result.data.navigation_id;
+        return result.data.navigationId;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to start navigation';
         setState((prev) => ({

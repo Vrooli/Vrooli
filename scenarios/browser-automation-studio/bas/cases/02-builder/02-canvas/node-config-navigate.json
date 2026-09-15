@@ -9,12 +9,6 @@
     {
       "id": "e8",
       "source": "drag-navigate-node",
-      "target": "wait-node-added",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9",
-      "source": "wait-node-added",
       "target": "verify-navigate-node",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -87,11 +81,15 @@
   ],
   "metadata": {
     "description": "Validates Navigate node property configuration editing",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Node Config Navigate",
+    "version": "1"
   },
   "nodes": [
     {
@@ -121,16 +119,14 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-builder"
     },
     {
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.navigate",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -142,22 +138,10 @@
     },
     {
       "action": {
-        "metadata": {
-          "label": "Wait for node to appear"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1500
-        }
-      },
-      "id": "wait-node-added"
-    },
-    {
-      "action": {
         "assert": {
           "failure_message": "Navigate node should appear on canvas",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node[data-type=\"navigate\"]",
+          "selector": ".react-flow__node.workflow-node--navigate",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -170,7 +154,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--navigate /*dup-1*/"
         },
         "metadata": {
           "label": "Click Navigate node to select it"
@@ -184,7 +168,7 @@
         "assert": {
           "failure_message": "Navigate node should be selected",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -199,7 +183,7 @@
         "assert": {
           "failure_message": "URL input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -212,7 +196,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/nodeProperties.urlModeButton"
+          "selector": ".react-flow__node.workflow-node--navigate.selected button[data-testid=\"url-mode-button\"]"
         },
         "metadata": {
           "label": "Switch to URL mode"
@@ -220,23 +204,19 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "continue_on_error": true,
-        "wait_after_ms": 500
+        "continue_on_error": true
       },
       "id": "click-url-mode"
     },
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"] /*dup-1*/"
         },
         "metadata": {
           "label": "Click URL input field"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-url-input"
     },
@@ -255,24 +235,18 @@
         },
         "type": "ACTION_TYPE_KEYBOARD"
       },
-      "execution_settings": {
-        "wait_after_ms": 200
-      },
       "id": "clear-url-input"
     },
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-2*/",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"] /*dup-2*/",
           "value": "https://example.com/test-page"
         },
         "metadata": {
           "label": "Type test URL"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "type-url"
     },
@@ -286,15 +260,12 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "blur-url-input"
     },
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
+          "expression": "document.querySelector('.react-flow__node.workflow-node--navigate.selected input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
           "store_result": "urlPersisted"
         },
         "metadata": {
@@ -309,7 +280,7 @@
         "assert": {
           "failure_message": "URL should persist after blur",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[value*=\"example.com\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[value*=\"example.com\"]",
           "timeout_ms": 3000
         },
         "metadata": {

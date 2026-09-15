@@ -61,10 +61,7 @@ export interface ReuseDecision {
  * @param executionId - Execution ID to match
  * @returns true if the session matches the execution ID
  */
-export function matchesByExecutionId(
-  session: SessionState,
-  executionId: string
-): boolean {
+export function matchesByExecutionId(session: SessionState, executionId: string): boolean {
   return session.spec.execution_id === executionId;
 }
 
@@ -79,17 +76,12 @@ export function matchesByExecutionId(
  * @param labels - Labels to match (all must match)
  * @returns true if all specified labels match
  */
-export function matchesByLabels(
-  session: SessionState,
-  labels?: Record<string, string>
-): boolean {
+export function matchesByLabels(session: SessionState, labels?: Record<string, string>): boolean {
   if (!labels || !session.spec.labels) {
     return false;
   }
 
-  return Object.entries(labels).every(
-    ([key, value]) => session.spec.labels?.[key] === value
-  );
+  return Object.entries(labels).every(([key, value]) => session.spec.labels?.[key] === value);
 }
 
 /**
@@ -113,12 +105,34 @@ export function findByExecutionId(
 }
 
 /**
+ * Check if a session is safe to hand to a DIFFERENT execution via label pooling.
+ *
+ * DECISION: Only idle sessions are poolable
+ * Label-based reuse rebinds the session to a new execution (spec overwrite,
+ * phase forced to 'ready'). Doing that to a session that is initializing,
+ * executing, recording, resetting, or closing hijacks it out from under its
+ * current owner: the owner's in-flight instruction gets its navigation
+ * aborted (net::ERR_ABORTED) and subsequent instructions race into
+ * SESSION_BUSY. Idempotent retries of the SAME execution are handled by the
+ * execution_id match, which has its own stuck-phase recovery.
+ *
+ * @param session - Session to check
+ * @returns true if the session may be pooled across executions
+ */
+export function isSafeForLabelReuse(session: SessionState): boolean {
+  return session.phase === 'ready' && session.leaseReleasedAt !== undefined;
+}
+
+/**
  * Find a reusable session by labels.
  * Used when reuse_mode is 'reuse' or 'clean'.
+ * Sessions that are busy with another execution are skipped (see
+ * isSafeForLabelReuse); if every matching session is busy, the caller
+ * creates a fresh session instead.
  *
  * @param sessions - All active sessions
  * @param labels - Labels to match
- * @returns The first matching session or null
+ * @returns The first idle matching session or null
  */
 export function findByLabels(
   sessions: Iterable<SessionState>,
@@ -129,7 +143,7 @@ export function findByLabels(
   }
 
   for (const session of sessions) {
-    if (matchesByLabels(session, labels)) {
+    if (matchesByLabels(session, labels) && isSafeForLabelReuse(session)) {
       return session;
     }
   }
@@ -151,9 +165,7 @@ export function findByLabels(
  * @param reuseMode - The requested reuse mode
  * @returns true if we should look for reusable sessions
  */
-export function shouldAttemptReuse(
-  reuseMode: SessionSpec['reuse_mode']
-): boolean {
+export function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
   return reuseMode !== 'fresh';
 }
 
@@ -167,9 +179,7 @@ export function shouldAttemptReuse(
  * @param reuseMode - The requested reuse mode
  * @returns true if the session should be reset before reuse
  */
-export function shouldResetOnReuse(
-  reuseMode: SessionSpec['reuse_mode']
-): boolean {
+export function shouldResetOnReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
   return reuseMode === 'clean';
 }
 
@@ -190,10 +200,7 @@ export function shouldResetOnReuse(
  * @param isRetry - Whether this is a retry (same execution_id)
  * @returns true if phase should be recovered to 'ready'
  */
-export function shouldRecoverPhase(
-  currentPhase: SessionPhase,
-  isRetry: boolean
-): boolean {
+export function shouldRecoverPhase(currentPhase: SessionPhase, isRetry: boolean): boolean {
   return currentPhase === 'executing' && isRetry;
 }
 
@@ -254,6 +261,14 @@ export function isSessionActive(
   idleTimeoutMs: number,
   now: number = Date.now()
 ): boolean {
+  // An instruction may legitimately occupy the session longer than the idle
+  // threshold (for example, a long audio-feed wait).  Cleanup must never reap
+  // a session while its owner is executing; the in-flight Playwright action is
+  // the activity signal even when no HTTP request reaches the driver during
+  // that wait.
+  if (session.phase !== 'ready') {
+    return true;
+  }
   const idleTimeMs = now - session.lastUsedAt.getTime();
   return idleTimeMs < idleTimeoutMs;
 }

@@ -1,0 +1,284 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "name": "scenario-dependency-analyzer",
+    "displayName": "Scenario Dependency Analyzer",
+    "description": "Meta-intelligence capability for analyzing, visualizing, and optimizing scenario and resource dependencies within Vrooli",
+    "version": "1.0.0",
+    "tags": [
+      "meta-intelligence",
+      "dependency-analysis",
+      "deployment-optimization",
+      "architectural-intelligence",
+      "capability-planning",
+      "foundational-capability",
+      "cross-scenario-multiplier",
+      "go-api",
+      "sqlite-storage",
+      "claude-code-integration",
+      "qdrant-vectors",
+      "graph-visualization"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-dependency-analyzer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e",
+    "migration": {
+      "status": "aligned",
+      "plan": "/home/matthalloran8/.vrooli/plans/scenario-dependency-analyzer-react-vite-1-1-migration.md",
+      "notes": "React-Vite 1.1 migration obligations are complete for SDA's current architecture. Residual SDA-specific debt remains documented in docs/internal/PROBLEMS.md: REST compatibility surfaces, governance-only CLI manifest loading, intentional measures waivers, proto reachability info notes, and deeper backing-service ownership."
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Dependency analysis API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Dependency graph visualization UI port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario Dependency Analyzer health monitoring",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "dependency_analysis_test",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health/analysis",
+          "critical": true,
+          "timeout": 15000,
+          "interval": 300000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 20000
+    },
+    "setup": {
+      "description": "Initialize Scenario Dependency Analyzer with all dependencies",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-dependency-analyzer-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "scenario-dependency-analyzer",
+            "targets": [
+              "scenario-dependency-analyzer"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-dependency-analyzer-api .",
+          "description": "Build Go dependency analysis API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install --ignore-workspace",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "verify-cli",
+          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  scenario-dependency-analyzer not found on PATH'",
+          "description": "Verify CLI installation"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start dependency analyzer with API server and visualization UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-dependency-analyzer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-dependency-analyzer-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for scenario-dependency-analyzer",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-dependency-analyzer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all dependency analyzer services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-dependency-analyzer-api\" || true; sleep 1; pkill -9 -f \"scenario-dependency-analyzer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        },
+        {
+          "name": "cleanup-temp-files",
+          "run": "find /tmp -name 'dependency-analysis-*' -mtime +1 -delete 2>/dev/null || true",
+          "description": "Clean up temporary analysis files"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate embeddings for semantic similarity matching against Qdrant",
+        "model_roles": [
+          "embedding.default"
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
+      }
+    },
+    "scenarios": {
+      "proto-health": {
+      "enabled": true,
+      "required": true,
+      "description": "Provides batch protobuf surface facts for actual cross-scenario interface graph attribution",
+      "degraded_behavior": "Dependency graph analysis remains available without protobuf attribution, but interface-level evidence is marked incomplete until proto-health recovers."
+      },
+      "code-facts": {
+      "enabled": true,
+      "required": true,
+      "description": "Provides batch import facts used to build actual cross-scenario usage evidence",
+      "degraded_behavior": "Dependency graph analysis remains available without import attribution, but cross-scenario usage evidence is marked incomplete until code-facts recovers."
+      }
+    }
+  },
+  "environment": {},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-dependency-analyzer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-dependency-analyzer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

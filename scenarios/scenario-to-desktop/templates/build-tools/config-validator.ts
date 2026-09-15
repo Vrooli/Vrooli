@@ -175,7 +175,7 @@ export class DesktopConfigValidator {
     }
     
     private validateTemplateConfig(config: any, errors: ValidationError[], sanitized: any): void {
-        const validFrameworks = ['electron', 'tauri', 'neutralino'];
+        const validFrameworks = ['electron'];
         const validTemplateTypes = ['basic', 'advanced', 'kiosk', 'multi_window'];
         
         if (config.framework && !validFrameworks.includes(config.framework)) {
@@ -194,22 +194,6 @@ export class DesktopConfigValidator {
             });
         }
         
-        // Warn about framework limitations
-        if (config.framework === 'tauri' && config.templateType === 'multi_window') {
-            errors.push({
-                field: 'framework',
-                message: 'Tauri multi-window support is experimental',
-                severity: 'warning'
-            });
-        }
-        
-        if (config.framework === 'neutralino' && config.templateType === 'advanced') {
-            errors.push({
-                field: 'framework',
-                message: 'Neutralino has limited advanced features support',
-                severity: 'warning'
-            });
-        }
     }
     
     private validateFeatures(config: any, errors: ValidationError[], sanitized: any): void {

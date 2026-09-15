@@ -1,0 +1,15 @@
+{
+  "behavior": {
+    "protected": {
+      "gitAllowlist": [
+        "status",
+        "diff",
+        "log",
+        "show",
+        "rev-parse"
+      ],
+      "gitDenyMessageTemplate": "",
+      "gitNoVerbMessageTemplate": ""
+    }
+  }
+}

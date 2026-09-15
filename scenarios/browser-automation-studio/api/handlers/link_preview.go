@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,46 +37,39 @@ var previewCache = &linkPreviewCache{
 }
 
 const (
-	linkPreviewCacheTTL    = 24 * time.Hour // Cache for 24 hours since OG data rarely changes
+	linkPreviewCacheTTL     = 24 * time.Hour // Cache for 24 hours since OG data rarely changes
 	linkPreviewFetchTimeout = 5 * time.Second
 	linkPreviewMaxBodySize  = 512 * 1024 // 512KB max HTML to parse
 )
 
-// GetLinkPreview fetches OpenGraph metadata for a URL.
-// GET /api/v1/link-preview?url=<encoded-url>
-func (h *Handler) GetLinkPreview(w http.ResponseWriter, r *http.Request) {
-	rawURL := r.URL.Query().Get("url")
-	if rawURL == "" {
-		h.respondError(w, ErrInvalidRequest)
-		return
+// FetchLinkPreview is the transport-agnostic core of the link-preview
+// endpoint. The boolean `found` is false when the upstream URL did not
+// surface usable metadata (mirrors the legacy 204 No Content response);
+// `err` is reserved for genuine validation/programming errors.
+//
+// Successful fetches are cached in-process for the lifetime of the API.
+func FetchLinkPreview(ctx context.Context, rawURL string) (*LinkPreviewResponse, bool, error) {
+	if strings.TrimSpace(rawURL) == "" {
+		return nil, false, ErrInvalidLinkPreviewURL
 	}
-
-	// Validate URL format
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		h.respondError(w, ErrInvalidRequest)
-		return
+		return nil, false, ErrInvalidLinkPreviewURL
 	}
-
-	// Check cache first
 	if cached := previewCache.get(rawURL); cached != nil {
-		h.respondSuccess(w, http.StatusOK, cached)
-		return
+		return cached, true, nil
 	}
-
-	// Fetch and parse the URL
-	preview, err := fetchLinkPreviewData(r.Context(), rawURL)
-	if err != nil {
-		// Return 204 No Content if we can't fetch metadata
-		w.WriteHeader(http.StatusNoContent)
-		return
+	preview, fetchErr := fetchLinkPreviewData(ctx, rawURL)
+	if fetchErr != nil {
+		return nil, false, nil
 	}
-
-	// Cache the result
 	previewCache.set(rawURL, preview)
-
-	h.respondSuccess(w, http.StatusOK, preview)
+	return preview, true, nil
 }
+
+// ErrInvalidLinkPreviewURL signals that the caller supplied a URL that is
+// empty or not an http(s) absolute URL.
+var ErrInvalidLinkPreviewURL = errors.New("invalid link preview url")
 
 func (c *linkPreviewCache) get(url string) *LinkPreviewResponse {
 	c.mu.RLock()
@@ -145,13 +139,13 @@ func fetchLinkPreviewData(ctx context.Context, targetURL string) (*LinkPreviewRe
 
 // OpenGraph meta tag patterns
 var (
-	ogTitleRegex       = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
-	ogDescRegex        = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
-	ogImageRegex       = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
-	ogSiteNameRegex    = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:site_name["']\s+content=["']([^"']+)["']`)
-	pageTitleRegex     = regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
-	faviconLinkRegex   = regexp.MustCompile(`(?i)<link[^>]+rel=["'](?:icon|shortcut icon)["'][^>]+href=["']([^"']+)["']`)
-	descMetaRegex      = regexp.MustCompile(`(?i)<meta\s+name=["']description["']\s+content=["']([^"']+)["']`)
+	ogTitleRegex     = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRegex      = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRegex     = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	ogSiteNameRegex  = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:site_name["']\s+content=["']([^"']+)["']`)
+	pageTitleRegex   = regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
+	faviconLinkRegex = regexp.MustCompile(`(?i)<link[^>]+rel=["'](?:icon|shortcut icon)["'][^>]+href=["']([^"']+)["']`)
+	descMetaRegex    = regexp.MustCompile(`(?i)<meta\s+name=["']description["']\s+content=["']([^"']+)["']`)
 
 	// Alternative patterns with content first
 	ogTitleRegexAlt    = regexp.MustCompile(`(?i)<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']`)

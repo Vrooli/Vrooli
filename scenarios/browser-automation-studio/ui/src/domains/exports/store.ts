@@ -5,10 +5,18 @@
  * - Exports list and CRUD operations
  * - Selected export for viewing
  * - Export status tracking (pending, processing, completed, failed)
+ *
+ * All API I/O flows through the generated Connect-Web client; never through
+ * raw fetch (post-Phase-9 of the proto+Connect migration).
  */
 
 import { create } from 'zustand';
-import { getConfig } from '../../config';
+import { ConnectError } from '@connectrpc/connect';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
+import type { JsonObject } from '@bufbuild/protobuf';
+import type { Export as ProtoExport } from '@vrooli/proto-types/browser-automation-studio/v1/exports/exports_pb';
+
+import { exportsClient } from '@/api/exports';
 import { logger } from '../../utils/logger';
 
 export interface Export {
@@ -96,91 +104,49 @@ interface ExportState {
   hasExportsForExecution: (executionId: string) => boolean;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+const validFormats = new Set<Export['format']>(['mp4', 'gif', 'json', 'html']);
+const validStatuses = new Set<Export['status']>(['pending', 'processing', 'completed', 'failed']);
 
-const parseJson = async (response: Response): Promise<unknown> => {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
+const normalizeFormat = (raw: string): Export['format'] => {
+  const candidate = raw.toLowerCase();
+  return validFormats.has(candidate as Export['format']) ? (candidate as Export['format']) : 'mp4';
 };
 
-const extractMessage = (value: unknown): string | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const message = value.message;
-  return typeof message === 'string' ? message : null;
+const normalizeStatus = (raw: string): Export['status'] => {
+  const candidate = raw.toLowerCase();
+  return validStatuses.has(candidate as Export['status']) ? (candidate as Export['status']) : 'completed';
 };
 
-// Helper to normalize API response to Export interface. Expects snake_case protojson payloads.
-const normalizeExport = (raw: unknown): Export | null => {
-  if (!raw || typeof raw !== 'object') return null;
-  const obj = raw as Record<string, unknown>;
+const protoToExport = (proto: ProtoExport): Export => ({
+  id: proto.id,
+  executionId: proto.executionId,
+  workflowId: proto.workflowId || undefined,
+  name: proto.name || 'Untitled Export',
+  format: normalizeFormat(proto.format ?? ''),
+  settings: (proto.settings as Record<string, unknown> | undefined) ?? undefined,
+  storageUrl: proto.storageUrl || undefined,
+  thumbnailUrl: proto.thumbnailUrl || undefined,
+  fileSizeBytes: typeof proto.fileSizeBytes === 'bigint' ? Number(proto.fileSizeBytes) : undefined,
+  durationMs: typeof proto.durationMs === 'number' ? proto.durationMs : undefined,
+  frameCount: typeof proto.frameCount === 'number' ? proto.frameCount : undefined,
+  aiCaption: proto.aiCaption || undefined,
+  aiCaptionGeneratedAt: proto.aiCaptionGeneratedAt ? timestampDate(proto.aiCaptionGeneratedAt) : undefined,
+  status: normalizeStatus(proto.status ?? ''),
+  error: proto.error || undefined,
+  createdAt: proto.createdAt ? timestampDate(proto.createdAt) : new Date(),
+  updatedAt: proto.updatedAt ? timestampDate(proto.updatedAt) : new Date(),
+  workflowName: proto.workflowName || undefined,
+  executionDate: proto.executionDate ? timestampDate(proto.executionDate).toISOString() : undefined,
+});
 
-  const id = typeof obj.id === 'string' ? obj.id : '';
-  const executionId = typeof obj.execution_id === 'string' ? obj.execution_id : '';
-  if (!id || !executionId) return null;
-
-  const formatValue = typeof obj.format === 'string' ? obj.format.toLowerCase() : 'mp4';
-  const validFormats = new Set<Export['format']>(['mp4', 'gif', 'json', 'html']);
-  const format: Export['format'] = validFormats.has(formatValue as Export['format'])
-    ? (formatValue as Export['format'])
-    : 'mp4';
-
-  const statusValue = typeof obj.status === 'string' ? obj.status.toLowerCase() : 'completed';
-  const validStatuses = new Set<Export['status']>(['pending', 'processing', 'completed', 'failed']);
-  const status: Export['status'] = validStatuses.has(statusValue as Export['status'])
-    ? (statusValue as Export['status'])
-    : 'completed';
-
-  const asNumber = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
-
-  return {
-    id,
-    executionId,
-    workflowId: typeof obj.workflow_id === 'string' ? obj.workflow_id : undefined,
-    name: typeof obj.name === 'string' ? obj.name : 'Untitled Export',
-    format,
-    settings: (obj.settings as Record<string, unknown> | undefined) ?? undefined,
-    storageUrl: typeof obj.storage_url === 'string' ? obj.storage_url : undefined,
-    thumbnailUrl: typeof obj.thumbnail_url === 'string' ? obj.thumbnail_url : undefined,
-    fileSizeBytes: asNumber(obj.file_size_bytes),
-    durationMs: asNumber(obj.duration_ms),
-    frameCount: asNumber(obj.frame_count),
-    aiCaption: typeof obj.ai_caption === 'string' ? obj.ai_caption : undefined,
-    aiCaptionGeneratedAt:
-      typeof obj.ai_caption_generated_at === 'string' ? new Date(obj.ai_caption_generated_at) : undefined,
-    status,
-    error: typeof obj.error === 'string' ? obj.error : undefined,
-    createdAt: new Date(
-      typeof obj.created_at === 'string' ? obj.created_at : new Date().toISOString(),
-    ),
-    updatedAt: new Date(
-      typeof obj.updated_at === 'string' ? obj.updated_at : new Date().toISOString(),
-    ),
-    workflowName: typeof obj.workflow_name === 'string' ? obj.workflow_name : undefined,
-    executionDate: typeof obj.execution_date === 'string' ? obj.execution_date : undefined,
-  };
+const errorMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
 };
 
-const normalizeExportList = (value: unknown): Export[] => {
-  if (!isRecord(value) || !Array.isArray(value.exports)) {
-    return [];
-  }
-  return value.exports
-    .map((entry: unknown) => normalizeExport(entry))
-    .filter((entry: Export | null | undefined): entry is Export => Boolean(entry));
-};
-
-const normalizeExportResponse = (value: unknown): Export | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  return normalizeExport(value.export);
-};
+const settingsToStructInput = (settings: Record<string, unknown> | undefined): JsonObject | undefined =>
+  (settings as JsonObject | undefined);
 
 export const useExportStore = create<ExportState>((set, get) => ({
   exports: [],
@@ -194,82 +160,54 @@ export const useExportStore = create<ExportState>((set, get) => ({
   fetchExports: async () => {
     set({ isLoading: true, error: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports?limit=100`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exports: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const exports = normalizeExportList(data);
-
-      // Sort by createdAt descending
-      exports.sort((a: Export, b: Export) => b.createdAt.getTime() - a.createdAt.getTime());
-
+      const res = await exportsClient.listExports({ limit: 100 });
+      const exports = res.exports.map(protoToExport);
+      exports.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       set({ exports, isLoading: false });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch exports';
-      logger.error('Failed to fetch exports', { component: 'ExportStore', action: 'fetchExports' }, error);
+    } catch (err: unknown) {
+      const message = errorMessage(err, 'Failed to fetch exports');
+      logger.error('Failed to fetch exports', { component: 'ExportStore', action: 'fetchExports' }, err);
       set({ error: message, isLoading: false });
     }
   },
 
   fetchExportsByExecution: async (executionId: string) => {
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports?execution_id=${executionId}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exports: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const exports = normalizeExportList(data);
-
-      return exports;
-    } catch (error: unknown) {
-      logger.error('Failed to fetch exports by execution', { component: 'ExportStore', action: 'fetchExportsByExecution', executionId }, error);
+      const res = await exportsClient.listExports({ executionId });
+      return res.exports.map(protoToExport);
+    } catch (err: unknown) {
+      logger.error(
+        'Failed to fetch exports by execution',
+        { component: 'ExportStore', action: 'fetchExportsByExecution', executionId },
+        err,
+      );
       return [];
     }
   },
 
   fetchExportsByWorkflow: async (workflowId: string) => {
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports?workflow_id=${workflowId}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exports: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const exports = normalizeExportList(data);
-
-      return exports;
-    } catch (error: unknown) {
-      logger.error('Failed to fetch exports by workflow', { component: 'ExportStore', action: 'fetchExportsByWorkflow', workflowId }, error);
+      const res = await exportsClient.listExports({ workflowId });
+      return res.exports.map(protoToExport);
+    } catch (err: unknown) {
+      logger.error(
+        'Failed to fetch exports by workflow',
+        { component: 'ExportStore', action: 'fetchExportsByWorkflow', workflowId },
+        err,
+      );
       return [];
     }
   },
 
   getExport: async (id: string) => {
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports/${id}`);
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null;
-        }
-        throw new Error(`Failed to get export: ${response.status}`);
+      const res = await exportsClient.getExport({ id });
+      return res.export ? protoToExport(res.export) : null;
+    } catch (err: unknown) {
+      if (err instanceof ConnectError && err.code === 5 /* NotFound */) {
+        return null;
       }
-
-      const data: unknown = await response.json();
-      const normalized = normalizeExportResponse(data);
-      return normalized;
-    } catch (error: unknown) {
-      logger.error('Failed to get export', { component: 'ExportStore', action: 'getExport', id }, error);
+      logger.error('Failed to get export', { component: 'ExportStore', action: 'getExport', id }, err);
       return null;
     }
   },
@@ -277,47 +215,32 @@ export const useExportStore = create<ExportState>((set, get) => ({
   createExport: async (input: CreateExportInput) => {
     set({ isCreating: true, error: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          execution_id: input.executionId,
-          workflow_id: input.workflowId,
-          name: input.name,
-          format: input.format,
-          settings: input.settings,
-          storage_url: input.storageUrl,
-          thumbnail_url: input.thumbnailUrl,
-          file_size_bytes: input.fileSizeBytes,
-          duration_ms: input.durationMs,
-          frame_count: input.frameCount,
-          status: input.status ?? 'completed',
-        }),
+      const res = await exportsClient.createExport({
+        executionId: input.executionId,
+        workflowId: input.workflowId ?? '',
+        name: input.name,
+        format: input.format,
+        settings: settingsToStructInput(input.settings),
+        storageUrl: input.storageUrl ?? '',
+        thumbnailUrl: input.thumbnailUrl ?? '',
+        fileSizeBytes: typeof input.fileSizeBytes === 'number' ? BigInt(input.fileSizeBytes) : undefined,
+        durationMs: input.durationMs,
+        frameCount: input.frameCount,
+        status: input.status ?? 'completed',
       });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData) ?? `Failed to create export: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const newExport = normalizeExportResponse(data);
-
+      const newExport = res.export ? protoToExport(res.export) : null;
       if (newExport) {
-        // Add to the beginning of the exports list
-        set(state => ({
+        set((state) => ({
           exports: [newExport, ...state.exports],
           isCreating: false,
         }));
       } else {
         set({ isCreating: false });
       }
-
       return newExport;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to create export';
-      logger.error('Failed to create export', { component: 'ExportStore', action: 'createExport' }, error);
+    } catch (err: unknown) {
+      const message = errorMessage(err, 'Failed to create export');
+      logger.error('Failed to create export', { component: 'ExportStore', action: 'createExport' }, err);
       set({ error: message, isCreating: false });
       return null;
     }
@@ -326,46 +249,33 @@ export const useExportStore = create<ExportState>((set, get) => ({
   updateExport: async (id: string, input: UpdateExportInput) => {
     set({ isUpdating: true, error: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: input.name,
-          settings: input.settings,
-          storage_url: input.storageUrl,
-          thumbnail_url: input.thumbnailUrl,
-          file_size_bytes: input.fileSizeBytes,
-          duration_ms: input.durationMs,
-          frame_count: input.frameCount,
-          ai_caption: input.aiCaption,
-          status: input.status,
-          error: input.error,
-        }),
+      const res = await exportsClient.updateExport({
+        id,
+        name: input.name ?? '',
+        settings: settingsToStructInput(input.settings),
+        storageUrl: input.storageUrl ?? '',
+        thumbnailUrl: input.thumbnailUrl ?? '',
+        fileSizeBytes: typeof input.fileSizeBytes === 'number' ? BigInt(input.fileSizeBytes) : undefined,
+        durationMs: input.durationMs,
+        frameCount: input.frameCount,
+        aiCaption: input.aiCaption ?? '',
+        status: input.status ?? '',
+        error: input.error ?? '',
       });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData) ?? `Failed to update export: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const updatedExport = normalizeExportResponse(data);
-
+      const updatedExport = res.export ? protoToExport(res.export) : null;
       if (updatedExport) {
         set((state) => ({
-          exports: state.exports.map((e: Export) => (e.id === id ? updatedExport : e)),
+          exports: state.exports.map((e) => (e.id === id ? updatedExport : e)),
           selectedExport: state.selectedExport?.id === id ? updatedExport : state.selectedExport,
           isUpdating: false,
         }));
       } else {
         set({ isUpdating: false });
       }
-
       return updatedExport;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to update export';
-      logger.error('Failed to update export', { component: 'ExportStore', action: 'updateExport', id }, error);
+    } catch (err: unknown) {
+      const message = errorMessage(err, 'Failed to update export');
+      logger.error('Failed to update export', { component: 'ExportStore', action: 'updateExport', id }, err);
       set({ error: message, isUpdating: false });
       return null;
     }
@@ -374,26 +284,16 @@ export const useExportStore = create<ExportState>((set, get) => ({
   deleteExport: async (id: string) => {
     set({ isDeleting: true, error: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData) ?? `Failed to delete export: ${response.status}`);
-      }
-
+      await exportsClient.deleteExport({ id });
       set((state) => ({
-        exports: state.exports.filter((e: Export) => e.id !== id),
+        exports: state.exports.filter((e) => e.id !== id),
         selectedExport: state.selectedExport?.id === id ? null : state.selectedExport,
         isDeleting: false,
       }));
-
       return true;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to delete export';
-      logger.error('Failed to delete export', { component: 'ExportStore', action: 'deleteExport', id }, error);
+    } catch (err: unknown) {
+      const message = errorMessage(err, 'Failed to delete export');
+      logger.error('Failed to delete export', { component: 'ExportStore', action: 'deleteExport', id }, err);
       set({ error: message, isDeleting: false });
       return false;
     }
@@ -408,31 +308,24 @@ export const useExportStore = create<ExportState>((set, get) => ({
   },
 
   replaceExport: async (oldId: string, input: CreateExportInput) => {
-    // Create new export first (don't delete old one until we have a valid replacement)
     const newExport = await get().createExport(input);
     if (!newExport) {
       return null;
     }
-
-    // Now delete the old export
-    // Note: we don't use deleteExport() because it sets isDeleting state
-    // and we want this to be atomic from the user's perspective
     try {
-      const config = await getConfig();
-      await fetch(`${config.API_URL}/exports/${oldId}`, {
-        method: 'DELETE',
-      });
-
-      // Remove old export from state
+      await exportsClient.deleteExport({ id: oldId });
       set((state) => ({
-        exports: state.exports.filter((e: Export) => e.id !== oldId),
+        exports: state.exports.filter((e) => e.id !== oldId),
         selectedExport: state.selectedExport?.id === oldId ? null : state.selectedExport,
       }));
-    } catch (error: unknown) {
-      logger.error('Failed to delete old export during replace', { component: 'ExportStore', action: 'replaceExport', oldId }, error);
-      // Note: new export was already created, so we don't fail the whole operation
+    } catch (err: unknown) {
+      logger.error(
+        'Failed to delete old export during replace',
+        { component: 'ExportStore', action: 'replaceExport', oldId },
+        err,
+      );
+      // New export was created — don't fail the whole operation.
     }
-
     return newExport;
   },
 
@@ -453,26 +346,19 @@ export const useExportStore = create<ExportState>((set, get) => ({
 
     for (const exportItem of exports) {
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/exports/${exportItem.id}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          const errorData = await parseJson(response);
-          const errorMessage = extractMessage(errorData) ?? String(response.status);
-          errors.push(`Failed to delete "${exportItem.name}": ${errorMessage}`);
-        } else {
-          deleted++;
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
+        await exportsClient.deleteExport({ id: exportItem.id });
+        deleted++;
+      } catch (err: unknown) {
+        const message = errorMessage(err, 'Unknown error');
         errors.push(`Failed to delete "${exportItem.name}": ${message}`);
-        logger.error('Failed to delete export during bulk delete', { component: 'ExportStore', action: 'deleteAllExports', id: exportItem.id }, error);
+        logger.error(
+          'Failed to delete export during bulk delete',
+          { component: 'ExportStore', action: 'deleteAllExports', id: exportItem.id },
+          err,
+        );
       }
     }
 
-    // Clear local state
     set({
       exports: [],
       selectedExport: null,

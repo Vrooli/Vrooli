@@ -1,63 +1,96 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
+    "parent": "vrooli",
     "name": "scenario-authenticator",
     "displayName": "Scenario Authenticator",
-    "description": "Universal authentication and authorization service that enables any scenario to secure its endpoints with user management, JWT tokens, and role-based access control",
-    "version": "1.0.0",
+    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys — consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "general",
     "tags": [
+      "react-ui",
+      "go-api",
       "security",
       "authentication",
-      "authorization",
+      "identity-provider",
       "jwt",
-      "user-management",
-      "session-management",
-      "api-security",
-      "foundational",
-      "cross-scenario",
-      "go-api",
-      "postgres-storage",
-      "redis-cache"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-authenticator"
+      "multi-tenant",
+      "foundational"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-06-18T00:33:06Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "07c578f32d3ba10c86cc91ce06d830a48959a1fffad8348f97a9858b6313bbc8"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-authenticator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-authenticator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Authentication API server port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Authentication UI server port",
-      "range": "35000-39999"
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Authentication service health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -68,212 +101,95 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 5000,
+          "timeout": 10000,
           "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "postgres",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "redis_connection",
-          "type": "redis",
-          "target": "redis",
-          "critical": true,
           "timeout": 5000,
           "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize Scenario Authenticator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-authenticator-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-authenticator",
-            "targets": [
-              "scenario-authenticator"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "initialize-database",
-          "run": "resource-postgres content create-database main scenario_authenticator",
-          "description": "Create authentication database"
-        },
-        {
-          "name": "add-data",
-          "run": "POSTGRES_DEFAULT_DB=scenario_authenticator ../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize auth data in resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "chmod +x cli/scenario-authenticator && ln -sf $(pwd)/cli/scenario-authenticator ~/.local/bin/scenario-authenticator 2>/dev/null || true",
-          "description": "Install authentication CLI globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-authenticator-api .",
-          "description": "Build authentication API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace --frozen-lockfile --prod=false",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build authentication UI bundle"
-        },
-        {
-          "name": "generate-jwt-keys",
-          "run": "mkdir -p data/keys && openssl genrsa -out data/keys/private.pem 2048 && openssl rsa -in data/keys/private.pem -pubout -out data/keys/public.pem",
-          "description": "Generate JWT signing keys",
-          "condition": {
-            "file_not_exists": "data/keys/private.pem"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Authentication Service initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Authentication Service with API and UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-authenticator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-authenticator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-authenticator",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-authenticator --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-authenticator-api\" || true; sleep 1; pkill -9 -f \"scenario-authenticator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-authenticator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-authenticator.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store user accounts, API keys, and audit logs",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/applications.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
-      },
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Session storage, token blacklisting, and rate limiting",
-        "initialization": [
-          {
-            "file": "initialization/redis/config.lua",
-            "type": "script"
-          }
-        ]
-      },
-      "mailpit": {
-        "type": "mailpit",
-        "enabled": false,
         "required": false,
-        "purpose": "Email sending for password reset and verification",
-        "fallback": "Log email content to console"
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres).",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "The durable local store is the single-node default; Redis is an opt-in accelerator. The in-memory fake is a test double only, because dropping the revocation blacklist on restart re-admits a revoked token."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "Redis upstream publishes no native macOS or Windows build, Valkey ships source only, and Garnet's archives are framework-dependent rather than self-contained."
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "notes": "Redis is required above one replica. The revocation blacklist and the rate-limit counters must be shared across replicas: a blacklist that is not shared does not revoke."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

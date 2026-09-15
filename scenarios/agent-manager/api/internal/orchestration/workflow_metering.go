@@ -1,0 +1,181 @@
+package orchestration
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/workflowruntime"
+
+	"github.com/google/uuid"
+)
+
+// Reuse the bounded, deduplicating workflow driver. Event persistence precedes
+// the nudge; periodic recovery remains the backstop for a lost notification.
+func (o *Orchestrator) nudgeWorkflowUsage(runID uuid.UUID, evt *domain.RunEvent) {
+	if evt == nil || evt.EventType != domain.EventTypeMetric || o.workflowNudger == nil || o.workflowExecutions == nil {
+		return
+	}
+	id, err := o.workflowExecutions.ExecutionIDForRun(context.Background(), runID)
+	if err != nil {
+		obs.Component("workflow-nudge").Warn("resolve owning execution for usage failed", obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
+		return
+	}
+	if id != uuid.Nil {
+		o.workflowNudger.Enqueue(id)
+	}
+}
+
+// InspectMetered reads durable provider usage, not the completion-only summary.
+// Use the same invocation boundaries and deduplication rules as owner
+// accounting. Continuations reuse the Run ID and its cumulative event stream.
+func (l workflowChildLauncher) InspectMetered(ctx context.Context, id uuid.UUID) (workflowruntime.ChildState, error) {
+	_, state, err := l.o.meteredRun(ctx, id)
+	return state, err
+}
+
+func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now time.Time) (workflowruntime.ChildState, error) {
+	state := childStateFromRun(run)
+	events = terminalWorkflowReceiptProjection(events)
+	if run != nil && run.EndedAt != nil {
+		state.TerminalObservedAt = *run.EndedAt
+	}
+	state.Tokens, state.Turns, state.ChargeMicroUSD = 0, 0, 0
+	state.ChargeMeasured = false
+	terminalAuthority := false
+	latestUsage, latestCharge := false, false
+	priorInvocationsComplete := true
+	chargeObserved, chargeComplete := false, true
+	observeCharge := func(charge *domain.ChargeEventData) error {
+		if charge == nil {
+			return nil
+		}
+		chargeObserved = true
+		latestCharge = true
+		if charge.AmountMicroUSD == nil {
+			chargeComplete = false
+			return nil
+		}
+		if *charge.AmountMicroUSD < 0 {
+			return fmt.Errorf("negative provider charge for run %s", run.ID)
+		}
+		switch charge.Basis {
+		case domain.ChargeBasisMetered:
+			// Preserve the existing owner metered-charge contract.
+		case domain.ChargeBasisSubscription, domain.ChargeBasisLocal:
+			// Known zero marginal charge is backed by the immutable run
+			// snapshot and an explicit charge event, never a cost estimate.
+			if run.Billing.EffectiveBasis() != charge.Basis || *charge.AmountMicroUSD != 0 {
+				chargeComplete = false
+			}
+		default:
+			chargeComplete = false
+		}
+		return nil
+	}
+	var observations []time.Time
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		if invocationreadmodel.BeginsRunInvocation(evt) {
+			if latestUsage && (!terminalAuthority || !latestCharge) {
+				priorInvocationsComplete = false
+			}
+			terminalAuthority, latestUsage, latestCharge = false, false, false
+		}
+		if goal, ok := evt.Data.(*domain.GoalStatusChangedEventData); ok {
+			status := runner.GoalStatus(goal.Status)
+			if status.Valid() {
+				state.GoalStatus, state.GoalObjective = status, goal.Objective
+			}
+		}
+		if usage, ok := evt.Data.(*domain.UsageEventData); ok {
+			if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.CacheReadTokens < 0 || usage.CacheCreationTokens < 0 || usage.Turns < 0 {
+				return state, fmt.Errorf("negative provider usage for run %s", run.ID)
+			}
+			state.TokensKnown = true
+			latestUsage = true
+			// An earlier receipt cannot close usage observed after its cut.
+			// A later authoritative receipt may establish completion again.
+			terminalAuthority = usage.ReconciliationAuthority
+			if !evt.Timestamp.IsZero() {
+				observations = append(observations, evt.Timestamp)
+			}
+			if err := observeCharge(usage.Charge); err != nil {
+				return state, err
+			}
+		}
+		if charge, ok := evt.Data.(*domain.ChargeEventData); ok {
+			if err := observeCharge(charge); err != nil {
+				return state, err
+			}
+		}
+	}
+	state.MeterCadence = workflowruntime.MeterCadenceFromObservations(observations)
+	state.MeterCadence.TerminalAuthority = terminalAuthority
+	fact := invocationreadmodel.ProjectRun(run, events, now)
+	if fact.TotalTokens < 0 || int64(int(fact.TotalTokens)) != fact.TotalTokens {
+		return state, fmt.Errorf("provider token total overflow for run %s", run.ID)
+	}
+	state.Tokens, state.Turns = int(fact.TotalTokens), int(fact.Turns)
+	state.ChargeMicroUSD = fact.MeteredChargeMicroUSD
+	state.ChargeMeasured = chargeObserved && chargeComplete && latestUsage && latestCharge
+	// StopRun can publish cancelled before the final accounting tail arrives.
+	// A terminal status plus a prior live reading is not a terminal receipt.
+	if state.Terminal && (!terminalAuthority || !priorInvocationsComplete) {
+		state.TokensKnown = false
+	}
+	return state, nil
+}
+
+// An embedded terminal charge covers the same complete invocation as its
+// authoritative usage. Earlier unpriced/interim samples remain durable but
+// must not permanently poison that original receipt or be charged again.
+// No receipt means no substitution; each continuation keeps its own boundary.
+// Later observations are outside the receipt's coverage and must survive.
+func terminalWorkflowReceiptProjection(events []*domain.RunEvent) []*domain.RunEvent {
+	invocation := 0
+	selected := map[int]int{}
+	for i, item := range events {
+		if invocationreadmodel.BeginsRunInvocation(item) {
+			invocation++
+		}
+		if item == nil {
+			continue
+		}
+		if usage, ok := item.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority && usage.Charge != nil && usage.Charge.AmountMicroUSD != nil {
+			selected[invocation] = i
+		}
+	}
+	if len(selected) == 0 {
+		return events
+	}
+	var out []*domain.RunEvent
+	invocation = 0
+	for i, item := range events {
+		if invocationreadmodel.BeginsRunInvocation(item) {
+			invocation++
+		}
+		if selectedIndex, ok := selected[invocation]; ok && i < selectedIndex && item != nil {
+			switch data := item.Data.(type) {
+			case *domain.UsageEventData:
+				// Invalid observations still fail validation; reconciliation
+				// cannot hide malformed retained accounting.
+				if data.InputTokens >= 0 && data.OutputTokens >= 0 && data.CacheReadTokens >= 0 && data.CacheCreationTokens >= 0 && data.Turns >= 0 {
+					continue
+				}
+			case *domain.ChargeEventData:
+				if data.AmountMicroUSD == nil || *data.AmountMicroUSD >= 0 {
+					continue
+				}
+			}
+		}
+		out = append(out, item)
+	}
+	return out
+}

@@ -1,125 +1,242 @@
 {
-  "description": "Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline",
-  "module_id": "MOD-P0-003",
-  "prd_ref": "OT-P0-003",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-09-05T22:22:30-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "children": ["REQ-P0-003b"],
-      "description": "Session metadata (ID, created_at, last_connected, shell command) persisted in database. Sessions default to never-expire policy.",
       "id": "REQ-P0-003a",
-      "prd_ref": "OT-P0-003",
-      "status": "passed",
       "title": "Session Persistence Store",
-      "validation": [
-        {
-          "notes": "Session metadata stored and retrievable after create",
-          "phase": "unit",
-          "ref": "api/session_test.go:TestSessionManager_Get",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Session list returns all active sessions",
-          "phase": "unit",
-          "ref": "api/session_test.go:TestSessionManager_List",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "List sessions handler returns JSON array",
-          "phase": "unit",
-          "ref": "api/session_handlers_test.go:TestHandleListSessions",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "SessionsPage renders session list, loading/empty states, refresh, double-click delete confirmation",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/sessions-page.test.tsx",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "BAS case verifies sessions remain listed by API after workspace/sessions route transitions",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/session-metadata-persists-across-route-navigation.json",
-          "status": "implemented",
-          "type": "automation"
-        },
-        {
-          "notes": "BAS case reloads workspace and verifies same session ID and marker output are restored",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/session-persists-across-full-reload.json",
-          "status": "implemented",
-          "type": "automation"
-        },
-        {
-          "notes": "Idempotency cache TTL expiry removes stale entries on Get",
-          "phase": "unit",
-          "ref": "api/session_handlers_test.go:TestIdempotencyCache_TTLExpiry",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Idempotency cache eviction scan triggered at >100 entries",
-          "phase": "unit",
-          "ref": "api/session_handlers_test.go:TestIdempotencyCache_EvictionScan",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "core",
-      "children": ["REQ-P0-003b-i"],
-      "description": "Reconnecting WebSocket re-attaches to the existing PTY process. Client receives buffered output generated while disconnected.",
-      "id": "REQ-P0-003b",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
-      "status": "passed",
-      "title": "Reconnect State Restoration",
+      "category": "core",
+      "description": "Session metadata (ID, created_at, last_connected, shell command) persisted in database. Sessions default to never-expire policy.",
+      "children": [
+        "REQ-P0-003b",
+        "REQ-P0-003c"
+      ],
       "validation": [
         {
-          "notes": "Offline buffer delivers output generated while disconnected",
+          "type": "test",
+          "ref": "api/session_test.go:TestSessionManager_Get",
           "phase": "unit",
-          "ref": "api/session_test.go:TestSession_OfflineBuffer",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Fake PTY offline buffer replay works correctly",
-          "phase": "unit",
-          "ref": "api/pty_test.go:TestFakePTY_OfflineBuffer",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "BAS case disconnects terminal websocket and verifies delayed output replay on reconnect",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/reconnect-offline-buffer-replay.json",
           "status": "implemented",
-          "type": "automation"
+          "notes": "Session metadata stored and retrievable after create"
+        },
+        {
+          "type": "test",
+          "ref": "api/session_test.go:TestSessionManager_List",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Session list returns all active sessions"
+        },
+        {
+          "type": "test",
+          "ref": "api/session_handlers_test.go:TestHandleListSessions",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "List sessions handler returns JSON array"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-management-section.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Session management renders the current pane list, its empty state, and session actions"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/session-metadata-persists-across-route-navigation.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case verifies sessions remain listed by API after workspace/sessions route transitions"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/session-persists-across-full-reload.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case reloads workspace and verifies same session ID and marker output are restored"
+        },
+        {
+          "type": "test",
+          "ref": "api/session_handlers_test.go:TestIdempotencyCache_TTLExpiry",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Idempotency cache TTL expiry removes stale entries on Get"
+        },
+        {
+          "type": "test",
+          "ref": "api/session_handlers_test.go:TestIdempotencyCache_EvictionScan",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Idempotency cache eviction scan triggered at \u003e100 entries"
         }
       ]
     },
     {
+      "id": "REQ-P0-003c",
+      "title": "When an Operator Closes a Session, Archive It",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "When an operator closes a session, web-console MUST archive its metadata and conversation without permanent deletion, MUST make archived message text retrievable across sessions, and MUST require a confirmed explicit action for permanent deletion.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/session_handlers_test.go:TestArchivePreservesTranscriptAndUnarchiveRestoresVisibility",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Archive preserves conversation data, supports undo, and returns collapsed reopen lineages with honest restore states"
+        },
+        {
+          "type": "test",
+          "ref": "api/conversation_store_test.go:TestSQLSearchArchivedUsesFTSAndExcludesLiveSessions",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Cross-session archive search uses FTS5 and excludes live sessions"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-sidebar.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The UI close action archives and never invokes permanent deletion; focused SessionSidebar and ArchiveDrawer validation passes"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/ArchiveDrawer.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The archive drawer searches messages, reads transcripts, reopens sessions, and owns crash-orphan recovery actions; focused SessionSidebar and ArchiveDrawer validation passes"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-003b",
+      "title": "Reconnect State Restoration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "Reconnecting WebSocket re-attaches to the existing PTY process. Client receives buffered output generated while disconnected.",
+      "children": [
+        "REQ-P0-003b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/session_test.go:TestSession_OfflineSnapshotIncludesPriorOutput",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Offline buffer delivers output generated while disconnected"
+        },
+        {
+          "type": "test",
+          "ref": "api/pty_test.go:TestFakePTY_OfflineSnapshot",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake PTY offline buffer replay works correctly"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/reconnect-offline-buffer-replay.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case disconnects terminal websocket and verifies delayed output replay on reconnect"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-003b-i",
+      "title": "Offline Buffer Replay",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Offline buffer replays accumulated output in order when client reconnects. Buffer has bounded size to prevent memory exhaustion.",
-      "id": "REQ-P0-003b-i",
-      "prd_ref": "OT-P0-003",
-      "status": "passed",
-      "title": "Offline Buffer Replay",
       "validation": [
         {
-          "notes": "Offline buffer replay delivers output in order",
+          "type": "test",
+          "ref": "api/pty_test.go:TestFakePTY_OfflineSnapshot",
           "phase": "unit",
-          "ref": "api/pty_test.go:TestFakePTY_OfflineBuffer",
-          "status": "passing",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Offline buffer replay delivers output in order"
         }
       ]
+    },
+    {
+      "id": "REQ-P0-003d",
+      "title": "Canonical Lifecycle Receipts",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "For every archive, undo, recover, dismiss, retention, or permanent-delete mutation, web-console MUST persist one replay-safe receipt containing the operation identity, prior state, resulting state, standing, and failure outcome; retrying the same operation MUST return the original result.",
+      "validation": [
+        { "type": "test", "ref": "api/handlers/sessions/adapter_lifecycle_test.go:TestAdapterArchiveWritesReplaySafeReceipt", "phase": "unit", "status": "implemented", "notes": "Archive receipt is durable and replay-safe" },
+        { "type": "test", "ref": "api/handlers/sessions/adapter_lifecycle_test.go:TestAdapterSuccessfulLifecycleReplaySurvivesStateMutation", "phase": "integration", "status": "implemented", "notes": "Successful replay returns the original lifecycle result" },
+        { "type": "test", "ref": "api/internal/continuity/ledger_test.go:TestSQLLedgerConcurrentPutConverges", "phase": "concurrency", "status": "implemented", "notes": "Concurrent receipt creation converges on one durable operation" }
+      ]
+    },
+    {
+      "id": "REQ-P0-003e",
+      "title": "Explicit Permanent Deletion",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "Permanent deletion MUST be distinct from archive and MUST refuse a request without the exact operator confirmation token; a failed artifact cascade MUST preserve the metadata needed for retry and MUST not report success.",
+      "validation": [
+        { "type": "test", "ref": "api/handlers/sessions/connect_handler_test.go:TestConnectHandlerValidationAndClassification", "phase": "unit", "status": "implemented", "notes": "Missing or incorrect DELETE confirmation is rejected" },
+        { "type": "test", "ref": "api/handlers/sessions/adapter_lifecycle_test.go:TestAdapterDeleteSurfacesConversationCleanupFailure", "phase": "integration", "status": "implemented", "notes": "Cleanup failure remains visible and prevents false success" }
+      ]
+    },
+    {
+      "id": "REQ-P0-003f",
+      "title": "Recoverable Orphan Integrity",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "A conversation, checkpoint, or workspace pane whose session metadata is absent MUST remain classified and inspectable as recoverable integrity drift; integrity auditing MUST not delete or rewrite native source evidence.",
+      "validation": [
+        { "type": "test", "ref": "api/internal/continuity/integrity_test.go:TestIntegrityAuditReportsOrphansWithoutMutatingSources", "phase": "unit", "status": "implemented", "notes": "Orphans are reported without mutating source projections" },
+        { "type": "test", "ref": "api/internal/continuity/catalog_store_test.go:TestSQLCatalogObserveIncludesOrphanEvidence", "phase": "integration", "status": "implemented", "notes": "Catalog observation includes evidence absent from session metadata" }
+      ]
+    },
+    {
+      "id": "REQ-P0-003g",
+      "title": "Deterministic Reconciliation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "Reconciliation MUST be dry-run by default, bind apply to the reviewed manifest hash, quarantine ambiguous identities, advance in bounded batches, and perform zero additional mutations when the same manifest is applied again.",
+      "validation": [
+        { "type": "test", "ref": "api/continuity_handlers_test.go:TestReconcileDryRunPersistsExactManifestForApply", "phase": "integration", "status": "implemented", "notes": "Dry-run manifest is required for apply and replay" },
+        { "type": "test", "ref": "api/internal/continuity/catalog_test.go:TestManifestHashBindsGenerationAndDryRunItems", "phase": "unit", "status": "implemented", "notes": "Manifest hash binds the reviewed evidence set" },
+        { "type": "test", "ref": "api/internal/continuity/catalog_store_test.go:TestRollbackManifestRestoresCatalogPreimage", "phase": "integration", "status": "implemented", "notes": "Fixture rollback restores the catalog preimage" }
+      ]
+    },
+    {
+      "id": "REQ-P0-003h",
+      "title": "Dependency-Independent Continuity Search",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "Local continuity search MUST find exact and partial text, pane identity, agent thread identity, and lifecycle metadata across live, archived, and recoverable records without requiring Agent Manager, Search Hub, embeddings, or an LLM.",
+      "validation": [
+        { "type": "test", "ref": "api/internal/continuity/search_test.go:TestSearchLocalFindsEventsAcrossLifecycleStates", "phase": "unit", "status": "implemented", "notes": "Local search spans lifecycle states" },
+        { "type": "test", "ref": "api/internal/continuity/search_test.go:TestSearchLocalIncidentIdentityFindsPaneAndThread", "phase": "integration", "status": "implemented", "notes": "Pane and agent-thread aliases resolve the incident" },
+        { "type": "test", "ref": "api/internal/continuity/search_test.go:TestSearchLocalUsesCatalogMetadataWhenSessionRowIsMissing", "phase": "integration", "status": "implemented", "notes": "Search remains available when the session row is absent" }
+      ]
+    },
+    {
+      "id": "REQ-P0-003i",
+      "title": "Stable Federation Source Identity",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "When continuity records are published to Agent Manager, the source identity, lifecycle standing, aliases, and deletion signal MUST remain stable and native filesystem locators MUST NOT cross the public integration boundary.",
+      "validation": [
+        { "type": "test", "ref": "api/internal/continuity/publisher_test.go:TestAgentManagerPublisherSendsStableProvenance", "phase": "integration", "status": "implemented", "notes": "Publisher sends stable source and provenance identity" },
+        { "type": "test", "ref": "api/internal/continuity/publisher_test.go:TestPublicRecordDoesNotExposeNativeLocators", "phase": "security", "status": "implemented", "notes": "Public records omit native transcript locators" },
+        { "type": "test", "ref": "api/internal/continuity/publisher_test.go:TestAgentManagerPublisherTreatsMissingTombstoneAsConverged", "phase": "integration", "status": "implemented", "notes": "Tombstone publication converges safely" }
+      ]
     }
-  ],
-  "title": "Durable Session Continuity"
+  ]
 }

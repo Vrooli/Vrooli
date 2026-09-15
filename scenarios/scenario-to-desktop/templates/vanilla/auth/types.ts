@@ -13,9 +13,14 @@
  * Stored authentication tokens.
  */
 export interface StoredTokens {
+    /** Short-lived compatibility access token; process memory only. */
     accessToken: string;
+    /** Website refresh token; process memory only and never persisted. */
     refreshToken: string;
+    /** Compatibility session expiry; not a lease authorization boundary. */
     expiresAt: string;
+    /** Signed LPBS entitlement lease; the only durable auth artifact. */
+    entitlementLease?: string;
 }
 
 /**
@@ -52,6 +57,14 @@ export interface AuthConfig {
     tokenRefreshBufferMs: number;
     /** App display name for auth page */
     appDisplayName: string;
+}
+
+/** A single, scoped LPBS-to-desktop account-link request. */
+export interface DesktopLinkOptions {
+    installationId: string;
+    resource: string;
+    audience: string;
+    scopes: string[];
 }
 
 // ===== Seam Interfaces =====
@@ -120,6 +133,18 @@ export type WindowFocusCallback = () => void;
  */
 export type ProtocolUrlCallback = (url: string) => void;
 
+/** Result delivered by a process-owned loopback authorization listener. */
+export interface LoopbackAuthorizationResult {
+    code: string;
+    state: string;
+    redirectURI: string;
+}
+
+/** Binds a browser authorization request to an ephemeral loopback listener. */
+export type LoopbackAuthorizationCallback = (
+    buildAuthorizationURL: (redirectURI: string) => string,
+) => Promise<LoopbackAuthorizationResult>;
+
 /**
  * Storage operations needed by auth module.
  * Simplified interface compared to full IAppStorage.
@@ -155,6 +180,12 @@ export interface IAuthManager {
     signIn(options?: { state?: string }): Promise<{ state: string }>;
 
     /**
+     * Connect the current desktop installation to an LPBS business account.
+     * The local proof must come from the declared local identity provider.
+     */
+    connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<void>;
+
+    /**
      * Sign out the user and clear all auth data.
      */
     signOut(): Promise<void>;
@@ -164,6 +195,9 @@ export interface IAuthManager {
      * @returns The access token, or null if not authenticated
      */
     getAccessToken(): Promise<string | null>;
+
+    /** Return the last signed entitlement lease received from LPBS. */
+    getEntitlementLease(): Promise<string | null>;
 
     /**
      * Get the stored user information.
@@ -215,4 +249,16 @@ export interface AuthManagerDependencies {
     onAuthChange: AuthChangeCallback;
     onWindowFocus?: WindowFocusCallback;
     onProtocolUrl?: ProtocolUrlCallback;
+    /** Runs the browser callback on a process-owned loopback listener. */
+    onLoopbackAuthorization?: LoopbackAuthorizationCallback;
+    /** Derives the RFC 7636 S256 challenge from a verifier. */
+    createCodeChallenge?: (verifier: string) => string;
+    /** Store the signed entitlement lease in the platform credential authority. */
+    onStoreEntitlementLease?: (lease: string) => Promise<void>;
+    /** Resolve the signed entitlement lease after an app restart. */
+    onGetEntitlementLease?: () => Promise<string | null>;
+    /** Remove the signed entitlement lease during unlink/sign-out. */
+    onClearEntitlementLease?: () => Promise<void>;
+    /** Resolve a short-lived proof from the declared local identity provider. */
+    onResolveLocalIdentityProof?: () => Promise<string | null>;
 }

@@ -12,7 +12,7 @@
       "description": "Implement comprehensive analytics dashboard with visualizations and reports",
       "id": "REQ-P2-003",
       "prd_ref": "prompt-manager-nice-to-have-advanced-analytics-dashboard",
-      "status": "draft",
+      "status": "planned",
       "title": "Advanced Analytics Dashboard",
       "validation": [
         {

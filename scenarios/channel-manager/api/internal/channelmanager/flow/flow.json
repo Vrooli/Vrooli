@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "channelmanager.action-lifecycle.api",
+  "domain": "channelmanager",
+  "description": "A manually executed channel action is either completed with operator evidence, failed, or cancelled. Terminal actions are immutable.",
+  "model": {"module":"ChannelActionLifecycle","seed":"2026072801","maxSteps":7,"traceCount":8,"verify":{"invariants":["TypeOK","TerminalClosure","IllegalTransitionsPreserveState"]}},
+  "states": [
+    {"id":"scheduled","quint":"Scheduled","initial":true}, {"id":"due","quint":"Due"}, {"id":"executing","quint":"Executing"},
+    {"id":"succeeded","quint":"Succeeded","terminal":true}, {"id":"failed","quint":"Failed","terminal":true}, {"id":"cancelled","quint":"Cancelled","terminal":true}
+  ],
+  "events": [{"id":"make_due","quint":"MakeDue"},{"id":"begin","quint":"Begin"},{"id":"succeed","quint":"Succeed"},{"id":"fail","quint":"Fail"},{"id":"cancel","quint":"Cancel"}],
+  "transitionDefaults":{"invalid":{"to":"self","wantError":true},"terminal":{"to":"self","wantError":true}},
+  "transitions":[
+    {"from":"scheduled","event":"make_due","to":"due"},{"from":"scheduled","event":"cancel","to":"cancelled"},
+    {"from":"due","event":"begin","to":"executing"},{"from":"due","event":"cancel","to":"cancelled"},
+    {"from":"executing","event":"succeed","to":"succeeded"},{"from":"executing","event":"fail","to":"failed"},{"from":"executing","event":"cancel","to":"cancelled"}
+  ],
+  "invariants":[
+    {"id":"type_ok","quint":"TypeOK","description":"Status and event values remain declared."},
+    {"id":"terminal_closure","quint":"TerminalClosure","description":"Succeeded, failed, and cancelled actions cannot transition."},
+    {"id":"illegal_transitions_preserve_state","quint":"IllegalTransitionsPreserveState","description":"Rejected events preserve action status."}
+  ],
+  "traces":[
+    {"name":"manual_success","initial":"scheduled","steps":[{"event":"make_due","want":"due","wantError":false},{"event":"begin","want":"executing","wantError":false},{"event":"succeed","want":"succeeded","wantError":false}]},
+    {"name":"manual_failure","initial":"scheduled","steps":[{"event":"make_due","want":"due","wantError":false},{"event":"begin","want":"executing","wantError":false},{"event":"fail","want":"failed","wantError":false}]},
+    {"name":"safety_cancel","initial":"scheduled","steps":[{"event":"cancel","want":"cancelled","wantError":false}]}
+  ],
+  "runtime":{"go":{"package":"flow","statusType":"ActionStatus","eventType":"ActionEvent","constantPrefix":"ChannelAction"}},
+  "replay":{"transition":{"function":"TransitionAction","stateType":"ActionState","statusField":"Status"}}
+}

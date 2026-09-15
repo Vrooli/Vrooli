@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "continuity-catalog-orphan-mobile",
+    "description": "Locate and inspect catalog-only conversation evidence from the mobile archive drawer",
+    "execution_mode": "mutating",
+    "requirement": "REQ-P0-003c",
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true", "intent": "continuity", "device": "mobile" },
+    "version": "1"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "navigate-workspace", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "timeout_ms": 30000, "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED", "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "web-console", "scenario_path": "/#/workspace" } } },
+    { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"toolbar-settings\"]" } } },
+    { "id": "open-workspace-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"settings-tab-workspace\"]" } } },
+    { "id": "select-sidebar-mode", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"display-mode-sidebar\"]" } } },
+    { "id": "close-settings", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const el = document.querySelector('[data-testid=\"settings-modal.grabber\"]'); if (!(el instanceof HTMLElement)) throw new Error('mobile settings grabber not found'); const r = el.getBoundingClientRect(); const x = r.left + r.width / 2; const y0 = r.top + r.height / 2; const fire = (type, y, buttons) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch', isPrimary: true, button: buttons ? 0 : -1, buttons })); fire('pointerdown', y0, 1); fire('pointermove', y0 + 300, 1); fire('pointerup', y0 + 300, 0); return true; })()" } } },
+    { "id": "open-mobile-sidebar", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"workspace-sidebar-toggle\"]" } } },
+    { "id": "wait-archive-footer", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"sidebar-archive-footer\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
+    { "id": "open-archive", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"sidebar-archive-footer\"]" } } },
+    { "id": "wait-sidebar-archive", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"sidebar-archive-view\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
+    { "id": "open-full-archive", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid=\"sidebar-archive-search-all\"]" } } },
+    { "id": "wait-archive-drawer", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"archive-drawer\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
+    { "id": "search-incident", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "[data-testid=\"archive-search-input\"]", "value": "validation-intent receipt contract", "clear_first": true } }, "execution_settings": { "wait_after_ms": 1000 } },
+    { "id": "wait-incident-hit", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid^=\"archive-hit-\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
+    { "id": "select-incident-hit", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const hit = document.querySelector('[data-testid^=\"archive-hit-\"]'); if (!(hit instanceof HTMLElement)) throw new Error('mobile continuity orphan hit not found'); hit.click(); })()" } } },
+    { "id": "assert-read-only-reader", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[data-testid=\"archive-reopen\"]", "failure_message": "Expected the mobile archive to keep catalog-only evidence inspectable", "timeout_ms": 10000 } } },
+    { "id": "capture-evidence", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e2", "source": "open-settings", "target": "open-workspace-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e3", "source": "open-workspace-settings", "target": "select-sidebar-mode", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e4", "source": "select-sidebar-mode", "target": "close-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e5", "source": "close-settings", "target": "open-mobile-sidebar", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e5b", "source": "open-mobile-sidebar", "target": "wait-archive-footer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e6", "source": "wait-archive-footer", "target": "open-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e7", "source": "open-archive", "target": "wait-sidebar-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e8", "source": "wait-sidebar-archive", "target": "open-full-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e9", "source": "open-full-archive", "target": "wait-archive-drawer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e10", "source": "wait-archive-drawer", "target": "search-incident", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e11", "source": "search-incident", "target": "wait-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e12", "source": "wait-incident-hit", "target": "select-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e13", "source": "select-incident-hit", "target": "assert-read-only-reader", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e14", "source": "assert-read-only-reader", "target": "capture-evidence", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+  ]
+}

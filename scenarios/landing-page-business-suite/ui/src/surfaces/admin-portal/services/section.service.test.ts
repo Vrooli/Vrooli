@@ -29,8 +29,7 @@ describe('section.service', () => {
 
     it('returns null when window is undefined (SSR)', () => {
       const windowBackup = global.window;
-      // @ts-expect-error - simulating SSR
-      delete global.window;
+      Object.defineProperty(global, 'window', { configurable: true, value: undefined });
 
       const result = loadComparePreference('test-variant');
 
@@ -93,8 +92,7 @@ describe('section.service', () => {
 
     it('does nothing when window is undefined (SSR)', () => {
       const windowBackup = global.window;
-      // @ts-expect-error - simulating SSR
-      delete global.window;
+      Object.defineProperty(global, 'window', { configurable: true, value: undefined });
 
       saveComparePreference('test-variant', 'compare-variant');
 
@@ -135,7 +133,7 @@ describe('section.service', () => {
         throw new Error('QuotaExceededError');
       });
 
-      expect(() => saveComparePreference('test-variant', 'compare-variant')).not.toThrow();
+      expect(() => { saveComparePreference('test-variant', 'compare-variant'); }).not.toThrow();
     });
   });
 
@@ -279,7 +277,7 @@ describe('section.service', () => {
 
   describe('COMPARE_STORAGE_KEY', () => {
     it('has the expected constant value', () => {
-      expect(COMPARE_STORAGE_KEY).toBe('landing-manager-section-editor-compare');
+      expect(COMPARE_STORAGE_KEY).toBe('landing-page-business-suite-section-editor-compare');
     });
   });
 });

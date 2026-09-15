@@ -1,0 +1,22 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.vrooli.hello.mobile"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.vrooli.hello.mobile"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}

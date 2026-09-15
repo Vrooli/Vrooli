@@ -171,14 +171,13 @@ func (a *StreamingAccumulator) ToResult() *CompletionResult {
 
 // ToolExecutionResult captures the outcome of executing a single tool.
 type ToolExecutionResult struct {
-	ToolCallID         string      `json:"tool_call_id"`
-	ToolName           string      `json:"tool_name"`
-	Status             string      `json:"status"`
-	Result             interface{} `json:"result,omitempty"`
-	Error              string      `json:"error,omitempty"`
-	DeactivateTemplate bool        `json:"deactivate_template,omitempty"` // True if this tool was suggested by the active template
-	IsAsync            bool        `json:"is_async,omitempty"`            // True if this tool is running asynchronously
-	AsyncRunID         string      `json:"async_run_id,omitempty"`        // External operation ID for async tracking
+	ToolCallID string      `json:"tool_call_id"`
+	ToolName   string      `json:"tool_name"`
+	Status     string      `json:"status"`
+	Result     interface{} `json:"result,omitempty"`
+	Error      string      `json:"error,omitempty"`
+	IsAsync    bool        `json:"is_async,omitempty"`     // True if this tool is running asynchronously
+	AsyncRunID string      `json:"async_run_id,omitempty"` // External operation ID for async tracking
 }
 
 // AsyncOperationInfo contains information about an async tool operation.

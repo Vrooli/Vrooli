@@ -1,52 +1,45 @@
 {
-  "description": "Team-member relationship management including role assignments and membership status.",
-  "module_id": "MOD-P1-019",
-  "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-016", "REQ-P0-018"],
-      "description": "Create and manage team-member relationships with roles and status",
       "id": "REQ-P1-023",
-      "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
-      "status": "complete",
       "title": "Team-Member Relations API",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
+      "category": "api",
+      "description": "Create and manage team-member relationships with roles and status",
       "validation": [
         {
-          "notes": "Relations stored in store/relations/team-member/",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Relations stored in store/relations/team-member/"
         },
         {
-          "notes": "POST /api/v1/teams/{id}/members creates membership",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "POST /api/v1/teams/{id}/members creates membership"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P1-023"],
-      "description": "Member role assignment and status management",
       "id": "REQ-P1-024",
-      "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
-      "status": "complete",
       "title": "Member Role Management",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
+      "category": "api",
+      "description": "Member role assignment and status management",
       "validation": [
         {
-          "notes": "PUT /api/v1/teams/{id}/members/{agentId} updates roles",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "PUT /api/v1/teams/{id}/members/{agentId} updates roles"
         }
       ]
     }
-  ],
-  "title": "Team membership with roles"
+  ]
 }

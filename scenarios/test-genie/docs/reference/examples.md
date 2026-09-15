@@ -13,7 +13,6 @@ This document showcases exemplary testing implementations that demonstrate best 
 
 ### Why It's Gold Standard
 - **79.4% Go coverage** with comprehensive test cases
-- **Safe BATS implementation** following all safety guidelines
 - **Complete phased testing** with all 7 phases implemented
 - **Reusable test helpers** for HTTP testing
 - **Well-documented** with inline comments and guides
@@ -63,32 +62,24 @@ func TestVisitHandler(t *testing.T) {
 }
 ```
 
-#### CLI Testing (`cli/visited-tracker.bats`)
+#### Go CLI Testing (`cli/app_test.go`)
 
 Demonstrates:
-- **Safe variable handling** - Variables set before skip conditions
-- **Guarded teardown** - Multiple validation layers
-- **Comprehensive coverage** - 30+ test cases
-- **Service state handling** - Tests with/without API running
-- **JSON validation** - Proper output validation
+- **Standard scaffold validation** - Confirms the Go CLI is wired through the shared scenario app
+- **Fast feedback** - No shell harness required for core CLI behavior
+- **Go-native assertions** - Command behavior stays in the same test ecosystem as the CLI code
+- **Greenfield alignment** - No duplicate shell-test layer for Go CLIs
 
-```bash
-# Example: Safe BATS setup/teardown
-setup() {
-    # Variables FIRST (critical!)
-    export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
+```go
+func TestNewAppBuildsStandardScenarioCLI(t *testing.T) {
+    app, err := NewApp()
+    if err != nil {
+        t.Fatalf("NewApp returned error: %v", err)
+    }
 
-    # Skip conditions AFTER
-    if ! command -v visited-tracker >/dev/null 2>&1; then
-        skip "visited-tracker CLI not installed"
-    fi
-}
-
-teardown() {
-    # Multiple guards for safety
-    if [ -n "${TEST_FILE_PREFIX:-}" ]; then
-        rm -f "${TEST_FILE_PREFIX}"* 2>/dev/null || true
-    fi
+    if got := app.core.APIPath("health"); got != "/api/v1/health" {
+        t.Fatalf("expected /api/v1/health, got %q", got)
+    }
 }
 ```
 
@@ -143,7 +134,7 @@ teardown() {
 
 ### Database Integration Testing
 
-**Location**: `/resources/sqlite/` or the target scenario's persistence tests
+**Location**: The target scenario's persistence tests
 
 Demonstrates:
 - Database connection validation
@@ -303,7 +294,7 @@ go test ./... -cover
 
 ### Specific Test Types
 - [Go Handler Tests](/scenarios/visited-tracker/api/main_test.go)
-- [BATS CLI Tests](/scenarios/visited-tracker/cli/visited-tracker.bats)
+- [Go CLI Tests](/scenarios/visited-tracker/cli/app_test.go)
 - [Integration Tests](/scenarios/visited-tracker/coverage/phases/test-integration.sh)
 
 ### Test Helpers
@@ -323,7 +314,7 @@ To achieve gold standard testing:
 ### 2. Coverage
 - Unit tests > 80%
 - Integration tests for all endpoints
-- CLI tests with BATS
+- CLI tests in Go
 - Business logic validation
 
 ### 3. Safety

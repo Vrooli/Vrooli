@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // Provider isolates infrastructure-level telemetry.

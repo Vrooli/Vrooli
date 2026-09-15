@@ -5,7 +5,7 @@
  * toggle so that deeply-nested child components can read/write them
  * without prop drilling through the page component.
  *
- * Follows the same pattern as clarification-store.ts.
+ * Keeps transient detail-page state local to this store.
  */
 
 import { create } from "zustand";
@@ -31,14 +31,11 @@ interface BacklogDetailUIState {
   // Simple open/close dialogs
   showEdit: boolean;
   showDelete: boolean;
-  showWorkshopReset: boolean;
-  showAgentDialog: boolean;
   showRunModal: boolean;
   showGlobDialog: boolean;
-  /** Workshop blocking override confirmation dialog. Stores the pending mode. */
-  workshopBlockingConfirm: { show: boolean; mode: "workshop" | "finalize" };
   // Parameterised dialog state
   followUpTarget: ExecutionRecord | null;
+  followUpContext?: string;
   roundToDelete: number | null;
 
   // CRUD dialogs (mirror useDialogState shape)
@@ -56,17 +53,12 @@ interface BacklogDetailUIState {
   closeEdit: () => void;
   openDelete: () => void;
   closeDelete: () => void;
-  openWorkshopReset: () => void;
-  closeWorkshopReset: () => void;
-  openAgent: () => void;
-  closeAgent: () => void;
   openRunModal: () => void;
   closeRunModal: () => void;
   openGlob: () => void;
   closeGlob: () => void;
-  openWorkshopBlockingConfirm: (mode: "workshop" | "finalize") => void;
-  closeWorkshopBlockingConfirm: () => void;
   setFollowUpTarget: (target: ExecutionRecord | null) => void;
+  setFollowUpContext: (context?: string) => void;
   setRoundToDelete: (round: number | null) => void;
 
   // CRUD dialog actions
@@ -93,12 +85,10 @@ interface BacklogDetailUIState {
 const INITIAL_STATE = {
   showEdit: false,
   showDelete: false,
-  showWorkshopReset: false,
-  showAgentDialog: false,
   showRunModal: false,
   showGlobDialog: false,
-  workshopBlockingConfirm: { show: false, mode: "workshop" as const },
   followUpTarget: null,
+  followUpContext: undefined,
   roundToDelete: null,
   reqDialog: closedDialog<{ groupId: string; req?: ArchiveRequirementRecord }>(),
   moduleDialog: closedDialog<string>(),
@@ -116,17 +106,12 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
   closeEdit: () => set({ showEdit: false }),
   openDelete: () => set({ showDelete: true }),
   closeDelete: () => set({ showDelete: false }),
-  openWorkshopReset: () => set({ showWorkshopReset: true }),
-  closeWorkshopReset: () => set({ showWorkshopReset: false }),
-  openAgent: () => set({ showAgentDialog: true }),
-  closeAgent: () => set({ showAgentDialog: false }),
   openRunModal: () => set({ showRunModal: true }),
   closeRunModal: () => set({ showRunModal: false }),
   openGlob: () => set({ showGlobDialog: true }),
   closeGlob: () => set({ showGlobDialog: false }),
-  openWorkshopBlockingConfirm: (mode) => set({ workshopBlockingConfirm: { show: true, mode } }),
-  closeWorkshopBlockingConfirm: () => set({ workshopBlockingConfirm: { show: false, mode: "workshop" } }),
-  setFollowUpTarget: (target) => set({ followUpTarget: target }),
+  setFollowUpTarget: (target) => set({ followUpTarget: target, ...(target ? {} : { followUpContext: undefined }) }),
+  setFollowUpContext: (context) => set({ followUpContext: context }),
   setRoundToDelete: (round) => set({ roundToDelete: round }),
 
   // CRUD dialogs
@@ -158,7 +143,6 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
 
   reset: () => set({
     ...INITIAL_STATE,
-    workshopBlockingConfirm: { show: false, mode: "workshop" as const },
     // Create fresh Set instances to avoid sharing references
     selectedTargetIds: new Set<string>(),
     selectedRequirementIds: new Set<string>(),

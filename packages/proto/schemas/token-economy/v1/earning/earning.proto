@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.earning;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/earning;earningv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// EARNING
+// =============================================================================
+//
+// @stability stable
+//
+// Owns the single inbound earning-adapter contract. This integration surface
+// is separate from the minter and holder audience services: adapter
+// credentials can submit work without acquiring mint or holder authority.
+//
+// =============================================================================
+
+message EarningSubmission {
+  string id = 1;
+  string holder_id = 2;
+  string token_type_id = 3;
+  int64 amount_minor = 4;
+  string reason = 5;
+  string dedup_key = 6;
+  string adapter_identity = 7;
+  string actor_identity = 8;
+  string grant_id = 9;
+  google.protobuf.Timestamp submitted_at = 10;
+  bool replayed = 11;
+  string payload_summary = 12;
+}
+
+message SubmitEarningRequest {
+  string holder_id = 1;
+  string token_type_id = 2;
+  int64 amount_minor = 3;
+  string reason = 4;
+  string dedup_key = 5;
+}
+
+message SubmitEarningResponse { EarningSubmission submission = 1; }
+message ListEarningsRequest {}
+message ListEarningsResponse { repeated EarningSubmission submissions = 1; }
+
+service EarningService {
+  rpc SubmitEarning(SubmitEarningRequest) returns (SubmitEarningResponse);
+  rpc ListEarnings(ListEarningsRequest) returns (ListEarningsResponse);
+}

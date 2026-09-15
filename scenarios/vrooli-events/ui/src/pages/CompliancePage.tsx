@@ -1,4 +1,6 @@
 // REQ-UI-011: Compliance & audit view
+// DOC: docs/reference/api-endpoints.md#policy-violations
+// DOC: docs/guides/managing-policies.md
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Tunnel Manager</title>
+  <desc id="desc">A cyan tunnel ring around a connected exposure point on a deep navy field.</desc>
+  <rect width="512" height="512" rx="112" fill="#020617"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#164e63" stroke-width="28"/>
+  <circle cx="256" cy="256" r="104" fill="none" stroke="#67e8f9" stroke-width="22" opacity=".9"/>
+  <circle cx="256" cy="256" r="42" fill="#67e8f9"/>
+  <circle cx="256" cy="256" r="18" fill="#ecfeff"/>
+  <path d="M358 154 424 108M358 358l66 46" stroke="#38bdf8" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="432" cy="102" r="17" fill="#a5f3fc"/>
+  <circle cx="432" cy="410" r="17" fill="#a5f3fc"/>
+</svg>

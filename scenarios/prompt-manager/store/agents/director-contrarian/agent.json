@@ -1,0 +1,14 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "director-contrarian",
+  "displayName": "Director Contrarian",
+  "description": "Reports director-swarm deviations against the target operating model without restructuring the team.",
+  "status": "active",
+  "appearance": {"body": "#2563EB", "head": "#60A5FA", "accent": "#DBEAFE"},
+  "tags": ["director", "contrarian", "shape-sensor"],
+  "fileOrder": ["AGENT.md"],
+  "revision": 1,
+  "createdAt": "2026-08-30T00:00:00Z",
+  "updatedAt": "2026-08-30T00:00:00Z"
+}

@@ -86,6 +86,15 @@ export interface OrgChartApiResponse {
     managerAgentId: string
     reportAgentId: string
   }>
+  managedTeamEdges?: ManagedTeamEdge[]
+}
+
+export interface ManagedTeamEdge {
+  managerTeamId: string
+  managedTeamId: string
+  relationship?: string
+  authorityRef?: string
+  status?: string
 }
 
 /**
@@ -96,6 +105,7 @@ export interface SetOrgChartRequest {
     managerAgentId: string
     reportAgentId: string
   }>
+  managedTeamEdges?: ManagedTeamEdge[]
 }
 
 /**

@@ -12,44 +12,18 @@
  * - DELETE /teams/{id}/org/edges/{reportId} - Remove a single edge
  */
 
-import { buildApiUrl } from '@vrooli/api-base'
-import { API_BASE } from '@/lib/api'
-import type { OrgEdge, OrgChartApiResponse, SetOrgChartRequest, UpdateEdgeRequest } from '@/types/orgChart'
+import { createClient } from '@connectrpc/connect'
+import { createScenarioConnectTransport, resolveApiBase } from '@vrooli/api-base'
+import { TeamsService } from '@vrooli/proto-types/prompt-manager/v1/teams/teams_pb'
+import type { ManagedTeamEdge, OrgEdge, OrgChartApiResponse, UpdateEdgeRequest } from '@/types/orgChart'
 
 // ============================================================================
 // API Client
 // ============================================================================
 
-async function apiRequest<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const url = buildApiUrl(endpoint, { baseUrl: API_BASE })
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (options?.headers) {
-    const extraHeaders = options.headers as Record<string, string>
-    Object.assign(headers, extraHeaders)
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`)
-  }
-
-  if (response.status === 204) {
-    return {} as T
-  }
-
-  return response.json() as Promise<T>
-}
+const teamsClient = createClient(TeamsService, createScenarioConnectTransport({
+  baseUrl: resolveApiBase({ appendSuffix: false }),
+}))
 
 // ============================================================================
 // Internal Helpers
@@ -71,28 +45,16 @@ function apiEdgeToOrgEdge(
 /**
  * Convert frontend OrgEdge format to backend API edge format.
  */
-function orgEdgeToApiEdge(edge: OrgEdge): { managerAgentId: string; reportAgentId: string } {
-  return {
-    managerAgentId: edge.managerId,
-    reportAgentId: edge.reportId,
-  }
-}
-
 /**
  * Save all edges to the backend (replaces existing edges).
  */
 async function setAllEdges(teamId: string, edges: OrgEdge[]): Promise<void> {
-  const request: SetOrgChartRequest = {
-    edges: edges.map(orgEdgeToApiEdge),
-  }
-
-  await apiRequest<OrgChartApiResponse>(
-    `/teams/${encodeURIComponent(teamId)}/org`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    }
-  )
+  const existing = await teamsClient.getOrgChart({ teamId })
+  await teamsClient.setOrgChart({
+    teamId,
+    edges: edges.map((edge) => ({ managerAgentId: edge.managerId, reportAgentId: edge.reportId })),
+    managedTeamEdges: existing.managedTeamEdges,
+  })
 }
 
 // ============================================================================
@@ -104,9 +66,7 @@ async function setAllEdges(teamId: string, edges: OrgEdge[]): Promise<void> {
  */
 export async function getEdges(teamId: string): Promise<OrgEdge[]> {
   try {
-    const response = await apiRequest<OrgChartApiResponse>(
-      `/teams/${encodeURIComponent(teamId)}/org`
-    )
+    const response = await teamsClient.getOrgChart({ teamId })
     return response.edges.map((edge) => apiEdgeToOrgEdge(edge))
   } catch (error) {
     // If endpoint doesn't exist yet or team has no org chart, return empty array
@@ -116,6 +76,43 @@ export async function getEdges(teamId: string): Promise<OrgEdge[]> {
     console.warn('[orgChartService] Failed to get edges:', error)
     throw error
   }
+}
+
+/** Read the configured team-to-team supervision edges owned by a team. */
+export async function getManagedTeamEdges(teamId: string): Promise<ManagedTeamEdge[]> {
+  const response = await teamsClient.getOrgChart({ teamId })
+  return response.managedTeamEdges.map((edge) => ({
+    managerTeamId: edge.managerTeamId,
+    managedTeamId: edge.managedTeamId,
+    relationship: edge.relationship,
+    authorityRef: edge.authorityRef,
+    status: edge.status,
+  }))
+}
+
+export async function getOrgChart(teamId: string): Promise<OrgChartApiResponse> {
+  const response = await teamsClient.getOrgChart({ teamId })
+  return {
+    teamId: response.teamId,
+    edges: response.edges.map((edge) => ({ managerAgentId: edge.managerAgentId, reportAgentId: edge.reportAgentId })),
+    managedTeamEdges: response.managedTeamEdges.map((edge) => ({
+      managerTeamId: edge.managerTeamId,
+      managedTeamId: edge.managedTeamId,
+      relationship: edge.relationship,
+      authorityRef: edge.authorityRef,
+      status: edge.status,
+    })),
+  }
+}
+
+/** Replace only this team's outgoing managed-team relationships. */
+export async function setManagedTeamEdges(teamId: string, managedTeamEdges: ManagedTeamEdge[]): Promise<void> {
+  const response = await teamsClient.getOrgChart({ teamId })
+  await teamsClient.setOrgChart({
+    teamId,
+    edges: response.edges,
+    managedTeamEdges,
+  })
 }
 
 /**
@@ -131,27 +128,16 @@ export async function updateEdge(
     return null
   }
 
-  const response = await apiRequest<{ managerAgentId: string; reportAgentId: string }>(
-    `/teams/${encodeURIComponent(teamId)}/org/edges/${encodeURIComponent(agentId)}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({ managerAgentId: request.managerId }),
-    }
-  )
-
-  return apiEdgeToOrgEdge(response)
+  const response = await teamsClient.updateOrgChartEdge({ teamId, reportAgentId: agentId, managerAgentId: request.managerId })
+  const edge = response.edges.find((candidate) => candidate.reportAgentId === agentId)
+  return edge ? apiEdgeToOrgEdge(edge) : null
 }
 
 /**
  * Remove an edge (remove manager relationship).
  */
 export async function removeEdge(teamId: string, agentId: string): Promise<void> {
-  await apiRequest(
-    `/teams/${encodeURIComponent(teamId)}/org/edges/${encodeURIComponent(agentId)}`,
-    {
-      method: 'DELETE',
-    }
-  )
+  await teamsClient.deleteOrgChartEdge({ teamId, reportAgentId: agentId })
 }
 
 /**

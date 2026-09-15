@@ -300,14 +300,14 @@ handleStreamingResponse → parseStreamingChunks → NETWORK FAILURE
 ```bash
 # SQLite is embedded, so database failure is rare. To simulate:
 # 1. Make the database file read-only
-chmod 444 ~/.vrooli/data/sqlite/databases/agent-inbox.db
+chmod 444 "${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/agent-inbox/agent-inbox.db"
 
 # 2. Verify health endpoint shows unhealthy
 curl http://localhost:PORT/health | jq '.status'
 # Expected: "unhealthy"
 
 # 3. Restore permissions
-chmod 644 ~/.vrooli/data/sqlite/databases/agent-inbox.db
+chmod 644 "${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/agent-inbox/agent-inbox.db"
 ```
 
 ### Simulate Ollama Unavailable

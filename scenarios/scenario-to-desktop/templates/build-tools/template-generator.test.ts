@@ -182,4 +182,49 @@ describe('DesktopTemplateGenerator update configuration', () => {
             expect(effectiveProvider).toBe('github');
         });
     });
+
+    it('wires the Linux artifact signer only when Linux signing is enabled', () => {
+        const unsigned = new DesktopTemplateGenerator(createMinimalConfig());
+        expect((unsigned as any).buildTemplateVariables({}).LINUX_ARTIFACT_SIGNER_HOOK).toBe('null');
+
+        const signed = new DesktopTemplateGenerator(createMinimalConfig({
+            code_signing: { enabled: true, linux: { gpg_key_id: 'ABC123' } },
+        }));
+        expect((signed as any).buildTemplateVariables({}).LINUX_ARTIFACT_SIGNER_HOOK)
+            .toBe(JSON.stringify('scripts/sign-linux-artifacts.js'));
+    });
+
+    it('rejects unresolved tokens before writing a rendered file', async () => {
+        const generator = new DesktopTemplateGenerator(createMinimalConfig());
+        const sourcePath = path.join(tempDir, 'input.ts');
+        await fs.writeFile(sourcePath, '{{NOT_A_VARIABLE}}');
+
+        await expect((generator as any).processTemplateFile({
+            sourcePath,
+            targetPath: 'output.ts',
+            isTemplate: true,
+        }, {})).rejects.toThrow(/output\.ts.*\{\{NOT_A_VARIABLE\}\}/);
+        expect(await fs.pathExists(path.join(tempDir, 'output.ts'))).toBe(false);
+    });
+
+    it('rejects invalid JSON before writing a rendered file', async () => {
+        const generator = new DesktopTemplateGenerator(createMinimalConfig());
+        const sourcePath = path.join(tempDir, 'input.json');
+        await fs.writeFile(sourcePath, '{ invalid json }');
+
+        await expect((generator as any).processTemplateFile({
+            sourcePath,
+            targetPath: 'output.json',
+            isTemplate: true,
+        }, {})).rejects.toThrow(/invalid JSON generated for output\.json/);
+        expect(await fs.pathExists(path.join(tempDir, 'output.json'))).toBe(false);
+    });
+
+    it('does not inject fixed Tier 1 ports into bundled runtime launches', async () => {
+        const template = await fs.readFile(path.resolve(__dirname, '../vanilla/main.ts'), 'utf8');
+        expect(template).toContain('if (!isBundledMode)');
+        expect(template).toContain('defeat the bundle allocator\'s role bands');
+        expect(template).toContain('WC_SESSION_STATE_ROOT');
+        expect(template).toContain('web-console-sessions');
+    });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDelta, formatHours, formatRate, formatWeeksRemaining, toBarPercent } from "./stats-format-utils";
+import { formatDelta, formatHours, formatRate, toBarPercent } from "./stats-format-utils";
 
 describe("formatHours", () => {
   it("returns '< 1 min' for zero", () => {
@@ -68,28 +68,6 @@ describe("formatDelta", () => {
 
   it("shows zero without prefix", () => {
     expect(formatDelta(0)).toBe("0");
-  });
-});
-
-describe("formatWeeksRemaining", () => {
-  it("returns 'Done' for zero", () => {
-    expect(formatWeeksRemaining(0)).toBe("Done");
-  });
-
-  it("returns 'Done' for negative values", () => {
-    expect(formatWeeksRemaining(-1)).toBe("Done");
-  });
-
-  it("returns '< 1 week' for fractional weeks", () => {
-    expect(formatWeeksRemaining(0.3)).toBe("< 1 week");
-  });
-
-  it("formats weeks with tilde and one decimal", () => {
-    expect(formatWeeksRemaining(8.6)).toBe("~8.6 weeks");
-  });
-
-  it("formats exactly one week", () => {
-    expect(formatWeeksRemaining(1)).toBe("~1.0 weeks");
   });
 });
 

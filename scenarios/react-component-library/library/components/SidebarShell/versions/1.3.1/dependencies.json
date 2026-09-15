@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:SidebarShell",
+  "version": "1.3.1",
+  "resolvedAt": "2026-09-03T08:51:21.573Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useEscapeKey",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

@@ -22,7 +22,7 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
   );
 
   const processSection = device.processes && device.processes.length > 0 && (
-    <div style={{ marginTop: 'var(--spacing-sm)' }}>
+    <div data-sm-style="sm-style-9ed1054ccd">
       <div
         className={isExpansion ? undefined : 'text-dim-xs'}
         style={isExpansion ? { color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-xs)' } : { marginBottom: '2px' }}
@@ -51,33 +51,17 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
 
   if (isExpansion) {
     return (
-      <div style={{
-        border: '1px solid var(--color-surface)',
-        borderRadius: 'var(--radius-md)',
-        padding: 'var(--spacing-md)',
-        background: 'var(--color-primary-muted)'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 'var(--spacing-sm)'
-        }}>
-          <span style={{ color: 'var(--color-text-heading)', fontWeight: 600 }}>
+      <div data-sm-style="sm-style-8dd0eabdeb">
+        <div data-sm-style="sm-style-512805d4a2">
+          <span data-sm-style="sm-style-6e97bc6917">
             {device.name} (GPU {device.index})
           </span>
-          <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-sm)' }}>
+          <span data-sm-style="sm-style-0419277d6a">
             {device.utilizationPercent?.toFixed(1) ?? '—'}%
           </span>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: 'var(--spacing-sm)',
-          fontSize: 'var(--text-xs)',
-          color: 'var(--color-text-secondary)'
-        }}>
+        <div data-sm-style="sm-style-7fdc0d68d5">
           {statsContent}
         </div>
 
@@ -88,7 +72,7 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
 
   return (
     <div className="gpu-device-card">
-      <div className="flex-row-between" style={{ marginBottom: 'var(--spacing-sm)' }}>
+      <div className="flex-row-between" data-sm-style="sm-style-c08663b577">
         <span className="text-bright font-semibold">
           {device.name} (GPU {device.index})
         </span>

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpDown, AlertCircle, CheckCircle2, FileWarning, Activity, TrendingUp, HelpCircle, FolderOpen, Info, Terminal, Sparkles } from "lucide-react";
+import { ArrowUpDown, AlertCircle, CheckCircle2, FileWarning, Activity, TrendingUp, FolderOpen, Info, Terminal, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { fetchScenarioStats, type ScenarioStats } from "../lib/api";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -335,7 +335,7 @@ export default function Dashboard() {
                           <div>
                             <div className="font-medium text-sm sm:text-base text-slate-100">{scenario.scenario}</div>
                             <div className="text-xs text-slate-400">
-                              {scenario.total_files} files · {scenario.total_lines.toLocaleString()} lines
+                              {scenario.total_files ?? 0} files · {(scenario.total_lines ?? 0).toLocaleString()} lines
                             </div>
                           </div>
                         </td>

@@ -17,6 +17,7 @@ import (
 func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 	// Create test scenario files
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 
@@ -46,6 +47,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 
 	// Create mock AI resource server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setSmartScannerTestSecurityHeaders(w)
 		if r.URL.Path != "/api/analyze" {
 			http.NotFound(w, r)
 			return
@@ -173,6 +175,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 // [REQ:TM-SS-001] Test batch processing with AI resource errors
 func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -241,7 +244,10 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockServer := httptest.NewServer(http.HandlerFunc(tt.serverBehavior))
+			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				setSmartScannerTestSecurityHeaders(w)
+				tt.serverBehavior(w, r)
+			}))
 			defer mockServer.Close()
 
 			oldEnv := os.Getenv("CLAUDE_CODE_URL")
@@ -281,9 +287,20 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 	}
 }
 
+func setSmartScannerTestSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+}
+
 // [REQ:TM-SS-001] Test concurrent batch processing
 func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -376,6 +393,7 @@ func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 // [REQ:TM-SS-007] Test context cancellation during batch processing
 func TestSmartScanner_ContextCancellation(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {

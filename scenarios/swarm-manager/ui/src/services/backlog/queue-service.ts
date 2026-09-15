@@ -2,12 +2,8 @@
  * Backlog Queue Service — queue and research operations
  */
 
+import { QueueBacklogItemRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import {
-  BacklogResearchRequestSchema,
-  QueueBacklogItemRequestSchema,
-} from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
-import {
-  backlogResearchResponseSchema,
   mapProtoBacklogItem,
   parseProtoResponse,
   queueBacklogResponseSchema,
@@ -16,8 +12,14 @@ import {
 } from "../proto-contracts";
 import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
-import type { BacklogKind, ResearchResponse } from "../../types";
+import type { BacklogKind } from "../../types";
 import type { QueueResponse } from "./types";
+
+export interface RetryBacklogResponse {
+  newExecutionId: string;
+  parentExecutionId: string;
+  status: string;
+}
 
 export function createQueueMethods(apiClient: IApiClient) {
   return {
@@ -30,6 +32,11 @@ export function createQueueMethods(apiClient: IApiClient) {
         startedBy?: string;
         confirm?: boolean;
         force?: boolean;
+        strategy?: string;
+        maxSlices?: number;
+        preferredRunner?: string;
+        model?: string;
+        effort?: string;
       }
     ): Promise<QueueResponse> {
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
@@ -38,6 +45,13 @@ export function createQueueMethods(apiClient: IApiClient) {
         ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
         ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
         ...(options?.force !== undefined ? { force: options.force } : {}),
+        ...(options?.strategy ? { strategy: options.strategy } : {}),
+        ...(options?.maxSlices ? { maxSlices: options.maxSlices } : {}),
+        ...((options?.preferredRunner || options?.model || options?.effort) ? { executionPreferences: {
+          preferredRunner: options.preferredRunner ?? "",
+          model: options.model ?? "",
+          effort: options.effort ?? "",
+        } } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogQueue(kind, name),
@@ -54,6 +68,7 @@ export function createQueueMethods(apiClient: IApiClient) {
         queued: parsed.queued ?? false,
         message: parsed.message ?? "",
         blockingReasons: (parsed.blockingReasons ?? []).map((r) => ({
+          code: typeof r === "string" ? undefined : ((r as { code?: string }).code ?? undefined),
           message: typeof r === "string" ? r : (r.message ?? ""),
           forceable: typeof r === "string" ? false : (r.forceable ?? false),
         })),
@@ -62,35 +77,21 @@ export function createQueueMethods(apiClient: IApiClient) {
       };
     },
 
-    async research(
-      kind: BacklogKind,
-      name: string,
-      payload?: {
-        prompt?: string;
-        projectRoot?: string;
-        mode?: string;
-        contextPaths?: string[];
-        contextTargetIds?: string[];
-        contextRequirementIds?: string[];
-        confirm?: boolean;
-        force?: boolean;
-      }
-    ): Promise<ResearchResponse> {
-      const message = buildMessage(BacklogResearchRequestSchema, {
-        prompt: payload?.prompt,
-        projectRoot: payload?.projectRoot,
-        mode: payload?.mode,
-        contextPaths: payload?.contextPaths ?? [],
-        contextTargetIds: payload?.contextTargetIds ?? [],
-        contextRequirementIds: payload?.contextRequirementIds ?? [],
-        ...(payload?.confirm !== undefined ? { confirm: payload.confirm } : {}),
-        ...(payload?.force !== undefined ? { force: payload.force } : {}),
-      });
-      const data = await apiClient.post<unknown>(
-        API_ENDPOINTS.backlogResearch(kind, name),
-        toProtoJson(BacklogResearchRequestSchema, message)
-      );
-      return parseProtoResponse(backlogResearchResponseSchema, data, "backlog research");
+    async retry(kind: BacklogKind, name: string, note?: string): Promise<RetryBacklogResponse> {
+      const data = await apiClient.post<{
+        new_execution_id: string;
+        parent_execution_id: string;
+        status: string;
+      }>(API_ENDPOINTS.backlogRetry(kind, name), note ? { note } : {});
+      return {
+        newExecutionId: data.new_execution_id,
+        parentExecutionId: data.parent_execution_id,
+        status: data.status,
+      };
+    },
+
+    async dispatchFollowUp(kind: BacklogKind, name: string): Promise<void> {
+      await apiClient.post(API_ENDPOINTS.backlogDispatchFollowUp(kind, name), {});
     },
   };
 }

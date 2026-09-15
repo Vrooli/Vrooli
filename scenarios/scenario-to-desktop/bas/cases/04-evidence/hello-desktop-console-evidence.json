@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "hello-desktop-console-evidence",
+    "description": "Given the Hello Desktop release evidence exists, when an operator opens its desktop-console target, then the generator, build, and smoke-test controls are visible for reviewing that real release. Native launch remains evidenced by the Xvfb recording.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"OT-P0-003\",\"OT-P0-007\"]",
+      "purpose": "hello-desktop-console-evidence"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=generator&scenario=hello-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open Hello Desktop in the desktop console"}}},
+    {"id":"assert-scenario","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.scenarioPicker","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Hello Desktop target selection is available"}}},
+    {"id":"assert-generate","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.generateSubmit","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Generation control is available"}}},
+    {"id":"assert-build","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.buildSection","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Build evidence surface is available"}}},
+    {"id":"assert-smoke","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.smokeTestSection","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Smoke evidence surface is available"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture Hello Desktop console evidence"}}}
+  ],
+  "edges":[{"id":"e1","source":"navigate","target":"assert-scenario"},{"id":"e2","source":"assert-scenario","target":"assert-generate"},{"id":"e3","source":"assert-generate","target":"assert-build"},{"id":"e4","source":"assert-build","target":"assert-smoke"},{"id":"e5","source":"assert-smoke","target":"capture"}]
+}

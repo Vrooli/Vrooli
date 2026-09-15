@@ -13,12 +13,20 @@ type Config struct {
 
 // GlobalConfig contains settings that apply to all checks
 type GlobalConfig struct {
-	GracePeriodSeconds     int `json:"gracePeriodSeconds,omitempty"`
-	TickIntervalSeconds    int `json:"tickIntervalSeconds,omitempty"`
-	VerifyDelaySeconds     int `json:"verifyDelaySeconds,omitempty"`
-	MaxRestartAttempts     int `json:"maxRestartAttempts,omitempty"`
-	RestartCooldownSeconds int `json:"restartCooldownSeconds,omitempty"`
-	HistoryRetentionHours  int `json:"historyRetentionHours,omitempty"`
+	GracePeriodSeconds          int `json:"gracePeriodSeconds,omitempty"`
+	TickIntervalSeconds         int `json:"tickIntervalSeconds,omitempty"`
+	VerifyDelaySeconds          int `json:"verifyDelaySeconds,omitempty"`
+	MaxRestartAttempts          int `json:"maxRestartAttempts,omitempty"`
+	RestartCooldownSeconds      int `json:"restartCooldownSeconds,omitempty"`
+	HistoryRetentionHours       int `json:"historyRetentionHours,omitempty"`
+	ActionTimeoutFastSeconds    int `json:"actionTimeoutFastSeconds,omitempty"`
+	ActionTimeoutRestartSeconds int `json:"actionTimeoutRestartSeconds,omitempty"`
+	TimeoutRetrySeconds         int `json:"timeoutRetrySeconds,omitempty"`
+	HealInterlockSeconds        int `json:"healInterlockSeconds,omitempty"`
+	// ContainStorm is the storm authority's mode: "automatic" freezes an
+	// attributed agent session scope from the auto-heal pass after a
+	// sustained finding; "propose_only" keeps the action operator-only.
+	ContainStorm string `json:"containStorm,omitempty"`
 }
 
 // Check contains per-check configuration
@@ -45,7 +53,7 @@ type CheckSettings struct {
 	CleanPortsBeforeRestart *bool  `json:"cleanPortsBeforeRestart,omitempty"`
 	CaptureLogsOnFailure    *bool  `json:"captureLogsOnFailure,omitempty"`
 	LogLinesToCapture       *int   `json:"logLinesToCapture,omitempty"`
-	AutoHealOn              string `json:"autoHealOn,omitempty"` // critical | warning+critical
+	AutoHealOn              string `json:"autoHealOn,omitempty"` // critical | critical+signature | warning+critical
 }
 
 // UIConfig contains UI display preferences

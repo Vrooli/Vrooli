@@ -7,11 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	varianthttp "landing-page-business-suite-api/handlers/experimentation"
+	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	tmpDir := t.TempDir()
 	variantsDir := filepath.Join(tmpDir, "variants")
@@ -23,7 +26,7 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 		t.Fatalf("failed to write branding file: %v", err)
 	}
 
-	cs := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	cs := experimentation.NewConfigStore(variantsDir, brandingPath, experimentation.DefaultVariantSpace())
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
@@ -34,7 +37,7 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(handleVariantSnapshotSync(cs))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.Code)
@@ -43,7 +46,6 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 
 func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dir := t.TempDir()
 	variantsDir := filepath.Join(dir, "variants")
@@ -52,14 +54,14 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	}
 
 	// Write a test variant snapshot
-	writeSnapshot(t, variantsDir, VariantSnapshotInput{
-		Variant: VariantSnapshotMetaInput{
+	writeSnapshot(t, variantsDir, experimentation.VariantSnapshotInput{
+		Variant: experimentation.VariantSnapshotMetaInput{
 			Slug:        "sync-handler",
 			Name:        "Sync Handler",
 			Description: "Synced",
 			Axes:        defaultAxesSelection(),
 		},
-		Sections: []VariantSectionInput{
+		Sections: []experimentation.VariantSectionInput{
 			{
 				SectionType: "hero",
 				Content:     json.RawMessage(`{"title": "Synced hero"}`),
@@ -75,7 +77,7 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	}
 
 	// Load the config store
-	cs := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	cs := experimentation.NewConfigStore(variantsDir, brandingPath, experimentation.DefaultVariantSpace())
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
@@ -87,10 +89,10 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(handleVariantSnapshotSync(cs))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
@@ -108,7 +110,6 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 
 func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create a ConfigStore pointing to a file (not a directory)
 	tempDir := t.TempDir()
@@ -123,7 +124,7 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	}
 
 	// Use the file path as the variants dir (which is invalid)
-	cs := NewConfigStore(filePath, brandingPath, defaultVariantSpace)
+	cs := experimentation.NewConfigStore(filePath, brandingPath, experimentation.DefaultVariantSpace())
 
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
@@ -131,10 +132,10 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	t.Setenv("VARIANT_SNAPSHOT_DIR", filePath)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(handleVariantSnapshotSync(cs))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	// ConfigStore.LoadAll returns an error when variantsDir points to a file instead of a directory
 	// So we expect 500 here

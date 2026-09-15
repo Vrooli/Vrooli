@@ -31,7 +31,7 @@ The knowledge-observatory scenario has been migrated from an outdated tech stack
    - ✅ Makefile - Build and development commands (restored from backup)
 
 4. **Migrated Data and Configuration**
-   - ✅ initialization/ - Postgres schemas, N8N workflows, data population scripts
+   - ✅ api/internal/<domain>/ - Postgres schemas, N8N workflows, data population scripts
    - ✅ data/ - Sample data and fixtures
    - ✅ test/ - Complete test suite (structure, docs, dependencies, unit, integration, business, performance phases)
    - ✅ requirements/ - Requirements tracking system
@@ -49,7 +49,7 @@ The knowledge-observatory scenario has been migrated from an outdated tech stack
        - qdrant (required) - Primary vector database for semantic knowledge
        - postgres (required) - Metadata, metrics, search history storage
        - n8n (optional) - Automated quality monitoring workflows
-       - ollama (optional) - Enhanced semantic analysis (llama3.2, nomic-embed-text)
+       - ollama (optional) - Enhanced semantic analysis (generation model plus `embedding.default`)
      - Updated health checks with qdrant connection monitoring
      - Enhanced setup steps with data population
      - Proper lifecycle configuration (setup, develop, test, stop)
@@ -172,7 +172,7 @@ knowledge-observatory/
 ├── cli/                    # CLI tools (from template)
 ├── data/                   # Sample data (from old scenario)
 ├── docs/                   # Documentation (from template)
-├── initialization/         # DB schemas, N8N workflows (from old scenario)
+├── api/internal/<domain>/         # DB schemas, N8N workflows (from old scenario)
 ├── requirements/           # Requirements tracking (from old scenario)
 ├── test/                   # Complete test suite (from old scenario)
 ├── ui/                     # NEW React UI (needs to be built)

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-heartbeat-single-process",
+  "profileKey": "prompt-manager/heartbeat-inspection",
+  "description": "Portable profile for Prompt Manager single-process heartbeats (inspection members). Runs on Codex gpt-5.6-luna at medium via code.inspection. Operator wants these on OpenCode Go DeepSeek V4.1 Flash (role code.flatrate, 2026-09-12), but OpenCode cannot start inside the protected sandbox yet: it fails writing its per-run OPENCODE_CONFIG_DIR (FileSystem.writeFile .../skill-scope/opencode/.gitignore). Switch roleRef to code.flatrate and drop effort once that is fixed.",
+  "roleRef": "code.inspection",
+  "maxTurns": 200,
+  "timeout": "1800s",
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "prompt-manager",
+  "effort": "medium"
+}

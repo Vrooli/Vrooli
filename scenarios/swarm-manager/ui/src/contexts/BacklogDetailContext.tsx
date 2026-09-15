@@ -23,13 +23,7 @@ export interface BacklogDetailContextValue {
   isTerminal: boolean;
   agentRunIsActive: boolean;
   latestAgentActivity: AgentActivityRecord | null;
-  deliverableLabel: string;
-  workshopActionLabel: string;
   agentRunningLabel: string;
-  agentLabel: string;
-  isWorkshopFinalized: boolean;
-  workshopBlockedDeps: string[];
-  isRunningAgent: boolean;
 }
 
 const BacklogDetailCtx = createContext<BacklogDetailContextValue | null>(null);
@@ -53,13 +47,7 @@ export function BacklogDetailProvider({
     value.isTerminal,
     value.agentRunIsActive,
     value.latestAgentActivity,
-    value.deliverableLabel,
-    value.workshopActionLabel,
     value.agentRunningLabel,
-    value.agentLabel,
-    value.isWorkshopFinalized,
-    value.workshopBlockedDeps,
-    value.isRunningAgent,
   ]);
 
   return (

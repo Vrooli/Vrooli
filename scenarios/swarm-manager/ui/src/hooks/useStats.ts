@@ -12,10 +12,11 @@ import type { StatsResponse } from "../types/stats";
 
 export const STATS_QUERY_KEY = ["stats"] as const;
 
-export function useStats(enabled: boolean) {
+export function useStats(enabled: boolean, goal = "") {
+  const normalizedGoal = goal.trim();
   return useQuery<StatsResponse>({
-    queryKey: STATS_QUERY_KEY,
-    queryFn: () => statsService.getStats(),
+    queryKey: [...STATS_QUERY_KEY, { goal: normalizedGoal }],
+    queryFn: () => statsService.getStats({ goal: normalizedGoal }),
     enabled,
     staleTime: 30_000,
     gcTime: 5 * 60_000,

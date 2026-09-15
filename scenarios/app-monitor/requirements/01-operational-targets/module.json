@@ -1,18 +1,19 @@
 {
   "_metadata": {
-    "module": "operational-targets",
-    "description": "Operational target requirements migrated from legacy index",
     "auto_sync_enabled": true,
+    "description": "Operational target requirements migrated from legacy index",
+    "last_validated_at": "2026-07-13T23:34:30-04:00",
+    "module": "operational-targets",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "AM-P0-001",
-      "category": "monitoring",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "Real-time scenario status monitoring",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "monitoring",
       "description": "Display running/stopped/error states for all scenarios with live updates",
-      "status": "complete",
       "validation": [
         {
           "type": "manual",
@@ -25,18 +26,18 @@
           "type": "test",
           "ref": "api/services/app_service_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Unit tests for status monitoring pending"
         }
       ]
     },
     {
       "id": "AM-P0-002",
-      "category": "control",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Application lifecycle control",
-      "description": "Start, stop, and restart scenarios through UI and API",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "category": "control",
+      "description": "Start, stop, and restart scenarios through UI and API",
       "validation": [
         {
           "type": "manual",
@@ -49,11 +50,11 @@
     },
     {
       "id": "AM-P0-003",
-      "category": "monitoring",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "title": "Resource health tracking",
-      "description": "Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "monitoring",
+      "description": "Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)",
       "validation": [
         {
           "type": "manual",
@@ -66,11 +67,11 @@
     },
     {
       "id": "AM-P0-004",
-      "category": "metrics",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "title": "Performance metrics display",
-      "description": "Show CPU, memory, network, and disk usage per scenario",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "category": "metrics",
+      "description": "Show CPU, memory, network, and disk usage per scenario",
       "validation": [
         {
           "type": "manual",
@@ -83,11 +84,11 @@
     },
     {
       "id": "AM-P0-005",
-      "category": "logs",
-      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "title": "Live log streaming",
-      "description": "Stream real-time logs from running scenarios with filtering",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "category": "logs",
+      "description": "Stream real-time logs from running scenarios with filtering",
       "validation": [
         {
           "type": "manual",
@@ -100,11 +101,11 @@
     },
     {
       "id": "AM-P0-006",
-      "category": "design",
-      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "title": "Matrix cyberpunk UI theme",
-      "description": "Deliver distinctive green-on-black aesthetic with terminal fonts and glow effects",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "category": "design",
+      "description": "Deliver distinctive green-on-black aesthetic with terminal fonts and glow effects",
       "validation": [
         {
           "type": "manual",
@@ -117,11 +118,11 @@
     },
     {
       "id": "AM-P0-007",
-      "category": "integration",
-      "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "title": "Docker container integration",
-      "description": "Monitor and control scenarios via Docker API",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-007",
+      "category": "integration",
+      "description": "Monitor and control scenarios via Docker API",
       "validation": [
         {
           "type": "manual",
@@ -134,204 +135,204 @@
     },
     {
       "id": "AM-P1-001",
-      "category": "analytics",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Historical performance analytics",
-      "description": "Store and visualize performance trends over time",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-001",
+      "category": "analytics",
+      "description": "Store and visualize performance trends over time",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/metrics_service_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P1-002",
-      "category": "alerts",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "Automated health alerts",
-      "description": "Notify operators of degraded health or failures",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "alerts",
+      "description": "Notify operators of degraded health or failures",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/app_diagnostics_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P1-003",
-      "category": "control",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "title": "Batch scenario operations",
-      "description": "Execute start/stop/restart on multiple scenarios simultaneously",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-003",
+      "category": "control",
+      "description": "Execute start/stop/restart on multiple scenarios simultaneously",
       "validation": [
         {
           "type": "manual",
           "ref": "ui/src/components/actions/ActionsDialog.tsx",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P1-004",
-      "category": "terminal",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "title": "Interactive terminal interface",
-      "description": "Built-in command interface for system operations",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-004",
+      "category": "terminal",
+      "description": "Built-in command interface for system operations",
       "validation": [
         {
           "type": "manual",
           "ref": "ui/src/components/tabs/DiagnosticsTab.tsx",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P1-005",
-      "category": "customization",
-      "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "title": "Custom dashboard layouts",
-      "description": "Allow users to customize metric panels and views",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-005",
+      "category": "customization",
+      "description": "Allow users to customize metric panels and views",
       "validation": [
         {
           "type": "manual",
           "ref": "ui/src/components/views/HomeView.tsx",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P1-006",
-      "category": "logs",
-      "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "title": "Advanced log analysis",
-      "description": "Search, filter, and export logs with pattern matching",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-006",
+      "category": "logs",
+      "description": "Search, filter, and export logs with pattern matching",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/app_reports_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Feature not yet implemented"
         }
       ]
     },
     {
       "id": "AM-P2-001",
-      "category": "distributed",
-      "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "title": "Multi-server monitoring",
-      "description": "Aggregate monitoring across distributed Vrooli installations",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-001",
+      "category": "distributed",
+      "description": "Aggregate monitoring across distributed Vrooli installations",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/app_service_test.go",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Future feature"
         }
       ]
     },
     {
       "id": "AM-P2-002",
-      "category": "mobile",
-      "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "title": "Mobile-optimized interface",
-      "description": "Responsive design with mobile-first interactions",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-002",
+      "category": "mobile",
+      "description": "Responsive design with mobile-first interactions",
       "validation": [
         {
           "type": "manual",
           "ref": "ui/src/App.css",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Future feature"
         }
       ]
     },
     {
       "id": "AM-P2-003",
-      "category": "ml",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "title": "Predictive health modeling",
-      "description": "ML-based predictions of resource exhaustion or failures",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-003",
+      "category": "ml",
+      "description": "ML-based predictions of resource exhaustion or failures",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/app_diagnostics_aggregator_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Future feature requiring ML integration"
         }
       ]
     },
     {
       "id": "AM-P2-004",
-      "category": "integration",
-      "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "title": "Integration with external APM tools",
-      "description": "Export metrics to Prometheus, Grafana, Datadog",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-004",
+      "category": "integration",
+      "description": "Export metrics to Prometheus, Grafana, Datadog",
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers/system_test.go",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Future feature"
         }
       ]
     },
     {
       "id": "AM-P2-005",
-      "category": "security",
-      "prd_ref": "Operational Targets > P2 > OT-P2-005",
       "title": "Role-based access control",
-      "description": "Limit operations based on user permissions",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-005",
+      "category": "security",
+      "description": "Limit operations based on user permissions",
       "validation": [
         {
           "type": "test",
           "ref": "api/middleware/security_test.go",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Future feature requiring authentication system"
         }
       ]
     },
     {
       "id": "AM-P2-006",
-      "category": "visualization",
-      "prd_ref": "Operational Targets > P2 > OT-P2-006",
       "title": "Scenario dependency visualization",
-      "description": "Graph view of inter-scenario dependencies",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-006",
+      "category": "visualization",
+      "description": "Graph view of inter-scenario dependencies",
       "validation": [
         {
           "type": "manual",
           "ref": "ui/src/components/tabSwitcher/TabSwitcherDialog.tsx",
           "phase": "integration",
-          "status": "pending",
+          "status": "not_implemented",
           "notes": "Future feature"
         }
       ]

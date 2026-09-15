@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/capture.proto";
@@ -11,10 +11,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // CAPTURE API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports capture
-// @stability alpha
+// @stability experimental
 //
 // HTTP API contracts for Swarm Manager capture operations.
 //
@@ -32,7 +29,7 @@ message CreateCaptureRequest {
 
 // CaptureResponse returns a single capture.
 message CaptureResponse {
-  Capture capture = 1;
+  domain.Capture capture = 1;
 
   // Agent run identifiers (populated when auto-classification is triggered).
   optional string task_id = 2;
@@ -42,7 +39,7 @@ message CaptureResponse {
 
 // ListCapturesResponse returns all captures.
 message ListCapturesResponse {
-  repeated Capture captures = 1;
+  repeated domain.Capture captures = 1;
 }
 
 // ClassifyCaptureResponse returns agent-manager identifiers for classification runs.

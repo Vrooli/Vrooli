@@ -1,13 +1,38 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createElement } from "react";
+import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
+import type { AIGenerateResponse } from "../api/ai";
 
-// Mock api-base before importing
 vi.mock("@vrooli/api-base", () => apiBaseMock());
+
+const mockStoreState: Record<string, unknown> = {
+  aiModalOpen: true,
+  setAiModalOpen: vi.fn(),
+  activePane: "sess-1",
+};
+
+vi.mock("../stores/useWorkspaceStore", () => ({
+  useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector(mockStoreState),
+}));
+
+type GenerateRequest = { prompt: string; context: string };
+
+const generateMock = vi.fn<(request: GenerateRequest) => Promise<AIGenerateResponse>>();
+vi.mock("../api/ai", () => ({
+  aiClient: { generate: generateMock },
+  generateAICommand: async (prompt: string, context?: string) => {
+    const resp = await generateMock({ prompt, context: context ?? "" });
+    return { command: resp.command, provider: resp.provider };
+  },
+}));
 
 // [REQ:P0-005b] AI Input UI Component - component tests
 describe("AiInput component", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    generateMock.mockReset();
   });
 
   it("component module exports default function", async () => {
@@ -15,28 +40,15 @@ describe("AiInput component", () => {
     expect(typeof mod.default).toBe("function");
   });
 
-  it("component accepts onExecute and hasActiveTerminal props", async () => {
-    const mod = await import("../components/AiInput");
-    expect(mod.default).toBeDefined();
-    // React functional component accepts props
-    expect(mod.default.length).toBeGreaterThanOrEqual(0);
-  });
-
   it("generateAICommand is importable from api module", async () => {
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     expect(typeof generateAICommand).toBe("function");
   });
 
-  it("AIGenerateResponse type is correctly shaped", async () => {
-    // Verify the response interface matches the API contract
-    const mockResponse = { command: "ls -la", provider: "ollama" };
+  it("AIGenerateResponse shape exposes command and provider", async () => {
+    generateMock.mockResolvedValue({ command: "ls -la", provider: "ollama" });
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    }) as typeof fetch;
-
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     const result = await generateAICommand("list files");
 
     expect(result).toHaveProperty("command");
@@ -45,55 +57,56 @@ describe("AiInput component", () => {
     expect(typeof result.provider).toBe("string");
   });
 
-  it("generateAICommand sends correct request shape", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ command: "pwd", provider: "ollama" }),
-    }) as typeof fetch;
+  it("generateAICommand passes prompt and context to aiClient.generate", async () => {
+    generateMock.mockResolvedValue({ command: "pwd", provider: "ollama" });
 
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     await generateAICommand("show current dir", "cwd: /home");
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/ai/generate"),
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({ "Content-Type": "application/json" }) as Record<string, string>,
-      }),
-    );
-
-    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
-    const firstCall = calls[0] as [string, RequestInit];
-    const body = JSON.parse(firstCall[1].body as string) as Record<string, unknown>;
-    expect(body).toEqual({ prompt: "show current dir", context: "cwd: /home" });
+    expect(generateMock).toHaveBeenCalledWith({ prompt: "show current dir", context: "cwd: /home" });
   });
 
-  it("generateAICommand propagates structured error with retry info", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: () =>
-        Promise.resolve({
-          error: "AI unavailable",
-          code: "ai_provider_unavailable",
-          category: "dependency",
-          recovery: "Check Ollama",
-          retry: true,
-        }),
-    }) as typeof fetch;
+  it("generateAICommand propagates errors from the Connect client", async () => {
+    generateMock.mockRejectedValue(new Error("AI unavailable"));
 
-    const { generateAICommand, APIError } = await import("../lib/api");
-    try {
-      await generateAICommand("test");
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(APIError);
-      const apiErr = err as InstanceType<typeof APIError>;
-      expect(apiErr.code).toBe("ai_provider_unavailable");
-      expect(apiErr.category).toBe("dependency");
-      expect(apiErr.recovery).toBe("Check Ollama");
-      expect(apiErr.retry).toBe(true);
-      expect(apiErr.status).toBe(503);
-    }
+    const { generateAICommand } = await import("../api/ai");
+    await expect(generateAICommand("test")).rejects.toThrow("AI unavailable");
+  });
+});
+
+describe("AiInput rendering (DrawerShell compact)", () => {
+  beforeEach(() => {
+    cleanup();
+    mockStoreState.aiModalOpen = true;
+    mockStoreState.setAiModalOpen = vi.fn();
+  });
+
+  it("renders dialog semantics on the compact drawer and auto-focuses the prompt", async () => {
+    const { default: AiInput } = await import("../components/AiInput");
+    render(createElement(AiInput, { onExecute: vi.fn() }));
+    const panel = screen.getByTestId("ai-input");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+    expect(panel.className).toContain("md:max-w-md");
+    // The prompt input auto-focuses shortly after open (50ms defer) and must
+    // be the initially focused element inside the trap.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    expect(document.activeElement).toBe(screen.getByTestId("ai-input-prompt"));
+  });
+
+  it("closes on Escape", async () => {
+    const { default: AiInput } = await import("../components/AiInput");
+    render(createElement(AiInput, { onExecute: vi.fn() }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(mockStoreState.setAiModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("renders nothing when the modal flag is off", async () => {
+    mockStoreState.aiModalOpen = false;
+    const { default: AiInput } = await import("../components/AiInput");
+    render(createElement(AiInput, { onExecute: vi.fn() }));
+    expect(screen.queryByTestId("ai-input")).toBeNull();
   });
 });

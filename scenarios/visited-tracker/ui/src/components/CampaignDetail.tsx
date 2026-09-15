@@ -1,5 +1,7 @@
+import { usePageShortcuts } from "../hooks/usePageShortcuts";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback } from "react";
+import { selectors } from "../consts/selectors";
 import { ArrowLeft, Clock, FileText, TrendingUp, RefreshCw, AlertCircle, CheckCircle, Target, Terminal } from "lucide-react";
 import { fetchCampaign, fetchLeastVisited, fetchMostStale } from "../lib/api";
 import { Button } from "./ui/button";
@@ -20,38 +22,27 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
     queryFn: () => fetchCampaign(campaignId)
   });
 
-  const { data: leastVisitedData } = useQuery({
+  const { data: leastVisitedData, error: leastVisitedError, isLoading: leastVisitedLoading, refetch: refetchLeastVisited } = useQuery({
     queryKey: ["leastVisited", campaignId],
     queryFn: () => fetchLeastVisited(campaignId, 5),
     enabled: !!campaign
   });
 
-  const { data: mostStaleData } = useQuery({
+  const { data: mostStaleData, error: mostStaleError, isLoading: mostStaleLoading, refetch: refetchMostStale } = useQuery({
     queryKey: ["mostStale", campaignId],
     queryFn: () => fetchMostStale(campaignId, 5),
     enabled: !!campaign
   });
 
-  // Keyboard shortcuts for better UX
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Esc to go back
-      if (e.key === 'Escape') {
-        onBack();
-      }
-      // R to refresh (when not in an input)
-      if (e.key === 'r' && !e.metaKey && !e.ctrlKey) {
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-          e.preventDefault();
-          refetch();
-        }
-      }
-    };
+  const refresh = useCallback(() => {
+    void refetch();
+    if (campaign) {
+      void refetchLeastVisited();
+      void refetchMostStale();
+    }
+  }, [campaign, refetch, refetchLeastVisited, refetchMostStale]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onBack, refetch]);
+  usePageShortcuts({ escape: onBack, r: refresh });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -73,7 +64,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-full items-center justify-center bg-slate-950">
         <div className="text-center max-w-md">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
             <AlertCircle className="h-8 w-8 text-red-400" />
@@ -85,7 +76,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to List
             </Button>
-            <Button onClick={() => refetch()}>
+            <Button onClick={refresh}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
@@ -98,7 +89,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
 
   if (isLoading || !campaign) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-full items-center justify-center bg-slate-950">
         <div className="text-center" role="status" aria-live="polite" aria-busy="true">
           <div
             className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-700 border-t-slate-50"
@@ -116,7 +107,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
   const mostStale = mostStaleData?.files || [];
 
   return (
-    <div className="min-h-screen bg-slate-950 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-full bg-slate-950 p-3 sm:p-4 md:p-6 lg:p-8">
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
@@ -136,7 +127,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
               <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm md:text-base text-slate-400">{campaign.description}</p>
             )}
           </div>
-          <Button onClick={() => refetch()} aria-label="Refresh campaign data" className="w-full sm:w-auto shrink-0">
+          <Button onClick={refresh} aria-label="Refresh campaign data" className="w-full sm:w-auto shrink-0">
             <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
             <span className="hidden xs:inline">Refresh</span>
             <span className="xs:hidden">↻</span>
@@ -271,7 +262,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
         </Card>
 
         {/* Actionable Files Section */}
-        <div className="mb-6 sm:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div data-testid={selectors.filesList} className="mb-6 sm:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Least Visited Files */}
           <Card>
             <CardHeader>
@@ -285,11 +276,18 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {leastVisited.length > 0 ? (
+              {leastVisitedError ? (
+                <div role="alert">Unable to load least-visited files. Refresh to retry.</div>
+              ) : leastVisitedLoading ? (
+                <div role="status">Loading least-visited files...</div>
+              ) : leastVisited.length > 0 ? (
                 <div className="space-y-2">
-                  {leastVisited.map((file, i) => (
+                  {leastVisited.map((file) => (
                     <div
-                      key={i}
+                      key={file.id}
+                      data-testid={selectors.fileRow}
+                      data-file-id={file.id}
+                      data-file-path={file.file_path}
                       className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 hover:bg-orange-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -329,11 +327,18 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {mostStale.length > 0 ? (
+              {mostStaleError ? (
+                <div role="alert">Unable to load stale files. Refresh to retry.</div>
+              ) : mostStaleLoading ? (
+                <div role="status">Loading stale files...</div>
+              ) : mostStale.length > 0 ? (
                 <div className="space-y-2">
-                  {mostStale.map((file, i) => (
+                  {mostStale.map((file) => (
                     <div
-                      key={i}
+                      key={file.id}
+                      data-testid={selectors.fileRow}
+                      data-file-id={file.id}
+                      data-file-path={file.file_path}
                       className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 hover:bg-red-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -402,9 +407,12 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                     return bTime - aTime;
                   })
                   .slice(0, 20)
-                  .map((file, i) => (
+                  .map((file) => (
                   <div
-                    key={i}
+                    key={file.id}
+                      data-testid={selectors.fileRow}
+                      data-file-id={file.id}
+                      data-file-path={file.file_path}
                     className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.05] gap-2"
                   >
                     <FilePathWithCopy path={file.file_path} className="flex-1 min-w-0" />

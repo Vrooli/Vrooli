@@ -422,11 +422,11 @@ Variant content snapshots. These are the deployable source of truth for landing 
 - Set `VARIANT_SNAPSHOT_MODE=full` to allow snapshot-provided weights/status (primarily for one-time bootstraps).
 - Missing snapshots are archived by default during sync. Set `VARIANT_SNAPSHOT_PRUNE=ignore` to disable or `VARIANT_SNAPSHOT_PRUNE=delete` to soft-delete.
 - Set `VARIANT_SNAPSHOT_ALLOW_RESURRECT=true` to let snapshot files revive variants that were previously deleted.
-- Use `make export-variants ADMIN_SESSION=...` to export the current database variants into `.vrooli/variants/*.json`.
+- Use `make export-variants ADMIN_SESSION=...` to export the current database variants into `config/variants/*.json`.
 
 ### Variant Lifecycle (Source of Truth)
 
-1. Edit `.vrooli/variants/*.json` locally (copy, sections, header, SEO, axes).
+1. Edit `config/variants/*.json` locally (copy, sections, header, SEO, axes).
 2. Deploy those files to your VPS alongside the scenario.
 3. On boot (or via the admin sync endpoint), the API imports the file snapshots into Postgres.
 4. Weights + performance stats stay in Postgres and survive deploys.

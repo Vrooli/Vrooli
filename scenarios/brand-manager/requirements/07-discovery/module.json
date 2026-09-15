@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Scanner that reads existing scenario state and auto-populates draft brands, extensible to additional frameworks via scanner plugins.",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
+    "module": "discovery",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DISC-001",
+      "title": "Scan scenario state into a draft brand with confidence scores",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "discovery",
+      "criticality": "P0",
+      "description": "The scanner inspects service.json, theme/token files, static assets, manifests, and DESIGN.md to assemble a draft brand, attaching a per-field confidence score reflecting evidence strength.",
+      "tags": [
+        "discovery",
+        "scanner",
+        "confidence"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/discovery/scanner_test.go once the discovery scanner is ported."
+        }
+      ]
+    },
+    {
+      "id": "DISC-002",
+      "title": "Extract a color system from CSS and JSON token sources",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "discovery",
+      "criticality": "P0",
+      "description": "The default scanners parse CSS custom properties and JSON token files to recover a candidate color system and typography for the draft brand.",
+      "tags": [
+        "discovery",
+        "css",
+        "json"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/discovery/css_scanner_test.go once the default scanners are ported."
+        }
+      ]
+    },
+    {
+      "id": "DISC-003",
+      "title": "Support per-framework scanner plugins beyond CSS and JSON",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "discovery",
+      "criticality": "P1",
+      "description": "Scanning is plugin-based so additional framework/language scanners (e.g. Tailwind config, SCSS) can be registered without modifying the core scan loop.",
+      "tags": [
+        "discovery",
+        "plugins",
+        "extensible"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/discovery/plugins_test.go once the scanner-plugin registry is ported."
+        }
+      ]
+    }
+  ]
+}

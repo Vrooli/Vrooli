@@ -348,14 +348,22 @@ async function captureFrameBuffer(
 
     const cdp = await getCDPSession(page);
 
-    const result = await Promise.race([
-      cdp.send('Page.captureScreenshot', {
+    // Own the capture promise's rejection before racing it. When the timeout
+    // wins, the capture is still in flight; if the page then closes it rejects
+    // with nobody listening, and an unhandled rejection escapes this try/catch
+    // entirely (the race already settled, so the catch below is off its chain).
+    const capture = cdp
+      .send('Page.captureScreenshot', {
         format: 'jpeg',
         quality,
         optimizeForSpeed: true,
         captureBeyondViewport: false,
         fromSurface: true,
-      }),
+      })
+      .catch(() => null);
+
+    const result = await Promise.race([
+      capture,
       new Promise<null>((resolve) => setTimeout(() => resolve(null), SCREENSHOT_TIMEOUT_MS)),
     ]);
 

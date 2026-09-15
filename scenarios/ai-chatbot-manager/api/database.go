@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	chatbotSchema "ai-chatbot-manager-api/internal/chatbot"
 )
 
 // Database represents the database connection and operations
@@ -53,6 +55,10 @@ func NewDatabase(cfg *Config, logger *Logger) (*Database, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(chatbotSchema.Schema)); err != nil {
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
 
 	logger.Println("🎉 Database connection pool established successfully!")

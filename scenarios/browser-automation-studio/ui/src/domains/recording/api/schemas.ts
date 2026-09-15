@@ -276,19 +276,10 @@ export type TimelineResponse = z.infer<typeof TimelineResponseSchema>;
 // ============================================================================
 // AI Navigation Schemas
 // ============================================================================
-
-/**
- * AI navigation response from start navigation endpoint.
- */
-export const AINavigateResponseSchema = z.object({
-  navigation_id: z.string(),
-  status: z.string(),
-  model: z.string(),
-  max_steps: z.number(),
-  estimated_cost: z.number().optional(),
-});
-
-export type AINavigateResponse = z.infer<typeof AINavigateResponseSchema>;
+//
+// The legacy AINavigateResponseSchema/AINavigateResponse were removed in the
+// VisionNavigationService Connect-RPC migration. Callers should consume the
+// proto-typed StartNavigationResponse exported from src/api/visionNavigation.
 
 /**
  * Browser action types for AI navigation.

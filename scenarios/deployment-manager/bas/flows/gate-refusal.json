@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "name": "gate-refusal",
+    "description": "Open the evidence review surface used to explain why an incomplete target set blocks a release.",
+    "requirement": "DM-GATE-FAIL-CLOSED",
+    "version": "1",
+    "labels": { "reset": "none", "purpose": "gate-refusal" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1440, "viewport_height": 900 },
+  "nodes": [
+    { "id": "open-evidence", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "deployment-manager", "scenario_path": "/evidence", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open gate evidence review" } } },
+    { "id": "assert-commit", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/evidence.commitInput", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Exact commit input is missing; gate review cannot be fail-closed" }, "metadata": { "label": "Exact commit is required" } } }
+  ],
+  "edges": [ { "source": "open-evidence", "target": "assert-commit" } ]
+}

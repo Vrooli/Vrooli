@@ -1,0 +1,102 @@
+@import "./design-tokens.css";
+@import "./app-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.rcl-device-select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(122, 160, 255, 0.9) 50%),
+    linear-gradient(135deg, rgba(122, 160, 255, 0.9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.2rem) 50%,
+    calc(100% - 0.85rem) 50%;
+  background-repeat: no-repeat;
+  background-size: 0.42rem 0.42rem;
+  padding-right: 2.25rem;
+}
+
+/* Application scrollbar and utility styling, formerly mixed into tokens. */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.rcl-action-launcher {
+  inset-block-end: var(--space-md);
+}
+
+@media (max-width: 639px) {
+  .rcl-action-launcher {
+    inset-block-end: calc(var(--space-md) + 4rem + env(safe-area-inset-bottom, 0px));
+  }
+}

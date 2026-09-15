@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.debt;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/debt;debt_v1";
+
+// DebtService exposes durable inherited-template debt entries.
+service DebtService {
+  rpc ListDebt(ListDebtRequest) returns (ListDebtResponse);
+  rpc GetDebt(GetDebtRequest) returns (GetDebtResponse);
+}
+
+message DebtEntry {
+  string key = 1;
+  string template_id = 2;
+  string source = 3;
+  string severity = 4;
+  string status = 5;
+  string title = 6;
+  string detail = 7;
+  google.protobuf.Timestamp first_seen_at = 8;
+  google.protobuf.Timestamp last_seen_at = 9;
+}
+
+message ListDebtRequest {
+  string template_id = 1;
+  string status = 2;
+}
+
+message ListDebtResponse {
+  repeated DebtEntry entries = 1;
+}
+
+message GetDebtRequest {
+  string key = 1;
+}
+
+message GetDebtResponse {
+  DebtEntry entry = 1;
+}

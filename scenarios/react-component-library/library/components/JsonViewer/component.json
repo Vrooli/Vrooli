@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.json-viewer",
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:JsonViewer"
+}

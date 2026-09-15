@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "activity",
+    "title": "Activity",
+    "routes": [
+      "/activity"
+    ],
+    "purpose": "Show every spend attempt and let the operator reconstruct why each one resolved the way it did. Declines are first-class content here, because a decline is usually the system working.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-002",
+      "OT-P0-005",
+      "OT-P0-008",
+      "OT-P0-011"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every attempt appears, including the ones that were refused"
+    },
+    {
+      "statement": "The specific constraint that refused an attempt is named, not summarised"
+    },
+    {
+      "statement": "A settlement in the unknown state is the most visually urgent row on the page"
+    },
+    {
+      "statement": "Ledger emission status is visible so an unrecorded settlement is noticeable"
+    },
+    {
+      "statement": "An attempt's full decision path is reachable in one step"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Attempts exist across approved, refused, declined, expired and unknown outcomes."
+    },
+    {
+      "id": "loading",
+      "description": "Activity is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No spend has been attempted; the page says so rather than rendering an empty table."
+    },
+    {
+      "id": "partial",
+      "description": "Some attempts have unresolved ledger emission; the page distinguishes not-yet-emitted from failed-to-emit."
+    },
+    {
+      "id": "stale",
+      "description": "The view has not refreshed recently and states its age."
+    },
+    {
+      "id": "request-error",
+      "description": "Activity could not be fetched."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Evidence detail is operator-realm only; an agent-realm caller sees its own attempt outcomes and nothing else."
+    }
+  ],
+  "claims": [
+    {
+      "id": "activity-declines-present",
+      "type": "element-present",
+      "statement": "Refused and declined attempts are listed by default rather than behind a filter.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "activity-constraint-named",
+      "type": "element-present",
+      "statement": "Each refusal names the specific constraint that refused it.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "activity-unknown-salient",
+      "type": "single-dominant-action",
+      "statement": "When any settlement is in the unknown state, resolving it is the page's dominant action.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "activity-outcome-not-color-alone",
+      "type": "state-distinct",
+      "statement": "Outcome is conveyed by text or shape in addition to colour.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "activity-emission-visible",
+      "type": "element-present",
+      "statement": "Ledger emission status appears on each settled attempt.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "activity-replay-one-step",
+      "type": "affordance-present",
+      "statement": "The full decision path for an attempt is reachable in one interaction from its row.",
+      "tier": "aspirational"
+    }
+  ]
+}

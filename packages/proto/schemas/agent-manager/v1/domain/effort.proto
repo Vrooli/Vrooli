@@ -1,0 +1,437 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "agent-manager/v1/domain/watch.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// @stability experimental
+// Effort supervision extends the existing supervision owner. CLI, UI and recurring
+// runtime consumers read the same projection. Declarations are not runtime grants.
+
+// An exact subject reference. Ordering is the enrollment's declared order.
+message EffortSubject {
+  string owner = 1;
+  string kind = 2;
+  string reference = 3;
+  // Exact Agent Manager run identity, when applicable.
+  string run_id = 4;
+  // orchestrator, worker, supervisor, reviewer, investigator or repair.
+  string role = 5;
+  string assignment = 6;
+}
+
+// Monitoring configuration; authority_ref is evidence, never a bearer credential.
+message EffortEnrollment {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  string display_name = 2;
+  string destination_ref = 3;
+  string target_revision = 4;
+  string source_revision = 5;
+  string authority_ref = 6;
+  string supervisor_run_id = 7;
+  repeated EffortSubject subjects = 8;
+  repeated WatchActionKind permitted_actions = 9;
+  uint64 revision = 10;
+  bool withdrawn = 11;
+  // Relative immediate directory under the configured effort root; empty for owner-only enrollment.
+  string workspace = 12;
+  string work_shape = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  // Set only by authenticated owner enrollment; discovery cannot set it.
+  string authorized_by = 15;
+  google.protobuf.Timestamp authority_expires_at = 16;
+  uint32 maximum_directives = 17;
+  uint32 cooldown_seconds = 18;
+  string withdrawal_reason = 19;
+  // Operator-granted stable delegation: BOTH exact verified token claims required.
+  // Team/profile text, lineage and work references are not authority.
+  string supervisor_owner_subject = 20;
+  string supervisor_scope = 21;
+  // Server-owned authorization. Ordinary enrollment/discovery cannot supply it.
+  SupervisorDispatchAuthorization dispatch_authorization = 23;
+  // Trusted supervisors have freedom of operational means within the accepted
+  // effort. Owner boundaries remain enforced at every operation boundary.
+  bool autonomous_supervision = 24;
+  // Owner-supplied relative consequence for supervisor admission. Zero means
+  // unspecified; it never overrides fairness or owner eligibility.
+  uint32 supervision_priority = 25;
+}
+
+// Metadata only; the bearer lives solely in the canonical credential authority.
+message SupervisorDispatchAuthorization {
+  string authorization_id = 1;
+  string owner_subject = 2;
+  string team_id = 3;
+  string member_id = 4;
+  string profile_key = 5;
+  repeated string scopes = 6;
+  google.protobuf.Timestamp issued_at = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  google.protobuf.Timestamp revoked_at = 9;
+  string credential_hash = 10;
+  string target_revision = 11;
+  string issuance_key = 12;
+  uint32 maximum_runs = 13;
+  uint32 dispatched_runs = 14;
+  uint32 minimum_interval_seconds = 15;
+  google.protobuf.Timestamp last_dispatched_at = 16;
+}
+
+// Freshness of evidence, independently of runtime or outcome state.
+enum EffortFreshness {
+  EFFORT_FRESHNESS_UNSPECIFIED = 0;
+  EFFORT_FRESHNESS_FRESH = 1;
+  EFFORT_FRESHNESS_STALE = 2;
+  EFFORT_FRESHNESS_UNAVAILABLE = 3;
+}
+
+// A provider failure or schema/path/coverage finding; source is an evidence reference.
+message EffortDiscoveryFinding {
+  string source = 1;
+  string code = 2;
+  string reason = 3;
+}
+
+// Persisted scan coverage. Generation advances only when the source cut changes.
+message EffortDiscovery {
+  uint64 generation = 1;
+  string change_identity = 2;
+  google.protobuf.Timestamp last_scan_at = 3;
+  google.protobuf.Timestamp last_successful_scan_at = 4;
+  uint32 scan_limit = 5;
+  uint32 scanned_count = 6;
+  bool partial = 7;
+  repeated EffortDiscoveryFinding findings = 8;
+  uint64 byte_limit = 9;
+  string root = 10;
+  // Persisted lexical cursor for a rotating bounded manifest scan.
+  string scan_cursor = 11;
+  // Hard directory-index bound; exceeding it refuses this root scan explicitly.
+  uint32 directory_limit = 12;
+  // Standing discovery has an explicit accounting boundary; absent allowance is unknown.
+  string standing_allowance_ref = 13;
+  EffortUsage standing_usage = 14;
+}
+
+// Presence distinguishes unknown usage from an observed zero. Sums cover unique
+// owner execution identities, including supervisor/reviewer/repair assignments.
+message EffortUsage {
+  optional int64 tokens = 1;
+  optional double reported_cost_usd = 2;
+  optional double agent_seconds = 3;
+  uint32 observed_runs = 4;
+  uint32 declared_runs = 5;
+  bool partial = 6;
+  repeated string limitations = 7;
+  string source = 8;
+}
+
+// Provider-reported subscription standing. Percentage is retained only when
+// the provider reported it; token and dollar usage are never inferred here.
+message EffortQuotaObservation {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  string standing = 5;
+  optional double used_percent = 6;
+  optional int64 window_minutes = 7;
+  google.protobuf.Timestamp reset_at = 8;
+  string source_run_id = 9;
+  string freshness = 10;
+  string provenance = 11;
+  string uncertainty = 12;
+  string evidence_ref = 13;
+}
+
+// Current owner observation with requested and effective settings kept separate.
+message EffortAssignment {
+  EffortSubject subject = 1;
+  string runtime_state = 2;
+  string requested_model = 3;
+  string effective_model = 4;
+  string requested_runner = 5;
+  string effective_runner = 6;
+  string requested_reasoning = 7;
+  string effective_reasoning = 8;
+  EffortUsage usage = 9;
+  google.protobuf.Timestamp observed_at = 10;
+  string unavailable_reason = 11;
+  string execution_identity = 12;
+}
+
+// Attributed outcome evidence; a workspace self-report cannot establish owner acceptance.
+message EffortOutcomeStanding {
+  string state = 1;
+  string attribution = 2;
+  repeated string evidence_refs = 3;
+  optional uint32 met_count = 4;
+  optional uint32 required_count = 5;
+  repeated string limitations = 6;
+}
+
+// One bounded row. Unknown facts remain explicit even if another source succeeds.
+message EffortBoardRow {
+  EffortEnrollment enrollment = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  EffortFreshness freshness = 3;
+  string runtime_state = 4;
+  EffortOutcomeStanding outcome_standing = 5;
+  repeated EffortAssignment assignments = 6;
+  repeated string pending_operations = 7;
+  repeated string blockers = 8;
+  string next_action = 9;
+  string rationale = 10;
+  EffortUsage usage = 11;
+  repeated EffortDirective directives = 12;
+  repeated string limitations = 13;
+  repeated string evidence_refs = 14;
+  // Subject/evidence trigger: excludes supervisor activity, accounting and assessments.
+  string change_identity = 15;
+  // The same shared operation may appear in several rows; never sum it once per row.
+  EffortAssessment last_assessment = 16;
+  // Full row visibility identity, including supervisory activity. Not an inference trigger.
+  string visibility_change_identity = 17;
+  // Provider observations are joined by source run when attribution exists.
+  repeated EffortQuotaObservation quota_observations = 18;
+}
+
+// Shared operator/runtime projection. Active count spans the whole enrollment set.
+message EffortBoard {
+  repeated EffortBoardRow rows = 1;
+  EffortDiscovery discovery = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  uint32 active_count = 4;
+  bool partial = 5;
+  repeated string limitations = 6;
+  string next_page_token = 7;
+  string change_identity = 8;
+  // One bounded owner read retained once for shared account/pool observations.
+  repeated EffortQuotaObservation quota_observations = 9;
+}
+
+message GetEffortBoardRequest {
+  string effort_ref = 1;
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 3;
+}
+message ListEffortsRequest {
+  uint32 page_size = 1 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 2;
+}
+message ListEffortsResponse {
+  repeated EffortEnrollment efforts = 1;
+  string next_page_token = 2;
+  uint32 active_count = 3;
+}
+message EnrollEffortRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+// Metadata reconciliation deliberately excludes authority, dispatch and
+// withdrawal state. It lets an explicitly scoped effort coordinator keep the
+// owner projection current without renewing or revoking a grant.
+message ReconcileEffortMetadataRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+  WatchAuthority authority = 4;
+}
+message WithdrawEffortRequest {
+  string effort_ref = 1;
+  uint64 expected_revision = 2;
+  string reason = 3;
+  string idempotency_key = 4;
+}
+message ReconcileEffortDiscoveryRequest {}
+
+// Delivery describes the external effect, never acknowledgment or benefit.
+enum EffortDirectiveDelivery {
+  EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED = 0;
+  EFFORT_DIRECTIVE_DELIVERY_PENDING = 1;
+  EFFORT_DIRECTIVE_DELIVERY_DELIVERED = 2;
+  EFFORT_DIRECTIVE_DELIVERY_REFUSED = 3;
+  EFFORT_DIRECTIVE_DELIVERY_EXPIRED = 4;
+  EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED = 5;
+  // Dispatch may have occurred; retries retain the same owner idempotency key.
+  EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN = 6;
+}
+enum EffortDirectiveAcknowledgment {
+  EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED = 0;
+  EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED = 1;
+  EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED = 2;
+  EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED = 3;
+}
+
+// Immutable request plus independent delivery, acknowledgment, action and assessment.
+message EffortDirective {
+  string directive_id = 1;
+  string effort_ref = 2;
+  string target_revision = 3;
+  string issuer = 4;
+  string target_run_id = 5;
+  WatchActionKind kind = 6;
+  string scope = 7;
+  repeated string evidence_refs = 8;
+  string adjustment = 9;
+  string expected_result = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  string idempotency_key = 12;
+  EffortDirectiveDelivery delivery = 13;
+  EffortDirectiveAcknowledgment acknowledgment = 14;
+  string acknowledgment_reason = 15;
+  string owner_wait_ref = 16;
+  string action_ref = 17;
+  string assessment = 18;
+  repeated string assessment_evidence_refs = 19;
+  string superseded_by = 20;
+  uint64 revision = 21;
+  google.protobuf.Timestamp created_at = 22;
+  google.protobuf.Timestamp delivered_at = 23;
+  string delivery_reason = 24;
+  // Immutable evidence cut at request time; excludes directives to avoid recursion.
+  EffortBoardRow source_snapshot = 25;
+  EffortUsage supervision_usage = 26;
+  string hypothesis = 27;
+  string comparison = 28;
+  // Requested progress condition and immutable baseline; absent on legacy directives.
+  EffortRecoveryExpectation recovery_expectation = 29;
+  // Latest attributable verification, independent of delivery and causal benefit.
+  EffortRecoveryVerification recovery_verification = 30;
+  // Server-bound authorization route used at admission; never supplied by prose.
+  EffortDirectiveAuthorityBinding authority_binding = 31;
+  // Owner proof that this request was refused before execution effects.
+  // False means no such proof, not proof that an effect occurred.
+  bool refusal_before_effects = 32;
+  // Owner-returned replacement with exact predecessor lineage; never caller-set.
+  string recovered_run_id = 33;
+}
+
+// Bind the authorization route, not every observation-driven enrollment revision.
+message EffortDirectiveAuthorityBinding {
+  // operator, run, or delegated.
+  string mode = 1;
+  // Authenticated operator, exact run, or stable owner subject respectively.
+  string subject = 2;
+  // Exact attenuated scope for delegated authority; empty for other routes.
+  string scope = 3;
+}
+
+// Assignment-specific proof required after recovery, not an agent activity quota.
+message EffortRecoveryExpectation {
+  // Falsifiable condition the verifier checks against owner artifacts.
+  string progress_condition = 1 [(buf.validate.field).string = {min_len: 1, max_len: 2000}];
+  // Baseline references in caller order; never credential or transcript contents.
+  repeated string baseline_evidence_refs = 2 [(buf.validate.field).repeated = {min_items: 1, max_items: 30}];
+}
+
+// Supervisor verification is an attributed judgment, not independent product acceptance.
+message EffortRecoveryVerification {
+  // pending, progress-observed, owner-wait, or failed; delivery alone remains pending.
+  string state = 1 [(buf.validate.field).string.in = "pending", (buf.validate.field).string.in = "progress-observed", (buf.validate.field).string.in = "owner-wait", (buf.validate.field).string.in = "failed"];
+  // Explanation comparing the observed result with the immutable progress condition.
+  string reason = 2 [(buf.validate.field).string.max_len = 2000];
+  // New owner evidence in verifier order. Required for an assessed state.
+  repeated string evidence_refs = 3 [(buf.validate.field).repeated.max_items = 30];
+  // Evidence observation time, bounded by delivery and server observation time.
+  google.protobuf.Timestamp observed_at = 4;
+  // Exact operation/assignment/change condition for an unresolved recovery.
+  string next_owner_condition = 5 [(buf.validate.field).string.max_len = 2000];
+  // Set by Agent Manager from authenticated identity, not request text.
+  string verifier = 6;
+}
+
+// A bounded link to one canonical infrastructure repair assignment. This is
+// evidence metadata only: it does not create a Swarm item, grant authority or
+// dispatch work. The owner operation and proof references remain explicit so a
+// supervisor can reconcile one existing assignment without repeating a bare
+// wait or creating a second ledger.
+message EffortRepairLink {
+  // Canonical Swarm work reference, for example fix/<name>.
+  string work_ref = 1;
+  // Named owner responsible for the repair assignment.
+  string assigning_owner_ref = 2;
+  // Next bounded owner operation to reconcile or perform.
+  string next_operation = 3;
+  // New evidence references that can prove the assignment condition.
+  repeated string completion_evidence_refs = 4;
+  // Explicit stopping/reopening condition for this repair assignment.
+  string stopping_condition = 5;
+  // assigned, needs_assignment or resolved.
+  string state = 6;
+}
+message RequestEffortDirectiveRequest {
+  EffortDirective directive = 1;
+  uint64 expected_enrollment_revision = 2;
+  // Operator or a verified run identity; text never authenticates the caller.
+  WatchAuthority authority = 3;
+}
+message ListEffortDirectivesRequest {
+  string effort_ref = 1;
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 3;
+}
+message ListEffortDirectivesResponse {
+  repeated EffortDirective directives = 1;
+  string next_page_token = 2;
+}
+message UpdateEffortDirectiveRequest {
+  string directive_id = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+  WatchAuthority authority = 4;
+  EffortDirectiveAcknowledgment acknowledgment = 5;
+  string reason = 6;
+  string owner_wait_ref = 7;
+  string action_ref = 8;
+  // unknown, supported, contradicted; completion alone does not prove benefit.
+  string assessment = 9;
+  repeated string evidence_refs = 10;
+  string superseded_by = 11;
+  EffortUsage supervision_usage = 12;
+  // Record post-delivery verification without resending or buying another attempt.
+  EffortRecoveryVerification recovery_verification = 13;
+  // Read only the original owner's receipt for a historically uncertain delivery.
+  // Never resends an expired, refused, superseded, or uncertain operation.
+  bool reconcile_delivery = 14;
+}
+
+// One immutable quiet/sample/intervention assessment over a bounded evidence cut.
+// This is a supervision record, not product acceptance or an execution grant.
+message EffortAssessment {
+  string assessment_id = 1;
+  repeated string effort_refs = 2;
+  // Key is effort_ref; value is the exact target revision observed (blank means unknown).
+  map<string, string> target_revisions = 3;
+  string supervisor_run_id = 4;
+  // quiet, sample, investigate, steer, or unknown.
+  string disposition = 5;
+  string rationale = 6;
+  repeated string evidence_refs = 7;
+  string source_ledger_ref = 8;
+  string shared_operation_ref = 9;
+  string allowance_ref = 10;
+  string allocation_rule = 11;
+  EffortUsage observed_usage = 12;
+  EffortUsage unallocated_usage = 13;
+  google.protobuf.Timestamp observed_at = 14;
+  string idempotency_key = 15;
+  string hypothesis = 16;
+  string comparison = 17;
+  // unknown, supported, contradicted; a completion after a nudge is not causal proof.
+  string benefit = 18;
+  string policy_version = 19;
+  repeated string limitations = 20;
+  // Existing canonical infrastructure repair linkage, retained as evidence
+  // rather than a second work item or business steering grant.
+  repeated EffortRepairLink repair_links = 21;
+}
+message RecordEffortAssessmentRequest {
+  EffortAssessment assessment = 1;
+  WatchAuthority authority = 2;
+}

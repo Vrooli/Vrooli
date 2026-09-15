@@ -1,0 +1,34 @@
+{
+  "description": "Workflow Health indexes workflows for Search Hub without conflating runnable flows, validation cases, and action fragments.",
+  "module_id": "MOD-P1-005",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "id": "REQ-P1-001",
+      "title": "Publish Typed Workflow Search Leaves",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "search",
+      "criticality": "P1",
+      "description": "Workflow Health must publish `workflow.flow`, `workflow.test`, and `workflow.fragment` leaves so Search Hub can rank runnable flows for do/run intents, validation cases for prove/validate intents, and fragments only as dependency context.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Search shaping tests assert leaf type, intent routing, ranking hints, dependency hiding, and safe observer preference."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "pending",
+          "ref": "",
+          "notes": "`search-hub query \"create project workflow\" --type workflow.flow` returns flow leaves and validate/prove queries return test leaves."
+        }
+      ]
+    }
+  ],
+  "title": "Workflow search and action discovery"
+}

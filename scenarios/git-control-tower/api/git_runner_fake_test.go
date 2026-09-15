@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"git-control-tower/internal/pushsafety"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,11 @@ import (
 //
 // This enables testing service logic without risk of affecting real repositories.
 type FakeGitRunner struct {
+	SafetyReport     *pushsafety.Report
+	RecoveryArtifact pushsafety.Artifact
+	RecoveryErr      error
+	RecoveryCalls    int
+
 	// Repository simulation state
 	Branch         FakeBranchState
 	LocalBranches  map[string]FakeBranchRef
@@ -29,10 +35,13 @@ type FakeGitRunner struct {
 	Unstaged       map[string]string // path -> content diff
 	Untracked      []string
 	Conflicts      []string
-	IsRepository   bool   // Whether this is a valid git repo
-	GitAvailable   bool   // Whether git binary is "installed"
-	RepoRoot       string // Configured repository root path
-	RemoteURL      string // Configured remote URL (for GetRemoteURL)
+	// StatusRecords adds already-encoded porcelain-v2 records for parser and
+	// service fixtures that need rename/copy metadata without a real index.
+	StatusRecords []string
+	IsRepository  bool   // Whether this is a valid git repo
+	GitAvailable  bool   // Whether git binary is "installed"
+	RepoRoot      string // Configured repository root path
+	RemoteURL     string // Configured remote URL (for GetRemoteURL)
 
 	// Error injection for testing error paths
 	StatusError          error
@@ -67,7 +76,13 @@ type FakeGitRunner struct {
 	// History tracking
 	HistoryLines   []string
 	HistoryDetails []RepoHistoryEntry
-	NumstatLines   []string
+
+	// NumstatLines holds one `git diff --numstat` record per entry, written in
+	// the tab-separated form ("<add>\t<del>\t<path>"). DiffNumstat joins them
+	// into the NUL-delimited -z framing the real runner produces. A rename is
+	// expressed as an empty path field followed by its two paths, e.g.
+	// {"1\t0\t", "old.go", "new.go"}.
+	NumstatLines []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -141,6 +156,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		Unstaged:          make(map[string]string),
 		Untracked:         []string{},
 		Conflicts:         []string{},
+		StatusRecords:     []string{},
 		IsRepository:      true,
 		GitAvailable:      true,
 		RepoRoot:          "/fake/repo",
@@ -194,6 +210,13 @@ func (f *FakeGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) (
 	// Conflict files
 	for _, path := range f.Conflicts {
 		buf.WriteString(fmt.Sprintf("u UU N... 100644 100644 100644 100644 abc def ghi %s\x00", path))
+	}
+
+	for _, record := range f.StatusRecords {
+		buf.WriteString(record)
+		if !strings.HasSuffix(record, "\x00") {
+			buf.WriteByte(0)
+		}
 	}
 
 	return buf.Bytes(), nil
@@ -295,7 +318,7 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 
 // Commit simulates creating a commit.
 func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail)
+	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail, fmt.Sprintf("no_verify=%v", options.NoVerify))
 
 	if f.CommitError != nil {
 		return "", f.CommitError
@@ -450,6 +473,18 @@ func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote 
 	return nil
 }
 
+// FetchRemoteBranch simulates fetching a single branch from a remote.
+func (f *FakeGitRunner) FetchRemoteBranch(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
+	f.recordCall("FetchRemoteBranch", repoDir, remote, branch)
+
+	if f.FetchError != nil {
+		return f.FetchError
+	}
+
+	f.FetchCount++
+	return nil
+}
+
 // GetRemoteURL returns the configured remote URL.
 func (f *FakeGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
 	f.recordCall("GetRemoteURL", repoDir, remote)
@@ -493,7 +528,7 @@ func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 // Push simulates pushing to a remote.
-func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, sourceOID string, setUpstream bool, cred *StoredCredential) error {
 	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
 
 	if f.PushError != nil {
@@ -615,11 +650,14 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 }
 
 func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
-	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
+	f.recordCall("DiffNumstat", append([]string{repoDir, fmt.Sprintf("staged=%v", staged)}, paths...)...)
 	if f.DiffError != nil {
 		return nil, f.DiffError
 	}
-	return []byte(strings.Join(f.NumstatLines, "\n")), nil
+	if len(f.NumstatLines) == 0 {
+		return nil, nil
+	}
+	return []byte(strings.Join(f.NumstatLines, "\x00") + "\x00"), nil
 }
 
 func (f *FakeGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
@@ -890,4 +928,19 @@ func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, co
 		result[k] = v
 	}
 	return result, nil
+}
+
+func (f *FakeGitRunner) InspectPushSafety(ctx context.Context, repo, remote, branch string, cred *StoredCredential) pushsafety.Report {
+	if f.SafetyReport != nil {
+		return *f.SafetyReport
+	}
+	return pushsafety.Report{Complete: true, State: "clear", Head: f.Branch.OID, Remote: remote, Branch: branch}
+}
+func (f *FakeGitRunner) PreparePushRecovery(ctx context.Context, repo, root string, r pushsafety.Report, cred *StoredCredential) (pushsafety.Artifact, error) {
+	f.RecoveryCalls++
+	return f.RecoveryArtifact, f.RecoveryErr
+}
+
+func (f *FakeGitRunner) GetPushRecovery(ctx context.Context, repo, root, key string) (pushsafety.Artifact, error) {
+	return f.RecoveryArtifact, f.RecoveryErr
 }

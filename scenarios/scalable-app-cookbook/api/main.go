@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+	schema "scalable-app-cookbook-api/internal/cookbook"
 	"strconv"
 	"strings"
 
@@ -92,32 +92,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize database connection (require all environment variables)
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
-	}
-
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
-	}
-
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
-	}
-
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
-	}
-
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		log.Fatal("❌ POSTGRES_DB environment variable is required")
-	}
-
 	var err error
 	db, err = database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
@@ -170,6 +144,10 @@ func main() {
 	handler := c.Handler(router)
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -835,5 +813,6 @@ func getFacets() map[string]interface{} {
 
 	return facets
 }
+
 // Test change for rebuild detection
 // Test change

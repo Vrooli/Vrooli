@@ -1,0 +1,87 @@
+{
+  "description": "Surface React components (named function / arrow / class) and hooks (`use*` convention or `@vrooliWidget` tag) as their own `NodeKind` rather than collapsing them into \"function\".",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002",
+        "REQ-P0-003"
+      ],
+      "description": "React components and hooks defined in .tsx/.jsx files must be surfaced with their own NodeKind values rather than being collapsed into the generic FUNCTION kind. A function is classified as COMPONENT if it is a named function, arrow function, or class that returns JSX and follows React component naming conventions (PascalCase). A function is classified as HOOK if its name matches the use* convention or if it carries a @vrooliWidget annotation in its leading JSDoc. This classification must be consistent with the NodeKind.COMPONENT and NodeKind.HOOK enum extensions defined in the shared proto.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "JSX/TSX Component and Hook Declaration Awareness",
+      "validation": [
+        {
+          "notes": "Test that a PascalCase function returning JSX in a .tsx file is classified as COMPONENT",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an arrow function assigned to a PascalCase const returning JSX is classified as COMPONENT",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a class extending React.Component is classified as COMPONENT",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a function named useMyHook is classified as HOOK",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a function with @vrooliWidget JSDoc tag is classified as HOOK regardless of naming",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a utility function with camelCase name returning no JSX remains classified as FUNCTION",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-JSX-COMPONENT: Extract a fixture with React components and hooks; verify COMPONENT and HOOK NodeKind assignments in the graph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify that COMPONENT and HOOK nodes also carry correct leading_comments from their JSDoc blocks",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "react-component-library can query the graph for all COMPONENT and HOOK nodes without inspecting raw source files",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "JSX/TSX Declaration Awareness"
+}

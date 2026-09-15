@@ -12,13 +12,8 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     setIsSessionLoading(true);
     try {
       const response = await getUserMe();
-      if (response.user) {
-        setIsAuthenticated(true);
-        setUser(response.user);
-      } else {
-        setIsAuthenticated(false);
-        setUser(null);
-      }
+      setIsAuthenticated(true);
+      setUser(response.user);
     } catch (err) {
       // Not authenticated or error
       if (isApiError(err, 'unauthorized')) {
@@ -26,11 +21,9 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         try {
           await refreshUserTokens(''); // Uses cookie
           const retryResponse = await getUserMe();
-          if (retryResponse.user) {
-            setIsAuthenticated(true);
-            setUser(retryResponse.user);
-            return;
-          }
+          setIsAuthenticated(true);
+          setUser(retryResponse.user);
+          return;
         } catch {
           // Refresh failed
         }
@@ -49,7 +42,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     // This avoids unnecessary 401 errors on initial page load
     const hasAuthCookie = document.cookie.includes('access_token=');
     if (hasAuthCookie) {
-      checkSession();
+      void checkSession();
     }
   }, [checkSession]);
 

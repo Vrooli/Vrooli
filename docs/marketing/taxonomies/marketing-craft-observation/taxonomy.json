@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "marketing-craft-observation",
+  "displayName": "Marketing Craft Observation Taxonomy",
+  "owner_team": "marketing-crew",
+  "porPath": "docs/marketing/taxonomies/marketing-craft-observation/README.md",
+  "signalTypes": [
+    {
+      "id": "post-type-craft",
+      "definition": "Repeated lesson about a specific post type or its paired skill.",
+      "defaultDestinationPrefix": "marketing-craft-observation/<post-type>/<slug>",
+      "evidenceMinimum": "single observation allowed; repeated observations required for canon or skill changes"
+    },
+    {
+      "id": "rich-media-craft",
+      "definition": "Repeated lesson about image, video, scene, asset, or prompt-template production.",
+      "defaultDestinationPrefix": "marketing-craft-observation/rich-media/<slug>",
+      "evidenceMinimum": "single observation allowed; repeated observations required for canon or skill changes"
+    },
+    {
+      "id": "campaign-lesson",
+      "definition": "Campaign postmortem lesson that is not yet durable campaign canon.",
+      "defaultDestinationPrefix": "marketing-craft-observation/campaign/<slug>",
+      "evidenceMinimum": "campaign close or repeated campaign pattern"
+    },
+    {
+      "id": "publishing-workaround",
+      "definition": "Marketing-specific publishing workaround that may become channel canon, scheduler work, or a capability gap.",
+      "defaultDestinationPrefix": "marketing-craft-observation/publishing/<slug>",
+      "evidenceMinimum": "single blocker allowed when paired with capability-work; otherwise repeated pattern"
+    }
+  ],
+  "actionSelection": {
+    "observe": "Write the typed observation with source, affected surface, evidence count, and target direction.",
+    "promote-to-canon": "Raise the relevant owned decision after evidence is stable enough to change a plan-of-record doc.",
+    "skill-edit": "Route to the paired skill owner when the lesson is executable procedure.",
+    "capability-work": "Raise capability-work when missing tooling blocks the work.",
+    "retire": "Mark or remove the observation when it is obsolete, duplicated, or superseded."
+  },
+  "schemas": {
+    "marketing-craft-observation": {
+      "frontMatter": {
+        "signal_type": "required",
+        "affected_surface": "required",
+        "target_direction": "required",
+        "evidence_count": "required",
+        "promotion_threshold": "recommended",
+        "source_refs": "required"
+      }
+    }
+  }
+}

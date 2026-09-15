@@ -1,0 +1,123 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "effort-supervisor",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": false
+    }
+  },
+  "createdAt": "2026-09-12T00:00:00Z",
+  "displayName": "Effort Supervision",
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "effort-supervision",
+  "instrument": {
+    "status": "partial",
+    "scenario": "agent-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "gapMarker": "2026-09-14 — Agent Manager owns the effort board, identity, directives, recovery and accounting projections; Prompt Manager owns admission and continuity. The autonomous supervisor contract and focused owner tests are implemented, but scenario-level Test Genie qualification and a disposable unattended pilot remain open."
+  },
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Act as the trusted delivery executive for enrolled efforts: keep orchestration progressing against accepted outcomes, resolve blockers, coordinate teams, recover eligible work, and improve the operating method while preserving owner invariants.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "effort-supervision-contract",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/docs/concepts/HEARTBEATS.md"
+            }
+          ],
+          "writePolicy": "owner-authorized amendments only",
+          "consumers": [
+            "effort-supervision"
+          ],
+          "useFor": "supervision method, authority, scheduling and qualification"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-charter",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "supervision-assessment/*": {
+        "ownerMemberId": "effort-supervisor",
+        "supersedesPrevious": false,
+        "retention": "append-only; owner wake identity links each assessment"
+      }
+    },
+    "members": {
+      "effort-supervisor": {
+        "lane": "Continuously manage enrolled delivery efforts: diagnose and resolve blockers, coordinate orchestrators and workers, recover eligible work, repair integration, and improve reusable methods through Agent Manager owner controls.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [
+          "Discovery supplies evidence only; a durable owner-issued autonomous supervision mandate supplies action authority.",
+          "Retain the wake ID, exact effort references and shared accounting reference in the assessment.",
+          "Do not change accepted outcomes, owner grants, global heartbeat policy or paid fallback routes; repair delivery within the enrolled mandate.",
+          "Within the mandate, repair effort-authorized surfaces and the agent-system core substrate (agent-manager, prompt-manager, program-runtime, test-genie, plan-manager, swarm-manager, workspace-sandbox and development-toolchain-validator), including their scenario-owned skills and governed programs; route only protected or ungranted work.",
+          "Use large-effort-supervision and reuse Agent Manager identity, supervision-evaluate, supervision-observation-read and efficiency-report programs before inventing a workflow.",
+          "Finish each bounded wake with owner waits retained; the standing scheduler owns recurrence."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "purpose": "supervision",
+  "revision": 6,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "updatedAt": "2026-09-14T21:30:49Z"
+}

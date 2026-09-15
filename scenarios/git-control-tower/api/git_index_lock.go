@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +16,91 @@ import (
 // considered stale. A brief grace period avoids racing with a git process
 // that just created the lock.
 const staleLockAge = 5 * time.Second
+
+// index.lock retry tuning. The per-repo mutex only serializes in-process
+// writers; external git/IDE/pre-commit (vrooli hygiene) can create index.lock
+// outside it, and the stale-lock cleaner will not touch a lock younger than
+// staleLockAge. A short bounded retry covers that sub-staleLockAge window where
+// a live external writer briefly holds the lock.
+const indexLockMaxAttempts = 3
+
+// indexLockBaseBackoff is a var (not const) so tests can shrink the wait.
+var indexLockBaseBackoff = 150 * time.Millisecond
+
+// outputIndicatesIndexLock reports whether git output/stderr shows a failure to
+// acquire .git/index.lock because another process currently holds it. It matches
+// the canonical message: "fatal: Unable to create '.../.git/index.lock': File exists."
+func outputIndicatesIndexLock(out []byte) bool {
+	s := string(out)
+	if !strings.Contains(s, "index.lock") {
+		return false
+	}
+	return strings.Contains(s, "File exists") || strings.Contains(s, "Unable to create")
+}
+
+// sleepBackoff waits before the next retry attempt with linear backoff plus
+// jitter, aborting early if the context is cancelled.
+func sleepBackoff(ctx context.Context, attempt int, base time.Duration) error {
+	wait := time.Duration(attempt) * base
+	// Jitter from the wall clock spreads retries across processes without a weak
+	// RNG (math/rand trips gosec G404, and crypto-grade randomness is unwarranted
+	// for backoff timing).
+	if half := int64(base / 2); half > 0 {
+		wait += time.Duration(time.Now().UnixNano() % (half + 1))
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// retryOnIndexLock runs build()+run() and, when the git output signals index.lock
+// contention, retries with bounded backoff up to attempts times. Only lock
+// contention is retried — genuine git failures return immediately. On exhaustion
+// the last (output, error) is returned unchanged so callers surface the real error.
+func retryOnIndexLock(
+	ctx context.Context,
+	attempts int,
+	base time.Duration,
+	build func() *exec.Cmd,
+	run func(*exec.Cmd) ([]byte, error),
+) ([]byte, error) {
+	var out []byte
+	var err error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		out, err = run(build())
+		if err == nil || !outputIndicatesIndexLock(out) {
+			return out, err
+		}
+		if attempt == attempts {
+			break
+		}
+		if sleepErr := sleepBackoff(ctx, attempt, base); sleepErr != nil {
+			return out, err // context cancelled; surface the original error
+		}
+	}
+	return out, err
+}
+
+// execWithIndexLockRetry is the production-tuned wrapper used by index-modifying
+// git commands.
+func execWithIndexLockRetry(
+	ctx context.Context,
+	build func() *exec.Cmd,
+	run func(*exec.Cmd) ([]byte, error),
+) ([]byte, error) {
+	return retryOnIndexLock(ctx, indexLockMaxAttempts, indexLockBaseBackoff, build, run)
+}
+
+// runCombined runs a command capturing stdout+stderr together, matching the
+// error semantics of exec.Cmd.CombinedOutput.
+func runCombined(cmd *exec.Cmd) ([]byte, error) {
+	return cmd.CombinedOutput()
+}
 
 // cleanStaleLock removes .git/index.lock when it exists but is no longer
 // held by a running process. This recovers from crashed or killed git

@@ -255,7 +255,7 @@ type mockFileInfo struct {
 
 func (i *mockFileInfo) Name() string       { return i.name }
 func (i *mockFileInfo) Size() int64        { return i.size }
-func (i *mockFileInfo) Mode() fs.FileMode  { return 0644 }
+func (i *mockFileInfo) Mode() fs.FileMode  { return 0o644 }
 func (i *mockFileInfo) ModTime() time.Time { return time.Time{} }
 func (i *mockFileInfo) IsDir() bool        { return i.isDir }
 func (i *mockFileInfo) Sys() interface{}   { return nil }

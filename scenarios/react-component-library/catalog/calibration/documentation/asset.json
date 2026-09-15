@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "calibration.documentation", "name": "DocumentationCalibration", "kind": "component", "domain": "calibration", "targets": ["react-vite"], "slot": "ui-component", "delivery": "adopted", "target": { "priority": "P0", "maturity": "verified" } }
+}

@@ -1,0 +1,173 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "switchboard",
+  "description": "Experience contract for Switchboard. The product is a conversation surface first and a console second: a thread is the hero on every screen it appears, and the console exists to answer what a phone cannot show — who may reach an agent, what it may do, and what it is costing. Pages are authored ahead of the build and carry status 'draft'; claims are therefore aspirational or manual until stable selectors exist, per the depth ladder in README.md. The example 'notes' page stays registered until template-manager detemplate runs.",
+  "pages": [
+    {
+      "id": "onboarding",
+      "path": "pages/onboarding.json",
+      "title": "Welcome",
+      "status": "draft"
+    },
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Overview",
+      "status": "draft"
+    },
+    {
+      "id": "conversations",
+      "path": "pages/conversations.json",
+      "title": "Conversations",
+      "status": "draft"
+    },
+    {
+      "id": "call",
+      "path": "pages/call.json",
+      "title": "Call",
+      "status": "draft"
+    },
+    {
+      "id": "agents",
+      "path": "pages/agents.json",
+      "title": "Agents",
+      "status": "draft"
+    },
+    {
+      "id": "agent-detail",
+      "path": "pages/agent-detail.json",
+      "title": "Agent",
+      "status": "draft"
+    },
+    {
+      "id": "agent-new",
+      "path": "pages/agent-new.json",
+      "title": "New agent",
+      "status": "draft"
+    },
+    {
+      "id": "channels",
+      "path": "pages/channels.json",
+      "title": "Channels",
+      "status": "draft"
+    },
+    {
+      "id": "contacts",
+      "path": "pages/contacts.json",
+      "title": "Contacts",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "first-agent",
+      "path": "journeys/first-agent.json",
+      "title": "Create and use a first agent",
+      "status": "draft"
+    },
+    {
+      "id": "attach-a-handle",
+      "path": "journeys/attach-a-handle.json",
+      "title": "Attach an agent to an external channel",
+      "status": "draft"
+    },
+    {
+      "id": "govern-access",
+      "path": "journeys/govern-access.json",
+      "title": "Let somebody else reach an agent safely",
+      "status": "draft"
+    },
+    {
+      "id": "answer-a-gate",
+      "path": "journeys/answer-a-gate.json",
+      "title": "Answer a capability gate from a thread",
+      "status": "draft"
+    }
+  ],
+  "components": [
+    {
+      "id": "activity-timeline",
+      "path": "components/activity-timeline.json",
+      "title": "Activity timeline",
+      "status": "draft"
+    },
+    {
+      "id": "agent-avatar",
+      "path": "components/agent-avatar.json",
+      "title": "Agent avatar",
+      "status": "draft"
+    },
+    {
+      "id": "async-region",
+      "path": "components/async-region.json",
+      "title": "Async region",
+      "status": "draft"
+    },
+    {
+      "id": "attachment-preview",
+      "path": "components/attachment-preview.json",
+      "title": "Attachment preview",
+      "status": "draft"
+    },
+    {
+      "id": "budget-meter",
+      "path": "components/budget-meter.json",
+      "title": "Budget meter",
+      "status": "draft"
+    },
+    {
+      "id": "capability-gate",
+      "path": "components/capability-gate.json",
+      "title": "Capability gate",
+      "status": "draft"
+    },
+    {
+      "id": "channel-chip",
+      "path": "components/channel-chip.json",
+      "title": "Channel chip",
+      "status": "draft"
+    },
+    {
+      "id": "empty-state",
+      "path": "components/empty-state.json",
+      "title": "Empty state",
+      "status": "draft"
+    },
+    {
+      "id": "thread-list",
+      "path": "components/thread-list.json",
+      "title": "Thread list",
+      "status": "draft"
+    },
+    {
+      "id": "transcript",
+      "path": "components/transcript.json",
+      "title": "Transcript",
+      "status": "draft"
+    },
+    {
+      "id": "trust-tier-badge",
+      "path": "components/trust-tier-badge.json",
+      "title": "Trust tier badge",
+      "status": "draft"
+    },
+    {
+      "id": "voice-input-button",
+      "path": "components/voice-input-button.json",
+      "title": "Voice input button",
+      "status": "draft"
+    }
+  ]
+}

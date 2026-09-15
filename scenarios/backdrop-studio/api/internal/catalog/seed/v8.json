@@ -1,0 +1,166 @@
+{
+  "version": 8,
+  "note": "Adds the vector generator family: four styles, one per generator, drawn as SVG line and ink work rather than as a screen over a flat raster. No existing style is changed by this version.",
+  "retune_reasons": [
+    "The 2026-08-13 verdict pass read sixteen styles at delivery resolution and rejected eight of them. Seven share one cause: a screen applied to a procedural source that contains no picture. cyanotype-arcade delivers a cream field carrying a dot canopy and four rectangular dot blocks, with no arch, no column and no statue in it, against a recorded verdict claiming all four read through the dot density. relief-plate delivers diagonal engraving moire; swiss-contour a curtain of vertical lines; ukiyo-tide and tidal-caustic near-uniform halftone fields. The screens are not the fault: demoscene-terrain, stipple-massif and iron-attractor run the same class of screen over sources that have real structure, and all three read correctly at full size.",
+    "engraved-colonnade-vector draws the arcade the way an engraver cuts it. The wall is hatched rather than filled, at a burin pitch of 0.0072 of the frame height, with a second steeper pass only where the light falls away — so the masonry carries tone at every scale. The raster arcade generator draws the same subject as flat cut-out shapes, which is why a screen over it returns dots in the shape of rectangles. Tone here is carried by line density, so there is nothing for a screen to destroy and no screen is applied.",
+    "survey-relief traces real iso-lines through a height field by marching squares, with index contours drawn heavier every fifth line, spot heights and a graticule. swiss-contour and relief-plate were both supposed to be this. Both currently deliver a screen with no map under it, because a raster contour field drawn one pixel wide and then screened at a coarser ruling loses every line it had.",
+    "tidal-halftone evaluates the tone function directly at each screen cell, so the dot grid is the image rather than a reproduction of one. The raster horizon styles render pixels and then ask image-tools to screen them, and the second step can only remove what the first produced. A press registration filter displaces the dots by 0.30 of their own pitch, which is what separates a halftone that reads as printed from one that reads as computed.",
+    "pale-moon is a new art direction rather than a repair. The resemblance report measures deep-field and ember-cloud at 0.916 against a 0.90 threshold, four mesh styles between 0.64 and 0.79, and city-pop-horizon, riso-horizon and solar-bloom-horizon at source similarity 1.000 — all three draw the identical horizon scene. The repair for a cluster is a genuinely different source, and celestial had no generator in either the raster or the vector family before this.",
+    "All four declare quality_tier procedural: they are drawn in-process, cost nothing, need no network and no GPU, and are deterministic from their seed. The frontier tier is for subjects the procedural lane genuinely cannot compete on, which is not this.",
+    "Ink defaults are stated per style rather than inherited, so each renders on a cold install with no brand bound. The generators reference exactly three slots — background as paper, primary as ink, accent as the second colour — and an unresolved slot is a hard error rather than a literal written into the document."
+  ],
+  "styles": [
+    {
+      "id": "engraved-colonnade-vector",
+      "name": "Engraved Colonnade (Vector)",
+      "version": 1,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "metaphysical",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#12327a",
+        "$brand.background": "#efe7d3",
+        "$brand.accent": "#c9432f"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.1,
+          "width": 0.42,
+          "height": 0.3,
+          "kind": "overlay",
+          "text_color": "#12327a"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "colonnade",
+        "conditioner": "",
+        "params_json": "{\"bays\": 3, \"horizon\": 0.60, \"focal_x\": 0.5}"
+      }
+    },
+    {
+      "id": "survey-relief",
+      "name": "Survey Relief",
+      "version": 1,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "scientific_plate",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#123a6b",
+        "$brand.background": "#f1e7d2",
+        "$brand.accent": "#b1442c"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.12,
+          "width": 0.38,
+          "height": 0.28,
+          "kind": "overlay",
+          "text_color": "#123a6b"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "contour-relief",
+        "conditioner": "",
+        "params_json": "{\"bands\": 24, \"relief\": 0.72}"
+      }
+    },
+    {
+      "id": "tidal-halftone",
+      "name": "Tidal Halftone",
+      "version": 1,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "riso_zine",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#123a8c",
+        "$brand.background": "#f0e8d6",
+        "$brand.accent": "#d4452c"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.62,
+          "width": 0.44,
+          "height": 0.26,
+          "kind": "overlay",
+          "text_color": "#f0e8d6"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "halftone-horizon",
+        "conditioner": "",
+        "params_json": "{\"horizon\": 0.56, \"focal_x\": 0.68, \"cells\": 132}"
+      }
+    },
+    {
+      "id": "pale-moon",
+      "name": "Pale Moon",
+      "version": 1,
+      "role": "focal",
+      "subject": "celestial",
+      "lineage": "wpa_poster",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "framed_inset",
+        "type_mask"
+      ],
+      "inks": {
+        "$brand.primary": "#13275e",
+        "$brand.background": "#ece3cd",
+        "$brand.accent": "#c9432f"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.08,
+          "width": 0.34,
+          "height": 0.24,
+          "kind": "overlay",
+          "text_color": "#ece3cd"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "radiant-orb",
+        "conditioner": "",
+        "params_json": "{\"orb_radius\": 0.34, \"focal_x\": 0.52, \"focal_y\": 0.44, \"ground\": 0.86, \"figure_x\": 0.30}"
+      }
+    }
+  ]
+}

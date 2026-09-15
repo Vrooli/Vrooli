@@ -1,0 +1,24 @@
+// provider-free-exception: ProductMark is an inert SVG primitive consuming a finite kind prop, with no context or provider behavior.
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render } from '@testing-library/react';
+import { getProductMarkPath, productMarkDrawing, productMarkPaths } from './productMarks.js';
+import { ProductMark } from './primitives';
+import type { Mark } from './resources';
+afterEach(cleanup);
+describe('shared Node/browser product mark grammar', () => {
+  it.each<Mark>(['letter-a', 'landscape', 'suite', 'play'])('uses the shared path and geometry for %s', kind => {
+    const { container } = render(<ProductMark kind={kind} />);
+    expect(container.querySelector('svg')).toHaveAttribute('viewBox', productMarkDrawing.viewBox);
+    expect(container.querySelector('svg')).toHaveAttribute('fill', 'none');
+    expect(container.querySelector('path')).toHaveAttribute('d', productMarkPaths[kind]);
+    expect(container.querySelector('path')).toHaveAttribute('stroke-width', '2.3');
+    expect(container.querySelector('path')).toHaveAttribute('stroke-linecap', 'round');
+    expect(container.querySelector('path')).toHaveAttribute('stroke-linejoin', 'round');
+  });
+  it.each(['unknown', 'constructor', '__proto__', '', null, 1])('does not supply a fallback mark for %s', value => {
+    expect(getProductMarkPath(value)).toBeUndefined();
+  });
+  it('keeps the shared catalog and geometry immutable', () => {
+    expect(Object.isFrozen(productMarkPaths)).toBe(true); expect(Object.isFrozen(productMarkDrawing)).toBe(true);
+  });
+});

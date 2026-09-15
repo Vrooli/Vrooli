@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 // Note: health endpoint returns free-form JSON, no proto schema
 import { apiFetch, protoFetch } from '../../../shared/api/apiFetch';
-import { parseSetMaintenanceStateResponse } from '../../../shared/api/proto-contracts';
 import type { SystemHealthStatus } from './useSystemMonitor';
 
 export interface UseHealthCheckReturn {
@@ -52,6 +51,7 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
     const nextState = isCurrentlyActive ? 'inactive' : 'active';
 
     try {
+      const { parseSetMaintenanceStateResponse } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/maintenance/state', parseSetMaintenanceStateResponse, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,7 +59,7 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
       });
 
       if (!mountedRef.current) return;
-      if (data.success === false) {
+      if (!data.success) {
         throw new Error(data.error ?? 'Failed to update status');
       }
 
@@ -73,12 +73,12 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
       });
 
       // Refresh from server to confirm
-      setTimeout(checkHealth, 500);
+      setTimeout(() => { void checkHealth(); }, 500);
     } catch (err) {
       if (!mountedRef.current) return;
       console.error('Failed to toggle system status:', err);
       setHealthError(err instanceof Error ? err.message : 'Failed to update status');
-      checkHealth();
+      void checkHealth();
     }
   }, [checkHealth, healthStatus]);
 

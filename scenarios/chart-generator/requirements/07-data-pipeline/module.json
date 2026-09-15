@@ -1,23 +1,22 @@
 {
   "_metadata": {
-    "prd_section": "P1 - Data Processing",
-    "description": "Data transformation pipeline with aggregation, filtering, and sorting"
+    "description": "Data transformation pipeline with aggregation, filtering, and sorting",
+    "last_validated_at": "2026-07-13T23:28:32-04:00"
   },
   "requirements": [
     {
       "id": "CHART-P1-007",
-      "category": "chart-generation.data",
-      "prd_ref": "OT-P1-007",
-      "operational_target_id": "OT-P1-007",
       "title": "Data transformation pipeline (aggregation, filtering, sorting)",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "chart-generation.data",
       "description": "Built-in data processing for common transformation operations",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/data_transformations_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestDataTransformations_Apply validates filtering, sorting, aggregation"
         }
       ]

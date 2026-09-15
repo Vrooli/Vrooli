@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Own the two policies that change what the scenario will do: which licence lane is active, and how much disk derived audio may consume.",
+    "prd_refs": ["OT-P1-002", "OT-P0-006"]
+  },
+  "priorities": [
+    { "statement": "Switching to the permissive lane states plainly which installed models become unavailable, before the change is applied." },
+    { "statement": "The derived-storage budget shows current usage against the limit, so eviction is never a surprise." }
+  ],
+  "states": [
+    { "id": "lane-permissive", "example": "permissive", "description": "Restricted-lane models excluded." },
+    { "id": "lane-all", "example": "all", "description": "All installed models available." },
+    { "id": "budget-healthy", "example": "healthy", "description": "Derived storage well under budget." },
+    { "id": "budget-evicting", "example": "evicting", "description": "Budget reached; least-recently-used artifacts being reclaimed." }
+  ],
+  "elements": [
+    { "id": "lane-control", "role": "radiogroup", "description": "Licence lane selection." },
+    { "id": "lane-impact", "role": "status", "description": "Models affected by the pending lane change." },
+    { "id": "budget-meter", "role": "meter", "description": "Derived storage usage against budget." },
+    { "id": "locale-control", "role": "combobox", "description": "Interface locale." }
+  ],
+  "claims": [
+    {
+      "id": "lane-change-previews-impact",
+      "type": "element-present",
+      "statement": "Selecting a more restrictive lane names the models that become unavailable before applying.",
+      "tier": "machine",
+      "elements": ["lane-control", "lane-impact"],
+      "states": ["lane-permissive", "lane-all"]
+    },
+    {
+      "id": "budget-usage-is-visible",
+      "type": "element-present",
+      "statement": "Derived storage usage is shown against its limit.",
+      "tier": "machine",
+      "elements": ["budget-meter"],
+      "states": ["budget-healthy", "budget-evicting"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "lane-control": { "testid": "licence-lane-control" },
+      "lane-impact": { "testid": "licence-lane-impact" },
+      "budget-meter": { "testid": "derived-storage-meter" },
+      "locale-control": { "testid": "settings-locale" }
+    }
+  }
+}

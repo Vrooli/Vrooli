@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/administration"
 )
 
 // cleanupUserTestData removes test user data created during tests.
@@ -17,10 +20,9 @@ func cleanupUserTestData(t *testing.T, db *sql.DB, email string) {
 
 func TestGetOrCreateUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-create-user@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -58,10 +60,9 @@ func TestGetOrCreateUser(t *testing.T) {
 
 func TestGetUserByEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-get-by-email@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -98,10 +99,9 @@ func TestGetUserByEmail(t *testing.T) {
 
 func TestJWTCreationAndValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-jwt@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -115,7 +115,7 @@ func TestJWTCreationAndValidation(t *testing.T) {
 	}
 
 	// Generate access token
-	token, expiresAt, err := authService.generateAccessToken(user.ID, user.Email, "test-session-id")
+	token, expiresAt, err := authService.GenerateAccessToken(user.ID, user.Email, "test-session-id")
 	if err != nil {
 		t.Fatalf("generateAccessToken failed: %v", err)
 	}
@@ -149,20 +149,11 @@ func TestJWTCreationAndValidation(t *testing.T) {
 
 func TestJWTExpiry(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
 	// Create service with very short TTL for testing
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    1 * time.Millisecond, // Very short for testing
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-	}
+	authService := newUserAuthServiceForTestWithOptions(db, emailService, time.Millisecond, 7*24*time.Hour, 15*time.Minute)
 
 	testEmail := "test-jwt-expiry@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -176,7 +167,7 @@ func TestJWTExpiry(t *testing.T) {
 	}
 
 	// Generate token
-	token, _, err := authService.generateAccessToken(user.ID, user.Email, "test-session")
+	token, _, err := authService.GenerateAccessToken(user.ID, user.Email, "test-session")
 	if err != nil {
 		t.Fatalf("generateAccessToken failed: %v", err)
 	}
@@ -189,17 +180,16 @@ func TestJWTExpiry(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for expired token")
 	}
-	if err != ErrTokenExpired {
-		t.Errorf("Expected ErrTokenExpired, got %v", err)
+	if !errors.Is(err, administration.ErrTokenExpired) {
+		t.Errorf("Expected administration.ErrTokenExpired, got %v", err)
 	}
 }
 
 func TestInvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	// Test various invalid tokens
 	invalidTokens := []string{
@@ -219,10 +209,9 @@ func TestInvalidToken(t *testing.T) {
 
 func TestLinkStripeCustomer(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-stripe-link@example.com"
 	testCustomerID := "cus_test123"
@@ -271,15 +260,15 @@ func TestHashToken(t *testing.T) {
 	// Test that hashing is deterministic
 	token := "test-token-12345"
 
-	hash1 := hashToken(token)
-	hash2 := hashToken(token)
+	hash1 := administration.HashToken(token)
+	hash2 := administration.HashToken(token)
 
 	if hash1 != hash2 {
 		t.Errorf("hashToken not deterministic: %s != %s", hash1, hash2)
 	}
 
 	// Test that different tokens produce different hashes
-	hash3 := hashToken("different-token")
+	hash3 := administration.HashToken("different-token")
 	if hash1 == hash3 {
 		t.Error("Different tokens should produce different hashes")
 	}
@@ -292,22 +281,11 @@ func TestHashToken(t *testing.T) {
 
 func TestVerifyMagicLink_ValidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
 	// Use direct struct initialization to ensure consistent TTL settings
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-verify-magic-link@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -367,22 +345,11 @@ func TestVerifyMagicLink_ValidToken(t *testing.T) {
 
 func TestVerifyMagicLink_ExpiredToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
 	// Create service with very short magic link TTL
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 1 * time.Millisecond, // Very short for testing
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTestWithOptions(db, emailService, 15*time.Minute, 7*24*time.Hour, time.Millisecond)
 
 	testEmail := "test-verify-expired@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -409,29 +376,18 @@ func TestVerifyMagicLink_ExpiredToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for expired token")
 	}
-	if err != ErrTokenExpired {
-		t.Errorf("Expected ErrTokenExpired, got %v", err)
+	if !errors.Is(err, administration.ErrTokenExpired) {
+		t.Errorf("Expected administration.ErrTokenExpired, got %v", err)
 	}
 }
 
 func TestVerifyMagicLink_UsedToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
 	// Use direct struct initialization to ensure consistent TTL settings
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-verify-used@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -461,17 +417,16 @@ func TestVerifyMagicLink_UsedToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for used token")
 	}
-	if err != ErrTokenUsed {
-		t.Errorf("Expected ErrTokenUsed, got %v", err)
+	if !errors.Is(err, administration.ErrTokenUsed) {
+		t.Errorf("Expected administration.ErrTokenUsed, got %v", err)
 	}
 }
 
 func TestVerifyMagicLink_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	ctx := context.Background()
 
@@ -488,18 +443,17 @@ func TestVerifyMagicLink_InvalidToken(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected error for invalid token %q", token)
 		}
-		if err != ErrTokenInvalid {
-			t.Errorf("Expected ErrTokenInvalid for token %q, got %v", token, err)
+		if !errors.Is(err, administration.ErrTokenInvalid) {
+			t.Errorf("Expected administration.ErrTokenInvalid for token %q, got %v", token, err)
 		}
 	}
 }
 
 func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-logout-all@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -513,17 +467,17 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	}
 
 	// Create 3 sessions
-	session1, err := authService.createSession(ctx, user, "127.0.0.1", "Agent-1")
+	session1, err := authService.CreateSession(ctx, user, "127.0.0.1", "Agent-1")
 	if err != nil {
 		t.Fatalf("createSession 1 failed: %v", err)
 	}
 
-	session2, err := authService.createSession(ctx, user, "127.0.0.2", "Agent-2")
+	session2, err := authService.CreateSession(ctx, user, "127.0.0.2", "Agent-2")
 	if err != nil {
 		t.Fatalf("createSession 2 failed: %v", err)
 	}
 
-	session3, err := authService.createSession(ctx, user, "127.0.0.3", "Agent-3")
+	session3, err := authService.CreateSession(ctx, user, "127.0.0.3", "Agent-3")
 	if err != nil {
 		t.Fatalf("createSession 3 failed: %v", err)
 	}
@@ -551,8 +505,8 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	if err == nil {
 		t.Error("Session 2 should be revoked")
 	}
-	if err != ErrSessionRevoked {
-		t.Errorf("Expected ErrSessionRevoked for session 2, got %v", err)
+	if !errors.Is(err, administration.ErrSessionRevoked) {
+		t.Errorf("Expected administration.ErrSessionRevoked for session 2, got %v", err)
 	}
 
 	// Session 3 should be revoked
@@ -560,17 +514,16 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	if err == nil {
 		t.Error("Session 3 should be revoked")
 	}
-	if err != ErrSessionRevoked {
-		t.Errorf("Expected ErrSessionRevoked for session 3, got %v", err)
+	if !errors.Is(err, administration.ErrSessionRevoked) {
+		t.Errorf("Expected administration.ErrSessionRevoked for session 3, got %v", err)
 	}
 }
 
 func TestLogoutAllSessions_NoOtherSessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-logout-all-single@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -584,7 +537,7 @@ func TestLogoutAllSessions_NoOtherSessions(t *testing.T) {
 	}
 
 	// Create only 1 session
-	session1, err := authService.createSession(ctx, user, "127.0.0.1", "Agent-1")
+	session1, err := authService.CreateSession(ctx, user, "127.0.0.1", "Agent-1")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}

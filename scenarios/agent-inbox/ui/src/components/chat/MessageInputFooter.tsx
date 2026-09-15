@@ -1,10 +1,9 @@
-import { Loader2, X, Sparkles } from "lucide-react";
+import { memo } from "react";
+import { Loader2 } from "lucide-react";
 import { WebSearchIndicator } from "./WebSearchIndicator";
-import { ForcedToolIndicator } from "./ForcedToolIndicator";
 import { TemplateIndicator } from "./TemplateIndicator";
 import { SkillIndicator } from "./SkillIndicator";
 import { SuggestedSkills } from "./SuggestedSkills";
-import type { ForcedTool } from "./AttachmentButton";
 import type { Skill, Template } from "@/lib/types/templates";
 import type { SuggestedSkill } from "@/lib/api";
 
@@ -20,13 +19,9 @@ interface MessageInputFooterProps {
   modelSupportsWebSearch: boolean;
   webSearchEnabled: boolean;
   setWebSearchEnabled: (enabled: boolean) => void;
-  forcedTool: ForcedTool | null;
-  handleClearForcedTool: () => void;
   activeTemplate: ActiveTemplateState | null;
   clearTemplate: () => void;
   setShowVariableForm: (show: boolean) => void;
-  activeTemplateId?: string | null;
-  onTemplateDeactivate?: () => void;
   selectedSkillIds: string[];
   getSelectedSkills: () => Skill[];
   removeSkill: (id: string) => void;
@@ -39,7 +34,7 @@ interface MessageInputFooterProps {
   dismissAllSuggestions: () => void;
 }
 
-export function MessageInputFooter({
+export const MessageInputFooter = memo(function MessageInputFooter({
   isEditMode,
   modKey,
   loading,
@@ -47,13 +42,9 @@ export function MessageInputFooter({
   modelSupportsWebSearch,
   webSearchEnabled,
   setWebSearchEnabled,
-  forcedTool,
-  handleClearForcedTool,
   activeTemplate,
   clearTemplate,
   setShowVariableForm,
-  activeTemplateId,
-  onTemplateDeactivate,
   selectedSkillIds,
   getSelectedSkills,
   removeSkill,
@@ -120,32 +111,12 @@ export function MessageInputFooter({
             onDisable={() => setWebSearchEnabled(false)}
           />
         )}
-        {forcedTool && (
-          <ForcedToolIndicator
-            scenario={forcedTool.scenario}
-            toolName={forcedTool.toolName}
-            onClear={handleClearForcedTool}
-          />
-        )}
         {activeTemplate && (
           <TemplateIndicator
             template={activeTemplate.template}
             onClear={clearTemplate}
             onEdit={() => setShowVariableForm(true)}
           />
-        )}
-        {activeTemplateId && !activeTemplate && onTemplateDeactivate && (
-          <div className="flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-full">
-            <Sparkles className="h-3 w-3" />
-            <span>Template tools active</span>
-            <button
-              onClick={onTemplateDeactivate}
-              className="ml-1 hover:text-indigo-300 transition-colors"
-              aria-label="Deactivate template tools"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
         )}
         {selectedSkillIds.length > 0 && (
           <SkillIndicator
@@ -173,4 +144,4 @@ export function MessageInputFooter({
       </div>
     </div>
   );
-}
+});

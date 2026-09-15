@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,13 +9,19 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/vrooli/cli-core/cliutil"
-
 	"scenario-to-cloud/cli/deployment"
+
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
+	deploymentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments"
+
+	"scenario-to-cloud/cli/internal/apierr"
+	"scenario-to-cloud/cli/internal/selector"
 )
 
 func Run(client *Client, deploymentClient *deployment.Client, args []string) error {
@@ -65,13 +72,47 @@ Examples:
 	return nil
 }
 
+// selectorFlags carries the deployment selector of a secrets command.
+// --scenario doubles as the scenario-target selector, so the grammar is
+// checked here: --deployment alone, or --scenario with exactly one of
+// --environment, --domain, --host, or --all-deployments.
 type selectorFlags struct {
 	deploymentID string
 	scenarioID   string
+	environment  string
 	host         string
 	domain       string
-	target       string
 	all          bool
+}
+
+func (s selectorFlags) register(fs *flag.FlagSet) *selectorFlags {
+	fs.StringVar(&s.deploymentID, "deployment", "", "Deployment id")
+	fs.StringVar(&s.scenarioID, "scenario", "", "Scenario ID (required for scenario target; pairs with --environment/--domain/--host for the deployment target)")
+	fs.StringVar(&s.environment, "environment", "", "Deployment environment selector (with --scenario)")
+	fs.StringVar(&s.host, "host", "", "Deployment host selector (with --scenario)")
+	fs.StringVar(&s.domain, "domain", "", "Deployment domain selector (with --scenario)")
+	fs.BoolVar(&s.all, "all-deployments", false, "Apply to every deployment of --scenario (optionally narrowed by --environment)")
+	return &s
+}
+
+func (s selectorFlags) selector() (selector.Selector, error) {
+	if strings.TrimSpace(s.deploymentID) != "" {
+		return selector.Selector{ID: strings.TrimSpace(s.deploymentID)}, nil
+	}
+	sel := selector.Selector{ScenarioID: strings.TrimSpace(s.scenarioID), Environment: strings.TrimSpace(s.environment), Domain: strings.TrimSpace(s.domain), Host: strings.TrimSpace(s.host)}
+	if sel.ScenarioID == "" {
+		return selector.Selector{}, apierr.Refused("deployment target needs a selector %s", selector.Usage)
+	}
+	facets := 0
+	for _, v := range []string{sel.Environment, sel.Domain, sel.Host} {
+		if v != "" {
+			facets++
+		}
+	}
+	if facets != 1 {
+		return selector.Selector{}, apierr.Refused("--scenario must be paired with exactly one of --environment, --domain or --host (or use --all-deployments)")
+	}
+	return sel, nil
 }
 
 func runSet(client *Client, deploymentClient *deployment.Client, args []string) error {
@@ -82,13 +123,7 @@ func runSet(client *Client, deploymentClient *deployment.Client, args []string) 
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after secret update")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 
-	sel := selectorFlags{}
-	fs.StringVar(&sel.deploymentID, "deployment-id", "", "Deployment ID")
-	fs.StringVar(&sel.scenarioID, "scenario", "", "Scenario ID (required for scenario target; recommended for deployment selector)")
-	fs.StringVar(&sel.host, "host", "", "Deployment host selector")
-	fs.StringVar(&sel.domain, "domain", "", "Deployment domain selector")
-	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
-	fs.BoolVar(&sel.all, "all-deployments", false, "Apply to all deployments for --scenario")
+	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -212,13 +247,7 @@ func runGet(client *Client, deploymentClient *deployment.Client, args []string) 
 	reveal := fs.Bool("reveal", false, "Reveal secret value")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 
-	sel := selectorFlags{}
-	fs.StringVar(&sel.deploymentID, "deployment-id", "", "Deployment ID")
-	fs.StringVar(&sel.scenarioID, "scenario", "", "Scenario ID (required for scenario target; recommended for deployment selector)")
-	fs.StringVar(&sel.host, "host", "", "Deployment host selector")
-	fs.StringVar(&sel.domain, "domain", "", "Deployment domain selector")
-	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
-	fs.BoolVar(&sel.all, "all-deployments", false, "Read from all deployments for --scenario")
+	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -304,13 +333,7 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 	targetsRaw := fs.String("targets", "scenario,deployment", "Comma-separated targets: workspace,scenario,deployment")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 
-	sel := selectorFlags{}
-	fs.StringVar(&sel.deploymentID, "deployment-id", "", "Deployment ID")
-	fs.StringVar(&sel.scenarioID, "scenario", "", "Scenario ID (required for scenario target; recommended for deployment selector)")
-	fs.StringVar(&sel.host, "host", "", "Deployment host selector")
-	fs.StringVar(&sel.domain, "domain", "", "Deployment domain selector")
-	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
-	fs.BoolVar(&sel.all, "all-deployments", false, "Read from all deployments for --scenario")
+	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -446,8 +469,13 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 	if !verified {
 		status = "FAIL"
 	}
-	fmt.Printf("Verification: %s\n", status)
-	fmt.Printf("Key: %s\n", key)
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Verification: %s", status),
+			fmt.Sprintf("Key: %s", key),
+		},
+	}
+	targetItems := make([]string, 0, len(results))
 	for _, result := range results {
 		label := result.Target
 		if result.DeploymentID != "" {
@@ -461,19 +489,26 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 		if result.Fingerprint != "" {
 			fp = " fingerprint=" + result.Fingerprint
 		}
-		fmt.Printf("  - %s: %s%s\n", label, state, fp)
+		targetItems = append(targetItems, fmt.Sprintf("%s: %s%s", label, state, fp))
+	}
+	if len(targetItems) > 0 {
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Targets", Items: targetItems})
 	}
 	if len(missing) > 0 {
-		fmt.Printf("Missing targets: %s\n", strings.Join(missing, ", "))
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Missing targets",
+			Items:   []string{strings.Join(missing, ", ")},
+		})
 	}
 	if !consistent {
-		fmt.Println("Fingerprint mismatch detected across targets.")
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Consistency",
+			Items:   []string{"Fingerprint mismatch detected across targets."},
+		})
 	}
-	if len(nextSteps) > 0 {
-		fmt.Println("Next steps:")
-		for i, step := range nextSteps {
-			fmt.Printf("  %d) %s\n", i+1, step)
-		}
+	report.NextSteps = nextSteps
+	if err := cliapp.RenderOperationalReport(os.Stdout, report); err != nil {
+		return err
 	}
 	if !verified {
 		return fmt.Errorf("secret verification failed for key %s", key)
@@ -487,13 +522,7 @@ func runDelete(client *Client, deploymentClient *deployment.Client, args []strin
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after delete")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 
-	sel := selectorFlags{}
-	fs.StringVar(&sel.deploymentID, "deployment-id", "", "Deployment ID")
-	fs.StringVar(&sel.scenarioID, "scenario", "", "Scenario ID (required for scenario target; recommended for deployment selector)")
-	fs.StringVar(&sel.host, "host", "", "Deployment host selector")
-	fs.StringVar(&sel.domain, "domain", "", "Deployment domain selector")
-	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
-	fs.BoolVar(&sel.all, "all-deployments", false, "Delete from all deployments for --scenario")
+	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -634,61 +663,42 @@ func parseTargets(raw string) (map[string]bool, error) {
 	return out, nil
 }
 
-func resolveDeploymentTargets(client *deployment.Client, needed bool, sel selectorFlags) ([]string, error) {
+func resolveDeploymentTargets(client *deployment.Client, needed bool, sel *selectorFlags) ([]string, error) {
 	if !needed {
 		return nil, nil
 	}
 	if client == nil {
 		return nil, fmt.Errorf("deployment client is required for deployment target operations")
 	}
-	if strings.TrimSpace(sel.deploymentID) != "" {
-		return []string{strings.TrimSpace(sel.deploymentID)}, nil
-	}
-
 	if sel.all {
 		if strings.TrimSpace(sel.scenarioID) == "" {
-			return nil, fmt.Errorf("--all-deployments requires --scenario")
+			return nil, apierr.Refused("--all-deployments requires --scenario")
 		}
-		_, resp, err := client.List(deployment.ListOptions{ScenarioID: strings.TrimSpace(sel.scenarioID)})
+		if strings.TrimSpace(sel.domain) != "" || strings.TrimSpace(sel.host) != "" || strings.TrimSpace(sel.deploymentID) != "" {
+			return nil, apierr.Refused("--all-deployments takes --scenario and optionally --environment; use a single selector for one deployment")
+		}
+		resp, err := client.List(context.Background(), &deploymentsv1.ListDeploymentsRequest{ScenarioId: strings.TrimSpace(sel.scenarioID), Environment: strings.TrimSpace(sel.environment)})
 		if err != nil {
 			return nil, err
 		}
-		ids := make([]string, 0)
-		for _, d := range resp.Deployments {
-			if strings.TrimSpace(sel.domain) != "" && !strings.EqualFold(strings.TrimSpace(d.Domain), strings.TrimSpace(sel.domain)) {
-				continue
-			}
-			if strings.TrimSpace(sel.host) != "" && !strings.EqualFold(strings.TrimSpace(d.Host), strings.TrimSpace(sel.host)) {
-				continue
-			}
-			if strings.TrimSpace(sel.target) != "" {
-				t := strings.TrimSpace(sel.target)
-				if !strings.EqualFold(strings.TrimSpace(d.Domain), t) && !strings.EqualFold(strings.TrimSpace(d.Host), t) {
-					continue
-				}
-			}
-			ids = append(ids, d.ID)
+		ids := make([]string, 0, len(resp.GetDeployments()))
+		for _, d := range resp.GetDeployments() {
+			ids = append(ids, d.GetRef().GetId())
 		}
 		if len(ids) == 0 {
 			return nil, fmt.Errorf("no deployments matched --all-deployments selector")
 		}
 		return ids, nil
 	}
-
-	selector := deployment.ManifestSelector{
-		ScenarioID: strings.TrimSpace(sel.scenarioID),
-		Host:       strings.TrimSpace(sel.host),
-		Domain:     strings.TrimSpace(sel.domain),
-		Target:     strings.TrimSpace(sel.target),
-	}
-	resolved, err := deployment.ResolveLatestBySelector(client, selector)
+	chosen, err := sel.selector()
 	if err != nil {
 		return nil, err
 	}
-	if resolved == nil {
-		return nil, fmt.Errorf("no deployment resolved; provide --deployment-id or selector flags")
+	id, err := selector.ResolveID(context.Background(), client.Deployments, chosen)
+	if err != nil {
+		return nil, err
 	}
-	return []string{resolved.ID}, nil
+	return []string{id}, nil
 }
 
 func looksLikeHTTPStatus(err error, status int) bool {

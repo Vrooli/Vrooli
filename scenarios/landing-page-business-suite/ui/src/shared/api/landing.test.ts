@@ -1,19 +1,46 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { getLandingConfig, getPlans } from './landing';
-import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { getLandingConfig, getPlans, parseLandingConfigJson, recordPresentationExposure } from './landing';
+import signalFixture from '../../surfaces/public-landing/presentation/fixtures/signal.json';
+import { ResolvedProductPresentationSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/product_presentation_pb';
+import { publicConfig } from '../../surfaces/public-landing/presentation/publicTestFixtures';
+import { LandingConfigResponseSchema, PresentationAssignmentSource } from '@vrooli/proto-types/landing-page-business-suite/v1/config_pb';
+import { assertDefined, createFetchMock, installFetchMock, mockResponses } from '../test-utils/api-mocks';
+import { create, toJson, fromJsonString, toJsonString } from '@bufbuild/protobuf';
+import { GetPricingResponseSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 
-vi.mock('@bufbuild/protobuf', () => ({
-  fromJson: <T,>(_schema: unknown, data: T): T => data,
+const { pricingClient, landingConfigClient } = vi.hoisted(() => ({
+  pricingClient: { getPricing: vi.fn() },
+  landingConfigClient: { getLandingConfig: vi.fn(), recordPresentationExposure: vi.fn() },
 }));
 
+vi.mock('@connectrpc/connect', () => ({
+  createClient: vi.fn((service: { typeName?: string }) => service.typeName?.endsWith('.LandingConfigService') ? landingConfigClient : pricingClient),
+}));
+vi.mock('@bufbuild/protobuf', async (importOriginal) => ({ ...(await importOriginal<typeof import('@bufbuild/protobuf')>()), toJson: vi.fn((_schema, message): unknown => message as unknown) }));
+
 describe('landing API', () => {
+  it('uses the generated explicit exposure request and preserves owner deduplication', async () => {
+    const proof = { visitorId: 'visitor', variantSlug: 'control', revision: 'revision', route: '/', locale: 'en', blockDigest: 'digest', weightFingerprint: 'weights', source: PresentationAssignmentSource.WEIGHTED_VISITOR };
+    landingConfigClient.recordPresentationExposure.mockResolvedValue({ recorded: false });
+    expect(await recordPresentationExposure(proof)).toEqual({ recorded: false });
+    expect(landingConfigClient.recordPresentationExposure).toHaveBeenCalledWith({ $typeName: 'landing_page_business_suite.v1.RecordPresentationExposureRequest', ...proof }, { timeoutMs: 10000 });
+    expect(landingConfigClient.getLandingConfig).not.toHaveBeenCalled();
+  });
   let fetchMock: ReturnType<typeof createFetchMock>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(toJson).mockReset();
     fetchMock = createFetchMock();
     installFetchMock(fetchMock);
+    pricingClient.getPricing.mockImplementation(async () => {
+      const response = await fetchMock('/landing_page_business_suite.v1.PricingService/GetPricing');
+      assertDefined(response, 'Connect pricing response');
+      assertDefined(response.json, 'Connect pricing response JSON reader');
+      return response.json();
+    });
+    landingConfigClient.getLandingConfig.mockResolvedValue(create(LandingConfigResponseSchema, { presentation: publicConfig().presentation }));
   });
 
   afterEach(() => {
@@ -21,51 +48,125 @@ describe('landing API', () => {
   });
 
   describe('getLandingConfig', () => {
-    it('returns landing configuration', async () => {
-      const config = {
-        title: 'Welcome',
-        subtitle: 'Best landing page',
-        sections: [{ type: 'hero', enabled: true }],
-      };
-      fetchMock.mockResolvedValue(mockResponses.success(config));
+    beforeEach(async () => {
+      const actual = await vi.importActual<typeof import('@bufbuild/protobuf')>('@bufbuild/protobuf');
+      vi.mocked(toJson).mockImplementation(actual.toJson);
+    });
 
+    it('requires the canonical typed presentation and retains the four public owner fields', async () => {
+      const presentation = publicConfig().presentation;
+      landingConfigClient.getLandingConfig.mockResolvedValue(create(LandingConfigResponseSchema, { presentation, fallback: true }));
       const result = await getLandingConfig();
-
-      expect(result).toEqual(config);
+      expect(result).toEqual({ presentation, pricing: undefined, downloads: [], fallback: true });
+      expect(LandingConfigResponseSchema.fields.map(field => [field.name, field.number])).toEqual([
+        ['pricing', 3], ['downloads', 4], ['fallback', 7], ['presentation', 10],
+      ]);
     });
 
-    it('calls endpoint without variant param when not provided', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
+    it('preserves the complete generated page/display/fixtures/assets/actions/diagnostics projection by identity', async () => {
+      const presentation = fromJsonString(ResolvedProductPresentationSchema, JSON.stringify(signalFixture.presentation));
+      presentation.actions = [{ $typeName: 'vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction',
+        key: 'owner-key', status: 'unavailable', href: '', reason: 'Owner unavailable', appKey: '', planRef: '' }];
+      const wire = create(LandingConfigResponseSchema, { presentation });
+      landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+      const result = await getLandingConfig();
+      expect(result.presentation).toBe(presentation);
+      expect(parseLandingConfigJson(toJsonString(LandingConfigResponseSchema, wire)).presentation).toEqual(presentation);
+    });
 
+    it.each(['network', 'bootstrap'] as const)('fails closed without presentation at the %s boundary', async boundary => {
+      const wire = create(LandingConfigResponseSchema, { downloads: [], fallback: true });
+      if (boundary === 'network') {
+        landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+        await expect(getLandingConfig()).rejects.toThrow('Invalid LandingConfigResponse response');
+      } else expect(() => parseLandingConfigJson(toJsonString(LandingConfigResponseSchema, wire))).toThrow('Invalid LandingConfigResponse response');
+    });
+
+    it('normalizes the same generated owner pricing for public joins and standalone commerce', async () => {
+      const wire = fromJsonString(LandingConfigResponseSchema, JSON.stringify({
+        presentation: toJson(ResolvedProductPresentationSchema, publicConfig().presentation),
+        pricing: {
+          bundle: { bundle_key: 'suite', name: 'Owner Suite', stripe_product_id: 'prod', credits_per_usd: '1000000', display_credits_multiplier: 0.001, display_credits_label: 'credits' },
+          monthly: [{ plan_name: 'Pro', plan_tier: 'pro', billing_interval: 'BILLING_INTERVAL_MONTH', amount_cents: '7900', currency: 'eur',
+            intro_enabled: true, intro_type: 'INTRO_PRICING_TYPE_FLAT_AMOUNT', intro_amount_cents: '500', intro_periods: 2,
+            stripe_price_id: 'price_pro', display_enabled: true, kind: 'PLAN_KIND_SUBSCRIPTION', metadata: { features: { list_value: { values: [{ string_value: 'Owner feature' }] } } } }],
+          credit_topups: [{ plan_name: 'Credits', plan_tier: 'credits', billing_interval: 'BILLING_INTERVAL_ONE_TIME', amount_cents: '1000', kind: 'PLAN_KIND_CREDITS_TOPUP', stripe_price_id: 'price_credits', display_enabled: true }],
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+        downloads: [{
+          bundle_key: 'suite', app_key: 'example', name: 'Owner app', metadata: { web_url: 'https://launch.example/app', enabled: true },
+          install_steps: ['Install'], storefronts: [{ store: 'direct', label: 'Owner store', url: 'https://store.example/app', badge: 'Open' }], display_order: 3,
+          platforms: [{ id: '9', bundle_key: 'suite', app_key: 'example', platform: 'linux', artifact_url: '/authorized/app',
+            artifact_source: 'managed', artifact_id: '22', release_version: '1.2.3', release_notes: 'Owner release',
+            checksum: 'sha', requires_entitlement: true, artifact_filename: 'app.AppImage', artifact_size_bytes: '4096', artifact_count: 1,
+            metadata: { channel: 'stable' } }],
+        }],
+      }));
+      landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+      pricingClient.getPricing.mockResolvedValue(create(GetPricingResponseSchema, { pricing: wire.pricing }));
+      const result = await getLandingConfig();
+      expect(result.pricing).toEqual(await getPlans());
+      expect(result.pricing?.monthly[0]).toMatchObject({ billing_interval: 'month', amount_cents: 7900, currency: 'eur', intro_amount_cents: 500, intro_periods: 2, kind: 'subscription', metadata: { features: ['Owner feature'] } });
+      expect(result.pricing?.credit_topups[0]).toMatchObject({ stripe_price_id: 'price_credits', kind: 'credits_topup', billing_interval: 'one_time' });
+      expect(result.downloads[0]).toMatchObject({ bundle_key: 'suite', app_key: 'example', metadata: { web_url: 'https://launch.example/app', enabled: true }, storefronts: [{ badge: 'Open' }], display_order: 3 });
+      expect(result.downloads[0]?.platforms[0]).toMatchObject({ id: 9, artifact_id: 22, artifact_source: 'managed', artifact_url: '/authorized/app', release_version: '1.2.3', requires_entitlement: true, artifact_size_bytes: 4096, artifact_count: 1, metadata: { channel: 'stable' } });
+    });
+
+    it('preserves typed nested pricing metadata and unsafe int64 precision through the real generated codec', async () => {
+      const wire = fromJsonString(LandingConfigResponseSchema, JSON.stringify({
+        presentation: toJson(ResolvedProductPresentationSchema, publicConfig().presentation),
+        pricing: { bundle: { bundle_key: 'suite', name: 'Owner suite', stripe_product_id: 'prod' }, monthly: [{
+          plan_name: 'Owner plan', plan_tier: 'configured', billing_interval: 'BILLING_INTERVAL_MONTH', amount_cents: '2500', currency: 'usd', stripe_price_id: 'owner-price',
+          metadata: {
+            credits: { int_value: '42' }, exact_counter: { int_value: '9007199254740993' },
+            details: { object_value: { fields: { enabled: { bool_value: false }, empty: { null_value: 0 },
+              rows: { list_value: { values: [{ string_value: 'Configured row' }, { int_value: '7' }, { double_value: 1.25 }] } } } } },
+          },
+        }], updated_at: '2026-01-01T00:00:00Z' },
+      }));
+      landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+      pricingClient.getPricing.mockResolvedValue(create(GetPricingResponseSchema, { pricing: wire.pricing }));
+      const result = await getLandingConfig();
+      expect(result.pricing).toEqual(await getPlans());
+      expect(result.pricing?.updated_at).toBe('2026-01-01T00:00:00Z');
+      expect(result.pricing?.monthly[0]?.metadata).toEqual({ credits: 42, exact_counter: '9007199254740993', details: { enabled: false, empty: null, rows: ['Configured row', 7, 1.25] } });
+    });
+
+    it('keeps a sparse owner download row sparse instead of fabricating artifact metadata or entitlement', async () => {
+      const wire = fromJsonString(LandingConfigResponseSchema, JSON.stringify({
+        presentation: toJson(ResolvedProductPresentationSchema, publicConfig().presentation),
+        downloads: [{ bundle_key: 'suite', app_key: 'example', name: 'Owner app',
+          storefronts: [{ store: 'direct', label: 'Owner store', url: 'https://store.example/app' }],
+          platforms: [{ id: '23', bundle_key: 'suite', app_key: 'example', platform: 'linux', release_version: '1.2.3' }],
+        }],
+      }));
+      landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+      const result = await getLandingConfig();
+      const app = result.downloads[0]; const asset = app?.platforms[0];
+      expect(app?.storefronts?.[0]?.badge).toBeUndefined();
+      expect(asset).toMatchObject({ id: 23, artifact_url: '', release_version: '1.2.3', requires_entitlement: false, metadata: {} });
+      expect(asset?.artifact_source).toBeUndefined(); expect(asset?.release_notes).toBeUndefined();
+      expect(asset?.checksum).toBeUndefined(); expect(asset?.artifact_filename).toBeUndefined();
+      expect(asset?.artifact_size_bytes).toBeUndefined(); expect(asset?.artifact_count).toBeUndefined();
+    });
+
+    it.each(['variant', 'sections', 'header', 'branding', 'coupon_mappings', 'intro_offers', 'private_extra'])('rejects retired/unknown bootstrap field %s through the generated descriptor', field => {
+      const raw = toJson(LandingConfigResponseSchema, create(LandingConfigResponseSchema, { presentation: publicConfig().presentation }));
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Expected fixture object');
+      expect(() => parseLandingConfigJson(JSON.stringify({ ...raw, [field]: {} }))).toThrow();
+    });
+
+    it('keeps default request identity empty and forwards explicit route, locale and abort signal', async () => {
       await getLandingConfig();
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain('/landing-config');
-      expect(url).not.toContain('variant=');
+      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith(expect.objectContaining({ variantSlug: '', visitorId: '', route: '/', locale: '' }), expect.anything());
+      const signal = new AbortController().signal;
+      await getLandingConfig('review', 'visitor', { route: '/apps/example', locale: 'fr', signal });
+      expect(landingConfigClient.getLandingConfig).toHaveBeenLastCalledWith(expect.objectContaining({ variantSlug: 'review', visitorId: 'visitor', route: '/apps/example', locale: 'fr' }), { signal });
     });
 
-    it('includes variant param when provided', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
-
-      await getLandingConfig('dark-theme');
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain('variant=dark-theme');
-    });
-
-    it('URL encodes variant slug', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
-
-      await getLandingConfig('special/variant');
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain(encodeURIComponent('special/variant'));
-    });
-
-    it('throws on server error', async () => {
-      fetchMock.mockResolvedValue(mockResponses.serverError());
-
-      await expect(getLandingConfig()).rejects.toBeInstanceOf(ApiError);
+    it('propagates an owner failure without inventing config', async () => {
+      landingConfigClient.getLandingConfig.mockRejectedValue(new Error('Connect unavailable'));
+      await expect(getLandingConfig()).rejects.toThrow('Connect unavailable');
     });
   });
 
@@ -117,6 +218,7 @@ describe('landing API', () => {
 
       const result = await getPlans();
 
+      expect(pricingClient.getPricing).toHaveBeenCalledWith({});
       expect(result.bundle.bundle_key).toBe('main');
       expect(result.bundle.name).toBe('Main Bundle');
       expect(result.monthly).toHaveLength(1);
@@ -274,7 +376,7 @@ describe('landing API', () => {
       const protoResponse = {
         pricing: {
           bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123' },
-          monthly: [{ planName: 'Basic' }],
+          monthly: [{ planName: 'Basic' }, {}],
           yearly: [],
         },
       };
@@ -286,6 +388,70 @@ describe('landing API', () => {
       expect(result.monthly[0]?.monthly_included_credits).toBe(0);
       expect(result.monthly[0]?.one_time_bonus_credits).toBe(0);
       expect(result.monthly[0]?.display_weight).toBe(0);
+    });
+
+    it('maps plan kinds, intervals, intros, and metadata from generated proto values', async () => {
+      const protoResponse = create(GetPricingResponseSchema, {
+        pricing: {
+          bundle: {
+            bundleKey: 'main',
+            name: 'Main',
+            stripeProductId: 'prod_123',
+            metadata: { source: { kind: { case: 'stringValue', value: 'seeded' } }, plain: { kind: { case: 'nullValue', value: 0 } } },
+          },
+          monthly: [
+            {
+              planName: 'Top up', planTier: 'credits', amountCents: 500n, currency: 'usd',
+              kind: PlanKind.CREDITS_TOPUP, planRank: 1,
+              billingInterval: BillingInterval.ONE_TIME,
+              introType: IntroPricingType.PERCENTAGE,
+              introAmountCents: 20n, introPeriods: 2, metadata: { label: { kind: { case: 'stringValue', value: 'popular' } } },
+            },
+          ],
+          yearly: [{
+            planName: 'Support', planTier: 'support', amountCents: 100n, currency: 'usd',
+            kind: PlanKind.SUPPORTER_CONTRIBUTION,
+            billingInterval: BillingInterval.YEAR,
+            introType: IntroPricingType.FLAT_AMOUNT,
+          }],
+        },
+      });
+      const actual = await vi.importActual<typeof import('@bufbuild/protobuf')>('@bufbuild/protobuf');
+      vi.mocked(toJson).mockImplementationOnce(actual.toJson);
+      pricingClient.getPricing.mockResolvedValue(protoResponse);
+
+      const result = await getPlans();
+
+      expect(result.monthly).toEqual([expect.objectContaining({
+        kind: 'credits_topup', billing_interval: 'one_time', intro_type: 'percentage',
+        intro_amount_cents: 20, intro_periods: 2, metadata: { label: 'popular' },
+      })]);
+      expect(result.yearly).toEqual([expect.objectContaining({
+        kind: 'supporter_contribution', billing_interval: 'year', intro_type: 'flat_amount',
+      })]);
+      expect(result.bundle.metadata).toEqual({ source: 'seeded', plain: null });
+    });
+
+    it('rejects malformed numeric plans instead of exposing invalid prices to checkout', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      fetchMock.mockResolvedValue(mockResponses.success({
+        pricing: {
+          bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123', creditsPerUsd: 'not-a-number' },
+          monthly: [{ planName: 'Broken', planTier: 'pro', amountCents: 'not-a-number', currency: 'usd' }],
+          yearly: [],
+        },
+      }));
+
+      await expect(getPlans()).rejects.toThrow('Invalid pricing amount');
+      warn.mockRestore();
+      error.mockRestore();
+    });
+
+    it('rejects a successful response with missing pricing instead of inventing an offer', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({}));
+
+      await expect(getPlans()).rejects.toThrow('Invalid PricingOverview response');
     });
   });
 });

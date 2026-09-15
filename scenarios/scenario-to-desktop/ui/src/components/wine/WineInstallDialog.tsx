@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import {
   AlertCircle,
   CheckCircle,
@@ -11,14 +17,14 @@ import {
   X,
   Clock,
   Info,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import {
   checkWineStatus,
   fetchWineInstallStatus,
   startWineInstall,
   type WineCheckResponse,
-  type WineInstallStatus
+  type WineInstallStatus,
 } from "../../lib/api";
 
 interface WineInstallDialogProps {
@@ -26,7 +32,10 @@ interface WineInstallDialogProps {
   onInstallComplete: () => void;
 }
 
-export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDialogProps) {
+export function WineInstallDialog({
+  onClose,
+  onInstallComplete,
+}: WineInstallDialogProps) {
   const queryClient = useQueryClient();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [installId, setInstallId] = useState<string | null>(null);
@@ -37,10 +46,11 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
   };
 
   // Check Wine status
-  const { data: wineCheck, isLoading: checkingWine } = useQuery<WineCheckResponse>({
-    queryKey: ['wine-check'],
-    queryFn: checkWineStatus
-  });
+  const { data: wineCheck, isLoading: checkingWine } =
+    useQuery<WineCheckResponse>({
+      queryKey: ["wine-check"],
+      queryFn: checkWineStatus,
+    });
 
   // Install Wine mutation
   const installMutation = useMutation({
@@ -49,29 +59,40 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
     },
     onSuccess: (data) => {
       setInstallId(data.install_id);
-    }
+    },
   });
 
   // Poll installation status
   const { data: installStatus } = useQuery<WineInstallStatus | null>({
-    queryKey: ['wine-install-status', installId],
+    queryKey: ["wine-install-status", installId],
     queryFn: async () => (installId ? fetchWineInstallStatus(installId) : null),
     enabled: !!installId,
     refetchInterval: (query) => {
       // Stop polling if installation complete or failed
       const data = query.state.data;
-      if (data?.status === 'completed' || data?.status === 'failed') {
+      if (data?.status === "completed" || data?.status === "failed") {
         return false;
       }
       return 2000; // Poll every 2 seconds during installation
-    }
+    },
   });
 
-  // When installation completes successfully, invalidate Wine check and notify parent
-  if (installStatus && 'status' in installStatus && installStatus.status === 'completed' && installStatus.method === 'flatpak') {
-    queryClient.invalidateQueries({ queryKey: ['wine-check'] });
-    setTimeout(() => onInstallComplete(), 1000);
-  }
+  // When installation completes successfully, invalidate Wine check and notify parent.
+  useEffect(() => {
+    if (
+      !installStatus ||
+      installStatus.status !== "completed" ||
+      installStatus.method !== "flatpak"
+    ) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["wine-check"] });
+    const completionTimer = setTimeout(onInstallComplete, 1000);
+    return () => {
+      clearTimeout(completionTimer);
+    };
+  }, [installStatus, onInstallComplete, queryClient]);
 
   const handleInstall = (method: string) => {
     setSelectedMethod(method);
@@ -87,7 +108,7 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
             <span className="text-slate-300">Checking Wine status...</span>
           </CardContent>
         </Card>
-      </div>
+      </div>,
     );
   }
 
@@ -119,15 +140,15 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </div>,
     );
   }
 
   // Show installation progress
   if (installStatus) {
-    const isInstalling = installStatus.status === 'installing';
-    const isCompleted = installStatus.status === 'completed';
-    const isFailed = installStatus.status === 'failed';
+    const isInstalling = installStatus.status === "installing";
+    const isCompleted = installStatus.status === "completed";
+    const isFailed = installStatus.status === "failed";
 
     return renderDialog(
       <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -135,8 +156,12 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {isInstalling && <Loader2 className="h-8 w-8 animate-spin text-blue-400" />}
-                {isCompleted && <CheckCircle className="h-8 w-8 text-green-400" />}
+                {isInstalling && (
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                )}
+                {isCompleted && (
+                  <CheckCircle className="h-8 w-8 text-green-400" />
+                )}
                 {isFailed && <AlertCircle className="h-8 w-8 text-red-400" />}
                 <div>
                   <CardTitle>
@@ -145,10 +170,14 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
                     {isFailed && "Installation Failed"}
                   </CardTitle>
                   <CardDescription>
-                    {installStatus.method === 'flatpak' && "Installing Wine via Flatpak (no sudo required)"}
-                    {installStatus.method === 'flatpak-auto' && "Auto-installing Flatpak + Wine (no sudo required)"}
-                    {installStatus.method === 'appimage' && "Installing Wine AppImage (no sudo required)"}
-                    {installStatus.method === 'skip' && "Skipping Windows build"}
+                    {installStatus.method === "flatpak" &&
+                      "Installing Wine via Flatpak (no sudo required)"}
+                    {installStatus.method === "flatpak-auto" &&
+                      "Auto-installing Flatpak + Wine (no sudo required)"}
+                    {installStatus.method === "appimage" &&
+                      "Installing Wine AppImage (no sudo required)"}
+                    {installStatus.method === "skip" &&
+                      "Skipping Windows build"}
                   </CardDescription>
                 </div>
               </div>
@@ -163,19 +192,19 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
             {/* Installation Log */}
             <div className="max-h-64 overflow-y-auto rounded border border-slate-700 bg-slate-950 p-4 font-mono text-sm">
               {installStatus.log.map((line, i) => (
-                <div key={i} className="text-slate-300">
+                <div key={String(i)} className="text-slate-300">
                   {line}
                 </div>
               ))}
-              {installStatus.error_log.map((line, i) => (
-                <div key={`error-${i}`} className="text-red-400">
+              {installStatus.errorLog.map((line, i) => (
+                <div key={`error-${String(i)}`} className="text-red-400">
                   {line}
                 </div>
               ))}
             </div>
 
             {/* Action Buttons */}
-            {isCompleted && installStatus.method === 'skip' && (
+            {isCompleted && installStatus.method === "skip" && (
               <div className="flex gap-3">
                 <Button onClick={onClose} className="flex-1">
                   Continue (Skip Windows)
@@ -183,13 +212,16 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
               </div>
             )}
 
-            {isCompleted && (installStatus.method === 'flatpak' || installStatus.method === 'flatpak-auto' || installStatus.method === 'appimage') && (
-              <div className="flex gap-3">
-                <Button onClick={onInstallComplete} className="flex-1">
-                  Continue with Windows Build
-                </Button>
-              </div>
-            )}
+            {isCompleted &&
+              (installStatus.method === "flatpak" ||
+                installStatus.method === "flatpak-auto" ||
+                installStatus.method === "appimage") && (
+                <div className="flex gap-3">
+                  <Button onClick={onInstallComplete} className="flex-1">
+                    Continue with Windows Build
+                  </Button>
+                </div>
+              )}
 
             {isFailed && (
               <div className="flex gap-3">
@@ -197,7 +229,9 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleInstall('skip')}
+                  onClick={() => {
+                    handleInstall("skip");
+                  }}
                   className="flex-1"
                 >
                   Skip Windows Build
@@ -206,7 +240,7 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
             )}
           </CardContent>
         </Card>
-      </div>
+      </div>,
     );
   }
 
@@ -215,166 +249,198 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="min-h-full flex items-center justify-center py-4">
         <Card className="w-full max-w-3xl border-slate-700 bg-slate-900 my-auto">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wine className="h-8 w-8 text-blue-400" />
-              <div>
-                <CardTitle>Wine Required for Windows Builds</CardTitle>
-                <CardDescription>
-                  Building Windows executables on Linux requires Wine
-                </CardDescription>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Wine className="h-8 w-8 text-blue-400" />
+                <div>
+                  <CardTitle>Wine Required for Windows Builds</CardTitle>
+                  <CardDescription>
+                    Building Windows executables on Linux requires Wine
+                  </CardDescription>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Info Box */}
+            <div className="flex gap-3 rounded border border-blue-700 bg-blue-950/20 p-4">
+              <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-slate-300">
+                <p className="mb-2">
+                  Wine is a compatibility layer that allows building Windows
+                  applications on Linux.
+                </p>
+                <p>
+                  We recommend the AppImage method - it's fastest and requires
+                  no dependencies.
+                </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* Info Box */}
-          <div className="flex gap-3 rounded border border-blue-700 bg-blue-950/20 p-4">
-            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-slate-300">
-              <p className="mb-2">
-                Wine is a compatibility layer that allows building Windows applications on Linux.
-              </p>
-              <p>
-                We recommend the AppImage method - it's fastest and requires no dependencies.
-              </p>
-            </div>
-          </div>
 
-          {/* Installation Methods */}
-          <div className="space-y-3 pb-4">
-            {wineCheck?.install_methods && wineCheck.install_methods.length > 0 ? (
-              wineCheck.install_methods.map((method) => (
-                <Card
-                  key={method.id}
-                  className={`cursor-pointer border-2 transition-colors ${
-                    selectedMethod === method.id
-                      ? 'border-blue-500 bg-blue-950/20'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                  }`}
-                  onClick={() => setSelectedMethod(method.id)}
-                >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {method.name}
-                        {method.id === wineCheck?.recommended_method && (
-                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
-                            Recommended
-                          </span>
-                        )}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {method.description}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Metadata */}
-                    <div className="flex gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-400" />
-                        <span className="text-slate-300">{method.estimated_time}</span>
+            {/* Installation Methods */}
+            <div className="space-y-3 pb-4">
+              {wineCheck?.installMethods &&
+              wineCheck.installMethods.length > 0 ? (
+                wineCheck.installMethods.map((method) => (
+                  <Card
+                    key={method.id}
+                    className={`cursor-pointer border-2 transition-colors ${
+                      selectedMethod === method.id
+                        ? "border-blue-500 bg-blue-950/20"
+                        : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                    }`}
+                    onClick={() => {
+                      setSelectedMethod(method.id);
+                    }}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {method.name}
+                            {method.id === wineCheck.recommendedMethod && (
+                              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                                Recommended
+                              </span>
+                            )}
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            {method.description}
+                          </CardDescription>
+                        </div>
                       </div>
-                      {method.requires_sudo && (
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-yellow-400" />
-                          <span className="text-yellow-400">Requires sudo</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {/* Metadata */}
+                        <div className="flex gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-300">
+                              {method.estimated}
+                            </span>
+                          </div>
+                          {method.requiresSudo && (
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-yellow-400" />
+                              <span className="text-yellow-400">
+                                Requires sudo
+                              </span>
+                            </div>
+                          )}
+                          {!method.requiresSudo && (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-green-400" />
+                              <span className="text-green-400">
+                                No sudo required
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {!method.requires_sudo && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-400" />
-                          <span className="text-green-400">No sudo required</span>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Steps */}
-                    <div>
-                      <div className="text-sm font-medium text-slate-300 mb-2">Steps:</div>
-                      <ul className="space-y-1">
-                        {method.steps.map((step, i) => {
-                          // Check if step contains a URL
-                          const urlMatch = step.match(/(https?:\/\/[^\s]+)/);
-                          if (urlMatch) {
-                            const [beforeUrl, url] = step.split(urlMatch[0]);
-                            return (
-                              <li key={i} className="text-sm text-slate-400 flex gap-2">
-                                <span className="text-slate-600">{i + 1}.</span>
-                                <span>
-                                  {beforeUrl}
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
+                        {/* Steps */}
+                        <div>
+                          <div className="text-sm font-medium text-slate-300 mb-2">
+                            Steps:
+                          </div>
+                          <ul className="space-y-1">
+                            {method.steps.map((step, i) => {
+                              // Check if step contains a URL
+                              const urlMatch =
+                                step.match(/(https?:\/\/[^\s]+)/);
+                              if (urlMatch) {
+                                const [beforeUrl, url] = step.split(
+                                  urlMatch[0],
+                                );
+                                return (
+                                  <li
+                                    key={i}
+                                    className="text-sm text-slate-400 flex gap-2"
                                   >
-                                    {url}
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                </span>
-                              </li>
-                            );
-                          }
-                          return (
-                            <li key={i} className="text-sm text-slate-400 flex gap-2">
-                              <span className="text-slate-600">{i + 1}.</span>
-                              <span>{step}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-            ) : (
-              <div className="text-center py-8 text-slate-400">
-                <p>No installation methods available.</p>
-                <p className="text-sm mt-2">Please check your system configuration.</p>
+                                    <span className="text-slate-600">
+                                      {i + 1}.
+                                    </span>
+                                    <span>
+                                      {beforeUrl}
+                                      <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
+                                      >
+                                        {url}
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    </span>
+                                  </li>
+                                );
+                              }
+                              return (
+                                <li
+                                  key={i}
+                                  className="text-sm text-slate-400 flex gap-2"
+                                >
+                                  <span className="text-slate-600">
+                                    {i + 1}.
+                                  </span>
+                                  <span>{step}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  <p>No installation methods available.</p>
+                  <p className="text-sm mt-2">
+                    Please check your system configuration.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedMethod) {
+                    handleInstall(selectedMethod);
+                  }
+                }}
+                disabled={!selectedMethod || installMutation.isPending}
+                className="flex-1"
+              >
+                {installMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </div>
+
+            {installMutation.isError && (
+              <div className="flex items-center gap-2 text-red-400 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                {installMutation.error.message}
               </div>
             )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button
-              onClick={() => selectedMethod && handleInstall(selectedMethod)}
-              disabled={!selectedMethod || installMutation.isPending}
-              className="flex-1"
-            >
-              {installMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                'Continue'
-              )}
-            </Button>
-          </div>
-
-          {installMutation.isError && (
-            <div className="flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle className="h-4 w-4" />
-              {(installMutation.error as Error).message}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </div>,
   );
 }

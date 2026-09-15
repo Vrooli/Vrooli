@@ -1,112 +1,366 @@
 {
-  "module": "health-registry",
-  "description": "Extensible health check registration and execution system",
-  "prd_refs": [
-    "OT-P0-004",
-    "OT-P1-008"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-09-02T09:47:16-04:00"
+  },
   "requirements": [
     {
       "id": "REG-CORE-001",
       "title": "Health check registration",
-      "description": "registerCheck(check) adds a health check to the registry",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
+      "description": "registerCheck(check) adds a health check to the registry",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "REG-CORE-002",
       "title": "Platform-filtered check retrieval",
-      "description": "getChecksForPlatform(platform) returns only checks valid for the current platform",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
+      "description": "getChecksForPlatform(platform) returns only checks valid for the current platform",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "REG-CORE-003",
       "title": "Health check interface compliance",
-      "description": "All checks implement id, description, intervalSeconds, platforms?, and run() method",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
+      "description": "All checks implement id, description, intervalSeconds, platforms?, and run() method",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "REG-CORE-004",
       "title": "Health result structure",
-      "description": "All checks return {status: ok|warning|critical, message, details?}",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
+      "description": "All checks return {status: ok|warning|critical, message, details?}",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "REG-INTERVAL-001",
       "title": "Per-check interval tracking",
-      "description": "Registry tracks last run time per check and only runs when interval elapsed",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
+      "description": "Registry tracks last run time per check and only runs when interval elapsed",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "REG-INTERVAL-002",
       "title": "Configurable check intervals",
-      "description": "Each check can specify its own intervalSeconds value",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
+      "description": "Each check can specify its own intervalSeconds value",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
-      ],
-      "status": "pending"
+      ]
+    },
+    {
+      "id": "HEALTH-REGISTRY-001",
+      "title": "Registry registration and lookup",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The check registry shall register, look up, and unregister checks by id safely under concurrent access, and the default check set shall register through the bootstrap factory.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestNewRegistry",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go and api/internal/bootstrap/factory.go (edited by the boot-recovery plan) cite it. Overlaps REG-CORE-001..004 in this module, which no code cites; the consolidating fix is to retag the code, which is outside this phase's edit set."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRegisterUnregister",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestConcurrentRegisterUnregister",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestGetCheck",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/bootstrap/checks_test.go::TestRegisterDefaultChecks",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go::TestFullStack_TickPersistAutohealCycle",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "HEALTH-REGISTRY-002",
+      "title": "Registry runs every due check",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "When RunAll is invoked, the registry shall execute every registered check that is due and shall serve results concurrently with a run in progress.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRunAll",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go and api/internal/bootstrap/factory.go (edited by the boot-recovery plan) cite it. Overlaps REG-CORE-001..004 in this module, which no code cites; the consolidating fix is to retag the code, which is outside this phase's edit set."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestConcurrentRunAllAndGetResult",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestSeedStartupJitterSpreadsFirstRuns",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "HEALTH-REGISTRY-003",
+      "title": "Platform and interval filtering",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The registry shall skip checks whose platform filter excludes the current platform and checks whose interval has not elapsed since their last run.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestPlatformFiltering",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go and api/internal/bootstrap/factory.go (edited by the boot-recovery plan) cite it. Overlaps REG-CORE-001..004 in this module, which no code cites; the consolidating fix is to retag the code, which is outside this phase's edit set."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestIntervalFiltering",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "HEALTH-REGISTRY-004",
+      "title": "Result retrieval and summary",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The registry shall return the last result for a check by id and a summary of all results by status.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestGetResult",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go and api/internal/bootstrap/factory.go (edited by the boot-recovery plan) cite it. Overlaps REG-CORE-001..004 in this module, which no code cites; the consolidating fix is to retag the code, which is outside this phase's edit set."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestGetSummary",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CONFIG-CHECK-001",
+      "title": "Config provider gates checks and auto-heal",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Where a configuration provider is set, the registry shall consult it to decide which checks run and which checks may auto-heal, and shall skip auto-heal for a check the provider disables.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestIsAutoHealEnabled",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go (edited by the boot-recovery plan) cites it."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRunAutoHeal_SkipsDisabledAutoHeal",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestConfigProviderIntegration",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "HEAL-ACTION-001",
+      "title": "Auto-heal runs only safe recovery actions for critical checks",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "When auto-heal runs, the registry shall act only on healable checks in critical state, shall refuse actions marked dangerous, shall persist heal-tracker state through the configured store, and checks shall expose their recovery actions through RecoveryActions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestIsHealable",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/checks/registry.go, api/internal/checks/vrooli/watchdog.go and langrecover/types.go (edited by the boot-recovery plan) cite it. The most-cited dangling id in the scenario (121 citations before this entry)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestGetHealableCheck",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRunAutoHeal_SkipsNonCriticalChecks",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRunAutoHeal_SkipsDangerousActions",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_test.go::TestRunAutoHeal_ExecutesSafeAction",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestRunAutoHeal_HandlesMultipleCriticalChecks",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestRunAutoHeal_HandlesMissingCheck",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/registry_autheal_test.go::TestConcurrentAutoHeal",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/vrooli_actions_test.go::TestResourceCheckRecoveryActionsDangerous",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/vrooli_actions_test.go::TestScenarioCheckRecoveryActionsDangerous",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go::TestFullStack_TickPersistAutohealCycle",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TEST-SEAM-001",
+      "title": "Testing seams for external dependencies",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The API shall construct checks through a CheckFactory and run commands through an Executor interface, so check registration and command-driven checks can be tested with fakes instead of the host.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/bootstrap/factory_test.go::TestNewDefaultCheckFactory",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered because api/internal/bootstrap/factory.go, api/internal/bootstrap/checks.go and api/internal/checks/executor.go (edited by the boot-recovery plan) cite it. Second most-cited dangling id (142 citations before this entry)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/executor_test.go::TestRealExecutorOutput",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/vrooli_actions_test.go::TestScenarioCheckCleanupPorts",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

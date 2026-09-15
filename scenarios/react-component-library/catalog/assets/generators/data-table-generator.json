@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.data-table-generator",
+    "name": "DataTableGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces a production-ready table or grid configuration from field metadata, query capabilities, actions, permissions, and responsive column priorities.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.data-table",
+        "reason": "Output configures the shared table rather than emitting a bespoke one."
+      }
+    ]
+  }
+}

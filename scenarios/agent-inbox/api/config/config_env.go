@@ -4,7 +4,6 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -19,14 +18,6 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func getOllamaBaseURL() string {
-	if url := os.Getenv("OLLAMA_BASE_URL"); url != "" {
-		return url
-	}
-	port := getEnvOrDefault("OLLAMA_PORT", "11434")
-	return fmt.Sprintf("http://localhost:%s", port)
 }
 
 func getPromptManagerURL() string {
@@ -87,20 +78,4 @@ func getEnvBool(key string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
-}
-
-func getToolScenarios() []string {
-	if value := os.Getenv("TOOL_SCENARIOS"); value != "" {
-		var scenarios []string
-		for _, s := range strings.Split(value, ",") {
-			if trimmed := strings.TrimSpace(s); trimmed != "" {
-				scenarios = append(scenarios, trimmed)
-			}
-		}
-		if len(scenarios) > 0 {
-			return scenarios
-		}
-	}
-	// Default to agent-manager and scenario-to-cloud
-	return []string{"agent-manager", "scenario-to-cloud"}
 }

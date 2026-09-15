@@ -3,6 +3,13 @@
   "title": "Update & Rollback Management",
   "priority": "P1",
   "description": "Change detection, update distribution, and rollback capabilities",
-  "requirements": [],
+  "requirements": [
+    {"id":"DM-P1-009","title":"Update Change Detection","status":"planned","prd_ref":"OT-P1-009","domain":"releases","description":"Detect source and dependency changes for deployed profiles","tags":["updates"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-010","title":"Update Change Summary","status":"planned","prd_ref":"OT-P1-010","domain":"releases","description":"Summarize modified files, dependency changes, and breaking changes","tags":["updates"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-011","title":"Desktop/Mobile Update Distribution","status":"planned","prd_ref":"OT-P1-011","domain":"releases","description":"Distribute desktop and mobile updates through their target channels","tags":["updates"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-012","title":"SaaS Zero-Downtime Updates","status":"planned","prd_ref":"OT-P1-012","domain":"releases","description":"Use rolling or blue-green updates for stateless SaaS applications","tags":["updates","reliability"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-013","title":"Fast Rollback Execution","status":"planned","prd_ref":"OT-P1-013","domain":"releases","description":"Restore the previous SaaS version within five minutes","tags":["rollback"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-014","title":"Automatic Rollback on Failure","status":"planned","prd_ref":"OT-P1-014","domain":"releases","description":"Roll back within two minutes when enabled post-update health checks fail","tags":["rollback","reliability"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]}
+  ],
   "_metadata": {}
 }

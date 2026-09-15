@@ -5,22 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	"test-genie/internal/orchestrator/phases/dbdetect"
+	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/phases/seeds"
+	"test-genie/internal/orchestrator/testconfig/config"
+	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
+	"test-genie/internal/storage/sqlfiles"
+
 	"github.com/vrooli/api-core/database"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 
-	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/config"
-	"test-genie/internal/playbooks/isolation"
-	"test-genie/internal/playbooks/seeds"
-	"test-genie/internal/shared"
 	sharedartifacts "test-genie/internal/shared/artifacts"
-	"test-genie/internal/storage/sqlfiles"
 )
 
 // PlaybooksSeedSession holds state for a seed lifecycle run.
@@ -30,17 +37,41 @@ type PlaybooksSeedSession struct {
 	Resources  []isolation.ResourceInfo
 	SeedState  map[string]any
 	CleanupRef string
+	routing    routedLease
 	cleanup    func(ctx context.Context) error
+}
+
+type routedLease struct {
+	client           routingconnect.RoutingServiceClient
+	leaseID          string
+	heartbeatCancel  context.CancelFunc
+	heartbeatStopped chan struct{}
 }
 
 type resourceNeeds struct {
 	RequirePostgres bool
 	RequireRedis    bool
 	RequireSQLite   bool
-	SQLiteEnvVars   []string
+	// PrimaryDriver identifies the scenario's primary database driver
+	// ("postgres" or "sqlite") when detection has strong evidence
+	// (e.g. a Go driver import). Empty when no single driver dominates.
+	// Used by the routed path to pick a DSN that matches the scenario's
+	// actual driver, avoiding hangs from cross-driver DSN injection.
+	PrimaryDriver string
+	SQLiteEnvVars []string
 }
 
-// Cleanup tears down isolation resources and restarts the scenario to normal resources.
+// isolationProvider lets tests stub seed isolation without requiring Docker.
+type isolationProvider interface {
+	Prepare(ctx context.Context) (*isolation.Result, error)
+}
+
+var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
+	return isolation.NewManager(cfg)
+}
+
+// Cleanup clears the live target routing lease and tears down the leased
+// backing resources. The target remains on its primary configuration.
 func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
 	if s == nil || s.cleanup == nil {
 		return nil
@@ -48,8 +79,9 @@ func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
 	return s.cleanup(ctx)
 }
 
-// ApplyPlaybooksSeed provisions isolated resources, restarts the scenario, runs seed scripts,
-// and returns seed state for BAS workflow execution.
+// ApplyPlaybooksSeed provisions isolated resources, installs a runtime routing
+// lease on the live target, runs seed scripts, and returns seed state for BAS
+// workflow execution. It refuses when the paired routing surface is absent.
 func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWriter io.Writer, retain bool) (*PlaybooksSeedSession, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -63,7 +95,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("playbooks seeds disabled via .vrooli/testing.json")
 	}
 
-	needs := detectResourceNeeds(env, logWriter)
+	needs := resolveDBNeeds(ctx, env, logWriter)
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
 		RequirePostgres: needs.RequirePostgres,
@@ -83,7 +115,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	restoreEnv := isolation.ApplyEnv(isoResult.Env)
 	envApplied := true
 
-	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
+	if err := applyPlaybooksMigrations(ctx, env, needs, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -91,32 +123,32 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
 	}
 
-	if err := RestartScenario(ctx, env.ScenarioName, logWriter); err != nil {
-		if envApplied {
-			restoreEnv()
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return nil, fmt.Errorf("failed to restart scenario with playbooks isolation: %w", err)
-	}
-
 	if envApplied {
 		restoreEnv()
+	}
+
+	routing, err := installRoutedLease(ctx, env, needs, isoResult, logWriter)
+	if err != nil {
+		_ = isoResult.Cleanup(context.Background())
+		return nil, err
 	}
 
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())
 	defer cancel()
 
-	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.TestDir, logWriter)
+	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.CoverageDir, logWriter)
 	restoreSeedEnv := applyEnv(isoResult.Env)
 	_, seedErr := seedManager.Apply(seedCtx)
 	restoreSeedEnv()
 	if seedErr != nil {
+		_ = clearRoutedLease(context.Background(), routing, logWriter)
 		_ = isoResult.Cleanup(context.Background())
 		return nil, fmt.Errorf("seed execution failed: %w", seedErr)
 	}
 
 	seedState, err := loadSeedState(env.ScenarioDir)
 	if err != nil {
+		_ = clearRoutedLease(context.Background(), routing, logWriter)
 		_ = isoResult.Cleanup(context.Background())
 		return nil, err
 	}
@@ -126,13 +158,18 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		Env:       isoResult.Env,
 		Resources: isoResult.Resources,
 		SeedState: seedState,
+		routing:   routing,
 	}
 	session.cleanup = func(cleanupCtx context.Context) error {
-		if err := RestartScenario(cleanupCtx, env.ScenarioName, logWriter); err != nil {
-			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
+		var firstErr error
+		if err := clearRoutedLease(cleanupCtx, routing, logWriter); err != nil {
+			firstErr = err
 		}
-		if err := isoResult.Cleanup(cleanupCtx); err != nil {
-			return fmt.Errorf("failed to clean up playbooks isolation resources: %w", err)
+		if err := isoResult.Cleanup(cleanupCtx); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("failed to clean up playbooks isolation resources: %w", err)
+		}
+		if firstErr != nil {
+			return firstErr
 		}
 		return nil
 	}
@@ -140,9 +177,83 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	return session, nil
 }
 
+func installRoutedLease(ctx context.Context, env workspace.Environment, needs resourceNeeds, result *isolation.Result, logWriter io.Writer) (routedLease, error) {
+	if result == nil || strings.TrimSpace(env.APIURL) == "" {
+		return routedLease{}, fmt.Errorf("routed qualification requires a live target API URL")
+	}
+	dsn := routedDSN(needs, result.Env)
+	if dsn == "" {
+		return routedLease{}, fmt.Errorf("routed qualification requires a DSN matching the detected primary database driver")
+	}
+	client := routingconnect.NewRoutingServiceClient(&http.Client{Timeout: 15 * time.Second}, strings.TrimRight(env.APIURL, "/"))
+	response, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: result.RunID, LeaseTtlMs: int64((3 * time.Minute) / time.Millisecond)}))
+	if err != nil {
+		return routedLease{}, fmt.Errorf("install routed qualification lease: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetActiveLeaseId() != result.RunID || !response.Msg.GetFileRootsInstalled() {
+		return routedLease{}, fmt.Errorf("routed qualification lease did not prove both database and file roots are installed")
+	}
+	shared.LogInfo(logWriter, "installed routed qualification lease %s on %s", result.RunID, env.APIURL)
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
+	heartbeatStopped := make(chan struct{})
+	go heartbeatRoutedLease(heartbeatCtx, client, result.RunID, logWriter, heartbeatStopped)
+	return routedLease{client: client, leaseID: result.RunID, heartbeatCancel: heartbeatCancel, heartbeatStopped: heartbeatStopped}, nil
+}
+
+func clearRoutedLease(ctx context.Context, lease routedLease, logWriter io.Writer) error {
+	if lease.client == nil || lease.leaseID == "" {
+		return nil
+	}
+	if lease.heartbeatCancel != nil {
+		lease.heartbeatCancel()
+		if lease.heartbeatStopped != nil {
+			<-lease.heartbeatStopped
+		}
+	}
+	response, err := lease.client.ClearTestPool(ctx, connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: lease.leaseID}))
+	if err != nil {
+		return fmt.Errorf("clear routed qualification lease: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetStats() == nil {
+		return fmt.Errorf("clear routed qualification lease returned no routing statistics")
+	}
+	stats := response.Msg.GetStats()
+	shared.LogInfo(logWriter, "cleared routed qualification lease %s: test_pool_requests=%d primary_during_test_mode_requests=%d test_root_writes=%d primary_root_writes_during_test_mode=%d", lease.leaseID, stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests(), stats.GetTestRootWrites(), stats.GetPrimaryRootWritesDuringTestMode())
+	if stats.GetPrimaryDuringTestModeRequests() != 0 || stats.GetPrimaryRootWritesDuringTestMode() != 0 {
+		return fmt.Errorf("routed qualification detected primary storage use during test mode: db=%d files=%d", stats.GetPrimaryDuringTestModeRequests(), stats.GetPrimaryRootWritesDuringTestMode())
+	}
+	return nil
+}
+
+func heartbeatRoutedLease(ctx context.Context, client routingconnect.RoutingServiceClient, leaseID string, logWriter io.Writer, stopped chan<- struct{}) {
+	defer close(stopped)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := client.HeartbeatTestPool(ctx, connect.NewRequest(&routingv1.HeartbeatTestPoolRequest{LeaseId: leaseID})); err != nil {
+				shared.LogWarn(logWriter, "routed qualification lease heartbeat failed for %s: %v", leaseID, err)
+			}
+		}
+	}
+}
+
+func routedDSN(needs resourceNeeds, env map[string]string) string {
+	if needs.PrimaryDriver == "postgres" {
+		return firstNonEmpty(env["DATABASE_URL"], env["POSTGRES_URL"])
+	}
+	if needs.PrimaryDriver == "sqlite" {
+		return firstNonEmpty(env["PLAYBOOKS_SQLITE_DSN"], env["PLAYBOOKS_SQLITE_PATH"])
+	}
+	return ""
+}
+
 // applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
 // against the isolated database backend. Files execute in lexicographic order.
-func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, logWriter io.Writer) error {
+func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, isolatedEnv map[string]string, logWriter io.Writer) error {
 	if !needs.RequirePostgres && !needs.RequireSQLite {
 		return nil
 	}
@@ -167,7 +278,7 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	if needs.RequirePostgres {
 		files := append([]string(nil), commonFiles...)
 		files = append(files, postgresFiles...)
-		if err := applyPostgresMigrations(ctx, env, files, logWriter); err != nil {
+		if err := applyPostgresMigrations(ctx, env, isolatedEnv, files, logWriter); err != nil {
 			return err
 		}
 	}
@@ -181,11 +292,11 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	return nil
 }
 
-func applyPostgresMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+func applyPostgresMigrations(ctx context.Context, env workspace.Environment, isolatedEnv map[string]string, files []string, logWriter io.Writer) error {
 	if err := EnsureCommandAvailable("psql"); err != nil {
 		return fmt.Errorf("psql not available for playbooks migrations: %w", err)
 	}
-	connURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	connURL := strings.TrimSpace(firstNonEmpty(isolatedEnv["DATABASE_URL"], isolatedEnv["POSTGRES_URL"]))
 	if connURL == "" {
 		return fmt.Errorf("DATABASE_URL is not set for playbooks migrations")
 	}
@@ -200,14 +311,15 @@ func applyPostgresMigrations(ctx context.Context, env workspace.Environment, fil
 }
 
 func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+	// Only the playbooks-scoped variables are read. The generic pair used to be
+	// accepted here as a fallback, which made this migration path a consumer of
+	// whatever database path happened to be in the environment.
 	sqliteDSN := strings.TrimSpace(firstNonEmpty(
 		os.Getenv("PLAYBOOKS_SQLITE_DSN"),
 		os.Getenv("PLAYBOOKS_SQLITE_PATH"),
-		os.Getenv("SQLITE_PATH"),
-		os.Getenv("SQLITE_DB"),
 	))
 	if sqliteDSN == "" {
-		return fmt.Errorf("SQLITE_PATH is not set for playbooks migrations")
+		return fmt.Errorf("PLAYBOOKS_SQLITE_DSN is not set for playbooks migrations; the isolation manager supplies it")
 	}
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,
@@ -277,46 +389,70 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// detectResourceNeeds inspects the scenario service manifest and returns which
-// isolated resources should be provisioned for Playbooks. Defaults to
-// provisioning Postgres + Redis when the manifest cannot be read or does not
-// declare any supported resource types.
-func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) resourceNeeds {
+// resolveDBNeeds runs the dbdetect resolver against the
+// scenario, writes the evidence chain to logWriter, and projects the report
+// to the booleans the isolation manager consumes. There is no fallback: a
+// scenario with no evidence is provisioned with nothing, which is the
+// correct signal that detection should be fixed at the source.
+func resolveDBNeeds(ctx context.Context, env workspace.Environment, logWriter io.Writer) resourceNeeds {
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
-	manifest, err := workspace.LoadServiceManifest(manifestPath)
+	rawManifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
-		shared.LogWarn(logWriter, "unable to read service manifest (%v); defaulting to Postgres + Redis isolation", err)
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
+		shared.LogWarn(logWriter, "unable to read service manifest (%v); proceeding with file-based detection only", err)
+	}
+	manifest := dbdetect.WrapManifest(rawManifest)
+
+	resolver, err := dbdetect.NewResolver(dbdetect.DefaultCollectors(), dbdetect.DefaultProfiles())
+	if err != nil {
+		shared.LogWarn(logWriter, "db-detect resolver construction failed: %v", err)
+		return resourceNeeds{SQLiteEnvVars: manifest.SQLitePathEnvVars()}
 	}
 
-	if len(manifest.Dependencies.Resources) == 0 {
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
+	report := resolver.Resolve(ctx, dbdetect.ScenarioInputs{
+		ScenarioDir: env.ScenarioDir,
+		Manifest:    manifest,
+		Filesystem:  dbdetect.OSFilesystem{},
+	})
+	if logWriter != nil {
+		_, _ = logWriter.Write([]byte(report.FormatHuman()))
 	}
-
 	needs := resourceNeeds{
-		SQLiteEnvVars: manifest.SQLitePathEnvVars(),
+		RequirePostgres: report.Required("postgres"),
+		RequireRedis:    report.Required("redis"),
+		RequireSQLite:   report.Required("sqlite"),
+		PrimaryDriver:   primaryDriver(report),
+		SQLiteEnvVars:   manifest.SQLitePathEnvVars(),
 	}
-	for _, res := range manifest.Dependencies.Resources {
-		if !res.Enabled && !res.Required {
-			continue
-		}
-		switch strings.ToLower(res.Type) {
-		case "postgres":
-			needs.RequirePostgres = true
-		case "redis":
-			needs.RequireRedis = true
-		case "sqlite":
-			needs.RequireSQLite = true
-		}
+	if needs.PrimaryDriver == "" {
+		shared.LogWarn(logWriter, "db-detect did not pick a primary driver — routed path will not be used")
+	} else {
+		shared.LogInfo(logWriter, "db-detect primary driver = %s", needs.PrimaryDriver)
 	}
-
-	// If nothing matched, assume both legacy backing services to avoid false negatives.
-	if !needs.RequirePostgres && !needs.RequireRedis && !needs.RequireSQLite {
-		shared.LogWarn(logWriter, "service manifest declares no postgres/redis/sqlite resources; defaulting to provision Postgres + Redis for playbooks isolation")
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
-	}
-
 	return needs
+}
+
+// primaryDriver returns "postgres" or "sqlite" when one has strictly
+// stronger evidence than the other (per Evidence.Priority), and empty
+// otherwise. The empty case means "no winner — fall back to the caller's
+// default DSN order" (caller-defined behavior).
+func primaryDriver(report dbdetect.DetectionReport) string {
+	pgPriority := decisionPriority(report, "postgres")
+	sqlitePriority := decisionPriority(report, "sqlite")
+	if pgPriority > sqlitePriority {
+		return "postgres"
+	}
+	if sqlitePriority > pgPriority {
+		return "sqlite"
+	}
+	return ""
+}
+
+func decisionPriority(report dbdetect.DetectionReport, db string) dbdetect.Priority {
+	res, ok := report.Results[db]
+	if !ok || !res.Required || res.Decision == nil {
+		return 0
+	}
+	return res.Decision.Priority
 }
 
 func applyEnv(env map[string]string) func() {

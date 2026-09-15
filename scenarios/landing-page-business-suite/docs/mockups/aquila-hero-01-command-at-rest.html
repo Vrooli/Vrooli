@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila — Command at rest</title>
+  <style>
+    :root { --bg:#080b12; --panel:#101827; --panel-2:#151f31; --ink:#f4f1eb; --muted:#9aa6b9; --faint:#637188; --orange:#f97316; --cyan:#55d6e6; --green:#35d399; --line:rgba(255,255,255,.12); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.23; background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px); background-size:56px 56px; mask-image:linear-gradient(to bottom,black 0%,transparent 85%); }
+    .wrap { width:min(1240px,calc(100% - 64px)); margin:auto; position:relative; }
+    nav { height:82px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; color:var(--ink); text-decoration:none; font:600 18px "Space Grotesk",Inter,sans-serif; letter-spacing:-.02em; }
+    .mark { width:28px; height:28px; display:grid; place-items:center; color:#11151e; border-radius:9px 9px 9px 3px; background:var(--orange); font:800 14px "Space Grotesk",sans-serif; transform:rotate(-7deg); }
+    .navlinks { display:flex; align-items:center; gap:28px; color:var(--muted); font-size:13px; }
+    .navlinks a { color:inherit; text-decoration:none; }
+    .navbutton { padding:10px 15px; border:1px solid rgba(85,214,230,.45); border-radius:999px; color:var(--cyan)!important; }
+    main { min-height:calc(100vh - 82px); display:grid; grid-template-columns:minmax(320px,.78fr) minmax(480px,1.22fr); align-items:center; gap:7vw; padding:74px 0 90px; }
+    .copy { position:relative; z-index:3; max-width:550px; }
+    .eyebrow { display:inline-flex; align-items:center; gap:9px; color:var(--cyan); font-size:11px; font-weight:750; letter-spacing:.15em; text-transform:uppercase; }
+    .eyebrow:before { content:""; width:26px; height:1px; background:var(--orange); }
+    h1 { margin:24px 0 22px; max-width:570px; font:600 clamp(48px,6vw,76px)/1.01 "Space Grotesk",Inter,sans-serif; letter-spacing:-.065em; }
+    h1 span { color:var(--orange); }
+    .lede { max-width:495px; margin:0; color:var(--muted); font-size:18px; line-height:1.68; }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:34px; }
+    .button { display:inline-flex; align-items:center; gap:12px; padding:15px 20px; border-radius:999px; font:650 14px "Space Grotesk",Inter,sans-serif; text-decoration:none; }
+    .primary { color:#141820; background:var(--orange); box-shadow:0 12px 26px rgba(249,115,22,.2); }
+    .secondary { color:var(--cyan); background:rgba(21,31,49,.8); border:1px solid var(--line); }
+    .proof { display:flex; gap:27px; margin-top:50px; padding-top:20px; border-top:1px solid var(--line); }
+    .proof strong { display:block; color:var(--ink); font:600 15px "Space Grotesk",sans-serif; }
+    .proof span { display:block; margin-top:5px; color:var(--faint); font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
+    .stage { min-height:580px; position:relative; display:grid; place-items:center; }
+    .safe-zone { position:absolute; top:13%; left:4%; width:57%; height:66%; border:1px dashed rgba(85,214,230,.3); border-radius:20px; pointer-events:none; }
+    .safe-zone span { position:absolute; top:-22px; left:15px; color:rgba(85,214,230,.8); font:10px "JetBrains Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
+    .contours { position:absolute; inset:0; opacity:.36; overflow:hidden; }
+    .contours:before,.contours:after { content:""; position:absolute; width:650px; height:360px; border:1px solid rgba(85,214,230,.2); border-radius:48% 52% 42% 58%; transform:rotate(-25deg); }
+    .contours:before { right:-15%; top:13%; box-shadow:0 0 0 24px rgba(85,214,230,.05),0 0 0 48px rgba(85,214,230,.04),0 0 0 72px rgba(85,214,230,.03); }
+    .contours:after { right:-4%; bottom:5%; transform:rotate(15deg); width:530px; height:260px; border-color:rgba(249,115,22,.24); box-shadow:0 0 0 22px rgba(249,115,22,.045),0 0 0 44px rgba(249,115,22,.035); }
+    .window { width:min(620px,100%); position:relative; z-index:2; padding:9px; border:1px solid rgba(255,255,255,.22); border-radius:20px; background:rgba(15,23,42,.92); box-shadow:30px 36px 90px rgba(0,0,0,.55),-15px -18px 0 rgba(85,214,230,.08); transform:rotate(2.5deg); }
+    .window-back { position:absolute; width:82%; height:86%; right:0; top:10%; border:1px solid rgba(255,255,255,.13); border-radius:20px; background:#101929; transform:translate(28px,30px) rotate(6deg); box-shadow:0 25px 70px rgba(0,0,0,.38); }
+    .chrome { height:32px; display:flex; align-items:center; gap:6px; padding:0 10px; border-bottom:1px solid var(--line); color:#65748b; font:10px "JetBrains Mono",monospace; }
+    .chrome b { width:7px; height:7px; border-radius:50%; background:#3b4657; }
+    .chrome b:first-child { background:#f97316; }
+    .chrome b:nth-child(2) { background:#eab308; }
+    .chrome b:nth-child(3) { background:#35d399; }
+    .chrome span { margin-left:auto; color:#8493a7; }
+    .app { display:grid; grid-template-columns:150px 1fr; min-height:365px; }
+    .side { padding:18px 13px; border-right:1px solid var(--line); background:rgba(7,11,19,.45); }
+    .side-label { color:#637188; font-size:9px; font-weight:750; letter-spacing:.15em; text-transform:uppercase; margin:0 0 14px 6px; }
+    .side-item { display:flex; align-items:center; gap:8px; padding:9px 8px; margin-bottom:5px; color:#9aa6b9; border-radius:8px; font-size:11px; }
+    .side-item.active { color:#f5f1ea; background:#1c2b40; }
+    .side-icon { width:14px; height:14px; border:1px solid currentColor; border-radius:4px; opacity:.75; }
+    .mainpanel { padding:21px 21px 16px; background:linear-gradient(145deg,#172337,#101827); }
+    .panel-head { display:flex; justify-content:space-between; align-items:start; }
+    .panel-head h2 { margin:0; font:600 19px "Space Grotesk",sans-serif; letter-spacing:-.03em; }
+    .live { display:flex; align-items:center; gap:6px; padding:6px 9px; color:#9cebdc; border:1px solid rgba(53,211,153,.25); border-radius:999px; background:rgba(53,211,153,.08); font-size:9px; text-transform:uppercase; letter-spacing:.1em; }
+    .live i { width:6px; height:6px; border-radius:50%; background:var(--green); }
+    .metric-row { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:20px; }
+    .metric { padding:12px; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.025); }
+    .metric small { display:block; color:#78869b; font-size:9px; }
+    .metric strong { display:block; margin-top:8px; color:#f5f1ea; font:600 19px "Space Grotesk",sans-serif; }
+    .metric em { color:var(--green); font-style:normal; font-size:9px; }
+    .workgrid { display:grid; grid-template-columns:1.3fr .7fr; gap:10px; margin-top:10px; }
+    .workcard { min-height:145px; padding:14px; border:1px solid var(--line); border-radius:10px; background:rgba(7,11,19,.28); }
+    .workcard h3 { margin:0; color:#d9e0ea; font:600 12px "Space Grotesk",sans-serif; }
+    .workcard p { color:#8290a5; font-size:10px; line-height:1.5; }
+    .bars { display:flex; align-items:end; gap:7px; height:72px; margin-top:15px; }
+    .bars i { flex:1; height:36%; border-radius:4px 4px 1px 1px; background:#41546d; }
+    .bars i:nth-child(2) { height:64%; background:#527e8d; }
+    .bars i:nth-child(3) { height:49%; background:#f97316; }
+    .bars i:nth-child(4) { height:82%; background:#55d6e6; }
+    .bars i:nth-child(5) { height:72%; background:#7994a5; }
+    .task { display:flex; align-items:center; gap:8px; margin:14px 0; color:#b7c2d1; font-size:10px; }
+    .task i { width:11px; height:11px; border:1px solid #55d6e6; border-radius:50%; box-shadow:inset 0 0 0 3px #172337; }
+    .note { position:absolute; z-index:4; right:-10px; top:14%; padding:12px 14px; border:1px solid rgba(249,115,22,.42); border-radius:10px; background:#151b27; color:#e8edf4; box-shadow:0 12px 25px rgba(0,0,0,.3); font-size:11px; }
+    .note b { display:block; color:var(--orange); font:650 10px "Space Grotesk",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+    .note span { display:block; margin-top:5px; color:#8d9ab0; }
+    .caption { grid-column:1/-1; margin-top:-27px; color:#617087; font:10px "JetBrains Mono",monospace; letter-spacing:.04em; }
+    @media (max-width:900px) { .wrap { width:min(100% - 36px,640px); } nav { height:70px; } .navlinks a:not(.navbutton) { display:none; } main { display:block; padding:65px 0 70px; } .copy { max-width:620px; } .stage { min-height:540px; margin-top:45px; } h1 { font-size:clamp(48px,12vw,72px); } }
+    @media (max-width:560px) { .wrap { width:calc(100% - 28px); } .stage { min-height:440px; } .app { grid-template-columns:92px 1fr; } .side { padding:12px 7px; } .mainpanel { padding:14px 11px; } .side-item { font-size:9px; padding:8px 5px; } .window { transform:rotate(0); } .window-back { display:none; } .safe-zone { display:none; } .proof { gap:14px; } .metric strong { font-size:14px; } .note { right:-2px; top:7%; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav><a class="brand" href="index.html"><span class="mark">A</span><span>Aquila</span></a><div class="navlinks"><a href="#story">How it works</a><a href="#proof">Built for the work</a><a class="navbutton" href="#start">Open workspace <span>↗</span></a></div></nav>
+    <main id="story">
+      <section class="copy">
+        <div class="eyebrow">A calm command center</div>
+        <h1>Make the work visible. <span>Keep it moving.</span></h1>
+        <p class="lede">Aquila brings durable sessions, agent workflows, and the small operational truths of a team into one place—so the next action is clear before the context disappears.</p>
+        <div class="actions" id="start"><a class="button primary" href="#workspace">Open Aquila <span>↗</span></a><a class="button secondary" href="#proof">See the workspace <span>↓</span></a></div>
+        <div class="proof" id="proof"><div><strong>Durable by default</strong><span>Context survives the handoff</span></div><div><strong>Browser-first</strong><span>No local setup to begin</span></div><div><strong>Operator-led</strong><span>Automation stays observable</span></div></div>
+      </section>
+      <section class="stage" id="workspace" aria-label="Aquila workspace preview">
+        <div class="contours" aria-hidden="true"></div><div class="safe-zone"><span>backdrop safe zone · web.hero</span></div><div class="window-back" aria-hidden="true"></div>
+        <div class="window"><div class="chrome"><b></b><b></b><b></b><span>aquila.local / workspace</span></div><div class="app"><aside class="side"><p class="side-label">Workspace</p><div class="side-item active"><span class="side-icon"></span>Overview</div><div class="side-item"><span class="side-icon"></span>Sessions</div><div class="side-item"><span class="side-icon"></span>Handoffs</div><div class="side-item"><span class="side-icon"></span>Activity</div><p class="side-label" style="margin-top:23px">Today</p><div class="side-item"><span class="side-icon"></span>Release 04</div></aside><div class="mainpanel"><div class="panel-head"><div><div style="color:#8290a5;font-size:9px;letter-spacing:.1em;text-transform:uppercase">Monday · 09:42</div><h2>Good morning, operator.</h2></div><div class="live"><i></i>Live</div></div><div class="metric-row"><div class="metric"><small>Active sessions</small><strong>08</strong><em>+2 this week</em></div><div class="metric"><small>Open handoffs</small><strong>14</strong><em>92% clear</em></div><div class="metric"><small>Focus time</small><strong>6h 24m</strong><em>on track</em></div></div><div class="workgrid"><div class="workcard"><h3>Release checklist</h3><p>Three threads are ready for a clean handoff.</p><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div><div class="workcard"><h3>Next up</h3><div class="task"><i></i>Review agent brief</div><div class="task"><i></i>Ship workspace note</div><div class="task"><i></i>Close the loop</div></div></div></div></div></div>
+        <div class="note"><b>Context intact</b><span>Last handoff · 3 min ago</span></div><div class="caption">ARTIFACT 01 / LAYERED WORKSPACE PREVIEW / DESKTOP HERO</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

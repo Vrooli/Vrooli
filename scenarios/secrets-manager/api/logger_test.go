@@ -191,6 +191,21 @@ func TestLoggerInfoWithFormatArgs(t *testing.T) {
 	}
 }
 
+func TestLoggerRedactsCredentialMaterialAndBearerTokens(t *testing.T) {
+	var buf bytes.Buffer
+	testLogger := &Logger{Logger: log.New(&buf, "[TEST] ", 0)}
+	testLogger.Info("password=%s authorization=Bearer %s endpoint=https://example.test/login?token=%s", "do-not-log", "bearer-value", "query-value")
+	output := buf.String()
+	for _, leaked := range []string{"do-not-log", "bearer-value", "query-value"} {
+		if strings.Contains(output, leaked) {
+			t.Fatalf("logger leaked %q in %q", leaked, output)
+		}
+	}
+	if !strings.Contains(output, "[REDACTED]") {
+		t.Fatalf("redaction marker missing from %q", output)
+	}
+}
+
 // TestLoggerErrorWithFormatArgs tests Error logging with format arguments
 // [REQ:SEC-OPS-001] Structured logging support
 func TestLoggerErrorWithFormatArgs(t *testing.T) {

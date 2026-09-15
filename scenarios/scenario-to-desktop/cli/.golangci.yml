@@ -1,0 +1,46 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gofumpt
+    - gocritic
+    - gocyclo
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+    - typecheck
+    - unused
+
+linters-settings:
+  gofumpt:
+    # Must match this module's go.mod path. gofumpt treats a first path segment
+    # with no dot as standard library, so without this a module-local import is
+    # sorted into the stdlib group and the three-group convention inverts.
+    module-path: scenario-to-desktop/cli
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: redefines-builtin-id
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
+issues:
+  exclude-dirs:
+    - mocks
+    - testutil
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+        - gocyclo
+    - path: mocks/
+      linters:
+        - all
+  max-issues-per-linter: 0
+  max-same-issues: 0

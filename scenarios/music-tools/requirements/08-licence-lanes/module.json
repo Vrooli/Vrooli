@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "licence-lanes",
+    "description": "Commercial and non-commercial model lanes are separable by configuration, not by convention.",
+    "prd_ref": "OT-P1-002",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P1-005",
+      "title": "Lane is a first-class registry property",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Every model declares whether it is usable in a commercially distributed build. Several of the strongest analysis models are non-commercial, and at least one supporting tool declares no licence at all; the lane must be recorded per model rather than assumed per scenario.",
+      "tags": ["licensing", "registry"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/lanes_test.go", "phase": "unit", "status": "planned", "notes": "Every entry declares a lane; unknown-licence entries default to the restricted lane" }
+      ]
+    },
+    {
+      "id": "MUS-P1-006",
+      "title": "Permissive builds are provably clean",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "criticality": "P1",
+      "description": "A build configured for the permissive lane refuses to resolve any restricted-lane model, and still satisfies the composition and analysis contracts using permissive models only.",
+      "tags": ["licensing", "build"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/permissive_lane_test.go", "phase": "unit", "status": "planned", "notes": "Permissive configuration resolves a complete working stack and rejects restricted models" }
+      ]
+    },
+    {
+      "id": "MUS-P1-007",
+      "title": "Copyleft tools are process-isolated",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Tools under copyleft licences are invoked as separate processes and never linked in-process, so their obligations do not propagate to the scenario binary.",
+      "tags": ["licensing", "isolation"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/isolation_test.go", "phase": "unit", "status": "planned", "notes": "Copyleft-tagged tools are subprocess-invoked; no in-process linkage path exists" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1294 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "portal",
+  "description": "Vrooli Portal CLI surface for chat, message trees, integration readiness, and ecosystem search. Commands are thin generated-Connect clients over Portal's API.",
+  "groups": [
+    {
+      "name": "chats",
+      "description": "Manage Portal chats and chat groups",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List chats with their groups",
+          "flags": [
+            {
+              "name": "group-id",
+              "description": "Optional group id filter"
+            },
+            {
+              "name": "query",
+              "description": "Optional full-text query"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "ListChats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a chat",
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Chat title"
+            },
+            {
+              "name": "group-id",
+              "description": "Optional chat group id"
+            },
+            {
+              "name": "model",
+              "description": "Model override"
+            },
+            {
+              "name": "mode",
+              "description": "Chat mode: llm or agent",
+              "default": "llm"
+            },
+            {
+              "name": "web-search",
+              "bool": true,
+              "description": "Enable web search for this chat",
+              "bind": {
+                "field": "web_search_enabled"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "CreateChat"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one chat",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Chat id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "GetChat"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update chat metadata",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Chat id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "New title"
+            },
+            {
+              "name": "group-id",
+              "description": "New group id"
+            },
+            {
+              "name": "model",
+              "description": "New model override"
+            },
+            {
+              "name": "active-leaf",
+              "description": "Set active leaf message id",
+              "bind": {
+                "field": "active_leaf_message_id"
+              }
+            },
+            {
+              "name": "web-search",
+              "bool": true,
+              "description": "Enable web search",
+              "bind": {
+                "field": "web_search_enabled"
+              }
+            },
+            {
+              "name": "no-web-search",
+              "bool": true,
+              "description": "Disable web search",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "UpdateChat"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a chat",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Chat id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "DeleteChat"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "groups",
+          "description": "List chat groups",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "ListGroups"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "group-create",
+          "description": "Create a chat group",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Group name"
+            },
+            {
+              "name": "color",
+              "required": true,
+              "description": "Group color"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "CreateGroup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "group-update",
+          "description": "Update a chat group",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Group id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "New group name"
+            },
+            {
+              "name": "color",
+              "description": "New group color"
+            },
+            {
+              "name": "collapsed",
+              "bool": true,
+              "description": "Mark collapsed"
+            },
+            {
+              "name": "expanded",
+              "bool": true,
+              "description": "Mark expanded",
+              "local_only": true
+            },
+            {
+              "name": "sort-order",
+              "description": "Sort order integer"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "UpdateGroup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "group-delete",
+          "description": "Delete a chat group",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Group id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChatService",
+            "method": "DeleteGroup"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "messages",
+      "description": "Manage message trees and stream completions",
+      "commands": [
+        {
+          "name": "tree",
+          "description": "Show a chat's message tree",
+          "positionals": [
+            {
+              "name": "chat-id",
+              "required": true,
+              "description": "Chat id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "GetTree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "send",
+          "description": "Append a user message",
+          "positionals": [
+            {
+              "name": "chat-id",
+              "required": true,
+              "description": "Chat id"
+            },
+            {
+              "name": "text",
+              "required": true,
+              "description": "Message text",
+              "bind": {
+                "field": "content"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "parent",
+              "description": "Optional parent message id",
+              "bind": {
+                "field": "parent_message_id"
+              }
+            },
+            {
+              "name": "model",
+              "description": "Model override for the next completion"
+            },
+            {
+              "name": "skill-ids",
+              "description": "Comma-separated selected skill ids",
+              "bind": {
+                "field": "selected_skill_ids"
+              }
+            },
+            {
+              "name": "web-search",
+              "bool": true,
+              "description": "Enable passive web search",
+              "bind": {
+                "field": "web_search_enabled"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "SendMessage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit",
+          "description": "Edit a message and create a branch",
+          "positionals": [
+            {
+              "name": "message-id",
+              "required": true,
+              "description": "Message id"
+            },
+            {
+              "name": "text",
+              "required": true,
+              "description": "Replacement text",
+              "bind": {
+                "field": "content"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "EditMessage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "regenerate",
+          "description": "Regenerate an assistant branch from a message",
+          "positionals": [
+            {
+              "name": "message-id",
+              "required": true,
+              "description": "Message id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "model",
+              "description": "Model override"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "Regenerate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stream",
+          "description": "Stream a completion for a chat",
+          "positionals": [
+            {
+              "name": "chat-id",
+              "required": true,
+              "description": "Chat id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from",
+              "description": "Message id to complete from",
+              "bind": {
+                "field": "from_message_id"
+              }
+            },
+            {
+              "name": "model",
+              "description": "Model override"
+            },
+            {
+              "name": "mode",
+              "description": "Chat mode: llm or agent",
+              "default": "llm"
+            },
+            {
+              "name": "skill-ids",
+              "description": "Comma-separated selected skill ids",
+              "bind": {
+                "field": "selected_skill_ids"
+              }
+            },
+            {
+              "name": "web-search",
+              "bool": true,
+              "description": "Enable passive web search",
+              "bind": {
+                "field": "web_search_enabled"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "StreamCompletion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "agent-run",
+          "description": "Read the agent run associated with a chat message",
+          "positionals": [
+            {
+              "name": "chat-id",
+              "required": true,
+              "description": "Portal chat id"
+            },
+            {
+              "name": "message-id",
+              "required": true,
+              "description": "Portal source message id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "GetAgentRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop-agent-run",
+          "description": "Stop the agent run associated with a chat message; read state after an uncertain response",
+          "positionals": [
+            {
+              "name": "chat-id",
+              "required": true,
+              "description": "Portal chat id"
+            },
+            {
+              "name": "message-id",
+              "required": true,
+              "description": "Portal source message id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "StopAgentRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "agent-admissions",
+          "description": "List durable agent admissions for recovery, including unknown launch outcomes",
+          "flags": [
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token from the previous page"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MessageService",
+            "method": "ListAgentAdmissions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "integrations",
+      "description": "Integration readiness status and behavior-mode controls",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show Portal integration readiness status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntegrationsService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "override",
+          "description": "Set behavior override: auto, force-off, or force-passive",
+          "positionals": [
+            {
+              "name": "override",
+              "required": true,
+              "description": "Override value"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntegrationsService",
+            "method": "UpdateOverride"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "brief",
+      "description": "Build and inspect Portal-owned context briefs",
+      "commands": [
+        {
+          "name": "build",
+          "description": "Build one gated context brief",
+          "flags": [
+            {"name": "prompt", "description": "Prompt text"},
+            {"name": "prompt-file", "description": "Read prompt text from a file, or - for stdin", "local_only": true, "bind_waiver": "The CLI handler reads this local file and sends only the resulting prompt text in the typed request."},
+            {"name": "consumer", "description": "portal-llm, portal-agent, or external-harness", "default": "external-harness"},
+            {"name": "render", "description": "agent, system-prompt, or none", "default": "none", "local_only": true, "bind_waiver": "Rendering selects the CLI presentation after the typed response returns; it is not part of the service request."},
+            {"name": "budget-ms", "description": "Hard search budget in milliseconds"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Build"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get",
+          "description": "Read one stored context brief",
+          "positionals": [{"name": "id", "required": true, "description": "Brief id"}],
+          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Get"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list",
+          "description": "List stored context briefs newest first",
+          "flags": [
+            {"name": "consumer", "description": "Consumer filter"},
+            {"name": "chat-id", "description": "Chat filter"},
+            {"name": "session-ref", "description": "External session filter"},
+            {"name": "limit", "description": "Maximum briefs", "default": "50"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "List"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "record-use",
+          "description": "Record use of a brief item",
+          "positionals": [
+            {"name": "brief-id", "required": true, "description": "Brief id"},
+            {"name": "item-index", "required": true, "description": "Zero-based item index"},
+            {"name": "kind", "required": true, "description": "opened, copied, referenced, or rejected"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "RecordUse"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "stats",
+          "description": "Report brief delivery, withholding, and item usage rates",
+          "flags": [
+            {"name": "window", "description": "Window in days", "default": "7", "bind": {"field": "window_days"}},
+            {"name": "consumer", "description": "Optional consumer filter"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Stats"},
+          "measure": {
+            "domain": "brief",
+            "intent": "Measure context brief delivery, withholding, and item usage over a bounded window.",
+            "questions": [
+              "what is the context brief usage rate this week",
+              "how many briefs were withheld in the last 7 days",
+              "show brief delivery and usage metrics"
+            ],
+            "params": {
+              "window_days": {},
+              "consumer": {}
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "rows",
+              "unit": "brief statistics rows",
+              "summary_template": "Context brief delivery and usage metrics"
+            }
+          },
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "hook",
+          "description": "Render a prompt-time context hook response",
+          "needs_api": false,
+          "flags": [{"name": "runtime", "required": true, "description": "Agent runtime name"}],
+          "binding": {"kind": "local", "handler": "hook"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "hooks",
+          "description": "Install, remove, or inspect the context brief hook",
+          "needs_api": false,
+          "positionals": [{"name": "action", "required": true, "description": "install, remove, or status"}],
+          "flags": [{"name": "runtime", "description": "Agent runtime name"}],
+          "binding": {"kind": "local", "handler": "hooks"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Request Portal-mediated ecosystem suggestions",
+      "commands": [
+        {
+          "name": "suggest",
+          "description": "Return bounded search suggestions",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Search query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "types",
+              "description": "Comma-separated hit types"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum hits",
+              "default": "8"
+            },
+            {
+              "name": "group",
+              "description": "Optional search group"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Suggest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "surfaces",
+      "description": "Discover owner surfaces and resolve target ambiguity",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List surfaces with partial-source status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SurfaceCatalogService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Resolve a display label without guessing between matches",
+          "positionals": [
+            {
+              "name": "label",
+              "required": false,
+              "description": "Surface display label",
+              "bind": {
+                "field": "display_label"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SurfaceCatalogService",
+            "method": "Resolve"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "target-owner",
+              "description": "Exact target owner scenario",
+              "local_only": true,
+              "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            },
+            {
+              "name": "target-id",
+              "description": "Exact owner resource ID",
+              "local_only": true,
+              "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            },
+            {
+              "name": "host-node-id",
+              "description": "Host relation from the catalog descriptor",
+              "local_only": true,
+              "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            },
+            {
+              "name": "surface-owner",
+              "description": "Exact surface owner scenario",
+              "local_only": true,
+              "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            },
+            {
+              "name": "surface-id",
+              "description": "Exact owner surface ID",
+              "local_only": true,
+              "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "context",
+      "description": "Import, read, and delete retained context images",
+      "commands": [
+        {
+          "name": "import",
+          "description": "Import account-owned context",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private file containing the operator access token",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "request",
+              "required": true,
+              "description": "Private protobuf JSON import request file",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "Import"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "read",
+          "description": "Read account-owned context",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private file containing the operator access token",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Exact context artifact ID"
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "New private PNG output file; existing files are never replaced",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "Read"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete account-owned context",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private file containing the operator access token",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Exact context artifact ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "Delete"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-import",
+          "description": "Read import publication state without resending pixels",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private operator access-token file",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Original import request UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "ReconcileImport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "cancel-import",
+          "description": "Cancel an import and remove any retained image",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private operator access-token file",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Original import request UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "CancelImport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "render",
+          "description": "Save the selected image crop with annotations",
+          "flags": [
+            {
+              "name": "access-token-file",
+              "required": true,
+              "description": "Private file containing the operator access token",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Exact context artifact ID"
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "New private PNG output file; existing files are never replaced",
+              "local_only": true,
+              "bind_waiver": "The CLI handler consumes this private file/path locally and sends only the typed request fields."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContextCaptureService",
+            "method": "Render"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "assistant-migration",
+      "description": "Review and export legacy Assistant records without starting its runtime",
+      "commands": [
+        {
+          "name": "inventory",
+          "description": "List bounded legacy task and context records",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "legacy vrooli-assistant scenario root"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "export",
+          "description": "Copy records and a checksum manifest to a separate review directory",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "legacy vrooli-assistant scenario root"
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "separate private review directory"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Verify the source still matches a previously exported manifest",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "legacy vrooli-assistant scenario root"
+            },
+            {
+              "name": "manifest",
+              "required": true,
+              "description": "private exported manifest.json"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "review",
+          "description": "Build a reconciled current-owner capture handoff",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "legacy vrooli-assistant scenario root"
+            },
+            {
+              "name": "manifest",
+              "required": true,
+              "description": "private exported manifest.json"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "capture",
+          "description": "Route reviewed records to current-owner task handoffs",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "legacy vrooli-assistant scenario root"
+            },
+            {
+              "name": "manifest",
+              "required": true,
+              "description": "private exported manifest.json"
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "separate private current-owner handoff directory"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "brief",
+        "stateful": true,
+        "reason": "Brief delivery and usage statistics are exposed by the BriefService stats measure."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "DesktopSessionService",
+      "method": "Open",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Observe",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Act",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Stop",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "OperatorSessionService",
+      "method": "Login",
+      "reason": "Same-origin browser account transport. Account CLI operations are owned by scenario-authenticator."
+    },
+    {
+      "service": "OperatorSessionService",
+      "method": "Register",
+      "reason": "Same-origin browser account transport. Account CLI operations are owned by scenario-authenticator."
+    },
+    {
+      "service": "OperatorSessionService",
+      "method": "Refresh",
+      "reason": "Same-origin browser account transport. Account CLI operations are owned by scenario-authenticator."
+    },
+    {
+      "service": "OperatorSessionService",
+      "method": "Logout",
+      "reason": "Same-origin browser account transport. Account CLI operations are owned by scenario-authenticator."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Applications",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Resolve",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "RunFlow",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "PromoteFlow",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "GetSavedFlow",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "RunSavedFlow",
+      "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "ReadCleanup",
+      "reason": "Portal browser account transport. Desktop operator CLI recovery belongs to device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "ListAdmissions",
+      "reason": "Portal browser account transport. Desktop operator CLI recovery belongs to device-control desktop with an explicit owner socket."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "ReconcileOpen",
+      "reason": "Portal browser account transport; operator admission reconciliation uses device-control desktop with an explicit owner socket."
+    }
+  ]
+}

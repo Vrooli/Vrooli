@@ -56,7 +56,7 @@ This scenario enables local discovery by:
 - **Shared Workflows**: 
   - `ollama.json` - For understanding natural language queries
   - `rate-limiter.json` - For managing API rate limits
-- **Resources**: ollama, n8n, postgres, redis, browserless
+- **Resources**: ollama, n8n, postgres, redis, browser-automation-studio
 
 ## UX Design
 Clean, map-focused interface with exploration-friendly design:
@@ -136,7 +136,7 @@ make status
 
 # Run tests
 make test                      # Full test suite (all 5 phases)
-cd cli && bats local-info-scout.bats  # CLI-specific tests (23 tests)
+cd cli && go test ./...        # Go CLI unit tests
 
 # View logs
 make logs

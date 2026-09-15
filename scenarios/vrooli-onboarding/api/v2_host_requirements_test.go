@@ -1,0 +1,49 @@
+package main
+
+import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
+	root := newV2Root(t)
+	for _, path := range []string{
+		filepath.Join(root, "scenarios", "alpha", ".vrooli"),
+		filepath.Join(root, "internal", "tools", "demo-tool"),
+		filepath.Join(root, "internal", "safeguards", "demo-safeguard"),
+		filepath.Join(root, ".vrooli"),
+	} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"},"hostTools":[{"name":"demo_tool","required":true,"reason":"required test tool"}],"hostSafeguards":[{"name":"demo_safeguard","required":false,"reason":"optional test safeguard"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "tools", "demo-tool", "tool.json"), []byte(`{"name":"demo_tool","description":"Demo tool","commands":["true"],"platforms":["linux"],"privilege":"user","bundling":"host-required"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "safeguards", "demo-safeguard", "safeguard.json"), []byte(`{"name":"demo_safeguard","description":"Demo safeguard","risk":"high","platforms":["linux"],"privilege":"elevated","bundling":"prohibited","config":{"type":"object","required":["target"],"properties":{"target":{"type":"string","description":"collector target"}}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}},"host_safeguards":{"demo_safeguard":{"opted_in":true,"config":{"target":"collector.example:6666"}}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	w := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	for _, want := range []string{`"name":"demo_tool"`, `"status":"required"`, `"privilege":"user"`, `"bundling":"host-required"`, `"name":"demo_safeguard"`, `"status":"opted_in"`, `"risk":"high"`, `"configSchema"`, `"target"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("response missing %s: %s", want, body)
+		}
+	}
+	if !strings.Contains(body, `"config":{"target":"collector.example:6666"}`) {
+		t.Fatalf("response did not expose saved safeguard configuration: %s", body)
+	}
+}

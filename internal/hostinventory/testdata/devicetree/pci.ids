@@ -1,0 +1,18 @@
+#
+#	List of PCI ID's -- trimmed to the vendors and devices the device-tree
+#	fixtures reference, in the exact format hwdata ships.
+#
+1002  Advanced Micro Devices, Inc. [AMD/ATI]
+	164e  Raphael
+	73df  Navi 22 [Radeon RX 6700/6700 XT/6750 XT]
+1022  Advanced Micro Devices, Inc. [AMD]
+	14da  Family 19h PCIe Dummy Host Bridge
+10de  NVIDIA Corporation
+	20b5  GA100 [A100 PCIe 80GB]
+	2705  AD103 [GeForce RTX 4070 Ti SUPER]
+8086  Intel Corporation
+	9bc4  CometLake-U GT2 [UHD Graphics]
+
+# List of known device classes, subclasses and programming interfaces
+C 03  Display controller
+	00  VGA compatible controller

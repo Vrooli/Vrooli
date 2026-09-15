@@ -27,11 +27,14 @@
   ],
   "metadata": {
     "description": "Validates locking and unlocking canvas to prevent/allow node interaction",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Toolbar Lock Toggle",
+    "version": "1"
   },
   "nodes": [
     {
@@ -112,6 +115,12 @@
           "label": "Verify lock toggle completed"
         },
         "type": "ACTION_TYPE_EVALUATE"
+      },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
       },
       "id": "verify-toggle"
     }

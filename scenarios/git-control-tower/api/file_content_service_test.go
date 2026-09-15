@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,12 +9,12 @@ import (
 )
 
 func TestSaveFileContentSuccess(t *testing.T) {
-	repoDir := SetupTestRepo(t)
+	repoDir := t.TempDir()
 	filePath := filepath.Join(repoDir, "src/main.ts")
 	WriteTestFile(t, filePath, "const a = 1\n")
 
 	beforeHash := hashContentBytes([]byte("const a = 1\n"))
-	result, err := SaveFileContent(context.Background(), FileContentDeps{
+	result, err := SaveFileContent(authorizedHumanContext(), FileContentDeps{
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 	}, SaveFileContentRequest{
@@ -46,10 +45,10 @@ func TestSaveFileContentSuccess(t *testing.T) {
 }
 
 func TestSaveFileContentConflict(t *testing.T) {
-	repoDir := SetupTestRepo(t)
+	repoDir := t.TempDir()
 	WriteTestFile(t, filepath.Join(repoDir, "README.md"), "hello\n")
 
-	_, err := SaveFileContent(context.Background(), FileContentDeps{
+	_, err := SaveFileContent(authorizedHumanContext(), FileContentDeps{
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 	}, SaveFileContentRequest{
@@ -70,9 +69,9 @@ func TestSaveFileContentConflict(t *testing.T) {
 }
 
 func TestSaveFileContentRejectsTraversal(t *testing.T) {
-	repoDir := SetupTestRepo(t)
+	repoDir := t.TempDir()
 
-	_, err := SaveFileContent(context.Background(), FileContentDeps{
+	_, err := SaveFileContent(authorizedHumanContext(), FileContentDeps{
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 	}, SaveFileContentRequest{
@@ -85,7 +84,7 @@ func TestSaveFileContentRejectsTraversal(t *testing.T) {
 }
 
 func TestSaveFileContentRejectsBinary(t *testing.T) {
-	repoDir := SetupTestRepo(t)
+	repoDir := t.TempDir()
 	binPath := filepath.Join(repoDir, "assets/logo.png")
 	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -94,7 +93,7 @@ func TestSaveFileContentRejectsBinary(t *testing.T) {
 		t.Fatalf("write binary: %v", err)
 	}
 
-	_, err := SaveFileContent(context.Background(), FileContentDeps{
+	_, err := SaveFileContent(authorizedHumanContext(), FileContentDeps{
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 	}, SaveFileContentRequest{
@@ -111,14 +110,14 @@ func TestSaveFileContentRejectsBinary(t *testing.T) {
 }
 
 func TestSaveFileContentRejectsTooLarge(t *testing.T) {
-	repoDir := SetupTestRepo(t)
+	repoDir := t.TempDir()
 	largePath := filepath.Join(repoDir, "large.txt")
 	tooLarge := bytes.Repeat([]byte("a"), int(maxDiffFileBytes)+1)
 	if err := os.WriteFile(largePath, tooLarge, 0o644); err != nil {
 		t.Fatalf("write large file: %v", err)
 	}
 
-	_, err := SaveFileContent(context.Background(), FileContentDeps{
+	_, err := SaveFileContent(authorizedHumanContext(), FileContentDeps{
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 	}, SaveFileContentRequest{

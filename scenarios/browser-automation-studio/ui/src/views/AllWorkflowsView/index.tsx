@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner, PromptDialog } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useStartWorkflow } from '@/domains/executions';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
 import toast from 'react-hot-toast';
 import { logger } from '@utils/logger';
 
@@ -61,7 +61,7 @@ export default function AllWorkflowsView() {
     <div data-testid={selectors.app.shell.ready}>
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="default" size={24} message="Loading workflows..." />
           </div>
         }

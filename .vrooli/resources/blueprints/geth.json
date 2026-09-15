@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "geth",
+  "display_name": "Geth",
+  "category": "blockchain",
+  "summary": "Go Ethereum client for node operation, smart contract development, and chain interaction workflows.",
+  "why_it_matters": "Geth remains useful blockchain capability knowledge, but the repo does not currently justify supporting blockchain node operations as an active maintained resource.",
+  "when_to_use": [
+    "A future scenario needs an Ethereum-compatible node or dev chain.",
+    "Operators need local smart contract testing or JSON-RPC access.",
+    "The workflow depends on sovereign chain interaction rather than a managed provider."
+  ],
+  "example_scenarios": [
+    "Contract testing environments",
+    "Blockchain analytics services",
+    "On-chain automation tools"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "notes": "The client itself is portable, but practical support differs sharply between local dev chains and long-running network nodes.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Chain selection and sync strategy",
+    "State storage and backup plan",
+    "Explicit boundary between dev-node and production-node support"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Promotion should start with local development workflows rather than mainnet-scale node operations.",
+    "Separate RPC access support from wallet and key management concerns.",
+    "Define how chain data volume and pruning are handled before claiming support."
+  ],
+  "operational_notes": [
+    "State growth and sync behavior create the main operational burden.",
+    "Validation should distinguish local dev mode from real network participation.",
+    "Chain upgrades and configuration drift matter over time."
+  ],
+  "risks": [
+    "Node operation quickly becomes expensive and stateful.",
+    "A shallow wrapper could imply stronger support than Vrooli can actually provide."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "geth"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/geth"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

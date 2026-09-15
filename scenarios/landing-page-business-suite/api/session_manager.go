@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/sessions"
 )
@@ -21,10 +23,20 @@ type cookieSessionManager struct {
 }
 
 // NewCookieSessionManager creates a new session manager backed by a cookie store.
-func NewCookieSessionManager(secret string) SessionManager {
-	return &cookieSessionManager{
-		store: sessions.NewCookieStore([]byte(secret)),
+
+func NewCookieSessionManager(secret string, previous ...string) SessionManager {
+	keys := [][]byte{sessionKey(secret, "sign"), sessionKey(secret, "encrypt")}
+	if len(previous) > 0 && strings.TrimSpace(previous[0]) != "" {
+		keys = append(keys, sessionKey(previous[0], "sign"), sessionKey(previous[0], "encrypt"))
 	}
+	return &cookieSessionManager{
+		store: sessions.NewCookieStore(keys...),
+	}
+}
+
+func sessionKey(secret, purpose string) []byte {
+	hash := sha256.Sum256([]byte("lpbs-session:" + purpose + ":" + secret))
+	return hash[:]
 }
 
 // GetSession retrieves or creates a session with the given name.

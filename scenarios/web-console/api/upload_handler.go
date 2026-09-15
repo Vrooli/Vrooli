@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,30 +15,23 @@ import (
 
 const maxUploadSize = 20 << 20 // 20 MB
 
-// resolveUploadDir returns the upload directory using api-core/storage for
-// cross-platform portability. Falls back to a temp directory on failure.
 func resolveUploadDir() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("upload-dir: storage resolver failed, using fallback: %v", err)
-		return filepath.Join(os.TempDir(), "web-console-uploads")
-	}
+	return mustResolveScenarioStorageDir(storage.ClassCache, "uploads")
+}
 
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassCache, 0); err != nil {
-		log.Printf("upload-dir: ensure cache dir failed, using fallback: %v", err)
-		return filepath.Join(os.TempDir(), "web-console-uploads")
+// resolveUploadDirFor resolves the uploads root for one request. Under a test
+// lease the request context routes to the leased Cache root, so a BAS upload
+// never lands in the operator's real uploads tree; without a lease it resolves
+// to exactly the same path as resolveUploadDir.
+func (s *Server) resolveUploadDirFor(ctx context.Context) string {
+	if s.roots == nil {
+		return resolveUploadDir()
 	}
-
-	path, err := resolver.Path(opts, storage.ClassCache, "uploads")
-	if err != nil {
-		log.Printf("upload-dir: resolve path failed, using fallback: %v", err)
-		return filepath.Join(os.TempDir(), "web-console-uploads")
+	root, err := s.roots.Pick(ctx, storage.ClassCache)
+	if err != nil || strings.TrimSpace(root) == "" {
+		return resolveUploadDir()
 	}
-	return path
+	return ensureDir(filepath.Join(root, "uploads"))
 }
 
 // allowedImageTypes maps accepted MIME types for image uploads.
@@ -85,7 +78,7 @@ func uniquePath(dir, name string) string {
 	}
 	ext := filepath.Ext(name)
 	base := strings.TrimSuffix(name, ext)
-	for i := 1; i < 10000; i++ {
+	for i := 1; i < 10*1000; i++ {
 		candidate = filepath.Join(dir, fmt.Sprintf("%s_%d%s", base, i, ext))
 		if _, err := os.Stat(candidate); os.IsNotExist(err) {
 			return candidate
@@ -137,7 +130,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create session-scoped upload directory
-	sessionDir := filepath.Join(resolveUploadDir(), sess.ID)
+	sessionDir := filepath.Join(s.resolveUploadDirFor(r.Context()), sess.ID)
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		writeCatalogError(w, "internal_error", "Failed to create upload directory")
 		return
@@ -158,6 +151,10 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "internal_error", "Failed to write file")
 		return
 	}
+	// Records which root the write actually landed in. The lease reports a
+	// primary write during test mode as an isolation leak, so this call is
+	// what makes the evidence real rather than assumed.
+	s.roots.RecordWrite(r.Context())
 
 	writeJSON(w, http.StatusOK, map[string]string{"path": destPath})
 }

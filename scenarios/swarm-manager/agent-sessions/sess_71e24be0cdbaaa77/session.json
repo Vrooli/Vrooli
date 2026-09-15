@@ -1,0 +1,13 @@
+{
+  "id": "sess_71e24be0cdbaaa77",
+  "title": "Discuss Add quick-glance execution result component to swarm-manager",
+  "kind": "meta_orchestration",
+  "status": "draft",
+  "skill_id": "swarm-manager-meta-orchestrator",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-14T01:38:07Z",
+  "updated_at": "2026-07-14T01:38:07Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

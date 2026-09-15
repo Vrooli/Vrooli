@@ -1,0 +1,364 @@
+syntax = "proto3";
+
+package vrooli.scenario_validation.v1;
+
+import "common/v1/maturity.proto";
+import "common/v1/metrics.proto";
+import "common/v1/validation_target.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1";
+
+// =============================================================================
+// SCENARIO VALIDATION SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain scenario-validation
+// @stability beta
+//
+// ScenarioValidationService is the shared Connect-RPC contract implemented by
+// health-style provider scenarios and consumed by test-genie. Test Genie reads
+// only status and the common maturity assessment; provider-specific rich detail
+// remains opaque in native_detail for the provider's own UI/CLI.
+// =============================================================================
+
+service ScenarioValidationService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+
+  // ValidateTarget is the generalized target contract. ValidateScenario is
+  // retained as a wire-compatible alias for scenario callers while providers
+  // migrate to the first-class target vocabulary.
+  rpc ValidateTarget(ValidateTargetRequest) returns (ValidateTargetResponse);
+
+  // DescribeProvider reports the provider's own identity and contract facts
+  // without inspecting any target. Readiness consumers ask three questions —
+  // is this provider live, does it speak the current contract, and is it who
+  // its descriptor claims — none of whose answers can depend on a target
+  // scenario. Answering them through ValidateScenario forced a full target
+  // analysis for two strings; this RPC exists so that cannot happen.
+  //
+  // The request is deliberately empty. That is load-bearing: with no target
+  // fields there is no way for an implementation to drift back into doing
+  // target work here.
+  //
+  // Providers that have not adopted it leave it unimplemented; consumers treat
+  // an Unimplemented response as "fall back to the legacy ValidateScenario
+  // readiness probe", so adoption is incremental.
+  rpc DescribeProvider(DescribeProviderRequest) returns (DescribeProviderResponse);
+
+  // PreviewFix reports the deterministic remediations the provider could apply
+  // for the requested scenario without writing anything (dry-run). Providers
+  // that ship no fixers leave this unimplemented; consumers treat an
+  // Unimplemented response as "no deterministic fixer" and skip the provider.
+  rpc PreviewFix(FixRequest) returns (FixResponse);
+
+  // ApplyFix applies the provider's deterministic remediations and reports what
+  // changed. Apply is never implicit: callers reach this RPC only when the user
+  // explicitly opts into writing (e.g. `--apply`).
+  rpc ApplyFix(FixRequest) returns (FixResponse);
+}
+
+// DurableValidationRunService is an opt-in provider contract for validation
+// whose execution may outlive an HTTP request. It deliberately sits beside
+// ScenarioValidationService: ValidateScenario remains the fast, terminal
+// static-validation contract implemented by existing providers.
+service DurableValidationRunService {
+  rpc StartValidationRun(StartValidationRunRequest) returns (StartValidationRunResponse);
+  rpc GetValidationRun(GetValidationRunRequest) returns (GetValidationRunResponse);
+  rpc WaitValidationRun(WaitValidationRunRequest) returns (WaitValidationRunResponse);
+  rpc AbortValidationRun(AbortValidationRunRequest) returns (AbortValidationRunResponse);
+}
+
+// DescribeProviderRequest is intentionally empty: provider identity and
+// contract facts are properties of the provider process, never of a target.
+// Do not add target-selection fields here — route those through
+// ValidateScenario instead.
+message DescribeProviderRequest {}
+
+message DescribeProviderResponse {
+  // Provider scenario slug this process serves, e.g. "security-health".
+  string provider = 1;
+  // Test Genie phase this provider backs, e.g. "security".
+  string phase = 2;
+  // Version of the provider's maturity spec (the assessment ladder), taken
+  // from the maturity block in its .vrooli/test-genie.json descriptor.
+  string spec_version = 3;
+  // Shared validation contract this binary speaks, e.g. "scenario-validation/v1".
+  string contract = 4;
+  // Build provenance, so freshness gates can detect a stale provider binary
+  // without running its analysis.
+  ProviderBuild build = 5;
+  // What this provider can actually do, so consumers can detect drift between
+  // a descriptor's declarations and the running binary's behavior.
+  ProviderCapabilities capabilities = 6;
+}
+
+// ProviderBuild carries whatever build provenance the provider can determine.
+// Every field is best-effort: a provider that cannot determine a value leaves
+// it unset rather than inventing one, and consumers must treat unset as
+// "unknown", never as "stale".
+message ProviderBuild {
+  // Version control revision the binary was built from, when known.
+  string revision = 1;
+  // Build timestamp, when known.
+  google.protobuf.Timestamp built_at = 2;
+  // Modification time of the running binary, observed once at process start.
+  google.protobuf.Timestamp binary_modified_at = 3;
+  // Freshness-manifest digest this process read at startup. A consumer that
+  // finds a different digest on disk knows the binary was rebuilt but never
+  // restarted, so the running process is serving superseded code. Empty when
+  // the provider has no manifest; consumers must treat empty as "unknown"
+  // rather than "stale", so a missing stamp can never trigger a restart.
+  string freshness_digest = 4;
+}
+
+message ProviderCapabilities {
+  // True when include_execution=true does measurably more work than false.
+  // Providers whose only mode is inspection report false, which tells a
+  // consumer that a ValidateScenario-based readiness probe would cost a full
+  // analysis — the drift that made this RPC necessary.
+  bool supports_execution = 1;
+  // Delivery mode this provider implements: "inline" or "durable-run".
+  string delivery_mode = 2;
+  // True when the provider implements PreviewFix/ApplyFix.
+  bool supports_fixes = 3;
+  // Target kinds this provider declares and implements. An absent field is
+  // interpreted as [SCENARIO] by older providers.
+  repeated common.v1.ValidationTargetKind target_kinds = 4;
+}
+
+message ValidateScenarioRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Execution-mode switch for providers that can both inspect and measure.
+  // false => readiness/inspection only (no process spawned, no build run);
+  // true => the provider runs its deterministic measurements (e.g. unit-health
+  // executes the suite; performance-health benchmarks the build + bundle and
+  // runs Lighthouse-if-UI, persisting a sample), then gates on the result.
+  // Providers that only inspect ignore this flag.
+  bool include_execution = 3;
+  // Optional capability-level execution subset. An empty list means the
+  // provider must evaluate its normal full capability set. Providers that
+  // honor this field must skip work for capabilities not named here.
+  repeated string capability_subset = 4;
+}
+
+message ValidateTargetRequest {
+  common.v1.ValidationTarget target = 1;
+  bool include_execution = 2;
+  // Physical path resolved by Test Genie for providers that need filesystem
+  // access. The target.root remains the stable repo-relative identity.
+  string path = 3;
+  repeated string capability_subset = 4;
+  // Repository-contract exclusions expressed as repo-relative globs.
+  repeated string exclude = 5;
+}
+
+message ValidateTargetResponse {
+  common.v1.ValidationTarget target = 1;
+  ValidationStatus status = 2;
+  common.v1.MaturityAssessment assessment = 3;
+  google.protobuf.Any native_detail = 4;
+  common.v1.ExecutionMetrics metrics = 5;
+  // Provider-owned cause for a failed validation. Required when status is
+  // FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+  // violation instead of guessing whether the harness or product failed.
+  string failure_classification = 6;
+}
+
+enum ValidationStatus {
+  VALIDATION_STATUS_UNSPECIFIED = 0;
+  VALIDATION_STATUS_PASSED = 1;
+  VALIDATION_STATUS_FAILED = 2;
+  VALIDATION_STATUS_DEGRADED = 3;
+  VALIDATION_STATUS_ERROR = 4;
+  VALIDATION_STATUS_SKIPPED = 5;
+}
+
+message ValidateScenarioResponse {
+  string scenario = 1;
+  // Canonical provider verdict for Test Genie's gate.
+  ValidationStatus status = 2;
+  // Mandatory shared assessment. Findings live here.
+  common.v1.MaturityAssessment assessment = 3;
+  // Optional provider-native response packed for provider-owned surfaces.
+  google.protobuf.Any native_detail = 4;
+  // Optional execution metrics (timing, stages, resources, host environment)
+  // for this validation. Absent for providers that have not adopted metrics.
+  common.v1.ExecutionMetrics metrics = 5;
+  // Provider-owned cause for a failed validation. Required when status is
+  // FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+  // violation instead of guessing whether the harness or product failed.
+  string failure_classification = 6;
+}
+
+// ValidationRunState is provider-neutral lifecycle state. A provider persists
+// these states in its own ledger; no central run database is implied.
+enum ValidationRunState {
+  VALIDATION_RUN_STATE_UNSPECIFIED = 0;
+  VALIDATION_RUN_STATE_QUEUED = 1;
+  VALIDATION_RUN_STATE_RUNNING = 2;
+  VALIDATION_RUN_STATE_SUCCEEDED = 3;
+  VALIDATION_RUN_STATE_FAILED = 4;
+  VALIDATION_RUN_STATE_CANCELED = 5;
+  VALIDATION_RUN_STATE_RECOVERY_FAILED = 6;
+}
+
+// ValidationRunErrorCode classifies lifecycle failures so callers can select a
+// recovery path without parsing text. Invalid transitions are never encoded as
+// a terminal validation status.
+enum ValidationRunErrorCode {
+  VALIDATION_RUN_ERROR_CODE_UNSPECIFIED = 0;
+  VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION = 1;
+  VALIDATION_RUN_ERROR_CODE_NOT_FOUND = 2;
+  VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT = 3;
+  VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED = 4;
+  VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED = 5;
+  VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED = 6;
+  VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT = 7;
+}
+
+message ValidationRunError {
+  ValidationRunErrorCode code = 1;
+  string message = 2;
+  bool retryable = 3;
+}
+
+// ValidationRun is the durable, reattachable provider-owned record. Terminal
+// results use the existing shared response so direct and delegated consumers
+// receive identical provider-owned findings, presentation, and metrics.
+message ValidationRun {
+  string run_id = 1;
+  string scenario = 2;
+  string path = 3;
+  string idempotency_key = 4;
+  string parent_run_id = 5;
+  ValidationRunState state = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+  google.protobuf.Duration estimated_remaining = 10;
+  ValidateScenarioResponse preliminary_static_result = 11;
+  ValidateScenarioResponse terminal_result = 12;
+  ValidationRunError error = 13;
+  repeated google.protobuf.Any artifact_references = 14;
+  bool cancellation_requested = 15;
+}
+
+message StartValidationRunRequest {
+  string scenario = 1;
+  string path = 2;
+  // The same key and target must return the same provider-owned run. Reusing a
+  // key with a different target is an idempotency conflict.
+  string idempotency_key = 3;
+  // Optional Test Genie parent/attempt identity. Providers retain this only as
+  // a durable linkage reference; it is not their source of truth.
+  string parent_run_id = 4;
+  // Optional target binding for an execution-backed validation run. The
+  // provider persists this identity and supplies it to the owned execution
+  // engine; omission means the normal static/browser validation path.
+  DesktopValidationBinding desktop_binding = 5;
+  repeated string capability_subset = 6;
+}
+
+// DesktopValidationBinding identifies a target-owned desktop renderer for a
+// durable validation run. The storage lease is provider-owned and is bound to
+// the durable run ID, so callers cannot smuggle an unverified lease through
+// this request.
+message DesktopValidationBinding {
+  string target_id = 1;
+  string cdp_endpoint = 2;
+  string renderer_id = 3;
+  string renderer_url = 4;
+  string renderer_title = 5;
+  string scenario_name = 6;
+  string artifact_digest = 7;
+  string context_id = 8;
+  string profile_id = 9;
+  string cdp_transport = 10;
+  // Optional provider-owned workflow asset path. The caller supplies the
+  // normalized catalog path; the provider remains responsible for parsing,
+  // validating, and executing that asset.
+  string workflow_path = 11;
+  // Stable provider-owned workflow identity for validation-context binding.
+  // This may differ from workflow_path when a catalog prefixes the path with
+  // a scenario or provider namespace.
+  string workflow_id = 12;
+}
+
+message StartValidationRunResponse {
+  ValidationRun run = 1;
+}
+
+message GetValidationRunRequest {
+  string run_id = 1;
+}
+message GetValidationRunResponse {
+  ValidationRun run = 1;
+}
+
+message WaitValidationRunRequest {
+  string run_id = 1;
+  // Zero leaves the caller's timeout policy in control. A wait timeout never
+  // cancels provider work; callers may reattach with Get or Wait.
+  google.protobuf.Duration timeout = 2;
+}
+message WaitValidationRunResponse {
+  ValidationRun run = 1;
+}
+
+message AbortValidationRunRequest {
+  string run_id = 1;
+  string reason = 2;
+}
+message AbortValidationRunResponse {
+  ValidationRun run = 1;
+}
+
+// FixRequest selects the deterministic remediations to preview or apply for a
+// scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a
+// consumer that just validated a scenario can fix it without re-resolving.
+message FixRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Optional rule/finding codes to restrict the fix; empty means every rule the
+  // provider can deterministically remediate.
+  repeated string rule_ids = 3;
+}
+
+// FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
+// the shared maturity-go autofix.Candidate shape so providers built on that
+// registry map straight through.
+message FixCandidate {
+  // Rule/finding code that produced this edit.
+  string rule_id = 1;
+  // Absolute or scenario-relative path of the file the edit targets.
+  string file_path = 2;
+  // Human-readable description of the change.
+  string description = 3;
+  // File contents before the edit (may be empty when creating a new file).
+  string before = 4;
+  // File contents after the edit.
+  string after = 5;
+  // True when this edit was written to disk (ApplyFix), false for previews.
+  bool applied = 6;
+}
+
+// FixResponse reports the candidates a provider previewed or applied.
+message FixResponse {
+  // Scenario the fix targeted.
+  string scenario = 1;
+  // True when candidates were written to disk (ApplyFix), false for previews.
+  bool applied = 2;
+  // The proposed or applied edits, ordered deterministically by file then rule.
+  repeated FixCandidate candidates = 3;
+  // Optional human-readable notes (e.g. "no auto-fixable findings available").
+  repeated string messages = 4;
+}

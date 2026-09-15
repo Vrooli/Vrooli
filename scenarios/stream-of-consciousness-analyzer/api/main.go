@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	schema "stream-of-consciousness-analyzer/internal/thoughts"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -147,14 +148,13 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Apply schema
-	if err := ensureSchema(db); err != nil {
-		log.Fatalf("Schema migration failed: %v", err)
-	}
-
 	srv := NewServer(db)
 
 	// Start server with graceful shutdown (port from API_PORT env var)
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error { return db.Close() },

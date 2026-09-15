@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.conflict-resolution-flow",
+    "name": "ConflictResolutionFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The concurrency workflow comparing local and remote change, explaining what conflicts, supporting field-level resolution, and retrying against the current version.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.diff-viewer",
+        "reason": "Local and remote comparison uses the shared viewer."
+      },
+      {
+        "asset": "forms.form",
+        "reason": "Field-level resolution is a form and uses the shared runtime."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Progress and outcomes are announced through the one shared live region."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "submitting",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "Last-write-wins silently destroys someone's work. Making conflict a designed, resolvable state rather than an error is what lets multiple people or agents operate on the same records safely."
+}

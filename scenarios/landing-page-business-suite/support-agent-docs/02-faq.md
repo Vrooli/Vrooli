@@ -81,8 +81,8 @@ The license is available at [github.com/Vrooli/Vrooli/blob/master/LICENSE](https
 ### What operating systems are supported?
 
 - **Linux** (Ubuntu, Debian, Fedora, and most distributions)
-- **macOS** (Intel and Apple Silicon, macOS 11+)
-- **Windows** (Windows 10 and Windows 11)
+- **macOS** (Intel and Apple Silicon, macOS num[threshold]:11+)
+- **Windows** (Windows num[threshold]:10 and Windows 11)
 
 All platforms have full feature parity. The app bundles its own Chromium-based browser.
 

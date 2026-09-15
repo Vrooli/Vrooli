@@ -24,8 +24,6 @@ const (
 
 // SelectorCandidate is a single selector with metadata.
 // Used to provide fallback selectors captured during recording.
-//
-// @usage ActionMetadata.selector_candidates
 type SelectorCandidate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Selector strategy type (css, xpath, id, data-testid, aria, text, etc.).
@@ -99,8 +97,6 @@ func (x *SelectorCandidate) GetSpecificity() int32 {
 }
 
 // ElementMeta captures information about a DOM element.
-//
-// @usage ActionMetadata.element_snapshot
 type ElementMeta struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// HTML tag name (e.g., "button", "input", "div").
@@ -219,8 +215,6 @@ func (x *ElementMeta) GetAriaLabel() string {
 }
 
 // HighlightRegion describes an overlay applied to screenshots for emphasis.
-//
-// @usage ActionTelemetry.highlight_regions
 type HighlightRegion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector for the region.
@@ -305,8 +299,6 @@ func (x *HighlightRegion) GetCustomRgba() string {
 }
 
 // MaskRegion describes areas that were dimmed or masked during capture.
-//
-// @usage ActionTelemetry.mask_regions
 type MaskRegion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector for the region to mask.

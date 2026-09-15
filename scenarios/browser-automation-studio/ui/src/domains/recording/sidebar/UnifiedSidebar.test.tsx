@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import { UnifiedSidebar, type UnifiedSidebarProps } from './UnifiedSidebar';
 import { DEFAULT_AI_SETTINGS } from './types';

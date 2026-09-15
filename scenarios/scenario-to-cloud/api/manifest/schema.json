@@ -30,7 +30,6 @@
             "host": { "type": "string", "minLength": 1 },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
             "user": { "type": "string" },
-            "key_path": { "type": "string" },
             "workdir": { "type": "string" },
             "preserve_paths": {
               "type": "array",

@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-android",
+  "description": "Operator CLI surface. The standard flat status command is cataloged as local because cli-core owns its implementation rather than a scenario Connect service. The Android delivery-ramp group is hand-registered because its REST control surfaces and durable matrix lifecycle are not Connect-RPC bindings.",
+  "groups": [
+    {
+      "name": "ops",
+      "description": "Standard lifecycle and operator commands.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show scenario API health and lifecycle state.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "android",
+      "description": "Operate the Android delivery ramp. These commands are hand-registered because they drive REST control surfaces and durable matrix operations rather than Connect-RPC methods.",
+      "commands": [
+        { "name": "targets", "description": "Probe local, emulator, physical, and bridge Android targets.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "generate", "description": "Render a generated Capacitor Android project without building artifacts.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"] } },
+        { "name": "build", "description": "Build a debug APK and AAB from a scenario web bundle.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"] } },
+        { "name": "signing-provision", "description": "Generate and store the Android upload key through secrets-manager.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "run", "description": "Build, install, drive, and record one server-owned Android validation run.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"] } },
+        { "name": "conformance-plan", "description": "Show the generated-app Android conformance chapters.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "readiness", "description": "Show the six-rung Google release readiness ladder.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "distribution", "description": "Show independent Play, sideload, and ADB channels.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-catalog", "description": "Show the durable Android validation catalog.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-list", "description": "List durable Android validation runs.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-create", "description": "Create a normal-profile Android validation matrix.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-start", "description": "Start a server-owned Android validation matrix.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-wait", "description": "Wait for a server-owned Android validation matrix.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "compare", "description": "Compare two durable Android validation matrix runs.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "matrix-rerun-failed", "description": "Rerun failed Android validation cells.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] } },
+        { "name": "evidence-paths", "description": "Print the absolute physical and emulator evidence paths.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] } }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

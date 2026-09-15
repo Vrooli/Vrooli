@@ -1,0 +1,650 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "flow-verifier",
+  "description": "Single source of truth for the flow-verifier CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. New RPCs must either land here as a command binding or appear in `omitted[]` with a reason.",
+  "groups": [
+    {
+      "name": "artifacts",
+      "description": "Inspect, generate, or clear a flow's generated/ tree",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Inspect the on-disk generated/ tree for one flow",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "flow",
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id to target every flow inside",
+              "bind": {
+                "field": "scenario_id"
+              }
+            },
+            {
+              "name": "all",
+              "default": "false",
+              "description": "Apply to every discovered flow under --scenario",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "GetArtifactStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Generate or regenerate one flow's artifacts (or every flow with --scenario)",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "flow",
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id to target every flow inside",
+              "bind": {
+                "field": "scenario_id"
+              }
+            },
+            {
+              "name": "all",
+              "default": "false",
+              "description": "Apply to every discovered flow under --scenario",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "GenerateArtifacts"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "clear",
+          "description": "Remove one flow's generated/ tree (--scenario requires --yes)",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "flow",
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id to target every flow inside",
+              "bind": {
+                "field": "scenario_id"
+              }
+            },
+            {
+              "name": "all",
+              "default": "false",
+              "description": "Apply to every discovered flow under --scenario",
+              "local_only": true
+            },
+            {
+              "name": "yes",
+              "default": "false",
+              "description": "Skip the confirmation prompt for bulk clears",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "ClearArtifacts"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "flows",
+      "description": "Discover, validate, scaffold, and explain flow.json contracts",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every discovered flow",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+      "name": "kind",
+      "description": "Filter by flow kind (e.g. temporal, navigation)",
+      "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "ListFlows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate every flow against the embedded schema",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "flow",
+              "description": "Validate only this flow id",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Filter by flow kind (e.g. temporal, navigation)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "ValidateFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "new",
+          "description": "Scaffold a new flow under <feature-dir>/flow/",
+          "positionals": [
+            {
+              "name": "feature-dir",
+              "required": true,
+              "description": "Parent directory for the new flow/",
+              "bind": {
+                "field": "parent_dir"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "flow-id",
+              "required": true,
+              "description": "Flow identifier"
+            },
+            {
+              "name": "kind",
+              "description": "Flow kind to scaffold (temporal|navigation); defaults to temporal"
+            },
+            {
+              "name": "lang",
+              "description": "Target language for temporal kinds (ts or go); defaults to ts",
+              "bind": {
+                "field": "language"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "CreateFlow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Print the human-readable explain report for one flow",
+          "flags": [
+            {
+              "name": "flow",
+              "required": true,
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "ExplainFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Print the typed flow.json projection consumed by the UI",
+          "flags": [
+            {
+              "name": "flow",
+              "required": true,
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "GetFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "codegen",
+          "description": "Emit codegen artifacts for a navigation flow (routes.generated.ts)",
+          "flags": [
+            {
+              "name": "flow",
+              "required": true,
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "lang",
+              "default": "typescript",
+              "description": "Codegen target language (typescript)",
+              "bind": {
+                "field": "language"
+              }
+            },
+            {
+              "name": "write",
+              "default": "false",
+              "description": "Write artifacts to disk under the scenario root"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "CodegenFlow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Reconcile a navigation flow's spec against the scenario's ui/src tree",
+          "flags": [
+            {
+              "name": "flow",
+              "required": true,
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario root containing ui/src (defaults to derived from contract path)",
+              "bind": {
+                "field": "scenario_root"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "ReconcileFlow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "studio",
+          "description": "Print the Flow Studio descriptor (routes, affordances, containers, context toggles, invariant pass/fail) for one navigation flow",
+          "flags": [
+            {
+              "name": "flow",
+              "required": true,
+              "description": "Flow id to target",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repository root to scan (default: cwd)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FlowsService",
+            "method": "GetNavigationStudio"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "runs",
+      "description": "Browse persisted verification run history",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recent verification runs",
+          "flags": [
+            {
+              "name": "flow",
+              "description": "Restrict to a single flow id",
+              "bind": {
+                "field": "flow_id"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows to return (default 50)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one verification run (with counterexample on failure)",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Run id",
+              "bind": {
+                "field": "id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenarios",
+      "description": "Browse the scenario index discovered under the Vrooli root",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every scenario discovered under the Vrooli root",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenariosService",
+            "method": "ListScenarios"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one scenario with its discovered flows",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenariosService",
+            "method": "GetScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Get or update UI/CLI preferences (theme, font scale, density, \u2026)",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Print the local principal's UI/CLI preferences",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "GetSettings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "set",
+          "description": "Update one or more preferences via <key>=<value> pairs",
+          "positionals": [
+            {
+              "name": "pair",
+              "required": true,
+              "repeated": true,
+              "description": "<key>=<value> pair (repeatable)",
+              "bind": {
+                "field": "update_mask"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "UpdateSettings"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "verify",
+      "description": "Generate and check formal-temporal-model artifacts via Quint",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show one verification's recorded run row",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VerificationsService",
+            "method": "GetVerification"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "ScenariosService",
+      "method": "GenerateScenarioArtifacts",
+      "reason": "Streaming RPC invoked by `artifacts generate --scenario` under the artifacts domain's runtime dispatch. The artifacts CLI command primarily binds to ArtifactsService.GenerateArtifacts (per-flow); the scenario-wide variant is selected at runtime when --scenario is set. cli-manifest/v1 enforces a single command<->method binding so the scenario variant is documented here."
+    },
+    {
+      "service": "ScenariosService",
+      "method": "ClearScenarioArtifacts",
+      "reason": "Invoked by `artifacts clear --scenario` under the artifacts domain's runtime dispatch. Sibling of the bound ArtifactsService.ClearArtifacts; same single-binding rationale as GenerateScenarioArtifacts."
+    },
+    {
+      "service": "VerificationsService",
+      "method": "StartVerification",
+      "reason": "Two CLI commands target this RPC with different VerificationMode enum values (`verify run` \u2192 ModeRun, `verify check` \u2192 ModeCheck). cli-manifest/v1 binds 1:1 between command and method, so both are appended as hand-written exception subcommands in cli/domains/verify/register.go alongside the manifest-loaded `verify show`."
+    }
+  ]
+}

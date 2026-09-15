@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
+import { lazy, Profiler, Suspense, useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import { onProfilerRender } from "../lib/profiler";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -7,7 +7,7 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { ViewModeSelector } from "./ViewModeSelector";
-import { MarkdownPreview } from "./MarkdownPreview";
+import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
 import {
@@ -20,11 +20,15 @@ import {
   type LineChange
 } from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
-import { getFileTypeInfo } from "../lib/fileTypes";
+import { buildImagePreviewSrc, getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { Popover } from "./ui/popover";
-import { formatPath } from "../lib/utils";
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+const LazyMarkdownPreview = lazy(() =>
+  import("./MarkdownPreview").then(({ MarkdownPreview }) => ({ default: MarkdownPreview })),
+);
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -113,7 +117,10 @@ function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
   const buckets = new Map<number, Exclude<LineChange, "">>();
 
   changedLines.forEach(({ line, index }) => {
-    const change = line.change as Exclude<LineChange, "">;
+    const change = line.change;
+    if (change !== "added" && change !== "deleted" && change !== "modified") {
+      return;
+    }
     const lineNumber = getChangedLineNumber(line, index + 1);
     const ratio = maxLineNumber <= 1 ? 0 : (lineNumber - 1) / (maxLineNumber - 1);
     const bucket = clamp(Math.round(ratio * (bucketCount - 1)), 0, bucketCount - 1);
@@ -218,7 +225,7 @@ function getMonacoLanguage(filePath?: string): string {
   return languageMap[detected] ?? detected;
 }
 
-function defineMonacoTheme(monaco: MonacoInstance): void {
+function defineMonacoTheme(monaco: typeof Monaco): void {
   monaco.editor.defineTheme(monacoThemeName, {
     base: "vs-dark",
     inherit: true,
@@ -578,7 +585,7 @@ function SourceView({
   );
 }
 
-export function DiffViewer({
+function DiffViewerImpl({
   diff,
   selectedFile,
   isStaged,
@@ -607,8 +614,6 @@ export function DiffViewer({
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const minimapRailRef = useRef<HTMLDivElement>(null);
-  const titleRowRef = useRef<HTMLDivElement>(null);
-  const [maxPathChars, setMaxPathChars] = useState(60);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -624,7 +629,7 @@ export function DiffViewer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictHash, setConflictHash] = useState<string | null>(null);
   const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<MonacoInstance | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
   const monacoDecorationIdsRef = useRef<string[]>([]);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
@@ -723,7 +728,10 @@ export function DiffViewer({
     if (!fullContent) return 0;
     return fullContent.split("\n").length;
   }, [fullContent]);
-  const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const isPreviewable = useMemo(
+    () => (selectedFile ? getFileTypeInfo(selectedFile) : null),
+    [selectedFile]
+  );
   const canEditMode = viewMode === "source" || viewMode === "full_diff";
   const canEditTextFile =
     isPreviewable?.category === "code" || isPreviewable?.category === "markdown";
@@ -739,14 +747,18 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
-  const minimapSourceLines = useMemo(() => {
+  const imagePreviewSrc = useMemo(
+    () => (isPreviewable ? buildImagePreviewSrc(isPreviewable, fullContent) : null),
+    [fullContent, isPreviewable]
+  );
+  const minimapSourceLines = useMemo<string[]>(() => {
     if (viewMode === "source") {
       return fullContent.split("\n");
     }
     if (viewMode === "full_diff") {
       return annotatedLines.map((line) => line.content);
     }
-    return [] as string[];
+    return [];
   }, [annotatedLines, fullContent, viewMode]);
   const minimapLineCount = viewMode === "source" ? fullContentLineCount : viewMode === "full_diff" ? annotatedLines.length : 0;
   const minimapMarkers = useMemo(
@@ -818,7 +830,7 @@ export function DiffViewer({
       setSaveError(err instanceof Error ? err.message : "Failed to save file");
     }
   }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
-  const handleMonacoBeforeMount = useCallback((monaco: MonacoInstance) => {
+  const handleMonacoBeforeMount = useCallback((monaco: typeof Monaco) => {
     monacoRef.current = monaco;
     defineMonacoTheme(monaco);
   }, []);
@@ -968,82 +980,33 @@ export function DiffViewer({
     }
   }, []);
 
-  // Dynamically compute max path chars based on available header width
-  useEffect(() => {
-    if (!titleRowRef.current || typeof ResizeObserver === "undefined") return;
-    const update = () => {
-      const width = titleRowRef.current?.clientWidth ?? 0;
-      // Account for: dot/badge (~30px), stats (~80px), overflow menu (~44px), gaps (~24px)
-      const usable = Math.max(0, width - 180);
-      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7)));
-      setMaxPathChars(nextMax);
-    };
-    const rafId = requestAnimationFrame(update);
-    const observer = new ResizeObserver(update);
-    observer.observe(titleRowRef.current);
-    return () => {
-      cancelAnimationFrame(rafId);
-      observer.disconnect();
-    };
-  }, []);
-
-  const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
+  const diffViewerStyle: CSSProperties & Record<"--code-font-size", string> = {
+    "--code-font-size": `${codeFontSize}px`
+  };
 
   return (
-    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties} data-testid="diff-viewer-panel">
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={diffViewerStyle} data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
-        <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+        <div className={`flex w-full min-w-0 items-center ${isMobile ? "gap-2" : "gap-3"}`}>
           <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
             <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
               {!isMobile && (
                 <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
               )}
               {selectedFile ? (
-                <Popover
-                  align="start"
-                  trigger={
-                    <span className="font-mono text-xs truncate cursor-pointer hover:text-blue-300 transition-colors">{displayPath}</span>
-                  }
-                >
-                  <div className="p-3 flex items-center gap-2 max-w-[90vw]">
-                    <span className="font-mono text-xs text-slate-200 break-all select-all flex-1">{absolutePath || selectedFile}</span>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                      onClick={handleCopyPath}
-                      title={copied ? "Copied" : "Copy path"}
-                      aria-label="Copy path"
-                    >
-                      {copied ? (
-                        <Check className="text-emerald-300 h-3.5 w-3.5" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </div>
-                </Popover>
+                <FilePath
+                  path={absolutePath || selectedFile}
+                  showCopyButton={!isMobile && !isFullscreen}
+                  className="min-w-0 flex-1"
+                  testId="file-path-header"
+                  copyButtonTestId="copy-absolute-path"
+                />
               ) : (
                 <span className="text-xs">Diff Viewer</span>
               )}
             </CardTitle>
-            {/* Desktop-only: inline copy/related buttons (hidden in fullscreen) */}
-            {!isMobile && !isFullscreen && selectedFile && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                onClick={handleCopyPath}
-                title={copied ? "Copied" : "Copy absolute path"}
-                aria-label="Copy absolute path"
-                data-testid="copy-absolute-path"
-              >
-                {copied ? (
-                  <Check className="text-emerald-300 h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
+            {/* Desktop-only related-file action remains adjacent to the shared path control. */}
             {!isMobile && !isFullscreen && selectedFile && onShowRelatedFiles && (
               <button
                 type="button"
@@ -1379,7 +1342,7 @@ export function DiffViewer({
           </>
         )}
 
-        <ScrollArea className="h-full" ref={scrollContainerRef}>
+        <ScrollArea className="flex-1 min-h-0" ref={scrollContainerRef}>
           {/* Loading State */}
           {(isLoading || isHighlighting) && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
@@ -1450,28 +1413,30 @@ export function DiffViewer({
           {/* Monaco edit mode */}
           {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
             <div className="monaco-diff-editor h-full min-h-[360px] border-y border-slate-800 bg-slate-950" data-testid="monaco-editor-container">
-              <Editor
-                height="100%"
-                defaultLanguage={monacoLanguage}
-                language={monacoLanguage}
-                value={draftContent}
-                onChange={(value) => setDraftContent(value ?? "")}
-                beforeMount={handleMonacoBeforeMount}
-                onMount={handleMonacoMount}
-                theme={monacoThemeName}
-                options={{
-                  automaticLayout: true,
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  wordWrap: "off",
-                  fontSize: codeFontSize,
-                  lineHeight: Math.round(codeFontSize * 1.67),
-                  lineNumbersMinChars: 3,
-                  fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
-                  padding: { top: 2, bottom: 2 },
-                  renderLineHighlight: "line"
-                }}
-              />
+              <Suspense fallback={<div className="flex h-full min-h-[360px] items-center justify-center text-sm text-slate-500">Loading editor…</div>}>
+                <MonacoEditor
+                  height="100%"
+                  defaultLanguage={monacoLanguage}
+                  language={monacoLanguage}
+                  value={draftContent}
+                  onChange={(value) => setDraftContent(value ?? "")}
+                  beforeMount={handleMonacoBeforeMount}
+                  onMount={handleMonacoMount}
+                  theme={monacoThemeName}
+                  options={{
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "off",
+                    fontSize: codeFontSize,
+                    lineHeight: Math.round(codeFontSize * 1.67),
+                    lineNumbersMinChars: 3,
+                    fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
+                    padding: { top: 2, bottom: 2 },
+                    renderLineHighlight: "line"
+                  }}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1511,15 +1476,14 @@ export function DiffViewer({
 
           {/* Preview mode - render markdown */}
           {showMarkdownPreview && (
-            <MarkdownPreview content={fullContent} />
+            <Suspense fallback={<div className="p-4 text-sm text-slate-500">Loading preview…</div>}>
+              <LazyMarkdownPreview content={fullContent} />
+            </Suspense>
           )}
 
           {/* Preview mode - render images */}
-          {showImagePreview && isPreviewable?.mimeType && (
-            <ImagePreview
-              src={`data:${isPreviewable.mimeType};base64,${fullContent}`}
-              alt={selectedFile}
-            />
+          {showImagePreview && imagePreviewSrc && (
+            <ImagePreview src={imagePreviewSrc} alt={selectedFile} />
           )}
 
           {/* Binary diff notice */}
@@ -1558,8 +1522,6 @@ export function DiffViewer({
             </pre>
           )}
 
-          {/* Mobile spacer to account for fixed action bar (not needed in fullscreen) */}
-          {isMobile && !isFullscreen && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
         {showMinimap && (
@@ -1620,7 +1582,7 @@ export function DiffViewer({
 
         {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
+          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -1638,7 +1600,7 @@ export function DiffViewer({
 
         {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
+          <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-amber-400 flex-1">
@@ -1763,5 +1725,13 @@ export function DiffViewer({
         </BottomSheet>
       )}
     </Card>
+  );
+}
+
+export function DiffViewer(props: DiffViewerProps) {
+  return (
+    <Profiler id="DiffViewer" onRender={onProfilerRender}>
+      <DiffViewerImpl {...props} />
+    </Profiler>
   );
 }

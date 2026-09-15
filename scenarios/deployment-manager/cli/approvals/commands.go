@@ -1,6 +1,7 @@
 package approvals
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,17 +12,47 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	approvalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/approvals/approvalsv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Commands provides CLI commands for deployment approval gating.
 type Commands struct {
-	api *cliutil.APIClient
+	api           *cliutil.APIClient
+	connectClient approvalconnect.ApprovalsServiceClient
 }
 
 // New creates a new approvals command set.
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
+}
+
+// NewWithConnectClient binds approval operations to the generated service.
+// New remains available for focused compatibility fixtures and commands that
+// do not yet have a typed contract.
+func NewWithConnectClient(api *cliutil.APIClient, client approvalconnect.ApprovalsServiceClient) *Commands {
+	return &Commands{api: api, connectClient: client}
+}
+
+type approvalCall func(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
+
+func (c *Commands) typedRequest(payload map[string]interface{}, call approvalCall) ([]byte, error) {
+	request, err := structpb.NewValue(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode approval request: %w", err)
+	}
+	response, err := call(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("approval operation", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("typed approval response was empty")
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
 }
 
 // Run dispatches approval subcommands.
@@ -71,7 +102,17 @@ func (c *Commands) list(args []string) error {
 		q.Set("commit", *commit)
 	}
 
-	body, err := c.api.Get("/api/v1/profiles/"+profileID+"/approvals", q)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload := map[string]interface{}{"profile_id": profileID}
+		if *commit != "" {
+			payload["git_commit_hash"] = *commit
+		}
+		body, err = c.typedRequest(payload, c.connectClient.List)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+profileID+"/approvals", q)
+	}
 	if err != nil {
 		return err
 	}
@@ -121,7 +162,13 @@ func (c *Commands) get(args []string) error {
 		return errors.New("approval ID is required")
 	}
 
-	body, err := c.api.Get("/api/v1/approvals/"+remaining[0], nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"id": remaining[0]}, c.connectClient.Get)
+	} else {
+		body, err = c.api.Get("/api/v1/approvals/"+remaining[0], nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -139,23 +186,27 @@ func (c *Commands) get(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Approval: %s\n", str(a["id"]))
-	fmt.Printf("  Profile:    %s\n", str(a["profile_id"]))
-	fmt.Printf("  Platform:   %s\n", str(a["platform"]))
-	fmt.Printf("  Status:     %s\n", str(a["status"]))
-	fmt.Printf("  Commit:     %s\n", str(a["git_commit_hash"]))
-	if v := str(a["approved_by"]); v != "" {
-		fmt.Printf("  Reviewer:   %s\n", v)
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Approval: %s", str(a["id"])),
+			fmt.Sprintf("Profile: %s", str(a["profile_id"])),
+			fmt.Sprintf("Platform: %s", str(a["platform"])),
+			fmt.Sprintf("Status: %s", str(a["status"])),
+		},
+		ResultsHeading: "Details",
+		Results: []string{
+			fmt.Sprintf("Commit: %s", str(a["git_commit_hash"])),
+			fmt.Sprintf("Reviewer: %s", fallbackValue(str(a["approved_by"]), "(none)")),
+			fmt.Sprintf("Notes: %s", fallbackValue(str(a["notes"]), "(none)")),
+			fmt.Sprintf("Validation: %s", fallbackValue(str(a["validation_id"]), "(none)")),
+			fmt.Sprintf("Created: %s", str(a["created_at"])),
+			fmt.Sprintf("Updated: %s", str(a["updated_at"])),
+		},
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager approvals list %s", str(a["profile_id"])),
+		},
 	}
-	if v := str(a["notes"]); v != "" {
-		fmt.Printf("  Notes:      %s\n", v)
-	}
-	if v := str(a["validation_id"]); v != "" {
-		fmt.Printf("  Validation: %s\n", v)
-	}
-	fmt.Printf("  Created:    %s\n", str(a["created_at"]))
-	fmt.Printf("  Updated:    %s\n", str(a["updated_at"]))
-	return nil
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 func (c *Commands) create(args []string) error {
@@ -190,7 +241,14 @@ func (c *Commands) create(args []string) error {
 		payload["validation_id"] = *validationID
 	}
 
-	body, err := c.api.Request("POST", "/api/v1/profiles/"+remaining[0]+"/approvals", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["profile_id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.Create)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/profiles/"+remaining[0]+"/approvals", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -206,8 +264,21 @@ func (c *Commands) create(args []string) error {
 		fmt.Println(string(body))
 		return nil
 	}
-	fmt.Printf("Approval created: %s (status: %s)\n", str(a["id"]), str(a["status"]))
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Approval created: %s", str(a["id"])),
+		},
+		Changes: []string{
+			fmt.Sprintf("Profile: %s", remaining[0]),
+			fmt.Sprintf("Platform: %s", *platform),
+			fmt.Sprintf("Status: %s", str(a["status"])),
+			fmt.Sprintf("Commit: %s", *commit),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager approvals get %s", str(a["id"])),
+			fmt.Sprintf("deployment-manager approvals decide %s --decision approved --reviewer <name>", str(a["id"])),
+		},
+	})
 }
 
 func (c *Commands) decide(args []string) error {
@@ -242,7 +313,14 @@ func (c *Commands) decide(args []string) error {
 		payload["notes"] = *notes
 	}
 
-	body, err := c.api.Request("POST", "/api/v1/approvals/"+remaining[0]+"/decide", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.Decide)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/approvals/"+remaining[0]+"/decide", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -258,8 +336,19 @@ func (c *Commands) decide(args []string) error {
 		fmt.Println(string(body))
 		return nil
 	}
-	fmt.Printf("Approval %s: %s by %s\n", str(a["id"]), str(a["status"]), str(a["approved_by"]))
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Approval %s is now %s", str(a["id"]), str(a["status"])),
+		},
+		Changes: []string{
+			fmt.Sprintf("Reviewer: %s", str(a["approved_by"])),
+			fmt.Sprintf("Decision: %s", *decision),
+			fmt.Sprintf("Notes: %s", fallbackValue(*notes, "(none)")),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager approvals get %s", str(a["id"])),
+		},
+	})
 }
 
 func (c *Commands) gate(args []string) error {
@@ -284,7 +373,13 @@ func (c *Commands) gate(args []string) error {
 	q := url.Values{}
 	q.Set("commit", *commit)
 
-	body, err := c.api.Get("/api/v1/profiles/"+remaining[0]+"/release-gate", q)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"profile_id": remaining[0], "git_commit_hash": *commit}, c.connectClient.CheckReleaseGate)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+remaining[0]+"/release-gate", q)
+	}
 	if err != nil {
 		return err
 	}
@@ -295,7 +390,6 @@ func (c *Commands) gate(args []string) error {
 		return nil
 	}
 
-	// Operational output: Status -> Triage -> Next Steps
 	var gate map[string]interface{}
 	if err := json.Unmarshal(body, &gate); err != nil {
 		fmt.Println(string(body))
@@ -303,17 +397,20 @@ func (c *Commands) gate(args []string) error {
 	}
 
 	ready, _ := gate["ready"].(bool)
-
-	// Status
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Profile: %s", remaining[0]),
+			fmt.Sprintf("Commit: %s", *commit),
+		},
+	}
 	if ready {
-		fmt.Println("Status: READY - All required platforms approved")
+		report.Status = append([]string{"Release gate: READY"}, report.Status...)
 	} else {
-		fmt.Println("Status: BLOCKED - Not all required platforms approved")
+		report.Status = append([]string{"Release gate: BLOCKED"}, report.Status...)
 	}
 
-	// Triage: per-platform breakdown
 	if platforms, ok := gate["platforms"].([]interface{}); ok && len(platforms) > 0 {
-		fmt.Println("\nPlatform Breakdown:")
+		group := cliapp.TriageGroup{Heading: "Platform Breakdown"}
 		for _, p := range platforms {
 			pm, ok := p.(map[string]interface{})
 			if !ok {
@@ -323,18 +420,23 @@ func (c *Commands) gate(args []string) error {
 			if req, ok := pm["required"].(bool); ok && req {
 				required = " (required)"
 			}
-			fmt.Printf("  %-12s %s%s\n", str(pm["platform"]), str(pm["status"]), required)
+			group.Items = append(group.Items, fmt.Sprintf("%s %s%s", str(pm["platform"]), str(pm["status"]), required))
+		}
+		report.Triage = append(report.Triage, group)
+	}
+
+	if !ready {
+		report.NextSteps = []string{
+			"deployment-manager approvals create <profile-id> --commit <hash> --platform <platform>",
+			"deployment-manager approvals decide <approval-id> --decision approved --reviewer <name>",
+		}
+	} else {
+		report.NextSteps = []string{
+			fmt.Sprintf("deployment-manager deploy %s", remaining[0]),
 		}
 	}
 
-	// Next Steps
-	if !ready {
-		fmt.Println("\nNext Steps:")
-		fmt.Println("  1. Create approvals for missing platforms: approvals create <profile-id> --commit <hash> --platform <plat>")
-		fmt.Println("  2. Approve pending items: approvals decide <id> --decision approved --reviewer <name>")
-	}
-
-	return nil
+	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
 func (c *Commands) platforms(args []string) error {
@@ -381,7 +483,14 @@ func (c *Commands) platformsSet(args []string) error {
 		"platforms": platList,
 	}
 
-	body, err := c.api.Request("PUT", "/api/v1/profiles/"+remaining[0]+"/required-platforms", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["profile_id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.SetRequiredPlatforms)
+	} else {
+		body, err = c.api.Request("PUT", "/api/v1/profiles/"+remaining[0]+"/required-platforms", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -392,8 +501,17 @@ func (c *Commands) platformsSet(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Required platforms set: %s\n", strings.Join(platList, ", "))
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Required platforms updated for %s", remaining[0]),
+		},
+		Changes: []string{
+			fmt.Sprintf("Platforms: %s", strings.Join(platList, ", ")),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager approvals platforms get %s", remaining[0]),
+		},
+	})
 }
 
 func (c *Commands) platformsGet(args []string) error {
@@ -407,7 +525,13 @@ func (c *Commands) platformsGet(args []string) error {
 		return errors.New("profile ID is required")
 	}
 
-	body, err := c.api.Get("/api/v1/profiles/"+remaining[0]+"/required-platforms", nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"profile_id": remaining[0]}, c.connectClient.GetRequiredPlatforms)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+remaining[0]+"/required-platforms", nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -425,16 +549,23 @@ func (c *Commands) platformsGet(args []string) error {
 	}
 
 	platforms, ok := resp["platforms"].([]interface{})
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Profile: %s", remaining[0]),
+		},
+		ResultsHeading: "Required Platforms",
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager approvals platforms set %s --platforms linux,macos,windows", remaining[0]),
+		},
+	}
 	if !ok || len(platforms) == 0 {
-		fmt.Println("No required platforms configured.")
-		return nil
+		report.Results = []string{"(none configured)"}
+		return cliapp.RenderListReport(os.Stdout, report)
 	}
-
-	fmt.Println("Required platforms:")
 	for _, p := range platforms {
-		fmt.Printf("  - %s\n", str(p))
+		report.Results = append(report.Results, str(p))
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 // str safely converts an interface{} to string.
@@ -451,4 +582,11 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+func fallbackValue(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }

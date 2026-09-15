@@ -99,7 +99,7 @@ func TestUnknownCommand(t *testing.T) {
 func TestStatusCallsHealthEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -125,7 +125,7 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -152,7 +152,7 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 func TestManifestSchemaGetsSchemaEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -179,7 +179,7 @@ func TestManifestSchemaGetsSchemaEndpoint(t *testing.T) {
 func TestManifestInitPostsToInitEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -206,7 +206,7 @@ func TestManifestInitPostsToInitEndpoint(t *testing.T) {
 func TestScenarioDepsPrintsResourcesFromCurrentAPIShape(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -243,7 +243,7 @@ func TestScenarioDepsPrintsResourcesFromCurrentAPIShape(t *testing.T) {
 func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	app := newTestApp(t)
 
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiServer := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -262,7 +262,7 @@ func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	analyzerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	analyzerServer := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -329,42 +329,12 @@ func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	}
 }
 
-func TestPlanPostsToPlanEndpoint(t *testing.T) {
-	// [REQ:STC-P0-007] plan generation should be callable via CLI (integration layer)
-	app := newTestApp(t)
-	manifestPath := writeTestManifest(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/plan" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"plan":[{"id":"preflight","title":"VPS Preflight","description":"..."}],"timestamp":"2025-01-01T00:00:00Z"}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"plan", manifestPath}); err != nil {
-			t.Fatalf("plan failed: %v", err)
-		}
-	})
-	// Check for pretty-printed output format
-	if !strings.Contains(output, "Deployment Plan") || !strings.Contains(output, "VPS Preflight") {
-		t.Fatalf("expected plan output with steps, got: %s", output)
-	}
-}
-
 func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	// [REQ:STC-P0-002] bundle build should be callable via CLI (integration layer)
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -379,12 +349,12 @@ func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"bundle-build", manifestPath}); err != nil {
-			t.Fatalf("bundle-build failed: %v", err)
+		if err := app.Run([]string{"bundle", "build", manifestPath}); err != nil {
+			t.Fatalf("bundle build failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"artifact\"") {
-		t.Fatalf("expected bundle-build output, got: %s", output)
+		t.Fatalf("expected bundle build output, got: %s", output)
 	}
 }
 
@@ -393,7 +363,7 @@ func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -422,7 +392,7 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -437,740 +407,12 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-inspect-plan", manifestPath}); err != nil {
-			t.Fatalf("vps-inspect-plan failed: %v", err)
+		if err := app.Run([]string{"inspect", "plan", manifestPath}); err != nil {
+			t.Fatalf("inspect plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"scenario_status\"") {
 		t.Fatalf("expected inspect plan output, got: %s", output)
-	}
-}
-
-func TestDeploymentHealthAcceptsJSONFlagBeforeOrAfterID(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/deployments/dep-123/health" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"ok": true,
-			"health": "degraded",
-			"deployment_id": "dep-123",
-			"deployment_name": "demo",
-			"scenario_id": "landing-page-business-suite",
-			"summary": "1 passed  |  0 warning  |  0 failed",
-			"sections": [],
-			"duration_ms": 1234,
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	outputBefore := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "--json", "dep-123"}); err != nil {
-			t.Fatalf("deployment health with --json before id failed: %v", err)
-		}
-	})
-	if !strings.Contains(outputBefore, `"deployment_id": "dep-123"`) {
-		t.Fatalf("expected deployment JSON output, got: %s", outputBefore)
-	}
-
-	outputAfter := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "dep-123", "--json"}); err != nil {
-			t.Fatalf("deployment health with --json after id failed: %v", err)
-		}
-	})
-	if !strings.Contains(outputAfter, `"deployment_id": "dep-123"`) {
-		t.Fatalf("expected deployment JSON output, got: %s", outputAfter)
-	}
-}
-
-func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
-	app := newTestApp(t)
-	note := "Scenario version not detected from service.json or ui/package.json; falling back to bundle SHA comparison"
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployments/dep-456/health" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{
-			"ok": true,
-			"health": "degraded",
-			"deployment_id": "dep-456",
-			"deployment_name": "demo",
-			"scenario_id": "landing-page-business-suite",
-			"summary": "1 passed  |  1 warning  |  0 failed",
-			"sections": [],
-			"freshness": {
-				"status": "outdated",
-				"summary": "Deployment is healthy but outdated relative to local scenario state",
-				"version_status": "unknown",
-				"fingerprint_status": "outdated",
-				"version_source": "default",
-				"notes": [%q]
-			},
-			"duration_ms": 1234,
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`, note)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "dep-456"}); err != nil {
-			t.Fatalf("deployment health failed: %v", err)
-		}
-	})
-	if !strings.Contains(output, note) {
-		t.Fatalf("expected freshness note in output, got: %s", output)
-	}
-}
-
-func TestDeploymentHealthPrintsFreshnessNextStepCommand(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployments/dep-789/health" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"ok": true,
-			"health": "healthy",
-			"deployment_id": "dep-789",
-			"deployment_name": "demo",
-			"scenario_id": "landing-page-business-suite",
-			"domain": "vrooli.com",
-			"summary": "1 passed  |  0 warning  |  0 failed",
-			"sections": [],
-			"freshness": {
-				"status": "outdated",
-				"summary": "Deployment is healthy but outdated relative to local scenario state",
-				"version_status": "current",
-				"fingerprint_status": "outdated"
-			},
-			"duration_ms": 1234,
-			"timestamp": "2026-02-10T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "dep-789"}); err != nil {
-			t.Fatalf("deployment health failed: %v", err)
-		}
-	})
-	expected := "Next step: scenario-to-cloud redeploy --domain vrooli.com --scenario landing-page-business-suite --if-needed --preflight --wait"
-	if !strings.Contains(output, expected) {
-		t.Fatalf("expected freshness next-step command in output, got: %s", output)
-	}
-}
-
-func TestDeploymentResolveByHostSelector(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployments" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		if got := r.URL.Query().Get("scenario_id"); got != "" {
-			t.Fatalf("expected no scenario_id filter, got %q", got)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"deployments": [
-				{
-					"id": "dep-old",
-					"name": "old",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"domain": "app-old.example.com",
-					"host": "203.0.113.10",
-					"progress_percent": 100,
-					"created_at": "2026-02-01T00:00:00Z"
-				},
-				{
-					"id": "dep-new",
-					"name": "new",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"domain": "app.example.com",
-					"host": "203.0.113.10",
-					"progress_percent": 100,
-					"created_at": "2026-02-07T00:00:00Z"
-				}
-			],
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "resolve", "--host", "203.0.113.10"}); err != nil {
-			t.Fatalf("deployment resolve failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Resolved deployment: dep-new") {
-		t.Fatalf("expected latest deployment id in output, got: %s", output)
-	}
-}
-
-func TestDeploymentResolveByDomainSelectorWithoutHost(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployments" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"deployments": [
-				{
-					"id": "dep-1",
-					"name": "by-domain",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"domain": "app.example.com",
-					"host": "203.0.113.10",
-					"progress_percent": 100,
-					"created_at": "2026-02-07T00:00:00Z"
-				}
-			],
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "resolve", "--domain", "app.example.com"}); err != nil {
-			t.Fatalf("deployment resolve failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Resolved deployment: dep-1") {
-		t.Fatalf("expected deployment id in output, got: %s", output)
-	}
-}
-
-func TestDeploymentResolveByTargetPrefersDomainMatchBeforeHost(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployments" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"deployments": [
-				{
-					"id": "dep-host",
-					"name": "host-match",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"domain": "other.example.com",
-					"host": "app.example.com",
-					"progress_percent": 100,
-					"created_at": "2026-02-07T00:00:00Z"
-				},
-				{
-					"id": "dep-domain",
-					"name": "domain-match",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"domain": "app.example.com",
-					"host": "203.0.113.10",
-					"progress_percent": 100,
-					"created_at": "2026-02-06T00:00:00Z"
-				}
-			],
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "resolve", "--target", "app.example.com"}); err != nil {
-			t.Fatalf("deployment resolve failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Resolved deployment: dep-domain") {
-		t.Fatalf("expected domain-priority match, got: %s", output)
-	}
-}
-
-func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/deployments":
-			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
-				t.Fatalf("expected scenario_id filter, got %q", got)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{
-				"deployments": [
-					{
-						"id": "dep-789",
-						"name": "prod",
-						"scenario_id": "landing-page-business-suite",
-						"status": "deployed",
-						"domain": "app.example.com",
-						"host": "203.0.113.10",
-						"progress_percent": 100,
-						"created_at": "2026-02-07T00:00:00Z"
-					}
-				],
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case "/api/v1/deployments/dep-789/health":
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{
-				"ok": true,
-				"health": "healthy",
-				"deployment_id": "dep-789",
-				"deployment_name": "prod",
-				"scenario_id": "landing-page-business-suite",
-				"summary": "4 passed  |  0 warning  |  0 failed",
-				"sections": [],
-				"duration_ms": 200,
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "--host", "203.0.113.10", "--scenario", "landing-page-business-suite"}); err != nil {
-			t.Fatalf("deployment health failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Deployment ID: dep-789") {
-		t.Fatalf("expected full deployment ID in output, got: %s", output)
-	}
-}
-
-func TestDeploymentHealthResolvesByTargetDomain(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/deployments":
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{
-				"deployments": [
-					{
-						"id": "dep-900",
-						"name": "prod",
-						"scenario_id": "landing-page-business-suite",
-						"status": "deployed",
-						"domain": "vrooli.com",
-						"host": "138.197.95.182",
-						"progress_percent": 100,
-						"created_at": "2026-02-07T00:00:00Z"
-					}
-				],
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case "/api/v1/deployments/dep-900/health":
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{
-				"ok": true,
-				"health": "healthy",
-				"deployment_id": "dep-900",
-				"deployment_name": "prod",
-				"scenario_id": "landing-page-business-suite",
-				"summary": "4 passed  |  0 warning  |  0 failed",
-				"sections": [],
-				"duration_ms": 200,
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "health", "--target", "vrooli.com"}); err != nil {
-			t.Fatalf("deployment health failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Deployment ID: dep-900") {
-		t.Fatalf("expected target resolution to health check by id, got: %s", output)
-	}
-}
-
-func TestDeploymentCreateAcceptsJSONFlagAfterManifestPath(t *testing.T) {
-	app := newTestApp(t)
-	manifestPath := writeTestManifest(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/deployments" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{
-			"deployment": {
-				"id": "dep-create-1",
-				"name": "demo",
-				"scenario_id": "landing-page-business-suite",
-				"status": "pending",
-				"created_at": "2026-02-07T00:00:00Z",
-				"updated_at": "2026-02-07T00:00:00Z"
-			},
-			"updated": false,
-			"timestamp": "2026-02-07T00:00:00Z"
-		}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"deployment", "create", manifestPath, "--json"}); err != nil {
-			t.Fatalf("deployment create failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, `"id": "dep-create-1"`) {
-		t.Fatalf("expected JSON response output, got: %s", output)
-	}
-}
-
-func TestRedeployAcceptsJSONFlagAfterManifestPath(t *testing.T) {
-	app := newTestApp(t)
-	manifestPath := writeTestManifest(t)
-
-	call := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		call++
-		w.Header().Set("Content-Type", "application/json")
-		switch call {
-		case 1:
-			if r.Method != http.MethodPost || r.URL.Path != "/api/v1/deployments" {
-				t.Fatalf("unexpected create request: %s %s", r.Method, r.URL.Path)
-			}
-			fmt.Fprint(w, `{
-				"deployment": {
-					"id": "dep-redeploy-1",
-					"name": "demo",
-					"scenario_id": "landing-page-business-suite",
-					"status": "pending",
-					"created_at": "2026-02-07T00:00:00Z",
-					"updated_at": "2026-02-07T00:00:00Z"
-				},
-				"updated": false,
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case 2:
-			if r.Method != http.MethodPost || r.URL.Path != "/api/v1/deployments/dep-redeploy-1/execute" {
-				t.Fatalf("unexpected execute request: %s %s", r.Method, r.URL.Path)
-			}
-			fmt.Fprint(w, `{
-				"run_id": "run-1",
-				"status": "started",
-				"message": "ok",
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		default:
-			t.Fatalf("unexpected extra request: %s %s", r.Method, r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{"redeploy", manifestPath, "--json"}); err != nil {
-			t.Fatalf("redeploy failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, `"dep-redeploy-1"`) {
-		t.Fatalf("expected deployment id in JSON output, got: %s", output)
-	}
-	if !strings.Contains(output, `"run_id": "run-1"`) {
-		t.Fatalf("expected execute run id in JSON output, got: %s", output)
-	}
-}
-
-func TestRedeploySelectorModeIfNeededExecutesExistingDeployment(t *testing.T) {
-	app := newTestApp(t)
-
-	call := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		call++
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments":
-			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
-				t.Fatalf("expected scenario_id query, got: %q", got)
-			}
-			fmt.Fprint(w, `{
-				"deployments": [{
-					"id": "dep-selector-1",
-					"name": "demo",
-					"scenario_id": "landing-page-business-suite",
-					"status": "failed",
-					"domain": "vrooli.com",
-					"host": "138.197.95.182",
-					"created_at": "2026-02-07T00:00:00Z"
-				}],
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-1/health":
-			fmt.Fprint(w, `{
-				"ok": true,
-				"health": "failed",
-				"deployment_id": "dep-selector-1",
-				"deployment_name": "demo",
-				"scenario_id": "landing-page-business-suite",
-				"freshness": {"status":"outdated"},
-				"summary": "failed",
-				"sections": [],
-				"duration_ms": 1,
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-selector-1/execute":
-			bodyBytes, _ := io.ReadAll(r.Body)
-			body := string(bodyBytes)
-			if !strings.Contains(body, `"run_preflight":true`) {
-				t.Fatalf("expected run_preflight true, got: %s", body)
-			}
-			if !strings.Contains(body, `"force_bundle_build":true`) {
-				t.Fatalf("expected force_bundle_build true for outdated deployment, got: %s", body)
-			}
-			fmt.Fprint(w, `{
-				"run_id": "run-selector-1",
-				"status": "started",
-				"message": "ok",
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
-		}
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{
-			"redeploy",
-			"--domain", "vrooli.com",
-			"--scenario", "landing-page-business-suite",
-			"--if-needed",
-			"--preflight",
-		}); err != nil {
-			t.Fatalf("selector redeploy failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, "Found existing deployment by selector: dep-selector-1") {
-		t.Fatalf("expected selector match output, got: %s", output)
-	}
-	if !strings.Contains(output, "run-selector-1") {
-		t.Fatalf("expected run id output, got: %s", output)
-	}
-}
-
-func TestRedeploySelectorModeIfNeededWaitJSONOutputsStructuredResult(t *testing.T) {
-	app := newTestApp(t)
-
-	getCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments":
-			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
-				t.Fatalf("expected scenario_id query, got: %q", got)
-			}
-			fmt.Fprint(w, `{
-				"deployments": [{
-					"id": "dep-selector-json-1",
-					"name": "demo",
-					"scenario_id": "landing-page-business-suite",
-					"status": "failed",
-					"domain": "vrooli.com",
-					"host": "138.197.95.182",
-					"created_at": "2026-02-07T00:00:00Z"
-				}],
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-json-1/health":
-			fmt.Fprint(w, `{
-				"ok": true,
-				"health": "failed",
-				"deployment_id": "dep-selector-json-1",
-				"deployment_name": "demo",
-				"scenario_id": "landing-page-business-suite",
-				"freshness": {"status":"outdated"},
-				"summary": "failed",
-				"sections": [],
-				"duration_ms": 1,
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-selector-json-1/execute":
-			fmt.Fprint(w, `{
-				"run_id": "run-selector-json-1",
-				"status": "started",
-				"message": "ok",
-				"timestamp": "2026-02-07T00:00:00Z"
-			}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-json-1":
-			getCount++
-			if getCount == 1 {
-				fmt.Fprint(w, `{
-					"deployment": {
-						"id": "dep-selector-json-1",
-						"name": "demo",
-						"scenario_id": "landing-page-business-suite",
-						"status": "deploying",
-						"progress_step": "bundle_build",
-						"progress_percent": 42,
-						"created_at": "2026-02-07T00:00:00Z",
-						"updated_at": "2026-02-07T00:00:01Z"
-					},
-					"timestamp": "2026-02-07T00:00:01Z"
-				}`)
-				return
-			}
-			fmt.Fprint(w, `{
-				"deployment": {
-					"id": "dep-selector-json-1",
-					"name": "demo",
-					"scenario_id": "landing-page-business-suite",
-					"status": "deployed",
-					"progress_step": "verify",
-					"progress_percent": 100,
-					"created_at": "2026-02-07T00:00:00Z",
-					"updated_at": "2026-02-07T00:00:03Z"
-				},
-				"timestamp": "2026-02-07T00:00:03Z"
-			}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
-		}
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	output := captureStdout(t, func() {
-		if err := app.Run([]string{
-			"redeploy",
-			"--domain", "vrooli.com",
-			"--scenario", "landing-page-business-suite",
-			"--if-needed",
-			"--preflight",
-			"--wait",
-			"--json",
-		}); err != nil {
-			t.Fatalf("selector redeploy failed: %v", err)
-		}
-	})
-
-	if !strings.Contains(output, `"mode": "selector_if_needed"`) {
-		t.Fatalf("expected selector_if_needed mode in JSON output, got: %s", output)
-	}
-	if !strings.Contains(output, `"run_id": "run-selector-json-1"`) {
-		t.Fatalf("expected run id in JSON output, got: %s", output)
-	}
-	if !strings.Contains(output, `"final_status": "deployed"`) {
-		t.Fatalf("expected wait summary final status in JSON output, got: %s", output)
-	}
-	if strings.Contains(output, "Waiting for deployment to complete") {
-		t.Fatalf("expected JSON-only output, got: %s", output)
-	}
-}
-
-func TestRedeploySelectorModeRequiresIfNeeded(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/health":
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
-		}
-	}))
-	defer server.Close()
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	err := app.Run([]string{
-		"redeploy",
-		"--domain", "vrooli.com",
-		"--scenario", "landing-page-business-suite",
-	})
-	if err == nil {
-		t.Fatalf("expected selector mode to require --if-needed")
-	}
-	if !strings.Contains(err.Error(), "selector mode requires --if-needed") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRedeploySelectorModeMissingDeploymentReturnsManifestGuidance(t *testing.T) {
-	app := newTestApp(t)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments" {
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"deployments":[],"timestamp":"2026-02-07T00:00:00Z"}`)
-	}))
-	defer server.Close()
-
-	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
-
-	err := app.Run([]string{
-		"redeploy",
-		"--domain", "vrooli.com",
-		"--scenario", "landing-page-business-suite",
-		"--if-needed",
-	})
-	if err == nil {
-		t.Fatalf("expected no deployment error")
-	}
-	if !strings.Contains(err.Error(), "no deployment found for selector") {
-		t.Fatalf("expected selector error, got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "manifest.prod.json") {
-		t.Fatalf("expected manifest.prod.json guidance, got: %v", err)
 	}
 }
 
@@ -1179,7 +421,7 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1194,8 +436,8 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-inspect-apply", manifestPath}); err != nil {
-			t.Fatalf("vps-inspect-apply failed: %v", err)
+		if err := app.Run([]string{"inspect", "status", manifestPath}); err != nil {
+			t.Fatalf("inspect status failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {
@@ -1206,7 +448,7 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 func TestInspectMetricsGetsMetricsDebugEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1255,7 +497,7 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1280,8 +522,8 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-setup-plan", manifestPath, bundlePath}); err != nil {
-			t.Fatalf("vps-setup-plan failed: %v", err)
+		if err := app.Run([]string{"vps", "setup", "plan", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps setup plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"remote_tar_path\"") {
@@ -1290,39 +532,49 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 }
 
 func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
-	// [REQ:STC-P0-004] setup apply should be callable via CLI (integration layer)
+	// [REQ:STC-P0-004] setup apply should be callable via CLI (integration layer);
+	// it compiles the plan and submits the plan_digest it was shown.
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var applied string
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/vps/setup/apply" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("read body: %v", err)
 		}
-		if !strings.Contains(string(bodyBytes), "\"bundle_path\"") || !strings.Contains(string(bodyBytes), bundlePath) {
-			t.Fatalf("expected bundle_path in request body, got: %s", string(bodyBytes))
-		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
+		switch r.URL.Path {
+		case "/api/v1/vps/setup/plan":
+			fmt.Fprint(w, `{"plan":{"remote_tar_path":"/tmp/b.tar.gz","commands":[]},"plan_digest":"sha256:setup","timestamp":"2025-01-01T00:00:00Z"}`)
+		case "/api/v1/vps/setup/apply":
+			applied = string(bodyBytes)
+			if !strings.Contains(applied, "\"bundle_path\"") || !strings.Contains(applied, bundlePath) {
+				t.Fatalf("expected bundle_path in request body, got: %s", applied)
+			}
+			fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
 	}))
 	defer server.Close()
 
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-setup-apply", manifestPath, bundlePath}); err != nil {
-			t.Fatalf("vps-setup-apply failed: %v", err)
+		if err := app.Run([]string{"vps", "setup", "apply", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps setup apply failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {
 		t.Fatalf("expected setup apply output, got: %s", output)
+	}
+	if !strings.Contains(applied, "\"plan_digest\":\"sha256:setup\"") {
+		t.Fatalf("expected the compiled plan_digest in the apply body, got: %s", applied)
 	}
 }
 
@@ -1331,7 +583,7 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1353,8 +605,8 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-deploy-plan", manifestPath}); err != nil {
-			t.Fatalf("vps-deploy-plan failed: %v", err)
+		if err := app.Run([]string{"vps", "deploy", "plan", manifestPath}); err != nil {
+			t.Fatalf("vps deploy plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"caddy_install\"") {
@@ -1363,11 +615,13 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 }
 
 func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
-	// [REQ:STC-P0-005] deploy apply should be callable via CLI (integration layer)
+	// [REQ:STC-P0-005] deploy apply should be callable via CLI (integration layer);
+	// --plan-digest applies a previously reviewed plan without recompiling.
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var applied string
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1378,8 +632,9 @@ func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body: %v", err)
 		}
-		if !strings.Contains(string(bodyBytes), "\"manifest\"") {
-			t.Fatalf("expected manifest wrapper in request body, got: %s", string(bodyBytes))
+		applied = string(bodyBytes)
+		if !strings.Contains(applied, "\"manifest\"") {
+			t.Fatalf("expected manifest wrapper in request body, got: %s", applied)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
@@ -1389,12 +644,15 @@ func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-deploy-apply", manifestPath}); err != nil {
-			t.Fatalf("vps-deploy-apply failed: %v", err)
+		if err := app.Run([]string{"vps", "deploy", "apply", manifestPath, "--plan-digest", "sha256:reviewed"}); err != nil {
+			t.Fatalf("vps deploy apply failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {
 		t.Fatalf("expected deploy apply output, got: %s", output)
+	}
+	if !strings.Contains(applied, "\"plan_digest\":\"sha256:reviewed\"") {
+		t.Fatalf("expected the reviewed plan_digest in the apply body, got: %s", applied)
 	}
 }
 
@@ -1408,6 +666,20 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("new app: %v", err)
 	}
 	return app
+}
+
+// withHealth wraps a test handler so that GET /health responds with a
+// healthy payload. The CLI probes /health before every API command, so
+// every fake server must answer that probe in addition to its own routes.
+func withHealth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" && r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		next(w, r)
+	}
 }
 
 func writeTempFile(t *testing.T, name, contents string) string {

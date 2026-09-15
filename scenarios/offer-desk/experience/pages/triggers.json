@@ -1,0 +1,517 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "triggers",
+    "title": "Triggers",
+    "routes": [
+      "/triggers"
+    ],
+    "purpose": "Author a revisit trigger, prove it parses, and dry-run it against current facts before it is saved — so the condition an offer waits on is never a sentence nobody can evaluate.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P1-005",
+      "OT-P2-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether this trigger parses, and if not, exactly where it fails"
+    },
+    {
+      "statement": "What it evaluates to right now against real facts, before it is saved"
+    },
+    {
+      "statement": "Which facts it references that do not exist — the unknown case, distinguished from false"
+    },
+    {
+      "statement": "The fact registry and evaluation schedule, ranked below the three above"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The trigger list at rest.",
+      "setup": {
+        "route": "/triggers"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/triggers"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No triggers are declared yet.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "parse-error",
+      "description": "The declared trigger does not parse. The failing position and what the language admits are both stated; the trigger cannot be saved in this state.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "parse-error"
+        }
+      }
+    },
+    {
+      "id": "dry-run-satisfied",
+      "description": "A dry run against current facts evaluates to satisfied, naming each fact and the value that satisfied it.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "dry-run-satisfied"
+        }
+      }
+    },
+    {
+      "id": "dry-run-unsatisfied",
+      "description": "A dry run evaluates to not satisfied, naming which clause failed and against what value.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "dry-run-unsatisfied"
+        }
+      }
+    },
+    {
+      "id": "dry-run-unknown",
+      "description": "A dry run cannot conclude because a referenced fact does not exist. Reported as unknown — never as not satisfied — and the missing fact is named.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "dry-run-unknown"
+        }
+      }
+    },
+    {
+      "id": "evaluation-stalled",
+      "description": "Scheduled evaluation has not completed within its interval. Surfaced prominently, because a stalled evaluator silently restores the failure this scenario was built to end.",
+      "setup": {
+        "route": "/triggers",
+        "query": {
+          "fixture": "evaluation-stalled"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "trigger-editor",
+      "role": "form",
+      "name": "Trigger",
+      "description": "Where the condition is declared. Admits declared facts, comparison operators and boolean composition — nothing else."
+    },
+    {
+      "id": "parse-status",
+      "role": "status",
+      "description": "Whether the current declaration parses, updated as it is written rather than only on save."
+    },
+    {
+      "id": "parse-error-detail",
+      "role": "alert",
+      "description": "Where parsing failed and what the language admits at that position. Assertive, because it blocks saving."
+    },
+    {
+      "id": "dry-run-action",
+      "role": "button",
+      "name": "Dry run",
+      "description": "Evaluates the declaration against current facts without saving it or producing a proposal."
+    },
+    {
+      "id": "dry-run-verdict",
+      "role": "status",
+      "description": "The result of a dry run: satisfied, not satisfied, or unknown. Three outcomes, never two."
+    },
+    {
+      "id": "fact-trace",
+      "role": "list",
+      "name": "Facts used",
+      "description": "Each fact the declaration referenced and the value it resolved to, so a verdict is explainable rather than asserted."
+    },
+    {
+      "id": "missing-fact",
+      "role": "note",
+      "description": "Names a referenced fact that does not exist in the registry, and how to supply it."
+    },
+    {
+      "id": "fact-registry",
+      "role": "table",
+      "name": "Facts",
+      "description": "The facts a trigger may reference, with their current values and when each was last supplied."
+    },
+    {
+      "id": "evaluation-freshness",
+      "role": "status",
+      "description": "When scheduled evaluation last completed and whether that is within its interval."
+    },
+    {
+      "id": "stalled-alert",
+      "role": "alert",
+      "description": "Assertive notice that scheduled evaluation has not run within its interval."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "Explains what a trigger is and shows a worked example before asking for a first declaration."
+    },
+    {
+      "id": "trigger-declaration-form",
+      "role": "form",
+      "name": "Declare trigger",
+      "description": "Saves a machine-evaluable trigger after its declaration is checked."
+    },
+    {
+      "id": "fact-entry-form",
+      "role": "form",
+      "name": "Record fact",
+      "description": "Adds the observed fact that a trigger evaluation can use."
+    },
+    {
+      "id": "trigger-declaration-action",
+      "role": "button",
+      "name": "Declare trigger",
+      "description": "Submits the machine-evaluable trigger declaration."
+    },
+    {
+      "id": "fact-entry-action",
+      "role": "button",
+      "name": "Add fact",
+      "description": "Submits the observed fact."
+    }
+  ],
+  "claims": [
+    {
+      "id": "unknown-is-not-unsatisfied",
+      "type": "state-distinct",
+      "statement": "A dry run that cannot conclude because a fact is missing is perceivably different from one that concluded not satisfied.",
+      "tier": "manual",
+      "viewports": ["desktop", "mobile"],
+      "states": [
+        "dry-run-unknown",
+        "dry-run-unsatisfied"
+      ],
+      "elements": [
+        "dry-run-verdict"
+      ],
+      "rationale": "The scenario's central design rule. Treating unknown as false keeps candidates asleep forever — the exact failure this scenario exists to end — and the UI must not collapse the distinction the evaluator preserves."
+    },
+    {
+      "id": "unknown-names-the-missing-fact",
+      "type": "element-present",
+      "statement": "An unknown verdict names the fact that is missing and how to supply it.",
+      "tier": "machine",
+      "elements": [
+        "missing-fact"
+      ],
+      "states": [
+        "dry-run-unknown"
+      ],
+      "rationale": "OT-P1-005. An unknown verdict with no named cause is unactionable, and the operator's only recourse is guessing which fact to add."
+    },
+    {
+      "id": "verdict-shows-its-facts",
+      "type": "element-present",
+      "statement": "Every dry-run verdict is accompanied by the facts it used and the values they resolved to.",
+      "tier": "machine",
+      "elements": [
+        "dry-run-verdict",
+        "fact-trace"
+      ],
+      "states": [
+        "dry-run-satisfied",
+        "dry-run-unsatisfied"
+      ],
+      "rationale": "A trigger the operator cannot check is a trigger the operator will not trust, and an untrusted trigger gets shadowed by a mental reminder — reproducing the original problem."
+    },
+    {
+      "id": "parse-failure-blocks-saving",
+      "type": "element-present",
+      "statement": "A declaration that does not parse shows where it failed and cannot be saved.",
+      "tier": "machine",
+      "elements": [
+        "parse-error-detail"
+      ],
+      "states": [
+        "parse-error"
+      ],
+      "rationale": "OT-P0-003: a node cannot enter or remain in candidate without a machine-evaluable trigger. Accepting an unparseable declaration at the UI puts the invariant back into prose."
+    },
+    {
+      "id": "dry-run-precedes-save",
+      "type": "reading-order",
+      "statement": "The dry-run control and its verdict read before the trigger is committed.",
+      "tier": "machine",
+      "elements": [
+        "dry-run-action",
+        "dry-run-verdict"
+      ],
+      "states": [
+        "dry-run-unsatisfied"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "OT-P1-005 requires triggers to be dry-runnable before being saved. A trigger first evaluated on a schedule fails silently weeks later."
+    },
+    {
+      "id": "stalled-evaluation-is-visible",
+      "type": "element-present",
+      "statement": "When scheduled evaluation has not completed within its interval, that is stated on this page.",
+      "tier": "machine",
+      "elements": [
+        "stalled-alert",
+        "evaluation-freshness"
+      ],
+      "states": [
+        "evaluation-stalled"
+      ],
+      "rationale": "OBSERVABILITY.md names this the scenario's primary alarm: a dead evaluator is indistinguishable from a quiet one and silently restores the original defect behind a green dashboard."
+    },
+    {
+      "id": "empty-shows-a-worked-example",
+      "type": "state-covered",
+      "statement": "With no triggers declared, the page explains what a trigger is and shows a worked example rather than an empty editor.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "The trigger language is the one genuinely new concept in the product. An empty text field is the most likely abandonment point."
+    },
+    {
+      "id": "dry-run-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The dry-run control is operable from the keyboard.",
+      "tier": "machine",
+      "elements": [
+        "dry-run-action"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "It sits in an authoring flow that is otherwise entirely keyboard-driven; requiring a pointer here breaks the writing loop."
+    },
+    {
+      "id": "verdict-is-never-colour-only",
+      "type": "custom",
+      "statement": "Each of the three dry-run verdicts carries a text label rather than relying on a status tint.",
+      "tier": "manual",
+      "elements": [
+        "dry-run-verdict"
+      ],
+      "rationale": "PRD accessibility rule, and three outcomes are harder to distinguish by colour than two — the unknown case is the one most likely to be lost."
+    },
+    {
+      "id": "trigger-forms-have-real-actions",
+      "type": "affordance-present",
+      "statement": "Trigger declaration and fact-entry forms expose named submit controls.",
+      "tier": "machine",
+      "elements": ["trigger-editor", "fact-entry-form"],
+      "params": { "affordances": ["trigger-declare", "trigger-add-fact"], "targetRole": "button" },
+      "states": ["default", "empty"]
+    },
+    {
+      "id": "trigger-declaration-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Trigger declaration and fact entry remain keyboard reachable.",
+      "tier": "machine",
+      "elements": ["trigger-declaration-action", "fact-entry-action"],
+      "states": ["default", "empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "trigger-editor": {
+        "testid": "trigger-editor"
+      },
+      "parse-status": {
+        "testid": "trigger-parse-status"
+      },
+      "parse-error-detail": {
+        "testid": "trigger-parse-error"
+      },
+      "dry-run-action": {
+        "testid": "trigger-dry-run"
+      },
+      "dry-run-verdict": {
+        "testid": "trigger-dry-run-verdict"
+      },
+      "fact-trace": {
+        "testid": "trigger-fact-trace"
+      },
+      "missing-fact": {
+        "testid": "trigger-missing-fact"
+      },
+      "fact-registry": {
+        "testid": "fact-registry"
+      },
+      "evaluation-freshness": {
+        "testid": "evaluation-freshness"
+      },
+      "stalled-alert": {
+        "testid": "evaluation-stalled-alert"
+      },
+      "empty-guidance": {
+        "testid": "triggers-empty-guidance"
+      },
+      "trigger-declaration-form": {
+        "testid": "trigger-declare"
+      },
+      "fact-entry-form": {
+        "testid": "trigger-add-fact"
+      },
+      "trigger-declaration-action": {
+        "testid": "trigger-declare-action"
+      },
+      "fact-entry-action": {
+        "testid": "trigger-add-fact-action"
+      }
+    }
+  }
+}

@@ -10,7 +10,7 @@ import type { ProtoMessage } from "./shared";
 
 export type ExecutionBacklogKind = BacklogKind | "spec-sync";
 
-export type ExecutionStatus = "pending" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "canceled";
+export type ExecutionStatus = "pending" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "budget_exhausted" | "failed" | "cancelling" | "canceled";
 
 export type ExecutionMode = "manual" | "yolo";
 
@@ -99,7 +99,14 @@ export interface Finalization {
   scenarios: ScenarioFinalization[];
 }
 
-export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation" | "fixupAttempt" | "backlogKind" | "finalization"> & {
+export interface ExecutionScopeExtension {
+  paths: string[];
+  reason: string;
+  recordedAt: string;
+  author: string;
+}
+
+export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation" | "fixupAttempt" | "backlogKind" | "finalization" | "continuationChildIds" | "scopeExtensions"> & {
   status: ExecutionStatus;
   mode: ExecutionMode;
   backlogKind: ExecutionBacklogKind;
@@ -107,4 +114,6 @@ export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" 
   parentExecutionId?: string;
   fixupAttempt?: number;
   finalization?: Finalization;
+  continuationChildIds?: string[];
+  scopeExtensions?: ExecutionScopeExtension[];
 };

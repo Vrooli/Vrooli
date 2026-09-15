@@ -45,17 +45,6 @@ export interface ExecutionEventMessage {
   timestamp?: string;
 }
 
-export interface ExecutionUpdateMessage {
-  type: string;
-  execution_id?: string;
-  status?: string;
-  progress?: number;
-  current_step?: string;
-  message?: string;
-  data?: ExecutionEventMessage | null;
-  timestamp?: string;
-}
-
 const timestampToIso = (value?: Timestamp | null): string | undefined =>
   timestampToDate(value)?.toISOString();
 
@@ -208,26 +197,6 @@ export const streamMessageToExecutionEvent = (
 // Backwards compatibility alias
 export const envelopeToExecutionEvent = streamMessageToExecutionEvent;
 
-export const parseLegacyUpdate = (value: unknown): ExecutionUpdateMessage | null => {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-  const candidate = value as Record<string, unknown>;
-  if (typeof candidate.type !== 'string') {
-    return null;
-  }
-  return {
-    type: candidate.type,
-    execution_id: typeof candidate.execution_id === 'string' ? candidate.execution_id : undefined,
-    status: typeof candidate.status === 'string' ? candidate.status : undefined,
-    progress: typeof candidate.progress === 'number' ? candidate.progress : undefined,
-    current_step: typeof candidate.current_step === 'string' ? candidate.current_step : undefined,
-    message: typeof candidate.message === 'string' ? candidate.message : undefined,
-    data: candidate.data as ExecutionEventMessage | null | undefined,
-    timestamp: typeof candidate.timestamp === 'string' ? candidate.timestamp : undefined,
-  };
-};
-
 type EventContext = {
   fallbackTimestamp?: string;
   fallbackProgress?: number;
@@ -240,16 +209,13 @@ type LoggerLike = {
 
 export class ExecutionEventsClient {
   private readonly onEvent: (event: ExecutionEventMessage, ctx: EventContext) => void;
-  private readonly onLegacy?: (legacy: ExecutionUpdateMessage) => void;
   private readonly logger?: LoggerLike;
 
   constructor(options: {
     onEvent: (event: ExecutionEventMessage, ctx: EventContext) => void;
-    onLegacy?: (legacy: ExecutionUpdateMessage) => void;
     logger?: LoggerLike;
   }) {
     this.onEvent = options.onEvent;
-    this.onLegacy = options.onLegacy;
     this.logger = options.logger;
   }
 
@@ -272,18 +238,12 @@ export class ExecutionEventsClient {
         if (envelope) {
           const parsedEvent = envelopeToExecutionEvent(envelope);
           if (parsedEvent) {
-            if (!parsedEvent.payload && payload && typeof payload === 'object') {
-              const legacyPayload = (payload as Record<string, unknown>).legacy_payload;
-              if (legacyPayload !== undefined) {
-                parsedEvent.payload = legacyPayload as Record<string, unknown>;
-              }
-            }
             this.onEvent(parsedEvent, {
               fallbackTimestamp: streamMessageTimestampToIso(envelope),
               fallbackProgress: parsedEvent.progress,
             });
+            return;
           }
-          return;
         }
 
         if (payload && typeof payload === 'object') {
@@ -293,24 +253,13 @@ export class ExecutionEventsClient {
           if (nestedEnvelope) {
             const parsedEvent = envelopeToExecutionEvent(nestedEnvelope);
             if (parsedEvent) {
-              if (!parsedEvent.payload) {
-                const legacyPayload = (payload as Record<string, unknown>).legacy_payload;
-                if (legacyPayload !== undefined) {
-                  parsedEvent.payload = legacyPayload as Record<string, unknown>;
-                }
-              }
               this.onEvent(parsedEvent, {
                 fallbackTimestamp: streamMessageTimestampToIso(nestedEnvelope),
                 fallbackProgress: parsedEvent.progress,
               });
+              return;
             }
-            return;
           }
-        }
-
-        const legacy = parseLegacyUpdate(payload);
-        if (legacy) {
-          this.onLegacy?.(legacy);
         }
       } catch (err) {
         this.logger?.error?.('Failed to process execution event payload', {}, err);

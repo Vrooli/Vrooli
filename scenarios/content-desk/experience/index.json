@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "content-desk",
+  "description": "Content Desk's experience contract for editing evidence-backed drafts and making operator-owned publication decisions.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "resolve-and-approve-draft",
+      "path": "journeys/resolve-and-approve-draft.json",
+      "title": "Resolve evidence and approve a draft",
+      "status": "active"
+    }
+  ]
+}

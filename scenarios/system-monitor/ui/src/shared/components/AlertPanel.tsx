@@ -1,6 +1,5 @@
 import type { Alert } from '../../types';
 import { formatTime } from '../utils/formatters';
-import { getStatusColor } from '../utils/colors';
 
 interface AlertPanelProps {
   alerts: Alert[];
@@ -12,11 +11,7 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
       <div className="flex-row-between mb-md">
         <h2 className="section-heading">ACTIVE ALERTS</h2>
         <span
-          className="alert-badge"
-          style={{
-            background: alerts.length > 0 ? 'var(--color-error)' : 'var(--color-success)',
-            fontSize: 'var(--text-sm)'
-          }}
+          className={`alert-badge text-sm ${alerts.length > 0 ? 'alert-badge-error' : 'alert-badge-success'}`}
         >
           {alerts.length}
         </span>
@@ -29,20 +24,16 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
           </div>
         ) : (
           alerts.map(alert => (
-            <div key={alert.id} className="alert-item pool-item mb-sm" style={{
-              border: '1px solid var(--color-primary)',
-              flexDirection: 'column',
-              alignItems: 'stretch'
-            }}>
+            <div key={alert.id} className="alert-item pool-item mb-sm" data-sm-style="sm-style-2f44229022">
               <div className="flex-row-between">
-                <span style={{ color: getStatusColor(alert.severity) }}>
+                <span className={`status-color-${alert.severity.toLowerCase()}`}>
                   [{alert.severity.toUpperCase()}] {alert.category}
                 </span>
                 <span className="text-muted text-sm">
                   {formatTime(alert.timestamp)}
                 </span>
               </div>
-              <div style={{ marginTop: 'var(--spacing-xs)' }}>
+              <div data-sm-style="sm-style-4edd7007ae">
                 {alert.message}
               </div>
             </div>

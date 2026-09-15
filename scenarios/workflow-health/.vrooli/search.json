@@ -1,0 +1,301 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "workflow-health.workflows",
+      "lifecycle": "production",
+      "provider_group": "workflow-health",
+      "bucket": "BUCKET_DO",
+      "type": "workflow.flow",
+      "description": "Scenario-owned BAS workflow assets exposed by workflow-health: runnable flows, validation cases, and reusable fragments with safety metadata, requirement links, selectors, routes, and guardrails. Route here to find workflow journeys, workflow tests, or workflow fragments before hand-rolling browser automation.",
+      "routing_profile": {
+        "answer_spaces": ["workflow_journey", "browser_automation"],
+        "intents": ["run_workflow", "find_workflow", "reuse_automation"],
+        "positive_examples": ["find a runnable browser workflow", "which flow tests this journey", "reuse an existing workflow asset"],
+        "exclusions": ["workflow test evidence", "standalone action fragment", "performance health report"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/vrooli.workflow_health.v1.workflows.WorkflowSearchService/SearchWorkflows",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scenario\":\"workflow-health\",\"query\":\"{{query}}\",\"types\":[\"{{type}}\"],\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "rerank_enabled": false
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "workflow-health workflows - primary golden corpus",
+        "description": "Starter rank-centric corpus for the workflow-health workflow provider. The provider is deterministic and scans the workflow-health BAS catalog through WorkflowSearchService.",
+        "cases": [
+      {
+        "id": "performance-flow",
+            "query": "find a performance workflow flow",
+            "tags": [
+              "strong",
+              "workflow.flow"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/flows/perf-example-scroll.json"
+            ],
+        "expect_within_top_k": 3
+      },
+      {"id":"performance-capture-scroll","query":"capture a performance trace while scrolling an application shell","tags":["strong","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"performance-journey-template","query":"template for an assertion-free browser performance journey","tags":["weak-real","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"scroll-trace-workflow","query":"workflow to trace scroll responsiveness without functional assertions","tags":["hard","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"observer-perf-flow","query":"safe observer flow for profiling a user interface","tags":["weak","workflow.flow","observer","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"lighthouse-interaction-flow","query":"browser interaction flow to use before performance analysis","tags":["strong","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+      {"id":"nonfunctional-scroll-flow","query":"nonfunctional scroll workflow for a performance audit","tags":["weak-real","workflow.flow","performance","reviewed-live"],"expect_ids":["workflow-health:bas/flows/perf-example-scroll.json"],"expect_within_top_k":3},
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv workflow nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 4.5
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "workflow-assets",
+              "description": "Runnable flows and validation cases surfaced from the BAS catalog.",
+              "tags": [
+                "workflow.flow",
+                "workflow.test"
+              ],
+              "min_reviewed_positive": 1
+            }
+          ]
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      }
+    },
+    {
+      "provider_id": "workflow-health.tests",
+      "lifecycle": "production",
+      "provider_group": "workflow-health",
+      "bucket": "BUCKET_REUSE",
+      "type": "workflow.test",
+      "description": "Scenario-owned BAS validation cases indexed by workflow-health. Route here to find workflow evidence that proves scenario behavior or requirement coverage.",
+      "routing_profile": {
+        "answer_spaces": ["workflow_test", "behavior_evidence", "requirement_coverage"],
+        "intents": ["verify_behavior", "find_test", "prove_requirement"],
+        "positive_examples": ["which workflow test proves this behavior", "find browser evidence for this requirement", "how was this scenario behavior validated"],
+        "exclusions": ["runnable workflow journey", "reusable action fragment", "implementation source"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/vrooli.workflow_health.v1.workflows.WorkflowSearchService/SearchWorkflows",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scenario\":\"workflow-health\",\"query\":\"{{query}}\",\"types\":[\"{{type}}\"],\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "rerank_enabled": false
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "workflow-health tests — primary golden corpus",
+        "description": "Reviewed corpus for BAS validation cases indexed by workflow-health.",
+        "coverage": {
+          "required_tags": [
+            "workflow.test"
+          ]
+        },
+        "cases": [
+      {
+        "id": "routed-database-case",
+            "query": "test case for routed database pool isolation",
+            "tags": [
+              "strong",
+              "workflow.test"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"
+            ],
+        "expect_within_top_k": 3
+      },
+      {"id":"operator-overview-smoke","query":"browser smoke test for the workflow health overview","tags":["strong","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"workflow-title-test","query":"validate the Workflow Health page title renders","tags":["weak-real","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"observer-ui-validation","query":"non-mutating BAS validation of a workflow operator user interface","tags":["hard","workflow.test","observer","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"workflow-overview-visible","query":"check that a workflow overview surface becomes visible","tags":["weak","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"safe-workflow-smoke","query":"safe playbook to inspect workflow health without changing data","tags":["strong","workflow.test","observer","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+      {"id":"scenario-navigation-test","query":"test that navigating to workflow health loads its operator surface","tags":["weak-real","workflow.test","operator","reviewed-live"],"expect_ids":["workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"],"expect_within_top_k":3},
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv workflow test nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 6.5
+          }
+        ]
+      }
+    },
+    {
+      "provider_id": "workflow-health.fragments",
+      "lifecycle": "production",
+      "provider_group": "workflow-health",
+      "bucket": "BUCKET_REUSE",
+      "type": "workflow.fragment",
+      "description": "Scenario-owned BAS action fragments indexed by workflow-health. Route here to find reusable browser automation fragments and dependency building blocks, not top-level autonomous workflows.",
+      "routing_profile": {
+        "answer_spaces": ["automation_fragment", "workflow_dependency"],
+        "intents": ["reuse_action", "compose_workflow", "find_selector"],
+        "positive_examples": ["find a reusable browser action", "which fragment handles this selector", "compose a workflow from existing fragments"],
+        "exclusions": ["top-level workflow journey", "workflow test evidence", "source implementation"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/vrooli.workflow_health.v1.workflows.WorkflowSearchService/SearchWorkflows",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scenario\":\"workflow-health\",\"query\":\"{{query}}\",\"types\":[\"{{type}}\"],\"includeFragments\":true,\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "rerank_enabled": false
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "workflow-health fragments — honest empty-readiness corpus",
+        "description": "Reviewed corpus for reusable BAS action fragments indexed by workflow-health.",
+        "cases": [
+          {
+            "id": "drag-horizontal-fragment",
+            "query": "reusable fragment to drag a horizontal resize handle",
+            "tags": [
+              "strong",
+              "workflow.fragment"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/actions/perf-drag-horizontal.json"
+            ],
+            "expect_within_top_k": 3
+          },
+      {
+        "id": "scroll-ancestor-fragment",
+            "query": "reusable fragment to scroll nearest ancestor",
+            "tags": [
+              "weak-real",
+              "workflow.fragment"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/actions/perf-scroll-ancestor.json"
+            ],
+        "expect_within_top_k": 3
+      },
+      {"id":"scrollable-parent-helper","query":"reusable helper to scroll a list parent element","tags":["strong","workflow.fragment","scroll","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
+      {"id":"virtual-list-scroll-helper","query":"action fragment for scrolling a virtualized list container","tags":["weak-real","workflow.fragment","scroll","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
+      {"id":"resize-drag-helper","query":"reusable browser action to drag a resize divider","tags":["strong","workflow.fragment","drag","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-drag-horizontal.json"],"expect_within_top_k":3},
+      {"id":"pointer-move-fragment","query":"stepped pointer movement action for testing horizontal drag","tags":["weak","workflow.fragment","drag","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-drag-horizontal.json"],"expect_within_top_k":3},
+      {"id":"scroll-performance-action","query":"compose an action to scroll nearest overflow ancestor during a performance capture","tags":["hard","workflow.fragment","scroll","performance","reviewed-live"],"expect_ids":["workflow-health:bas/actions/perf-scroll-ancestor.json"],"expect_within_top_k":3},
+          {
+            "id": "fragment-junk-gibberish",
+            "query": "florbnax qwop zxcv workflow fragment nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ],
+        "coverage": {
+          "required_tags": [
+            "workflow.fragment"
+          ]
+        }
+      }
+    }
+  ]
+}

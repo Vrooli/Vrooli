@@ -1,0 +1,199 @@
+{
+  "metadata": {
+    "name": "continuity-catalog-orphan-visible",
+    "description": "Locate and inspect a catalog-only conversation from the archive drawer when the live session metadata row is absent",
+    "execution_mode": "mutating",
+    "requirement": "REQ-P0-003c",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "intent": "continuity"
+    },
+    "version": "1"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+          "scenario": "web-console",
+          "scenario_path": "/#/workspace"
+        },
+        "metadata": { "label": "Open Web Console workspace" }
+      }
+    },
+    {
+      "id": "open-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"toolbar-settings\"]" },
+        "metadata": { "label": "Open Settings" }
+      }
+    },
+    {
+      "id": "open-workspace-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"settings-tab-workspace\"]" },
+        "metadata": { "label": "Open workspace settings" }
+      }
+    },
+    {
+      "id": "select-sidebar-mode",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"display-mode-sidebar\"]" },
+        "metadata": { "label": "Select sidebar workspace mode" }
+      }
+    },
+    {
+      "id": "close-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"settings-modal.close\"]" },
+        "metadata": { "label": "Return to workspace" }
+      }
+    },
+    {
+      "id": "wait-archive-footer",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"sidebar-archive-footer\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Wait for the archive entry point" }
+      }
+    },
+    {
+      "id": "open-archive",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"sidebar-archive-footer\"]" },
+        "metadata": { "label": "Open the archive view" }
+      }
+    },
+    {
+      "id": "wait-sidebar-archive",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"sidebar-archive-view\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the archive sidebar" }
+      }
+    },
+    {
+      "id": "open-full-archive",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"sidebar-archive-search-all\"]" },
+        "metadata": { "label": "Open full archive search" }
+      }
+    },
+    {
+      "id": "wait-archive-drawer",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"archive-drawer\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the archive drawer" }
+      }
+    },
+    {
+      "id": "enable-all-states-search",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid=\"archive-all-states\"]" },
+        "metadata": { "label": "Include every lifecycle state in the search" }
+      }
+    },
+    {
+      "id": "search-incident",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"archive-search-input\"]",
+          "value": "validation-intent receipt contract",
+          "clear_first": true
+        },
+        "metadata": { "label": "Search durable conversation text" }
+      },
+      "execution_settings": { "wait_after_ms": 1000 }
+    },
+    {
+      "id": "wait-incident-hit",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid^=\"archive-hit-\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the recovered conversation hit" }
+      }
+    },
+    {
+      "id": "select-incident-hit",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const hit = document.querySelector('[data-testid^=\"archive-hit-\"]'); if (!(hit instanceof HTMLElement)) throw new Error('continuity catalog orphan hit not found'); hit.click(); })()"
+        },
+        "metadata": { "label": "Inspect the recovered conversation" }
+      }
+    },
+    {
+      "id": "assert-read-only-reader",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"archive-reopen\"]",
+          "failure_message": "Expected the catalog-only conversation to remain inspectable with an honest read-only restore action",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Verify inspectable degraded archive state" }
+      }
+    },
+    {
+      "id": "capture-evidence",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture archive inspection evidence" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e2", "source": "open-settings", "target": "open-workspace-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e3", "source": "open-workspace-settings", "target": "select-sidebar-mode", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e4", "source": "select-sidebar-mode", "target": "close-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e5", "source": "close-settings", "target": "wait-archive-footer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e6", "source": "wait-archive-footer", "target": "open-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e7", "source": "open-archive", "target": "wait-sidebar-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e8", "source": "wait-sidebar-archive", "target": "open-full-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e9", "source": "open-full-archive", "target": "wait-archive-drawer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e10", "source": "wait-archive-drawer", "target": "enable-all-states-search", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e11", "source": "enable-all-states-search", "target": "search-incident", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e12", "source": "search-incident", "target": "wait-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e13", "source": "wait-incident-hit", "target": "select-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e14", "source": "select-incident-hit", "target": "assert-read-only-reader", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e15", "source": "assert-read-only-reader", "target": "capture-evidence", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "description": "P0 operational targets required for a viable foliage tracking and prediction scenario.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "Operational Targets > P0",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "API responds to /health with status 200 and a meaningful health payload.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Health Check Endpoint",
+      "validation": [
+        {
+          "notes": "Health handler returns a 200 JSON health response.",
+          "phase": "unit",
+          "ref": "api/main_test.go:TestHealthHandler",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "API connects to PostgreSQL and performs CRUD operations for scenario data.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Database Connection",
+      "validation": [
+        {
+          "notes": "Database initialization and reconnection paths are covered by API tests.",
+          "phase": "unit",
+          "ref": "api/main_test.go:TestInitDB",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Database-backed handlers recover across availability changes.",
+          "phase": "business",
+          "ref": "api/business_test.go:TestDatabaseReconnection",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Retrieve current foliage status for regions via REST endpoints.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Foliage Data API",
+      "validation": [
+        {
+          "notes": "Regions and foliage endpoints validate input and return status data.",
+          "phase": "unit",
+          "ref": "api/main_test.go:TestRegionsHandler",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Business workflow exercises region and foliage reads.",
+          "phase": "business",
+          "ref": "api/business_test.go:TestBusinessWorkflow",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "Fetch and store weather data for predictions via direct API/CLI flows.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Weather Integration",
+      "validation": [
+        {
+          "notes": "Weather endpoint covers stored data and validation edge cases.",
+          "phase": "unit",
+          "ref": "api/main_test.go:TestWeatherHandler",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ai",
+      "description": "Generate foliage peak predictions using Ollama AI with fallback logic.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "passed",
+      "title": "Basic Prediction Engine",
+      "validation": [
+        {
+          "notes": "Prediction handler and gateway response parsing are covered with deterministic gateway mocks.",
+          "phase": "unit",
+          "ref": "api/main_test.go:TestPredictHandler",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Prediction workflow stores AI-backed peak dates.",
+          "phase": "business",
+          "ref": "api/business_test.go:TestPredictionWorkflow",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Display regions with foliage status overlays using Leaflet.js.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "passed",
+      "title": "Interactive Map UI",
+      "validation": [
+        {
+          "notes": "UI smoke test loads the map UI without network failures.",
+          "phase": "smoke",
+          "ref": "coverage/runs/20260531-213717-1ad730a0/ui-smoke/README.md",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "lifecycle",
+      "description": "setup/develop/test/stop commands work through lifecycle-managed commands.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "Lifecycle Management",
+      "validation": [
+        {
+          "notes": "Scenario lifecycle start reports healthy after setup/develop phases.",
+          "phase": "manual",
+          "ref": "vrooli scenario restart fall-foliage-explorer",
+          "status": "passing",
+          "type": "manual"
+        },
+        {
+          "notes": "CLI lifecycle metadata and help are covered by tests.",
+          "phase": "unit",
+          "ref": "cli/app_test.go:TestMetadata",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

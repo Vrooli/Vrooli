@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.coverage;
+
+import "google/protobuf/timestamp.proto";
+import "infrastructure-manager/v1/shared/cell.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1";
+
+// Coverage is the denominator axis of the infrastructure reliability
+// instrument. It joins owner-authored spaces to the operator-owned setpoint;
+// it never owns either source and never mutates either one.
+
+service CoverageService {
+  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+  rpc ListCells(ListCellsRequest) returns (ListCellsResponse);
+  rpc ListOpenLoopCells(ListCellsRequest) returns (ListCellsResponse);
+  rpc GetProjection(GetProjectionRequest) returns (GetProjectionResponse);
+  rpc ValidateSetpoint(ValidateSetpointRequest) returns (ValidateSetpointResponse);
+  rpc GetDrift(GetDriftRequest) returns (GetDriftResponse);
+}
+
+enum Projection {
+  PROJECTION_UNSPECIFIED = 0;
+  PROJECTION_SUPERVISION = 1;
+  PROJECTION_AVAILABILITY = 2;
+  PROJECTION_RECOVERY = 3;
+  PROJECTION_CAPACITY = 4;
+  PROJECTION_HEADROOM = 5;
+  PROJECTION_DURABILITY = 6;
+  PROJECTION_ATTRIBUTION = 7;
+  PROJECTION_VALIDATION_COST = 8;
+  PROJECTION_AGENT_THROUGHPUT = 9;
+  PROJECTION_COMMISSIONING = 10;
+  // Host, kernel and device tier. Second rung of the infra-health cascade
+  // ladder, so it is read before any outer-tier finding is honoured.
+  PROJECTION_SUBSTRATE = 11;
+}
+
+enum CellStatus {
+  CELL_STATUS_UNSPECIFIED = 0;
+  CELL_STATUS_NOW = 1;
+  CELL_STATUS_IN_REACH = 2;
+  CELL_STATUS_MISSING = 3;
+}
+
+enum ConfidenceLevel {
+  CONFIDENCE_LEVEL_UNSPECIFIED = 0;
+  CONFIDENCE_LEVEL_AUTHORITATIVE = 1;
+  CONFIDENCE_LEVEL_PARTIAL = 2;
+  CONFIDENCE_LEVEL_SKETCH = 3;
+}
+
+// Confidence is deliberately a message carried beside every ratio. A ratio
+// without its denominator confidence is not a valid instrument response.
+message Confidence {
+  ConfidenceLevel level = 1;
+  string rationale = 2;
+}
+
+message Ratio {
+  double value = 1;
+  Confidence confidence = 2;
+  int32 numerator = 3;
+  int32 denominator = 4;
+}
+
+message Bar {
+  string id = 1;
+  string cell_ref = 2;
+  Projection projection = 3;
+  string target_kind = 4;
+  string deadband = 5;
+  string sustain = 6;
+  string actuator = 7;
+  string decision_ref = 8;
+}
+
+message ProjectionCoverage {
+  Projection projection = 1;
+  Ratio ratio = 2;
+  int32 now_count = 3;
+  int32 in_reach_count = 4;
+  int32 missing_count = 5;
+  int32 total_cells = 6;
+  Confidence confidence = 7;
+  google.protobuf.Timestamp computed_at = 8;
+  bool available = 9;
+  string unavailable_reason = 10;
+}
+
+message IntegrityFinding {
+  string code = 1;
+  string message = 2;
+  string location = 3;
+  string severity = 4;
+  string decision_ref = 5;
+}
+
+message DriftFinding {
+  string code = 1;
+  string cell_ref = 2;
+  string sensor_ref = 3;
+  string message = 4;
+  string source = 5;
+}
+
+message GetCoverageRequest {
+  repeated Projection projections = 1;
+}
+
+message GetCoverageResponse {
+  repeated ProjectionCoverage projections = 1;
+  repeated IntegrityFinding integrity_findings = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message ListCellsRequest {
+  Projection projection = 1;
+  CellStatus status = 2;
+}
+
+message ListCellsResponse {
+  repeated shared.Cell cells = 1;
+}
+
+message GetProjectionRequest {
+  Projection projection = 1;
+}
+
+message GetProjectionResponse {
+  Projection projection = 1;
+  repeated shared.Cell cells = 2;
+  ProjectionCoverage coverage = 3;
+  repeated Bar bars = 4;
+}
+
+message ValidateSetpointRequest {
+  bool include_advisories = 1;
+}
+
+message ValidateSetpointResponse {
+  bool ok = 1;
+  repeated IntegrityFinding findings = 2;
+}
+
+message GetDriftRequest {
+  Projection projection = 1;
+}
+
+message GetDriftResponse {
+  repeated DriftFinding findings = 1;
+}

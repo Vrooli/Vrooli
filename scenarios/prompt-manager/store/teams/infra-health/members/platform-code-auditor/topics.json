@@ -1,0 +1,18 @@
+{
+  "required_read": [
+    {
+      "prefix": "platform-code-audit/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "platform-code-audit/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator"
+  ]
+}

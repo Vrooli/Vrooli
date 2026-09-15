@@ -28,16 +28,18 @@ export const FormStateSchema = z.object({
   auto_manage_tier1: z.boolean().optional(),
   vrooli_binary_path: z.string().optional(),
   bundle_manifest_path: z.string().optional(),
-  platforms: z.object({
-    win: z.boolean().optional(),
-    mac: z.boolean().optional(),
-    linux: z.boolean().optional(),
-  }).optional(),
+  platforms: z
+    .object({
+      win: z.boolean().optional(),
+      mac: z.boolean().optional(),
+      linux: z.boolean().optional(),
+    })
+    .optional(),
   location_mode: z.string().optional(),
   output_path: z.string().optional(),
   connection_result: z.any().optional(),
   connection_error: z.string().nullable().optional(),
-  // BundlePreflightResponse has its own deep schema — validated when consumed,
+  // Generated preflight evidence is validated at its persistence boundary,
   // not here at the outer FormState boundary.
   preflight_result: z.any().nullable().optional(),
   preflight_error: z.string().nullable().optional(),
@@ -53,14 +55,20 @@ export const FormStateSchema = z.object({
   bundle_result: z.any().optional(),
   smoke_test_id: z.string().nullable().optional(),
   smoke_test_platform: z.enum(["win", "mac", "linux"]).nullable().optional(),
-  smoke_test_status: z.enum(["running", "passed", "failed"]).nullable().optional(),
+  smoke_test_status: z
+    .enum(["running", "passed", "failed"])
+    .nullable()
+    .optional(),
   smoke_test_started_at: z.string().nullable().optional(),
   smoke_test_completed_at: z.string().nullable().optional(),
   smoke_test_logs: z.array(z.string()).nullable().optional(),
   smoke_test_error: z.string().nullable().optional(),
   smoke_test_telemetry_uploaded: z.boolean().optional(),
   wrapper_build_id: z.string().nullable().optional(),
-  wrapper_build_status: z.enum(["building", "ready", "failed"]).nullable().optional(),
+  wrapper_build_status: z
+    .enum(["building", "ready", "failed"])
+    .nullable()
+    .optional(),
   wrapper_output_path: z.string().nullable().optional(),
 });
 

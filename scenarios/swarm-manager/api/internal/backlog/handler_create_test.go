@@ -4,16 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
+// [REQ:SWM-P0-001] backlog work intake: direct item creation
 func TestCreate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
@@ -52,6 +58,51 @@ func TestCreate_Success(t *testing.T) {
 	testutil.AssertFileExists(t, specPath)
 }
 
+func TestCreate_StoresAgentProvenanceFromIdentityMiddleware(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":  "agent-created-item",
+		"title": "Agent Created Item",
+		"kind":  "idea",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Agent-Identity-Token", "valid-token")
+	w := httptest.NewRecorder()
+
+	handler := provenance.Middleware(provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		if token != "valid-token" {
+			t.Fatalf("token = %q, want valid-token", token)
+		}
+		return &cliutil.VerifyResult{
+			Valid: true,
+			Claims: &cliutil.VerifiedClaims{
+				RunID:      "run-agent-1",
+				TaskID:     "task-agent-1",
+				ProfileKey: "swarm-manager/default",
+			},
+		}, nil
+	}))(http.HandlerFunc(h.Create))
+
+	handler.ServeHTTP(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "agent-created-item", "spec.json"))
+	if saved.CreatedBy == nil {
+		t.Fatal("expected created_by provenance")
+	}
+	if saved.CreatedBy.Actor != identity.TypeAgent {
+		t.Fatalf("created_by.actor = %q, want %q", saved.CreatedBy.Actor, identity.TypeAgent)
+	}
+	if saved.CreatedBy.RunID != "run-agent-1" || saved.CreatedBy.TaskID != "task-agent-1" || saved.CreatedBy.ProfileKey != "swarm-manager/default" {
+		t.Fatalf("unexpected created_by provenance: %+v", saved.CreatedBy)
+	}
+}
+
 func TestCreate_RejectsUnknownField(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
@@ -74,158 +125,209 @@ func TestCreate_RejectsUnknownField(t *testing.T) {
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "new-test-idea", "spec.json"))
 }
 
+func TestCreate_RejectsSuggestedStatusField(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", strings.NewReader(`{
+		"name": "suggested-create",
+		"title": "Suggested Create",
+		"kind": "fix",
+		"status": "suggested"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "suggested-create", "spec.json"))
+}
+
+func TestCreate_MultipartWithFiles(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := newMultipartCreateRequest(t, map[string]any{
+		"name":             "Broken Preview",
+		"title":            "Broken Preview",
+		"description":      "Preview crashes after load",
+		"kind":             "fix",
+		"acceptance_allow": []string{"scenarios/app-monitor/**"},
+	}, map[string][]byte{
+		"evidence/report.json":    []byte(`{"message":"broken"}`),
+		"evidence/screenshot.png": []byte("png-data"),
+		"evidence/console.json":   []byte(`[{"level":"error"}]`),
+		"evidence/element-01.png": []byte("element"),
+		"evidence/lifecycle.txt":  []byte("logs"),
+		"evidence/network.json":   []byte(`[]`),
+		"evidence/health.json":    []byte(`[]`),
+		"evidence/status.txt":     []byte("running"),
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Kind != KindFix {
+		t.Fatalf("kind = %q, want %q", resp.Item.Kind, KindFix)
+	}
+
+	itemDir := filepath.Join(rootDir, "fix", "broken-preview")
+	testutil.AssertFileExists(t, filepath.Join(itemDir, "spec.json"))
+	for rel, want := range map[string]string{
+		"evidence/report.json":    `{"message":"broken"}`,
+		"evidence/screenshot.png": "png-data",
+		"evidence/console.json":   `[{"level":"error"}]`,
+		"evidence/element-01.png": "element",
+		"evidence/lifecycle.txt":  "logs",
+		"evidence/network.json":   `[]`,
+		"evidence/health.json":    `[]`,
+		"evidence/status.txt":     "running",
+	} {
+		got, err := os.ReadFile(filepath.Join(itemDir, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		if string(got) != want {
+			t.Fatalf("%s = %q, want %q", rel, got, want)
+		}
+	}
+}
+
+func TestCreate_MultipartRejectsUnsafeFilePathAndRollsBack(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := newMultipartCreateRequest(t, map[string]any{
+		"name":  "Unsafe Evidence",
+		"title": "Unsafe Evidence",
+		"kind":  "fix",
+	}, map[string][]byte{
+		"../outside.txt": []byte("bad"),
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unsafe-evidence"))
+}
+
+func TestCreate_MultipartRejectsUnlistedFileAndRollsBack(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	itemPayload, err := json.Marshal(map[string]any{
+		"name":  "Unlisted Evidence",
+		"title": "Unlisted Evidence",
+		"kind":  "fix",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("item", string(itemPayload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("files_manifest", `{"files":[]}`); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("extra", "report.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unlisted-evidence"))
+}
+
+func TestCreate_RejectsUnsupportedContentType(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", strings.NewReader("name=bad"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, http.StatusUnsupportedMediaType, w.Body.String())
+	}
+}
+
+func newMultipartCreateRequest(t *testing.T, item map[string]any, files map[string][]byte) *http.Request {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	itemPayload, err := json.Marshal(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("item", string(itemPayload)); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest := map[string]any{"files": []map[string]string{}}
+	entries := manifest["files"].([]map[string]string)
+	index := 0
+	for path, content := range files {
+		field := fmt.Sprintf("file_%d", index)
+		entries = append(entries, map[string]string{
+			"field":        field,
+			"path":         path,
+			"content_type": contentTypeForPath(path),
+		})
+		part, err := writer.CreateFormFile(field, filepath.Base(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(content); err != nil {
+			t.Fatal(err)
+		}
+		index++
+	}
+	manifest["files"] = entries
+	manifestPayload, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("files_manifest", string(manifestPayload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req
+}
+
+func contentTypeForPath(path string) string {
+	switch filepath.Ext(path) {
+	case ".json":
+		return "application/json"
+	case ".png":
+		return "image/png"
+	default:
+		return "text/plain"
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Auto-initialize workshop on Create
-// ---------------------------------------------------------------------------
-
-func TestCreate_AutoInitializesWorkshop(t *testing.T) {
-	spawned := make(chan struct{})
-	agent := &mockAgentService{
-		result:   agentmanager.RunResult{RunID: "run-auto", TaskID: "task-auto"},
-		spawnedC: spawned,
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
-
-	// Re-enable auto-initialize for this test.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                    "dark",
-		"default_mode":             "manual",
-		"max_auto_rounds":          10,
-		"auto_initialize_workshop": true,
-		"auto_advance_workshop":    true,
-		"auto_cascade_workshop":    true,
-		"agent_max_turns":          60,
-		"agent_timeout_seconds":    900,
-		"agent_requires_approval":  true,
-		"search_debounce_ms":       300,
-		"toast_duration_ms":        5000,
-		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
-	})
-
-	payload := map[string]any{
-		"name":  "auto-init-test",
-		"title": "Auto Init Test",
-		"kind":  "idea",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	h.Create(w, req)
-
-	testutil.AssertStatusCreated(t, w)
-
-	// Wait for the background goroutine to call SpawnBacklog.
-	select {
-	case <-spawned:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for auto-init spawn")
-	}
-
-	if agent.lastReq == nil {
-		t.Fatal("expected agent spawn to be called")
-	}
-	if agent.lastReq.Name != "auto-init-test" {
-		t.Errorf("expected spawn for 'auto-init-test', got %q", agent.lastReq.Name)
-	}
-}
-
-func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
-
-	// Disable auto-initialize via settings.
-	t.Setenv("SCENARIO_ROOT", rootDir)
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                    "dark",
-		"default_mode":             "manual",
-		"max_auto_rounds":          10,
-		"auto_initialize_workshop": false,
-		"auto_advance_workshop":    true,
-		"auto_cascade_workshop":    true,
-		"agent_max_turns":          60,
-		"agent_timeout_seconds":    900,
-		"agent_requires_approval":  true,
-		"search_debounce_ms":       300,
-		"toast_duration_ms":        5000,
-		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
-	})
-
-	payload := map[string]any{
-		"name":  "no-auto-test",
-		"title": "No Auto Test",
-		"kind":  "idea",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	h.Create(w, req)
-
-	testutil.AssertStatusCreated(t, w)
-
-	// Give a brief window for any goroutine to fire (it shouldn't).
-	time.Sleep(100 * time.Millisecond)
-
-	if agent.lastReq != nil {
-		t.Error("expected NO agent spawn when auto_initialize_workshop is false")
-	}
-}
-
-func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
-	spawned := make(chan struct{})
-	agent := &mockAgentService{
-		err:      fmt.Errorf("agent down"),
-		spawnedC: spawned,
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
-
-	// Re-enable auto-initialize to test agent-down resilience.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
-		"theme":                    "dark",
-		"default_mode":             "manual",
-		"max_auto_rounds":          10,
-		"auto_initialize_workshop": true,
-		"auto_advance_workshop":    true,
-		"auto_cascade_workshop":    true,
-		"agent_max_turns":          60,
-		"agent_timeout_seconds":    900,
-		"agent_requires_approval":  true,
-		"search_debounce_ms":       300,
-		"toast_duration_ms":        5000,
-		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},
-	})
-
-	payload := map[string]any{
-		"name":  "agent-down-test",
-		"title": "Agent Down Test",
-		"kind":  "fix",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	h.Create(w, req)
-
-	// Item should be created successfully regardless of agent error.
-	testutil.AssertStatusCreated(t, w)
-
-	specPath := filepath.Join(rootDir, "fix", "agent-down-test", "spec.json")
-	testutil.AssertFileExists(t, specPath)
-
-	// Wait for the goroutine to attempt spawn (and fail).
-	select {
-	case <-spawned:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for auto-init attempt")
-	}
-}
-
 func TestCreate_WithEffort(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page settings.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "settings",
+      "surface": "experience-settings"
+    },
+    "name": "experience-settings-spec-smoke",
+    "requirement": "OT-P1-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Settings"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/settings",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-settings"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/navigation.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-settings-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Settings workspace binding visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"settings-workspace\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-settings-surface"
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-settings", "target": "wait-settings-primary-binding"},
+    {"id": "e2", "source": "wait-settings-primary-binding", "target": "wait-settings-surface"}
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

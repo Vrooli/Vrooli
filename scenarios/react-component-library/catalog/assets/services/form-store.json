@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.form-store",
+    "name": "Form Store",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The field-granular store factory owning values, defaults, dirtiness, touched state, validation, dependencies, submission, autosave, and conflict state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "One store per form instance; nested forms must not share state."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "TValues"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "input-preservation",
+    "error-association"
+  ],
+  "rationale": "Field-granular by construction: subscribing to whole-form state is the defect that makes large generated forms unusable, and it is far cheaper to prevent here than to retrofit."
+}

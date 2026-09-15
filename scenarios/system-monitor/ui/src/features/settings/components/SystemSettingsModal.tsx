@@ -26,6 +26,12 @@ const defaultSettings: ProtoSettings = create(SystemSettingsSchema, {
   thresholdCheckInterval: 20,
   cooldownPeriodSeconds: 300,
   cpuThreshold: 85.0,
+  cpuHighPercent: 92.0,
+  cpuCriticalPercent: 97.0,
+  cpuEscalationCooldownSeconds: 1800,
+  cpuEscalationDebounceTicks: 2,
+  cpuSustainedWindowTicks: 3,
+  cpuPressureThreshold: 10.0,
   memoryThreshold: 90.0,
   diskThreshold: 85.0,
 });
@@ -44,7 +50,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
       clearTimeout(successTimeoutRef.current);
     }
     setSuccessMessage(msg);
-    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+    successTimeoutRef.current = setTimeout(() => { setSuccessMessage(null); }, 3000);
   }, []);
 
   useEffect(() => {
@@ -149,38 +155,30 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     <Modal isOpen={isOpen} onClose={handleClose} ariaLabel="System settings" className="modal-sm">
       <ModalHeader onClose={handleClose}>
         <div className="icon-text">
-          <Settings size={24} style={{ color: 'var(--color-primary)' }} />
-          <h2 style={{
-            margin: 0,
-            color: 'var(--color-text-heading)',
-            fontSize: 'var(--text-xl)'
-          }}>
+          <Settings size={24} data-sm-style="sm-style-392c7463c7" />
+          <h2 data-sm-style="sm-style-28fbfae5b9">
             System Monitor Settings
           </h2>
         </div>
       </ModalHeader>
 
       {/* Body */}
-      <div style={{ padding: 'var(--spacing-lg)', overflow: 'auto', flex: 1 }}>
+      <div data-sm-style="sm-style-fe9d9d2f6f">
         {loading && (
-          <div style={{
-            textAlign: 'center',
-            padding: 'var(--spacing-xl)',
-            color: 'var(--color-text-secondary)'
-          }}>
+          <div data-sm-style="sm-style-586c42c087">
             Loading settings...
           </div>
         )}
 
         {error && (
-          <div className="error-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+          <div className="error-banner" data-sm-style="sm-style-b439d4fdb0">
             <AlertTriangle size={16} />
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="success-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+          <div className="success-banner" data-sm-style="sm-style-b439d4fdb0">
             <CheckCircle size={16} />
             {successMessage}
           </div>
@@ -190,47 +188,23 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           <div className="flex-col-gap-lg">
             {/* System Status Section */}
             <div>
-              <h3 className="icon-text section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="icon-text section-heading" data-sm-style="sm-style-aa254bd4d7">
                 <Activity size={18} />
                 System Status
               </h3>
 
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                cursor: 'pointer',
-                padding: 'var(--spacing-md)',
-                background: 'var(--overlay-medium)',
-                border: '1px solid var(--color-primary)',
-                borderRadius: 'var(--radius-md)'
-              }}>
+              <label data-sm-style="sm-style-53626c1c9a">
                 <input
                   type="checkbox"
                   checked={settings.active}
-                  onChange={(e) => setSettings(prev => ({ ...prev, active: e.target.checked }))}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    accentColor: 'var(--color-success)',
-                    cursor: 'pointer'
-                  }}
+                  onChange={(e) => { setSettings(prev => ({ ...prev, active: e.target.checked })); }}
+                  data-sm-style="sm-style-61e095ca60"
                 />
                 <div>
-                  <div style={{
-                    color: 'var(--color-text-heading)',
-                    fontWeight: 'bold'
-                  }}>
+                  <div data-sm-style="sm-style-65dd98adc6">
                     System Monitor Active
                   </div>
-                  <div style={{
-                    color: 'var(--color-text-secondary)',
-                    fontSize: 'var(--text-sm)',
-                    marginTop: 'var(--spacing-xs)'
-                  }}>
+                  <div data-sm-style="sm-style-aba19f690c">
                     Enable automatic monitoring, threshold checking, and anomaly detection
                   </div>
                 </div>
@@ -239,18 +213,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Monitoring Intervals Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Monitoring Intervals (seconds)
               </h3>
 
-              <div style={{
-                display: 'grid',
-                gap: 'var(--spacing-md)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
-              }}>
+              <div data-sm-style="sm-style-4ac5de75de">
                 <div>
                   <label className="input-label">Metric Collection</label>
                   <input
@@ -259,10 +226,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="5"
                     max="3600"
                     value={settings.metricCollectionInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       metricCollectionInterval: parseInt(e.target.value) || 10
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -274,10 +241,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="10"
                     max="1800"
                     value={settings.thresholdCheckInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       thresholdCheckInterval: parseInt(e.target.value) || 20
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -289,10 +256,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="30"
                     max="7200"
                     value={settings.anomalyDetectionInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       anomalyDetectionInterval: parseInt(e.target.value) || 30
-                    }))}
+                    })); }}
                   />
                 </div>
               </div>
@@ -300,18 +267,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* System Thresholds Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Alert Thresholds (%)
               </h3>
 
-              <div style={{
-                display: 'grid',
-                gap: 'var(--spacing-md)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'
-              }}>
+              <div data-sm-style="sm-style-52943ea1ec">
                 <div>
                   <label className="input-label">CPU Usage</label>
                   <input
@@ -321,10 +281,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.cpuThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       cpuThreshold: parseFloat(e.target.value) || 85
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -337,11 +297,36 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.memoryThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       memoryThreshold: parseFloat(e.target.value) || 90
-                    }))}
+                    })); }}
                   />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU High Band</label>
+                  <input type="number" className="input-field" min="1" max="100" step="0.1" value={settings.cpuHighPercent} onChange={(e) => { setSettings(prev => ({ ...prev, cpuHighPercent: parseFloat(e.target.value) || 92 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Critical Band</label>
+                  <input type="number" className="input-field" min="1" max="100" step="0.1" value={settings.cpuCriticalPercent} onChange={(e) => { setSettings(prev => ({ ...prev, cpuCriticalPercent: parseFloat(e.target.value) || 97 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Sustained Samples</label>
+                  <input type="number" className="input-field" min="1" max="100" value={settings.cpuSustainedWindowTicks} onChange={(e) => { setSettings(prev => ({ ...prev, cpuSustainedWindowTicks: parseInt(e.target.value) || 3 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Debounce Samples</label>
+                  <input type="number" className="input-field" min="1" max="100" value={settings.cpuEscalationDebounceTicks} onChange={(e) => { setSettings(prev => ({ ...prev, cpuEscalationDebounceTicks: parseInt(e.target.value) || 2 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Cooldown (seconds)</label>
+                  <input type="number" className="input-field" min="0" max="86400" value={settings.cpuEscalationCooldownSeconds} onChange={(e) => { setSettings(prev => ({ ...prev, cpuEscalationCooldownSeconds: parseInt(e.target.value) || 1800 })); }} />
                 </div>
 
                 <div>
@@ -353,10 +338,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.diskThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       diskThreshold: parseFloat(e.target.value) || 85
-                    }))}
+                    })); }}
                   />
                 </div>
               </div>
@@ -364,10 +349,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Investigation Settings Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Investigation Settings
               </h3>
 
@@ -379,17 +361,13 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                   min="0"
                   max="86400"
                   value={settings.cooldownPeriodSeconds}
-                  onChange={(e) => setSettings(prev => ({
+                  onChange={(e) => { setSettings(prev => ({
                     ...prev,
                     cooldownPeriodSeconds: parseInt(e.target.value) || 300
-                  }))}
-                  style={{ width: '200px' }}
+                  })); }}
+                  data-sm-style="sm-style-28702649fb"
                 />
-                <div style={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: 'var(--text-xs)',
-                  marginTop: 'var(--spacing-xs)'
-                }}>
+                <div data-sm-style="sm-style-583863c6ac">
                   Minimum time between automatic investigations to prevent spam
                 </div>
               </div>
@@ -399,39 +377,29 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
       </div>
 
       {/* Footer */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 'var(--spacing-lg)',
-        borderTop: '1px solid var(--color-primary)',
-        background: 'var(--overlay-medium)'
-      }}>
+      <div data-sm-style="sm-style-e3e852fc99">
         <button
-          onClick={resetSettings}
+          onClick={() => { void resetSettings(); }}
           disabled={saving || loading}
-          className="btn btn-secondary icon-text icon-text-xs"
-          style={{ opacity: saving || loading ? 0.5 : 1 }}
+          className={`btn btn-secondary icon-text icon-text-xs ${saving || loading ? 'is-disabled' : ''}`}
         >
           <RotateCcw size={16} />
           Reset to Defaults
         </button>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+        <div data-sm-style="sm-style-2f94a4de27">
           <button
             onClick={handleClose}
             disabled={saving}
-            className="btn btn-secondary"
-            style={{ opacity: saving ? 0.5 : 1 }}
+            className={`btn btn-secondary ${saving ? 'is-disabled' : ''}`}
           >
             Cancel
           </button>
 
           <button
-            onClick={saveSettings}
+            onClick={() => { void saveSettings(); }}
             disabled={saving || loading || !hasChanges}
-            className="btn btn-primary icon-text icon-text-xs"
-            style={{ opacity: saving || loading || !hasChanges ? 0.5 : 1 }}
+            className={`btn btn-primary icon-text icon-text-xs ${saving || loading || !hasChanges ? 'is-disabled' : ''}`}
           >
             <Save size={16} />
             {saving ? 'Saving...' : 'Save Settings'}

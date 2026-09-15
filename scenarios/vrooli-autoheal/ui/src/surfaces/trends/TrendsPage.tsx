@@ -1,15 +1,16 @@
 // Trends page showing comprehensive historical data
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { useQuery } from "@tanstack/react-query";
-import { useState, useCallback, useMemo } from "react";
+import { memo, Profiler, useState, useCallback, useMemo } from "react";
 import { TrendingUp, Activity, AlertTriangle, Clock, Download } from "lucide-react";
-import { fetchTimeline, fetchUptimeStats, fetchIncidents, fetchCheckTrends, TimelineEvent } from "../../lib/api";
+import { fetchTimeline, fetchUptimeStats, fetchTransitions, fetchCheckTrends, TimelineEvent, type CheckTrend, type Transition } from "../../lib/api";
 import { CheckDetailModal, ErrorDisplay, StatusIcon } from "../../shared/components";
 import { Button, Card } from "../../shared/ui/primitives";
 import { UptimeTrendChart, CheckTrendGrid } from "./components";
 import { exportTrendDataToCSV } from "../../lib/export";
 import { useCheckMetadata } from "../../shared/contexts/CheckMetadataContext";
 import { formatRelativeTime } from "../../lib/utils";
+import { onProfilerRender } from "../../lib/profiler";
 
 // Helper to detect status transitions (incidents)
 function detectIncidents(events: TimelineEvent[]): Array<{
@@ -75,8 +76,90 @@ const TIME_WINDOWS: TimeWindow[] = [
   { label: "7d", hours: 168, buckets: 28 },
 ];
 const DEFAULT_TIME_WINDOW: TimeWindow = TIME_WINDOWS[2] ?? { label: "24h", hours: 24, buckets: 24 };
+const EMPTY_CHECK_TRENDS: CheckTrend[] = [];
+const EMPTY_TIMELINE_EVENTS: TimelineEvent[] = [];
+const INCIDENT_RENDER_LIMIT = 50;
 
-export function TrendsPage() {
+interface IncidentRowProps {
+  incident: Transition;
+  title: string;
+  onCheckClick: (checkId: string) => void;
+}
+
+const IncidentRow = memo(function IncidentRow({
+  incident,
+  title,
+  onCheckClick,
+}: IncidentRowProps) {
+  const showCheckId = title !== incident.checkId;
+  const handleClick = useCallback(() => {
+    onCheckClick(incident.checkId);
+  }, [incident.checkId, onCheckClick]);
+
+  return (
+    <div
+      className="flex cursor-pointer items-start gap-3 rounded-lg bg-surface-overlay/20 p-3 transition-colors hover:bg-surface-overlay/40"
+      onClick={handleClick}
+    >
+      <div className="flex items-center gap-1 mt-0.5">
+        <StatusIcon status={incident.fromStatus as "ok" | "warning" | "critical"} size={12} />
+        <span className="text-text-muted">→</span>
+        <StatusIcon status={incident.toStatus as "ok" | "warning" | "critical"} size={12} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <span className="block truncate text-sm font-medium text-text-primary" title={incident.checkId}>
+              {title}
+            </span>
+            {showCheckId && (
+              <span className="font-mono text-xs text-text-muted/80 break-all">{incident.checkId}</span>
+            )}
+          </div>
+          <span className="shrink-0 text-xs text-text-muted">
+            {formatRelativeTime(incident.timestamp)}
+          </span>
+        </div>
+        <p className="break-words text-xs text-text-muted">{incident.message}</p>
+      </div>
+    </div>
+  );
+});
+
+interface IncidentsListProps {
+  incidents: Transition[];
+  getTitle: (checkId: string) => string;
+  onCheckClick: (checkId: string) => void;
+}
+
+const IncidentsList = memo(function IncidentsList({
+  incidents,
+  getTitle,
+  onCheckClick,
+}: IncidentsListProps) {
+  const visibleIncidents = useMemo(
+    () => incidents.slice(0, INCIDENT_RENDER_LIMIT).map((incident) => ({
+      incident,
+      title: getTitle(incident.checkId),
+    })),
+    [getTitle, incidents],
+  );
+
+  return (
+    <div className="max-h-64 space-y-2 overflow-y-auto" data-testid="incidents-list">
+      {visibleIncidents.map(({ incident, title }, idx) => (
+        <IncidentRow
+          key={`${incident.checkId}-${incident.timestamp}-${idx}`}
+          incident={incident}
+          title={title}
+          onCheckClick={onCheckClick}
+        />
+      ))}
+    </div>
+  );
+});
+
+function TrendsPageImpl() {
   const [selectedWindow, setSelectedWindow] = useState<TimeWindow>(DEFAULT_TIME_WINDOW); // Default 24h
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
   const { getTitle } = useCheckMetadata();
@@ -86,6 +169,7 @@ export function TrendsPage() {
     queryKey: ["uptime"],
     queryFn: fetchUptimeStats,
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   });
 
   // Check trends from dedicated endpoint
@@ -93,13 +177,15 @@ export function TrendsPage() {
     queryKey: ["check-trends", selectedWindow.hours],
     queryFn: () => fetchCheckTrends(selectedWindow.hours),
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   });
 
-  // Incidents from dedicated endpoint
+  // Status transitions from dedicated endpoint
   const { data: incidentsData, isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents } = useQuery({
-    queryKey: ["incidents", selectedWindow.hours],
-    queryFn: () => fetchIncidents(selectedWindow.hours, 50),
+    queryKey: ["transitions", selectedWindow.hours],
+    queryFn: () => fetchTransitions(selectedWindow.hours, 50),
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   });
 
   // Fallback to timeline for backwards compatibility
@@ -107,13 +193,17 @@ export function TrendsPage() {
     queryKey: ["timeline"],
     queryFn: fetchTimeline,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+    staleTime: 30000,
   });
 
   // Use backend incidents if available, otherwise fallback to client-side detection
   const incidents = useMemo(
-    () => incidentsData?.incidents ?? (timelineData?.events ? detectIncidents(timelineData.events) : []),
-    [incidentsData?.incidents, timelineData?.events]
+    () => incidentsData?.transitions ?? (timelineData?.events ? detectIncidents(timelineData.events) : []),
+    [incidentsData?.transitions, timelineData?.events]
   );
+  const checkTrends = checkTrendsData?.trends ?? EMPTY_CHECK_TRENDS;
+  const timelineEvents = timelineData?.events ?? EMPTY_TIMELINE_EVENTS;
 
   // Handle check drill-down
   const handleCheckClick = useCallback((checkId: string) => {
@@ -122,14 +212,13 @@ export function TrendsPage() {
 
   // Handle CSV export
   const handleExport = useCallback(() => {
-    const checkTrends = checkTrendsData?.trends ?? [];
     exportTrendDataToCSV({
       checkTrends,
       incidents,
       windowHours: selectedWindow.hours,
       uptimePercentage: uptimeData?.uptimePercentage ?? 0,
     });
-  }, [checkTrendsData?.trends, incidents, selectedWindow.hours, uptimeData?.uptimePercentage]);
+  }, [checkTrends, incidents, selectedWindow.hours, uptimeData?.uptimePercentage]);
 
   return (
     <div className="space-y-6" data-testid="autoheal-trends-page">
@@ -200,7 +289,9 @@ export function TrendsPage() {
         ) : uptimeError ? (
           <ErrorDisplay error={uptimeError} onRetry={() => refetchUptime()} compact />
         ) : (
-          <UptimeTrendChart windowHours={selectedWindow.hours} bucketCount={selectedWindow.buckets} />
+          <Profiler id="UptimeTrendChart" onRender={onProfilerRender}>
+            <UptimeTrendChart windowHours={selectedWindow.hours} bucketCount={selectedWindow.buckets} />
+          </Profiler>
         )}
       </Card>
 
@@ -221,11 +312,13 @@ export function TrendsPage() {
         ) : trendsError ? (
           <ErrorDisplay error={trendsError} onRetry={() => refetchTrends()} compact />
         ) : (
-          <CheckTrendGrid
-            trends={checkTrendsData?.trends ?? []}
-            events={timelineData?.events ?? []}
-            onCheckClick={handleCheckClick}
-          />
+          <Profiler id="CheckTrendGrid" onRender={onProfilerRender}>
+            <CheckTrendGrid
+              trends={checkTrends}
+              events={timelineEvents}
+              onCheckClick={handleCheckClick}
+            />
+          </Profiler>
         )}
       </Card>
 
@@ -252,37 +345,11 @@ export function TrendsPage() {
             <p className="text-xs mt-1">All checks have maintained consistent status</p>
           </div>
         ) : (
-          <div className="max-h-64 space-y-2 overflow-y-auto" data-testid="incidents-list">
-            {incidents.slice(0, 50).map((incident, idx) => (
-              <div
-                key={`${incident.checkId}-${incident.timestamp}-${idx}`}
-                className="flex cursor-pointer items-start gap-3 rounded-lg bg-surface-overlay/20 p-3 transition-colors hover:bg-surface-overlay/40"
-                onClick={() => handleCheckClick(incident.checkId)}
-              >
-                <div className="flex items-center gap-1 mt-0.5">
-                  <StatusIcon status={incident.fromStatus as "ok" | "warning" | "critical"} size={12} />
-                  <span className="text-text-muted">→</span>
-                  <StatusIcon status={incident.toStatus as "ok" | "warning" | "critical"} size={12} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-text-primary" title={incident.checkId}>
-                        {getTitle(incident.checkId)}
-                      </span>
-                      {getTitle(incident.checkId) !== incident.checkId && (
-                        <span className="font-mono text-xs text-text-muted/80 break-all">{incident.checkId}</span>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-xs text-text-muted">
-                      {formatRelativeTime(incident.timestamp)}
-                    </span>
-                  </div>
-                  <p className="break-words text-xs text-text-muted">{incident.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <IncidentsList
+            incidents={incidents}
+            getTitle={getTitle}
+            onCheckClick={handleCheckClick}
+          />
         )}
       </Card>
 
@@ -294,5 +361,13 @@ export function TrendsPage() {
         />
       )}
     </div>
+  );
+}
+
+export function TrendsPage() {
+  return (
+    <Profiler id="TrendsPage" onRender={onProfilerRender}>
+      <TrendsPageImpl />
+    </Profiler>
   );
 }

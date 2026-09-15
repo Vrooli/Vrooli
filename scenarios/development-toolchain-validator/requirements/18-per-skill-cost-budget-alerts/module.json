@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P2-002",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "title": "Per-Skill Cost Budget Alerts",
+  "description": "Token/cost ceiling per skill. Alert when a run exceeds historical baseline by a configurable percentage. Surfaces skill-bug regressions early.",
+  "requirements": [
+    {
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "title": "Budget config + alert dispatcher",
+      "description": "Per-skill budget config (cost or tokens ceiling, percentage-over-baseline threshold). On validation record write, compare to baseline; emit alert event when exceeded.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

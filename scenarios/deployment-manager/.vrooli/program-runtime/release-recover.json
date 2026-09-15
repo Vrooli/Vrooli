@@ -1,0 +1,164 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "deployment-manager.release-recover",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Produce a bounded recovery decision for one exact review and route an explicitly granted recovery action through the owning target with a durable effect receipt.",
+  "inputs": {
+    "review_key": {
+      "type": "string",
+      "required": true
+    },
+    "release_id": {
+      "type": "string",
+      "default": ""
+    },
+    "candidate_id": {
+      "type": "string",
+      "default": ""
+    },
+    "destination_revision_id": {
+      "type": "string",
+      "default": ""
+    },
+    "action": {
+      "type": "string",
+      "default": "halt"
+    },
+    "execute": {
+      "type": "boolean",
+      "default": false
+    },
+    "confirmation": {
+      "type": "string",
+      "default": ""
+    },
+    "dry_run_reference": {
+      "type": "string",
+      "default": ""
+    },
+    "expected_predecessor_revision": {
+      "type": "integer",
+      "default": 0
+    },
+    "data_compatibility": {
+      "type": "string",
+      "default": ""
+    },
+    "repair_artifact_ids": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "assumptions": [
+    "recovery authority remains with the owning release target"
+  ],
+  "invariants": [
+    "read-only by default",
+    "execute mode never improvises a missing owner binding",
+    "target identity is the immutable review key",
+    "one envelope is printed on every path"
+  ],
+  "bindings": [
+    {
+      "id": "deployment-manager/readiness-reviews/get",
+      "effect": "read"
+    },
+    {
+      "id": "deployment-manager/releases/recover",
+      "effect": "write"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "decide",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "decision": "observe or repair blockers",
+      "review_status": "durable state",
+      "target_identity": "review key",
+      "required_controls": "grant, confirmation, and dry-run evidence",
+      "owner_receipt": "durable owner effect receipt",
+      "outcome": "halted, withdrawn, rolled_back, or forward_repaired"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "review key and dry-run reference"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1
+  },
+  "fixtures": [
+    {
+      "id": "missing-key",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "deployment-manager"
+      ]
+    },
+    {
+      "id": "execute-refused",
+      "inputs": {
+        "review_key": "rr-fixture-missing",
+        "execute": true,
+        "confirmation": "confirmed",
+        "dry_run_reference": "run:fixture"
+      },
+      "expect": {
+        "status": [
+          "failed",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "deployment-manager",
+  "verbs": [
+    "agent.collect",
+    "tasks.get",
+    "validate"
+  ]
+}

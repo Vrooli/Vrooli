@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `recovery` output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of the `vrooli recovery` verbs' `--json` output:
+// `capture`, `restore`, `engagement`/`touch`/`set-ttl` (EngagementView), `list`,
+// `clean`, `migrate`, and `namespace`. Every site emits the payload directly
+// (cliout.WriteJSON, no success envelope). Marshaled with protojson
+// (UseProtoNames=true, EmitUnpopulated=true). Replaces the ad-hoc JSON so the
+// git-control-tower baseline verbs and any other consumer decode a typed shape.
+// =============================================================================
+
+// RecoveryCopyStats reports the restore-point copy-ladder tallies. The internal
+// Go struct (baselinefloor.CopyStats) carries no JSON tags, so the legacy output
+// used PascalCase keys; this contract normalizes them to snake_case.
+message RecoveryCopyStats {
+  // Number of directories created.
+  int32 dirs = 1;
+
+  // Number of symlinks recreated verbatim.
+  int32 symlinks = 2;
+
+  // Number of regular files copied via the reflink (CoW) fast path.
+  int32 reflink_files = 3;
+
+  // Number of regular files copied via the portable native-Go deep copy.
+  int32 deep_copy_files = 4;
+
+  // Total bytes copied. int64: a working tree can exceed 2 GiB.
+  int64 bytes_copied = 5;
+
+  // Number of entries skipped by exclusion rules (build artifacts, etc.).
+  int32 excluded = 6;
+}
+
+// RecoveryCaptureOutput is the shape of `recovery capture --json` — a completed
+// restore-point capture of a scenario's working tree.
+message RecoveryCaptureOutput {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Engagement slug (the engagement directory is baseline-<slug>).
+  string slug = 2;
+
+  // Source path captured (the working tree, or the --source override).
+  string source = 3;
+
+  // Absolute path to the written restore point.
+  string restore_point_path = 4;
+
+  // Copy-ladder tallies for the capture.
+  RecoveryCopyStats stats = 5;
+}
+
+// RecoveryRestoreOutput is the shape of `recovery restore --json` — a completed
+// overlay of a captured restore point back onto a scenario.
+message RecoveryRestoreOutput {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Engagement slug.
+  string slug = 2;
+
+  // Absolute path to the restore point that was overlaid.
+  string restore_point_path = 3;
+
+  // Destination the restore point was overlaid onto (the working tree, or the
+  // --dest override).
+  string dest = 4;
+
+  // Copy-ladder tallies for the restore.
+  RecoveryCopyStats stats = 5;
+}
+
+// RecoveryEngagementView is the shape every engagement-returning verb emits
+// (`recovery engagement`, `touch`, `set-ttl`). The internal Go type embeds the
+// engagement Manifest, whose fields flatten into the JSON object alongside
+// expires_at/expired — they are listed inline here.
+message RecoveryEngagementView {
+  // --- embedded Manifest fields ---
+
+  // Target scenario slug (e.g. "swarm-manager").
+  string scenario = 1;
+
+  // Engagement slug — the directory is baseline-<slug>.
+  string slug = 2;
+
+  // Shadow variant for a shadow engagement ("shadow"), or "live".
+  string variant = 3;
+
+  // Recorded execution mode (Go "type Mode string"; e.g. "shadow", "live").
+  string mode = 4;
+
+  // Absolute path to the captured restore point.
+  string restore_point_path = 5;
+
+  // git-control-tower baseline record the engagement diffs against (the
+  // validation anchor); empty if none.
+  string anchor_baseline_name = 6;
+
+  // VROOLI_SHADOW_SCENARIOS value set for this engagement so nested CLI calls
+  // auto-route to the shadow; empty in live mode.
+  string ambient_var = 7;
+
+  // Registry instance key for the shadow ("<scenario>@<variant>"); empty in
+  // live mode.
+  string shadow_instance_key = 8;
+
+  // RFC3339Nano timestamp when the engagement was opened.
+  string created_at = 9;
+
+  // RFC3339Nano lease-renewal timestamp; TTL is measured from this.
+  string last_touched_at = 10;
+
+  // Idle cap as a human-friendly duration string ("3h"); "0s" means no TTL
+  // (orchestrator-heartbeat mode).
+  string ttl = 11;
+
+  // --- derived view fields ---
+
+  // RFC3339Nano absolute idle-expiry (last_touched_at + ttl); empty when the
+  // engagement has no TTL.
+  string expires_at = 12;
+
+  // True when the idle TTL has elapsed as of the service clock.
+  bool expired = 13;
+}
+
+// RecoveryListOutput is the shape of `recovery list --json` — every engagement
+// manifest globbed under the cache root, oldest-first.
+message RecoveryListOutput {
+  // All active engagements; empty when none are open.
+  repeated RecoveryEngagementView engagements = 1;
+}
+
+// RecoveryCleanOutput is the shape of `recovery clean --json` — a torn-down
+// engagement.
+message RecoveryCleanOutput {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Engagement slug.
+  string slug = 2;
+
+  // Absolute path to the engagement directory that was removed.
+  string engagement_dir = 3;
+}
+
+// RecoveryMigrateOutput is the shape of `recovery migrate --json`. The internal
+// Go type embeds baselinefloor.MigrationResult, whose fields flatten into the
+// JSON object alongside scenario/slug/migrations_dir — listed inline here.
+message RecoveryMigrateOutput {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Engagement slug.
+  string slug = 2;
+
+  // Migrations directory inspected (the floor-owned per-engagement folder, or
+  // the --migrations-dir override).
+  string migrations_dir = 3;
+
+  // True when the SQLite database path was derived from the scenario's
+  // variant-aware data dir rather than supplied via --db-path.
+  bool db_path_auto_resolved = 4;
+
+  // --- embedded MigrationResult fields ---
+
+  // Migration engine (Go "type Engine string"; e.g. "sqlite").
+  string engine = 5;
+
+  // Resolved database path migrated against; empty on the fast path.
+  string database = 6;
+
+  // True when scripts were dry-run only (not applied).
+  bool dry_run = 7;
+
+  // True when no scripts were authored — the shape-unchanged fast path skips
+  // DB handling entirely.
+  bool fast_path = 8;
+
+  // Number of migration scripts seen in the directory.
+  int32 scripts_seen = 9;
+
+  // Script filenames applied this run; empty if none.
+  repeated string applied = 10;
+
+  // Script filenames skipped (already-applied); empty if none.
+  repeated string skipped = 11;
+}
+
+// RecoveryNamespaceOutput is the shape of `recovery namespace --json` — a
+// scenario instance's SSOT storage namespaces (pure addressing).
+message RecoveryNamespaceOutput {
+  // Resolved scenario slug.
+  string scenario = 1;
+
+  // Normalized variant ("live", "shadow", ...).
+  string variant = 2;
+
+  // Canonical "<scenario>" / "<scenario>@<variant>" identifier — the registry
+  // record slug and the lifecycle --instance target.
+  string instance_key = 3;
+
+  // Variant-aware Postgres database name ("vrooli_<scenario>" for live,
+  // "vrooli_<scenario>_<variant>" otherwise).
+  string postgres_db = 4;
+
+  // Absolute variant-aware durable-data directory; empty when the home/data
+  // root cannot be resolved.
+  string data_dir = 5;
+
+  // Per-variant data subdirectory name ("<scenario>" for live,
+  // "<scenario>@<variant>" otherwise).
+  string data_dir_name = 6;
+
+  // Variant-aware Redis/Qdrant namespace root ("<scenario>" for live,
+  // "<scenario>_<variant>" otherwise).
+  string storage_namespace = 7;
+}

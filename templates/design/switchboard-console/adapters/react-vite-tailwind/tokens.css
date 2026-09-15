@@ -1,0 +1,207 @@
+/* Switchboard kit 1.0.0. Source: approved conversation-console experience specification. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-1.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-2.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./fonts/face-3.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./fonts/face-4.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-5.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-6.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-7.ttf) format('truetype');
+}
+
+:root {
+  color-scheme: light;
+  --scrollbar-thumb: #A1B2AC;
+  --scrollbar-thumb-hover: #697772;
+  --color-background: #F2F4F3;
+  --color-shell: #E8EDEB;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #E8EDEB;
+  --color-surface-raised: #FBFDFC;
+  --color-foreground: #101917;
+  --color-muted-foreground: #697772;
+  --color-border: #C7D2CF;
+  --color-primary: #176A61;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: #A85B14;
+  --color-focus: #176A61;
+  --color-warning: #A85B14;
+  --color-danger: #93412D;
+  --color-success: #176A61;
+  --color-info: #246F8C;
+  --font-display: "Archivo", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-sans: var(--font-body);
+  --font-mono: "IBM Plex Mono", monospace;
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-display);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-display);
+  --text-heading-lg: 600 20px / 26px var(--font-display);
+  --text-heading-sm: 600 16px / 22px var(--font-display);
+  --color-background-dark: #0B1211;
+  --color-shell-dark: #0B1211;
+  --color-surface-dark: #121A19;
+  --color-surface-muted-dark: #18221F;
+  --color-surface-raised-dark: #1C2925;
+  --color-foreground-dark: #E7EFEC;
+  --color-muted-foreground-dark: #AEBEB9;
+  --color-border-dark: #2A3835;
+  --color-primary-dark: #5FC3B4;
+  --color-primary-foreground-dark: #0B1211;
+  --color-accent-dark: #E8A459;
+  --color-focus-dark: #5FC3B4;
+  --color-warning-dark: #E8A459;
+  --color-danger-dark: #E1917A;
+  --color-success-dark: #5FC3B4;
+  --color-info-dark: #79C2DA;
+}
+:root[data-resolved-theme="dark"], :root[data-theme="dark"], .dark {
+  color-scheme: dark;
+  --scrollbar-thumb: #3D514A;
+  --scrollbar-thumb-hover: #697F76;
+  --color-background: #0B1211;
+  --color-shell: #0B1211;
+  --color-surface: #121A19;
+  --color-surface-muted: #18221F;
+  --color-surface-raised: #1C2925;
+  --color-foreground: #E7EFEC;
+  --color-muted-foreground: #AEBEB9;
+  --color-border: #2A3835;
+  --color-primary: #5FC3B4;
+  --color-primary-foreground: #0B1211;
+  --color-accent: #E8A459;
+  --color-focus: #5FC3B4;
+  --color-warning: #E8A459;
+  --color-danger: #E1917A;
+  --color-success: #5FC3B4;
+  --color-info: #79C2DA;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme]):not([data-theme="light"]) {
+  color-scheme: dark;
+  --scrollbar-thumb: #3D514A;
+  --scrollbar-thumb-hover: #697F76;
+  --color-background: #0B1211;
+  --color-shell: #0B1211;
+  --color-surface: #121A19;
+  --color-surface-muted: #18221F;
+  --color-surface-raised: #1C2925;
+  --color-foreground: #E7EFEC;
+  --color-muted-foreground: #AEBEB9;
+  --color-border: #2A3835;
+  --color-primary: #5FC3B4;
+  --color-primary-foreground: #0B1211;
+  --color-accent: #E8A459;
+  --color-focus: #5FC3B4;
+  --color-warning: #E8A459;
+  --color-danger: #E1917A;
+  --color-success: #5FC3B4;
+  --color-info: #79C2DA;
+  }
+}
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
+
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

@@ -1,0 +1,318 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "device-detail",
+    "title": "Device",
+    "routes": [
+      "/devices/:deviceId"
+    ],
+    "purpose": "Show one device's probed capability matrix, its host node and transport, its strategy options, and its session history.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The capability matrix distinguishes available, unavailable, and unsupported without collapsing them.",
+      "notes": "Unsupported is terminal; unavailable is fixable. Merging them hides the actionable case."
+    },
+    {
+      "statement": "Which strategy would be selected, and why, is visible before any run starts.",
+      "notes": "Strategy selection determines which resolution rungs are reachable, so it must not be implicit."
+    },
+    {
+      "statement": "Host node and transport are shown, because reachability depends on them.",
+      "notes": "An attached device is only as reachable as the node it hangs off."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A reachable device with a current capability snapshot.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Device record and latest snapshot loading.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The device is known to the fleet but has never been probed, so the matrix has no verified rows yet.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some capabilities are available and others are unavailable or unsupported. The expected state for every strategy except the reference class.",
+      "setup": {
+        "route": "/devices/fixture-iphone-14",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The snapshot predates the probe interval; every row is labelled as last-probed rather than current.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The device or snapshot request failed; the page says so rather than rendering an empty matrix.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "unreachable",
+      "description": "Host node offline; the exact reason is displayed and no verb controls are offered.",
+      "setup": {
+        "route": "/devices/fixture-pixel-4a",
+        "query": {
+          "fixture": "unreachable"
+        }
+      }
+    },
+    {
+      "id": "probing",
+      "description": "A capability probe is in flight; the prior snapshot is shown as stale rather than blanked.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "probing"
+        }
+      }
+    },
+    {
+      "id": "session-active",
+      "description": "A lease is held on this device; holder and expiry are visible.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7",
+        "query": {
+          "fixture": "session-active"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "capability-matrix",
+      "role": "table",
+      "name": "Capabilities",
+      "description": "One row per optional capability with its declared value, its probed value, and — when unavailable — the missing prerequisite."
+    },
+    {
+      "id": "capability-disposition",
+      "role": "status",
+      "description": "The per-capability disposition chip. Renders available, unavailable, or unsupported verbatim; never a checkmark."
+    },
+    {
+      "id": "unsupported-reason",
+      "role": "note",
+      "description": "Why a capability is terminally unsupported on this transport, distinct from a fixable prerequisite."
+    },
+    {
+      "id": "strategy-selection",
+      "role": "region",
+      "name": "Selected strategy",
+      "description": "Which strategy would drive this device and the reasoning that chose it."
+    },
+    {
+      "id": "strategy-rationale",
+      "role": "note",
+      "description": "The explanation behind the selection, expandable before any run starts."
+    },
+    {
+      "id": "transport-identity",
+      "role": "status",
+      "description": "Host node and transport, since reachability is a property of the pair rather than of the device."
+    },
+    {
+      "id": "unreachable-reason",
+      "role": "alert",
+      "description": "The exact reason the host node cannot be reached, shown in place of verb controls."
+    },
+    {
+      "id": "probe-now",
+      "role": "button",
+      "name": "Probe",
+      "description": "Re-run the capability probe for this device."
+    },
+    {
+      "id": "session-history",
+      "role": "table",
+      "name": "Sessions",
+      "description": "Prior leases and their verb counts, retained past expiry as the accountability record."
+    },
+    {
+      "id": "lease-bar",
+      "role": "status",
+      "name": "Live session",
+      "description": "The same global lease alarm rendered on every route."
+    }
+  ],
+  "claims": [
+    {
+      "id": "three-dispositions-stay-distinct",
+      "type": "custom",
+      "statement": "Available, unavailable, and unsupported are presented as three distinct outcomes rather than two.",
+      "tier": "manual",
+      "elements": [
+        "capability-disposition",
+        "unsupported-reason"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "Priority 1. Unsupported is terminal and unavailable is fixable; collapsing them into 'missing' hides the only actionable one. Manual because it is a three-way perceptual distinction rather than a presence check."
+    },
+    {
+      "id": "unavailable-names-prerequisite",
+      "type": "element-present",
+      "statement": "An unavailable capability shows the prerequisite that would make it available.",
+      "tier": "machine",
+      "elements": [
+        "capability-matrix",
+        "unsupported-reason"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "D-002 requires a named prerequisite and next action rather than a bare disposition."
+    },
+    {
+      "id": "strategy-choice-is-explained",
+      "type": "element-present",
+      "statement": "The selected strategy and the reasoning behind the selection are perceivable before any run starts.",
+      "tier": "machine",
+      "elements": [
+        "strategy-selection",
+        "strategy-rationale"
+      ],
+      "rationale": "Priority 2. Strategy selection determines which resolution rungs exist, so an implicit choice makes every downstream result unexplainable."
+    },
+    {
+      "id": "transport-visible-with-reachability",
+      "type": "element-present",
+      "statement": "Host node and transport are shown alongside the device's reachability.",
+      "tier": "machine",
+      "elements": [
+        "transport-identity"
+      ],
+      "rationale": "Priority 3. An attached device is only as reachable as the node it hangs off, so the pair must be legible together."
+    },
+    {
+      "id": "unreachable-replaces-controls",
+      "type": "element-absent",
+      "statement": "When the host node is offline, verb controls are not offered; the reason is shown instead.",
+      "tier": "machine",
+      "elements": [
+        "probe-now"
+      ],
+      "states": [
+        "unreachable"
+      ],
+      "rationale": "Offering a control that cannot succeed produces a failure the operator has to interpret. Naming the reason is strictly more useful."
+    },
+    {
+      "id": "unreachable-is-announced",
+      "type": "state-covered",
+      "statement": "The unreachable state renders a dedicated explanation rather than an empty matrix.",
+      "tier": "machine",
+      "states": [
+        "unreachable"
+      ],
+      "elements": [
+        "unreachable-reason"
+      ],
+      "rationale": "DVC-P0-003 requires the exact reason to survive to the surface."
+    },
+    {
+      "id": "probing-keeps-prior-snapshot",
+      "type": "state-distinct",
+      "statement": "A probe in flight is perceivably different from a completed probe, and the prior snapshot remains readable during it.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "probing"
+      ],
+      "elements": [
+        "capability-matrix"
+      ],
+      "rationale": "Blanking the matrix during a probe would make the page unusable exactly when the operator is waiting on it."
+    },
+    {
+      "id": "never-probed-is-not-empty-capabilities",
+      "type": "state-distinct",
+      "statement": "A device that has never been probed is perceivably different from one probed and found to have no optional capabilities.",
+      "tier": "machine",
+      "states": [
+        "empty",
+        "partial"
+      ],
+      "elements": [
+        "capability-matrix"
+      ],
+      "rationale": "D-002 at the device scale. ios-mirror legitimately probes to zero optional capabilities; that is a finding, not an absence of data."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "capability-matrix": {
+        "testid": "device-capability-matrix"
+      },
+      "capability-disposition": {
+        "testid": "capability-disposition"
+      },
+      "unsupported-reason": {
+        "testid": "capability-reason"
+      },
+      "strategy-selection": {
+        "testid": "device-strategy-selection"
+      },
+      "strategy-rationale": {
+        "testid": "device-strategy-rationale"
+      },
+      "transport-identity": {
+        "testid": "device-transport"
+      },
+      "unreachable-reason": {
+        "testid": "device-unreachable-reason"
+      },
+      "probe-now": {
+        "testid": "device-probe-now"
+      },
+      "session-history": {
+        "testid": "device-session-history"
+      },
+      "lease-bar": {
+        "testid": "lease-bar"
+      }
+    }
+  }
+}

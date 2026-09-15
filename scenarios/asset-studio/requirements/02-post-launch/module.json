@@ -1,0 +1,383 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSET-P1-001",
+      "title": "Multi-frame identity binding",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "specs",
+      "criticality": "P1",
+      "description": "A spec may contain several frames that share bound identity versions, so a slideshow or a shot sequence is one artifact rather than a set of unrelated renders. Sharing the binding is what makes cross-frame consistency achievable at all; rendering frames independently against the same identity id would reintroduce the drift the registry exists to prevent.",
+      "tags": [
+        "specs",
+        "multi-frame",
+        "consistency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Frames in one spec resolve against identical identity versions; a new identity version does not split a spec's frames."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A multi-frame asset requires a conformance verdict per frame before release."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-002",
+      "title": "Video render backend",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "renders",
+      "criticality": "P1",
+      "description": "Video specs are submitted through ai-gateway to a video-capable model and tracked on the same job lifecycle as image renders. Video is deferred to P1 not because it is unimportant but because it is expensive and slow, and the lifecycle, provenance, and cost model must be proven on cheap fast jobs first.",
+      "tags": [
+        "renders",
+        "video",
+        "ai-gateway"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A video job uses the same lifecycle states as an image job with no branch-specific status values."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A long-running job survives an API restart and resumes reporting rather than being orphaned."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-003",
+      "title": "Screen-capture spec kind",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "specs",
+      "criticality": "P1",
+      "description": "A capture spec's source is a scripted browser or desktop session executed through browser-automation-studio, producing an artifact on the same asset model as a generated one. Capture and generation are different sources with an identical downstream — same job, same provenance, same library — which is why capture is a spec kind rather than a separate scenario. This is also the home for the work the orphaned video-studio skill described.",
+      "tags": [
+        "specs",
+        "capture",
+        "bas"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A capture spec validates against its own contract and is refused when the target or the step script is absent."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A captured artifact records provenance naming the target, the script version, and the viewport."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Capture execution is dispatched through the browser-automation-studio seam and never drives a browser directly."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-004",
+      "title": "Templated compositing",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "renders",
+      "criticality": "P1",
+      "description": "An artifact may be assembled from ordered segments with declared intro, outro, caption, and lower-third slots. Deliberately not a timeline editor: slots are named and ordered, not freely positioned. A request that genuinely needs frame-level editing is out of scope, and answering it would turn this scenario into a video application.",
+      "tags": [
+        "renders",
+        "compositing",
+        "scope-guard"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Segments compose in declared order and the output records each contributing segment's provenance."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An unfilled required slot is refused before compositing rather than producing a gap."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-005",
+      "title": "Automated conformance scoring",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "conformance",
+      "criticality": "P1",
+      "description": "A rendered frame is scored against its identity's reference images and the score is presented to the operator as a recommendation. It never becomes an automatic pass: the scoring model is unvalidated, and an automated pass on a mis-scored frame is exactly the silent failure the gate exists to prevent. Scoring uses image-tools analysis rather than a new comparison implementation.",
+      "tags": [
+        "conformance",
+        "scoring",
+        "image-tools"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A score is stored alongside the operator verdict and never substitutes for it."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Release remains blocked on an unresolved operator verdict regardless of how high the automated score is."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-006",
+      "title": "Spend budget and confirmation",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "renders",
+      "criticality": "P1",
+      "description": "A spend budget per spec and per campaign reference, with explicit confirmation required before a job that would exceed it. The budget is the forcing function that makes the P0 cost accounting actionable; without one, spend is merely observable after the fact.",
+      "tags": [
+        "renders",
+        "cost",
+        "budget",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A job whose estimate exceeds the remaining budget is held pending confirmation rather than submitted."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Confirmation records who authorised the overage and when."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-007",
+      "title": "Character sheet generation",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "identities",
+      "criticality": "P1",
+      "description": "A composite multi-angle reference sheet is produced for a character and attached to that identity as its conformance reference. The marketing catalogue already assumes this artifact exists; producing it from the identity block closes the loop, because conformance is judged against it and it should therefore derive from the same source the render does.",
+      "tags": [
+        "identities",
+        "reference",
+        "conformance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A generated sheet is attached to the identity version it was produced from and is used as the conformance reference."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-008",
+      "title": "Federated retrieval registration",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "federation",
+      "criticality": "P1",
+      "description": "The identity library and asset metadata register as a search-hub provider through a descriptor, so they are reachable from federated query with no router change. Asset bytes are never indexed; the searchable surface is descriptive traits, alt text, and provenance.",
+      "tags": [
+        "federation",
+        "search-hub",
+        "descriptor"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The descriptor validates against the search schema and boot registration retries on failure without blocking startup."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A federated query reaches the provider and returns identity and asset metadata, never image bytes."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-009",
+      "title": "Look recipe reuse",
+      "status": "planned",
+      "prd_ref": "OT-P1-009",
+      "category": "specs",
+      "criticality": "P1",
+      "description": "A spec references a reusable style recipe held by image-tools rather than re-encoding style parameters per spec. Style is already a first-class object elsewhere in the fleet; duplicating it here would create a second place where visual consistency is defined, which is the failure this scenario exists to prevent applied to itself.",
+      "tags": [
+        "specs",
+        "image-tools",
+        "reuse"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A spec stores a look reference; resolution pulls the recipe through the image-tools seam rather than a local copy."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-010",
+      "title": "Regeneration from provenance",
+      "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "renders",
+      "criticality": "P1",
+      "description": "Any released artifact can be re-rendered from its recorded provenance alone, and the system reports when a bound identity version or a backend is no longer available. This is the test that proves the provenance record is complete rather than merely present — if regeneration needs anything not in the record, the record is missing something.",
+      "tags": [
+        "renders",
+        "provenance",
+        "reproducibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Regeneration resolves every input from the stored provenance with no ambient state."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An unavailable backend or retired identity version is reported by name rather than silently substituted."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-011",
+      "title": "Agent invocation from the workbench",
+      "status": "planned",
+      "prd_ref": "OT-P1-011",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The operator may commission spec composition or conformance triage through agent-manager from the workbench, and what the agent produced is recorded with its provenance. The agent proposes; the operator still judges conformance and releases, so this adds throughput without moving the gate.",
+      "tags": [
+        "ui",
+        "agent-manager",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Agent-produced content is stored with actor kind recorded and does not satisfy the operator conformance requirement."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A commissioned run dispatches through the agent-manager seam and its result is attributed in the workbench."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-012",
+      "title": "Conditioning-artifact rendering",
+      "status": "planned",
+      "prd_ref": "OT-P1-012",
+      "category": "renders",
+      "criticality": "P1",
+      "description": "An identity version's conditioning artifacts are passed to the backend at render time through image-tools, which already provides LoRA, IP-Adapter, ControlNet, and img2img support. Identity retention then comes from the artifact rather than from prose alone. This also changes what conformance can mean: judging a frame against the conditioning artifact's characteristic output is stronger evidence than judging it against a hand-authored reference sheet, which is the unvalidated comparison recorded in PROBLEMS.md. Training or preparing an artifact is a one-time cost per identity version, amortised across renders — a cost category the per-render model does not have.",
+      "tags": [
+        "renders",
+        "conditioning",
+        "image-tools",
+        "conformance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A spec bound to an identity carrying conditioning artifacts resolves to a payload that references them; one without resolves without."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Artifact preparation cost is recorded against the identity version, not against each render that uses it."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Conditioning is dispatched through the image-tools seam; this scenario implements no adapter or conditioning logic of its own."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P1-013",
+      "title": "Regional refinement",
+      "status": "planned",
+      "prd_ref": "OT-P1-013",
+      "category": "assets",
+      "criticality": "P1",
+      "description": "A masked regional edit — fixing a hand, replacing a background — is applied to a produced artifact through image-tools' existing inpainting and img2img capability. The derived artifact records the parent artifact and the operation in its own provenance, so regeneration replays parent-then-edit. **A refined artifact re-enters conformance and never inherits the parent's verdict**, because a changed frame depicting an identity is a new claim about that identity. This does not reopen D-012: that decision bounds *video compositing* to named ordered slots, and regional image editing is a call into an existing toolbox rather than an editor built here.",
+      "tags": [
+        "assets",
+        "image-tools",
+        "conformance",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A refined artifact records parent artifact, mask, and operation in provenance, and is regenerable by replaying parent-then-edit."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A refined artifact enters conformance with an unresolved verdict and cannot inherit or reuse the parent's."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The edit dispatches through the image-tools seam; no inpainting implementation exists in this scenario."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "workspace-sandbox",
+  "generator": "v1.0.0",
+  "manifest_hash": "ce8f66abcd3873134d07fb7cdb2fa62a31f0815a95ea49d070d743ae5cad60a9",
+  "commands": [
+    {
+      "path": "change approve",
+      "group": "change",
+      "command": "approve"
+    },
+    {
+      "path": "change conflicts",
+      "group": "change",
+      "command": "conflicts"
+    },
+    {
+      "path": "change diff",
+      "group": "change",
+      "command": "diff",
+      "binding": "WorkspaceSandboxService.GetSandboxDiff",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "change history",
+      "group": "change",
+      "command": "history"
+    },
+    {
+      "path": "change promote",
+      "group": "change",
+      "command": "promote",
+      "binding": "WorkspaceSandboxService.PromoteSandbox",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "change rebase",
+      "group": "change",
+      "command": "rebase"
+    },
+    {
+      "path": "change reject",
+      "group": "change",
+      "command": "reject"
+    },
+    {
+      "path": "maintenance driver",
+      "group": "maintenance",
+      "command": "driver"
+    },
+    {
+      "path": "maintenance gc",
+      "group": "maintenance",
+      "command": "gc"
+    },
+    {
+      "path": "maintenance preview",
+      "group": "maintenance",
+      "command": "preview"
+    },
+    {
+      "path": "process attach",
+      "group": "process",
+      "command": "attach"
+    },
+    {
+      "path": "process exec",
+      "group": "process",
+      "command": "exec"
+    },
+    {
+      "path": "process kill",
+      "group": "process",
+      "command": "kill"
+    },
+    {
+      "path": "process list",
+      "group": "process",
+      "command": "list"
+    },
+    {
+      "path": "process logs",
+      "group": "process",
+      "command": "logs"
+    },
+    {
+      "path": "process run",
+      "group": "process",
+      "command": "run"
+    },
+    {
+      "path": "process shell",
+      "group": "process",
+      "command": "shell"
+    },
+    {
+      "path": "provenance commit",
+      "group": "provenance",
+      "command": "commit"
+    },
+    {
+      "path": "provenance history",
+      "group": "provenance",
+      "command": "history"
+    },
+    {
+      "path": "provenance pending",
+      "group": "provenance",
+      "command": "pending"
+    },
+    {
+      "path": "sandbox create",
+      "group": "sandbox",
+      "command": "create",
+      "binding": "WorkspaceSandboxService.CreateSandbox",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sandbox delete",
+      "group": "sandbox",
+      "command": "delete"
+    },
+    {
+      "path": "sandbox inspect",
+      "group": "sandbox",
+      "command": "inspect"
+    },
+    {
+      "path": "sandbox list",
+      "group": "sandbox",
+      "command": "list"
+    },
+    {
+      "path": "sandbox stop",
+      "group": "sandbox",
+      "command": "stop"
+    },
+    {
+      "path": "sandbox workspace",
+      "group": "sandbox",
+      "command": "workspace"
+    }
+  ]
+}

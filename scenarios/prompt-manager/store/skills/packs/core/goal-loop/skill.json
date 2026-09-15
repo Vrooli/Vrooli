@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Select the development or observation posture for scenario improvement and route development to the campaign; use the scenario improve skill and caller-owned continuity. Does not grant permissions, compose a harness goal, or schedule itself.",
+  "entry": "SKILL.md",
+  "icon": "repeat",
+  "id": "goal-loop",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "goal-loop",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 7,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "goal",
+    "loop",
+    "self-improvement",
+    "setpoint",
+    "heartbeat"
+  ],
+  "updatedAt": "2026-09-11T12:00:00Z"
+}

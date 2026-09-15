@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package vrooli.device_control.v1.auth;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/auth;auth_v1";
+
+import "google/protobuf/timestamp.proto";
+
+message UnlockPolicy {
+  int32 max_attempts = 1;
+  int64 attempt_limit_ms = 2;
+  int64 settle_ms = 3;
+}
+
+message AuthenticationProfile {
+  string id = 1;
+  string device_id = 2;
+  string method = 3;
+  string credential_identity = 4;
+  string credential_field = 5;
+  string verification = 6;
+  UnlockPolicy policy = 7;
+  string status = 8;
+  string last_outcome = 9;
+  google.protobuf.Timestamp revoked_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message ProviderStatus {
+  string provider = 1;
+  string provider_state = 2;
+  bool configured = 3;
+  string provider_detail = 4;
+}
+
+message UnlockResult {
+  string profile_id = 1;
+  string device_id = 2;
+  string method = 3;
+  string outcome = 4;
+  string next_action = 5;
+  int32 attempts = 6;
+  string provider_state = 7;
+  string before_lock_state = 8;
+  string after_lock_state = 9;
+}
+
+message ListProfilesRequest {}
+message ListProfilesResponse { repeated AuthenticationProfile profiles = 1; }
+
+message GetProfileRequest { string id = 1; }
+message GetProfileResponse {
+  AuthenticationProfile profile = 1;
+  ProviderStatus provider = 2;
+}
+
+message CreateProfileRequest {
+  AuthenticationProfile profile = 1;
+  string actor = 2;
+}
+message UpdateProfileRequest {
+  string id = 1;
+  AuthenticationProfile profile = 2;
+  string actor = 3;
+}
+message ProfileResponse {
+  AuthenticationProfile profile = 1;
+  ProviderStatus provider = 2;
+}
+
+message RevokeProfileRequest { string id = 1; string actor = 2; }
+
+message TestProfileRequest { string id = 1; }
+
+message UnlockDeviceRequest {
+  string profile_id = 1;
+  string device_id = 2;
+  string actor = 3;
+  string lease_token = 4;
+}
+message UnlockDeviceResponse { UnlockResult result = 1; }
+
+service AuthenticationService {
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc CreateProfile(CreateProfileRequest) returns (ProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
+  rpc RevokeProfile(RevokeProfileRequest) returns (ProfileResponse);
+  rpc TestProfile(TestProfileRequest) returns (ProfileResponse);
+  rpc UnlockDevice(UnlockDeviceRequest) returns (UnlockDeviceResponse);
+}

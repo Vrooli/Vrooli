@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/google/uuid"
-
 	"test-genie/internal/orchestrator"
+
+	"github.com/google/uuid"
 )
 
 // ExecutionHistory exposes read-only execution data without leaking repository details to callers.
@@ -31,7 +31,9 @@ func NewExecutionHistoryService(repo executionRecordStore) *ExecutionHistoryServ
 	return &ExecutionHistoryService{repo: repo}
 }
 
-// List returns paginated execution results for an optional scenario filter.
+// List returns paginated compact execution summaries for an optional scenario
+// filter. It deliberately does not hydrate phase detail; callers needing
+// durable evidence must use an explicit detail/artifact surface.
 func (s *ExecutionHistoryService) List(ctx context.Context, scenario string, limit int, offset int) ([]orchestrator.SuiteExecutionResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, sql.ErrConnDone

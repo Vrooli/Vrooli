@@ -70,6 +70,12 @@ func (r *FileRepository) Get(id ProfileID) (*SessionProfile, error) {
 	if err := json.Unmarshal(data, &profile); err != nil {
 		return nil, fmt.Errorf("parse profile: %w", err)
 	}
+	if len(profile.StorageState) > 0 || profile.BrowserProfile != nil || len(profile.History) > 0 || len(profile.OpenTabs) > 0 {
+		return nil, errors.New("session profile contains unprotected state")
+	}
+	if err := r.loadProtected(&profile); err != nil {
+		return nil, err
+	}
 	return &profile, nil
 }
 
@@ -150,7 +156,15 @@ func (r *FileRepository) Save(profile *SessionProfile) error {
 		profile.LastUsedAt = profile.CreatedAt
 	}
 
-	data, err := json.MarshalIndent(profile, "", "  ")
+	if err := r.saveProtected(profile); err != nil {
+		return err
+	}
+	metadata := *profile
+	metadata.StorageState = nil
+	metadata.BrowserProfile = nil
+	metadata.History = nil
+	metadata.OpenTabs = nil
+	data, err := json.MarshalIndent(&metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal profile: %w", err)
 	}
@@ -187,6 +201,9 @@ func (r *FileRepository) Delete(id ProfileID) error {
 	}
 	if err := r.fs.Remove(path); err != nil {
 		return fmt.Errorf("delete profile: %w", err)
+	}
+	if err := r.fs.Remove(r.protectedPath(id)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("delete protected session state: %w", err)
 	}
 	return nil
 }

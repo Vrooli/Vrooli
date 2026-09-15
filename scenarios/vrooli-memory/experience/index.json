@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "vrooli-memory",
+  "description": "Harness-facing experience contract for projection, import, capture, and maintenance state; Source Ledger owns corpus inspection and recall.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "write-and-recall-memory",
+      "path": "journeys/write-and-recall-memory.json",
+      "title": "Write and recall a shared memory",
+      "status": "active"
+    }
+  ]
+}

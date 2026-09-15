@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func (app *App) riceScoreHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"prioritized_features": sortedFeatures,
-		"total": len(sortedFeatures),
+		"total":                len(sortedFeatures),
 	})
 }
 
@@ -69,25 +70,25 @@ func (app *App) roadmapHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(roadmap)
-		
+
 	case "POST":
 		var roadmap Roadmap
 		if err := json.NewDecoder(r.Body).Decode(&roadmap); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		
+
 		roadmap.CreatedAt = time.Now()
 		roadmap.Version = 1
-		
+
 		if err := app.storeRoadmap(&roadmap); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(roadmap)
-		
+
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -136,6 +137,10 @@ func (app *App) sprintPlanHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate capacity
 	capacity := req.TeamSize * req.Velocity * req.Duration
+	if req.TeamSize <= 0 || req.Velocity <= 0 || req.Duration <= 0 {
+		http.Error(w, "team_size, velocity, and duration_weeks must be positive", http.StatusBadRequest)
+		return
+	}
 
 	// Get available features
 	features, err := app.fetchAvailableFeatures()
@@ -177,6 +182,10 @@ func (app *App) marketAnalysisHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(req.ProductName) == "" {
+		http.Error(w, "product_name is required", http.StatusBadRequest)
+		return
+	}
 
 	analysis, err := app.analyzeMarket(req.ProductName)
 	if err != nil {
@@ -197,6 +206,10 @@ func (app *App) competitorAnalysisHandler(w http.ResponseWriter, r *http.Request
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.CompetitorName) == "" {
+		http.Error(w, "competitor_name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -220,6 +233,10 @@ func (app *App) feedbackAnalysisHandler(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if len(req.FeedbackItems) == 0 {
+		http.Error(w, "feedback_items must not be empty", http.StatusBadRequest)
+		return
+	}
 
 	analysis, err := app.analyzeFeedback(req.FeedbackItems)
 	if err != nil {
@@ -238,6 +255,10 @@ func (app *App) roiCalculationHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if feature.Effort <= 0 {
+		http.Error(w, "effort must be positive", http.StatusBadRequest)
+		return
+	}
 
 	calculation, err := app.calculateROI(&feature)
 	if err != nil {
@@ -254,6 +275,10 @@ func (app *App) decisionAnalysisHandler(w http.ResponseWriter, r *http.Request) 
 	var decision Decision
 	if err := json.NewDecoder(r.Body).Decode(&decision); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(decision.Options) == 0 {
+		http.Error(w, "options must not be empty", http.StatusBadRequest)
 		return
 	}
 
@@ -374,10 +399,10 @@ func (app *App) generateRoadmap(features []Feature, startDate time.Time, duratio
 				break
 			}
 		}
-		
+
 		roadmap.Features = append(roadmap.Features, feature.ID)
 		currentCapacity += feature.Effort
-		
+
 		// Create milestone every quarter
 		if currentMonth%3 == 0 && currentMonth > 0 {
 			milestone := Milestone{

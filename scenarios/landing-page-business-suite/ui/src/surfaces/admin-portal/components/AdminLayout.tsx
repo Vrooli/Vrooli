@@ -11,6 +11,7 @@ import { LAYOUT } from '../config/layout.constants';
 export type MaxWidthPreset = 'narrow' | 'default' | 'wide' | 'extraWide' | 'full';
 
 interface AdminLayoutProps {
+  beforeLogout?: () => boolean;
   children: ReactNode;
   /** Content max-width preset. When set, constrains main content width. */
   maxWidth?: MaxWidthPreset;
@@ -34,7 +35,7 @@ function NavDropdown({ group, currentPath, alignRight }: {
       }
     };
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    return () => { document.removeEventListener('click', handleClick); };
   }, []);
 
   const isActive = isGroupActive(group, currentPath);
@@ -45,7 +46,7 @@ function NavDropdown({ group, currentPath, alignRight }: {
         variant="ghost"
         size="sm"
         className={`gap-2 ${isActive ? 'bg-slate-800' : ''}`}
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); }}
         data-testid={`nav-group-${group.id}`}
       >
         <Icon className="h-4 w-4" />
@@ -60,7 +61,7 @@ function NavDropdown({ group, currentPath, alignRight }: {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setOpen(false)}
+                onClick={() => { setOpen(false); }}
                 data-testid={item.testId}
                 className={`flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-700 transition-colors ${
                   currentPath.startsWith(item.path) ? 'text-blue-400' : 'text-slate-200'
@@ -80,11 +81,12 @@ function NavDropdown({ group, currentPath, alignRight }: {
   );
 }
 
-export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
+export function AdminLayout({ children, maxWidth, beforeLogout }: AdminLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    if (beforeLogout && !beforeLogout()) return;
     try {
       await adminLogout();
       navigate('/admin/login');
@@ -105,14 +107,14 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
   const rightGroups = NAVIGATION_CONFIG.groups.filter(g => g.rightAligned);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-full bg-slate-950 text-slate-50">
       {/* Top Navigation Bar */}
       <header className="border-b border-white/10 bg-slate-900/50 backdrop-blur">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <Link to="/admin" className="text-xl font-semibold hover:text-blue-400 transition-colors">
-                Landing Manager
+                Landing Page Business Suite
               </Link>
               <nav className="hidden md:flex gap-1">
                 {/* Direct links */}
@@ -150,7 +152,7 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleLogout}
+                onClick={() => { void handleLogout(); }}
                 className="gap-2"
                 data-testid="nav-logout"
               >
@@ -173,12 +175,12 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
                   <Link
                     to={segment.path}
                     className="text-slate-400 hover:text-slate-200 transition-colors"
-                    data-testid={`breadcrumb-${index}`}
+                    data-testid={`breadcrumb-${String(index)}`}
                   >
                     {segment.label}
                   </Link>
                 ) : (
-                  <span className="text-slate-200" data-testid={`breadcrumb-${index}`}>
+                  <span className="text-slate-200" data-testid={`breadcrumb-${String(index)}`}>
                     {segment.label}
                   </span>
                 )}

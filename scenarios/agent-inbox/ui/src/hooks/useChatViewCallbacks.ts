@@ -110,7 +110,7 @@ export function useChatViewCallbacks({
 
   const handleRefreshChat = useCallback(() => {
     if (selectedChatId) {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
     }
   }, [selectedChatId, queryClient]);
 

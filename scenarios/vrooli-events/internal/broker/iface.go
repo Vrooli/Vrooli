@@ -1,3 +1,5 @@
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md
 package broker
 
 import (

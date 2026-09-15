@@ -1,0 +1,438 @@
+{
+  "$schema": "schemas/repo-contract.schema.json",
+  "version": "1.2.0",
+  "platform": {
+    "mode": "cross_platform_go_native",
+    "legacy_project_bash_supported": false,
+    "platform_conformance_gate": "vrooli capability conformance"
+  },
+  "build.go_flags": {
+    "develop": ["-trimpath"],
+    "distribution": ["-trimpath", "-buildvcs=false"],
+    "scenario": ["-trimpath"],
+    "rationale": "Compile-affecting Go flags are centralized so development, scenario, and distribution builds share one trimpath policy."
+  },
+  "root": {
+    "markers": {
+      "required_dirs": [
+        ".vrooli",
+        "templates",
+        "scenarios",
+        "resources",
+        "packages",
+        "cmd",
+        "internal"
+      ],
+      "required_files": [
+        "go.mod"
+      ]
+    }
+  },
+  "layout": {
+    "project_config_dir": ".vrooli",
+    "scenario_dir": "scenarios",
+    "resource_dir": "resources",
+    "template_dir": "templates",
+    "package_dir": "packages",
+    "command_dir": "cmd",
+    "internal_dir": "internal",
+    "docs_dir": "docs",
+    "scratch_dir": "scratch",
+    "project_config_allowlist": [
+      "build",
+      "agent-manager",
+      "apply-runs",
+      "audit",
+      "bin",
+      "dependencies",
+      "generated",
+      "capability-vocabulary.json",
+      "repo-contract.json",
+      "skip-budgets.json",
+      "resources",
+      "schemas",
+      "service.json",
+      "test-companions.json",
+      "canonical-seams.json",
+      "portability-lint-allowlist.json",
+      "testing.json"
+    ]
+  },
+  "targets": {
+    "kinds": {
+      "scenario": {
+        "roots": [
+          "scenarios/*"
+        ],
+        "marker": ".vrooli/service.json"
+      },
+      "resource": {
+        "roots": [
+          "resources/*"
+        ],
+        "marker": "resource.json"
+      },
+      "tool": {
+        "roots": [
+          "internal/tools/*"
+        ],
+        "marker": "tool.json"
+      },
+      "safeguard": {
+        "roots": [
+          "internal/safeguards/*"
+        ],
+        "marker": "safeguard.json"
+      },
+      "team": {
+        "roots": [
+          "docs/*"
+        ],
+        "marker": "manifest.json"
+      },
+      "package": {
+        "roots": [
+          "packages/*"
+        ]
+      },
+      "control-plane": {
+        "roots": [
+          "cmd",
+          "internal"
+        ],
+        "exclude": [
+          "internal/tools/*",
+          "internal/safeguards/*"
+        ]
+      },
+      "docs": {
+        "roots": [
+          "docs"
+        ],
+        "exclude": [
+          "docs/*/manifest.json"
+        ]
+      },
+      "project": {
+        "roots": [
+          "."
+        ],
+        "marker": ".vrooli/repo-contract.json"
+      }
+    }
+  },
+  "runtime_home": {
+    "dir_name": ".vrooli",
+    "env_overrides": [],
+    "entries": {
+      "artifacts": {
+        "path": "artifacts",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Shared managed-service and scenario artifact root. Entries include live resource executables and independently-owned release artifacts; generic age/size cleanup cannot prove an executable is unused. Reclaim requires the owning provider's liveness and lease evidence."
+      },
+      "backups": {
+        "path": "backups",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "bin": {
+        "path": "bin",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Shared executable install root for the control plane, every scenario CLI, and every resource CLI. Regenerable in the backup sense -- these are build outputs and are never backed up -- but never a bulk cleanup or retention target: entries here are load-bearing while they exist, arrive from many independent installers, and have no shared age or size semantics. Reclaiming one artifact is scenario-binaries' job, which proves a specific CLI is an orphan and removes it under lease and receipt. `protected` is what stops a declared budget over this path, or over an ancestor such as ~/.vrooli, from becoming a licence to prune it."
+      },
+      "build": {
+        "path": "build",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "14d",
+          "max_bytes": "20GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "cache": {
+        "path": "cache",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "config": {
+        "path": "config",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "data": {
+        "path": "data",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "logs": {
+        "path": "logs",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "metrics": {
+        "path": "metrics",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "plans": {
+        "path": "plans",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "plan_artifacts": {
+        "path": "plan-artifacts",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "plan-manager",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Plan source material and execution evidence referenced by durable plans. Plan Manager exposes this existing home location during authoring; relocation preserves citations and evidence."
+      },
+      "processes": {
+        "path": "processes",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "7d",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "runtime_db": {
+        "path": "state/runtime.db",
+        "kind": "file",
+        "regenerable": false,
+        "format": "sqlite",
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "secrets": {
+        "path": "secrets.json",
+        "kind": "file",
+        "regenerable": false,
+        "format": "json",
+        "sensitive": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "secrets_enc": {
+        "path": "secrets.enc.json",
+        "kind": "file",
+        "regenerable": false,
+        "format": "json",
+        "sensitive": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "shims": {
+        "path": "shims",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "never",
+        "rationale": "PATH shims that route coding-agent invocations through vrooli-agent-launcher. Deliberately not ~/.vrooli/bin: the shims are five links whose whole content is regenerable from the launcher binary, while bin is a shared install root that is not, and a single declaration cannot be truthful about both. Owning a directory outright is what lets this one be declared regenerable honestly, and it decouples the shims from a directory whose contents other installers churn. Cleanup is `never` because the bytes are negligible and the coding_agent_shims safeguard already re-asserts the set; its own storage budget is the alarm for a runaway install."
+      },
+      "state": {
+        "path": "state",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "test_runs": {
+        "path": "test-runs",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "20GiB",
+          "keep_count": 10,
+          "protect_active": true
+        }
+      }
+    },
+    "scoped": {
+      "scenario_secrets": "scenarios/{scenario}/secrets.json",
+      "project_state": "state/projects/{project_key}",
+      "test_runs_scenario": "test-runs/{scenario}"
+    }
+  },
+  "storage": {
+    "roots": [
+      { "id": "go-work-dirs", "root": "$VROOLI_HOME/tmp/go-work", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "rationale": "policy: bounded Go work directories are disposable after six hours" },
+      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "conditional", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs remain in use between compile, link and vet without continuously open handles. External deletion requires tool-owner build-use or quiescence proof, unavailable to the generic provider; retention budgets do not authorize deletion. Leave trimming to Go until owner-coordinated reclamation exists." },
+      { "id": "uv-cache", "root": "$USER_HOME/.cache/uv", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos"], "tool_prune_command": ["uv", "cache", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded working-set share for a reproducible Python cache" },
+      { "id": "huggingface-cache", "root": "$USER_HOME/.cache/huggingface/hub", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "model_pin", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded downloadable model cache; pinned models require a future lease-aware provider" },
+      { "id": "playwright-cache", "root": "$USER_HOME/.cache/ms-playwright", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded browser installation cache" },
+      { "id": "go-module-cache", "root": "$USER_HOME/go/pkg/mod", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "30GiB", "protect": ["cache/lock"], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded module cache; missing modules are restored by the toolchain" },
+      { "id": "pnpm-store", "root": "$USER_HOME/.local/share/pnpm/store", "class": "cache", "tier": "regenerable", "max_age": "60d", "max_bytes": "6GiB", "protect": ["lock.yaml"], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "tool_prune_command": ["pnpm", "store", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded pnpm content-addressed store; packages are restored by the package manager" },
+      { "id": "homebrew-cache", "root": "$USER_HOME/Library/Caches/Homebrew", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["macos"], "tool_prune_command": ["brew", "cleanup"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: Homebrew downloads and old formula artifacts are reproducible; macOS-only" },
+      { "id": "windows-temp", "root": "$USER_HOME/AppData/Local/Temp", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["windows"], "rationale": "policy: user-scoped temporary files are disposable after six hours; active handles remain protected" },
+      { "id": "winget-packages-cache", "root": "$USER_HOME/AppData/Local/Microsoft/WinGet/Packages", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "12GiB", "protect": [], "lease_check": "open_handle", "platforms": ["windows"], "tool_prune_command": ["winget", "cache", "clean"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: WinGet package cache is reproducible; Windows-only" },
+      { "id": "scenario-desktop-staging", "root": "$VROOLI_HOME/cache/vrooli/scenario-to-desktop/staging", "class": "cache", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "20GiB", "protect": ["*/.building"], "lease_check": "lease_file", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "Owner enforces staging retention from its storage declaration; pipeline and desktop-session state are required to protect live bundles." },
+      { "id": "browser-recordings", "root": "$VROOLI_HOME/data/vrooli/browser-automation-studio/recordings", "class": "data", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "150GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "browser-captures", "root": "$VROOLI_HOME/data/vrooli/browser-automation-studio/captures", "class": "data", "tier": "safe_with_owner", "max_age": "7d", "max_bytes": "40GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "web-console-sessions", "root": "$VROOLI_HOME/state/vrooli/web-console/sessions", "class": "state", "tier": "safe_with_owner", "max_age": "30d", "max_bytes": "60GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] },
+      { "id": "test-runs", "root": "$VROOLI_HOME/test-runs", "class": "test_runs", "tier": "safe_with_owner", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "owner", "platforms": ["linux", "macos", "windows"] }
+    ],
+    "recovery": {
+      "free_space_target_percent": 15,
+      "floor_bytes": 10737418240,
+      "bands": {
+        "warning": 80,
+        "high": 90,
+        "critical": 95
+      },
+      "debounce_ticks": 2,
+      "cooldown_seconds": 1800,
+      "fast_fill_percent": 5,
+      "hot_writer_default_bytes_per_hour": 21474836480,
+      "rate_window_samples": 6,
+      "sample_interval_seconds": 60
+    }
+  },
+  "scenario": {
+    "required_files": [
+      ".vrooli/service.json"
+    ],
+    "well_known_paths": {
+      "service": ".vrooli/service.json",
+      "orientation": ".vrooli/orientation.json",
+      "docs": "docs",
+      "docs_manifest": "docs/manifest.json",
+      "requirements": "requirements",
+      "api": "api",
+      "ui": "ui",
+      "cli": "cli",
+      "cli_manifest": "cli/manifest.json"
+    }
+  },
+  "resource": {
+    "manifest": "resource.json",
+    "well_known_paths": {
+      "manifest": "resource.json",
+      "readme": "README.md",
+      "docs": "docs",
+      "cli": "cli",
+      "config": "config",
+      "test": "test"
+    }
+  },
+  "globs": {
+    "syntax": "doublestar",
+    "root_relative": true,
+    "case_sensitive": true,
+    "allow_absolute": false,
+    "path_format": "slash_normalized"
+  },
+  "environment": {
+    "variables": {
+      "repo_root": "VROOLI_ROOT",
+      "source_root": "VROOLI_SOURCE_ROOT",
+      "sandbox_id": "VROOLI_SANDBOX_ID",
+      "sandbox_merged": "VROOLI_SANDBOX_MERGED",
+      "sandbox_scope": "VROOLI_SANDBOX_SCOPE"
+    }
+  },
+  "sandbox": {
+    "full_repo_scopes": [
+      "",
+      ".",
+      "/"
+    ],
+    "scenario_scope_prefix": "scenarios/"
+  },
+  "profiles": {
+    "mini_vrooli_bundle": {
+      "description": "Repo-aware bundle profile for shipping a target scenario with shared Go-native platform code and selected resources.",
+      "parameters": [
+        "scenario",
+        "resources[*]"
+      ],
+      "include": [
+        ".vrooli",
+        "cmd",
+        "internal",
+        "packages",
+        "scenarios/{scenario}",
+        "resources/{resources[*]}"
+      ],
+      "optional_include": [
+        "docs",
+        "go.mod",
+        "go.sum",
+        "go.work",
+        "go.work.sum",
+        "Makefile",
+        "README.md",
+        "LICENSE"
+      ],
+      "exclude": [
+        ".git/**",
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/coverage/**",
+        "**/data/**",
+        ".vrooli/secrets.json",
+        "**/.vrooli/secrets.json",
+        "cli/**"
+      ]
+    }
+  }
+}

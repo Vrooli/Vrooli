@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 6,
+  "flowId": "notes.attachment-upload.api",
+  "source": {
+    "contractPath": "api/internal/notes/flow/flow.json",
+    "contractSha256": "bfb1c9e2650de4160080c15634c609f912893d463efc46b987f01035bf38ab47",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/notes/flow/generated/model.qnt",
+    "modelSha256": "535419a1d2462f9e6a3660cb53af47448b0a641ef84d4a0635a40ace84ce7c0e",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/notes/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026051001",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/notes/flow/generated/model.qnt",
+      "--seed",
+      "2026051001"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/notes/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/notes/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "MetadataRequiresBytesStored",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "received",
+    "bytes_stored",
+    "metadata_recorded",
+    "failed"
+  ],
+  "events": [
+    "store_bytes",
+    "record_metadata",
+    "fail"
+  ],
+  "transitions": [
+    {
+      "from": "received",
+      "event": "store_bytes",
+      "to": "bytes_stored",
+      "wantError": false
+    },
+    {
+      "from": "received",
+      "event": "record_metadata",
+      "to": "received",
+      "wantError": true
+    },
+    {
+      "from": "received",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "bytes_stored",
+      "event": "store_bytes",
+      "to": "bytes_stored",
+      "wantError": true
+    },
+    {
+      "from": "bytes_stored",
+      "event": "record_metadata",
+      "to": "metadata_recorded",
+      "wantError": false
+    },
+    {
+      "from": "bytes_stored",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "metadata_recorded",
+      "event": "store_bytes",
+      "to": "metadata_recorded",
+      "wantError": true
+    },
+    {
+      "from": "metadata_recorded",
+      "event": "record_metadata",
+      "to": "metadata_recorded",
+      "wantError": true
+    },
+    {
+      "from": "metadata_recorded",
+      "event": "fail",
+      "to": "metadata_recorded",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "store_bytes",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "record_metadata",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "successful_upload",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "record_metadata",
+          "want": "metadata_recorded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "store_failure",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "metadata_failure",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "record_metadata",
+          "want": "metadata_recorded",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "metadata_recorded",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "metadata_recorded",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "metadata_recorded",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "metadata_recorded",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "record_metadata",
+          "want": "received",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "store_bytes",
+          "want": "bytes_stored",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "record_metadata",
+          "want": "received",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "record_metadata",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "store_bytes",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "MetadataRequiresBytesStored"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "bytes_stored",
+        "metadata_recorded",
+        "failed"
+      ],
+      "coveredEvents": [
+        "store_bytes",
+        "record_metadata",
+        "fail"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "bytes_stored",
+        "metadata_recorded",
+        "failed"
+      ],
+      "coveredEvents": [
+        "store_bytes",
+        "record_metadata",
+        "fail"
+      ],
+      "coveredPairs": [
+        "received/store_bytes",
+        "received/record_metadata",
+        "received/fail",
+        "bytes_stored/store_bytes",
+        "bytes_stored/record_metadata",
+        "bytes_stored/fail",
+        "metadata_recorded/store_bytes",
+        "metadata_recorded/record_metadata",
+        "metadata_recorded/fail",
+        "failed/store_bytes",
+        "failed/record_metadata",
+        "failed/fail"
+      ],
+      "allPairsCovered": true
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

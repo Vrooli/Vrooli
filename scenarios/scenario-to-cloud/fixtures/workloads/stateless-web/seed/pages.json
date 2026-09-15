@@ -1,0 +1,22 @@
+[
+  {
+    "slug": "home",
+    "title": "Home",
+    "body_sha256": "30267be205ff15f6e823615ed0bf2b8a21c290feb5979ac52a06dbd8eacaf7ca"
+  },
+  {
+    "slug": "about",
+    "title": "About",
+    "body_sha256": "e5fafabf48cac583d64d7970f77e53ff914440f9c12d151f0490b193ccfe93ff"
+  },
+  {
+    "slug": "contact",
+    "title": "Contact",
+    "body_sha256": "7872109f5f2db50afc223cf97b55a57da76e481473628ff78552679b76a3b46c"
+  },
+  {
+    "slug": "status",
+    "title": "Status",
+    "body_sha256": "90683eea2d88e67528e39da33ac5318bb849cc1460dffebff375949227230267"
+  }
+]

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	_ "github.com/lib/pq"
@@ -177,7 +178,6 @@ func setupTestRegion(t *testing.T, testDB *sql.DB) int {
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`, "Test Region", "VT", "USA", 44.5, -72.7, 500, 41).Scan(&regionID)
-
 	if err != nil {
 		t.Fatalf("Failed to create test region: %v", err)
 	}
@@ -205,7 +205,6 @@ func setupTestFoliageData(t *testing.T, testDB *sql.DB, regionID int) {
 		INSERT INTO foliage_observations (region_id, observation_date, foliage_percentage, color_intensity, peak_status)
 		VALUES ($1, $2, $3, $4, $5)
 	`, regionID, "2025-10-01", 75, 8, "peak")
-
 	if err != nil {
 		t.Fatalf("Failed to create test foliage data: %v", err)
 	}
@@ -221,7 +220,6 @@ func setupTestUserReport(t *testing.T, testDB *sql.DB, regionID int) int {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`, regionID, "2025-10-01", "peak", "Beautiful colors!", "https://example.com/photo.jpg").Scan(&reportID)
-
 	if err != nil {
 		t.Fatalf("Failed to create test user report: %v", err)
 	}
@@ -232,6 +230,7 @@ func setupTestUserReport(t *testing.T, testDB *sql.DB, regionID int) int {
 // mockOllamaServer creates a mock Ollama server for testing
 func mockOllamaServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"response": `{"predicted_date": "2025-10-15", "confidence": 0.85}`,
 		}
@@ -239,13 +238,36 @@ func mockOllamaServer() *httptest.Server {
 	}))
 }
 
+// mockResourceOllamaGateway creates a temporary resource-ollama executable so
+// prediction tests can exercise gateway responses without depending on Ollama.
+func mockResourceOllamaGateway(t *testing.T, response string, exitCode int) func() {
+	t.Helper()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "resource-ollama")
+	script := fmt.Sprintf("#!/bin/sh\ncat >/dev/null\nprintf '%%s\\n' '%s'\nexit %d\n", response, exitCode)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write mock resource-ollama: %v", err)
+	}
+
+	originalPath, hadPath := os.LookupEnv("PATH")
+	os.Setenv("PATH", dir+string(os.PathListSeparator)+originalPath)
+	return func() {
+		if hadPath {
+			os.Setenv("PATH", originalPath)
+		} else {
+			os.Unsetenv("PATH")
+		}
+	}
+}
+
 // setTestEnv temporarily sets environment variables for tests
 func setTestEnv(t *testing.T, key, value string) func() {
 	t.Helper()
-	original := os.Getenv(key)
+	original, hadOriginal := os.LookupEnv(key)
 	os.Setenv(key, value)
 	return func() {
-		if original == "" {
+		if !hadOriginal {
 			os.Unsetenv(key)
 		} else {
 			os.Setenv(key, original)

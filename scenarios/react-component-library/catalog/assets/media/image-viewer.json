@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.image-viewer",
+    "name": "ImageViewer",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "media",
+    "description": "The image inspection surface with progressive loading, zoom, pan, rotation, reset, metadata display, keyboard controls, and gesture alternatives for every action.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.progressive-image",
+        "reason": "Loading and error handling are shared."
+      },
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Pan, zoom, bounds, and coordinate conversion are the shared spatial surface."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "viewport-fill"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

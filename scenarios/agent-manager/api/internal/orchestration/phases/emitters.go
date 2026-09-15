@@ -1,0 +1,158 @@
+// Event emission helpers used by every phase.
+//
+// All phase events flow through these helpers, which in turn route through
+// the per-run emit.Gate when one is wired into Deps. This is the single
+// choke point for run-event emission: future invariants (dedupe, audit
+// hooks, ordering) attach inside the Gate so phases never need to know.
+//
+// The helpers also fall back to writing directly to the event store when no
+// gate is wired (e.g. unit tests that drive a phase function in isolation).
+// This keeps the test surface honest: phase functions don't silently no-op
+// on missing gates — events still land in the store the test inspects.
+
+package phases
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
+
+	"github.com/google/uuid"
+)
+
+// EmitSystemEvent records a system-level log/status event for the run.
+// Level is one of "info", "warn", "error".
+func EmitSystemEvent(ctx context.Context, deps Deps, runID uuid.UUID, level, message string) {
+	evt := domain.NewLogEvent(runID, level, message)
+	publishEvent(ctx, deps, runID, evt)
+}
+
+// EmitFailureEvent captures a typed domain error as a structured run event.
+func EmitFailureEvent(ctx context.Context, deps Deps, runID uuid.UUID, err domain.DomainError) {
+	evt := domain.NewErrorEventFromDomainError(runID, err)
+	publishEvent(ctx, deps, runID, evt)
+}
+
+// EmitGenericFailureEvent captures a non-domain error as a run event.
+//
+// The error chain is inspected for known typed sentinels so the run
+// timeline carries a useful retryable code instead of a blanket INTERNAL
+// — the difference between "the agent CLI couldn't be reached because the
+// home overlay didn't mount" (retryable) and "something failed".
+func EmitGenericFailureEvent(ctx context.Context, deps Deps, runID uuid.UUID, err error) {
+	code := domain.ErrCodeInternal
+	retryable := false
+	if coded := errorCode(err); coded != "" {
+		code = domain.ErrorCode(coded)
+		if code == domain.ErrCodeSandboxHomeOverlayUnavailable {
+			retryable = true
+		}
+	}
+	evt := domain.NewErrorEvent(runID, string(code), err.Error(), retryable)
+	publishEvent(ctx, deps, runID, evt)
+}
+
+// publishEvent routes a constructed event through the Gate (if wired) or
+// falls back to the event store. It never panics on a nil-shaped Deps so
+// phase functions can be invoked from tests with partial wiring.
+func publishEvent(ctx context.Context, deps Deps, runID uuid.UUID, evt *domain.RunEvent) {
+	if deps.Gate != nil {
+		_ = deps.Gate.Emit(evt)
+		return
+	}
+	if deps.Events != nil {
+		if err := deps.Events.Append(ctx, runID, evt); err != nil {
+			return
+		}
+	} else {
+		return
+	}
+	if deps.Broadcaster != nil {
+		deps.Broadcaster.BroadcastEvent(evt)
+	}
+}
+
+// =============================================================================
+// TYPED-OPERATIONAL EVENT HELPERS
+// =============================================================================
+//
+// One helper per event category. Each builds the typed *domain.RunEvent
+// via the eventlog package and routes it through publishEvent so it
+// shares the persist-before-broadcast path with every other event the
+// run emits. Helpers are fire-and-forget: build/marshal failures (which
+// indicate programmer errors — an unregistered payload type) are logged
+// via slog and dropped, mirroring publishEvent's contract.
+
+// emitTyped is the internal funnel for every typed helper below. Phases
+// never call BuildEvent directly so the construction → publishEvent flow
+// stays in one place.
+func emitTyped(ctx context.Context, deps Deps, runID uuid.UUID, payload eventlog.Payload) {
+	evt, err := eventlog.BuildEvent(runID, payload)
+	if err != nil {
+		slog.Error("phases: build typed event", "run_id", runID, "error", err)
+		return
+	}
+	publishEvent(ctx, deps, runID, evt)
+}
+
+// EmitRunnerFallbackAttempted records a single step of the runner
+// fallback chain walk.
+func EmitRunnerFallbackAttempted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.RunnerFallbackAttemptedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitRunnerFallbackExhausted records that the runner fallback chain
+// completed without finding an available candidate.
+func EmitRunnerFallbackExhausted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.RunnerFallbackExhaustedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitModelFallbackAttempted records a single step of the preset chain
+// walk inside ExecuteWithModelFallback.
+func EmitModelFallbackAttempted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.ModelFallbackAttemptedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitModelFallbackExhausted records that the preset chain has been
+// exhausted without finding an acceptable model.
+func EmitModelFallbackExhausted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.ModelFallbackExhaustedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitPolicyCandidateAttempt records one snapshot candidate state with its
+// immutable catalog digest and index.
+func EmitPolicyCandidateAttempt(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.PolicyCandidateAttemptPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitSandboxOperation records the outcome of a sandbox lifecycle action
+// (delete or stop) issued from finalize.
+func EmitSandboxOperation(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.SandboxOperationPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitHeartbeatMiss records a heartbeat write that failed.
+func EmitHeartbeatMiss(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.HeartbeatMissPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitCheckpointFailure records a checkpoint write that failed.
+func EmitCheckpointFailure(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.CheckpointFailurePayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// errorCode extracts a stable string error code from err if any error in
+// its chain implements `Code() string`. Returns "" otherwise.
+func errorCode(err error) string {
+	for cur := err; cur != nil; cur = errors.Unwrap(cur) {
+		if c, ok := cur.(interface{ Code() string }); ok {
+			if code := c.Code(); code != "" {
+				return code
+			}
+		}
+	}
+	return ""
+}

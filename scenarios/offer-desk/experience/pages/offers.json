@@ -1,0 +1,633 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "offers",
+    "title": "Offers",
+    "routes": [
+      "/offers",
+      "/offers/:id"
+    ],
+    "purpose": "Show the offer graph and let an operator understand and change one offer's state. The graph view carries a table equivalent so it is usable without sight and without a pointer.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-002",
+      "OT-P2-001",
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "This offer's current state, and what it is waiting on"
+    },
+    {
+      "statement": "Which transitions are legal from here — and, on refusal, which rule refused and why"
+    },
+    {
+      "statement": "The trigger in the form it was declared, and the facts it reads"
+    },
+    {
+      "statement": "History: who changed what, when, and why"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/offers"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/offers"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "transition-refused",
+      "description": "An illegal transition was attempted. The refusal names the rule and the legal alternatives; the offer's state is unchanged.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "transition-refused"
+        }
+      }
+    },
+    {
+      "id": "audit-open",
+      "description": "The append-only audit trail for one offer is open, showing actor, timestamp, prior value and reason for every state change.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "audit-open"
+        }
+      }
+    },
+    {
+      "id": "promotion-blocked",
+      "description": "A non-operator actor attempted the transition to active. It is refused as a permission, naming the role that would be required.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "promotion-blocked"
+        }
+      }
+    },
+    {
+      "id": "dangling-member",
+      "description": "A deliverable this offer claims does not exist in the live deliverable set. Reported as a finding on the offer rather than silently dropped from the membership list.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "dangling-member"
+        }
+      }
+    },
+    {
+      "id": "merge-duplicate",
+      "description": "An operator compares two same-kind records, sees the references that will move and any edge collapse, and explicitly confirms the audited merge.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "merge-duplicate"
+        }
+      }
+    },
+    {
+      "id": "grouped-default",
+      "description": "The offers route opens in a grouped catalog view with node counts by kind and edge counts on every node.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-default" } }
+    },
+    {
+      "id": "grouped-empty",
+      "description": "The grouped catalog has no nodes and explains how to create the first record; the flat table remains reachable.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-empty" } }
+    },
+    {
+      "id": "grouped-no-edges",
+      "description": "A grouped catalog contains a node with no relationships and says so rather than implying missing data is connected.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-no-edges" } }
+    },
+    {
+      "id": "grouped-duplicates",
+      "description": "Catalog verification reports duplicate identities and the grouped view shows a blocking banner with the count.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-duplicates" } }
+    }
+  ],
+  "elements": [
+    {
+      "id": "offer-graph",
+      "role": "image",
+      "description": "Directed graph of the offer and its typed edges. One rendering of the data, never the only one."
+    },
+    {
+      "id": "offer-table",
+      "role": "table",
+      "name": "Offers",
+      "description": "A table rendering of the catalog graph, carrying the same nodes and relationship counts in grouped or flat form."
+    },
+    {
+      "id": "status-label",
+      "role": "status",
+      "description": "The offer's current status as a text label from the one shared vocabulary."
+    },
+    {
+      "id": "rank-reason",
+      "role": "status",
+      "description": "The offer's localized board reason, including a named unavailable actuals source when the ledger cannot be read."
+    },
+    {
+      "id": "waiting-on",
+      "role": "note",
+      "description": "What this offer is waiting on — its declared trigger in the form it was written, and the facts that trigger reads."
+    },
+    {
+      "id": "legal-transitions",
+      "role": "list",
+      "name": "Available transitions",
+      "description": "The transitions that are legal from the current state, so the operator never guesses."
+    },
+    {
+      "id": "refusal-reason",
+      "role": "alert",
+      "description": "On a refused transition: the rule that refused it, stated assertively."
+    },
+    {
+      "id": "refusal-remedy",
+      "role": "note",
+      "description": "What would satisfy the rule that refused the transition."
+    },
+    {
+      "id": "audit-trail",
+      "role": "list",
+      "name": "History",
+      "description": "Append-only record of every state change: actor, timestamp, prior value, reason."
+    },
+    {
+      "id": "promote-action",
+      "role": "button",
+      "name": "Promote",
+      "description": "The transition to active. Operator-only by construction."
+    },
+    {
+      "id": "role-requirement",
+      "role": "note",
+      "description": "States which role is required for a refused promotion, and that agents may only propose."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "First-run guidance for an empty offer graph."
+    },
+    {
+      "id": "membership-finding",
+      "role": "note",
+      "description": "Names a deliverable this offer claims that is absent from the live deliverable set, and what would resolve it."
+    },
+    {
+      "id": "offer-create-form",
+      "role": "form",
+      "name": "Create offer",
+      "description": "Creates a typed offer node without bypassing lifecycle validation."
+    },
+    {
+      "id": "offer-transition-form",
+      "role": "form",
+      "name": "Transition offer",
+      "description": "Requests a legal lifecycle transition and exposes the refusal when the request is invalid."
+    },
+    {
+      "id": "offer-edge-form",
+      "role": "form",
+      "name": "Create relationship",
+      "description": "Creates a typed relationship between offer nodes."
+    },
+    {
+      "id": "offer-merge-form",
+      "role": "form",
+      "name": "Merge duplicate catalog records",
+      "description": "Selects an explicit surviving node and duplicate, then requires confirmation before the destructive but audited merge."
+    },
+    {
+      "id": "offer-merge-summary",
+      "role": "status",
+      "name": "Merge preview",
+      "description": "Names both nodes and the reference counts and collapsed edges that will move."
+    },
+    {
+      "id": "catalog-grouped-view",
+      "role": "region",
+      "name": "Grouped catalog",
+      "description": "The default catalog view grouped by node kind."
+    },
+    {
+      "id": "catalog-kind-group",
+      "role": "group",
+      "description": "One node-kind group with its node count."
+    },
+    {
+      "id": "catalog-node-edge-counts",
+      "role": "table",
+      "name": "Catalog relationship counts",
+      "description": "Each node and its belongs_to, sells_at, requires, and feeds edge counts."
+    },
+    {
+      "id": "catalog-view-toggle",
+      "role": "button",
+      "name": "Catalog view",
+      "description": "Switches between the grouped catalog and the flat table."
+    },
+    {
+      "id": "catalog-duplicate-banner",
+      "role": "alert",
+      "description": "A blocking duplicate-identity finding from catalog verification. Present only when duplicates exist."
+    }
+  ],
+  "claims": [
+    {
+      "id": "graph-has-a-table-equivalent",
+      "type": "element-present",
+      "statement": "The offer graph is accompanied by a table carrying the same nodes and edges.",
+      "tier": "machine",
+      "viewports": ["desktop", "mobile"],
+      "elements": [
+        "offer-graph",
+        "offer-table"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "PRD accessibility rule and DESIGN.md: a directed graph is unusable without sight or a pointer, and the graph is not the information — only one rendering of it."
+    },
+    {
+      "id": "refusal-names-rule-and-remedy",
+      "type": "element-present",
+      "statement": "A refused transition states which rule refused it and what would satisfy that rule.",
+      "tier": "machine",
+      "elements": [
+        "refusal-reason",
+        "refusal-remedy"
+      ],
+      "states": [
+        "transition-refused"
+      ],
+      "rationale": "OT-P0-002 and the PRD voice rule. A refusal with no remedy converts an enforced lifecycle into an obstacle, which is how enforcement gets removed later."
+    },
+    {
+      "id": "audit-trail-is-reachable",
+      "type": "element-present",
+      "statement": "The append-only audit trail for an offer — actor, timestamp, prior value, reason — is reachable from the offer.",
+      "tier": "machine",
+      "elements": [
+        "audit-trail"
+      ],
+      "states": [
+        "audit-open"
+      ],
+      "rationale": "OT-P0-007. The trail is the only evidence of who promoted what; with no surface it cannot be checked by the person it protects."
+    },
+    {
+      "id": "agent-promotion-is-refused-as-permission",
+      "type": "element-present",
+      "statement": "A non-operator attempt to promote is refused as a permission, naming the role that would be required.",
+      "tier": "machine",
+      "elements": [
+        "role-requirement"
+      ],
+      "states": [
+        "promotion-blocked",
+        "permission-denied"
+      ],
+      "rationale": "OT-P0-005. The source canon said 'agents never self-promote' as an instruction; presenting the refusal as a permission rather than an error is what makes the boundary legible."
+    },
+    {
+      "id": "offer-states-what-it-waits-on",
+      "type": "element-present",
+      "statement": "An offer in a waiting state shows the declared trigger it is waiting on and the facts that trigger reads.",
+      "tier": "machine",
+      "elements": [
+        "waiting-on"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Priority 1. An offer parked with no visible condition is exactly the forgotten-candidate failure the scenario exists to end."
+    },
+    {
+      "id": "legal-transitions-are-shown",
+      "type": "element-present",
+      "statement": "The transitions that are legal from the current state are shown, rather than discovered by attempting one.",
+      "tier": "machine",
+      "elements": [
+        "legal-transitions"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Priority 2. Discovery-by-refusal trains the operator to treat refusals as noise."
+    },
+    {
+      "id": "status-is-never-colour-only",
+      "type": "custom",
+      "statement": "Every offer status carries a text label rather than relying on a status tint.",
+      "tier": "manual",
+      "elements": [
+        "status-label"
+      ],
+      "rationale": "PRD accessibility rule: status is the single most consequential thing on any surface in this scenario."
+    },
+    {
+      "id": "dangling-member-is-a-visible-finding",
+      "type": "element-present",
+      "statement": "A deliverable an offer claims but which does not exist is shown as a finding on the offer, not omitted from the list.",
+      "tier": "machine",
+      "elements": [
+        "membership-finding"
+      ],
+      "states": [
+        "dangling-member"
+      ],
+      "rationale": "OT-P1-001. Silently dropping a dangling member makes the membership list look correct while it is wrong — the same class of failure as reporting a missing figure as zero."
+    },
+    {
+      "id": "offer-forms-have-real-actions",
+      "type": "affordance-present",
+      "statement": "Offer authoring forms expose their submit actions as real keyboard-operable controls.",
+      "tier": "machine",
+      "elements": ["offer-create-form", "offer-transition-form", "offer-edge-form"],
+      "params": { "affordances": ["create-node", "transition", "create-edge"], "targetRole": "button" },
+      "states": ["default", "empty"]
+    },
+    {
+      "id": "offer-promotion-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The offer promotion control is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["promote-action"],
+      "states": ["default", "promotion-blocked"]
+    },
+    {
+      "id": "duplicate-merge-is-explicit-and-audited",
+      "type": "affordance-present",
+      "statement": "The duplicate merge surface names the survivor, duplicate, reference counts, collapsed edges, confirmation, cancellation, and completion feedback.",
+      "tier": "machine",
+      "elements": ["offer-merge-form", "offer-merge-summary"],
+      "params": {"affordances": ["action", "confirm", "cancel"]},
+      "states": ["merge-duplicate"],
+      "rationale": "GRAPH-005: deleting a duplicate is allowed only when the operator sees which identity survives, what moves, and what audit record will remain."
+    },
+    {
+      "id": "offer-rank-reason-is-visible",
+      "type": "element-present",
+      "statement": "The offer surface renders the board's rank reason as text, including named actuals unavailability rather than a fabricated zero.",
+      "tier": "machine",
+      "elements": ["rank-reason"],
+      "states": ["default", "partial"]
+    },
+    {
+      "id": "grouped-view-shows-counts",
+      "type": "element-present",
+      "statement": "The default grouped catalog shows a node count for each kind and edge counts by kind for each node.",
+      "tier": "machine",
+      "elements": ["catalog-grouped-view", "catalog-kind-group", "catalog-node-edge-counts"],
+      "states": ["grouped-default", "grouped-no-edges"],
+      "rationale": "A flat row list hides the shape of the repaired graph; counts make identity and relationship coverage visible at a glance."
+    },
+    {
+      "id": "flat-view-remains-reachable",
+      "type": "affordance-present",
+      "statement": "The operator can switch from the grouped catalog to the existing flat table.",
+      "tier": "machine",
+      "elements": ["catalog-view-toggle"],
+      "states": ["grouped-default", "grouped-empty", "grouped-no-edges"],
+      "params": { "affordances": ["toggle"], "targetRole": "button" },
+      "rationale": "Grouping is a default projection, not a replacement for the searchable record table."
+    },
+    {
+      "id": "duplicate-banner-is-conditional",
+      "type": "state-distinct",
+      "statement": "A duplicate-identity banner appears when verification reports duplicates and is absent when verification is reconciled.",
+      "tier": "manual",
+      "elements": ["catalog-duplicate-banner", "catalog-grouped-view"],
+      "states": ["grouped-duplicates", "grouped-default"],
+      "rationale": "The banner makes the exact defect class that caused the repair visible without turning a clean catalog into an alarm."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "offer-graph": {
+        "testid": "offer-graph"
+      },
+      "offer-table": {
+        "testid": "offer-table"
+      },
+      "status-label": {
+        "testid": "offer-status"
+      },
+      "rank-reason": {
+        "testid": "offer-rank-reason"
+      },
+      "waiting-on": {
+        "testid": "offer-waiting-on"
+      },
+      "legal-transitions": {
+        "testid": "offer-legal-transitions"
+      },
+      "refusal-reason": {
+        "testid": "offer-refusal-reason"
+      },
+      "refusal-remedy": {
+        "testid": "offer-refusal-remedy"
+      },
+      "audit-trail": {
+        "testid": "offer-audit-trail"
+      },
+      "promote-action": {
+        "testid": "offer-promote"
+      },
+      "role-requirement": {
+        "testid": "offer-role-requirement"
+      },
+      "empty-guidance": {
+        "testid": "offers-empty-guidance"
+      },
+      "membership-finding": {
+        "testid": "offer-membership-finding"
+      },
+      "offer-create-form": {
+        "testid": "offer-create-node"
+      },
+      "offer-transition-form": {
+        "testid": "offer-transition"
+      },
+      "offer-edge-form": {
+        "testid": "offer-create-edge"
+      },
+      "offer-merge-form": {
+        "testid": "offer-merge-form"
+      },
+      "offer-merge-summary": {
+        "testid": "offer-merge-summary"
+      },
+      "catalog-grouped-view": {
+        "testid": "catalog-grouped-view"
+      },
+      "catalog-kind-group": {
+        "testid": "catalog-kind-group"
+      },
+      "catalog-node-edge-counts": {
+        "testid": "catalog-node-edge-counts"
+      },
+      "catalog-view-toggle": {
+        "testid": "catalog-view-toggle"
+      },
+      "catalog-duplicate-banner": {
+        "testid": "catalog-duplicate-banner"
+      }
+    }
+  }
+}

@@ -200,6 +200,34 @@ func TestBuilder_Build_ModuleSnapshots(t *testing.T) {
 	}
 }
 
+func TestBuilder_Build_ExcludesRoadmapRequirementsFromDeliveryViews(t *testing.T) {
+	b := New()
+	index := parsing.NewModuleIndex()
+	mustAddModule(t, index, &types.RequirementModule{
+		FilePath:   "/test/module.json",
+		ModuleName: "delivery-scope",
+		Requirements: []types.Requirement{
+			{ID: "REQ-COMMITTED", PRDRef: "PRD-COMMITTED", Status: types.StatusComplete},
+			{ID: "REQ-ROADMAP", PRDRef: "PRD-ROADMAP", Status: types.StatusPending, DeliveryScope: types.ScopeRoadmap},
+		},
+	})
+
+	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{Total: 1, RoadmapTotal: 1})
+	if err != nil {
+		t.Fatalf("build snapshot: %v", err)
+	}
+
+	if snapshot.Summary.TotalRequirements != 1 || snapshot.Summary.RoadmapRequirements != 1 {
+		t.Fatalf("expected one committed and one roadmap requirement, got %+v", snapshot.Summary)
+	}
+	if len(snapshot.Modules) != 1 || snapshot.Modules[0].Total != 1 {
+		t.Fatalf("roadmap work must not dilute module delivery progress: %+v", snapshot.Modules)
+	}
+	if len(snapshot.OperationalTargets) != 1 || snapshot.OperationalTargets[0].ID != "PRD-COMMITTED" {
+		t.Fatalf("roadmap work must remain linked but not become a delivery target: %+v", snapshot.OperationalTargets)
+	}
+}
+
 func TestBuilder_Build_OperationalTargets(t *testing.T) {
 	b := New()
 

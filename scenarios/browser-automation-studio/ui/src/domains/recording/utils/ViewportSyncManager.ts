@@ -61,6 +61,10 @@ const DEFAULT_RESIZE_THRESHOLD_MS = 100;
 const DEFAULT_MIN_DIMENSION = 320;
 const DEFAULT_MAX_DIMENSION = 3840;
 
+function sameViewport(a: ViewportDimensions | null, b: ViewportDimensions | null): boolean {
+  return Boolean(a && b && a.width === b.width && a.height === b.height);
+}
+
 // =============================================================================
 // Hook Implementation
 // =============================================================================
@@ -104,6 +108,7 @@ export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSync
   const resizeEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingViewportRef = useRef<ViewportDimensions | null>(null);
   const lastSyncedViewportRef = useRef<ViewportDimensions | null>(null);
+  const viewportRef = useRef<ViewportDimensions | null>(null);
 
   // Clamp viewport dimensions
   const getClampedViewport = useCallback(
@@ -185,8 +190,16 @@ export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSync
 
       // Compute clamped viewport
       const clampedViewport = getClampedViewport(bounds);
+      const viewportChanged =
+        !sameViewport(viewportRef.current, clampedViewport) ||
+        !sameViewport(pendingViewportRef.current, clampedViewport);
+
+      if (!viewportChanged) {
+        return;
+      }
 
       // Update local state immediately for responsive UI
+      viewportRef.current = clampedViewport;
       setViewport(clampedViewport);
       pendingViewportRef.current = clampedViewport;
 
@@ -221,6 +234,7 @@ export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSync
   // Reset state (call on session change)
   const reset = useCallback(() => {
     setViewport(null);
+    viewportRef.current = null;
     setIsResizing(false);
     setIsSyncing(false);
     setLastSyncTime(null);
@@ -276,4 +290,3 @@ export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSync
     getClampedViewport,
   };
 }
-

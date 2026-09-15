@@ -7,7 +7,7 @@ import type {
   MetricHistory,
   GPUMetrics
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 import { GpuDeviceCard } from './GpuDeviceCard';
 
@@ -35,14 +35,17 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
 
   return (
     <MetricDetailLayout
+      layoutId="gpu"
       title="GPU UTILIZATION"
       icon={<CircuitBoard size={18} />}
       headline={headline}
       subhead={subheadParts.length > 0 ? subheadParts.join(' \u2022 ') : undefined}
       onBack={onBack}
     >
-      <div className="flex-col-gap-lg">
+      <DetailSection id="gpu-overview" title="GPU overview"><div className="flex-col-gap-lg">
         <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="GPU"
           data={gpuHistory}
           lines={[{ dataKey: 'value', name: 'Utilization', color: 'var(--color-info)', strokeWidth: 2 }]}
           unit="%"
@@ -104,7 +107,7 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
             GPU metrics unavailable on this host.
           </div>
         )}
-      </div>
+      </div></DetailSection>
     </MetricDetailLayout>
   );
 };

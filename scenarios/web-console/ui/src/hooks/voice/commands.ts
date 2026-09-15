@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#voice-command-seam
 //
 // Voice Command Vocabulary — defines the fixed set of terminal commands
 // that can be triggered by voice in persistent mode.
@@ -6,6 +5,8 @@
 // Each command has a set of trigger patterns and an execute function that
 // receives a CommandContext with action handles. Command logic stays here;
 // UI components never execute commands directly.
+
+import { CTRL_C, CTRL_L, ENTER_KEY, TAB_KEY } from "../../lib/terminalKeys";
 
 /** Action handles provided to commands for executing terminal operations. */
 export interface CommandContext {
@@ -17,6 +18,12 @@ export interface CommandContext {
   closeTab: () => void;
   /** Send raw data to the active terminal. */
   sendToTerminal: (data: string) => void;
+  /** Copy the active terminal selection without sending terminal bytes. */
+  copySelection: () => void;
+  /** Read the clipboard and paste through the reliable input lane. */
+  pasteFromClipboard: () => void;
+  /** Scroll the active terminal viewport without sending terminal bytes. */
+  scrollTerminal: (lines: number) => void;
   /** Exit persistent voice mode. */
   exitVoiceMode: () => void;
 }
@@ -59,49 +66,49 @@ export const VOICE_COMMANDS: VoiceCommand[] = [
     id: "send-enter",
     description: "Press Enter",
     patterns: ["send", "enter", "submit"],
-    execute: (ctx) => ctx.sendToTerminal("\r"),
+    execute: (ctx) => ctx.sendToTerminal(ENTER_KEY.input),
   },
   {
     id: "cancel",
     description: "Cancel (Ctrl+C)",
     patterns: ["cancel", "interrupt", "stop"],
-    execute: (ctx) => ctx.sendToTerminal("\x03"),
+    execute: (ctx) => ctx.sendToTerminal(CTRL_C),
   },
   {
     id: "copy",
     description: "Copy",
     patterns: ["copy"],
-    execute: (ctx) => ctx.sendToTerminal("\x1b[67;5u"), // CSI for Ctrl+Shift+C
+    execute: (ctx) => ctx.copySelection(),
   },
   {
     id: "paste",
     description: "Paste",
     patterns: ["paste"],
-    execute: (ctx) => ctx.sendToTerminal("\x1b[86;5u"), // CSI for Ctrl+Shift+V
+    execute: (ctx) => ctx.pasteFromClipboard(),
   },
   {
     id: "clear",
     description: "Clear Screen",
     patterns: ["clear", "clear screen"],
-    execute: (ctx) => ctx.sendToTerminal("\x0c"), // Ctrl+L
+    execute: (ctx) => ctx.sendToTerminal(CTRL_L),
   },
   {
     id: "tab-key",
     description: "Tab Key (Autocomplete)",
     patterns: ["tab key", "autocomplete"],
-    execute: (ctx) => ctx.sendToTerminal("\t"),
+    execute: (ctx) => ctx.sendToTerminal(TAB_KEY.input),
   },
   {
     id: "scroll-up",
     description: "Scroll Up",
     patterns: ["scroll up"],
-    execute: (ctx) => ctx.sendToTerminal("\x1b[5~"), // Shift+PageUp
+    execute: (ctx) => ctx.scrollTerminal(-5),
   },
   {
     id: "scroll-down",
     description: "Scroll Down",
     patterns: ["scroll down"],
-    execute: (ctx) => ctx.sendToTerminal("\x1b[6~"), // Shift+PageDown
+    execute: (ctx) => ctx.scrollTerminal(5),
   },
   {
     id: "stop-listening",

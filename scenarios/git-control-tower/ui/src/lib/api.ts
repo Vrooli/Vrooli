@@ -33,6 +33,9 @@ export type {
   RepoStatus,
   RepoHistoryResponse,
   RepoHistoryEntry,
+  CommitCheckRun,
+  CommitCheckKind,
+  CommitCheckStatus,
   DiffHunk,
   DiffStats,
 } from "./api-types-repo";
@@ -50,12 +53,26 @@ export type {
   UnstageResponse,
   CommitRequest,
   CommitResponse,
+  AuthorityStatus,
+  MutationPreviewRequest,
+  MutationPreviewResponse,
+  MutationIntentRequest,
+  MutationIntentResponse,
+  PrecommitConfig,
+  PrecommitRunRequest,
+  PrecommitRunResponse,
+  PrecommitRunResult,
+  PrecommitStreamEvent,
+  PrecommitStreamEventType,
+  PrecommitHookState,
   DiscardRequest,
   DiscardResponse,
   IgnoreRequest,
   IgnoreResponse,
   GroupingRulesConfig,
   GroupingRuleAPI,
+  ChangeGroupAPI,
+  RepoGroupsResponse,
   GitignoreHealthResponse,
   GitignoreSuggestion,
   GitignoreMoveRequest,
@@ -74,6 +91,12 @@ export type {
   ProvenanceFile,
   ProvenanceRunGroup,
   ProvenanceResponse,
+  BlameResponse,
+  ProvenanceStanding,
+  BlameFile,
+  BlameEvidence,
+  ProvenanceWorkReference,
+  ProvenanceChangeBundle,
   FileStatus,
   FileInfo,
   FileTreeResponse,
@@ -90,8 +113,13 @@ export type {
   SaveFileContentRequest,
   SaveFileContentResponse,
   SaveFileContentConflictResponse,
+  TrackedBinariesResponse,
+  TrackedBinary,
+  UntrackBinaryRequest,
+  UntrackBinaryResponse,
 } from "./api-types-operations";
-export { FileContentConflictError } from "./api-types-operations";
+export { FileContentConflictError, RemoteOperationError } from "./api-types-operations";
+export type { SourceDistribution, DistributionContent, DistributionExclusion, PublicationHandoff, DistributionDrift, SourceDistributionListResponse, SourceDistributionDetailResponse } from "./api-types-source-distribution";
 
 // Core API functions
 export {
@@ -102,6 +130,13 @@ export {
   stageFiles,
   unstageFiles,
   createCommit,
+  fetchAuthorityStatus,
+  fetchMutationPreview,
+  issueMutationIntent,
+  fetchPrecommitConfig,
+  savePrecommitConfig,
+  runPrecommit,
+  runPrecommitStream,
   discardFiles,
   ignoreFile,
   pushToRemote,
@@ -111,6 +146,7 @@ export {
   fetchApprovedChanges,
   fetchApprovedChangesPreview,
   fetchProvenance,
+  fetchBlame,
   fetchBranches,
   createBranch,
   switchBranch,
@@ -122,6 +158,7 @@ export {
   deletePath,
   saveFileContent,
 } from "./api-core";
+export { fetchSourceDistributions, fetchSourceDistribution } from "./api-source-distribution";
 
 // Settings: capabilities, credentials, SSH, repos, grouping, gitignore
 export type {
@@ -154,9 +191,12 @@ export type {
 export {
   fetchCapabilities,
   fetchGroupingRules,
+  fetchRepoGroups,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  fetchTrackedBinaries,
+  untrackBinary,
   fetchCredentials,
   saveCredential,
   deleteCredential,
@@ -180,7 +220,6 @@ export type {
   CaptureTrigger,
   CaptureStatus,
   SnapshotRole,
-  CaptureMode,
   CaptureTheme,
   CapturePreset,
   SnapshotStalenessInfo,
@@ -189,11 +228,6 @@ export type {
   SnapshotSetDetail,
   VisualCaptureListResponse,
   CaptureStorageStats,
-  ExecutionMode,
-  WorkflowExecutionResult,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  WorkflowCaptureDetailResponse,
 } from "./api-visual";
 export {
   SIZE_PRESETS,
@@ -212,10 +246,6 @@ export {
   buildCaptureScreenshotUrl,
   fetchScreenshotPath,
   buildCaptureVideoUrl,
-  triggerWorkflowCapture,
-  fetchWorkflowCaptures,
-  fetchWorkflowCaptureDetail,
-  buildWorkflowVideoUrl,
 } from "./api-visual";
 
 // Test execution & tidiness
@@ -239,9 +269,6 @@ export type {
   TidinessScenarioDetail,
 } from "./api-testing";
 export {
-  triggerTestExecution,
-  fetchTestExecutions,
-  fetchTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,

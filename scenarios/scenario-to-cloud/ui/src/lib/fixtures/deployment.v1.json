@@ -1,0 +1,45 @@
+{
+  "ref": {
+    "id": "0f0e1d2c-3b4a-4596-8778-99aabbccddee",
+    "scenario_id": "demo-app",
+    "environment": "production",
+    "target": {
+      "machine_id": "machine-7",
+      "node_id": "node-7",
+      "enrollment_generation": "2",
+      "transport": "bridge",
+      "locator": {
+        "host": "203.0.113.10",
+        "port": 22,
+        "user": "root",
+        "workdir": "/root/Vrooli"
+      }
+    }
+  },
+  "name": "demo-app @ demo.example",
+  "status": "deployed",
+  "domain": "demo.example",
+  "fence": "4",
+  "manifest": {
+    "edge": {
+      "domain": "demo.example"
+    },
+    "scenario": {
+      "id": "demo-app"
+    },
+    "target": {
+      "type": "vps",
+      "vps": {
+        "host": "203.0.113.10"
+      }
+    },
+    "version": "1"
+  },
+  "bundle_sha256": "sha256:bundle",
+  "progress_step": "deploying",
+  "progress_percent": 100,
+  "created_at": "2026-09-09T10:00:00Z",
+  "updated_at": "2026-09-09T11:00:00Z",
+  "last_deployed_at": "2026-09-09T11:00:00Z",
+  "desired_state": "running"
+}

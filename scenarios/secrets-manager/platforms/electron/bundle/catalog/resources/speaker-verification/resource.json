@@ -1,0 +1,177 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "speaker-verification",
+  "storage": {"entries": {
+    "profiles": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/profiles", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/profiles", "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/profiles"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Enrolled speaker profiles are bind-mounted into the service and are not regenerable without re-enrollment."},
+    "model_cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache", "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "SPEAKER_VERIFICATION_MODELS_DIR", "scope": "container"}, "rationale": "Downloaded SpeechBrain models are re-fetchable and mounted as model-cache."}
+  }},
+  "display_name": "Speaker Verification",
+  "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service with native compose-backed lifecycle for speaker enrollment, verification, and reserved target-speaker extraction workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-speaker-verification",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-speaker-verification_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-speaker-verification"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "compose-service",
+  "driver": "compose-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Compose images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "SPEAKER_VERIFICATION_DEVICE": "cuda"
+    }
+  },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 751619277,
+    "floor_bytes": 751619277,
+    "priority": "service"
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11452
+    }
+  ],
+  "orchestration": {
+    "startup_order": 565,
+    "startup_timeout_seconds": 300,
+    "startup_time_estimate": "first run 2-5 min model download and warmup; then 20-60s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "SPEAKER_VERIFICATION_HOST": "localhost"
+    },
+    "from_ports": {
+      "SPEAKER_VERIFICATION_PORT": "http"
+    },
+    "derived": {
+      "SPEAKER_VERIFICATION_URL": {
+        "template": "http://${SPEAKER_VERIFICATION_HOST}:${SPEAKER_VERIFICATION_PORT}"
+      },
+      "SPEAKER_VERIFICATION_BASE_URL": {
+        "template": "${SPEAKER_VERIFICATION_URL}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11452/ready",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

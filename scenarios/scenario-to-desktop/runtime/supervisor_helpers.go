@@ -1,18 +1,23 @@
 package bundleruntime
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // =============================================================================
@@ -100,6 +105,54 @@ func (s *Supervisor) AppDataDir() string {
 	return s.appData
 }
 
+// ResourceUpgradeOffers evaluates deferred hardware candidates without
+// changing the staged fallback. An upgrade is only acted on after the client
+// records an explicit outcome through the control API.
+func (s *Supervisor) ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error) {
+	outcomes, err := resourceplan.LoadUpgradeOutcomes(s.appData)
+	if err != nil {
+		return nil, err
+	}
+	facts := s.resourceUpgradeFacts()
+	return resourceplan.ResolveDeferredOffers(s.resourcePlan, facts, outcomes), nil
+}
+
+func (s *Supervisor) resourceUpgradeFacts() binaryfetch.Facts {
+	facts := binaryfetch.Facts{}
+	status := s.GPUStatus()
+	if status.Available {
+		for key, value := range status.Facts {
+			facts[key] = value
+		}
+	}
+	if status.Available {
+		backend := strings.ToLower(status.Method)
+		switch {
+		case strings.Contains(backend, "nvidia"):
+			facts["accel.backends"] = "cuda"
+		case strings.Contains(backend, "system_profiler"), strings.Contains(backend, "darwin"):
+			facts["accel.backends"] = "metal"
+		default:
+			facts["accel.backends"] = backend
+		}
+		facts["accel.backend"] = facts["accel.backends"]
+	}
+	if !status.Available {
+		facts["accel.backends"] = "cpu"
+		facts["accel.backend"] = "cpu"
+	}
+	facts["os"], facts["arch"] = runtime.GOOS, runtime.GOARCH
+	return facts
+}
+
+func (s *Supervisor) ApplyResourceUpgrade(ctx context.Context, resource string) error {
+	return resourceplan.ApplyDeferredUpgrade(ctx, s.opts.BundlePath, s.resourcePlan, resource, s.resourceUpgradeFacts())
+}
+
+func (s *Supervisor) RecordResourceUpgrade(outcome resourceplan.UpgradeOutcome) error {
+	return resourceplan.RecordUpgradeOutcome(s.appData, outcome)
+}
+
 // TelemetryPath returns the telemetry file path.
 func (s *Supervisor) TelemetryPath() string {
 	return s.telemetryPath
@@ -113,6 +166,52 @@ func (s *Supervisor) TelemetryUploadURL() string {
 // Manifest returns the bundle manifest.
 func (s *Supervisor) Manifest() *manifest.Manifest {
 	return s.opts.Manifest
+}
+
+// AuthenticationStatus returns non-secret mode and provider state for the
+// authenticated runtime status endpoint. The supervisor bearer token is not
+// included and is never represented as a human identity.
+func (s *Supervisor) AuthenticationStatus() map[string]interface{} {
+	if s.authModes == nil {
+		return nil
+	}
+	return s.authModes.status()
+}
+
+// AuthenticationModeOptions returns safe mode metadata for the protected
+// operator settings surface.
+func (s *Supervisor) AuthenticationModeOptions() []map[string]interface{} {
+	if s.authModes == nil {
+		return nil
+	}
+	return s.authModes.options()
+}
+
+// SelectAuthenticationMode records an explicit, protected mode transition.
+// It does not copy or mutate provider credentials.
+func (s *Supervisor) SelectAuthenticationMode(ctx context.Context, mode string) (map[string]interface{}, error) {
+	if s.authModes == nil {
+		return nil, errors.New("authentication mode management is unavailable")
+	}
+	status, err := s.authModes.selectMode(ctx, mode)
+	if err == nil {
+		_ = s.recordTelemetry("authentication_mode_changed", map[string]interface{}{"mode": status["mode"]})
+	}
+	return status, err
+}
+
+// RollbackAuthenticationMode restores the prior declared mode after checking
+// its provider prerequisites. Data and credentials are not deleted by this
+// operation.
+func (s *Supervisor) RollbackAuthenticationMode(ctx context.Context) (map[string]interface{}, error) {
+	if s.authModes == nil {
+		return nil, errors.New("authentication mode management is unavailable")
+	}
+	status, err := s.authModes.rollback(ctx)
+	if err == nil {
+		_ = s.recordTelemetry("authentication_mode_rolled_back", map[string]interface{}{"mode": status["mode"]})
+	}
+	return status, err
 }
 
 // FileSystem returns the file system abstraction.
@@ -144,7 +243,20 @@ func (s *Supervisor) AuthToken() string {
 
 // IsStarted returns whether the supervisor has been started.
 func (s *Supervisor) IsStarted() bool {
+	s.stateMu.RLock()
+	defer s.stateMu.RUnlock()
 	return s.started
+}
+
+// Done closes when the runtime is shutting down, whether shutdown was initiated
+// by an OS signal or by the authenticated control API. Runtime command hosts use
+// it to exit after a control-plane /shutdown request rather than leaving an
+// orphaned process behind.
+func (s *Supervisor) Done() <-chan struct{} {
+	if s.runtimeCtx == nil {
+		return nil
+	}
+	return s.runtimeCtx.Done()
 }
 
 // AllServicesReady returns true if all services are ready.
@@ -167,12 +279,49 @@ func (s *Supervisor) AllServicesReady() bool {
 // ServiceStatuses returns a copy of all service statuses.
 func (s *Supervisor) ServiceStatuses() map[string]ServiceStatus {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	out := make(map[string]ServiceStatus)
 	for id, st := range s.serviceStatus {
 		out[id] = st
 	}
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer != nil {
+		for resource, status := range resourceServer.Statuses() {
+			out["resource:"+resource] = ServiceStatus{Ready: status.Running, Message: status.Message}
+		}
+	}
 	return out
+}
+
+// ProviderObservations exposes only credential-free resource selection facts
+// for journey evidence. Endpoints, leases, tokens, and service environments
+// remain behind their owning runtime boundaries.
+func (s *Supervisor) ProviderObservations() map[string]resourceplan.ProviderObservation {
+	s.mu.RLock()
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer == nil {
+		return map[string]resourceplan.ProviderObservation{}
+	}
+	observations := make(map[string]resourceplan.ProviderObservation)
+	for resource, status := range resourceServer.Statuses() {
+		observations[resource] = status.Observation
+	}
+	return observations
+}
+
+// ResourceLogPath returns a managed resource log only when the resource was
+// selected by this bundle's verified deployment plan. It deliberately does not
+// accept an arbitrary filesystem path from the control API.
+func (s *Supervisor) ResourceLogPath(resource string) (string, bool) {
+	s.mu.RLock()
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer == nil {
+		return "", false
+	}
+	status, ok := resourceServer.Statuses()[resource]
+	return status.LogPath, ok && status.LogPath != ""
 }
 
 // recordTelemetry writes a telemetry event if the recorder is initialized.
@@ -188,9 +337,26 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 // =============================================================================
 
 // applySecrets injects secrets into the environment for a service.
+//
+// The injector is held on the supervisor rather than built per call. A
+// file-target secret is materialized on ephemeral storage, and the injector is
+// what remembers where — a fresh injector per service would drop that record
+// immediately, leaving the files with nothing able to remove them.
 func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
-	injector := secrets.NewInjector(s.secretStore, s.fs, s.appData)
-	return injector.Apply(env, svc)
+	s.secretInjectorOnce.Do(func() {
+		s.secretInjector = secrets.NewInjector(s.secretStore, s.fs, s.appData)
+	})
+	return s.secretInjector.Apply(env, svc)
+}
+
+// discardMaterializedSecrets removes any file a secret was materialized into.
+// Callers invoke it once the services that needed those files have started: a
+// credential still on disk past that point is exposure with no purpose left.
+func (s *Supervisor) discardMaterializedSecrets() error {
+	if s.secretInjector == nil {
+		return nil
+	}
+	return s.secretInjector.RemoveMaterializedSecrets()
 }
 
 // UpdateSecrets merges new secrets and persists them.
@@ -250,9 +416,12 @@ func (s *Supervisor) PortMap() map[string]map[string]int {
 
 // RuntimeInfo returns metadata about the running supervisor instance.
 func (s *Supervisor) RuntimeInfo() api.RuntimeInfo {
+	s.stateMu.RLock()
+	startedAt := s.startedAt
+	s.stateMu.RUnlock()
 	return api.RuntimeInfo{
 		InstanceID:   s.instanceID,
-		StartedAt:    s.startedAt,
+		StartedAt:    startedAt,
 		AppDataDir:   s.appData,
 		BundleRoot:   s.opts.BundlePath,
 		DryRun:       s.opts.DryRun,

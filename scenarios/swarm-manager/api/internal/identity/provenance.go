@@ -1,51 +1,35 @@
-// Package identity provides middleware and helpers for extracting agent
-// identity provenance from incoming HTTP requests. Provenance flows through
-// request context and is consumed by downstream handlers for attribution.
+// Package identity contains Swarm Manager's session-enrichment middleware.
+// Token verification and request provenance are owned by api-core/provenance.
 package identity
 
-import "context"
+import (
+	"context"
 
-// ProvenanceType distinguishes operator from agent attribution.
-const (
-	TypeOperator = "operator"
-	TypeAgent    = "agent"
+	"github.com/vrooli/api-core/provenance"
 )
 
-// Provenance identifies who initiated a request.
-type Provenance struct {
-	Type       string `json:"type"`
-	RunID      string `json:"run_id,omitempty"`
-	TaskID     string `json:"task_id,omitempty"`
-	ProfileKey string `json:"profile_key,omitempty"`
-}
+const (
+	TypeOperator = provenance.ActorOperator
+	TypeAgent    = provenance.ActorAgent
 
-// IsAgent returns true if this provenance represents an agent identity.
-func (p Provenance) IsAgent() bool {
-	return p.Type == TypeAgent
-}
+	VerificationVerified = provenance.VerificationVerified
+)
 
-// FormatStartedBy returns a string suitable for the execution started_by field.
-// Operator: "operator", Agent: "agent:<profile_key>/<run_id>".
-func (p Provenance) FormatStartedBy() string {
-	if p.IsAgent() {
-		return "agent:" + p.ProfileKey + "/" + p.RunID
-	}
-	return TypeOperator
-}
+type Provenance = provenance.Provenance
 
-type provenanceKey struct{}
-
-// NewContext stores provenance in the context.
 func NewContext(ctx context.Context, p Provenance) context.Context {
-	return context.WithValue(ctx, provenanceKey{}, p)
+	return provenance.NewContext(ctx, p)
 }
 
-// FromContext extracts provenance from the context.
-// Returns operator provenance if none is set.
-func FromContext(ctx context.Context) Provenance {
-	p, ok := ctx.Value(provenanceKey{}).(Provenance)
-	if !ok {
-		return Provenance{Type: TypeOperator}
+func FromContext(ctx context.Context) Provenance { return provenance.FromContext(ctx) }
+
+// VerifiedOperatorActor returns the operator attribution only when request
+// provenance proves an authenticated operator. An absent, invalid or unavailable
+// verification is not an operator and yields an empty string, so callers that
+// need a real human act cannot inherit the fail-open started-by default.
+func VerifiedOperatorActor(p Provenance) string {
+	if p.Actor == TypeOperator && p.VerificationStatus == VerificationVerified {
+		return p.FormatStartedBy()
 	}
-	return p
+	return ""
 }

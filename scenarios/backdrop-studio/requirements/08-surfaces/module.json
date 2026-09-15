@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "module": "surfaces",
+    "description": "The output surface registry: declared pixel geometry, permitted placements, the external authority each geometry derives from, and the conformance gate that keeps a produced asset matching the target it claims.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SUR-001",
+      "title": "The system shall persist an output surface as a record declaring its pixel geometry",
+      "status": "planned",
+      "prd_ref": "OT-P0-022",
+      "category": "surfaces",
+      "criticality": "P0",
+      "description": "The system shall persist each output surface as a record carrying its identifier, its **kind**, its exact pixel width and height, its permitted placements, and a reference to the published requirement its geometry derives from. The kind is load-bearing rather than descriptive: it is the only input that selects mockup chrome fidelity (`UIX-008`, `UIX-009`). A surface geometry that a store mandates changes without notice, so the system shall hold it as data with a cited source rather than as a constant in code.",
+      "tags": [
+        "registry",
+        "geometry",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert a surface without geometry, without a kind, or without a cited authority is rejected, and that a valid surface round-trips with its placement list intact."
+        }
+      ]
+    },
+    {
+      "id": "SUR-002",
+      "title": "The system shall restrict a render to the placements its surface permits",
+      "status": "planned",
+      "prd_ref": "OT-P0-022",
+      "category": "surfaces",
+      "criticality": "P0",
+      "description": "The system shall refuse a render whose requested placement is not among those its surface declares. A caption-above-device arrangement is meaningful on a phone screenshot surface and meaningless on a feature graphic, and the surface record is where that constraint lives.",
+      "tags": [
+        "registry",
+        "validation",
+        "composition"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert a permitted template composes and an unpermitted one is refused with both the surface and the template named."
+        }
+      ]
+    },
+    {
+      "id": "SUR-003",
+      "title": "The system shall refuse to release a backdrop whose dimensions do not match its declared surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-023",
+      "category": "surfaces",
+      "criticality": "P0",
+      "description": "The system shall compare a produced candidate's actual pixel dimensions against its declared surface geometry and shall refuse release on any mismatch, stating the expected and the actual. A store rejects a listing asset of the wrong size, so this is caught before submission rather than after.",
+      "tags": [
+        "gate",
+        "geometry",
+        "refusal"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Produce a candidate one pixel off in each dimension; assert release refuses and names both geometries. Assert an exact match releases."
+        }
+      ]
+    },
+    {
+      "id": "SUR-004",
+      "title": "The system should ship the app-store surfaces as declared records",
+      "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "surfaces",
+      "criticality": "P1",
+      "description": "The system should seed the store surfaces as records — Play feature graphic, Play phone and tablet screenshots, and App Store screenshots at each required device class — each carrying the geometry its store mandates and a reference to the published requirement. The system should treat these as data subject to change rather than as fixed knowledge, and should surface the date each was last confirmed.",
+      "tags": [
+        "store",
+        "seed",
+        "external-authority"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Assert every seeded store surface carries geometry, a cited authority, and a confirmation date, and that the pack loads without a code change."
+        }
+      ]
+    }
+  ]
+}

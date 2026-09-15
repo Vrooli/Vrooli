@@ -26,13 +26,14 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/credits"
-	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
-	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -95,19 +96,18 @@ type Handler struct {
 	catalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	executionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	workflowValidator *workflowvalidator.Validator
-	repo              database.Repository
-	wsHub             wsHub.HubInterface
-	storage           storage.StorageInterface
-	recordingService  archiveingestion.IngestionServiceInterface
-	recordModeService RecordModeService // Live recording session management (interface for testability)
-	recordingsRoot          string
-	replayRenderer          replayRenderer
-	sessionProfileService   *sessionprofile.Service
-	log                     *logrus.Logger
-	upgrader          websocket.Upgrader
-	wsAllowAll        bool
-	wsAllowedOrigins  []string
+	workflowValidator     *workflowvalidator.Validator
+	repo                  database.Repository
+	wsHub                 wsHub.HubInterface
+	storage               storage.StorageInterface
+	recordingService      archiveingestion.IngestionServiceInterface
+	recordModeService     RecordModeService // Live recording session management (interface for testability)
+	recordingsRoot        string
+	replayRenderer        replayRenderer
+	sessionProfileService *sessionprofile.Service
+	log                   *logrus.Logger
+	upgrader              websocket.Upgrader
+	wsAllowedOrigins      []string
 
 	// Performance monitoring
 	perfRegistry       *performance.CollectorRegistry
@@ -155,19 +155,19 @@ type HandlerDeps struct {
 	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	WorkflowValidator  *workflowvalidator.Validator
-	Storage            storage.StorageInterface
-	RecordingService   archiveingestion.IngestionServiceInterface
-	RecordModeService  RecordModeService // Live recording session management (interface for testability)
-	RecordingsRoot          string
-	ReplayRenderer          replayRenderer
-	SessionProfileService   *sessionprofile.Service
-	UXMetricsRepo           uxmetrics.Repository         // Optional: enables UX metrics collection
-	EntitlementService  *entitlement.Service         // Optional: enables tier-based feature gating
-	CreditService       credits.CreditService        // Optional: enables unified credit tracking
-	AIClientFactory     *ai.AIClientFactory          // Optional: enables per-request AI client creation
-	NavigatorRegistry   *vision.NavigatorRegistry    // Optional: enables vision navigator selection
-	PlaywrightNavigator *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
+	WorkflowValidator     *workflowvalidator.Validator
+	Storage               storage.StorageInterface
+	RecordingService      archiveingestion.IngestionServiceInterface
+	RecordModeService     RecordModeService // Live recording session management (interface for testability)
+	RecordingsRoot        string
+	ReplayRenderer        replayRenderer
+	SessionProfileService *sessionprofile.Service
+	UXMetricsRepo         uxmetrics.Repository              // Optional: enables UX metrics collection
+	EntitlementService    *entitlement.Service              // Optional: enables tier-based feature gating
+	CreditService         credits.CreditService             // Optional: enables unified credit tracking
+	AIClientFactory       *ai.AIClientFactory               // Optional: enables per-request AI client creation
+	NavigatorRegistry     *vision.NavigatorRegistry         // Optional: enables vision navigator selection
+	PlaywrightNavigator   *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -181,11 +181,13 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 type DepsOptions struct {
 	UXMetricsRepo           uxmetrics.Repository
 	EntitlementService      *entitlement.Service
-	CreditService           credits.CreditService                    // Unified credit tracking
-	AIClientFactory         *ai.AIClientFactory                      // Per-request AI client creation
-	NavigatorRegistry       *vision.NavigatorRegistry                // Vision navigator selection
-	PlaywrightNavigator     *vision.PlaywrightVisionNavigator        // Direct reference to playwright navigator
-	UnifiedRecordingService *unifiedrecording.Service                // Timeline persistence for recorded actions
+	CreditService           credits.CreditService                 // Unified credit tracking
+	AIClientFactory         *ai.AIClientFactory                   // Per-request AI client creation
+	NavigatorRegistry       *vision.NavigatorRegistry             // Vision navigator selection
+	PlaywrightNavigator     *vision.PlaywrightVisionNavigator     // Direct reference to playwright navigator
+	UnifiedRecordingService *unifiedrecording.Service             // Timeline persistence for recorded actions
+	RecordingsRoot          executionwriter.RootProvider          // Request-aware execution artifact storage
+	ProjectRoot             func(context.Context) (string, error) // Request-aware project filesystem storage
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -214,7 +216,11 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 	// Persist execution artifacts under recordingsRoot so file-truth execution data is durable and discoverable.
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
+	artifactRoot := opts.RecordingsRoot
+	if artifactRoot == nil {
+		artifactRoot = executionwriter.NewStaticRoot(recordingsRoot)
+	}
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, artifactRoot)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -240,15 +246,22 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
+		ProjectRoot:           opts.ProjectRoot,
 		AIClient:              aiClient,
 		SessionProfileService: sessionProfileSvc,
 	})
+	// Declared-readiness settling for the opening navigation. Optional by
+	// design: if Experience Manager is unavailable every run falls back to
+	// generic navigation with a stated reason.
+	if workflowSvc != nil {
+		workflowSvc.SetReadinessResolver(readiness.NewProfileResolver())
+	}
 
 	// Ensure the demo project exists so file-first operations have a stable project root.
 	if workflowSvc != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
-			log.WithError(err).Warn("Failed to ensure seed project")
+		if _, err := workflowSvc.EnsureSeedWorkflow(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure demo workflow fixture")
 		}
 		cancel()
 	}
@@ -271,34 +284,34 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:          workflowSvc,
-		ExecutionService:        workflowSvc,
-		WorkflowValidator:       validatorInstance,
-		Storage:                 storageClient,
-		RecordingService:        recordingService,
-		RecordModeService:       recordModeSvc,
-		RecordingsRoot:          recordingsRoot,
-		ReplayRenderer:          render.NewReplayRenderer(log, recordingsRoot),
-		SessionProfileService:   sessionProfileSvc,
-		UXMetricsRepo:           opts.UXMetricsRepo,
-		EntitlementService:      opts.EntitlementService,
-		CreditService:           opts.CreditService,
-		AIClientFactory:         opts.AIClientFactory,
-		NavigatorRegistry:       opts.NavigatorRegistry,
-		PlaywrightNavigator:     opts.PlaywrightNavigator,
+		CatalogService:        workflowSvc,
+		ExecutionService:      workflowSvc,
+		WorkflowValidator:     validatorInstance,
+		Storage:               storageClient,
+		RecordingService:      recordingService,
+		RecordModeService:     recordModeSvc,
+		RecordingsRoot:        recordingsRoot,
+		ReplayRenderer:        render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfileService: sessionProfileSvc,
+		UXMetricsRepo:         opts.UXMetricsRepo,
+		EntitlementService:    opts.EntitlementService,
+		CreditService:         opts.CreditService,
+		AIClientFactory:       opts.AIClientFactory,
+		NavigatorRegistry:     opts.NavigatorRegistry,
+		PlaywrightNavigator:   opts.PlaywrightNavigator,
 	}
 }
 
 // NewHandler creates a new handler instance with default dependencies.
 // For testing or custom wiring, use NewHandlerWithDeps instead.
-func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
+func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowedOrigins []string) *Handler {
 	deps := InitDefaultDeps(repo, wsHub, log)
-	return NewHandlerWithDeps(repo, wsHub, log, allowAllOrigins, allowedOrigins, deps)
+	return NewHandlerWithDeps(repo, wsHub, log, allowedOrigins, deps)
 }
 
 // NewHandlerWithDeps creates a handler with explicitly provided dependencies.
 // This enables testing with mock dependencies and custom configurations.
-func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string, deps HandlerDeps) *Handler {
+func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowedOrigins []string, deps HandlerDeps) *Handler {
 	allowedCopy := append([]string(nil), allowedOrigins...)
 
 	// Initialize performance registry from config
@@ -317,26 +330,25 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		catalogService:          deps.CatalogService,
-		executionService:        deps.ExecutionService,
-		workflowValidator:       deps.WorkflowValidator,
-		repo:                    repo,
-		wsHub:                   wsHub,
-		storage:                 deps.Storage,
-		recordingService:        deps.RecordingService,
-		recordModeService:       deps.RecordModeService,
-		recordingsRoot:          deps.RecordingsRoot,
-		replayRenderer:          deps.ReplayRenderer,
-		sessionProfileService:   deps.SessionProfileService,
-		log:                     log,
-		wsAllowAll:         allowAllOrigins,
-		wsAllowedOrigins:   allowedCopy,
-		upgrader:           websocket.Upgrader{},
-		perfRegistry:       perfRegistry,
-		seedCleanupManager: seedCleanupManager,
-		entitlementService: deps.EntitlementService,
-		creditService:      deps.CreditService,
-		aiClientFactory:    deps.AIClientFactory,
+		catalogService:        deps.CatalogService,
+		executionService:      deps.ExecutionService,
+		workflowValidator:     deps.WorkflowValidator,
+		repo:                  repo,
+		wsHub:                 wsHub,
+		storage:               deps.Storage,
+		recordingService:      deps.RecordingService,
+		recordModeService:     deps.RecordModeService,
+		recordingsRoot:        deps.RecordingsRoot,
+		replayRenderer:        deps.ReplayRenderer,
+		sessionProfileService: deps.SessionProfileService,
+		log:                   log,
+		wsAllowedOrigins:      allowedCopy,
+		upgrader:              websocket.Upgrader{},
+		perfRegistry:          perfRegistry,
+		seedCleanupManager:    seedCleanupManager,
+		entitlementService:    deps.EntitlementService,
+		creditService:         deps.CreditService,
+		aiClientFactory:       deps.AIClientFactory,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
@@ -358,14 +370,11 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	}
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
 
-	// Initialize vision navigation handler with navigator registry
+	// Initialize vision navigation callback handler. The user-facing
+	// vision-navigation surface is served via Connect-RPC by
+	// VisionNavigationService (see handlers/vision_navigation/); the
+	// callback below is the playwright-driver webhook receiver and stays REST.
 	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{}
-	if deps.CreditService != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))
-	}
-	if deps.NavigatorRegistry != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationRegistry(deps.NavigatorRegistry))
-	}
 	if deps.PlaywrightNavigator != nil {
 		visionNavOpts = append(visionNavOpts, aihandlers.WithPlaywrightNavigator(deps.PlaywrightNavigator))
 	}
@@ -377,9 +386,6 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 func (h *Handler) isOriginAllowed(r *http.Request) bool {
 	if h == nil {
 		return false
-	}
-	if h.wsAllowAll {
-		return true
 	}
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
@@ -412,61 +418,85 @@ func (h *Handler) GetPerfRegistry() *performance.CollectorRegistry {
 	return h.perfRegistry
 }
 
-// AI handler delegation methods
+// AI helper endpoints (preview-screenshot, link-preview, analyze-elements,
+// element-at-coordinate, ai-analyze-elements, dom-tree) are served via
+// Connect-RPC by AIService; see handlers/ai_service/. The user-facing
+// vision-navigation surface (list/start/status/abort/resume) is served via
+// Connect-RPC by VisionNavigationService; see handlers/vision_navigation/.
 
-// TakePreviewScreenshot delegates to the AI screenshot handler
-func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
-	h.screenshotHandler.TakePreviewScreenshot(w, r)
-}
-
-// GetDOMTree delegates to the AI DOM handler
-func (h *Handler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
-	h.domHandler.GetDOMTree(w, r)
-}
-
-// AnalyzeElements delegates to the AI element analysis handler
-func (h *Handler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	h.elementAnalysisHandler.AnalyzeElements(w, r)
-}
-
-// GetElementAtCoordinate delegates to the AI element analysis handler
-func (h *Handler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request) {
-	h.elementAnalysisHandler.GetElementAtCoordinate(w, r)
-}
-
-// AIAnalyzeElements delegates to the AI analysis handler
-func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	h.aiAnalysisHandler.AIAnalyzeElements(w, r)
-}
-
-// Vision Navigation delegation methods
-
-// AINavigateListNavigators delegates to the vision navigation handler
-func (h *Handler) AINavigateListNavigators(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleListNavigators(w, r)
-}
-
-// AINavigate delegates to the vision navigation handler
-func (h *Handler) AINavigate(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigate(w, r)
-}
-
-// AINavigateCallback delegates to the vision navigation handler
+// AINavigateCallback delegates to the vision navigation callback handler.
+// The corresponding chi route (/api/v1/internal/ai-navigate/callback) is a
+// RESTException (RESTReason=webhook_receiver): it is the playwright driver's
+// fire-and-forget step/completion event sink, not part of the RPC surface.
 func (h *Handler) AINavigateCallback(w http.ResponseWriter, r *http.Request) {
 	h.visionNavigationHandler.HandleAINavigateCallback(w, r)
 }
 
-// AINavigateStatus delegates to the vision navigation handler
-func (h *Handler) AINavigateStatus(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateStatus(w, r)
+// SeedCleanupManager exposes the deferred seed-cleanup tracker so external
+// Connect-RPC handlers can share the same in-process state.
+func (h *Handler) SeedCleanupManager() *testgenie.SeedCleanupManager {
+	if h == nil {
+		return nil
+	}
+	return h.seedCleanupManager
 }
 
-// AINavigateAbort delegates to the vision navigation handler
-func (h *Handler) AINavigateAbort(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateAbort(w, r)
+// WorkflowValidator exposes the in-process workflow validator so external
+// Connect-RPC handlers can reuse it.
+func (h *Handler) WorkflowValidator() *workflowvalidator.Validator {
+	if h == nil {
+		return nil
+	}
+	return h.workflowValidator
 }
 
-// AINavigateResume delegates to the vision navigation handler
-func (h *Handler) AINavigateResume(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateResume(w, r)
+// RecordingsRoot exposes the on-disk recordings root for handlers that need
+// to perform light filesystem checks (e.g. exportability probes).
+func (h *Handler) RecordingsRoot() string {
+	if h == nil {
+		return ""
+	}
+	return h.recordingsRoot
+}
+
+// ExecutionService exposes the workflow ExecutionService seam for external
+// Connect-RPC handlers (e.g. handlers/executions).
+func (h *Handler) ExecutionService() workflow.ExecutionService {
+	if h == nil {
+		return nil
+	}
+	return h.executionService
+}
+
+// ScreenshotHandler exposes the in-process AI screenshot sub-handler so the
+// AIService Connect handler can call its transport-agnostic methods.
+func (h *Handler) ScreenshotHandler() *aihandlers.ScreenshotHandler {
+	if h == nil {
+		return nil
+	}
+	return h.screenshotHandler
+}
+
+// DOMHandler exposes the in-process AI DOM sub-handler.
+func (h *Handler) DOMHandler() *aihandlers.DOMHandler {
+	if h == nil {
+		return nil
+	}
+	return h.domHandler
+}
+
+// ElementAnalysisHandler exposes the in-process element-analysis sub-handler.
+func (h *Handler) ElementAnalysisHandler() *aihandlers.ElementAnalysisHandler {
+	if h == nil {
+		return nil
+	}
+	return h.elementAnalysisHandler
+}
+
+// AIAnalysisHandler exposes the in-process AI text-analysis sub-handler.
+func (h *Handler) AIAnalysisHandler() *aihandlers.AIAnalysisHandler {
+	if h == nil {
+		return nil
+	}
+	return h.aiAnalysisHandler
 }

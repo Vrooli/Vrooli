@@ -1,216 +1,68 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 
 	"scenario-to-cloud/bundle"
-	"scenario-to-cloud/secrets"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/edge"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/vps"
 )
 
-// TestCaddyConfigIdempotency verifies that Caddy configuration is only written
-// when it differs from the current config on the VPS.
-// [REQ:STC-IDEM-001] Caddy config updates are idempotent
-func TestCaddyConfigIdempotency(t *testing.T) {
-	// Create a fake SSH runner that tracks calls
-	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{
-			// All commands succeed
-		},
-	}
-
-	// Set up a pattern-based response handler by using a custom Run implementation
-	// that checks for specific command patterns
-	tests := []struct {
-		name                string
-		currentCaddyContent string
-		desiredDomain       string
-		desiredPort         int
-		expectWrite         bool
-		expectReload        bool
-	}{
-		{
-			name:                "write when file empty",
-			currentCaddyContent: "",
-			desiredDomain:       "example.com",
-			desiredPort:         3000,
-			expectWrite:         true,
-			expectReload:        true,
-		},
-		{
-			name:                "skip when content matches",
-			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:3000\n}",
-			desiredDomain:       "example.com",
-			desiredPort:         3000,
-			expectWrite:         false,
-			expectReload:        false,
-		},
-		{
-			name:                "write when domain differs",
-			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nold-domain.com {\n  reverse_proxy 127.0.0.1:3000\n}",
-			desiredDomain:       "example.com",
-			desiredPort:         3000,
-			expectWrite:         true,
-			expectReload:        true,
-		},
-		{
-			name:                "write when port differs",
-			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:8080\n}",
-			desiredDomain:       "example.com",
-			desiredPort:         3000,
-			expectWrite:         true,
-			expectReload:        true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset call tracking
-			fakeSSH.Calls = nil
-
-			// Configure response for cat command
-			catCmd := "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"
-			fakeSSH.Responses = map[string]ssh.Result{
-				catCmd: {
-					Stdout:   tt.currentCaddyContent,
-					ExitCode: 0,
-				},
-			}
-
-			// Configure default success response for other commands
-			fakeSSH.DefaultErr = nil
-
-			// Simulate the idempotent Caddy config logic
-			currentContent := strings.TrimSpace(tt.currentCaddyContent)
-			desiredCaddyfile := vps.BuildCaddyfile(tt.desiredDomain, tt.desiredPort, vps.CaddyTLSConfig{})
-			desiredContent := strings.TrimSpace(desiredCaddyfile)
-
-			needsWrite := currentContent != desiredContent
-
-			if needsWrite != tt.expectWrite {
-				t.Errorf("needsWrite = %v, want %v\nCurrent: %q\nDesired: %q",
-					needsWrite, tt.expectWrite, currentContent, desiredContent)
-			}
-		})
-	}
-}
-
-// TestBuildCaddyfileDeterministic verifies that buildCaddyfile produces
-// consistent output for the same inputs.
-// [REQ:STC-IDEM-002] Caddyfile generation is deterministic
-func TestBuildCaddyfileDeterministic(t *testing.T) {
-	domain := "example.com"
-	port := 3000
-
-	first := vps.BuildCaddyfile(domain, port, vps.CaddyTLSConfig{})
-	second := vps.BuildCaddyfile(domain, port, vps.CaddyTLSConfig{})
-
-	if first != second {
-		t.Errorf("buildCaddyfile not deterministic:\n  First: %q\n  Second: %q", first, second)
-	}
-
-	expected := "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:3000\n}"
-	if first != expected {
-		t.Errorf("vps.BuildCaddyfile(%q, %d) = %q, want %q", domain, port, first, expected)
-	}
-}
-
-// TestSecretsWriterPreservesExisting verifies that WriteSecretsToVPS preserves
-// existing secrets rather than regenerating them.
-// [REQ:STC-IDEM-003] Secrets are preserved across redeployments
-func TestSecretsWriterPreservesExisting(t *testing.T) {
-	ctx := context.Background()
-
-	// Fake SSH runner that returns existing secrets
-	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{
-			// Return existing secrets.json with a password
-			"cat '/root/Vrooli/.vrooli/secrets.json' 2>/dev/null || echo '{}'": {
-				Stdout: `{
-					"_metadata": {"generated_by": "scenario-to-cloud"},
-					"POSTGRES_PASSWORD": "existing-password-keep-me"
-				}`,
-				ExitCode: 0,
-			},
-		},
-	}
-
-	// Default success for other commands
-	fakeSSH.DefaultErr = nil
-
-	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
-	workdir := "/root/Vrooli"
-
-	// Read existing secrets
-	existing, err := secrets.ReadFromVPS(ctx, fakeSSH, cfg, workdir)
+// TestEdgeSpecIdempotency verifies that the edge spec the executor hands
+// the target owner is deterministic for equal inputs (same digest, same
+// snippet) and changes only when the routed domain or upstream changes; the
+// target owner compares digests to decide whether a reload is needed.
+// [REQ:STC-IDEM-001] Edge route application is idempotent
+// [REQ:STC-IDEM-002] Edge spec rendering is deterministic
+func TestEdgeSpecIdempotency(t *testing.T) {
+	manifest := domain.CloudManifest{Target: domain.ManifestTarget{VPS: &domain.ManifestVPS{Workdir: "/root/Vrooli"}}, Scenario: domain.ManifestScenario{ID: "app"}, Edge: domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}}}
+	cc := vps.CommandContext{DeploymentID: "dep-1", ScenarioID: "app", Manifest: manifest}
+	first, err := vps.EdgeSpecFor(cc, map[string]string{"domain": "example.com", "upstream_port": "3000"})
 	if err != nil {
-		t.Fatalf("ReadSecretsFromVPS failed: %v", err)
+		t.Fatal(err)
 	}
-
-	// Verify existing password was read
-	if existing["POSTGRES_PASSWORD"] != "existing-password-keep-me" {
-		t.Errorf("Existing POSTGRES_PASSWORD not preserved: got %q", existing["POSTGRES_PASSWORD"])
+	second, _ := vps.EdgeSpecFor(cc, map[string]string{"domain": "example.com", "upstream_port": "3000"})
+	if first.Digest == "" || first.Digest != second.Digest || edge.RenderSnippet(first) != edge.RenderSnippet(second) {
+		t.Fatalf("edge spec must be deterministic: %s vs %s", first.Digest, second.Digest)
 	}
-
-	// Now simulate the preservation logic from WriteSecretsToVPS
-	newSecrets := []secrets.GeneratedSecret{
-		{ID: "pg_pass", Key: "POSTGRES_PASSWORD", Value: "new-generated-password"},
-		{ID: "api_key", Key: "API_KEY", Value: "new-api-key"},
-	}
-
-	// Build secrets map, preserving existing values (this is the idempotent behavior)
-	secretsMap := make(map[string]string)
-	for _, s := range newSecrets {
-		if existingVal, ok := existing[s.Key]; ok && existingVal != "" {
-			// PRESERVE existing secret
-			secretsMap[s.Key] = existingVal
-		} else {
-			// New secret - use generated value
-			secretsMap[s.Key] = s.Value
+	for _, changed := range []map[string]string{{"domain": "old-domain.com", "upstream_port": "3000"}, {"domain": "example.com", "upstream_port": "3001"}} {
+		other, err := vps.EdgeSpecFor(cc, changed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if other.Digest == first.Digest {
+			t.Fatalf("a changed route must change the digest: %v", changed)
 		}
 	}
-
-	// Verify preservation
-	if secretsMap["POSTGRES_PASSWORD"] != "existing-password-keep-me" {
-		t.Errorf("POSTGRES_PASSWORD should be preserved: got %q, want %q",
-			secretsMap["POSTGRES_PASSWORD"], "existing-password-keep-me")
-	}
-	if secretsMap["API_KEY"] != "new-api-key" {
-		t.Errorf("API_KEY should be new: got %q, want %q",
-			secretsMap["API_KEY"], "new-api-key")
+	if !strings.Contains(edge.RenderSnippet(first), "example.com {") || !strings.Contains(edge.RenderSnippet(first), "reverse_proxy 127.0.0.1:3000") {
+		t.Fatalf("snippet = %q", edge.RenderSnippet(first))
 	}
 }
 
-// TestStopExistingScenarioIdempotent verifies that StopExistingScenario
-// can be called multiple times without error.
+// TestScopedStopIsIdempotent verifies that the scoped lifecycle stop the
+// executor dispatches is the same receipted invocation on every attempt: a
+// replay under the same (operation, step) is a receipt replay, never a
+// second kill.
 // [REQ:STC-IDEM-004] Scenario stop is idempotent
-func TestStopExistingScenarioIdempotent(t *testing.T) {
-	ctx := context.Background()
-
-	// First call: scenario running
-	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{},
+func TestScopedStopIsIdempotent(t *testing.T) {
+	cc := vps.CommandContext{DeploymentID: "dep", ScenarioID: "test-scenario", Identity: vps.Identity{OperationID: "op-1", Fence: 1}}
+	action := execplan.Action{ID: execplan.OpWorkloadStop, OwnerOperation: execplan.OpWorkloadStop, Inputs: map[string]string{"workdir": "/root/Vrooli", "scenario": "test-scenario", "ports": "api=3001,ui=3000"}}
+	first, err := vps.ActionCommands(action, cc)
+	if err != nil {
+		t.Fatal(err)
 	}
-	fakeSSH.DefaultErr = nil // All commands succeed
-
-	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
-	workdir := "/root/Vrooli"
-	scenarioID := "test-scenario"
-	ports := []int{3000, 3001}
-
-	// First stop
-	result1 := vps.StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
-	if !result1.OK {
-		t.Errorf("First StopExistingScenario failed: %s", result1.Error)
+	second, err := vps.ActionCommands(action, cc)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// Second stop (should also succeed even if nothing to stop)
-	result2 := vps.StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
-	if !result2.OK {
-		t.Errorf("Second StopExistingScenario failed: %s", result2.Error)
+	if len(first) != 1 || strings.Join(first[0].Command.Argv(), " ") != strings.Join(second[0].Command.Argv(), " ") {
+		t.Fatalf("stop invocation must be identical across attempts: %v vs %v", first, second)
+	}
+	if first[0].Step != execplan.OpWorkloadStop || !first[0].Command.Effectful {
+		t.Fatalf("stop must be a receipted step: %+v", first[0])
 	}
 }
 

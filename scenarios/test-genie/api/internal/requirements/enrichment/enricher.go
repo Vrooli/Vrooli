@@ -20,6 +20,7 @@ type Enricher interface {
 // Summary contains aggregate statistics.
 type Summary struct {
 	Total            int
+	RoadmapTotal     int
 	ByDeclaredStatus map[types.DeclaredStatus]int
 	ByLiveStatus     map[types.LiveStatus]int
 	ByCriticality    map[types.Criticality]int
@@ -143,6 +144,10 @@ func (e *enricher) ComputeSummary(modules []*types.RequirementModule) Summary {
 
 	for _, module := range modules {
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				summary.RoadmapTotal++
+				continue
+			}
 			summary.Total++
 
 			// Count by declared status

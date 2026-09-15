@@ -1,0 +1,10 @@
+{
+  "artifact": "offer-desk-space-projection",
+  "command": "offer-desk offers space --projection offers --json",
+  "schema_version": "space/v1",
+  "projection": "offers",
+  "owner": "monetization",
+  "denominator_confidence": "sketch",
+  "cells": ["catalog-state", "promotion-state", "financial-posture"],
+  "financial_posture_note": "Money Ledger is the source; unavailable sources remain explicit."
+}

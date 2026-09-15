@@ -8,33 +8,35 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
 )
 
 const (
-	// DefaultVPSBundleKeepLatest is the default retention policy for VPS bundle cache.
-	// Keep current + previous known-good, and delete older bundles to avoid unbounded disk growth.
+	// DefaultVPSBundleKeepLatest is the default retention policy for the
+	// target release store: keep the current release and the rollback
+	// predecessor, and prune older staged releases to bound disk growth.
 	DefaultVPSBundleKeepLatest = 2
 )
 
-// PlanVPSBundleGC decides which bundles to keep vs delete.
+// PlanVPSBundleGC decides which inventory rows to keep vs delete.
 //
 // Inputs:
-// - bundles must represent the bundles present on the VPS (any scenario).
+// - rows are the releases present on the target (any scenario).
 // - scenarioID optionally scopes the plan to a single scenario.
-// - keepLatest keeps N newest bundles (by mod time) per scenario.
-// - protectSHA256 are hashes that must not be deleted.
+// - keepLatest keeps N newest rows (by mod time) per scenario.
+// - protectSHA256 are bundle digests that must not be deleted.
 //
 // Output invariants:
 // - kept and deleted are disjoint
 // - (kept U deleted) equals the considered set (filtered by scenarioID if provided)
+// - a row whose Role is active or previous is always kept
 func PlanVPSBundleGC(
-	bundles []domain.VPSBundleInfo,
+	rows []domain.VPSBundleInfo,
 	scenarioID string,
 	keepLatest int,
 	protectSHA256 []string,
-) (kept []domain.VPSBundleInfo, deleted []domain.VPSBundleInfo, deletedBytes int64) {
+) (kept, deleted []domain.VPSBundleInfo, deletedBytes int64) {
 	if keepLatest <= 0 {
 		keepLatest = DefaultVPSBundleKeepLatest
 	}
@@ -54,32 +56,30 @@ func PlanVPSBundleGC(
 		}
 	}
 
-	// Group bundles by scenario to keep N newest per scenario.
 	byScenario := make(map[string][]domain.VPSBundleInfo)
-	for _, b := range bundles {
+	for _, b := range rows {
 		if !shouldConsider(b) {
 			continue
 		}
 		byScenario[b.ScenarioID] = append(byScenario[b.ScenarioID], b)
 	}
 
-	keepKey := make(map[string]bool) // filename key (safe, unique enough within bundles dir)
-
+	keepKey := make(map[string]bool)
 	for _, group := range byScenario {
 		sort.Slice(group, func(i, j int) bool {
-			return group[i].ModTime > group[j].ModTime // RFC3339 sortable; produced by server
+			return group[i].ModTime > group[j].ModTime // RFC3339 sortable; produced by the owner
 		})
 		for i := 0; i < len(group) && i < keepLatest; i++ {
 			keepKey[group[i].Filename] = true
 		}
 		for _, b := range group {
-			if protected[b.Sha256] {
+			if protected[b.Sha256] || b.Role == "active" || b.Role == "previous" || b.State == "staging" {
 				keepKey[b.Filename] = true
 			}
 		}
 	}
 
-	for _, b := range bundles {
+	for _, b := range rows {
 		if !shouldConsider(b) {
 			continue
 		}
@@ -91,125 +91,109 @@ func PlanVPSBundleGC(
 		deletedBytes += b.SizeBytes
 	}
 
-	// Stable ordering for UX and tests
 	sort.Slice(kept, func(i, j int) bool { return kept[i].ModTime > kept[j].ModTime })
 	sort.Slice(deleted, func(i, j int) bool { return deleted[i].ModTime > deleted[j].ModTime })
 	return kept, deleted, deletedBytes
 }
 
-// GCVPSBundles deletes old bundles on the VPS according to the retention policy.
-// It lists the remote bundles, computes a plan, then executes the deletion (unless DryRun).
-func GCVPSBundles(
+// GCTargetReleases prunes retired releases on the target according to the
+// retention policy: the owner's listing is read, the plan is computed with
+// lease protection, and the owner is asked to prune the named digests
+// (unless DryRun). The owner keeps the final say over active and previous.
+func GCTargetReleases(
 	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.Config,
-	workdir string,
+	r reach.Reach,
+	target identity.TargetRef,
+	deploymentID string,
+	scenarioID string,
 	req domain.VPSBundleGCRequest,
 ) domain.VPSBundleGCResponse {
 	now := time.Now().UTC().Format(time.RFC3339)
-
 	if req.KeepLatest <= 0 {
 		req.KeepLatest = DefaultVPSBundleKeepLatest
 	}
 
-	bundlesPath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles")
-
-	// List remote bundles with size and mod time.
-	beforeBundles, beforeTotal, err := listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
+	listing, err := ListTargetReleases(ctx, r, target, deploymentID)
 	if err != nil {
-		return domain.VPSBundleGCResponse{
-			OK:        false,
-			DryRun:    req.DryRun,
-			Error:     fmt.Sprintf("list bundles: %v", err),
-			Timestamp: now,
-		}
+		return domain.VPSBundleGCResponse{OK: false, DryRun: req.DryRun, Error: fmt.Sprintf("list releases: %v", err), Timestamp: now}
 	}
+	before, beforeTotal := InventoryFromListing(listing, scenarioID)
 
-	kept, toDelete, deletedBytes := PlanVPSBundleGC(beforeBundles, req.ScenarioID, req.KeepLatest, req.ProtectSHA256)
+	// Releases the cloud side still owns (active, rollback predecessor) hold
+	// artifact leases; their bundles are protected regardless of age. A lease
+	// read failure is a refusal, never a silent "nothing protected".
+	leased, err := releaseProtectionFn(time.Now().UTC())
+	if err != nil {
+		return domain.VPSBundleGCResponse{OK: false, DryRun: req.DryRun, Error: fmt.Sprintf("read release leases: %v", err), Timestamp: now}
+	}
+	protect := append(append([]string(nil), req.ProtectSHA256...), leased...)
+
+	kept, toDelete, deletedBytes := PlanVPSBundleGC(before, req.ScenarioID, req.KeepLatest, protect)
 
 	resp := domain.VPSBundleGCResponse{
-		OK:              true,
-		DryRun:          req.DryRun,
-		BundlesBefore:   beforeBundles,
-		Deleted:         toDelete,
-		Kept:            kept,
-		DeletedCount:    len(toDelete),
-		DeletedBytes:    deletedBytes,
+		OK:               true,
+		DryRun:           req.DryRun,
+		BundlesBefore:    before,
+		Deleted:          toDelete,
+		Kept:             kept,
+		DeletedCount:     len(toDelete),
+		DeletedBytes:     deletedBytes,
 		TotalBeforeBytes: beforeTotal,
-		Timestamp:       now,
+		Timestamp:        now,
 	}
 
 	if req.DryRun || len(toDelete) == 0 {
-		resp.BundlesAfter = beforeBundles
+		resp.BundlesAfter = before
 		resp.TotalAfterBytes = beforeTotal
 		if len(toDelete) == 0 {
-			resp.Message = "No VPS bundles needed cleanup"
+			resp.Message = "No target releases needed cleanup"
 		} else {
-			resp.Message = fmt.Sprintf("Would delete %d VPS bundle(s)", len(toDelete))
+			resp.Message = fmt.Sprintf("Would prune %d target release(s)", len(toDelete))
 		}
 		return resp
 	}
 
-	// Validate filenames to avoid traversal, then delete.
-	var filenames []string
+	digests := make([]string, 0, len(toDelete))
 	for _, b := range toDelete {
-		if !isSafeBundleFilename(b.Filename) {
-			return domain.VPSBundleGCResponse{
-				OK:        false,
-				DryRun:    req.DryRun,
-				Error:     fmt.Sprintf("refusing to delete unsafe filename %q", b.Filename),
-				Timestamp: now,
-			}
-		}
-		filenames = append(filenames, b.Filename)
+		digests = append(digests, b.Filename)
 	}
-
-	// Build a single rm command for efficiency (no xargs; avoid shell quoting surprises).
-	// Use "--" to prevent filenames starting with "-" from being interpreted as flags.
-	// Batch deletions to avoid hitting shell argument length limits on long-lived VPSes.
-	const batchSize = 50
-	for i := 0; i < len(filenames); i += batchSize {
-		end := i + batchSize
-		if end > len(filenames) {
-			end = len(filenames)
-		}
-		batch := filenames[i:end]
-		quoted := make([]string, 0, len(batch))
-		for _, f := range batch {
-			quoted = append(quoted, shellutil.QuoteSingle(f))
-		}
-		deleteCmd := fmt.Sprintf("cd %s 2>/dev/null && rm -f -- %s", shellutil.QuoteSingle(bundlesPath), strings.Join(quoted, " "))
-		if _, err := sshRunner.Run(ctx, cfg, deleteCmd, ssh.DefaultRunOptions()); err != nil {
-			resp.OK = false
-			resp.Error = fmt.Sprintf("delete bundles: %v", err)
-			resp.Message = "VPS bundle cleanup failed"
-			return resp
-		}
-	}
-
-	afterBundles, afterTotal, listErr := listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
-	if listErr != nil {
-		// Deletion may have succeeded; return plan + partial info.
+	report, err := PruneTargetReleases(ctx, r, target, deploymentID, digests)
+	if err != nil {
 		resp.OK = false
-		resp.Error = fmt.Sprintf("relist bundles: %v", listErr)
-		resp.Message = "Deleted bundles but failed to re-list bundle cache"
+		resp.Error = fmt.Sprintf("prune releases: %v", err)
+		resp.Message = "Target release cleanup failed"
 		return resp
 	}
+	if len(report.Refused) > 0 {
+		// The owner refused some of the plan; the cloud reports the owner's
+		// reasons and keeps those rows in the kept set.
+		refused := make([]string, 0, len(report.Refused))
+		var stillDeleted []domain.VPSBundleInfo
+		for _, b := range toDelete {
+			if reason, ok := report.Refused[b.Filename]; ok {
+				refused = append(refused, b.Filename[:12]+" ("+reason+")")
+				kept = append(kept, b)
+				continue
+			}
+			stillDeleted = append(stillDeleted, b)
+		}
+		resp.Deleted = stillDeleted
+		resp.Kept = kept
+		resp.DeletedCount = len(stillDeleted)
+		resp.DeletedBytes = report.ReclaimedBytes
+		resp.Message = fmt.Sprintf("Pruned %d target release(s); owner refused %s", len(stillDeleted), strings.Join(refused, ", "))
+	} else {
+		resp.DeletedBytes = report.ReclaimedBytes
+		resp.Message = fmt.Sprintf("Pruned %d target release(s)", len(report.Deleted))
+	}
 
-	resp.BundlesAfter = afterBundles
-	resp.TotalAfterBytes = afterTotal
-	resp.Message = fmt.Sprintf("Deleted %d VPS bundle(s)", len(toDelete))
+	after, err := ListTargetReleases(ctx, r, target, deploymentID)
+	if err != nil {
+		resp.OK = false
+		resp.Error = fmt.Sprintf("relist releases: %v", err)
+		resp.Message = "Pruned releases but failed to re-list the release store"
+		return resp
+	}
+	resp.BundlesAfter, resp.TotalAfterBytes = InventoryFromListing(after, scenarioID)
 	return resp
-}
-
-func isSafeBundleFilename(name string) bool {
-	// Keep this strict: only allow the known bundle filename pattern.
-	// Example: mini-vrooli_landing-page-business-suite_<sha256>.tar.gz
-	if !strings.HasPrefix(name, "mini-vrooli_") || !strings.HasSuffix(name, ".tar.gz") {
-		return false
-	}
-	if strings.Contains(name, "/") || strings.Contains(name, "..") {
-		return false
-	}
-	return true
 }

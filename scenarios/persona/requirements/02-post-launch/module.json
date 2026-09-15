@@ -1,0 +1,146 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Every account created as a persona is recorded with its site, login seam, and recovery path, which is the prerequisite for retiring a persona without orphaning what it created",
+      "id": "PSN-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "title": "Credential linkage register",
+      "validation": [
+        {
+          "notes": "Accounts service tests cover credential linkage with site, login seam, recovery path, and named handoff address [REQ:PSN-P1-001].",
+          "phase": "unit",
+          "ref": "api/internal/accounts/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Billing and shipping addresses held per persona and releasable into a named handoff or resolution, under the same entitlement rule as documents",
+      "id": "PSN-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "complete",
+      "title": "Address book per persona",
+      "validation": [
+        {
+          "notes": "Accounts service tests cover per-persona address bindings and entitlement boundaries [REQ:PSN-P1-002].",
+          "phase": "unit",
+          "ref": "api/internal/accounts/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "What each persona has signed up for, its renewal date, and its cancel path; the identity half of a recurring commitment whose money half belongs to treasury",
+      "id": "PSN-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "complete",
+      "title": "Obligation registry",
+      "validation": [
+        {
+          "notes": "Accounts service tests cover renewal and cancellation obligations without money movement [REQ:PSN-P1-003].",
+          "phase": "unit",
+          "ref": "api/internal/accounts/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When notification-hub is available a handoff reaches the operator on the right device; when it is absent the built-in queue still works, so the relay is an enhancement and never a dependency",
+      "id": "PSN-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "complete",
+      "title": "Handoff delivery through notification-hub",
+      "validation": [
+        {
+          "notes": "Handoffs service tests cover built-in queue behavior independent of optional relay delivery [REQ:PSN-P1-004].",
+          "phase": "unit",
+          "ref": "api/internal/handoffs/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A persona surfaces what is expiring or broken — a document past its validity date, a mailbox that no longer authenticates, an unreachable OTP route — before a flow discovers it mid-enrolment",
+      "id": "PSN-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "complete",
+      "title": "Persona health and staleness",
+      "validation": [
+        {
+          "notes": "Persona, channels, and documents service tests cover expired bindings, unavailable authorities, and unreachable OTP routes [REQ:PSN-P1-005].",
+          "phase": "unit",
+          "ref": "api/internal/personas/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Which team members may act as which persona is ordinary member configuration in prompt-manager, keeping organisational policy where teams already live rather than duplicating a roster here",
+      "id": "PSN-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "complete",
+      "title": "Act-as grants held in prompt-manager",
+      "validation": [
+        {
+          "notes": "Access service tests cover act-as grants and proposal-only ACL decisions consumed by the external grant seam [REQ:PSN-P1-006].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Emit a token carrying the full delegation chain for a counterparty to verify, aligned to the DIF KYA-OS direction rather than inventing a private claim shape",
+      "id": "PSN-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "complete",
+      "title": "Signed identity attestation",
+      "validation": [
+        {
+          "notes": "Access service tests cover signed identity attestation generation and refusal for missing signer authority [REQ:PSN-P1-007].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "An enrolment assembles every field a target requires, reports exactly which remain human-only, and presents them as one handoff instead of many",
+      "id": "PSN-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "complete",
+      "title": "Enrolment preparation as a first-class flow",
+      "validation": [
+        {
+          "notes": "Handoffs service tests cover checkpoint composition and resumable enrolment preparation [REQ:PSN-P1-008].",
+          "phase": "unit",
+          "ref": "api/internal/handoffs/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

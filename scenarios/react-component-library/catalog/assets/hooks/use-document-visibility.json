@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-document-visibility",
+    "name": "useDocumentVisibility",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A lifecycle primitive reporting document visibility so expensive work can pause while the application is hidden.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  }
+}

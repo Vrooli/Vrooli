@@ -37,9 +37,10 @@ func TestMain(m *testing.M) {
 	if os.Getenv("OLLAMA_URL") == "" {
 		os.Setenv("OLLAMA_URL", "http://test-ollama:11434")
 	}
-	if os.Getenv("JWT_SECRET") == "" {
-		os.Setenv("JWT_SECRET", "test-jwt-secret-key")
-	}
+	// The signing secret comes from the credential authority, not the
+	// environment. Substituting the resolver keeps the config test hermetic and
+	// keeps a real host secret out of the test process.
+	jwtSecretResolver = func() (string, error) { return "test-jwt-secret-key", nil }
 
 	// Initialize test configuration
 	testConfig = initConfig()

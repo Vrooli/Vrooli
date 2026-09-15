@@ -1,0 +1,13 @@
+{
+  "metadata": { "name": "world-office-building", "description": "Given the office scene, the rendered first frame is a dry connected building", "labels": { "reset": "none", "safety": "read-only" }, "execution_mode": "observer" },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&scene=office&profile=high&actors=25&seed=7&diag=1&capture=1&intro=0&weather=clear", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the office building" } } },
+    { "id": "ready", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 90000, "failure_message": "Office building did not reach ready", "attribute_name": "data-scene", "expected": { "string_value": "office" } }, "metadata": { "label": "Office diagnostics mounted" } } },
+    { "id": "shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Office building" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "ready", "target": "shot", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

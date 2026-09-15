@@ -8,8 +8,9 @@ import {
 } from '../store';
 import { usePromptDialog } from '@hooks/usePromptDialog';
 import { workflowStartsWithNavigate } from '@utils/nodeUtils';
-import { getConfig } from '../../../config';
-import { safeParse, WorkflowResponseSchema } from '@/shared/api';
+import { toJson } from '@bufbuild/protobuf';
+import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
+import { getWorkflowViaApi } from '@/domains/workflows/services/workflowApi';
 import type { Node, Edge } from 'reactflow';
 
 interface WorkflowDefinition {
@@ -51,47 +52,16 @@ function parseFlowDefinition(
  */
 async function fetchWorkflowDefinition(workflowId: string): Promise<WorkflowDefinition | null> {
   try {
-    const config = await getConfig();
-    const response = await fetch(`${config.API_URL}/workflows/${workflowId}`);
-    if (!response.ok) {
-      return null;
-    }
-    const rawData: unknown = await response.json();
-
-    // Validate the response shape
-    const result = safeParse(WorkflowResponseSchema, rawData, 'WorkflowResponse');
-    if (!result.success) {
-      console.warn('Workflow response validation failed, attempting fallback parsing');
-      // Fall back to treating as raw workflow data
-      const workflow = (rawData as Record<string, unknown>)?.workflow ?? rawData;
-      const flowDef = (workflow as Record<string, unknown>)?.flow_definition;
-      if (flowDef) {
-        return parseFlowDefinition(flowDef as string | { nodes?: unknown[]; edges?: unknown[] });
-      }
+    const resp = await getWorkflowViaApi(workflowId);
+    const flowDef = resp.workflow?.flowDefinition;
+    if (!flowDef) {
       return { nodes: [], edges: [] };
     }
-
-    const data = result.data;
-
-    // Handle both direct response and wrapped response formats
-    const workflow = data.workflow ?? data;
-
-    // Parse nodes from flow_definition if present
-    if (workflow.flow_definition) {
-      return parseFlowDefinition(workflow.flow_definition);
-    }
-
-    // Direct nodes/edges format - ensure nodes have required 'data' field
-    const rawNodes = workflow.nodes ?? [];
-    const nodes: Node[] = rawNodes.map((node) => ({
-      ...node,
-      data: node.data ?? {},
-    })) as Node[];
-
-    return {
-      nodes,
-      edges: workflow.edges ?? [],
+    const flowJson = toJson(WorkflowDefinitionV2Schema, flowDef, { useProtoFieldName: true }) as {
+      nodes?: unknown[];
+      edges?: unknown[];
     };
+    return parseFlowDefinition(flowJson);
   } catch {
     return null;
   }

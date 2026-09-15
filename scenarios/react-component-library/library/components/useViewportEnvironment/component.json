@@ -1,0 +1,21 @@
+{
+  "assetKind": "component",
+  "catalogId": "hooks.use-viewport-environment",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "entry": "useViewportEnvironment.tsx",
+  "evictedVersions": [],
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:useViewportEnvironment"
+}

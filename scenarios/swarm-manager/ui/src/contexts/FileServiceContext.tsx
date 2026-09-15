@@ -5,7 +5,7 @@
  * Provides an IFileService instance to all nested file components
  * (FilePreview, FileUpload, FileBrowser, etc.) so they can perform
  * file operations without knowing whether they're working with a
- * backlog item or an initiative.
+ * backlog item or a goal.
  */
 
 import { createContext, useContext } from "react";

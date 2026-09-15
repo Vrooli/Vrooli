@@ -1,0 +1,37 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "test-genie.provider-contract",
+  "name": "test-genie-provider-contract-check",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "test-genie"
+  },
+  "command": {
+    "argv": [
+      "test-genie",
+      "provider-contract",
+      "check",
+      "{{phase_or_provider}}",
+      "{{scenario}}"
+    ]
+  },
+  "inputs": {
+    "phase_or_provider": {
+      "type": "string",
+      "required": true
+    },
+    "scenario": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "permissions": {},
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-16T13:44:43Z",
+  "updatedAt": "2026-06-16T13:44:43Z"
+}

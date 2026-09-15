@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "quarantine-badge",
+    "title": "QuarantineBadge",
+    "purpose": "Make non-discriminating enforcement and its reason visible without relying on color.",
+    "storyRef": "../../library/components/QuarantineBadge/versions/1.0.6/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A quarantined gate names the reason."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "status",
+      "description": "The quarantine status surface."
+    }
+  ],
+  "claims": [
+    { "id": "review-quarantine-semantics", "type": "manual-review", "statement": "A reviewer confirms the quarantine status is distinguishable and not misleading.", "tier": "manual", "states": ["default"] },
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The quarantine status is present and named.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

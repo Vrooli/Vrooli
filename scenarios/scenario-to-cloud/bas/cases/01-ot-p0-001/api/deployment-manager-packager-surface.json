@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "name": "Packager surface for deployment-manager",
+    "description": "Confirm scenario-to-cloud exposes the stable packager endpoints deployment-manager orchestration reads: manifest schema, manifest template and preflight requirements.",
+    "tags": [
+      "e2e",
+      "api",
+      "manifest",
+      "packager"
+    ],
+    "requirements": [
+      "STC-P0-001",
+      "STC-P0-007"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-001\", \"STC-P0-007\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"schema-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/schema","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/schema"}}},
+      {"id":"template-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/template","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/template"}}},
+      {"id":"requirements-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/preflight/requirements","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/preflight/requirements"}}}
+    ],
+    "edges":[{"source":"schema-open","target":"template-open"},{"source":"template-open","target":"requirements-open"}]
+  }
+}

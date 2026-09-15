@@ -10,11 +10,16 @@ import type {
   DesktopBuildArtifact,
   Platform,
   PlatformArtifactGroup,
-  PlatformDisplayInfo
+  PlatformDisplayInfo,
 } from "./types";
 
 // Re-export types for convenience
-export type { DesktopBuildArtifact, Platform, PlatformArtifactGroup, PlatformDisplayInfo };
+export type {
+  DesktopBuildArtifact,
+  Platform,
+  PlatformArtifactGroup,
+  PlatformDisplayInfo,
+};
 
 // ============================================================================
 // Types
@@ -32,7 +37,7 @@ export interface DownloadResolverOptions {
 export const PLATFORM_DISPLAY_INFO: Record<Platform, PlatformDisplayInfo> = {
   win: { icon: "🪟", name: "Windows", shortName: "Win" },
   mac: { icon: "🍎", name: "macOS", shortName: "Mac" },
-  linux: { icon: "🐧", name: "Linux", shortName: "Linux" }
+  linux: { icon: "🐧", name: "Linux", shortName: "Linux" },
 };
 
 export const VALID_PLATFORMS: Platform[] = ["win", "mac", "linux"];
@@ -95,7 +100,7 @@ export function getPlatformName(platform: string): string {
  * Returns a map of platform to artifacts with computed totals.
  */
 export function groupArtifactsByPlatform(
-  artifacts: DesktopBuildArtifact[] | undefined
+  artifacts: DesktopBuildArtifact[] | undefined,
 ): Map<Platform | "unknown", PlatformArtifactGroup> {
   const groups = new Map<Platform | "unknown", PlatformArtifactGroup>();
 
@@ -110,7 +115,7 @@ export function groupArtifactsByPlatform(
       groups.set(platformKey, {
         platform: platformKey as Platform,
         artifacts: [],
-        totalSizeBytes: 0
+        totalSizeBytes: 0,
       });
     }
 
@@ -129,10 +134,13 @@ export function groupArtifactsByPlatform(
  * Sorts platforms in a consistent order: win, mac, linux, then unknown.
  */
 export function getSortedPlatformGroups(
-  artifacts: DesktopBuildArtifact[] | undefined
+  artifacts: DesktopBuildArtifact[] | undefined,
 ): PlatformArtifactGroup[] {
   const groups = groupArtifactsByPlatform(artifacts);
-  const platformOrder: (Platform | "unknown")[] = [...VALID_PLATFORMS, "unknown"];
+  const platformOrder: (Platform | "unknown")[] = [
+    ...VALID_PLATFORMS,
+    "unknown",
+  ];
 
   return platformOrder
     .filter((platform) => groups.has(platform))
@@ -160,17 +168,22 @@ export function formatBytes(bytes: number | undefined): string {
   const value = bytes / Math.pow(SIZE_BASE, clampedIndex);
   const rounded = Math.round(value * 100) / 100;
 
-  return `${rounded} ${SIZE_UNITS[clampedIndex]}`;
+  return `${String(rounded)} ${SIZE_UNITS[clampedIndex] ?? "Bytes"}`;
 }
 
 /**
  * Compute total size of artifacts in bytes.
  */
-export function computeTotalArtifactSize(artifacts: DesktopBuildArtifact[] | undefined): number {
+export function computeTotalArtifactSize(
+  artifacts: DesktopBuildArtifact[] | undefined,
+): number {
   if (!artifacts?.length) {
     return 0;
   }
-  return artifacts.reduce((sum, artifact) => sum + (artifact.size_bytes ?? 0), 0);
+  return artifacts.reduce(
+    (sum, artifact) => sum + (artifact.size_bytes ?? 0),
+    0,
+  );
 }
 
 // ============================================================================
@@ -188,7 +201,9 @@ export function buildDownloadPath(options: DownloadResolverOptions): string {
     throw new Error("scenarioName is required");
   }
   if (!isValidPlatform(platform)) {
-    throw new Error(`Invalid platform: ${platform}. Must be one of: ${VALID_PLATFORMS.join(", ")}`);
+    throw new Error(
+      `Invalid platform. Must be one of: ${VALID_PLATFORMS.join(", ")}`,
+    );
   }
 
   return `/desktop/download/${encodeURIComponent(scenarioName)}/${platform}`;
@@ -199,7 +214,7 @@ export function buildDownloadPath(options: DownloadResolverOptions): string {
  */
 export function hasDownloadableArtifacts(
   artifacts: DesktopBuildArtifact[] | undefined,
-  platform: Platform
+  platform: Platform,
 ): boolean {
   if (!artifacts?.length) {
     return false;
@@ -210,7 +225,9 @@ export function hasDownloadableArtifacts(
 /**
  * Get available platforms from artifacts.
  */
-export function getAvailablePlatforms(artifacts: DesktopBuildArtifact[] | undefined): Platform[] {
+export function getAvailablePlatforms(
+  artifacts: DesktopBuildArtifact[] | undefined,
+): Platform[] {
   if (!artifacts?.length) {
     return [];
   }

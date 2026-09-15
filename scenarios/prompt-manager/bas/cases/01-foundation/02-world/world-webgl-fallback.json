@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "name": "world-webgl-fallback",
+    "description": "A 3D deep link mounts the world canvas when WebGL2 is available",
+    "requirement": "REQ-P2-027",
+    "labels": { "reset": "none", "safety": "read-only", "requirements_json": "[\"REQ-P2-027\"]" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?view=3d&diag=1&intro=0&actors=25",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the 3D world explicitly" }
+      }
+    },
+    {
+      "id": "wait-canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/world.canvas", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 },
+        "metadata": { "label": "Wait for the canvas" }
+      }
+    },
+    {
+      "id": "assert-no-fallback",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.webgl-banner",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "WebGL fallback banner appeared even though the canvas mounted"
+        },
+        "metadata": { "label": "Fallback banner is absent" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "wait-canvas", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-canvas", "target": "assert-no-fallback", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

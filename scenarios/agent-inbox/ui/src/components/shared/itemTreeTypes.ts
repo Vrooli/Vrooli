@@ -21,7 +21,7 @@ export interface BaseItem {
 /**
  * Build a tree structure from items based on their modes[] arrays.
  */
-export function buildTree<T extends BaseItem>(items: T[]): TreeNode[] {
+export function buildTree(items: BaseItem[]): TreeNode[] {
   const root: TreeNode[] = [];
   const nodeMap = new Map<string, TreeNode>();
 

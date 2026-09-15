@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.menu",
+  "deprecatedVersions": [
+    "1.1.1",
+    "1.1.2",
+    "1.2.0",
+    "1.2.1",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.1",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4",
+    "1.2.5",
+    "2.0.0"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:Menu"
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "record-a-source-with-no-api",
+    "title": "An operator records income from a source with no API",
+    "purpose": "The journey that proves manual entry is first-class. Several real revenue sources — resale on marketplaces hostile to automation, consulting, cash — have no API anywhere, and a design where this path feels degraded fails for exactly those sources.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "journal",
+      "intent": "Add a money event by hand, choosing its account and book",
+      "via": "manual-entry-form"
+    },
+    {
+      "page": "journal",
+      "intent": "See the basis set to operator-asserted automatically, and shown rather than hidden",
+      "via": "event-basis"
+    },
+    {
+      "page": "journal",
+      "intent": "See it listed beside adapter-sourced events in the identical shape",
+      "via": "event-table"
+    },
+    {
+      "page": "dashboard",
+      "intent": "See position update with the new event's basis reflected in the inputs list",
+      "via": "runway-figure"
+    }
+  ]
+}

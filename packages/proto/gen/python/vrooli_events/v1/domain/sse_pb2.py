@@ -27,7 +27,7 @@ from vrooli_events.v1.domain import envelope_pb2 as vrooli__events_dot_v1_dot_do
 from vrooli_events.v1.domain import policy_pb2 as vrooli__events_dot_v1_dot_domain_dot_policy__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!vrooli-events/v1/domain/sse.proto\x12\x10vrooli_events.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\xf5\x01\n\x13SubscriptionRequest\x12,\n\x12\x65vent_type_pattern\x18\x01 \x01(\tR\x10\x65ventTypePattern\x12;\n\x17source_scenario_pattern\x18\x02 \x01(\tH\x00R\x15sourceScenarioPattern\x88\x01\x01\x12;\n\x17target_scenario_pattern\x18\x03 \x01(\tH\x01R\x15targetScenarioPattern\x88\x01\x01\x42\x1a\n\x18_source_scenario_patternB\x1a\n\x18_target_scenario_pattern\"y\n\x11\x45ventNotification\x12\'\n\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12;\n\x08\x65nvelope\x18\x02 \x01(\x0b\x32\x1f.vrooli_events.v1.EventEnvelopeR\x08\x65nvelope\"\xb5\x02\n\x0ePolicySnapshot\x12\x18\n\x07version\x18\x01 \x01(\x03R\x07version\x12=\n\x0cgenerated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0bgeneratedAt\x12?\n\x0c\x61\x63\x63\x65ss_rules\x18\x03 \x03(\x0b\x32\x1c.vrooli_events.v1.AccessRuleR\x0b\x61\x63\x63\x65ssRules\x12<\n\x0brate_limits\x18\x04 \x03(\x0b\x32\x1b.vrooli_events.v1.RateLimitR\nrateLimits\x12K\n\x10\x63ircuit_breakers\x18\x05 \x03(\x0b\x32 .vrooli_events.v1.CircuitBreakerR\x0f\x63ircuitBreakers\"q\n\x10HeartbeatMessage\x12\x38\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12#\n\rdropped_count\x18\x02 \x01(\x03R\x0c\x64roppedCountBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!vrooli-events/v1/domain/sse.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\x87\x01\n\x11\x45ventNotification\x12\'\n\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12I\n\x08\x65nvelope\x18\x02 \x01(\x0b\x32-.vrooli.vrooli_events.v1.domain.EventEnvelopeR\x08\x65nvelope\"\xd9\x01\n\x0ePolicySnapshot\x12\x18\n\x07version\x18\x01 \x01(\tR\x07version\x12=\n\x0cgenerated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0bgeneratedAt\x12n\n\x18receipt_capture_policies\x18\x03 \x03(\x0b\x32\x34.vrooli.vrooli_events.v1.domain.ReceiptCapturePolicyR\x16receiptCapturePolicies\"q\n\x10HeartbeatMessage\x12\x38\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12#\n\rdropped_count\x18\x02 \x01(\x03R\x0c\x64roppedCountBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,12 +35,10 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_events.v1.domain.sse
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain'
-  _globals['_SUBSCRIPTIONREQUEST']._serialized_start=167
-  _globals['_SUBSCRIPTIONREQUEST']._serialized_end=412
-  _globals['_EVENTNOTIFICATION']._serialized_start=414
-  _globals['_EVENTNOTIFICATION']._serialized_end=535
-  _globals['_POLICYSNAPSHOT']._serialized_start=538
-  _globals['_POLICYSNAPSHOT']._serialized_end=847
-  _globals['_HEARTBEATMESSAGE']._serialized_start=849
-  _globals['_HEARTBEATMESSAGE']._serialized_end=962
+  _globals['_EVENTNOTIFICATION']._serialized_start=181
+  _globals['_EVENTNOTIFICATION']._serialized_end=316
+  _globals['_POLICYSNAPSHOT']._serialized_start=319
+  _globals['_POLICYSNAPSHOT']._serialized_end=536
+  _globals['_HEARTBEATMESSAGE']._serialized_start=538
+  _globals['_HEARTBEATMESSAGE']._serialized_end=651
 # @@protoc_insertion_point(module_scope)

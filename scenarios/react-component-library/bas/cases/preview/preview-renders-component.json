@@ -1,0 +1,208 @@
+{
+  "metadata": {
+    "name": "preview-renders-component",
+    "description": "Navigates to the seeded StatusBadge component workbench at desktop width and proves its selected state canvas, controls, Appearance, and Viewport surfaces are usable. This fails when preview routing regresses or the state-first workbench loses a primary control.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-editor-preview",
+      "spec_entry_id": "component-preview-workspace",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1400,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-status-badge-editor",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/assets/react-component-library%3AStatusBadge?tab=preview",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open StatusBadge editor" }
+      }
+    },
+    {
+      "id": "wait-editor-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Editor panel visible" }
+      }
+    },
+    {
+      "id": "open-preview",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/assets.componentPreviewTab" },
+        "metadata": { "label": "Open Preview workspace" }
+      }
+    },
+    {
+      "id": "wait-preview-loading",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.workspacePane[data-experience-state=\"loading\"], @selector/components.editor.workspacePane[data-experience-state=\"ready\"], @selector/components.editor.workspacePane[data-experience-state=\"partial\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Component preview region reports loading" }
+      }
+    },
+    {
+      "id": "assert-preview-region",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-preview\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The component preview workspace did not expose its authored component-preview experience region."
+        },
+        "metadata": { "label": "Component preview region visible" }
+      }
+    },
+    {
+      "id": "assert-rendered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-preview\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-preview\"][data-experience-state=\"partial\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "Preview did not reach a usable ready or partial state. Check the specimen gallery for per-example runtime failures."
+        },
+        "metadata": { "label": "Preview reached a usable terminal state" }
+      }
+    },
+    {
+      "id": "assert-gallery-status",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.galleryStatus",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The specimen gallery did not expose its per-specimen render status."
+        },
+        "metadata": { "label": "Specimen gallery reports its state" }
+      }
+    },
+    {
+      "id": "open-appearance",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.themeSwitcher.appearanceToggle" },
+        "metadata": { "label": "Open Appearance & visual checks" }
+      }
+    },
+    {
+      "id": "assert-appearance-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.themeSwitcher.appearancePanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Appearance & visual checks did not open its anchored panel."
+        },
+        "metadata": { "label": "Appearance panel visible" }
+      }
+    },
+    {
+      "id": "close-appearance",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Escape"] },
+        "metadata": { "label": "Close Appearance panel" }
+      }
+    },
+    {
+      "id": "open-viewport",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.emulator.viewportToggle" },
+        "metadata": { "label": "Open Viewport" }
+      }
+    },
+    {
+      "id": "assert-viewport-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.emulator.viewportPanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Viewport did not open the device and responsive-size control surface."
+        },
+        "metadata": { "label": "Viewport panel visible" }
+      }
+    },
+    {
+      "id": "close-viewport",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "keys": ["Escape"] },
+        "metadata": { "label": "Close Viewport panel" }
+      }
+    },
+    {
+      "id": "open-preview-tools",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.editor.previewToolsToggle" },
+        "metadata": { "label": "Open specimen tools" }
+      }
+    },
+    {
+      "id": "assert-props-experiment",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.editor.propsPanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The active specimen did not expose the temporary props experiment panel."
+        },
+        "metadata": { "label": "Temporary props experiment available" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-navigate-wait",
+      "source": "navigate-status-badge-editor",
+      "target": "wait-editor-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    { "id": "edge-open-preview", "source": "wait-editor-panel", "target": "open-preview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-wait-loading", "source": "open-preview", "target": "wait-preview-loading", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-loading-region", "source": "wait-preview-loading", "target": "assert-preview-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-region-rendered", "source": "assert-preview-region", "target": "assert-rendered", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-rendered-gallery", "source": "assert-rendered", "target": "assert-gallery-status", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-gallery-appearance", "source": "assert-gallery-status", "target": "open-appearance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-appearance-panel", "source": "open-appearance", "target": "assert-appearance-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-appearance-close", "source": "assert-appearance-panel", "target": "close-appearance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-open", "source": "close-appearance", "target": "open-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-panel", "source": "open-viewport", "target": "assert-viewport-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-viewport-close", "source": "assert-viewport-panel", "target": "close-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-props-tools", "source": "close-viewport", "target": "open-preview-tools", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-props", "source": "open-preview-tools", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

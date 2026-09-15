@@ -1,0 +1,23 @@
+{
+  "_metadata": {
+    "module": "consumer-inversion",
+    "description": "OT-P2-002 — re-point existing plan-logic consumers to delegate to plan-manager.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-INVERT-001",
+      "title": "Existing consumers delegate plan logic to plan-manager",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "integration",
+      "description": "After plan-manager is proven standalone, re-point existing consumers — swarm-manager phased-plan-drain and project hygiene plan-location checks — to delegate to plan-manager as the plan-logic SSOT, so plan logic stops being duplicated and trapped. Root vrooli plans is retired in favor of direct plan-manager usage. Done in follow-on phases, not the initial build.",
+      "tags": ["integration", "inversion", "ssot"],
+      "validation": [
+        { "type": "manual", "status": "planned", "notes": "Inversion is sequenced after standalone proof; each consumer migration is its own gated change. Tracked here for traceability." }
+      ]
+    }
+  ]
+}

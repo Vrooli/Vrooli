@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/closure"
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
 )
 
@@ -29,18 +27,21 @@ type ManifestRefreshResult struct {
 	Source              string // "analyzer" or "service.json"
 }
 
-// manifestRefresher implements ManifestRefresher using scenario-dependency-analyzer
-// with fallback to service.json.
+// manifestRefresher implements ManifestRefresher. The dependency and bundle
+// sections are the closure's projection and carry its digest.
 type manifestRefresher struct {
 	secretsFetcher secrets.Fetcher
-	depsFetcher    DependenciesFetcher
+	closureSource  ClosureSource
 	portsFetcher   PortsFetcher
 	logger         func(msg string, fields map[string]interface{})
 }
 
-// DependenciesFetcher fetches scenario dependencies.
-type DependenciesFetcher interface {
-	FetchDependencies(ctx context.Context, scenarioID string) (resources, scenarios []string, source string, err error)
+// ClosureSource derives the deployment closure for a scenario. A failure is
+// typed (closure_unavailable, closure_cycle, closure_conflict) and stops the
+// refresh: a manifest must never be rebuilt from a stale dependency snapshot
+// when the closure cannot be derived.
+type ClosureSource interface {
+	Resolve(ctx context.Context, scenarioID, environment string) (domain.Closure, error)
 }
 
 // PortsFetcher fetches scenario ports from service.json.
@@ -51,7 +52,7 @@ type PortsFetcher interface {
 // ManifestRefresherConfig holds configuration for creating a ManifestRefresher.
 type ManifestRefresherConfig struct {
 	SecretsFetcher secrets.Fetcher
-	DepsFetcher    DependenciesFetcher
+	Closure        ClosureSource
 	PortsFetcher   PortsFetcher
 	Logger         func(msg string, fields map[string]interface{})
 }
@@ -60,51 +61,64 @@ type ManifestRefresherConfig struct {
 func NewManifestRefresher(cfg ManifestRefresherConfig) ManifestRefresher {
 	return &manifestRefresher{
 		secretsFetcher: cfg.SecretsFetcher,
-		depsFetcher:    cfg.DepsFetcher,
+		closureSource:  cfg.Closure,
 		portsFetcher:   cfg.PortsFetcher,
 		logger:         cfg.Logger,
 	}
 }
 
-// RefreshManifest regenerates the manifest from current scenario state.
-// It re-fetches dependencies, ports, and updates bundle inclusions.
-// Target, edge, and secrets configuration are preserved from the base manifest.
+// RefreshManifest regenerates the manifest from the current closure. It
+// re-derives dependencies and bundle inclusions, refreshes ports, and clears
+// secrets so they are re-fetched. Target, edge and the rest of the manifest
+// are preserved from the base manifest.
 func (r *manifestRefresher) RefreshManifest(ctx context.Context, base domain.CloudManifest) (domain.CloudManifest, error) {
-	scenarioID := base.Scenario.ID
-	if scenarioID == "" {
+	if base.Scenario.ID == "" {
 		return base, fmt.Errorf("manifest has no scenario ID")
 	}
-
-	// Start with a copy of the base manifest
+	if r.closureSource == nil {
+		return base, fmt.Errorf("manifest refresher has no closure source")
+	}
 	refreshed := base
+	if err := r.refreshFromClosure(ctx, &refreshed); err != nil {
+		return base, err
+	}
+	return r.refreshPortsAndSecrets(ctx, refreshed)
+}
 
-	// Re-fetch dependencies from analyzer or service.json
-	resources, scenarios, source, err := r.depsFetcher.FetchDependencies(ctx, scenarioID)
+// refreshFromClosure replaces the dependency snapshot and bundle inclusions
+// with the closure projection and binds the closure digest into the manifest.
+func (r *manifestRefresher) refreshFromClosure(ctx context.Context, refreshed *domain.CloudManifest) error {
+	environment := refreshed.Environment
+	if environment == "" {
+		environment = "production"
+	}
+	resolved, err := r.closureSource.Resolve(ctx, refreshed.Scenario.ID, environment)
 	if err != nil {
-		r.log("failed to fetch dependencies, keeping original", map[string]interface{}{
-			"scenario_id": scenarioID,
+		r.log("closure unavailable, refusing manifest refresh", map[string]interface{}{
+			"scenario_id": refreshed.Scenario.ID,
 			"error":       err.Error(),
 		})
-		// Continue with original dependencies rather than failing
-	} else {
-		r.log("refreshed dependencies", map[string]interface{}{
-			"scenario_id": scenarioID,
-			"source":      source,
-			"resources":   resources,
-			"scenarios":   scenarios,
-		})
-
-		// Update dependencies - always include the target scenario itself
-		// The validator requires dependencies.scenarios to include scenario.id
-		refreshed.Dependencies.Resources = resources
-		refreshed.Dependencies.Scenarios = stringutil.SortedUnique(append(scenarios, scenarioID))
-		refreshed.Dependencies.Analyzer.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
-
-		// Update bundle inclusions - always include the target scenario itself
-		// The validator requires bundle.scenarios to include scenario.id
-		refreshed.Bundle.Resources = resources
-		refreshed.Bundle.Scenarios = stringutil.SortedUnique(append(scenarios, scenarioID))
+		return fmt.Errorf("derive closure for %s: %w", refreshed.Scenario.ID, err)
 	}
+	deps, bundleSpec := closure.ManifestDependencies(resolved)
+	deps.ProgramBindingPeers = refreshed.Dependencies.ProgramBindingPeers
+	deps.Analyzer.Fingerprint = refreshed.Dependencies.Analyzer.Fingerprint
+	deps.Analyzer.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+	refreshed.Dependencies = deps
+	refreshed.Bundle.Scenarios = bundleSpec.Scenarios
+	refreshed.Bundle.Resources = bundleSpec.Resources
+	r.log("refreshed dependencies from closure", map[string]interface{}{
+		"scenario_id":    refreshed.Scenario.ID,
+		"closure_digest": resolved.Digest,
+		"resources":      deps.Resources,
+		"scenarios":      deps.Scenarios,
+		"unsupported":    len(resolved.Unsupported),
+	})
+	return nil
+}
+
+func (r *manifestRefresher) refreshPortsAndSecrets(ctx context.Context, refreshed domain.CloudManifest) (domain.CloudManifest, error) {
+	scenarioID := refreshed.Scenario.ID
 
 	// Re-fetch ports from service.json
 	ports, err := r.portsFetcher.FetchPorts(ctx, scenarioID)
@@ -135,42 +149,6 @@ func (r *manifestRefresher) log(msg string, fields map[string]interface{}) {
 	}
 }
 
-// DefaultDependenciesFetcher implements DependenciesFetcher using analyzer with service.json fallback.
-type DefaultDependenciesFetcher struct {
-	AnalyzerFetcher    func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error)
-	ServiceJSONFetcher func(scenarioID string) (resources, scenarios []string, err error)
-}
-
-// FetchDependencies fetches dependencies from analyzer with service.json fallback.
-func (f *DefaultDependenciesFetcher) FetchDependencies(ctx context.Context, scenarioID string) (resources, scenarios []string, source string, err error) {
-	// Try analyzer first
-	if f.AnalyzerFetcher != nil {
-		resources, scenarios, err = f.AnalyzerFetcher(ctx, scenarioID)
-		if err == nil {
-			// Merge with service.json to ensure declared dependencies aren't dropped
-			if f.ServiceJSONFetcher != nil {
-				sjResources, sjScenarios, sjErr := f.ServiceJSONFetcher(scenarioID)
-				if sjErr == nil {
-					resources = stringutil.SortedUnique(append(resources, sjResources...))
-					scenarios = stringutil.SortedUnique(append(scenarios, sjScenarios...))
-				}
-			}
-			return resources, scenarios, "analyzer", nil
-		}
-	}
-
-	// Fallback to service.json
-	if f.ServiceJSONFetcher != nil {
-		resources, scenarios, err = f.ServiceJSONFetcher(scenarioID)
-		if err != nil {
-			return nil, nil, "", fmt.Errorf("both analyzer and service.json failed: %w", err)
-		}
-		return resources, scenarios, "service.json", nil
-	}
-
-	return nil, nil, "", fmt.Errorf("no dependency fetcher available")
-}
-
 // DefaultPortsFetcher implements PortsFetcher using service.json.
 type DefaultPortsFetcher struct{}
 
@@ -181,7 +159,10 @@ func (f *DefaultPortsFetcher) FetchPorts(ctx context.Context, scenarioID string)
 		return nil, fmt.Errorf("find repo root: %w", err)
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json path: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, fmt.Errorf("read service.json: %w", err)
@@ -205,52 +186,4 @@ func (f *DefaultPortsFetcher) FetchPorts(ctx context.Context, scenarioID string)
 	}
 
 	return ports, nil
-}
-
-// ServiceJSONDependenciesFetcher extracts dependencies from service.json.
-func ServiceJSONDependenciesFetcher(scenarioID string) (resources, scenarios []string, err error) {
-	repoRoot, err := bundle.FindRepoRootFromCWD()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
-	data, err := os.ReadFile(serviceJSONPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var svc struct {
-		Dependencies struct {
-			Resources map[string]struct {
-				Enabled  bool `json:"enabled"`
-				Required bool `json:"required"`
-			} `json:"resources"`
-			Scenarios map[string]struct {
-				Enabled  bool `json:"enabled"`
-				Required bool `json:"required"`
-			} `json:"scenarios"`
-		} `json:"dependencies"`
-	}
-	if err := json.Unmarshal(data, &svc); err != nil {
-		return nil, nil, fmt.Errorf("parse service.json: %w", err)
-	}
-
-	// Extract enabled/required resources
-	for name, dep := range svc.Dependencies.Resources {
-		if dep.Enabled || dep.Required {
-			resources = append(resources, name)
-		}
-	}
-	sort.Strings(resources)
-
-	// Extract enabled/required scenarios
-	for name, dep := range svc.Dependencies.Scenarios {
-		if dep.Enabled || dep.Required {
-			scenarios = append(scenarios, name)
-		}
-	}
-	sort.Strings(scenarios)
-
-	return resources, scenarios, nil
 }

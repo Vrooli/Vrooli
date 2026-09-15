@@ -1,6 +1,7 @@
 package scenarios
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,7 +9,6 @@ import (
 )
 
 func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -30,30 +30,7 @@ func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
 	}
 }
 
-func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
-	t.Setenv("PATH", "")
-	t.Setenv("TEST_GENIE_BIN", "")
-	t.Setenv("TEST_GENIE_DISABLE", "")
-	dir := t.TempDir()
-	manifest := `{"lifecycle":{"test":"./scripts/run.sh"}}`
-	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "service.json"), []byte(manifest), 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
-
-	caps := DetectTestingCapabilities(dir)
-	if caps.Phased || !caps.Lifecycle || caps.Preferred != "lifecycle" {
-		t.Fatalf("expected lifecycle detection, got %#v", caps)
-	}
-	if len(caps.Commands) == 0 {
-		t.Fatalf("expected lifecycle command, got %#v", caps.Commands)
-	}
-}
-
 func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -77,24 +54,17 @@ func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
-	// Lifecycle + legacy but no phased should prefer lifecycle
-	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "service.json"), []byte(`{"lifecycle":{"test":"./run"}}`), 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
+	// Legacy is the only local fallback when no phased suite is present.
 	if err := os.WriteFile(filepath.Join(dir, "scenario-test.yaml"), []byte("legacy: true"), 0o644); err != nil {
 		t.Fatalf("write scenario-test.yaml: %v", err)
 	}
 
 	caps := DetectTestingCapabilities(dir)
-	if !caps.Lifecycle || !caps.Legacy || caps.Preferred != "lifecycle" {
-		t.Fatalf("expected lifecycle preference, got %#v", caps)
+	if !caps.Legacy || caps.Preferred != "legacy" {
+		t.Fatalf("expected legacy preference, got %#v", caps)
 	}
 
 	// Add phased runner and ensure preference flips
@@ -139,8 +109,7 @@ func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
 	if err := os.WriteFile(binPath, []byte("#!/usr/bin/env bash\nexit 0\n"), mode); err != nil {
 		t.Fatalf("write fake binary: %v", err)
 	}
-	t.Setenv("PATH", binDir)
-	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_BIN", binPath)
 	t.Setenv("TEST_GENIE_DISABLE", "")
 
 	caps := DetectTestingCapabilities(dir)
@@ -149,5 +118,21 @@ func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
 	}
 	if len(caps.Commands) == 0 || caps.Commands[0].Type != "genie" {
 		t.Fatalf("expected genie command first, got %#v", caps.Commands)
+	}
+}
+
+func TestDetectTestingCapabilitiesSkipsGenieWhenResolverFails(t *testing.T) {
+	dir := t.TempDir()
+	originalResolver := resolveTestGenieExecutable
+	t.Cleanup(func() { resolveTestGenieExecutable = originalResolver })
+	resolveTestGenieExecutable = func(string) (string, error) {
+		return "", errors.New("missing")
+	}
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
+
+	caps := DetectTestingCapabilities(filepath.Join(dir, "scenarios", "alpha"))
+	if caps.Genie {
+		t.Fatalf("expected genie detection to stay disabled, got %#v", caps)
 	}
 }

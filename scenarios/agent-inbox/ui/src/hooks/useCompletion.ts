@@ -22,7 +22,6 @@ import {
   type CompletionState,
   type CompletionActions,
   type CompletionOptions,
-  type UseCompletionOptions,
   EMPTY_IMAGES,
   EMPTY_TOOL_CALLS,
   EMPTY_APPROVALS,
@@ -31,10 +30,9 @@ import {
 import { useStreamingEventHandler } from "./useCompletionStreaming";
 
 // Re-export types for consumers
-export type { ActiveToolCall, PendingApproval, CompletionState, CompletionActions, CompletionOptions, UseCompletionOptions };
+export type { ActiveToolCall, PendingApproval, CompletionState, CompletionActions, CompletionOptions };
 
-export function useCompletion(options?: UseCompletionOptions): CompletionState & CompletionActions {
-  const { onTemplateDeactivated } = options || {};
+export function useCompletion(): CompletionState & CompletionActions {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>(EMPTY_IMAGES);
@@ -68,7 +66,6 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
       setAwaitingApprovals,
       setIsGenerating,
     },
-    onTemplateDeactivated,
   );
 
   const cancelCompletion = useCallback(() => {
@@ -116,7 +113,6 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
           stream: true,
           onEvent: createEventHandler(requestId),
           signal: abortController.signal,
-          forcedTool: options?.forcedTool,
           skills: options?.skills,
         });
 
@@ -161,14 +157,14 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
         setActiveToolCalls((prev) =>
           prev.map((tc) =>
             tc.id === toolCallId
-              ? { ...tc, status: "completed" as const, result: result.tool_result?.result }
+              ? { ...tc, status: "completed" as const, result: result.tool_result.result }
               : tc
           )
         );
 
         if (result.auto_continued) {
           setAwaitingApprovals(false);
-        } else if (result.pending_approvals?.length === 0) {
+        } else if (result.pending_approvals.length === 0) {
           setAwaitingApprovals(false);
         }
 

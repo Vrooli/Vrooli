@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-registry-index",
+  "contract": {
+    "kind": "experience-capability-registry",
+    "schema": "experience-capability-registry/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "description": "Fleet-wide vocabulary of experience capabilities, capture axes, evidence kinds, and perceivable states. Referenced by react-component-library catalog assets through requiredCapabilities and expects, and by scenario experience specs through claim scoping. No document here records status: whether a capability is provable is computed from the live reconciler.",
+  "documents": [
+    { "path": "states.json", "kind": "state-vocabulary", "title": "Canonical perceivable-state vocabulary and consumer views" },
+    { "path": "axes.json", "kind": "axis-registry", "title": "Capture axes" },
+    { "path": "evidence.json", "kind": "evidence-registry", "title": "Evidence kinds" },
+    { "path": "capabilities/perception.json", "kind": "capability-group", "title": "Perception — appearance, contrast, geometry, and craft floors" },
+    { "path": "capabilities/interaction.json", "kind": "capability-group", "title": "Interaction — pointer, keyboard, focus, and dismissal" },
+    { "path": "capabilities/responsive.json", "kind": "capability-group", "title": "Responsive — viewport, orientation, and reflow behavior" },
+    { "path": "capabilities/accessibility.json", "kind": "capability-group", "title": "Accessibility — semantics, naming, structure, and announcement" },
+    { "path": "capabilities/motion.json", "kind": "capability-group", "title": "Motion — transition classes, timing, and reduced-motion policy" },
+    { "path": "capabilities/resilience.json", "kind": "capability-group", "title": "Resilience — offline, stale, partial, failed, and recovering states" },
+    { "path": "capabilities/craft.json", "kind": "capability-group", "title": "Craft — detail work capped below machine tier by design" },
+    { "path": "capabilities/composition-ports.json", "kind": "capability-group", "title": "Composition ports — the expects vocabulary" }
+  ]
+}

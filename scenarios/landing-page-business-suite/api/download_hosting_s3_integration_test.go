@@ -20,20 +20,31 @@ import (
 
 // These tests require MinIO running. Use: go test -tags=integration ./...
 
+func integrationS3Provider(accessKey, secretKey string) *S3DownloadStorageProvider {
+	return &S3DownloadStorageProvider{ResolveCredential: func(_ context.Context, field string) (string, error) {
+		switch field {
+		case "delivery-s3-access-key-id":
+			return accessKey, nil
+		case "delivery-s3-secret-access-key":
+			return secretKey, nil
+		default:
+			return "", nil
+		}
+	}}
+}
+
 func TestS3Integration_NewStorage_Success(t *testing.T) {
 	endpoint, accessKey, secretKey := setupMinIOContainer(t)
 
 	ctx := context.Background()
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          "test-bucket",
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         "test-bucket",
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -49,16 +60,14 @@ func TestS3Integration_NewStorage_InvalidCredentials(t *testing.T) {
 	endpoint, _, _ := setupMinIOContainer(t)
 
 	ctx := context.Background()
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider("invalid", "invalid")
 
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          "test-bucket",
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     "invalid",
-		SecretAccessKey: "invalid",
+		Provider:       "s3",
+		Bucket:         "test-bucket",
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -78,15 +87,13 @@ func TestS3Integration_TestConnection_ValidBucket(t *testing.T) {
 	ctx := context.Background()
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, "connection-test-bucket")
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          "connection-test-bucket",
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         "connection-test-bucket",
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -104,16 +111,14 @@ func TestS3Integration_TestConnection_InvalidBucket(t *testing.T) {
 	endpoint, accessKey, secretKey := setupMinIOContainer(t)
 
 	ctx := context.Background()
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          "nonexistent-bucket-12345",
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         "nonexistent-bucket-12345",
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -135,15 +140,13 @@ func TestS3Integration_PresignGet_Success(t *testing.T) {
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
 	uploadTestObject(t, ctx, endpoint, accessKey, secretKey, bucket, "test-file.txt", []byte("test content"))
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          bucket,
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -183,15 +186,13 @@ func TestS3Integration_PresignPut_Success(t *testing.T) {
 	bucket := "presign-put-bucket"
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          bucket,
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -238,15 +239,13 @@ func TestS3Integration_HeadObject_Exists(t *testing.T) {
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
 	uploadTestObject(t, ctx, endpoint, accessKey, secretKey, bucket, "existing.txt", []byte("existing content"))
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          bucket,
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -277,15 +276,13 @@ func TestS3Integration_HeadObject_NotFound(t *testing.T) {
 	bucket := "head-notfound-bucket"
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          bucket,
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)
@@ -306,15 +303,13 @@ func TestS3Integration_EndToEnd_UploadDownload(t *testing.T) {
 	bucket := "end-to-end-bucket"
 	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
 
-	provider := &S3DownloadStorageProvider{}
+	provider := integrationS3Provider(accessKey, secretKey)
 	settings := DownloadStorageSettings{
-		Provider:        "s3",
-		Bucket:          bucket,
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		ForcePathStyle:  true,
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secretKey,
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
 	}
 
 	storage, err := provider.New(ctx, settings)

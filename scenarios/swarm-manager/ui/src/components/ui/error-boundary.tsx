@@ -24,6 +24,7 @@
 
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { isStaleChunkError, reloadForStaleChunk } from "@vrooli/api-base";
 import { Button } from "./button";
 import { ErrorDiagnostics } from "./error-diagnostics";
 import { selectors } from "../../consts/selectors";
@@ -86,6 +87,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // A stale-chunk failure is a routine deploy artifact, not a crash:
+    // self-heal by reloading (rate-limited). When the cooldown suppresses
+    // the reload, fall through to the fallback UI, which renders a
+    // deploy-specific message for this category.
+    if (isStaleChunkError(error) && reloadForStaleChunk()) {
+      return;
+    }
+
     // Log error for observability (structured format for parsing)
     console.error(
       "[ErrorBoundary] Runtime error caught:",
@@ -117,6 +126,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
+      // A deploy replaced this tab's lazy chunks; frame it as an update
+      // rather than a crash.
+      const isStaleChunk = this.state.error ? isStaleChunkError(this.state.error) : false;
+
       // Default fallback UI
       return (
         <div
@@ -129,13 +142,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               className="mt-6 text-2xl font-semibold text-slate-100"
               data-testid={selectors.errorBoundary.title}
             >
-              Something went wrong
+              {isStaleChunk ? "A new version is available" : "Something went wrong"}
             </h1>
             <p
               className="mt-3 text-slate-400"
               data-testid={selectors.errorBoundary.message}
             >
-              The application encountered an unexpected error. Please refresh the page to continue.
+              {isStaleChunk
+                ? "Swarm Manager was updated while this tab was open. Reload to pick up the new version."
+                : "The application encountered an unexpected error. Please refresh the page to continue."}
             </p>
             <Button
               className="mt-6"

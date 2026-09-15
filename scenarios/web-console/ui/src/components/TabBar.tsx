@@ -1,12 +1,59 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
-import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
+import { useTranslation } from "react-i18next";
+import { useWorkspaceStore, type PaneMetadata, type RoleMeta } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
+import { paneAccentStyle } from "../lib/paneColor";
+import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
+import { usePressGesture } from "../hooks/usePressGesture";
 import TabContextMenu from "./TabContextMenu";
+import GroupContextMenu from "./GroupContextMenu";
+import RoleRow from "./RoleRow";
+import { GroupPickerOverlay } from "./launcher/GroupPicker";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
-import { useConversationStore } from "../stores/useConversationStore";
+import { useGroupActions } from "../hooks/useGroupActions";
+import { getSessionUnreadCount, useConversationStore } from "../stores/useConversationStore";
+import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
+
+/**
+ * Per-tab unread badge. Subscribes to ONLY its own session's unread count
+ * (a primitive), so a new message re-renders just this badge — never the
+ * whole tab strip or sibling tabs. This is the isolation the multi-session
+ * performance overhaul depends on (Layer 0.1).
+ */
+const TabUnreadBadge = memo(function TabUnreadBadge({
+  sessionId,
+  supportsMessagesView,
+  manuallyUnread,
+}: {
+  sessionId: string;
+  supportsMessagesView: boolean;
+  manuallyUnread: boolean;
+}) {
+  const unreadCount = useConversationStore((state) =>
+    supportsMessagesView ? getSessionUnreadCount(state, sessionId) : 0,
+  );
+  if (unreadCount > 0) {
+    return (
+      <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
+        {unreadCount}
+      </span>
+    );
+  }
+  // Manual flag: a dot with no number. It means "come back here", not
+  // "N things happened", and a real count always outranks it.
+  if (manuallyUnread) {
+    return (
+      <span
+        data-testid={`tab-manual-unread-${sessionId}`}
+        className="h-2 w-2 shrink-0 rounded-full bg-wc-accent"
+      />
+    );
+  }
+  return null;
+});
 
 interface TabBarProps {
   panes: PaneMetadata[];
@@ -14,44 +61,62 @@ interface TabBarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
+  onDeletePanePermanently: (sessionId: string) => void;
   isCreating?: boolean;
+  /** Start a waiting role's command from its chip in the strip. */
+  onStartRole: (role: RoleMeta) => void;
+  /** Open a waiting role's overflow menu. */
+  onOpenRoleMenu: (role: RoleMeta, position: { x: number; y: number }) => void;
   /** Extra action buttons rendered before the plus button (e.g. settings on mobile). */
   trailingActions?: React.ReactNode;
 }
 
-export default function TabBar({
+function TabBar({
   panes,
   activePane,
   onNewTerminal,
   onOpenLauncher,
   onClosePane,
+  onDeletePanePermanently,
   isCreating,
+  onStartRole,
+  onOpenRoleMenu,
   trailingActions,
 }: TabBarProps) {
+  const { t } = useTranslation();
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
-  const displayMode = useWorkspaceStore((s) => s.displayMode);
   const groups = useWorkspaceStore((s) => s.groups);
+  const roles = useWorkspaceStore((s) => s.roles);
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
-  const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
-  const addGroup = useWorkspaceStore((s) => s.addGroup);
-  const updateGroup = useWorkspaceStore((s) => s.updateGroup);
-  const conversationSessions = useConversationStore((s) => s.sessions);
-  const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
+  const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
+  const setCloseGroupTarget = useWorkspaceStore((s) => s.setCloseGroupTarget);
+  // Where the anchored assign picker should sit, and for which session.
+  const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
+  const { syncPaneMove, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
+  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup } = useGroupActions();
+  const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
+
+  /** Flip a pane's manual unread flag and persist it. */
+  const toggleManualUnread = useCallback((sessionId: string) => {
+    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sessionId);
+    if (!pane) return;
+    const next = !pane.manuallyUnread;
+    setPaneManuallyUnread(sessionId, next);
+    syncPaneUpdate(sessionId, { manually_unread: next });
+  }, [setPaneManuallyUnread, syncPaneUpdate]);
+
+  // Group context menu (long-press / right-click on a group label).
+  const [groupMenu, setGroupMenu] = useState<{ groupId: string; position: { x: number; y: number } } | null>(null);
 
   // Inline rename state for tabs
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editTabName, setEditTabName] = useState("");
   const editTabInputRef = useRef<HTMLInputElement>(null);
-
-  // Inline rename state for groups
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupName, setEditGroupName] = useState("");
-  const editGroupInputRef = useRef<HTMLInputElement>(null);
 
   /** Start inline rename for a tab. */
   const startTabRename = useCallback((sessionId: string, currentName: string) => {
@@ -70,23 +135,6 @@ export default function TabBar({
     setEditTabName("");
   }, [editingTabId, editTabName, renamePaneById, syncPaneUpdate]);
 
-  /** Start inline rename for a group. */
-  const startGroupRename = useCallback((groupId: string, currentName: string) => {
-    setEditingGroupId(groupId);
-    setEditGroupName(currentName);
-  }, []);
-
-  /** Commit group rename. */
-  const commitGroupRename = useCallback(() => {
-    if (editingGroupId && editGroupName.trim()) {
-      const trimmed = editGroupName.trim();
-      updateGroup(editingGroupId, { name: trimmed });
-      syncUpdateGroup(editingGroupId, { name: trimmed });
-    }
-    setEditingGroupId(null);
-    setEditGroupName("");
-  }, [editingGroupId, editGroupName, updateGroup, syncUpdateGroup]);
-
   // Auto-focus rename inputs when they appear
   useEffect(() => {
     if (editingTabId && editTabInputRef.current) {
@@ -94,21 +142,6 @@ export default function TabBar({
       editTabInputRef.current.select();
     }
   }, [editingTabId]);
-
-  useEffect(() => {
-    if (editingGroupId && editGroupInputRef.current) {
-      editGroupInputRef.current.focus();
-      editGroupInputRef.current.select();
-    }
-  }, [editingGroupId]);
-
-  // Long-press detection for opening context menu on tabs.
-  // The timer sets longPressReady; the menu only opens on pointerUp
-  // so that drag gestures take priority over long-press.
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
-  const longPressReady = useRef(false);
-  const longPressPaneId = useRef<string | null>(null);
 
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const plusHandlers = useLongPress({
@@ -132,17 +165,45 @@ export default function TabBar({
     y: number;
     pointerId: number;
     target: HTMLElement;
-    allowReorder: boolean;
   } | null>(null);
   const suppressPointerUpActivationRef = useRef(false);
+  const mouseActivatedPaneRef = useRef<string | null>(null);
 
   /** Movement threshold (px) before a pointer-down becomes a drag. */
   const DRAG_THRESHOLD = 5;
 
   const activatePane = useCallback((sessionId: string) => {
-    setActivePane(sessionId);
+    const clearedUnread = setActivePane(sessionId);
     syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
-  }, [setActivePane, syncActivePane]);
+    if (clearedUnread) syncPaneUpdate(sessionId, { manually_unread: false });
+  }, [setActivePane, syncActivePane, syncPaneUpdate]);
+
+  /** Open the tab context menu at the given position. */
+  const openContextMenu = useCallback((sessionId: string, x: number, y: number) => {
+    setTabContextMenu({ sessionId, position: { x, y } });
+  }, [setTabContextMenu]);
+
+  const tabPressGesture = usePressGesture<string>({
+    longPressMs: 500,
+    moveThresholdPx: DRAG_THRESHOLD,
+    onTap: (sessionId) => {
+      activatePane(sessionId);
+    },
+    onLongPress: (sessionId, point) => {
+      openContextMenu(sessionId, point.x, point.y);
+    },
+  });
+
+  const openGroupMenu = useCallback((groupId: string, x: number, y: number) => {
+    setGroupMenu({ groupId, position: { x, y } });
+  }, []);
+
+  const groupPressGesture = usePressGesture<string>({
+    longPressMs: 500,
+    moveThresholdPx: DRAG_THRESHOLD,
+    onTap: (groupId) => { toggleGroupCollapsed(groupId); },
+    onLongPress: (groupId, point) => { openGroupMenu(groupId, point.x, point.y); },
+  });
 
   // Auto-scroll active tab into view
   useEffect(() => {
@@ -155,65 +216,9 @@ export default function TabBar({
     }
   }, [activePane]);
 
-  // Keyboard shortcuts for tab navigation (only in tabs mode)
-  useEffect(() => {
-    if (displayMode !== "tabs") return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeIdx = panes.findIndex((p) => p.sessionId === activePane);
-
-      // Ctrl+Tab / Ctrl+Shift+Tab - cycle tabs
-      if (e.ctrlKey && e.key === "Tab") {
-        e.preventDefault();
-        if (panes.length === 0) return;
-
-        const direction = e.shiftKey ? -1 : 1;
-        const nextIdx = (activeIdx + direction + panes.length) % panes.length;
-        const nextPane = panes[nextIdx];
-        if (nextPane) {
-          activatePane(nextPane.sessionId);
-        }
-        return;
-      }
-
-      // Ctrl+1-9 - jump to tab by index
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        if (idx < panes.length) {
-          e.preventDefault();
-          const targetPane = panes[idx];
-          if (targetPane) {
-            activatePane(targetPane.sessionId);
-          }
-        }
-        return;
-      }
-
-      // Ctrl+W - close active tab
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === "w") {
-        e.preventDefault();
-        if (activePane) {
-          onClosePane(activePane);
-        }
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [displayMode, panes, activePane, activatePane, onClosePane]);
-
   // Initiate actual drag once movement exceeds threshold
   const commitDrag = useCallback(
     (paneId: string, target: HTMLElement, pointerId: number) => {
-      // Cancel any pending long-press when drag starts
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-      longPressReady.current = false;
-      longPressPaneId.current = null;
-
       const idx = panes.findIndex((p) => p.sessionId === paneId);
       if (idx === -1) return;
       target.setPointerCapture(pointerId);
@@ -232,16 +237,7 @@ export default function TabBar({
         const dy = e.clientY - pending.y;
         if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
           suppressPointerUpActivationRef.current = true;
-          if (pending.allowReorder) {
-            commitDrag(pending.paneId, pending.target, pending.pointerId);
-          } else {
-            if (longPressTimer.current) {
-              clearTimeout(longPressTimer.current);
-              longPressTimer.current = null;
-            }
-            longPressReady.current = false;
-            longPressPaneId.current = null;
-          }
+          commitDrag(pending.paneId, pending.target, pending.pointerId);
           dragStartRef.current = null;
         }
         return;
@@ -265,10 +261,10 @@ export default function TabBar({
       dragStartRef.current = null;
       setDragState((prev) => {
         if (prev) {
+          // Zustand set() is synchronous, so syncPaneMove's getState() sees
+          // the new order — and the group/color change a drop can carry.
           movePaneToIndex(prev.paneId, prev.dropIndex);
-          // Zustand set() is synchronous, so getState() reflects the new order
-          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-          syncPaneOrder(updated.map((p) => p.sessionId), active);
+          syncPaneMove(prev.paneId);
         }
         return null;
       });
@@ -282,49 +278,25 @@ export default function TabBar({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [dragState, movePaneToIndex, syncPaneOrder, commitDrag]);
+  }, [dragState, movePaneToIndex, syncPaneMove, commitDrag]);
 
   const isDragging = dragState !== null;
 
-  /** Open the tab context menu at the given position. */
-  const openContextMenu = (sessionId: string, x: number, y: number) => {
-    setTabContextMenu({ sessionId, position: { x, y } });
-  };
-
-  // Group tabs by their groupId, preserving the pane array order.
-  // Build a rendering list of: group labels (with collapse toggle) interleaved with tabs.
-  type RenderItem =
-    | { kind: "group-label"; group: (typeof groups)[0]; tabCount: number }
-    | { kind: "tab"; pane: PaneMetadata; globalIndex: number };
-
-  const renderItems: RenderItem[] = [];
   const groupMap = new Map(groups.map((g) => [g.id, g]));
-  let lastGroupId: string | null | undefined = undefined; // sentinel to detect group transitions
-
-  panes.forEach((pane, idx) => {
-    const gid = pane.groupId;
-
-    // Emit group label when entering a new group
-    if (gid && gid !== lastGroupId) {
-      const group = groupMap.get(gid);
-      if (group) {
-        const tabCount = panes.filter((p) => p.groupId === gid).length;
-        renderItems.push({ kind: "group-label", group, tabCount });
-      }
-    }
-    lastGroupId = gid;
-
-    // Collapsed group: skip individual tabs (the label shows the count)
-    const group = gid ? groupMap.get(gid) : undefined;
-    if (group?.isCollapsed) return;
-
-    renderItems.push({ kind: "tab", pane, globalIndex: idx });
+  // Unread badges are rendered per-tab via <TabUnreadBadge> so a new message
+  // re-renders only the affected badge — not the whole strip. So the strip
+  // structure is built without conversation data here.
+  const renderItems = buildWorkspaceNavigationItems({
+    panes,
+    groups,
+    roles,
+    activePane,
   });
 
   return (
     <div
       data-testid="tab-bar"
-      className="flex items-stretch h-9 border-b border-wc-default bg-wc-surface-header shrink-0"
+      className="wc-chrome-surface flex items-stretch h-9 border-b border-wc-default shrink-0 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]"
       role="tablist"
     >
       <div
@@ -333,38 +305,34 @@ export default function TabBar({
       >
         {renderItems.map((item) => {
           if (item.kind === "group-label") {
-            const { group, tabCount } = item;
+            const { group, tabCount, waitingCount } = item;
             return (
               <button
                 key={`group-${group.id}`}
                 data-testid={`tab-group-${group.id}`}
                 className="flex items-center gap-1 px-2 text-xs shrink-0 border-r border-wc-default text-wc-text-secondary hover:bg-wc-surface-raised transition-colors"
-                onClick={() => toggleGroupCollapsed(group.id)}
-                title={group.isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                {...groupPressGesture.getGestureHandlers(group.id)}
+                onClick={() => {
+                  if (groupPressGesture.shouldSuppressClick(group.id)) return;
+                  toggleGroupCollapsed(group.id);
+                }}
+                title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
               >
                 <span
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: group.color }}
                 />
-                {editingGroupId === group.id ? (
-                  <input
-                    ref={editGroupInputRef}
-                    data-testid={`group-rename-input-${group.id}`}
-                    className="bg-wc-surface-input text-wc-text-primary text-xs px-1 rounded w-[80px] outline-none ring-1 ring-wc-accent font-medium"
-                    value={editGroupName}
-                    onChange={(e) => setEditGroupName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitGroupRename();
-                      if (e.key === "Escape") { setEditingGroupId(null); setEditGroupName(""); }
-                    }}
-                    onBlur={commitGroupRename}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className="truncate max-w-[80px] font-medium">{group.name}</span>
-                )}
+                <span className="truncate max-w-[80px] font-medium">{group.name}</span>
                 {group.isCollapsed && (
                   <span className="text-[10px] bg-wc-surface-input rounded px-1">{tabCount}</span>
+                )}
+                {waitingCount > 0 && (
+                  <span
+                    data-testid={`tab-group-waiting-${group.id}`}
+                    className="rounded border border-dashed border-wc-default px-1 text-[10px] text-wc-text-faint"
+                  >
+                    {waitingCount}
+                  </span>
                 )}
                 {group.isCollapsed ? (
                   <ChevronRight className="h-3 w-3 shrink-0" />
@@ -375,19 +343,28 @@ export default function TabBar({
             );
           }
 
-          const { pane, globalIndex: idx } = item;
-          const isActive = pane.sessionId === activePane;
+          // A waiting role appears in the strip as a dashed chip. Clicking it
+          // starts the role, which is the same gesture as clicking a tab.
+          if (item.kind === "waiting-role") {
+            return (
+              <RoleRow
+                key={`role-${item.role.id}`}
+                variant="tab"
+                role={item.role}
+                group={item.group}
+                isLastInGroup={item.isLastInGroup}
+                onStart={onStartRole}
+                onOpenMenu={onOpenRoleMenu}
+              />
+            );
+          }
+
+          const { pane, globalIndex: idx, group } = item;
+          const isActive = item.isActive;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget =
             isDragging && !isBeingDragged && dragState?.dropIndex === idx;
           const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
-          const supportsMessagesView = pane.supportsMessagesView;
-          const unreadCount = (() => {
-            if (!supportsMessagesView) return 0;
-            const session = conversationSessions[pane.sessionId];
-            if (!session) return 0;
-            return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
-          })();
 
           return (
               <div
@@ -413,6 +390,13 @@ export default function TabBar({
                   : undefined
               }
               onClick={() => {
+                if (tabPressGesture.shouldSuppressClick(pane.sessionId)) {
+                  return;
+                }
+                if (mouseActivatedPaneRef.current === pane.sessionId) {
+                  mouseActivatedPaneRef.current = null;
+                  return;
+                }
                 // Suppress click if a drag just completed
                 if (isDragging) return;
                 activatePane(pane.sessionId);
@@ -425,15 +409,7 @@ export default function TabBar({
                   }
                 }
               }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                longPressFired.current = true;
-                openContextMenu(pane.sessionId, e.clientX, e.clientY);
-              }}
+              onContextMenu={tabPressGesture.getGestureHandlers(pane.sessionId).onContextMenu}
               onPointerDown={(e) => {
                 suppressPointerUpActivationRef.current = false;
                 // Left-click on mouse: start tracking for drag threshold
@@ -444,72 +420,36 @@ export default function TabBar({
                     y: e.clientY,
                     pointerId: e.pointerId,
                     target: e.currentTarget as HTMLElement,
-                    allowReorder: true,
                   };
                   return;
                 }
-                // Start long-press timer for touch/pen.
-                // Sets longPressReady flag; context menu opens on pointerUp so
-                // swipe gestures can cancel the long-press without reordering.
-                if (e.pointerType !== "mouse" && e.button === 0) {
-                  longPressFired.current = false;
-                  longPressReady.current = false;
-                  longPressPaneId.current = pane.sessionId;
-                  dragStartRef.current = {
-                    paneId: pane.sessionId,
-                    x: e.clientX,
-                    y: e.clientY,
-                    pointerId: e.pointerId,
-                    target: e.currentTarget as HTMLElement,
-                    allowReorder: false,
-                  };
-                  longPressTimer.current = setTimeout(() => {
-                    longPressReady.current = true;
-                  }, 500);
-                }
+                tabPressGesture.getGestureHandlers(pane.sessionId).onPointerDown(e);
               }}
               onPointerUp={(e) => {
                 const suppressActivation = suppressPointerUpActivationRef.current;
                 suppressPointerUpActivationRef.current = false;
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                // Long-press ready + no drag: open context menu on touch-up
-                if (longPressReady.current && !isDragging && longPressPaneId.current) {
-                  longPressFired.current = true;
-                  longPressReady.current = false;
-                  openContextMenu(longPressPaneId.current, e.clientX, e.clientY);
-                  longPressPaneId.current = null;
-                  return;
-                }
-                longPressReady.current = false;
-                longPressPaneId.current = null;
+                if (e.pointerType !== "mouse") return;
                 // Activate tab immediately on pointer-up rather than waiting
                 // for onClick, which mobile browsers may delay or suppress
                 // when the element is inside a scrollable container.
-                if (!longPressFired.current && !isDragging && !suppressActivation) {
+                if (!isDragging && !suppressActivation) {
+                  mouseActivatedPaneRef.current = pane.sessionId;
                   activatePane(pane.sessionId);
                 }
               }}
               onPointerCancel={() => {
                 suppressPointerUpActivationRef.current = false;
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                longPressReady.current = false;
-                longPressPaneId.current = null;
+                tabPressGesture.reset();
                 dragStartRef.current = null;
               }}
             >
-              {/* Color indicator */}
-              {pane.headerColor !== "transparent" && (
-                <span
-                  className="absolute left-0 top-0 bottom-0 w-0.5"
-                  style={{ backgroundColor: pane.headerColor }}
-                />
-              )}
+              {/* Color indicator — the pane's own accent, else its group's. */}
+              {(() => {
+                const accentStyle = paneAccentStyle(pane.headerColor, group?.color, "bar");
+                return accentStyle ? (
+                  <span className="absolute left-0 top-0 bottom-0 w-1" style={accentStyle} />
+                ) : null;
+              })()}
 
               {/* Tab name (inline editable) */}
               {editingTabId === pane.sessionId ? (
@@ -518,23 +458,19 @@ export default function TabBar({
                   data-testid={`tab-rename-input-${pane.sessionId}`}
                   className="bg-wc-surface-input text-wc-text-primary text-xs px-1 rounded w-[100px] outline-none ring-1 ring-wc-accent"
                   value={editTabName}
-                  onChange={(e) => setEditTabName(e.target.value)}
+                  onChange={(e) => { setEditTabName(e.target.value); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitTabRename();
                     if (e.key === "Escape") { setEditingTabId(null); setEditTabName(""); }
                   }}
                   onBlur={commitTabRename}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); }}
                 />
               ) : (
                 <span className="truncate max-w-[120px]">{pane.name}</span>
               )}
 
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
-                  {unreadCount}
-                </span>
-              )}
+              <TabUnreadBadge sessionId={pane.sessionId} supportsMessagesView={pane.supportsMessagesView} manuallyUnread={pane.manuallyUnread} />
 
               {/* Close button - visible on hover or when active */}
               <button
@@ -548,8 +484,8 @@ export default function TabBar({
                   e.stopPropagation();
                   onClosePane(pane.sessionId);
                 }}
-                title="Close tab"
-                aria-label={`Close ${pane.name}`}
+                title={t(strings.tabBar.closeTabTitle)}
+                aria-label={t(strings.tabBar.closeTabAria, { name: pane.name })}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -566,9 +502,10 @@ export default function TabBar({
         data-testid="tab-bar-new"
         variant="ghost"
         size="icon"
+        shape="square"
         className="h-7 w-7 shrink-0 mx-1 self-center"
         disabled={isCreating}
-        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
+        title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}
         onPointerCancel={plusHandlers.onPointerCancel}
@@ -586,43 +523,70 @@ export default function TabBar({
             position={tabContextMenu.position}
             sessionId={tabContextMenu.sessionId}
             currentGroupId={pane.groupId}
-            groups={groups}
+            isManuallyUnread={pane.manuallyUnread}
+            onToggleManuallyUnread={() => { toggleManualUnread(pane.sessionId); }}
             onRename={() => {
               const p = panes.find((p) => p.sessionId === tabContextMenu.sessionId);
               if (p) startTabRename(p.sessionId, p.name);
             }}
-            onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
-            onAddToGroup={(groupId) => {
-              setPaneGroup(tabContextMenu.sessionId, groupId);
-              syncPaneUpdate(tabContextMenu.sessionId, { group_id: groupId });
-            }}
-            onRemoveFromGroup={() => {
-              setPaneGroup(tabContextMenu.sessionId, null);
-              syncPaneUpdate(tabContextMenu.sessionId, { group_id: null });
-            }}
-            onCreateGroup={async () => {
-              const targetSessionId = tabContextMenu.sessionId;
-              try {
-                const serverGroup = await syncCreateGroup("New Group", "#3b82f6");
-                addGroup({
-                  id: serverGroup.id,
-                  name: serverGroup.name,
-                  color: serverGroup.color,
-                  isCollapsed: false,
-                });
-                setPaneGroup(targetSessionId, serverGroup.id);
-                syncPaneUpdate(targetSessionId, { group_id: serverGroup.id });
-                // Immediately enter rename mode so user can name the group
-                startGroupRename(serverGroup.id, serverGroup.name);
-              } catch (err) {
-                console.error("Failed to create group:", err);
-              }
+            onCustomize={() => { setAppearanceModalPane(tabContextMenu.sessionId); }}
+            onRemoveFromGroup={() => { removePaneFromGroup(tabContextMenu.sessionId); }}
+            onAssignToGroup={() => {
+              setAssignPicker({ sessionId: tabContextMenu.sessionId });
+              setTabContextMenu(null);
             }}
             onClose={onClosePane}
-            onDismiss={() => setTabContextMenu(null)}
+            onDeletePermanently={onDeletePanePermanently}
+            onDismiss={() => { setTabContextMenu(null); }}
+          />
+        );
+      })()}
+
+      {/* Group context menu */}
+      {groupMenu && (() => {
+        const group = groups.find((g) => g.id === groupMenu.groupId);
+        if (!group) return null;
+        return (
+          <GroupContextMenu
+            position={groupMenu.position}
+            group={group}
+            onToggleCollapse={() => { toggleGroupCollapsed(group.id); }}
+            onManageGroups={() => { setManageGroupsOpen(true); }}
+            onCloseGroup={() => { setCloseGroupTarget(group.id); }}
+            onDismiss={() => { setGroupMenu(null); }}
+          />
+        );
+      })()}
+      {assignPicker && (() => {
+        const pane = panes.find((p) => p.sessionId === assignPicker.sessionId);
+        return (
+          <GroupPickerOverlay
+            open
+            onClose={() => { setAssignPicker(null); }}
+            groups={groups}
+            value={pane?.groupId ?? null}
+            onChange={(groupId) => {
+              if (groupId) assignPaneToGroup(assignPicker.sessionId, groupId);
+              else removePaneFromGroup(assignPicker.sessionId);
+              setAssignPicker(null);
+            }}
+            onCreate={(name) => {
+              // Server-first, then assign: the group must exist before a pane
+              // can point at it.
+              void createNamedGroup(name).then((group) => {
+                assignPaneToGroup(assignPicker.sessionId, group.id);
+                setAssignPicker(null);
+              });
+            }}
           />
         );
       })()}
     </div>
   );
 }
+
+// Memoized so a Workspace re-render (e.g. a conversation event landing in the
+// store) does NOT re-render the whole tab strip. Unread badges update through
+// their own per-tab subscriptions; everything else here is driven by the
+// workspace store / props. Requires the call site to pass stable props.
+export default memo(TabBar);

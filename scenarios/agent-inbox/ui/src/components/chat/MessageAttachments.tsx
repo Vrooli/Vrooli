@@ -18,7 +18,7 @@ export function MessageAttachments({ attachments, isUser = false, compact = fals
 
   // Filter to only show images
   const images = attachments.filter(att =>
-    att.content_type?.startsWith("image/")
+    att.content_type.startsWith("image/")
   );
 
   if (images.length === 0) {

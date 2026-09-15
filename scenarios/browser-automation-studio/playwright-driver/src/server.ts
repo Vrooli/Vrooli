@@ -8,6 +8,7 @@ import { sendError, sendJson } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
 import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
+import { FaultController } from './fault-control';
 
 function requireRouteParam(
   res: ServerResponse,
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
   let metricsServer: ReturnType<typeof createServer> | null = null;
   if (config.metrics.enabled) {
     try {
-      metricsServer = await createMetricsServer(config.metrics.port);
+      metricsServer = await createMetricsServer(config.metrics.port, config.server.host);
     } catch (error) {
       logger.warn('server: metrics server failed to start, continuing without metrics', {
         error: error instanceof Error ? error.message : String(error),
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
   }
 
   // Setup router with all routes
-  const router = setupRoutes(sessionManager, cleanup, config, appLogger);
+  const router = setupRoutes(sessionManager, cleanup, config, appLogger, new FaultController());
 
   // Create main HTTP server
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -122,10 +123,11 @@ async function main(): Promise<void> {
   server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
   server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
 
-  // Start direct frame server for latency research spike
-  // Uses main server port + 1 (e.g., 39401 if main is 39400)
-  const directFramePort = config.server.port + 1;
-  const directFrameServer = createDirectFrameServer(directFramePort);
+  // Direct frame server: lets UI clients stream frames from the driver without
+  // relaying through the API hub. Its port is allocated by the scenario, not
+  // derived from the main port.
+  const directFramePort = config.frameStreaming.directPort;
+  const directFrameServer = createDirectFrameServer(directFramePort, config.server.host);
   directFrameServer.start();
 
   // Make direct frame server available globally for frame manager
@@ -176,8 +178,12 @@ async function main(): Promise<void> {
     return originalEmit(event, ...args);
   } as typeof server.emit;
 
-  // Graceful shutdown with request draining
-  const shutdown = async (signal: string): Promise<void> => {
+  // Graceful shutdown with request draining.
+  //
+  // exitCode distinguishes an operator-requested stop from a fault. Exiting 0
+  // on a fault makes the supervisor report "exited normally", which hid a
+  // driver death mid-suite behind a clean-looking restart.
+  const shutdown = async (signal: string, exitCode = 0): Promise<void> => {
     if (isShuttingDown) {
       logger.warn('server: shutdown already in progress, ignoring signal', { signal });
       return;
@@ -228,8 +234,8 @@ async function main(): Promise<void> {
     // Shutdown session manager (close all browser sessions)
     await sessionManager.shutdown();
 
-    logger.info('server: shutdown complete');
-    process.exit(0);
+    logger.info('server: shutdown complete', { exitCode });
+    process.exit(exitCode);
   };
 
   process.on('SIGTERM', () => {
@@ -239,20 +245,27 @@ async function main(): Promise<void> {
     void shutdown('SIGINT');
   });
 
-  // Handle uncaught errors
+  // An uncaught exception can leave module state inconsistent, so the process
+  // still goes down — but with a non-zero code so the supervisor and its logs
+  // name it a fault rather than a normal exit.
   process.on('uncaughtException', (error) => {
     logger.error('server: uncaught exception', {
       error: error.message,
       stack: error.stack,
     });
-    void shutdown('uncaughtException');
+    void shutdown('uncaughtException', 1);
   });
 
+  // A stray rejection is a bug on one code path, not a reason to destroy every
+  // live browser session. Tearing the driver down here turned a single orphaned
+  // page.screenshot promise into a suite-wide outage: every in-flight execution
+  // failed with connection-refused while the exit looked clean. Log it loudly,
+  // keep serving, and let the failing path surface on its own terms.
   process.on('unhandledRejection', (reason) => {
-    logger.error('server: unhandled rejection', {
-      reason: String(reason),
+    logger.error('server: unhandled rejection (continuing)', {
+      reason: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
     });
-    void shutdown('unhandledRejection');
   });
 }
 
@@ -310,7 +323,8 @@ function setupRoutes(
   sessionManager: SessionManager,
   sessionCleanup: SessionCleanup,
   config: Config,
-  appLogger: typeof logger
+  appLogger: typeof logger,
+  faultController: FaultController
 ): routes.Router {
   const router = routes.createRouter();
 
@@ -373,6 +387,9 @@ function setupRoutes(
     observability.handlePipelineTest(req, res, observabilityDeps);
     return Promise.resolve();
   });
+  router.post('/test-control/faults/arm', async (req, res) => routes.handleFaultArm(req, res, config, faultController));
+  router.get('/test-control/faults', (req, res) => { routes.handleFaultSnapshot(req, res, config, faultController); return Promise.resolve(); });
+  router.post('/test-control/faults/disarm', async (req, res) => routes.handleFaultDisarm(req, res, config, faultController));
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);
@@ -380,7 +397,7 @@ function setupRoutes(
 
   // Session lifecycle
   router.post('/session/start', async (req, res) => {
-    await routes.handleSessionStart(req, res, sessionManager, config);
+    await routes.handleSessionStart(req, res, sessionManager, config, faultController);
   });
   router.post('/session/:id/run', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
@@ -431,12 +448,26 @@ function setupRoutes(
     }
     await routes.handleSessionReset(req, res, sessionId, sessionManager);
   });
+  router.post('/session/:id/release', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionRelease(req, res, sessionId, sessionManager);
+  });
   router.post('/session/:id/close', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {
       return;
     }
     await routes.handleSessionClose(req, res, sessionId, sessionManager);
+  });
+  router.post('/session/:id/force-close', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionForceClose(req, res, sessionId, sessionManager, config);
   });
 
   // Record mode lifecycle

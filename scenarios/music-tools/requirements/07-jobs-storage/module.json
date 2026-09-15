@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "jobs-storage",
+    "description": "Server-owned async jobs and a bounded derived-artifact budget.",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-014",
+      "title": "Jobs survive client disconnect",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Long operations are server-owned jobs with durable status and progress; cancelling a client does not abort the run, and every job ends in success or an explicit, recoverable failure classification.",
+      "tags": ["jobs", "durability"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/jobs/lifecycle_test.go", "phase": "unit", "status": "planned", "notes": "Job outlives its client; cancel and abort are distinct operations" }
+      ]
+    },
+    {
+      "id": "MUS-P0-015",
+      "title": "Derived artifacts are bounded and evictable",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Stems and other derived audio are produced on demand and held under a declared storage budget with least-recently-used eviction. There is no operation that materialises stems for an entire library, because doing so would exceed available disk by roughly an order of magnitude.",
+      "tags": ["storage", "budget"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/storage/budget_test.go", "phase": "unit", "status": "planned", "notes": "Budget enforced; LRU eviction reclaims; no library-wide materialisation entrypoint exists" }
+      ]
+    },
+    {
+      "id": "MUS-P0-016",
+      "title": "Outputs flow through the shared blob seam",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Generated and derived audio is written through the shared api-core BlobStore seam with ownership metadata, rather than to ad-hoc filesystem paths.",
+      "tags": ["storage", "seam"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/storage/blobstore_test.go", "phase": "unit", "status": "planned", "notes": "Outputs are written via BlobStore with ownership recorded" }
+      ]
+    }
+  ]
+}

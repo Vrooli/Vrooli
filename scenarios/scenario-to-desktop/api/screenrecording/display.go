@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // DisplayManager creates and manages virtual displays for headless rendering.
@@ -28,6 +31,8 @@ type DisplayManager interface {
 type ManagedDisplay struct {
 	DisplayID     string
 	Width, Height int
+	WindowManager string
+	Titlebar      bool
 	xvfbCmd       *exec.Cmd
 	wmProcess     *os.Process
 	mu            sync.Mutex
@@ -62,6 +67,14 @@ func (d *ManagedDisplay) IsRunning() bool {
 // XvfbDisplayManager implements DisplayManager using Xvfb on Linux.
 type XvfbDisplayManager struct {
 	colorDepth int
+	mu         sync.RWMutex
+	metadata   map[string]WindowManagerMetadata
+}
+
+// WindowManagerMetadata describes the compositor started for one display.
+type WindowManagerMetadata struct {
+	Name     string
+	Titlebar bool
 }
 
 // NewDisplayManager creates a display manager appropriate for the current platform.
@@ -128,16 +141,32 @@ func (m *XvfbDisplayManager) CreateManagedDisplay(width, height int) (*ManagedDi
 	}
 
 displayReady:
-	wmProcess := startWindowManager(display)
+	wmProcess, wmName, titlebar := startWindowManagerWithMetadata(display)
 	setDesktopBackground(display)
+	m.mu.Lock()
+	if m.metadata == nil {
+		m.metadata = make(map[string]WindowManagerMetadata)
+	}
+	m.metadata[display] = WindowManagerMetadata{Name: wmName, Titlebar: titlebar}
+	m.mu.Unlock()
 
 	return &ManagedDisplay{
-		DisplayID: display,
-		Width:     width,
-		Height:    height,
-		xvfbCmd:   cmd,
-		wmProcess: wmProcess,
+		DisplayID:     display,
+		Width:         width,
+		Height:        height,
+		xvfbCmd:       cmd,
+		wmProcess:     wmProcess,
+		WindowManager: wmName,
+		Titlebar:      titlebar,
 	}, nil
+}
+
+// WindowManagerInfo returns the recorded WM name and titlebar capability for a
+// display. Empty values mean no manager started.
+func (m *XvfbDisplayManager) WindowManagerInfo(display string) WindowManagerMetadata {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.metadata[display]
 }
 
 // CreateDisplay starts Xvfb on an available display number, launches a
@@ -165,6 +194,11 @@ var wmCandidates = []struct {
 // the given display. Returns the process handle (for cleanup) or nil if
 // no suitable WM was found.
 func startWindowManager(display string) *os.Process {
+	proc, _, _ := startWindowManagerWithMetadata(display)
+	return proc
+}
+
+func startWindowManagerWithMetadata(display string) (*os.Process, string, bool) {
 	displayEnv := fmt.Sprintf("DISPLAY=%s", display)
 
 	for _, wm := range wmCandidates {
@@ -172,9 +206,18 @@ func startWindowManager(display string) *os.Process {
 		if err != nil {
 			continue
 		}
+		args := append([]string(nil), wm.args...)
+		if wm.name == "openbox" {
+			configPath := filepath.Join(os.TempDir(), "vrooli-openbox-"+strings.TrimPrefix(display, ":")+".xml")
+			const config = `<?xml version="1.0" encoding="UTF-8"?><openbox_config><theme><name>Clearlooks</name><titleLayout>NLIMC</titleLayout><font place="ActiveWindow"><name>DejaVu Sans</name><size>12</size><weight>Bold</weight><slant>Normal</slant></font></theme></openbox_config>`
+			if writeErr := os.WriteFile(configPath, []byte(config), 0o600); writeErr == nil {
+				args = append([]string{"--config-file", configPath}, args...)
+				defer os.Remove(configPath)
+			}
+		}
 
-		wmCmd := exec.Command(wmPath, wm.args...)
-		wmCmd.Env = append(os.Environ(), displayEnv)
+		wmCmd := exec.Command(wmPath, args...)
+		wmCmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{displayEnv})
 		if err := wmCmd.Start(); err != nil {
 			slog.Warn("window manager failed to start",
 				"wm", wm.name, "display", display, "error", err.Error())
@@ -186,7 +229,7 @@ func startWindowManager(display string) *os.Process {
 
 		slog.Info("window manager started",
 			"wm", wm.name, "display", display, "pid", wmCmd.Process.Pid)
-		return wmCmd.Process
+		return wmCmd.Process, wm.name, wm.name == "openbox"
 	}
 
 	slog.Warn("no window manager found; Electron may render with artifacts",
@@ -198,7 +241,7 @@ func startWindowManager(display string) *os.Process {
 			}
 			return names
 		}())
-	return nil
+	return nil, "", false
 }
 
 // setDesktopBackground replaces the default black X11 root window with a

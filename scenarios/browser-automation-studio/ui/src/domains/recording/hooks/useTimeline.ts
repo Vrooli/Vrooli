@@ -11,30 +11,18 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import { recordingApi } from '../api';
 import type {
   TimelineEntry,
-  TimelineAction,
   TimelinePageEvent,
 } from '../api/schemas';
 import type { Page } from './usePages';
 import { useSessionStore } from '../stores';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+import { timelineEntryToRecordedAction } from '../types/timeline-unified';
 
 // Re-export types for backward compatibility
 export type { TimelineEntry, TimelineAction, TimelinePageEvent } from '../api/schemas';
 export type { PageEventType } from '../api/schemas';
 export type TimelineEntryType = 'action' | 'page_event';
-
-/** WebSocket message for recording action */
-interface RecordingActionMessage {
-  type: 'recording_action';
-  session_id: string;
-  entry: {
-    id: string;
-    type: 'action';
-    timestamp: string;
-    pageId: string;
-    action: TimelineAction;
-  };
-  timestamp: string;
-}
 
 /** WebSocket message for page event */
 interface PageEventMessage {
@@ -44,7 +32,7 @@ interface PageEventMessage {
   timestamp: string;
 }
 
-type WebSocketTimelineMessage = RecordingActionMessage | PageEventMessage;
+type WebSocketTimelineMessage = PageEventMessage;
 
 /** Page color palette for visual distinction */
 const PAGE_COLORS = [
@@ -250,7 +238,7 @@ export function useTimeline({
   useEffect(() => {
     if (!lastMessage || !sessionId) return;
 
-    const msg = lastMessage as unknown as WebSocketTimelineMessage;
+    const msg = lastMessage as unknown as WebSocketTimelineMessage | { type: string; session_id?: string; entry?: unknown };
 
     // Debug: Log all received messages
     console.log('[useTimeline] Received WebSocket message:', {
@@ -260,41 +248,42 @@ export function useTimeline({
       isValidated,
     });
 
-    // Handle recording action
-    if (msg.type === 'recording_action' && msg.session_id === sessionId) {
-      const entry: TimelineEntry = {
-        id: msg.entry.id,
-        type: 'action',
-        timestamp: msg.entry.timestamp,
-        pageId: msg.entry.pageId,
-        action: msg.entry.action,
-      };
-
-      setEntries((prev) => {
-        // Check if entry already exists
-        if (prev.some((e) => e.id === entry.id)) {
-          return prev;
-        }
-
-        const updated = [...prev, entry];
-        // Sort by timestamp
-        updated.sort((a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-
-        if (onEntryReceivedRef.current) {
-          onEntryReceivedRef.current(entry);
-        }
-
-        return updated;
-      });
-
-      setTotalEntries((prev) => prev + 1);
+    // Canonical V2 timeline stream. The entry is protobuf JSON, so decode it
+    // before adapting it to this hook's presentation model.
+    if (msg.type === 'TIMELINE_MESSAGE_TYPE_ENTRY' && msg.session_id === sessionId) {
+      try {
+        const raw = (msg as unknown as { entry?: unknown }).entry;
+        if (!raw) return;
+        const recorded = timelineEntryToRecordedAction(fromJson(TimelineEntrySchema, raw as JsonValue));
+        if (!recorded) return;
+        const entry: TimelineEntry = {
+          id: recorded.id,
+          type: 'action',
+          timestamp: recorded.timestamp,
+          pageId: '',
+          action: {
+            id: recorded.id,
+            actionType: recorded.actionType,
+            sequenceNum: recorded.sequenceNum,
+            timestamp: recorded.timestamp,
+            confidence: recorded.confidence,
+            url: recorded.url,
+            pageTitle: recorded.pageTitle,
+            selector: recorded.selector,
+            payload: recorded.payload,
+          },
+        };
+        setEntries((prev) => prev.some((existing) => existing.id === entry.id) ? prev : [...prev, entry].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
+        setTotalEntries((prev) => prev + 1);
+      } catch (error) {
+        console.warn('[useTimeline] Invalid V2 timeline stream entry', error);
+      }
+      return;
     }
-
     // Handle page event
-    if (msg.type === 'page_event' && msg.session_id === sessionId) {
-      const event = msg.event;
+	const pageEventMsg = msg as PageEventMessage;
+    if (pageEventMsg.type === 'page_event' && pageEventMsg.session_id === sessionId) {
+		const event = pageEventMsg.event;
 
       // Create timeline entry from page event
       const entry: TimelineEntry = {
@@ -326,7 +315,7 @@ export function useTimeline({
 
       setTotalEntries((prev) => prev + 1);
     }
-  }, [lastMessage, sessionId]);
+  }, [lastMessage, sessionId, isValidated]);
 
   // Filter entries by page if filter is set
   const filteredEntries = useMemo(() => {

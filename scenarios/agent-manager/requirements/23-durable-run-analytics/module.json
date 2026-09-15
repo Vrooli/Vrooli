@@ -1,0 +1,33 @@
+{
+  "description": "Retain durable invocation facts and expose typed historical analytics with non-blocking event-capture observability",
+  "module_id": "MOD-P0-012",
+  "prd_ref": "OT-P0-012",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Persist versioned invocation facts at run completion, aggregate them through one typed and provenance-stamped measure path, and reconcile declared receipt capture without delaying run execution",
+      "id": "REQ-P0-014",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Durable Invocation Analytics and Event Capture",
+      "validation": [
+        {
+          "notes": "Verify durable projection, replay determinism, shared measure/RPC parity, and non-blocking receipt degradation after implementation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify provider probing and capture-declaration reconciliation after implementation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Durable Run Analytics"
+}

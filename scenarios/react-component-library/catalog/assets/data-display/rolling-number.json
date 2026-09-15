@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.rolling-number",
+    "name": "RollingNumber",
+    "kind": "component",
+    "surface": "none",
+    "domain": "data-display",
+    "description": "A number drawn in an ink. The glyph box is identical in every ink so a metric going live never moves a pixel, and only the digits that changed roll.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.provenance-ink",
+        "reason": "Composed from the shared honesty and styling foundations."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Composed from the shared honesty and styling foundations."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "text-scale-resilience",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "default"
+  ]
+}

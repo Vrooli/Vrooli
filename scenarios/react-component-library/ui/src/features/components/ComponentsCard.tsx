@@ -1,0 +1,421 @@
+/** @vrooliComponentSource data-display.data-table */
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation } from "react-router-dom";
+
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+import { assetInfoTab, assetPath } from "../../routes";
+import { componentsClient, type Component } from "../../api/components";
+import { errorMessage } from "../../lib/errorMessage";
+import { CreateComponentDialog } from "./CreateComponentDialog";
+
+const DESIGN_AFFINITY_NATIVE = 1;
+const DESIGN_AFFINITY_COMPATIBLE = 2;
+const DESIGN_AFFINITY_DISCOURAGED = 3;
+const KIT_COMPATIBILITY_UNIVERSAL = 1;
+const KIT_COMPATIBILITY_RESTRICTED = 2;
+const KIT_COMPATIBILITY_UNSATISFIABLE = 3;
+const KIT_COMPATIBILITY_UNDEFINED = 4;
+
+function isDiscouragedAffinity(affinity: unknown) {
+  return affinity === DESIGN_AFFINITY_DISCOURAGED;
+}
+
+function formatKitCompatibility(verdict: unknown) {
+  switch (verdict) {
+    case KIT_COMPATIBILITY_UNIVERSAL:
+      return "universal";
+    case KIT_COMPATIBILITY_RESTRICTED:
+      return "restricted";
+    case KIT_COMPATIBILITY_UNSATISFIABLE:
+      return "unsatisfiable";
+    case KIT_COMPATIBILITY_UNDEFINED:
+      return "undefined vocabulary";
+    default:
+      return "unmeasured";
+  }
+}
+
+function componentSearchValue(component: Component) {
+  return [
+    component.libraryId,
+    component.displayName,
+    component.version,
+    component.slot,
+    component.category,
+    component.description,
+    ...component.tags,
+    ...component.designStyles.map((style) => `${style.styleId} ${formatAffinity(style.affinity)}`),
+    formatKitCompatibility(component.kitCompatibility?.verdict),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * ComponentsCard renders the indexed component registry. The user can
+ * filter by name substring + tag, trigger a re-index from disk, and
+ * inspect each entry (libraryId, displayName, version, tags). It is
+ * the surface for requirements 01 (registry/header) and 07 (search +
+ * filter) — see `requirements/`.
+ */
+export function ComponentsCard() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [match, setMatch] = useState("");
+  const [tag, setTag] = useState("");
+  const [tagsRaw, setTagsRaw] = useState("");
+  const [category, setCategory] = useState("");
+  const [styleId, setStyleId] = useState("");
+  const [affinity, setAffinity] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const location = useLocation();
+  const currentTab = location.pathname.startsWith("/assets/")
+    ? assetInfoTab(new URLSearchParams(location.search))
+    : undefined;
+
+  const tags = tagsRaw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t !== "");
+
+  const componentsQuery = useQuery({
+    queryKey: ["components", { match, tag, tags, category, styleId, affinity }],
+    queryFn: () =>
+      componentsClient.listComponents({ match, tag, tags, category, styleId, affinity }),
+  });
+
+  const indexMutation = useMutation({
+    mutationFn: () => componentsClient.indexComponents({}),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["components"] });
+    },
+  });
+
+  const components = componentsQuery.data?.components ?? [];
+
+  const columns: Array<DataTableColumn<Component>> = [
+    {
+      id: "component",
+      header: "Component",
+      sortValue: (component) => component.displayName,
+      searchValue: componentSearchValue,
+      accessor: (component) => (
+        <div className="min-w-panel-compact">
+          <div
+            data-testid={selectors.components.itemDisplayName}
+            className="font-medium text-app-foreground"
+          >
+            {component.displayName}
+          </div>
+          <div
+            data-testid={selectors.components.itemLibraryId}
+            className="mt-space-3xs font-mono text-xs text-app-muted-foreground"
+          >
+            {component.libraryId}
+          </div>
+          {component.description && (
+            <div className="mt-space-3xs text-xs text-app-muted-foreground">
+              {component.description}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "version",
+      header: "Version",
+      sortValue: (component) => component.version,
+      searchValue: (component) => component.version,
+      accessor: (component) =>
+        component.version ? (
+          <span data-testid={selectors.components.itemVersion} className="text-xs">
+            {t(strings.components.versionLabel, { version: component.version })}
+          </span>
+        ) : (
+          <span className="text-xs text-app-muted-foreground">-</span>
+        ),
+    },
+    {
+      id: "slot",
+      header: "Slot",
+      sortValue: (component) => component.slot,
+      searchValue: (component) => component.slot,
+      accessor: (component) =>
+        component.slot ? (
+          <span data-testid={selectors.components.itemSlot} className="font-mono text-xs">
+            {t(strings.components.slotLabel, { slot: component.slot })}
+          </span>
+        ) : (
+          <span className="text-xs text-app-muted-foreground">-</span>
+        ),
+    },
+    {
+      id: "design",
+      header: "Design",
+      searchValue: (component) =>
+        [
+          formatKitCompatibility(component.kitCompatibility?.verdict),
+          ...component.designStyles.map(
+            (style) => `${style.styleId}:${formatAffinity(style.affinity)}`,
+          ),
+        ].join(" "),
+      accessor: (component) => {
+        const designStyles = component.designStyles;
+        const designStylesSummary = designStyles
+          .map((style) => `${style.styleId}:${formatAffinity(style.affinity)}`)
+          .join(", ");
+        return (
+          <div className="grid max-w-sidebar gap-space-3xs text-xs">
+            <StatusBadge
+              tone={
+                component.kitCompatibility?.verdict === KIT_COMPATIBILITY_UNSATISFIABLE ||
+                component.kitCompatibility?.verdict === KIT_COMPATIBILITY_UNDEFINED
+                  ? "warning"
+                  : "neutral"
+              }
+            >
+              Derived: {formatKitCompatibility(component.kitCompatibility?.verdict)}
+            </StatusBadge>
+            <div
+              data-testid={selectors.components.itemDesignStyles}
+              className="flex flex-wrap gap-space-3xs"
+              aria-label={t(strings.components.designStylesLabel, {
+                styles: designStylesSummary,
+              })}
+            >
+              {designStyles.length === 0 ? (
+                <span className="text-app-muted-foreground">Declared affinity: none</span>
+              ) : (
+                designStyles.map((style) => (
+                  <StatusBadge
+                    key={style.styleId}
+                    tone={isDiscouragedAffinity(style.affinity) ? "warning" : "neutral"}
+                  >
+                    Declared {style.styleId}:{formatAffinity(style.affinity)}
+                  </StatusBadge>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "tags",
+      header: "Tags",
+      searchValue: (component) => component.tags.join(" "),
+      accessor: (component) => (
+        <div data-testid={selectors.components.itemTags} className="max-w-panel-compact text-xs">
+          {component.tags.length > 0
+            ? t(strings.components.tagsLabel, { tags: component.tags.join(", ") })
+            : t(strings.components.noTags)}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      className: "text-right",
+      accessor: (component) => (
+        <div className="flex items-center justify-end gap-space-2xs">
+          <Link
+            to={assetPath(component.id, currentTab ? { tab: currentTab } : {})}
+            className="inline-flex min-h-control-tight items-center justify-center rounded-control border border-app-border bg-app-surface px-space-xs text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+          >
+            {t(strings.components.openAction)}
+          </Link>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <section
+      data-testid={selectors.components.card}
+      aria-label={t(strings.components.title)}
+      className="mt-space-sm rounded-xl border border-app-border bg-app-surface p-space-sm"
+    >
+      <div className="flex items-center justify-between gap-space-xs">
+        <h2 className="text-sm font-medium text-app-muted-foreground">
+          {t(strings.components.title)}
+        </h2>
+        <div className="flex items-center gap-space-2xs">
+          <Button
+            data-testid={selectors.components.create.button}
+            onClick={() => setShowCreate(true)}
+          >
+            {t(strings.components.create.action)}
+          </Button>
+          <Button
+            data-testid={selectors.components.indexButton}
+            onClick={() => indexMutation.mutate()}
+            disabled={indexMutation.isPending}
+            variant="secondary"
+          >
+            {t(strings.components.indexAction)}
+          </Button>
+        </div>
+      </div>
+
+      {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
+
+      <details
+        data-testid="components-filters"
+        className="group mt-space-xs rounded-control border border-app-border bg-app-surface-muted p-space-2xs"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-app-foreground">
+          {t("components.filters", { defaultValue: "Filters" })}
+          <span className="text-app-muted-foreground group-open:hidden">
+            {t("components.filtersShow", { defaultValue: "Show" })}
+          </span>
+          <span className="hidden text-app-muted-foreground group-open:inline">
+            {t("components.filtersHide", { defaultValue: "Hide" })}
+          </span>
+        </summary>
+        <div className="mt-space-2xs grid grid-cols-1 gap-space-2xs sm:grid-cols-2 lg:grid-cols-3">
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.searchLabel)}
+            <Input
+              data-testid={selectors.components.searchInput}
+              value={match}
+              onChange={(e) => setMatch(e.target.value)}
+              placeholder={t(strings.components.searchPlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.tagLabel)}
+            <Input
+              data-testid={selectors.components.tagInput}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder={t(strings.components.tagPlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.tagsFilterLabel)}
+            <Input
+              data-testid={selectors.components.tagsInput}
+              value={tagsRaw}
+              onChange={(e) => setTagsRaw(e.target.value)}
+              placeholder={t(strings.components.tagsFilterPlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.categoryLabel)}
+            <Input
+              data-testid={selectors.components.categoryInput}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder={t(strings.components.categoryPlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.styleLabel)}
+            <Input
+              data-testid={selectors.components.styleInput}
+              value={styleId}
+              onChange={(e) => setStyleId(e.target.value)}
+              placeholder={t(strings.components.stylePlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+          <label className="block text-xs text-app-muted-foreground">
+            {t(strings.components.affinityLabel)}
+            <Input
+              data-testid={selectors.components.affinityInput}
+              value={affinity}
+              onChange={(e) => setAffinity(e.target.value)}
+              placeholder={t(strings.components.affinityPlaceholder)}
+              className="mt-space-3xs"
+            />
+          </label>
+        </div>
+      </details>
+
+      {componentsQuery.isLoading && (
+        <p data-testid={selectors.components.loading} className="mt-space-xs text-app-foreground">
+          {t(strings.components.loading)}
+        </p>
+      )}
+      {componentsQuery.error && (
+        <p data-testid={selectors.components.error} className="mt-space-xs text-app-danger">
+          {errorMessage(componentsQuery.error, t)}
+        </p>
+      )}
+      {indexMutation.error && (
+        <p data-testid={selectors.components.error} className="mt-space-xs text-app-danger">
+          {errorMessage(indexMutation.error, t)}
+        </p>
+      )}
+
+      {!componentsQuery.isLoading && components.length === 0 && (
+        <div data-testid={selectors.components.empty} className="mt-space-xs">
+          <EmptyState
+            title={t(strings.components.empty)}
+            action={
+              <div className="flex flex-wrap gap-space-2xs">
+                <Button onClick={() => setShowCreate(true)}>
+                  {t(strings.components.create.action)}
+                </Button>
+                <Button
+                  onClick={() => indexMutation.mutate()}
+                  disabled={indexMutation.isPending}
+                  variant="secondary"
+                >
+                  {t(strings.components.indexAction)}
+                </Button>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {components.length > 0 && (
+        <>
+          <p
+            data-testid={selectors.components.summary}
+            className="mt-space-xs text-xs text-app-muted-foreground"
+          >
+            {t(strings.components.summary, { count: components.length })}
+          </p>
+          <div data-testid={selectors.components.list} className="mt-space-2xs">
+            <DataTable
+              rows={components}
+              columns={columns}
+              getRowKey={(component) => component.id}
+              caption={t(strings.components.title)}
+              searchLabel={t(strings.components.searchLabel)}
+              searchPlaceholder={t(strings.components.searchPlaceholder)}
+              emptyMessage={t(strings.components.empty)}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function formatAffinity(affinity: number) {
+  switch (affinity) {
+    case DESIGN_AFFINITY_NATIVE:
+      return "native";
+    case DESIGN_AFFINITY_COMPATIBLE:
+      return "compatible";
+    case DESIGN_AFFINITY_DISCOURAGED:
+      return "discouraged";
+    default:
+      return "unspecified";
+  }
+}

@@ -13,6 +13,7 @@ interface SigningFormWrapperProps {
   headerActions?: ReactNode;
   disabledMessage: string;
   children: ReactNode;
+  testId?: string;
 }
 
 export function SigningFormWrapper({
@@ -25,9 +26,10 @@ export function SigningFormWrapper({
   headerActions,
   disabledMessage,
   children,
+  testId,
 }: SigningFormWrapperProps) {
   return (
-    <Card className="border-slate-700/50 bg-slate-950/40">
+    <Card data-testid={testId} className="border-slate-700/50 bg-slate-950/40">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <span className="flex items-center gap-2">
@@ -39,9 +41,14 @@ export function SigningFormWrapper({
             <Checkbox
               id={`${platformId}-enabled`}
               checked={isConfigured}
-              onChange={(e) => onToggle(e.target.checked)}
+              onChange={(e) => {
+                onToggle(e.target.checked);
+              }}
             />
-            <Label htmlFor={`${platformId}-enabled`} className="text-xs text-slate-400">
+            <Label
+              htmlFor={`${platformId}-enabled`}
+              className="text-xs text-slate-400"
+            >
               Configure
             </Label>
           </div>

@@ -16,6 +16,8 @@ else
   UI_PORT="${UI_PORT:-36233}"
 fi
 API_BASE="http://127.0.0.1:${API_PORT}/api/v1"
+# Sessions moved to Connect-RPC; the old REST routes 404.
+SESSIONS_RPC="http://127.0.0.1:${API_PORT}/vrooli.web_console.v1.sessions.SessionsService"
 HEALTH_URL="http://127.0.0.1:${API_PORT}/health"
 UI_PROXY_HEALTH_URL="http://127.0.0.1:${UI_PORT}/api/v1/health"
 
@@ -51,7 +53,7 @@ create_seed_session() {
   local delay_s=1
   local i
   for i in $(seq 1 "${attempts}"); do
-    if curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/sessions" \
+    if curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
       -H "Content-Type: application/json" \
       -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
       -o /dev/null; then
@@ -73,5 +75,198 @@ if ! create_seed_session; then
   echo "[seed] Warning: failed to create optional seed session; continuing." >&2
   exit 0
 fi
+
+# ---------------------------------------------------------------------------
+# Message navigator seed — provisions one deterministic conversation so the
+# message-navigator BAS case has user / assistant / file-reference landmarks to
+# search, filter, and jump to. Conversation events are only writable through the
+# token-authenticated agent hooks, so we read the hook token from scenario state
+# (host-readable) and post a user prompt + an assistant reply. A Stop-hook
+# assistant event also flips the session's agent_type to "claude", which is what
+# enables the Messages view toggle in the UI. Entirely best-effort: a missing
+# token or endpoint must never fail the seed.
+resolve_hook_token() {
+  local candidates=(
+    "${XDG_STATE_HOME:-$HOME/.local/state}/vrooli/web-console/hook-token.txt"
+    "$HOME/.vrooli/state/vrooli/web-console/hook-token.txt"
+  )
+  local path
+  for path in "${candidates[@]}"; do
+    if [[ -f "${path}" ]]; then
+      tr -d '[:space:]' < "${path}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+seed_message_navigator_conversation() {
+  local token
+  token="$(resolve_hook_token || true)"
+  if [[ -z "${token}" ]]; then
+    echo "[seed] hook token not found; skipping message-navigator conversation seed." >&2
+    return 0
+  fi
+
+  local session_id
+  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
+    -H "Content-Type: application/json" \
+    -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
+    | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  if [[ -z "${session_id}" ]]; then
+    echo "[seed] could not create message-navigator session; skipping." >&2
+    return 0
+  fi
+
+  # User prompt — a unique marker keeps the navigator search deterministic.
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/prompt-submit" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"userPrompt\":\"NAVIGATOR_SEED deploy the release pipeline\",\"webConsoleSessionId\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  # Assistant reply (also marks the session agent_type=claude → Messages view).
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"last_assistant_message\":\"NAVIGATOR_SEED deploying now — see src/pipeline.ts for the steps.\",\"session_id\":\"seed-agent-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  # A long, newest assistant reply for the voice cases: they read the latest
+  # assistant row aloud and need it still playing when they pause and close
+  # the pill (the short reply above ends in about three seconds).
+  local voice_reply="Here is where the release stands. The build finished and every unit test passed, so the next step is the staging deploy. I will run the migration first, then roll the new version to one instance, watch its health for a few minutes, and only then move the rest of the fleet across. If anything looks wrong I will stop, roll back to the previous version, and write down what I saw so we can decide together what to change before trying again. Nothing in this plan touches production until staging has been quiet for at least an hour."
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"last_assistant_message\":\"${voice_reply}\",\"session_id\":\"seed-agent-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  echo "[seed] message-navigator conversation seeded for session ${session_id}."
+}
+
+seed_message_navigator_conversation || true
+
+# ---------------------------------------------------------------------------
+# Snippet workflow seeds — fixed ids make this idempotent across cases while
+# still exercising the public CLI contract required by the snippet scenarios.
+seed_snippets() {
+  local snippet_seed_dir
+  snippet_seed_dir="$(mktemp -d)" || return 0
+  trap 'rm -rf "${snippet_seed_dir}"' RETURN
+
+  printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000001","name":"BAS Plain Snippet","body":"BAS_PLAIN_BODY ready for insertion","color":"#38bdf8","pinned":true,"sort_order":10}' > "${snippet_seed_dir}/plain.json"
+  printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000002","name":"BAS Variable Snippet","body":"Investigate {{topic}} and preserve {{missing}}","color":"#a78bfa","pinned":true,"sort_order":20}' > "${snippet_seed_dir}/variables.json"
+
+  web-console snippet upsert --body-file "${snippet_seed_dir}/plain.json" >/dev/null || {
+    echo "[seed] Warning: failed to seed the plain snippet through the CLI." >&2
+  }
+  web-console snippet upsert --body-file "${snippet_seed_dir}/variables.json" >/dev/null || {
+    echo "[seed] Warning: failed to seed the variable snippet through the CLI." >&2
+  }
+}
+
+seed_snippets || true
+
+# ---------------------------------------------------------------------------
+# File-preview seed — writes deterministic fixture files (markdown + SVG) to a
+# stable host path and posts an assistant message whose markdown links point at
+# them by ABSOLUTE path (so resolution never depends on the session cwd). The
+# file-preview-drilldown BAS case clicks those links and asserts the preview
+# viewer + the per-kind renderer. Shares the same token/hook seeding constraint
+# as the message-navigator seed above; entirely best-effort.
+seed_file_preview_conversation() {
+  local token
+  token="$(resolve_hook_token || true)"
+  if [[ -z "${token}" ]]; then
+    echo "[seed] hook token not found; skipping file-preview conversation seed." >&2
+    return 0
+  fi
+
+  local fixture_dir="${TMPDIR:-/tmp}/web-console-bas-fixtures"
+  mkdir -p "${fixture_dir}" || return 0
+  local md_path="${fixture_dir}/preview-fixture.md"
+  local svg_path="${fixture_dir}/preview-fixture.svg"
+  printf '# FILEPREVIEW_SEED fixture\n\nHello from the markdown preview fixture.\n' > "${md_path}" || return 0
+  printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>\n' > "${svg_path}" || return 0
+
+  # Directory fixture for the directory-drilldown case: a directory holding one
+  # child directory and one markdown file, so the case can walk down two levels
+  # and back. The hidden entry proves the default listing filters dotfiles.
+  local dir_path="${fixture_dir}/preview-dir"
+  rm -rf "${dir_path}"
+  mkdir -p "${dir_path}/nested" || return 0
+  printf '# nested fixture\n\nInside the nested directory.\n' > "${dir_path}/nested/inner.md" || return 0
+  printf 'top level entry\n' > "${dir_path}/top.md" || return 0
+  printf 'SECRET=should-not-show-by-default\n' > "${dir_path}/.hidden-env" || return 0
+
+  local session_id
+  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
+    -H "Content-Type: application/json" \
+    -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
+    | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  if [[ -z "${session_id}" ]]; then
+    echo "[seed] could not create file-preview session; skipping." >&2
+    return 0
+  fi
+
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/prompt-submit" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"userPrompt\":\"FILEPREVIEW_SEED open the generated artifacts\",\"webConsoleSessionId\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  # Assistant reply embeds absolute-path markdown links to the fixtures.
+  local reply="FILEPREVIEW_SEED here are the artifacts: [markdown fixture](${md_path}) and [svg fixture](${svg_path}) and [directory fixture](${dir_path})."
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"last_assistant_message\":\"${reply}\",\"session_id\":\"seed-filepreview-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  echo "[seed] file-preview conversation seeded for session ${session_id} (fixtures in ${fixture_dir})."
+}
+
+seed_file_preview_conversation || true
+
+# ---------------------------------------------------------------------------
+# Continuity recovery seed — the continuity archive workflows run against a
+# routed test database, not the operator's live database. Provision the exact
+# incident fixture in that isolated database so the workflows prove the UI
+# recovery path instead of depending on whatever happens to exist on the
+# host. The fixture deliberately has a pane, checkpoint, catalog record, and
+# 88-event transcript but no sessions row: that is the production drift shape
+# this plan is required to recover.
+seed_continuity_recovery_conversation() {
+	# Prefer the routed DSN. The path variable can identify the primary
+	# database while the live API is correctly serving the leased test pool.
+	local db_target="${PLAYBOOKS_SQLITE_DSN:-${PLAYBOOKS_SQLITE_PATH:-}}"
+	if [[ -z "${db_target}" ]]; then
+		echo "[seed] routed SQLite DSN not available; skipping continuity recovery fixture." >&2
+		return 0
+	fi
+
+  local pane_id="a7e71c3c-e422-4c89-916a-03f92906fb89"
+  local thread_id="01a06a6b-88da-7422-b391-bb59c5f5e5e0"
+  {
+    printf '%s\n' 'BEGIN IMMEDIATE;'
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_sessions(session_id,last_sequence,last_seen_sequence,last_listened_sequence,created_at,updated_at) VALUES ('${pane_id}',88,88,88,'2026-09-03T23:17:07Z','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO workspace_panes(session_id,name,header_color,theme_id,font_size,sort_order,is_active,supports_messages_view,manually_unread,created_at,updated_at) VALUES ('${pane_id}','Codex','transparent','default',14,0,0,1,0,'2026-09-03T23:17:07Z','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO agent_transcript_checkpoints(source,source_key,web_console_session_id,cursor,updated_at) VALUES ('codex','${thread_id}','${pane_id}','88','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_catalog(session_id,lifecycle_state,lifecycle_version,backend,agent_type,agent_session_id,original_title,current_title,topic_summary,cwd,created_at,last_activity_at,archived_at,source_fingerprint) VALUES ('${pane_id}','recoverable',1,'codex','codex','${thread_id}','Web Console continuity incident','Web Console continuity incident','validation-intent receipt contract','/tmp/bas-continuity','2026-09-03T23:17:07Z','2026-09-03T23:17:07Z','2026-09-04T00:00:00Z','sha256:bas-continuity-incident');"
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_aliases(session_id,alias_kind,alias_value,observed_at) VALUES ('${pane_id}','agent_session','${thread_id}','2026-09-03T23:17:07Z'),('${pane_id}','pane','${pane_id}','2026-09-03T23:17:07Z');"
+    local i role text
+    for i in $(seq 1 88); do
+      if (( i % 2 == 0 )); then role="assistant"; else role="user"; fi
+      text="validation-intent receipt contract incident event ${i}"
+      printf "INSERT OR IGNORE INTO conversation_events(id,session_id,source,role,text,speech_paragraphs,original_speech_paragraphs,summarized,created_at,sequence,delivery_state,tts_state,consumption_state) VALUES ('bas-continuity-event-%03d','%s','codex_rollout','%s','%s','[]',NULL,0,'2026-09-03T23:17:07Z',%d,'received','idle','seen');\n" "${i}" "${pane_id}" "${role}" "${text}" "${i}"
+    done
+	if [[ "$(sqlite3 "${db_target}" "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_events_fts';")" == "1" ]]; then
+		printf '%s\n' "INSERT INTO conversation_events_fts(conversation_events_fts) VALUES ('rebuild');"
+	fi
+    printf '%s\n' 'COMMIT;'
+	} | sqlite3 "${db_target}" || {
+		echo "[seed] failed to install continuity recovery fixture in ${db_target}." >&2
+    return 0
+  }
+  echo "[seed] exact continuity recovery fixture seeded (${pane_id}, ${thread_id}, 88 events, no sessions row)."
+}
+
+seed_continuity_recovery_conversation || true
 
 echo "[seed] Seeding complete."

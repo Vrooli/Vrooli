@@ -265,6 +265,88 @@ func TestValidateV2_Subflow_ValidByPath(t *testing.T) {
 	assert.Empty(t, result.Errors)
 }
 
+func TestValidateV2_GestureSustainedSwipe_Valid(t *testing.T) {
+	v := &Validator{}
+	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
+		Nodes: []*basworkflows.WorkflowNodeV2{
+			{
+				Id: "pan-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_GESTURE,
+					Params: &basactions.ActionDefinition_Gesture{
+						Gesture: &basactions.GestureParams{
+							GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+							Selector:    ptr("[data-testid='canvas']"),
+							Direction:   basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT.Enum(),
+							Distance:    ptr(int32(520)),
+							DurationMs:  ptr(int32(900)),
+							Steps:       ptr(int32(36)),
+							StepDelayMs: ptr(int32(25)),
+							TraceLabel:  ptr("graph-sustained-pan"),
+						},
+					},
+					Metadata: &basactions.ActionMetadata{Label: ptr("Sustained pan")},
+				},
+			},
+		},
+	})
+
+	assert.True(t, result.Valid)
+	assert.Empty(t, result.Errors)
+	assert.Empty(t, result.Warnings)
+}
+
+func TestValidateV2_GestureSwipeRequiresDirection(t *testing.T) {
+	v := &Validator{}
+	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
+		Nodes: []*basworkflows.WorkflowNodeV2{
+			{
+				Id: "pan-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_GESTURE,
+					Params: &basactions.ActionDefinition_Gesture{
+						Gesture: &basactions.GestureParams{
+							GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+							TraceLabel:  ptr("graph-sustained-pan"),
+						},
+					},
+					Metadata: &basactions.ActionMetadata{Label: ptr("Sustained pan")},
+				},
+			},
+		},
+	})
+
+	assert.False(t, result.Valid)
+	require.Len(t, result.Errors, 1)
+	assert.Equal(t, "WF_V2_GESTURE_DIRECTION_REQUIRED", result.Errors[0].Code)
+}
+
+func TestValidateV2_GestureWarnsWithoutTraceLabel(t *testing.T) {
+	v := &Validator{}
+	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
+		Nodes: []*basworkflows.WorkflowNodeV2{
+			{
+				Id: "zoom-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_GESTURE,
+					Params: &basactions.ActionDefinition_Gesture{
+						Gesture: &basactions.GestureParams{
+							GestureType: basactions.GestureType_GESTURE_TYPE_ZOOM,
+							Steps:       ptr(int32(8)),
+						},
+					},
+					Metadata: &basactions.ActionMetadata{Label: ptr("Wheel zoom")},
+				},
+			},
+		},
+	})
+
+	assert.True(t, result.Valid)
+	assert.Empty(t, result.Errors)
+	require.Len(t, result.Warnings, 1)
+	assert.Equal(t, "WF_V2_GESTURE_TRACE_LABEL_RECOMMENDED", result.Warnings[0].Code)
+}
+
 func TestValidateV2_Subflow_MissingTarget(t *testing.T) {
 	v := &Validator{}
 	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{

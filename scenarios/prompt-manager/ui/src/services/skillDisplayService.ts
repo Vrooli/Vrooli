@@ -4,7 +4,7 @@
 
 import { copyToClipboard } from '@/lib/clipboard'
 import type { Skill } from '@/types'
-import type { DisplayFormat, DisplayResponse } from '@/types/world'
+import type { DisplayFormat, DisplayResponse } from '@/types'
 
 /**
  * Escape XML special characters.
@@ -135,6 +135,7 @@ export function displaySkills(
   if (skills.length === 0) {
     return {
       combined: '',
+      skills: [],
       skillCount: 0,
       totalTokens: 0,
       format,
@@ -162,6 +163,7 @@ export function displaySkills(
 
   return {
     combined,
+    skills: skills.map((skill) => ({ id: skill.id, name: skill.name, content: skill.content })),
     skillCount: skills.length,
     totalTokens: estimateTokens(combined),
     format,

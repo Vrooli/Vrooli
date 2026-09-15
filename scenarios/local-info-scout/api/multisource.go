@@ -93,7 +93,7 @@ func (s *LocalDBSource) Fetch(req SearchRequest) ([]Place, error) {
 
 	// Add location-based filtering if coordinates provided
 	if req.Lat != 0 && req.Lon != 0 && req.Radius > 0 {
-		// Simple box filter (real implementation would use PostGIS)
+		// Simple box filter (a future geospatial backend could replace this).
 		latDelta := req.Radius / 69.0 // Rough miles to degrees
 		lonDelta := req.Radius / 54.6
 		query += fmt.Sprintf(" AND lat BETWEEN $%d AND $%d AND lon BETWEEN $%d AND $%d",

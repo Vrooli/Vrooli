@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "capabilities-page",
+    "title": "Capability readiness",
+    "purpose": "Local capability readiness page composition.",
+    "storyRef": "../../ui/src/pages/CapabilitiesPage.story.json"
+  },
+  "states": [
+    {
+      "id": "available",
+      "example": "available",
+      "description": "Available dependency"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Capability readiness"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-testid=\"capabilities-page\"]"
+      }
+    }
+  }
+}

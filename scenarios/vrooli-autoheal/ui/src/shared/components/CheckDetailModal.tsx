@@ -1,12 +1,12 @@
 // Check detail modal for drill-down view
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
-import { useState, useCallback, useMemo } from "react";
+import { memo, Profiler, useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle, Zap, Loader2 } from "lucide-react";
 import {
-  fetchCheckHistory, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
-  fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
-  type ActionResult, type RecoveryAction, normalizeHealthStatus
+  fetchCheckHistory, type HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
+  fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction, fetchActionHistory,
+  type ActionLog, type ActionResult, type RecoveryAction, normalizeHealthStatus
 } from "../../lib/api";
 import { formatRelativeTime } from "../../lib/utils";
 import { CodePreview } from "./CodePreview";
@@ -16,6 +16,7 @@ import { StatusSparkline } from "./StatusSparkline";
 import { ActionButtons } from "./ActionButtons";
 import { exportCheckHistoryToCSV } from "../../lib/export";
 import { navigateToCheckDocs } from "../../lib/docs";
+import { onProfilerRender } from "../../lib/profiler";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { Notice, NoticeTitle, TabTrigger } from "../ui/composites";
@@ -27,6 +28,7 @@ interface CheckDetailModalProps {
 }
 
 type TabId = "details" | "history";
+const HISTORY_VISIBLE_STEP = 80;
 
 function isSubCheck(value: unknown): value is SubCheck {
   if (!value || typeof value !== "object") return false;
@@ -71,13 +73,39 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
   );
 }
 
-export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
+interface HistoryRowView {
+  key: string;
+  message: string;
+  status: HealthStatus;
+  timestampLabel: string;
+  relativeLabel: string;
+}
+
+const HistoryRow = memo(function HistoryRow({ entry }: { entry: HistoryRowView }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg bg-surface-overlay/30 p-2 transition-colors hover:bg-surface-overlay/50">
+      <div className="flex-shrink-0 mt-0.5">
+        <StatusIcon status={entry.status} size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="truncate text-sm text-text-primary">{entry.message}</p>
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <span>{entry.timestampLabel}</span>
+          <span className="text-text-muted/80">({entry.relativeLabel})</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function CheckDetailModalImpl({ checkId, onClose }: CheckDetailModalProps) {
   const { getTitle, getMetadata } = useCheckMetadata();
   const queryClient = useQueryClient();
   const metadata = getMetadata(checkId);
   const title = getTitle(checkId);
   const showCheckId = title !== checkId;
   const [activeTab, setActiveTab] = useState<TabId>("details");
+  const [historyVisibleCount, setHistoryVisibleCount] = useState(HISTORY_VISIBLE_STEP);
   const [autoHealResult, setAutoHealResult] = useState<ActionResult | null>(null);
   const [confirmHealAction, setConfirmHealAction] = useState<RecoveryAction | null>(null);
 
@@ -107,6 +135,20 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
     queryFn: () => fetchCheckActions(checkId),
     staleTime: 30000,
   });
+
+  const { data: actionHistoryData } = useQuery({
+    queryKey: ["action-history", checkId],
+    queryFn: () => fetchActionHistory(checkId),
+    refetchInterval: 30000,
+  });
+
+  const latestHealingIssue = useMemo<ActionLog | undefined>(
+    () => {
+      const latest = actionHistoryData?.logs[0];
+      return latest && !latest.success ? latest : undefined;
+    },
+    [actionHistoryData?.logs],
+  );
 
   // Determine current auto-heal state
   const autoHealEnabled = useMemo(() => {
@@ -185,6 +227,22 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
     if (!data?.history) return [];
     return data.history.slice(0, 24).map((h) => normalizeHealthStatus(h.status, "ok"));
   }, [data?.history]);
+
+  const visibleHistory = useMemo<HistoryRowView[]>(() => {
+    if (!data?.history) return [];
+    return data.history.slice(0, historyVisibleCount).map((entry, idx) => ({
+      key: `${entry.timestamp}-${idx}`,
+      message: entry.message,
+      status: normalizeHealthStatus(entry.status, "ok"),
+      timestampLabel: formatTimestamp(entry.timestamp),
+      relativeLabel: formatRelativeTime(entry.timestamp),
+    }));
+  }, [data?.history, historyVisibleCount]);
+
+  const remainingHistoryCount = Math.max((data?.history?.length ?? 0) - visibleHistory.length, 0);
+  const showMoreHistory = useCallback(() => {
+    setHistoryVisibleCount((count) => count + HISTORY_VISIBLE_STEP);
+  }, []);
 
   // Get latest entry for details
   const latestEntry: HistoryEntry | undefined = data?.history?.[0];
@@ -405,6 +463,29 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                 </Notice>
               )}
 
+              {latestHealingIssue && (
+                <Notice tone={latestHealingIssue.actionId === "autoheal-skip" ? "warning" : "danger"}>
+                  <div className="flex items-start gap-2">
+                    {latestHealingIssue.actionId === "autoheal-skip" ? (
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-accent-warning" />
+                    ) : (
+                      <XCircle size={16} className="mt-0.5 shrink-0 text-accent-danger" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <NoticeTitle tone={latestHealingIssue.actionId === "autoheal-skip" ? "warning" : "danger"}>
+                        {latestHealingIssue.actionId === "autoheal-skip" ? "Auto-heal skipped" : "Auto-heal failed"}
+                      </NoticeTitle>
+                      <p className="mt-1 break-words text-xs text-text-muted">
+                        {latestHealingIssue.message || latestHealingIssue.error || `Action ${latestHealingIssue.actionId} did not complete`}
+                      </p>
+                      <p className="mt-1 text-[11px] text-text-muted/80" title={new Date(latestHealingIssue.timestamp).toLocaleString()}>
+                        Last recovery outcome: {formatRelativeTime(latestHealingIssue.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                </Notice>
+              )}
+
               {/* Stats Summary */}
               {stats && (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -480,7 +561,10 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                   Details
                 </TabTrigger>
                 <TabTrigger
-                  onClick={() => setActiveTab("history")}
+                  onClick={() => {
+                    setActiveTab("history");
+                    setHistoryVisibleCount(HISTORY_VISIBLE_STEP);
+                  }}
                   active={activeTab === "history"}
                   className="shrink-0"
                 >
@@ -540,24 +624,20 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               {activeTab === "history" && (
                 <div className="space-y-2">
                   {data?.history && data.history.length > 0 ? (
-                    <div className="space-y-1 max-h-80 overflow-y-auto">
-                      {data.history.map((entry, idx) => (
-                        <div
-                          key={`${entry.timestamp}-${idx}`}
-                          className="flex items-start gap-3 rounded-lg bg-surface-overlay/30 p-2 transition-colors hover:bg-surface-overlay/50"
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            <StatusIcon status={normalizeHealthStatus(entry.status, "ok")} size={14} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate text-sm text-text-primary">{entry.message}</p>
-                            <div className="flex items-center gap-2 text-xs text-text-muted">
-                              <span>{formatTimestamp(entry.timestamp)}</span>
-                              <span className="text-text-muted/80">({formatRelativeTime(entry.timestamp)})</span>
-                            </div>
-                          </div>
-                        </div>
+                    <div className="max-h-80 space-y-1 overflow-y-auto">
+                      {visibleHistory.map((entry) => (
+                        <HistoryRow key={entry.key} entry={entry} />
                       ))}
+                      {remainingHistoryCount > 0 && (
+                        <Button
+                          onClick={showMoreHistory}
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 w-full justify-center text-xs"
+                        >
+                          Show more ({remainingHistoryCount} remaining)
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="py-8 text-center text-text-muted">
@@ -583,5 +663,13 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
         </div>
       </ModalContent>
     </ModalOverlay>
+  );
+}
+
+export function CheckDetailModal(props: CheckDetailModalProps) {
+  return (
+    <Profiler id="CheckDetailModal" onRender={onProfilerRender}>
+      <CheckDetailModalImpl {...props} />
+    </Profiler>
   );
 }

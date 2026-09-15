@@ -1,0 +1,10 @@
+{
+  "gate": "selector-coverage",
+  "assetId": "calibration.selector-coverage",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.selector-coverage",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Contains an interactive element without a catalog-derived selector."
+}

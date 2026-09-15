@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "use-voice-input",
+    "title": "useVoiceInput",
+    "purpose": "Provide a deterministic browser voice-input lifecycle with explicit timeout and always-on modes.",
+    "storyRef": "../../library/hooks/useVoiceInput/versions/3.0.0/story.json",
+    "prd_refs": ["OT-P0-008"]
+  },
+  "priorities": [
+    {
+      "statement": "A hook fixture can prove capture start, timeout cleanup, and terminal failure without a microphone."
+    }
+  ],
+  "states": [
+    {
+      "id": "recording",
+      "example": "start-recording",
+      "description": "Fixture enters recording."
+    }
+  ],
+  "elements": [],
+  "claims": [
+    {
+      "id": "voice-lifecycle",
+      "type": "custom",
+      "statement": "The deterministic hook fixture proves the voice lifecycle starts and cleans up safely.",
+      "tier": "manual",
+      "elements": [],
+      "states": ["recording"]
+    }
+  ],
+  "bindings": { "elements": {} }
+}

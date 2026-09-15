@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.research-l3",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Start a declared research workflow idempotently and attach once, or resume an existing execution.",
+  "inputs": {
+    "query": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "default": 90
+    }
+  },
+  "assumptions": [
+    "Agent Manager owns execution budgets and durable workflow results. A wait timeout is not task completion."
+  ],
+  "invariants": [
+    "Stable request identity is required before starting.",
+    "An existing execution is never restarted.",
+    "One bounded owner wait and one envelope."
+  ],
+  "bindings": [
+    {
+      "id": "web-search/research/l3",
+      "effect": "write",
+      "optional": true
+    },
+    {
+      "id": "web-search/research/wait",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "run_id": "Durable execution identity",
+      "execution": "Owner lifecycle and typed research result",
+      "next_action": "Explicit wait on incomplete attachment"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "research_failed",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "finding ids read or written"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 1,
+    "materialize_limit": 50,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-identity",
+      "inputs": {
+        "query": "q"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search"
+}

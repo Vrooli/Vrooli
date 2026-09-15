@@ -1,15 +1,15 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useProfileBoundResources } from './useProfileBoundResources';
-import { useStorageState, useServiceWorkers, useHistory } from '@/domains/recording';
+import { useStorageState } from '@/domains/recording/hooks/useStorageState';
+import { useServiceWorkers } from '@/domains/recording/hooks/useServiceWorkers';
+import { useHistory } from '@/domains/recording/hooks/useHistory';
 import { useTabs } from '@/domains/recording/hooks/useTabs';
 
 // Mock all underlying hooks
-vi.mock('@/domains/recording', () => ({
-  useStorageState: vi.fn(),
-  useServiceWorkers: vi.fn(),
-  useHistory: vi.fn(),
-}));
+vi.mock('@/domains/recording/hooks/useStorageState', () => ({ useStorageState: vi.fn() }));
+vi.mock('@/domains/recording/hooks/useServiceWorkers', () => ({ useServiceWorkers: vi.fn() }));
+vi.mock('@/domains/recording/hooks/useHistory', () => ({ useHistory: vi.fn() }));
 
 vi.mock('@/domains/recording/hooks/useTabs', () => ({
   useTabs: vi.fn(),

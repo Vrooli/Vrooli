@@ -294,15 +294,17 @@ export function StepBuild({ deployment }: StepBuildProps) {
 
   // Fetch VPS bundles
   const fetchVpsBundles = async () => {
-    if (!hasVpsConfig || !vpsConfig) return;
+    const host = vpsConfig?.host;
+    const keyPath = vpsConfig?.key_path;
+    if (!host || !keyPath) return;
     setIsLoadingVpsBundles(true);
     setVpsBundlesError(null);
     try {
       const response = await listVPSBundles({
-        host: vpsConfig.host!,
+        host,
         port: vpsConfig.port,
         user: vpsConfig.user,
-        key_path: vpsConfig.key_path!,
+        key_path: keyPath,
         workdir: vpsConfig.workdir,
       });
       if (response.ok) {
@@ -319,17 +321,19 @@ export function StepBuild({ deployment }: StepBuildProps) {
 
   // Handle VPS cleanup
   const handleVpsCleanup = async () => {
-    if (!hasVpsConfig || !vpsConfig) return;
+    const host = vpsConfig?.host;
+    const keyPath = vpsConfig?.key_path;
+    if (!host || !keyPath) return;
     setIsCleaningVps(true);
     setVpsCleanupMessage(null);
     try {
       const result = await cleanupBundles({
         keep_latest: 3,
         clean_vps: true,
-        host: vpsConfig.host!,
+        host,
         port: vpsConfig.port,
         user: vpsConfig.user,
-        key_path: vpsConfig.key_path!,
+        key_path: keyPath,
         workdir: vpsConfig.workdir,
       });
       setVpsCleanupMessage(result.message);
@@ -344,15 +348,17 @@ export function StepBuild({ deployment }: StepBuildProps) {
 
   // Handle individual VPS bundle deletion
   const handleDeleteVpsBundle = async (filename: string) => {
-    if (!hasVpsConfig || !vpsConfig) return;
+    const host = vpsConfig?.host;
+    const keyPath = vpsConfig?.key_path;
+    if (!host || !keyPath) return;
     setDeletingVpsBundleId(filename);
     setVpsBundlesError(null);
     try {
       const result = await deleteVPSBundle({
-        host: vpsConfig.host!,
+        host,
         port: vpsConfig.port,
         user: vpsConfig.user,
-        key_path: vpsConfig.key_path!,
+        key_path: keyPath,
         workdir: vpsConfig.workdir,
         filename,
       });

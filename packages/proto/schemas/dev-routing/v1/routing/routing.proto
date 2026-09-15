@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package vrooli.dev_routing.v1.routing;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1";
+
+// =============================================================================
+// DEV-ROUTING DOMAIN — runtime test-pool installation
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain dev-routing
+// @stability unstable
+//
+// Wire contract for RoutingService, the dev-only admin surface that lets an
+// external orchestrator (test-genie) install and clear a runtime test DB pool
+// on a running scenario without restarting it. The service is gated by
+// projectmeta.IsDevelopment() and is *not* mounted in production-mode
+// scenarios; the canonical handler lives in packages/api-core/devrouting.
+//
+// Consumed by:
+//   - API: every scenario that uses packages/api-core/database.RoutedDB
+//          embeds the reusable handler via devrouting.Register.
+//   - test-genie: drives InstallTestPool / ClearTestPool around each routed
+//          playbooks-phase run.
+// =============================================================================
+
+service RoutingService {
+  // InstallTestPool opens a new database connection pool against dsn and
+  // installs it as the active test pool on the receiving scenario. If a
+  // previous test pool exists under a *different* lease_id the call is
+  // rejected; under the *same* lease_id it is idempotent (retry-safe).
+  rpc InstallTestPool(InstallTestPoolRequest) returns (InstallTestPoolResponse);
+
+  // ClearTestPool closes the installed test pool and reverts routing to the
+  // primary pool. The caller's lease_id must match the active install.
+  // Idempotent under match: clearing when no pool is installed is a no-op success.
+  rpc ClearTestPool(ClearTestPoolRequest) returns (ClearTestPoolResponse);
+
+  // HeartbeatTestPool extends the active lease's expiry. The caller's
+  // lease_id must match the active install (FailedPrecondition otherwise).
+  // The scenario uses an internal TTL as a defensive timeout: if the
+  // orchestrator crashes between Install and Clear, the lease expires and
+  // routing reverts to the primary pool without manual intervention.
+  rpc HeartbeatTestPool(HeartbeatTestPoolRequest) returns (HeartbeatTestPoolResponse);
+}
+
+message InstallTestPoolRequest {
+  // DSN is the connection string the scenario should open the test pool
+  // against. Format follows the scenario's primary driver — Postgres URL or
+  // SQLite file path. test-genie owns provisioning and migration of the
+  // underlying database; the scenario only opens a pool.
+  string dsn = 1;
+
+  // lease_id identifies the orchestrator's per-run claim on the scenario.
+  // The scenario rejects an install if the slot is already held under a
+  // different lease_id. Same lease_id installs are idempotent.
+  string lease_id = 2;
+
+  // lease_ttl_ms is the maximum time, in milliseconds, that the scenario
+  // should hold the test pool without a HeartbeatTestPool call. Zero means
+  // "use the scenario default" (currently 90s). On expiry, RoutedDB reverts
+  // routing to the primary pool — a defensive timeout for an orchestrator
+  // crashing between Install and Clear.
+  int64 lease_ttl_ms = 3;
+
+  // empty_config disables copying the primary config-class tree into the
+  // leased file roots. Every other file-storage class starts empty.
+  bool empty_config = 4;
+}
+
+message InstallTestPoolResponse {
+  // active_lease_id reports the lease that owns the installed pool. On a
+  // successful install it equals the request's lease_id; on a conflict
+  // response detail it reports the existing holder.
+  string active_lease_id = 1;
+
+  // file_roots_installed proves this target also mounted the file-storage
+  // routing leg for the lease. A workflow provider must not treat a database-
+  // only install as complete isolation for a file-persisting target.
+  bool file_roots_installed = 2;
+}
+
+message ClearTestPoolRequest {
+  // lease_id must match the active install. Mismatch yields FailedPrecondition.
+  string lease_id = 1;
+}
+
+message ClearTestPoolResponse {
+  // stats reports per-lease routing counters observed during the run. Used
+  // by test-genie's playbooks phase to detect that a "routed" run actually
+  // exercised the test pool (test_pool_requests > 0) and to flag bypass
+  // attempts (primary_during_test_mode_requests > 0).
+  LeaseStats stats = 1;
+}
+
+message HeartbeatTestPoolRequest {
+  // lease_id must match the active install. Mismatch yields FailedPrecondition.
+  string lease_id = 1;
+}
+
+message HeartbeatTestPoolResponse {
+  // expires_at_unix_ms is the new absolute expiry timestamp, in unix
+  // milliseconds, after the heartbeat extends the lease.
+  int64 expires_at_unix_ms = 1;
+}
+
+// LeaseStats are advisory counters tracked per-lease on the scenario side.
+//
+// test_pool_requests counts requests served from the installed test pool
+// (i.e. routing succeeded). primary_during_test_mode_requests counts
+// requests that carried X-Vrooli-Test-Mode:1 but were served from the
+// primary pool anyway — a sign that some code path holds a raw *sql.DB
+// instead of going through RoutedDB.
+message LeaseStats {
+  int64 test_pool_requests = 1;
+  int64 primary_during_test_mode_requests = 2;
+  int64 test_root_writes = 3;
+  int64 primary_root_writes_during_test_mode = 4;
+}

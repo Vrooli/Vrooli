@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:23Z",
+  "description": "Evaluate the deployment readiness check: A paying customer has a contact path",
+  "entry": "SKILL.md",
+  "id": "readiness-paying-customer-contact",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-paying-customer-contact",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:23Z"
+}

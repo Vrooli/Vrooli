@@ -2,10 +2,14 @@
 package smoketest
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
@@ -20,7 +24,7 @@ type DefaultService struct {
 	logger            Logger
 
 	// New injected components
-	config             Config
+	config             SmokeTestConfig
 	executor           ProcessExecutor
 	platformResolver   PlatformResolver
 	telemetryResolver  TelemetryPathResolver
@@ -33,9 +37,23 @@ type DefaultService struct {
 	// Optional screen recording (nil = recording disabled)
 	recorder   screenrecording.Recorder
 	displayMgr screenrecording.DisplayManager
+	captures   *captures.Service
 
 	// Optional process monitoring (nil = monitoring disabled)
-	monitorFactory procmetrics.MonitorFactory
+	monitorFactory      procmetrics.MonitorFactory
+	windowDetector      *procmetrics.XdotoolDetector
+	journeyDriver       DesktopDriver
+	journeyClock        Clock
+	journeyWaiter       JourneyWaiter
+	journeyCapture      JourneyCapture
+	journeyAPI          JourneyAPIProbe
+	journeyProcess      JourneyProcessObserver
+	journeyCapability   string
+	evidenceReporter    EvidenceReporter
+	manifestWriter      EvidenceManifestWriter
+	rendererURLResolver func(context.Context, string) (string, error)
+	apiURLResolver      func(context.Context, string) (string, error)
+	targetResolver      func(context.Context, *Status) (JourneyTarget, error)
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -43,7 +61,7 @@ func NewService(
 	store Store,
 	cancelManager CancelManager,
 	telemetryIngestor TelemetryIngestor,
-	config Config,
+	config SmokeTestConfig,
 	executor ProcessExecutor,
 	platformResolver PlatformResolver,
 	telemetryResolver TelemetryPathResolver,
@@ -66,7 +84,67 @@ func NewService(
 		logger:             logger,
 		port:               port,
 		telemetryExtractor: telemetryExtractor,
+		targetResolver:     resolveSmokeTarget,
 	}
+}
+
+func (s *DefaultService) validationRendererEnv(ctx context.Context, scenarioName string) []string {
+	if s == nil || scenarioName == "" {
+		return nil
+	}
+	env := make([]string, 0, 2)
+	if s.rendererURLResolver != nil {
+		rendererURL, err := s.rendererURLResolver(ctx, scenarioName)
+		if err != nil || rendererURL == "" {
+			if err != nil && s.logger != nil {
+				s.logger.Warn("validation_renderer_url_unavailable", "scenario", scenarioName, "error", err)
+			}
+		} else {
+			env = append(env, "VROOLI_VALIDATION_RENDERER_URL="+rendererURL)
+		}
+	}
+	if s.apiURLResolver != nil {
+		apiURL, err := s.apiURLResolver(ctx, scenarioName)
+		if err != nil || apiURL == "" {
+			if err != nil && s.logger != nil {
+				s.logger.Warn("validation_api_url_unavailable", "scenario", scenarioName, "error", err)
+			}
+		} else {
+			env = append(env, "VROOLI_VALIDATION_API_URL="+apiURL)
+		}
+	}
+	return env
+}
+
+func (s *DefaultService) validationRendererEnvForStatus(ctx context.Context, status *Status) []string {
+	if status == nil {
+		return nil
+	}
+	if status.DeploymentMode == "bundled" {
+		// The bundled runtime discovers its private service ports through its
+		// control API. Never inject a Tier 1 URL into a bundled launch.
+		return nil
+	}
+	if status.DeploymentMode == "proxy" && s.targetResolver != nil {
+		target, err := s.targetResolver(ctx, status)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("isolated_smoke_target_unavailable", "scenario", status.ScenarioName, "error", err)
+			}
+			return nil
+		}
+		result := make([]string, 0, 2)
+		if target.RendererURL != "" {
+			result = append(result, "VROOLI_VALIDATION_RENDERER_URL="+target.RendererURL)
+		}
+		if target.APIURL != "" {
+			result = append(result, "VROOLI_VALIDATION_API_URL="+target.APIURL)
+		}
+		return result
+	}
+	// Unknown-mode legacy requests are intentionally targetless. A smoke run
+	// must not silently rediscover the live instance.
+	return nil
 }
 
 // NewDefaultSmokeTestService creates a new smoke test service with default implementations.
@@ -103,6 +181,7 @@ func NewDefaultSmokeTestService(
 		prereqChecker:      prereqChecker,
 		envReader:          envReader,
 		telemetryExtractor: telemetryExtractor,
+		targetResolver:     resolveSmokeTarget,
 	}
 }
 
@@ -112,9 +191,139 @@ func (s *DefaultService) WithRecording(recorder screenrecording.Recorder, displa
 	s.displayMgr = displayMgr
 }
 
+// WithCaptures makes the captures domain the only durable home for smoke-test
+// recordings. Status retains metadata and a capture ID, never a local path.
+func (s *DefaultService) WithCaptures(service *captures.Service) { s.captures = service }
+
+func (s *DefaultService) annotateCapture(capture *captures.Capture, pipelineID string) {
+	if capture == nil || pipelineID == "" || s == nil || s.captures == nil {
+		return
+	}
+	if annotator, ok := s.captures.Store().(captures.PipelineAnnotator); ok {
+		if err := annotator.UpdatePipelineID(capture.ScenarioName, capture.ID, pipelineID); err != nil && s.logger != nil {
+			s.logger.Warn("capture_pipeline_id_persist_failed", "capture_id", capture.ID, "error", err)
+		}
+	}
+}
+
 // WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
 func (s *DefaultService) WithMonitor(factory procmetrics.MonitorFactory) {
 	s.monitorFactory = factory
+}
+
+// WithWindowDetector wires the shared xdotool detector into the evidence
+// journey. The same detector is used by startup metrics, so availability and
+// visible-window behavior stay consistent across both evidence paths.
+func (s *DefaultService) WithWindowDetector(detector *procmetrics.XdotoolDetector) {
+	s.windowDetector = detector
+	if detector != nil {
+		s.journeyDriver = procmetricsDesktopDriver{detector: detector}
+	}
+}
+
+// WithJourneySeams replaces platform, timing, readiness, capture, and API
+// dependencies for deterministic contract tests. Production callers normally
+// use WithWindowDetector and the default clock/wait/capture adapters.
+func (s *DefaultService) WithJourneySeams(driver DesktopDriver, clock Clock, waiter JourneyWaiter, capture JourneyCapture, api JourneyAPIProbe) {
+	s.journeyDriver = driver
+	s.journeyClock = clock
+	s.journeyWaiter = waiter
+	s.journeyCapture = capture
+	s.journeyAPI = api
+}
+
+// WithJourneyProcessObserver adds a credential-free process observation seam
+// to the journey without making process monitoring part of desktop actions.
+func (s *DefaultService) WithJourneyProcessObserver(observer JourneyProcessObserver) {
+	s.journeyProcess = observer
+}
+
+// WithJourneyCapability selects an explicit behavior fixture for the next
+// smoke journey. Empty values retain registry lookup by scenario identity.
+func (s *DefaultService) WithJourneyCapability(capability string) {
+	s.journeyCapability = capability
+}
+
+// EvidenceReporter is optional so local smoke tests do not acquire a startup
+// dependency on deployment-manager. When configured, it receives references
+// after the journey settles and reports transport failures explicitly.
+type EvidenceReporter interface {
+	ReportJourney(context.Context, EvidenceReportInput) error
+}
+
+// EvidenceManifestWriter persists the producer-owned, reviewable manifest
+// after capture and governance reporting have settled.
+type EvidenceManifestWriter interface {
+	WriteManifest(context.Context, EvidenceManifestInput) error
+}
+
+type EvidenceManifestInput struct {
+	RunID                   string
+	ScenarioName            string
+	Platform                string
+	ArtifactPath            string
+	Profile                 string
+	StartedAt               time.Time
+	CompletedAt             time.Time
+	Journey                 *deliveryramp.JourneyResult
+	WorkflowReference       *deliveryramp.WorkflowExecutionReference
+	Captures                []captures.Capture
+	GovernanceReported      bool
+	ProtocolTracePath       string
+	DemoTracePath           string
+	PerformanceArtifacts    []PerformanceArtifact
+	ProtocolResourceSummary *procmetrics.Summary
+	ProtocolProcessTree     *procmetrics.ProcessTreeReport
+	DemoResourceSummary     *procmetrics.Summary
+	DemoProcessTree         *procmetrics.ProcessTreeReport
+	ProtocolProfileDir      string
+	DemoProfileDir          string
+	ProfileMode             string
+	ProtocolPassed          bool
+	VisualReadiness         string
+	JourneyCaptureID        string
+	RecordingCaptureID      string
+	ScreenContentSource     string
+}
+
+// PerformanceArtifact is a producer-owned file with an immutable checksum.
+// LocalPath is retained only for local review; remote consumers receive the
+// immutable reference, checksum, and size through the manifest.
+type PerformanceArtifact struct {
+	ImmutableRef string
+	LocalPath    string
+	Kind         string
+	Checksum     string
+	SizeBytes    int64
+	Available    bool
+	Reason       string
+}
+
+type EvidenceReportInput struct {
+	ProfileID             string
+	GitCommit             string
+	ArtifactDigest        string
+	CandidateID           string
+	DestinationRevisionID string
+	AuthorizationEpoch    uint64
+	PolicyVersion         int
+	Channel               string
+	ScenarioName          string
+	Platform              string
+	RunID                 string
+	Disposition           string
+	Target                *domainv1.EvidenceTarget
+	Captures              []captures.Capture
+	Journey               *deliveryramp.JourneyResult
+	ProducerBaseURL       string
+}
+
+func (s *DefaultService) WithEvidenceReporter(reporter EvidenceReporter) {
+	s.evidenceReporter = reporter
+}
+
+func (s *DefaultService) WithEvidenceManifestWriter(writer EvidenceManifestWriter) {
+	s.manifestWriter = writer
 }
 
 // CurrentPlatform returns the current platform identifier.

@@ -151,22 +151,16 @@ function resolveProxyMetadataBase(
   collectProxyCandidates(proxyInfo, pushCandidate, visited)
   collectProxyCandidates(proxyIndex, pushCandidate, visited)
 
-  // Try each candidate
-  console.log('[api-base] resolveProxyMetadataBase candidates:', candidates)
   for (const candidate of candidates) {
-    console.log('[api-base] Testing candidate:', candidate)
-
     // CRITICAL: If candidate is a path (starts with /), keep it as a path
     // for same-origin requests. Converting to absolute URL causes issues
     // when the page is served through a reverse proxy/CDN.
     if (candidate.startsWith('/')) {
       // It's a path - return it as-is for origin-relative requests
-      console.log('[api-base] Returning path candidate as-is:', candidate)
       return candidate
     }
 
     const absolute = toAbsoluteCandidate(candidate, origin, protocolHint)
-    console.log('[api-base] toAbsoluteCandidate result:', absolute)
     if (!absolute) {
       continue
     }
@@ -175,16 +169,13 @@ function resolveProxyMetadataBase(
     if (remoteHost) {
       const host = tryParseHostname(absolute)
       if (host && isLocalHostname(host)) {
-        console.log('[api-base] Skipping localhost URL on remote host:', absolute)
         continue
       }
     }
 
-    console.log('[api-base] Returning absolute candidate:', absolute)
     return absolute
   }
 
-  console.log('[api-base] No proxy metadata candidates found')
   return undefined
 }
 
@@ -339,18 +330,6 @@ export function resolveApiBase(options: ResolveOptions = {}): string {
   const proxiedPath = pathname?.includes(PROXY_PATH_MARKER) ?? false
   const remoteHost = hostname ? !isLocalHostname(hostname) : false
 
-  console.log('[api-base] resolveApiBase called:', {
-    explicitUrl,
-    defaultPort,
-    shouldAppendSuffix,
-    hostname,
-    origin,
-    pathname,
-    hasProxyBootstrap,
-    proxiedPath,
-    remoteHost,
-  })
-
   // Helper to ensure suffix if requested
   const ensureSuffixIfNeeded = (base?: string) => {
     const candidate = base && base.trim().length > 0 ? base : `http://${LOOPBACK_HOST}:${defaultPort}`
@@ -371,13 +350,9 @@ export function resolveApiBase(options: ResolveOptions = {}): string {
   }
 
   // 2. Try proxy metadata
-  console.log('[api-base] Attempting proxy metadata resolution...')
   const proxyMetadataBase = resolveProxyMetadataBase(win, remoteHost, proxyGlobalNames)
-  console.log('[api-base] Proxy metadata base:', proxyMetadataBase)
   if (proxyMetadataBase) {
-    const result = ensureSuffixIfNeeded(proxyMetadataBase)
-    console.log('[api-base] Returning proxy metadata base with suffix:', result)
-    return result
+    return ensureSuffixIfNeeded(proxyMetadataBase)
   }
 
   // 3. Try path-based proxy detection

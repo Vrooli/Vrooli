@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vrooli://agent-manager/supervision-evaluate/input/v1",
+  "title": "Supervision Evaluate Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy", "current_cursor", "proposed_next_cursor"],
+  "properties": {
+    "watch_id": {"type": "string", "maxLength": 128},
+    "events": {
+      "type": "array", "maxItems": 64, "default": [],
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["event_id", "run_id", "sequence", "event_type"],
+        "properties": {
+          "event_id": {"type": "string", "maxLength": 128},
+          "run_id": {"type": "string", "maxLength": 128},
+          "sequence": {"type": "integer", "minimum": 0},
+          "event_type": {"type": "string", "maxLength": 96},
+          "occurred_at": {"type": "string", "maxLength": 64}
+        }
+      }
+    },
+    "friction_episodes": {
+      "type": "array", "maxItems": 16, "default": [],
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["evidence_id", "score", "pattern"],
+        "properties": {
+          "evidence_id": {"type": "string", "maxLength": 128},
+          "score": {"type": "number", "minimum": 0, "maximum": 1},
+          "pattern": {"type": "string", "maxLength": 240},
+          "fingerprint": {"type": "string", "maxLength": 128},
+          "owner": {"type": "string", "maxLength": 128}
+        }
+      }
+    },
+    "run_summaries": {
+      "type": "array", "maxItems": 32, "default": [],
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["run_id", "status"],
+        "properties": {
+          "run_id": {"type": "string", "maxLength": 128},
+          "status": {"type": "string", "maxLength": 48},
+          "needs_review": {"type": "boolean"},
+          "blocked": {"type": "boolean"},
+          "friction_unavailable": {"type": "boolean"}
+        }
+      }
+    },
+    "prior_decisions": {
+      "type": "array", "maxItems": 8, "default": [],
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["decision_id", "disposition"],
+        "properties": {
+          "decision_id": {"type": "string", "maxLength": 128},
+          "disposition": {"enum": ["quiet", "signal", "terminal", "cursor_reset", "unavailable"]},
+          "classification": {"type": "string", "maxLength": 64}
+        }
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "event_count_threshold", "friction_threshold", "quiet_seconds", "event_count_enabled", "friction_enabled", "terminal_enabled", "deadline_reached", "quiet_reached", "allowed_actions"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "event_count_threshold": {"type": "integer", "minimum": 1, "maximum": 64},
+        "friction_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "quiet_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+        "event_count_enabled": {"type": "boolean"},
+        "friction_enabled": {"type": "boolean"},
+        "terminal_enabled": {"type": "boolean"},
+        "deadline_reached": {"type": "boolean"},
+        "quiet_reached": {"type": "boolean"},
+        "allowed_actions": {
+          "type": "array", "maxItems": 7, "uniqueItems": true,
+          "items": {"enum": ["observe", "nudge", "park", "continue", "stop", "escalate", "wake_parent"]}
+        }
+      }
+    },
+    "current_cursor": {"type": "string", "maxLength": 512},
+    "proposed_next_cursor": {"type": "string", "maxLength": 512},
+    "cursor_reset_required": {"type": "boolean", "default": false},
+    "reset_reason": {"type": "string", "maxLength": 240},
+    "allow_inference": {"type": "boolean", "default": true},
+    "input_byte_budget": {"type": "integer", "minimum": 1024, "maximum": 65536, "default": 32768}
+  }
+}

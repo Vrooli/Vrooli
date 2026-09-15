@@ -4,58 +4,95 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **11-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **descriptor-backed testing architecture** that progressively validates scenarios from basic structure through provider-backed health phases. Test Genie orchestrates planning, applicability, provider readiness, lifecycle, run records, and reporting; each health provider owns its phase metadata and maturity contract in `scenarios/<provider>/.vrooli/test-genie.json`.
 
-## The 11-Phase Architecture
+## The Phase Architecture
 
-```mermaid
-graph TB
-    subgraph "Static Phases (No Runtime)"
-        P1[Phase 1: Structure<br/>15s<br/>Files & config]
-        P2[Phase 2: Standards<br/>60s<br/>scenario-auditor rules]
-        P3[Phase 3: Dependencies<br/>30s<br/>Packages & resources]
-        P4[Phase 4: Lint<br/>30s<br/>Type checking]
-        P5[Phase 5: Docs<br/>60s<br/>Markdown, links]
-    end
+The effective phase registry is built from checked-in provider descriptors plus Test Genie-owned runner bindings. A run follows this order:
 
-    subgraph "Runtime Phases (Scenario Running)"
-        P6[Phase 6: Smoke<br/>90s<br/>UI load, iframe-bridge]
-        P7[Phase 7: Unit<br/>60s<br/>Go, Node, Python]
-        P8[Phase 8: Integration<br/>120s<br/>API, CLI, BATS]
-        P9[Phase 9: Playbooks<br/>120s<br/>BAS browser automation]
-        P10[Phase 10: Business<br/>180s<br/>Requirements & coverage]
-        P11[Phase 11: Performance<br/>60s<br/>Benchmarks & load]
-    end
+1. Load provider descriptors from `scenarios/*/.vrooli/test-genie.json`.
+2. Evaluate target applicability from cheap declarative facts such as files, capabilities, UI/API presence, and testing config sections.
+3. Select phases from the requested preset or explicit phase list against applicable phases.
+4. Check or start selected providers according to descriptor policy.
+5. Start target runtime surfaces only when selected phases need them.
+6. Apply runnability gates for the current environment.
+7. Execute provider validations and record findings, observations, metrics, and phase status.
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
+Applicability answers "should this phase judge this target?" Runnability answers "can this already-applicable phase execute in this environment?" Provider readiness answers "is the selected provider usable for this execution?" These are separate states in JSON previews and run records.
 
-    style P1 fill:#fff3e0
-    style P2 fill:#f3e5f5
-    style P3 fill:#e8f5e9
-    style P4 fill:#e3f2fd
-    style P5 fill:#fff9c4
-    style P6 fill:#fff3e0
-    style P7 fill:#e1f5fe
-    style P8 fill:#e1f5fe
-    style P9 fill:#ffe0b2
-    style P10 fill:#f8bbd0
+### How provider readiness is established
+
+Readiness asks three questions, none of whose answers depend on the target: is the provider live, does it speak the current contract, and is it the provider its descriptor claims. It answers them with `ScenarioValidationService.DescribeProvider`, whose request carries no target fields at all — the provider replies from facts it resolved at startup, so the probe is O(1) regardless of how large the scenario under test is.
+
+Providers that have not adopted `DescribeProvider` return `Unimplemented`, and only then does readiness fall back to a `ValidateScenario` call with `include_execution=false`. That fallback answers the same three questions but pays a full target analysis to do so: for an inspection-only provider such as `security-health` or `architecture-cartographer`, `include_execution=false` and `true` mean the same thing, so the provider's entire phase workload ran twice per suite — once to prove readiness and once to produce the result. Adopting `DescribeProvider` is what removes that duplicate.
+
+Mount the shared implementation with `assessment.Serve(handler, describer)` (see `packages/maturity-go/assessment/describe.go`). The zero `Describer` is safe: it reports `Unimplemented`, which selects the fallback, so adoption is per-provider rather than a fleet-wide flag day.
+
+### Provider staleness
+
+A provider that answers readiness can still be running code that no longer matches the repository — a long-lived process never re-checks itself, so it can serve findings from a binary built weeks earlier. Readiness therefore also asks whether the running provider is current, using two exact digest comparisons and no git state at all (a commit changes no file content, so a design keyed to `HEAD` would mark every provider stale on every commit):
+
+1. **Rebuilt but not restarted** — the provider reports the freshness digest it read at startup; a different digest on disk means the live process is superseded.
+2. **Source changed since the build** — the ordinary freshness comparison, evaluated against the same manifest the provider's own preflight uses.
+
+When a provider is stale, readiness restarts it, which makes its preflight rebuild and re-exec so the phase scores against current source. Findings name what kind of change caused it, because the consequences differ sharply:
+
+| Class | Meaning |
+|---|---|
+| `own_code` | the provider's own source changed — its verdict is most likely to be wrong |
+| `shared_package` | a package it compiles changed — usually incidental |
+| `dependency` | `go.mod` / `go.sum` moved |
+| `toolchain` | Go version, arch, or cgo changed — hits every provider at once |
+| `rebuilt_not_restarted` | the binary moved underneath the running process |
+
+The provider's own tree is evaluated **first**, as its own subset. The underlying comparison stops at the first offending path in alphabetical order, so a change under `packages/` would otherwise mask a simultaneous change to the provider's own code.
+
+Four rails bound the cost, because on an active branch staleness is the normal state rather than the exception — one edit to a widely shared package legitimately stales most of the fleet:
+
+- **Per-run cap** (`DefaultMaxStaleRestarts`, 4). Past it, providers are reported rather than restarted, so a run always finishes. Set `MaxStaleRestarts` negative for report-only mode.
+- **Cool-down** (`DefaultRestartCooldown`, 30m), persisted across runs. It suppresses repeat restarts caused by churn **outside** the provider's own tree, so an agent editing a shared package for hours does not trigger a rebuild every run. It never applies to `own_code` or `rebuilt_not_restarted`.
+- **No cascade.** Only the provider itself is restarted; its own preflight decides about its dependencies.
+- **Fail open everywhere.** No repo root, no manifest, an unreadable manifest, an empty reported digest, or any evaluation error all mean *not stale*. A restart never happens on evidence that could not be read.
+
+Build and test outputs are excluded from freshness inputs in `cliutil` (`BuildOutputSkipNames`/`BuildOutputSkipSuffixes`), shared by the writer, the evaluator, and the preflight checker. Without that, a `go test -coverprofile` run would rewrite `coverage.out`, mark the binary stale, trigger a rebuild, and be invalidated again by the next test run.
+
+See [Phases Overview](../phases/README.md) for the generated effective registry, policy dimensions, and phase definitions.
+
+## Provider Descriptor Contract
+
+Each provider-backed phase is declared by `scenarios/<provider>/.vrooli/test-genie.json`. The descriptor must include provider and phase identity, `source: "validation-provider"`, a positive timeout, validation contract `scenario-validation/v1`, declarative applicability, policy, runnability, `docs.path`, and an embedded `maturity` block. Retired `.vrooli/maturity.json` files are rejected so maturity cannot drift from the phase descriptor.
+
+Operators can inspect the effective descriptor projection without reading code:
+
+```bash
+test-genie phases inspect <phase> --json
+test-genie phases applicability <scenario> --phase <phase> --json
+test-genie phases plan <scenario> --preset comprehensive --json
+test-genie provider-contract scan --json
 ```
 
-| Phase | Timeout | Purpose | Requires Runtime |
-|-------|---------|---------|------------------|
-| **Structure** | 15s | Validate files and configuration | No |
-| **Standards** | 60s | scenario-auditor standards rules | No |
-| **Dependencies** | 30s | Check tools and resources | No |
-| **Lint** | 30s | Type checking and linting | No |
-| **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
-| **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
-| **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
-| **Integration** | 120s | Test API endpoints and CLI commands | Yes |
-| **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
-| **Business** | 180s | Validate requirements coverage | Yes |
-| **Performance** | 60s | Run benchmarks (optional) | Yes |
+The phase inspection and plan surfaces expose provider, descriptor path, docs path, policy, runnability, applicability reasons, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source.
 
-See [Phases Overview](../phases/README.md) for detailed phase definitions.
+## Comparison contracts and provenance
+
+Every run freezes a descriptor snapshot. Each phase carries a semantic
+comparison fingerprint and a `comparison.mode`: `compatible`,
+`changed-unreviewed` (the default), `invalidated`, `superseded`, or `additive`.
+An `additive` phase is intentionally new after an older baseline: a passing
+current-only result remains visible as evidence without poisoning the aggregate
+comparison, while a failing result is still a hard new failure. Display copy
+and ordering do not affect this fingerprint; validation policy, provider,
+applicability, and evidence semantics do. Therefore a same-key validator edit
+cannot silently turn a pass-to-fail result into a regression: it is reported as
+an explicit contract change until the provider declares compatibility.
+
+`runs compare` returns behavior, coverage, compatibility, and provenance for
+each phase and for the aggregate. Provider outages, skipped phases,
+inapplicability, missing artifacts, and legacy snapshots are coverage or
+provenance facts with structured diagnostics—not clean behavior. Gate-quality
+run starts compute a source tree plus frozen plan identity before coalescing and
+recheck it at execution start; a changed source or plan is refused instead of
+being attributed to the earlier request.
 
 ## Running Tests with Test Genie
 
@@ -76,30 +113,34 @@ test-genie execute my-scenario --preset comprehensive
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| **Quick** | Structure, Standards, Docs, Unit | Fast feedback during development |
-| **Smoke** | Structure, Standards, Lint, Docs, Integration | Pre-push validation |
-| **Comprehensive** | All 11 phases | Full coverage before release |
+| **Quick** | Structure, Docs, Business, Unit, Proto | Fast feedback during development |
+| **Smoke** | Structure, Quality, Docs, Business, Integration, Proto | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Architecture, Proto | Surface and architecture review |
+| **Comprehensive** | All applicable registry phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 
 ### Using the REST API
 
-For CI/CD and agent automation, use the synchronous execution API:
+For CI/CD and agent automation, create a server-owned execution and wait once
+for its durable result:
 
 ```bash
 # Get API port
 API_PORT=$(vrooli scenario port test-genie API_PORT)
 
 # Execute with comprehensive preset
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{
+    "scenarioName": "my-scenario",
     "preset": "comprehensive",
     "failFast": true
   }'
 ```
 
-See [Sync Execution Guide](sync-execution.md) for complete API usage.
+Use the returned execution ID with the durable run protocol in the
+[Server-Owned Execution Guide](sync-execution.md).
 
 ### Using the Makefile
 
@@ -139,20 +180,21 @@ make logs     # View test logs
 - Resource dependencies declared in service.json
 
 **Example failures**:
-- Missing Go runtime
-- pnpm not installed
-- Declared resource not available
+- Missing runtime or package manager reported by SDA readiness
+- Required resource or scenario dependency unavailable
+- Declared-vs-actual dependency graph drift
+- Missing pnpm release-age policy or blocked dependency governance finding
 
-### Phase 3: Lint
+### Phase 3: Quality
 
 **Purpose**: Run static analysis and type checking to catch errors before runtime.
 
 **Checks**:
-- Go: `golangci-lint` (fallback `go vet`)
+- Static quality contracts are delegated to `quality-health audit run <scenario> --json`.
 - TypeScript/JavaScript: `tsc --noEmit`, `eslint`
 - Python: `ruff`/`flake8`, optional `mypy`
 
-Warnings are informational; type errors fail. See [Lint Phase](../phases/lint/README.md).
+Warnings are informational; error findings fail. See [Quality Phase](../phases/quality/README.md).
 
 ### Phase 4: Docs Validation
 
@@ -207,9 +249,9 @@ curl -f http://localhost:${UI_PORT}
 my-scenario-cli --version
 ```
 
-### Phase 7: Playbooks (E2E) Tests
+### Phase 7: Workflow Tests
 
-**Purpose**: Validate end-to-end UI workflows via BAS playbooks.
+**Purpose**: Validate end-to-end UI workflows through workflow-health.
 
 **Requires**: Scenario + BAS running
 
@@ -218,7 +260,7 @@ my-scenario-cli --version
 - Isolation + seeds (temporary DB/Redis + `coverage/runtime/seed-state.json`)
 - Contract correctness with BAS execution + timeline responses
 
-See [Playbooks Phase](../phases/playbooks/README.md) for authoring guidance.
+See [Workflow Phase](../phases/workflow/README.md) for current behavior.
 
 ### Phase 8: Business Logic Tests
 
@@ -271,7 +313,7 @@ Scenarios should have this test structure:
 ```
 scenario/
 ├── .vrooli/
-│   ├── service.json      # Scenario configuration (lifecycle.test.steps invokes test-genie)
+│   ├── service.json      # Scenario runtime and component declaration
 │   └── testing.json      # Test-genie configuration (optional)
 ├── test/                  # Test artifacts directory
 │   └── playbooks/        # BAS workflow tests (optional)
@@ -281,7 +323,9 @@ scenario/
     └── *.test.ts         # Vitest/Jest tests
 ```
 
-> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `coverage/run-tests.sh` + `coverage/phases/*` pattern is deprecated.
+> **Note**: Run tests with `vrooli scenario test <name>`. The control plane
+> submits the run directly to Test Genie; testing is not a scenario lifecycle
+> phase. The `coverage/run-tests.sh` + `coverage/phases/*` pattern is legacy.
 
 ## Configuration with `.vrooli/testing.json`
 
@@ -377,7 +421,7 @@ UI_URL="http://localhost:$UI_PORT"
 
 Before considering a scenario test-ready:
 
-- [ ] `.vrooli/service.json` properly configured with `lifecycle.test.steps` invoking `test-genie execute`
+- [ ] `.vrooli/testing.json` declares any scenario-specific Test Genie configuration
 - [ ] Test directory exists for artifacts (playbooks, fixtures, logs)
 - [ ] Unit tests with coverage > 70%
 - [ ] `[REQ:ID]` tags on tests matching PRD requirements
@@ -394,7 +438,7 @@ Before considering a scenario test-ready:
 - [Structure Phase](../phases/structure/README.md) - File and CLI validation
 - [Unit Phase](../phases/unit/README.md) - Test runners and coverage
 - [Integration Phase](../phases/integration/README.md) - CLI and API testing
-- [Playbooks Phase](../phases/playbooks/README.md) - BAS browser automation
+- [Workflow Phase](../phases/workflow/README.md) - BAS browser automation
 - [Business Phase](../phases/business/README.md) - Requirements validation
 - [Performance Phase](../phases/performance/README.md) - Build benchmarks and Lighthouse
 
@@ -404,7 +448,6 @@ Before considering a scenario test-ready:
 - [Performance Testing](../phases/performance/performance-testing.md) - Build benchmarks and Lighthouse audits
 - [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
 - [Dashboard Guide](dashboard-guide.md) - Using the web UI
-- [CLI Testing](../phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](ui-testability.md) - Design testable UIs
 - [Sync Execution](sync-execution.md) - API usage for CI/CD
 - [Troubleshooting](troubleshooting.md) - Debug common issues

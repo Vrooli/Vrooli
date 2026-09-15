@@ -1,0 +1,20 @@
+{
+  "id": "7e1c9cf1-0b66-4d25-8b8e-1f6f4f6c4d20",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "local-voice-free-tier",
+  "folder_path": "/bas/cases/04-commercial",
+  "description": "Verify the free-tier workspace keeps local voice controls available without a monetization refusal.",
+  "metadata": { "name": "local-voice-free-tier", "description": "Verify the free-tier workspace keeps local voice controls available without a monetization refusal.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "local-voice", "requirements_json": "[\"WEBCONSO-P0-009\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"WEBCONSO-P0-009\"]"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1440, "viewport_height": 900 }, "nodes": [
+    { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
+    { "id": "assert-voice-control", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/voice.micButton", "timeout_ms": 10000 } } },
+    { "id": "assert-no-refusal", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const blocked = [...document.querySelectorAll('[data-testid]')].some((node) => /subscription required|credits required|upgrade/i.test(node.textContent || '')); document.body.setAttribute('data-local-voice-refusal', blocked ? 'true' : 'false'); })()" } } },
+    { "id": "verify-no-refusal", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/commercial.localVoiceRefusal", "timeout_ms": 5000 } } }
+  ], "edges": [
+    { "id": "e1", "source": "open-workspace", "target": "assert-voice-control", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e2", "source": "assert-voice-control", "target": "assert-no-refusal", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e3", "source": "assert-no-refusal", "target": "verify-no-refusal", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+  ] }
+}

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.inventory;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inventory;inventory_v1";
+
+message ProviderRole {
+  string provider = 1;
+  string role = 2;
+  repeated string capabilities = 3;
+  string locality = 4;
+  string status = 5;
+  string policy_schema_version = 6;
+}
+
+message ListProviderRolesRequest {
+  string provider = 1;
+}
+
+message ListProviderRolesResponse {
+  repeated ProviderRole roles = 1;
+  repeated string warnings = 2;
+}
+
+message SmokeProviderRequest {
+  string provider = 1;
+}
+
+message SmokeProviderResponse {
+  string provider = 1;
+  string status = 2;
+  string code = 3;
+  string message = 4;
+  int32 exit_code = 5;
+  repeated string warnings = 6;
+}
+
+service InventoryService {
+  rpc ListProviderRoles(ListProviderRolesRequest) returns (ListProviderRolesResponse);
+  rpc SmokeProvider(SmokeProviderRequest) returns (SmokeProviderResponse);
+}

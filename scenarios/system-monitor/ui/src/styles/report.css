@@ -1,0 +1,317 @@
+/* Report typography — the presentation layer for `shared/report/ReportBody`.
+ *
+ * Agent-authored investigation reports used to reach the DOM as an unstyled
+ * string. They are documents, so they get document typography: a capped
+ * measure, a real hierarchy, and label/value pairs that read as data rather
+ * than as bold text in a sentence.
+ *
+ * Every colour here resolves to a token so both themes stay correct. */
+
+.report-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  /* Cap the measure near 65-75 characters. Running text that spans a
+   * dashboard's full width is unreadable no matter how it is styled. */
+  max-width: 68ch;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.report-body > * {
+  margin: 0;
+}
+
+/* --- Headings ---------------------------------------------------------- */
+
+.report-heading {
+  margin: 0;
+  color: var(--color-text-heading);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.report-heading + * {
+  margin-top: calc(-1 * var(--spacing-xs));
+}
+
+/* --- Prose ------------------------------------------------------------- */
+
+.report-paragraph {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-strong {
+  color: var(--color-text-heading);
+  font-weight: 600;
+}
+
+/* --- Label / value pairs ----------------------------------------------- */
+
+.report-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin: 0;
+}
+
+.report-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.report-field-label {
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.report-field-value {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: 0;
+  /* A hairline channel ties the value back to its label without a box. */
+  padding-left: var(--spacing-sm);
+  border-left: 1px solid var(--color-border);
+}
+
+/* --- State chips -------------------------------------------------------- */
+
+.report-chip {
+  align-self: flex-start;
+  padding: 2px var(--spacing-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  color: var(--color-text-heading);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.report-chip-ok {
+  border-color: var(--color-success);
+  background: var(--color-success-muted);
+  color: var(--color-success-text);
+}
+
+.report-chip-warn {
+  border-color: var(--color-warning);
+  background: var(--color-warning-muted);
+  color: var(--color-warning-text);
+}
+
+.report-chip-bad {
+  border-color: var(--color-error);
+  background: var(--color-error-muted);
+  color: var(--color-error-text);
+}
+
+/* --- Lists -------------------------------------------------------------- */
+
+.report-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-list-item {
+  position: relative;
+  padding-left: var(--spacing-md);
+  overflow-wrap: anywhere;
+}
+
+.report-list-item::before {
+  content: '';
+  position: absolute;
+  top: 0.6em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+/* --- Code --------------------------------------------------------------- */
+
+.report-code {
+  padding: 1px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-heading);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-variant-numeric: var(--numeric-tabular);
+}
+
+.report-pre {
+  max-width: 100%;
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+/* --- Placements --------------------------------------------------------- */
+
+/* A bordered well for a report sitting inside a denser card. */
+.report-body-inset {
+  max-height: 22rem;
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+/* A long report must scroll in place rather than push the page down. */
+.report-body-scroll {
+  max-height: 30rem;
+  padding-right: var(--spacing-sm);
+  overflow-y: auto;
+}
+
+/* --- Incident timeline entries ------------------------------------------ */
+
+.incident-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incident-timeline-entry-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--spacing-xs) var(--spacing-md);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.incident-timeline-entry-button:hover,
+.incident-timeline-entry-button:focus-visible {
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+/* The severity channel: a rule plus a written label, so severity never rests
+ * on colour alone. */
+.incident-severity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  grid-row: span 2;
+  width: 4.5rem;
+}
+
+.incident-severity-rule {
+  width: 3px;
+  min-height: 1.5rem;
+  flex: 1;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+}
+
+.incident-severity-label {
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.incident-severity-critical .incident-severity-rule {
+  background: var(--color-error);
+}
+
+.incident-severity-critical .incident-severity-label {
+  color: var(--color-error-text);
+}
+
+.incident-severity-warning .incident-severity-rule {
+  background: var(--color-warning);
+}
+
+.incident-severity-warning .incident-severity-label {
+  color: var(--color-warning-text);
+}
+
+.incident-severity-info .incident-severity-rule {
+  background: var(--color-info);
+}
+
+.incident-severity-info .incident-severity-label {
+  color: var(--color-info-text);
+}
+
+.incident-entry-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.incident-entry-time {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+}
+
+.incident-entry-title {
+  color: var(--color-text-heading);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* The one-line report projection. Clamped: the structured render lives in the
+ * correlated view, not in the row. */
+.incident-entry-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-width: 68ch;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}

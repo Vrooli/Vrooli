@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.personas;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/personas;personas_v1";
+
+service PersonasService {
+  rpc CreatePersona(CreatePersonaRequest) returns (CreatePersonaResponse);
+  rpc GetPersona(GetPersonaRequest) returns (GetPersonaResponse);
+  rpc ListPersonas(ListPersonasRequest) returns (ListPersonasResponse);
+  rpc ArchivePersona(ArchivePersonaRequest) returns (ArchivePersonaResponse);
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
+}
+
+enum PersonaKind {
+  PERSONA_KIND_UNSPECIFIED = 0;
+  PERSONA_KIND_PERSONAL = 1;
+  PERSONA_KIND_BUSINESS = 2;
+}
+
+enum PersonaStatus {
+  PERSONA_STATUS_UNSPECIFIED = 0;
+  PERSONA_STATUS_ACTIVE = 1;
+  PERSONA_STATUS_ARCHIVED = 2;
+}
+
+message LegalBasis {
+  string subject_id = 1;
+  string subject_name = 2;
+  string basis_type = 3;
+}
+
+message Identifier {
+  string type = 1;
+  string value = 2;
+}
+
+message Persona {
+  string id = 1;
+  PersonaKind kind = 2;
+  LegalBasis legal_basis = 3;
+  string display_name = 4;
+  repeated Identifier identifiers = 5;
+  PersonaStatus status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp archived_at = 8;
+}
+
+message CreatePersonaRequest {
+  PersonaKind kind = 1;
+  LegalBasis legal_basis = 2;
+  string display_name = 3;
+  repeated Identifier identifiers = 4;
+}
+message CreatePersonaResponse { Persona persona = 1; }
+message GetPersonaRequest { string persona_id = 1; }
+message GetPersonaResponse { Persona persona = 1; }
+message ListPersonasRequest { int32 limit = 1; bool include_archived = 2; }
+message ListPersonasResponse { repeated Persona personas = 1; }
+message ArchivePersonaRequest { string persona_id = 1; }
+message ArchivePersonaResponse { Persona persona = 1; }
+message CheckHealthRequest { string persona_id = 1; }
+message HealthFinding {
+  string code = 1;
+  string message = 2;
+  bool blocking = 3;
+}
+message CheckHealthResponse { repeated HealthFinding findings = 1; }

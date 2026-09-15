@@ -66,8 +66,8 @@ func BuildRequirementsResponse() RequirementsResponse {
 	resp.VPS.Network.RequiredInboundPorts = []int{DefaultSSHPort, DefaultHTTPPort, DefaultHTTPSPort}
 	resp.VPS.Network.SSHPort = DefaultSSHPort
 
-	resp.VPS.Authentication.RequiredMethod = "ssh_key"
-	resp.VPS.Authentication.BootstrapFlow = "scenario-to-cloud ssh bootstrap"
+	resp.VPS.Authentication.RequiredMethod = "bridge_enrollment_or_ssh_key_binding"
+	resp.VPS.Authentication.BootstrapFlow = "vrooli-bridge onboard (or authorise the operator key with ssh-copy-id; the cloud reaches it through the credential binding vrooli/scenario-to-cloud:ssh-key)"
 
 	return resp
 }

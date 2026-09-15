@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate the harness-facing memory projection safely.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "states": [
+    {"id": "default", "description": "Harness-facing configuration and the Source Ledger ownership boundary are visible."},
+    {"id": "loading", "description": "Harness settings are loading."},
+    {"id": "partial", "description": "Some harness settings are available while another source is pending."},
+    {"id": "request-error", "description": "Harness settings could not be loaded."},
+    {"id": "stale", "description": "The displayed settings are older than the current policy."}
+  ]
+}

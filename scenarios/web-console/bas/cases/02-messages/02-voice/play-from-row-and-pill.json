@@ -1,0 +1,406 @@
+{
+  "id": "ce6c27b7-fded-4c58-a4d7-93d2dc14c3b3",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "web-console-play-from-row-and-pill",
+  "folder_path": "/bas/cases/02-messages/02-voice",
+  "description": "Start Read from here on an assistant message, see the playback pill, expand it, and jump to the speaking message",
+  "metadata": {
+    "name": "web-console-play-from-row-and-pill",
+    "description": "Start Read from here on an assistant message, see the playback pill, expand it, and jump to the speaking message",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-017h\"]"
+    }
+  },
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"REQ-P0-017h\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-09-11T10:43:45Z",
+  "updated_at": "2026-09-11T10:43:45Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "hydrate-wait",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1500
+          },
+          "metadata": {
+            "label": "Allow sessions + conversation to hydrate"
+          }
+        }
+      },
+      {
+        "id": "activate-messages-session",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let found = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { found = true; break; } } document.body.setAttribute('data-nav-seed-session-active', found ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Activate the seeded messages-capable session"
+          }
+        }
+      },
+      {
+        "id": "assert-messages-session",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-nav-seed-session-active='true']",
+            "failure_message": "Expected a seeded session that supports the Messages view (seed.sh hook seeding may be unavailable)",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify a messages-capable session is active"
+          }
+        }
+      },
+      {
+        "id": "switch-to-messages",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/workspace.toggleView"
+          },
+          "metadata": {
+            "label": "Switch active pane to Messages view"
+          }
+        }
+      },
+      {
+        "id": "assert-messages-pane",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid^=\"messages-pane-\"]",
+            "failure_message": "Expected the Messages pane to render after toggling view",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify Messages pane rendered"
+          }
+        }
+      },
+      {
+        "id": "install-speech-standin",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { if (window.__bas_speech_standin) return; window.__bas_speech_standin = true; const engine = { current: null, timer: null, speaking: false, paused: false, pending: false, onvoiceschanged: null, speak(u) { this.cancel(); this.current = u; this.speaking = true; setTimeout(() => { if (u.onstart) u.onstart(new Event('start')); }, 10); this.timer = setTimeout(() => { this.speaking = false; this.current = null; if (u.onend) u.onend(new Event('end')); }, 20000); }, cancel() { if (this.timer) clearTimeout(this.timer); const u = this.current; this.current = null; this.speaking = false; if (u && u.onerror) u.onerror(Object.assign(new Event('error'), { error: 'interrupted' })); }, pause() { this.paused = true; }, resume() { this.paused = false; }, getVoices() { return []; }, addEventListener() {}, removeEventListener() {} }; Object.defineProperty(window, 'speechSynthesis', { value: engine, configurable: true }); })()"
+          },
+          "metadata": {
+            "label": "Stand in browser speech for a runner without an audio device"
+          }
+        }
+      },
+      {
+        "id": "read-from-here",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const cards = Array.from(document.querySelectorAll('[data-testid^=\"msg-card-\"]')).filter((card) => { const speaker = card.querySelector('[data-testid^=\"msg-speaker-\"]'); return speaker && speaker.textContent.trim() !== 'You'; }); let started = false; for (const card of cards.slice(-4).reverse()) { const id = (card.getAttribute('data-testid') || '').slice('msg-card-'.length); card.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); await sleep(250); const action = document.querySelector('[data-testid=\"msg-speak-from-' + id + '\"]'); if (action instanceof HTMLElement) { action.click(); started = true; break; } } document.body.setAttribute('data-voice-started', started ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Choose Read from here on an assistant message"
+          }
+        }
+      },
+      {
+        "id": "assert-read-started",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-voice-started='true']",
+            "failure_message": "Expected an assistant message with a Read from here action",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify Read from here was chosen"
+          }
+        }
+      },
+      {
+        "id": "assert-pill-visible",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/playback.pill",
+            "failure_message": "Expected the playback pill once playback starts",
+            "timeout_ms": 20000
+          },
+          "metadata": {
+            "label": "Verify the playback pill appears"
+          }
+        }
+      },
+      {
+        "id": "expand-pill",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/playback.summary"
+          },
+          "metadata": {
+            "label": "Tap the pill to expand it"
+          }
+        }
+      },
+      {
+        "id": "assert-pill-next",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/playback.next",
+            "failure_message": "Expected the expanded pill's Next control",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify the expanded pill shows Next"
+          }
+        }
+      },
+      {
+        "id": "wait-speaking",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const deadline = Date.now() + 30000; while (Date.now() < deadline && !document.querySelector('[data-speaking=\"true\"]')) await sleep(250); document.body.setAttribute('data-voice-speaking', document.querySelector('[data-speaking=\"true\"]') ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Wait for the message to be speaking"
+          }
+        }
+      },
+      {
+        "id": "assert-speaking",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-voice-speaking='true']",
+            "failure_message": "Expected a speaking row once audio starts",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify audio is speaking"
+          }
+        }
+      },
+      {
+        "id": "pause-playback",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/playback.playPause"
+          },
+          "metadata": {
+            "label": "Pause, so a short message cannot end before the pill is used"
+          }
+        }
+      },
+      {
+        "id": "assert-paused-pill",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/playback.pill",
+            "failure_message": "Expected the pill to stay up while playback is paused",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify the paused pill stays"
+          }
+        }
+      },
+      {
+        "id": "jump-to-message",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/playback.jump"
+          },
+          "metadata": {
+            "label": "Jump to the speaking message"
+          }
+        }
+      },
+      {
+        "id": "assert-speaking-row",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-speaking=\"true\"]",
+            "failure_message": "Expected the speaking row to carry data-speaking",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Verify the speaking row is marked"
+          }
+        }
+      },
+      {
+        "id": "capture-pill",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture the expanded pill over the speaking row"
+          }
+        }
+      },
+      {
+        "id": "stop-playback",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/playback.close"
+          },
+          "metadata": {
+            "label": "Close the pill so nothing keeps playing"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "open-workspace",
+        "target": "hydrate-wait",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "hydrate-wait",
+        "target": "activate-messages-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "activate-messages-session",
+        "target": "assert-messages-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-messages-session",
+        "target": "switch-to-messages",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "switch-to-messages",
+        "target": "assert-messages-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "assert-messages-pane",
+        "target": "install-speech-standin",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "install-speech-standin",
+        "target": "read-from-here",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "read-from-here",
+        "target": "assert-read-started",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "assert-read-started",
+        "target": "assert-pill-visible",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "assert-pill-visible",
+        "target": "expand-pill",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "expand-pill",
+        "target": "assert-pill-next",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "assert-pill-next",
+        "target": "wait-speaking",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "wait-speaking",
+        "target": "assert-speaking",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "assert-speaking",
+        "target": "pause-playback",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "pause-playback",
+        "target": "assert-paused-pill",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "assert-paused-pill",
+        "target": "jump-to-message",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e17",
+        "source": "jump-to-message",
+        "target": "assert-speaking-row",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e18",
+        "source": "assert-speaking-row",
+        "target": "capture-pill",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e19",
+        "source": "capture-pill",
+        "target": "stop-playback",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

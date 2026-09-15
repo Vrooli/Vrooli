@@ -6,9 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
@@ -34,6 +36,10 @@ func newTestServer(t *testing.T) (*Server, *httptest.Server) {
 	if err != nil {
 		t.Fatalf("new subscription store: %v", err)
 	}
+	descriptorSource, err := testDescriptorSource(t)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	srv := &Server{
 		store:             eventStore,
@@ -43,6 +49,7 @@ func newTestServer(t *testing.T) (*Server, *httptest.Server) {
 		subStore:          subStore,
 		policyBroadcaster: policy.NewPolicyBroadcaster(),
 		webhookDeliverer:  subscription.NewWebhookDeliverer(),
+		descriptorSource:  descriptorSource,
 		config: config.Config{
 			MaxBodyBytes: config.DefaultMaxBodyBytes,
 			SSERetryMs:   config.DefaultSSERetryMs,
@@ -53,6 +60,14 @@ func newTestServer(t *testing.T) (*Server, *httptest.Server) {
 	t.Cleanup(ts.Close)
 
 	return srv, ts
+}
+
+func testDescriptorSource(t *testing.T) (*descriptorimage.Source, error) {
+	root, err := filepath.Abs("../../..")
+	if err != nil {
+		return nil, err
+	}
+	return descriptorimage.NewForRepo(root)
 }
 
 // newMockedServer creates a Server backed by MockStore and MockBroker.

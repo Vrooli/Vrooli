@@ -4,81 +4,102 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
-	"github.com/gorilla/mux"
+	shortcutsH "web-console/handlers/shortcuts"
 )
 
-// ShortcutProfileRequest is the JSON body for creating/updating a profile.
-type ShortcutProfileRequest struct {
-	ID        string          `json:"id"`
-	Scope     string          `json:"scope"`
-	Name      string          `json:"name"`
-	Shortcuts []ShortcutEntry `json:"shortcuts"`
+// shortcutsAdapter bridges the in-process ShortcutStore to the
+// transport-neutral Service interface that the Connect handler depends
+// on. [REQ:P1-002a] Shortcut Profile Storage
+type shortcutsAdapter struct {
+	s *Server
 }
 
-// validateShortcutProfile checks a profile request for validity.
-func validateShortcutProfile(req ShortcutProfileRequest) string {
+func newShortcutsAdapter(s *Server) *shortcutsAdapter {
+	return &shortcutsAdapter{s: s}
+}
+
+func (a *shortcutsAdapter) Effective(ctx context.Context) shortcutsH.Effective {
+	resolved := a.s.shortcuts.Effective(ctx)
+	return shortcutsH.Effective{
+		ProfileID: resolved.ProfileID,
+		Scope:     resolved.Scope,
+		Name:      resolved.Name,
+		Shortcuts: entriesToTransport(resolved.Shortcuts),
+	}
+}
+
+func (a *shortcutsAdapter) List(ctx context.Context) []shortcutsH.Profile {
+	profiles := a.s.shortcuts.List(ctx)
+	out := make([]shortcutsH.Profile, 0, len(profiles))
+	for _, p := range profiles {
+		out = append(out, profileToTransport(p))
+	}
+	return out
+}
+
+func (a *shortcutsAdapter) Upsert(ctx context.Context, req shortcutsH.UpsertRequest) (shortcutsH.Profile, error) {
 	if req.ID == "" {
-		return "Profile ID is required"
+		return shortcutsH.Profile{}, fmt.Errorf("%w: profile ID is required", shortcutsH.ErrInvalidArgument)
 	}
 	if !validScopes[req.Scope] {
-		return "Scope must be 'service', 'workspace', or 'parent'"
+		return shortcutsH.Profile{}, fmt.Errorf("%w: scope must be 'service', 'workspace', or 'parent'", shortcutsH.ErrInvalidArgument)
 	}
 	if req.Name == "" {
-		return "Profile name is required"
+		return shortcutsH.Profile{}, fmt.Errorf("%w: profile name is required", shortcutsH.ErrInvalidArgument)
 	}
 	for i, sc := range req.Shortcuts {
 		if sc.Label == "" {
-			return fmt.Sprintf("Shortcut label is required (entry %d)", i)
+			return shortcutsH.Profile{}, fmt.Errorf("%w: shortcut label is required (entry %d)", shortcutsH.ErrInvalidArgument, i)
 		}
 		if sc.Command == "" {
-			return fmt.Sprintf("Shortcut command is required (entry %d)", i)
+			return shortcutsH.Profile{}, fmt.Errorf("%w: shortcut command is required (entry %d)", shortcutsH.ErrInvalidArgument, i)
 		}
 	}
-	return ""
+	entries := entriesFromTransport(req.Shortcuts)
+	p := a.s.shortcuts.Upsert(ctx, req.ID, req.Scope, req.Name, entries)
+	return profileToTransport(p), nil
 }
 
-// handleListShortcutProfiles returns all profiles.
-// GET /api/v1/shortcuts/profiles
-// [REQ:P1-002a] Shortcut Profile Storage
-func (s *Server) handleListShortcutProfiles(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.shortcuts.List())
+func (a *shortcutsAdapter) Delete(ctx context.Context, id string) {
+	a.s.shortcuts.Delete(ctx, id) // idempotent
 }
 
-// handleGetEffectiveShortcuts returns the resolved shortcut list.
-// GET /api/v1/shortcuts
-// [REQ:P1-002a] Shortcut Profile Storage
-func (s *Server) handleGetEffectiveShortcuts(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.shortcuts.Effective())
-}
-
-// handleUpsertShortcutProfile creates or updates a profile.
-// PUT /api/v1/shortcuts/profiles
-// [REQ:P1-002a] Shortcut Profile Storage
-func (s *Server) handleUpsertShortcutProfile(w http.ResponseWriter, r *http.Request) {
-	var req ShortcutProfileRequest
-	if !decodeJSON(w, r, &req) {
-		return
+func entriesToTransport(in []ShortcutEntry) []shortcutsH.Shortcut {
+	out := make([]shortcutsH.Shortcut, 0, len(in))
+	for _, e := range in {
+		out = append(out, shortcutsH.Shortcut{
+			Label:       e.Label,
+			Command:     e.Command,
+			Description: e.Description,
+			AgentID:     e.AgentID,
+		})
 	}
-
-	if msg := validateShortcutProfile(req); msg != "" {
-		writeCatalogError(w, "invalid_body", msg)
-		return
-	}
-
-	profile := s.shortcuts.Upsert(req.ID, req.Scope, req.Name, req.Shortcuts)
-	writeJSON(w, http.StatusOK, profile)
+	return out
 }
 
-// handleDeleteShortcutProfile deletes a profile by ID.
-// DELETE /api/v1/shortcuts/profiles/{id}
-// Idempotent: returns 204 whether the profile existed or not, so that retries
-// and replays are safe. The post-condition "profile does not exist" is met.
-// [REQ:P1-002a] Shortcut Profile Storage
-func (s *Server) handleDeleteShortcutProfile(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	s.shortcuts.Delete(id) // result ignored — idempotent
-	w.WriteHeader(http.StatusNoContent)
+func entriesFromTransport(in []shortcutsH.Shortcut) []ShortcutEntry {
+	out := make([]ShortcutEntry, 0, len(in))
+	for _, e := range in {
+		out = append(out, ShortcutEntry{
+			Label:       e.Label,
+			Command:     e.Command,
+			Description: e.Description,
+			AgentID:     e.AgentID,
+		})
+	}
+	return out
+}
+
+func profileToTransport(p *ShortcutProfile) shortcutsH.Profile {
+	return shortcutsH.Profile{
+		ID:        p.ID,
+		Scope:     p.Scope,
+		Name:      p.Name,
+		Shortcuts: entriesToTransport(p.Shortcuts),
+		CreatedAt: p.CreatedAt,
+		UpdatedAt: p.UpdatedAt,
+	}
 }

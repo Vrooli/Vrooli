@@ -141,7 +141,7 @@ open http://localhost:34300
 open https://picker-wheel.tunnel.com
 
 # Monitor logs for debugging
-tail -f .vrooli/logs/vrooli.develop.picker-wheel.log
+tail -f ~/.vrooli/logs/scenarios/picker-wheel/vrooli.develop.picker-wheel.start-api.log
 ```
 
 ---
@@ -182,7 +182,7 @@ curl http://localhost:27100/health
 curl http://localhost:5678/api/v1/info
 
 # View logs
-tail -f .vrooli/logs/vrooli.develop.picker-wheel.log
+tail -f ~/.vrooli/logs/scenarios/picker-wheel/vrooli.develop.picker-wheel.start-api.log
 ```
 
 ---

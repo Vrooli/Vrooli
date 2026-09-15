@@ -148,7 +148,7 @@ describe('pricing.service', () => {
     const demoPlan = createMockPlan({
       billing_interval: 'month',
       stripe_price_id: 'demo_test',
-      metadata: { __demo_placeholder: true } as PlanDisplayMetadata,
+      metadata: { __demo_placeholder: true },
     });
 
     it('filters to monthly plans when tab is month', () => {
@@ -288,7 +288,7 @@ describe('pricing.service', () => {
     it('marks demo plans in form state', () => {
       const demoPlan = createMockPlan({
         stripe_price_id: 'demo_plan',
-        metadata: { __demo_placeholder: true } as PlanDisplayMetadata,
+        metadata: { __demo_placeholder: true },
       });
       const entry: BundleCatalogEntry = {
         bundle: mockBundle,
@@ -309,7 +309,7 @@ describe('pricing.service', () => {
     it('falls back to __price_pk from metadata', () => {
       const price = createMockPlan({
         stripe_price_id: '',
-        metadata: { __price_pk: 42 } as PlanDisplayMetadata,
+        metadata: { __price_pk: 42 },
       });
       expect(getPriceIdentifier(price)).toBe('42');
     });
@@ -559,7 +559,7 @@ describe('pricing.service', () => {
       const demoPlan = createMockPlan({
         billing_interval: 'month',
         stripe_price_id: 'demo_plan',
-        metadata: { __demo_placeholder: true } as PlanDisplayMetadata,
+        metadata: { __demo_placeholder: true },
         display_enabled: true,
       });
       const realPlan = createMockPlan({
@@ -582,7 +582,7 @@ describe('pricing.service', () => {
       const demoPlan = createMockPlan({
         billing_interval: 'month',
         stripe_price_id: 'demo_plan',
-        metadata: { __demo_placeholder: true } as PlanDisplayMetadata,
+        metadata: { __demo_placeholder: true },
         display_enabled: true,
       });
       const entry: BundleCatalogEntry = {

@@ -1,0 +1,174 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "cli": {
+    "enabled": true,
+    "command": "{{RESOURCE_CLI_COMMAND}}",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "{{RESOURCE_CLI_COMMAND}}"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-engine"
+          ],
+          "limitations": [
+            "Docker image, storage, and network remain host-managed dependencies."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "service",
+      "container": 0,
+      "host": 0
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:0",
+      "interval_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "replace/me:latest",
+    "container_name": "vrooli-{{RESOURCE_NAME}}",
+    "env": {},
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/var/lib/{{RESOURCE_NAME}}"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for {{RESOURCE_NAME}}.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "{{RESOURCE_ENV_PREFIX}}_HOST": "localhost"
+    },
+    "from_ports": {
+      "{{RESOURCE_ENV_PREFIX}}_PORT": "service"
+    },
+    "from_runtime_env": [],
+    "derived": {
+      "{{RESOURCE_ENV_PREFIX}}_URL": {
+        "template": "http://${{RESOURCE_ENV_PREFIX}}_HOST:${{RESOURCE_ENV_PREFIX}}_PORT"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 30,
+    "stop_timeout_seconds": 30,
+    "retries": 2
+  },
+  "template_version": "2"
+}

@@ -1,0 +1,88 @@
+{
+  "description": "ui-health uses code-facts (via `CodeFactsService.DescribeCodeFacts`) to determine UI presence and framework, replacing hand-rolled directory and port probing. A scenario with no UI surface produces a clean \"no UI surface\" report rather than spurious Findings.",
+  "module_id": "MOD-P0-017",
+  "prd_ref": "OT-P0-011",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "ui-health must determine UI presence and framework using code-facts via `CodeFactsService.DescribeCodeFacts`, replacing any hand-rolled directory-existence or port-probing heuristics for detecting a UI surface.",
+      "id": "REQ-P0-019",
+      "prd_ref": "OT-P0-011",
+      "status": "draft",
+      "title": "UI presence/framework via code-facts",
+      "validation": [
+        {
+          "notes": "ui-health calls CodeFactsService.DescribeCodeFacts to determine UI presence and framework",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No hand-rolled directory-existence or port-probe heuristic is used to detect the UI surface",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a UI scenario and confirm the detected framework matches the code-facts framework",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Code-facts is the single source of truth for UI presence and framework detection",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-019"
+      ],
+      "description": "When code-facts report that a scenario has no UI surface, ui-health must produce a clean \"no UI surface\" report with no spurious Findings and a passing verdict, rather than failing because directories or ports are absent.",
+      "id": "REQ-P0-020",
+      "prd_ref": "OT-P0-011",
+      "status": "draft",
+      "title": "Non-UI scenario clean report",
+      "validation": [
+        {
+          "notes": "A scenario whose code-facts indicate no UI surface yields a report with zero spurious Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The no-UI report carries an explicit no-UI-surface status and a passing verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario <non-ui-scenario> --json` and confirm a clean no-UI-surface report with exit code 0",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Non-UI scenarios are never penalized for lacking a UI surface",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Code-facts-driven UI gating"
+}

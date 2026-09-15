@@ -1,0 +1,412 @@
+{
+  "version": "2.0.0",
+  "title": "Scenario Dependency Analyzer Documentation",
+  "description": "Documentation contract for the Scenario Dependency Analyzer scenario.",
+  "defaultDocument": "START-HERE.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ]
+  },
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "documents": [
+        {
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "START-HERE.md",
+          "docType": "start-here",
+          "title": "Start Here",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "Quickstart",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../DESIGN.md",
+          "docType": "design",
+          "title": "Design Contract",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "architecture",
+          "title": "Architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DATA.md",
+          "docType": "data",
+          "title": "Data",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "docType": "domains",
+          "title": "Domains",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/FLOWS.md",
+          "docType": "flows",
+          "title": "Flows",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/INTEGRATIONS.md",
+          "docType": "integrations",
+          "title": "Integrations",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "documents": [
+        {
+          "path": "operations/DEPLOYMENT.md",
+          "docType": "deployment",
+          "title": "Deployment",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "operations/OBSERVABILITY.md",
+          "docType": "observability",
+          "title": "Observability",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "operations/RUNBOOK.md",
+          "docType": "runbook",
+          "title": "Runbook",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "docType": "api-reference",
+          "title": "API Endpoints",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "docType": "cli-reference",
+          "title": "CLI Commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "docType": "configuration-reference",
+          "title": "Configuration",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api.md",
+          "docType": "api-reference-legacy",
+          "title": "Detailed API Reference",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "cli.md",
+          "docType": "cli-reference-legacy",
+          "title": "Detailed CLI Reference",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "docs-manifest",
+          "title": "Documentation Manifest",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "documents": [
+        {
+          "path": "guides/troubleshooting.md",
+          "docType": "troubleshooting",
+          "title": "Troubleshooting",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "integration.md",
+          "docType": "integration-guide",
+          "title": "Integration Guide",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "documents": [
+        {
+          "path": "business/GO-TO-MARKET.md",
+          "docType": "go-to-market",
+          "title": "Go To Market",
+          "maturity": "stub",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "business/MONETIZATION.md",
+          "docType": "monetization",
+          "title": "Monetization",
+          "maturity": "stub",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "documents": [
+        {
+          "path": "internal/DECISIONS.md",
+          "docType": "decisions",
+          "title": "Decisions",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/ERROR-HANDLING.md",
+          "docType": "error-handling",
+          "title": "Error Handling",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PERFORMANCE.md",
+          "docType": "performance",
+          "title": "Performance",
+          "maturity": "stub",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "problems",
+          "title": "Problems",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "progress",
+          "title": "Progress",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "seams",
+          "title": "Seams",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SECURITY.md",
+          "docType": "security",
+          "title": "Security",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/TESTING.md",
+          "docType": "testing",
+          "title": "Testing",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "docType": "coherence-notes",
+          "title": "Coherence Notes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "docType": "experience-audit",
+          "title": "Experience Audit",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "perf/2026-06-15-sda-interface-graph.md",
+          "docType": "performance-note",
+          "title": "Interface Graph Performance Note",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        }
+      ]
+    }
+  ]
+}

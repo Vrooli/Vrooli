@@ -1,0 +1,24 @@
+{
+  "id": "7e1c9cf1-0b66-4d25-8b8e-1f6f4f6c4d1c",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "tunnel-manager-awareness",
+  "folder_path": "/bas/cases/04-commercial",
+  "description": "Verify remote access is represented as a disabled Tunnel Manager-owned capability.",
+  "metadata": { "name": "tunnel-manager-awareness", "description": "Verify remote access is represented as a disabled Tunnel Manager-owned capability.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "tunnel-manager", "requirements_json": "[\"WEBCONSO-P0-011\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"WEBCONSO-P0-011\"]"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
+      { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/workspace.settings" } } },
+      { "id": "open-integrations", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/settings.integrationsTab" } } },
+      { "id": "assert-awareness", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/settings.tunnelManagerAwareness", "timeout_ms": 10000 } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "open-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "open-settings", "target": "open-integrations", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "open-integrations", "target": "assert-awareness", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+# This lock is intentionally empty. It is committed so uv receives a stable,
+# lock-derived input even though the kernel admits no third-party packages.

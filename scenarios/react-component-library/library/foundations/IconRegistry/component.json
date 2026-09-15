@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.icon-registry",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:IconRegistry"
+}

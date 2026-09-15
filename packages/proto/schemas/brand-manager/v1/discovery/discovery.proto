@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.discovery;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/discovery;discovery_v1";
+
+// =============================================================================
+// DISCOVERY DOMAIN — scan an existing scenario for branding state
+// =============================================================================
+//
+// @layer 5
+// @domain discovery
+// @stability stable
+//
+// Wire contract for the DiscoveryService Connect-RPC service. Discovery is a
+// stateless orchestration domain: it owns no table of its own. It reads a target
+// scenario's source tree (.vrooli/service.json, .vrooli/branding.json,
+// ui/public/manifest.json, theme/brand CSS, ui/public asset files), infers a
+// draft brand from whatever branding state it finds, and reports each source
+// with a confidence score. Importing turns that draft into a real brand through
+// the brands domain. All cross-domain wiring lives only at the composition root
+// (handlers/discovery/module.go); the internal domains never import each other.
+//
+// The old REST surface folded scan and import into one GET + one POST keyed off
+// an X-Dry-Run header. That is re-expressed Connect-native as two explicit RPCs,
+// mirroring the apply domain's PreviewApply/ApplyBrand split:
+//
+//   - DiscoverScenario scans the scenario and returns the draft brand it WOULD
+//     import, the sources it found, an overall confidence, and suggestions for
+//     missing data. It is read-only and creates nothing — the safe preview.
+//   - ImportBrand re-runs the scan and persists the discovered draft as a new
+//     brand through the brands domain. A scenario with no branding state →
+//     FAILED_PRECONDITION (nothing to import).
+//
+// Both take the same input (a scenario name). Safety:
+//   - A scenario directory that does not exist → NOT_FOUND.
+//   - DiscoverScenario never fails on a missing/unreadable source file; it just
+//     omits that source (a scenario with no branding yields zero sources and an
+//     empty draft, not an error).
+//
+// Consumed by:
+//   - API: handlers/discovery/connect_handler.go implements the generated
+//          DiscoveryServiceHandler interface.
+//   - UI:  ui/src/api/discovery.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/discovery/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service DiscoveryService {
+  rpc DiscoverScenario(DiscoverScenarioRequest) returns (DiscoveryResult);
+  rpc ImportBrand(ImportBrandRequest) returns (ImportBrandResponse);
+}
+
+// DiscoverScenarioRequest asks what branding state a scenario contains, without
+// creating anything.
+message DiscoverScenarioRequest {
+  // Required. The scenario to scan (its directory must exist).
+  string scenario_name = 1;
+}
+
+// ImportBrandRequest scans a scenario and persists the discovered draft as a new
+// brand.
+message ImportBrandRequest {
+  // Required. The scenario to scan and import from (its directory must exist).
+  string scenario_name = 1;
+}
+
+// DiscoverySource records one place branding data was found, and how confident
+// the scanner is in it.
+message DiscoverySource {
+  // The path scanned, relative to the scenario root (e.g. ".vrooli/service.json").
+  string file = 1;
+  // The kind of source: "service_json", "branding_json", "manifest",
+  // "theme_css", or "asset".
+  string type = 2;
+  // The scanner's confidence in this source, 0.0–1.0.
+  double confidence = 3;
+  // How many branding fields this source contributed.
+  int32 fields = 4;
+}
+
+// DraftIdentity holds the visual-identity facets discovered for the draft brand.
+message DraftIdentity {
+  string display_name = 1;
+  string tagline = 2;
+  string logo_path = 3;
+  string favicon_path = 4;
+  string icon_path = 5;
+}
+
+// DraftColors holds the color system discovered for the draft brand. Values are
+// CSS colors.
+message DraftColors {
+  string primary = 1;
+  string secondary = 2;
+  string accent = 3;
+  string background = 4;
+  string surface = 5;
+  string text = 6;
+  string error = 7;
+}
+
+// DraftBrand is the brand the scanner inferred from the discovered sources — the
+// exact brand ImportBrand would persist. Only the facets discovery can extract
+// are populated (typography/voice are never inferred from a scan).
+message DraftBrand {
+  string name = 1;
+  string description = 2;
+  DraftIdentity identity = 3;
+  DraftColors colors = 4;
+}
+
+// DiscoveryResult reports the outcome of a scan: the sources found, the draft
+// brand inferred from them, an overall confidence, and suggestions for the
+// branding data that was NOT found.
+message DiscoveryResult {
+  // The scenario that was scanned.
+  string scenario = 1;
+  // Every source the scan found, in priority order.
+  repeated DiscoverySource sources = 2;
+  // The brand inferred from the sources. Absent (null) when no sources matched.
+  DraftBrand draft_brand = 3;
+  // The mean confidence across all sources, 0.0–1.0 (0 when no sources matched).
+  double confidence = 4;
+  // Human-readable suggestions for branding data that was not found.
+  repeated string suggestions = 5;
+}
+
+// ImportBrandResponse reports the brand created from a scan, plus the sources and
+// confidence that backed it.
+message ImportBrandResponse {
+  // The id of the newly created brand.
+  string brand_id = 1;
+  // The name of the newly created brand.
+  string brand_name = 2;
+  // The version of the newly created brand (always 1 for a fresh import).
+  int32 brand_version = 3;
+  // The sources the import was inferred from.
+  repeated DiscoverySource sources = 4;
+  // The overall confidence backing the import, 0.0–1.0.
+  double confidence = 5;
+}

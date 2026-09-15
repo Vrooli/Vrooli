@@ -2,22 +2,26 @@
 package config
 
 import (
-	"strings"
-
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
 
 // Options configures the Supervisor.
 type Options struct {
-	AppDataDir string             // Override for app data directory (default: user config dir)
-	Manifest   *manifest.Manifest // Bundle manifest (required)
-	BundlePath string             // Root path of the unpacked bundle
-	DryRun     bool               // Skip actual service launches (for testing)
+	AppDataDir  string             // Override for app data directory (default: user config dir)
+	PeerHomeDir string             // Override for the shared ~/.vrooli/peers registry root (tests only)
+	Manifest    *manifest.Manifest // Bundle manifest (required)
+	BundlePath  string             // Root path of the unpacked bundle
+	DryRun      bool               // Skip actual service launches (for testing)
+	// SharedResourceResolver is optional and may be supplied only after explicit
+	// user consent. Nil preserves the private bundled-service default.
+	SharedResourceResolver resourceplan.SharedServiceResolver
 
 	// Injectable dependencies (nil = use real implementations)
 	Clock         infra.Clock         // Time operations (default: RealClock)
@@ -34,11 +38,5 @@ type Options struct {
 
 // SanitizeAppName normalizes an application name for filesystem use.
 func SanitizeAppName(name string) string {
-	out := strings.TrimSpace(name)
-	if out == "" {
-		return "desktop-app"
-	}
-	out = strings.ReplaceAll(out, " ", "-")
-	out = strings.ToLower(out)
-	return out
+	return strutil.SanitizeAppName(name)
 }

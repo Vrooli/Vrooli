@@ -69,9 +69,11 @@ type BreakerConfig struct {
 // DefaultBreakerConfig returns sensible defaults for a circuit breaker.
 func DefaultBreakerConfig(name string) BreakerConfig {
 	return BreakerConfig{
-		Name:             name,
-		MaxRequests:      1,
-		Interval:         0,
+		Name:        name,
+		MaxRequests: 1,
+		// Decay closed-state failure counts every minute so a transient
+		// outage cannot poison unrelated later traffic indefinitely.
+		Interval:         time.Minute,
 		Timeout:          30 * time.Second,
 		FailureThreshold: 5,
 		FailureRatio:     0.6,
@@ -108,12 +110,18 @@ func ConfigFromEnv(prefix, name string) BreakerConfig {
 			cfg.MaxRequests = uint32(n)
 		}
 	}
+	if v := os.Getenv(prefix + "_CB_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			cfg.Interval = d
+		}
+	}
 
 	return cfg
 }
 
 // Breaker wraps a gobreaker circuit breaker with additional functionality.
 type Breaker struct {
+	mu     sync.RWMutex
 	cb     *gobreaker.CircuitBreaker[any]
 	name   string
 	log    *logrus.Logger
@@ -155,6 +163,13 @@ func NewBreaker(cfg BreakerConfig) *Breaker {
 		ReadyToTrip:   readyToTrip,
 		OnStateChange: onStateChange,
 		IsSuccessful: func(err error) bool {
+			// HTTP 429 is backpressure from a healthy dependency, not an
+			// availability failure. Keep the breaker closed so capacity can
+			// recover without a self-inflicted outage.
+			var statusCoder interface{ HTTPStatusCode() int }
+			if errors.As(err, &statusCoder) && statusCoder.HTTPStatusCode() == 429 {
+				return true
+			}
 			// Consider context cancellation as success (user cancelled, not service failure)
 			if errors.Is(err, context.Canceled) {
 				return true
@@ -178,7 +193,10 @@ func NewBreaker(cfg BreakerConfig) *Breaker {
 // Execute runs the given function through the circuit breaker.
 // Returns ErrCircuitOpen if the breaker is open.
 func (b *Breaker) Execute(fn func() (any, error)) (any, error) {
-	result, err := b.cb.Execute(fn)
+	b.mu.RLock()
+	cb := b.cb
+	b.mu.RUnlock()
+	result, err := cb.Execute(fn)
 	if err != nil {
 		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
 			return nil, fmt.Errorf("%w: %s circuit breaker is open, service may be unavailable", ErrCircuitOpen, b.name)
@@ -197,12 +215,18 @@ func (b *Breaker) ExecuteContext(ctx context.Context, fn func(context.Context) (
 
 // State returns the current state of the circuit breaker.
 func (b *Breaker) State() BreakerState {
-	return gobreakerStateToState(b.cb.State())
+	b.mu.RLock()
+	cb := b.cb
+	b.mu.RUnlock()
+	return gobreakerStateToState(cb.State())
 }
 
 // Counts returns the current counts for monitoring.
 func (b *Breaker) Counts() gobreaker.Counts {
-	return b.cb.Counts()
+	b.mu.RLock()
+	cb := b.cb
+	b.mu.RUnlock()
+	return cb.Counts()
 }
 
 // Name returns the breaker name.
@@ -212,7 +236,22 @@ func (b *Breaker) Name() string {
 
 // IsOpen returns true if the circuit breaker is in open state.
 func (b *Breaker) IsOpen() bool {
-	return b.cb.State() == gobreaker.StateOpen
+	b.mu.RLock()
+	cb := b.cb
+	b.mu.RUnlock()
+	return cb.State() == gobreaker.StateOpen
+}
+
+// Reset records a verified recovery immediately instead of waiting for a
+// customer request to become the half-open probe.
+func (b *Breaker) Reset() {
+	// gobreaker v2 deliberately exposes no mutable reset. Replacing the
+	// self-contained circuit under a lock is its supported equivalent and
+	// preserves the configured thresholds and callbacks.
+	replacement := NewBreaker(b.config)
+	b.mu.Lock()
+	b.cb = replacement.cb
+	b.mu.Unlock()
 }
 
 func gobreakerStateToState(s gobreaker.State) BreakerState {

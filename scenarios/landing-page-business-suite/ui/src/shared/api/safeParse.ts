@@ -150,7 +150,7 @@ export function parseArrayFiltered<T>(
 ): T[] {
   return data
     .map((item, index) => {
-      const result = safeParse(schema, item, `${context}[${index}]`);
+      const result = safeParse(schema, item, `${context}[${String(index)}]`);
       return result.success ? result.data : null;
     })
     .filter((item): item is T => item !== null);

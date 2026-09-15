@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "world-seed-stability",
+    "description": "Given seed 7, when the world reloads, then its terrain digest remains f5229bb8",
+    "labels": { "reset": "none", "safety": "read-only" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&profile=low&actors=25&seed=7&diag=1&intro=0&weather=clear&pressure=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open seed 7" } } },
+    { "id": "wait-ready", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 90000, "failure_message": "Seed 7 did not reach a stable first frame", "attribute_name": "data-ready", "expected": { "string_value": "true" } }, "metadata": { "label": "Wait for the first generated frame" } } },
+    { "id": "assert-first-digest", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 15000, "failure_message": "Seed 7 produced an unexpected terrain digest", "attribute_name": "data-seed-digest", "expected": { "string_value": "f5229bb8" } }, "metadata": { "label": "Record the first digest" } } },
+    { "id": "shot-before", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Seed 7 before reload" } } },
+    { "id": "reload", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&profile=low&actors=25&seed=7&diag=1&intro=0&weather=clear&pressure=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Reload seed 7" } } },
+    { "id": "assert-second-digest", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 90000, "failure_message": "Seed 7 changed after reload", "attribute_name": "data-seed-digest", "expected": { "string_value": "f5229bb8" } }, "metadata": { "label": "Confirm the reloaded digest" } } },
+    { "id": "shot-after", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Seed 7 after reload" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "wait-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-ready", "target": "assert-first-digest", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-first-digest", "target": "shot-before", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "shot-before", "target": "reload", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "reload", "target": "assert-second-digest", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-second-digest", "target": "shot-after", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}
