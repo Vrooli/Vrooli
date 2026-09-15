@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-10T18:14:08-04:00"
+    "last_validated_at": "2026-09-15T15:48:55-04:00"
   },
   "requirements": [
     {
@@ -78,14 +78,14 @@
           "type": "test",
           "ref": "ui/src/surfaces/public-landing/presentation/ProductDemo.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Configured YouTube/Vimeo URL, released poster reference, caption, stacked/split layout, click-only loading, focus/failure and revision teardown are tested. Shared backend URL corpus is imported directly. No actual provider playback/subtitle availability is claimed."
         },
         {
           "type": "test",
           "ref": "api/internal/presentation/product_demo_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recorded and fixture sources are disjoint; complete playback labels and canonical provider forms are validated. Backend races pass; this is not a real asset-release receipt."
         }
       ]

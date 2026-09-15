@@ -231,6 +231,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		ModelOverride:    override,
 		Host:             host,
 		AllowBYOK:        req.AllowBYOK,
+		FallbackPolicy:   req.FallbackPolicy,
 		QualityPolicy:    req.QualityPolicy,
 		IsEnabled:        enabled,
 		Adapters:         req.Adapters,
@@ -255,7 +256,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		ModelID:          res.Model.ID,
 		Tier:             res.Tier,
 		Warnings:         res.Warnings,
-		EstimatedSeconds: estimateSeconds(req.Operation, res.GPUViable),
+		EstimatedSeconds: estimateSecondsForTier(req.Operation, res.GPUViable, res.Tier),
 		GPUViable:        res.GPUViable,
 		Weight:           res.Weight,
 		Adapters:         resolved,
@@ -312,11 +313,27 @@ func estimateSeconds(op string, gpuViable bool) int {
 	return base
 }
 
-// Lane returns the job lane for an op. All current AI ops are heavy and run on
-// the serialized GPU lane (one at a time) to avoid VRAM contention, regardless
-// of whether the chosen tier is GPU or CPU — a CPU-bound model still saturates
-// the box and should not contend with another heavy run.
-func Lane(string) internaljobs.Lane { return internaljobs.LaneGPU }
+// estimateSecondsForTier uses the network ETA for a remote tier (30 s when none
+// is declared) instead of the CPU multiplier, which described the wrong machine.
+func estimateSecondsForTier(op string, gpuViable bool, tier string) int {
+	if tier == "byok-cloud" {
+		return 30
+	}
+	return estimateSeconds(op, gpuViable)
+}
+
+// LaneForTier returns the job lane for the selected tier. A remote BYOK-cloud
+// tier runs on the network lane, never behind the single local GPU worker, which
+// otherwise serialized cloud jobs (F7: ~70 s queued per OpenRouter job). Local
+// GPU and CPU tiers stay on the local lanes.
+func LaneForTier(tier string) internaljobs.Lane {
+	switch tier {
+	case "byok-cloud":
+		return internaljobs.LaneNetwork
+	default:
+		return internaljobs.LaneGPU
+	}
+}
 
 // OpRunner is the per-operation execution function the dispatcher registers. It
 // matches both jobrunner.OpRunner and jobs.Runner structurally (an unnamed func
@@ -478,6 +495,12 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		}
 	}
 	if len(outKeys) > 1 {
+		if meta == nil {
+			meta = map[string]string{}
+		}
+		// Persist every variation key so `jobs get` can list them; result_ref
+		// stays the first entry for single-result callers.
+		meta["result_refs"] = strings.Join(outKeys, ",")
 		emit(98, fmt.Sprintf("variations: %v", outKeys))
 	}
 	return internaljobs.Result{Ref: primary, Meta: meta}, nil

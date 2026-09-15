@@ -201,6 +201,21 @@ func runConfigApply(ctx context.Context, e *executor, action execplan.Action) (s
 		}
 		delivery = append(delivery, reach.ArtifactFile{Role: "autoheal_cli_sidecar" + suffix, LocalPath: local, RemotePath: remoteCLI + suffix})
 	}
+	// Stage extraction may contain the CLI from the archive. The release
+	// manifest's native CLI is the verified control plane delivered during
+	// release.deliver, so copy that exact artifact into the staged release
+	// immediately before setup. This keeps setup and later target verbs on the
+	// same immutable, platform-qualified binary.
+	if native := strings.TrimSpace(action.Inputs["setup_native_cli"]); native != "" {
+		setupWorkdir := strings.TrimSpace(action.Inputs["setup_workdir"])
+		if setupWorkdir == "" {
+			return "", fmt.Errorf("config.apply setup workdir is empty")
+		}
+		delivery = append(delivery, reach.ArtifactFile{
+			Role: "staged_native_cli", LocalPath: native,
+			RemotePath: filepath.Join(setupWorkdir, ".vrooli", "bin", "vrooli"), Mode: 0o755,
+		})
+	}
 	if _, err := e.reach.Deliver(ctx, e.rt.Target, reach.Delivery{Files: delivery}); err != nil {
 		return "", err
 	}

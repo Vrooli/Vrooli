@@ -26,7 +26,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"GenerationService.GenerateBrandImage":         h.image,
 		"GenerationService.EditBrandImage":             h.editImage,
 		"GenerationService.RemoveBrandImageBackground": h.removeBackground,
-		"GenerationService.DeriveBrandIcons":           h.deriveIcons,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

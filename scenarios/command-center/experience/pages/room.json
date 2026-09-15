@@ -315,7 +315,7 @@
         "supporting"
       ],
       "x-intended-tier": "machine",
-      "x-check-plan": "Every [data-reading] node contains a [data-figure] child in each declared state."
+      "x-check-plan": "BAS case broadcast-every-figure-qualified asserts every [data-reading] node contains a [data-qualifier] child in mark mode; structured panel rows are checked by the funnel and leaderboard beat cases."
     },
     {
       "id": "provenance-survives-greyscale",
@@ -350,7 +350,7 @@
         "supporting"
       ],
       "x-intended-tier": "machine",
-      "x-check-plan": "Every [data-figure] node has a sibling [data-qualifier] with non-empty text."
+      "x-check-plan": "BAS case broadcast-every-figure-qualified asserts a qualifier exists and asserts no [data-reading]:not(:has([data-qualifier])) node exists."
     },
     {
       "id": "all-sample-room-says-so",
@@ -383,7 +383,7 @@
         "legend"
       ],
       "x-intended-tier": "machine",
-      "x-check-plan": "With samples=hide, no node carries data-provenance of sample or absent."
+      "x-check-plan": "BAS case broadcast-hide-mode-honest navigates with samples=hide and asserts no hollow figure or dotted figure is rendered; the case also checks the honest empty-state copy."
     },
     {
       "id": "room-never-blank",

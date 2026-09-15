@@ -63,15 +63,11 @@ type FakeImageBackend struct {
 	GenerateResponder func(req generation.ImageGenerateRequest) (generation.ImageOutput, error)
 	EditResponder     func(req generation.ImageEditRequest) (generation.ImageOutput, error)
 	RemoveResponder   func(req generation.ImageRemoveBackgroundRequest) (generation.ImageOutput, error)
-	ResizeResponder   func(src []byte, w, h int) (generation.ImageOutput, error)
-	FlattenResponder  func(src []byte, w, h int, bg string) (generation.ImageOutput, error)
 
-	mu          sync.Mutex
-	generateIn  []generation.ImageGenerateRequest
-	editIn      []generation.ImageEditRequest
-	removeIn    []generation.ImageRemoveBackgroundRequest
-	resizeCalls int
-	flattenBGs  []string
+	mu         sync.Mutex
+	generateIn []generation.ImageGenerateRequest
+	editIn     []generation.ImageEditRequest
+	removeIn   []generation.ImageRemoveBackgroundRequest
 }
 
 func defaultPNG() generation.ImageOutput {
@@ -112,32 +108,6 @@ func (f *FakeImageBackend) RemoveBackground(_ context.Context, req generation.Im
 	return defaultPNG(), nil
 }
 
-func (f *FakeImageBackend) Resize(_ context.Context, src []byte, w, h int) (generation.ImageOutput, error) {
-	f.mu.Lock()
-	f.resizeCalls++
-	f.mu.Unlock()
-	if f.ResizeResponder != nil {
-		return f.ResizeResponder(src, w, h)
-	}
-	out := defaultPNG()
-	out.Tier = "deterministic"
-	out.ModelID = ""
-	return out, nil
-}
-
-func (f *FakeImageBackend) Flatten(_ context.Context, src []byte, w, h int, bg string) (generation.ImageOutput, error) {
-	f.mu.Lock()
-	f.flattenBGs = append(f.flattenBGs, bg)
-	f.mu.Unlock()
-	if f.FlattenResponder != nil {
-		return f.FlattenResponder(src, w, h, bg)
-	}
-	out := defaultPNG()
-	out.Tier = "deterministic"
-	out.ModelID = ""
-	return out, nil
-}
-
 // GenerateRequests / EditRequests / RemoveRequests / FlattenBackgrounds return
 // copies of the recorded calls for assertions.
 func (f *FakeImageBackend) GenerateRequests() []generation.ImageGenerateRequest {
@@ -156,12 +126,6 @@ func (f *FakeImageBackend) RemoveRequests() []generation.ImageRemoveBackgroundRe
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]generation.ImageRemoveBackgroundRequest(nil), f.removeIn...)
-}
-
-func (f *FakeImageBackend) FlattenBackgrounds() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]string(nil), f.flattenBGs...)
 }
 
 var _ generation.ImageBackend = (*FakeImageBackend)(nil)
@@ -310,7 +274,6 @@ type FakeService struct {
 	GenerateImageFunc      func(ctx context.Context, in generation.GenerateImageInput) (generation.ImageResult, error)
 	EditImageFunc          func(ctx context.Context, in generation.EditImageInput) (generation.ImageResult, error)
 	RemoveBackgroundFunc   func(ctx context.Context, in generation.RemoveBackgroundInput) (generation.ImageResult, error)
-	DeriveIconsFunc        func(ctx context.Context, in generation.DeriveIconsInput) ([]generation.ImageResult, []string, error)
 }
 
 func (f FakeService) ProviderStatus(ctx context.Context) (bool, []generation.ProviderStatus) {
@@ -353,13 +316,6 @@ func (f FakeService) RemoveBackground(ctx context.Context, in generation.RemoveB
 		return f.RemoveBackgroundFunc(ctx, in)
 	}
 	return generation.ImageResult{}, nil
-}
-
-func (f FakeService) DeriveIcons(ctx context.Context, in generation.DeriveIconsInput) ([]generation.ImageResult, []string, error) {
-	if f.DeriveIconsFunc != nil {
-		return f.DeriveIconsFunc(ctx, in)
-	}
-	return nil, nil, nil
 }
 
 var _ generation.Service = (*FakeService)(nil)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "../lib/api";
-import { focalPoint, freeBand, inQuiet, mulberry32, read, sceneData, type Frame } from "./engine";
+import { drawGlow, focalPoint, freeBand, inQuiet, mulberry32, read, sceneData, type Frame } from "./engine";
 import { authoredSample, makeReading } from "../test-utils/readings";
 
 const frame = (w: number, h: number, quiet: Frame["quiet"]): Frame => ({ w, h, quiet } as Frame);
@@ -28,14 +28,32 @@ describe("quiet zones", () => {
   });
 });
 
+describe("drawGlow", () => {
+  const recording = () => {
+    const calls: number[] = [];
+    const ctx = { globalAlpha: 1, drawImage: (...args: unknown[]) => { calls.push(args.length); } } as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+  it("draws a positive-radius glow", () => {
+    const { ctx, calls } = recording();
+    drawGlow({ ctx } as Frame, 10, 20, 5, "#fff", 0.5);
+    expect(calls).toHaveLength(1);
+  });
+  it("ignores a non-positive radius instead of throwing on the canvas", () => {
+    const { ctx, calls } = recording();
+    expect(() => drawGlow({ ctx } as Frame, 10, 20, -0.8, "#fff", 0.5)).not.toThrow();
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("scene data", () => {
   const reading = (id: string, overrides: Partial<Reading>): Reading => makeReading({ id, label: id, ...overrides });
   it("carries the figure and its ink so the field is the data", () => {
     const data = sceneData([reading("a", { value: 58 }), reading("b", { coverage: "MISSING", trust: "UNAVAILABLE", sample: authoredSample(5) })]);
     expect(data.readings.a).toEqual({ value: 58, ink: "solid" });
     expect(data.readings.b).toEqual({ value: 5, ink: "dotted" });
-    expect(read(data, "a", 0)).toBe(58);
-    expect(read(data, "missing", 7)).toBe(7);
+    expect(read(data, "a")).toBe(58);
+    expect(read(data, "missing")).toBeNull();
   });
   it("seeds deterministically so adjacent displays can be offset on purpose", () => {
     const a = mulberry32(42);

@@ -110,6 +110,7 @@ type scenarioNode struct {
 	reasons          []domain.ClosureReason
 	startupPolicies  []string
 	member           bool
+	includeUI        bool
 }
 
 type resourceNode struct {
@@ -415,6 +416,7 @@ func (r *resolver) walkScenario(node *scenarioNode, viaRequired bool) error {
 		r.edges = append(r.edges, edge{fromKind: domain.ClosureKindScenario, from: id, toKind: domain.ClosureKindScenario, to: declared.to, required: declared.edge.Required, selected: selected, policy: declared.edge.StartupPolicy, detail: declared.detail})
 		alreadyIncluded := child.included
 		child.included = true
+		child.includeUI = child.includeUI || declared.edge.IncludeUI
 		if selected {
 			child.optionalSelected = true
 		}
@@ -705,6 +707,7 @@ func (r *resolver) assemble() (domain.Closure, error) {
 			Kind:             domain.ClosureKindScenario,
 			Required:         node.required,
 			OptionalSelected: !node.required && node.optionalSelected,
+			IncludeUI:        node.decl.ID == r.in.ScenarioID || node.includeUI,
 			Reasons:          normalizeReasons(node.reasons),
 			Version:          node.decl.Version,
 			ContentIdentity:  node.decl.ContentIdentity,

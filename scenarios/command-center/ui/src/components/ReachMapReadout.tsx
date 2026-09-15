@@ -30,22 +30,21 @@ export const ReachMapReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
   const goalCount = ladder?.rungs.reduce((sum, rung) => sum + rung.goals.length, 0) ?? 0;
   return (
     <div ref={ref} className="cc-ladder cc-reach" data-testid="ladder-reach" data-kind="ladder" data-view="reach" data-reading data-metric-id={reading.id} data-ink={resolution.ink} data-provenance={resolved?.sampled ? "sample" : resolution.figure === "measured" ? "measured" : "absent"} data-trust={reading.trust}>
-      <div className="cc-reach__head">
-        <span className="cc-hero-label">What each release opens</span>
-        {ladder && opened ? (
-          <p className="cc-reach__summary">
-            By rank {at}: <span>{opened.ramp.open}/{opened.ramp.total} ramps · {opened.stream.open}/{opened.stream.total} streams · {opened.audience.open}/{opened.audience.total} audiences</span>
-            {last[0] ? <><br />Last to open: <span>{last.map((unlock) => unlock.name).join(", ")} at rank {last[0].opensAt}</span></> : null}
-          </p>
-        ) : null}
-      </div>
       {!ladder ? <p className="cc-next-rung__none">No schedule to show.</p> : (
         <div className="cc-reach__scroll">
           <div className="cc-reach__grid" style={{ "--rungs": ladder.rungs.length } as CSSProperties}>
-            <div className="cc-reach__cols" aria-hidden="true">
-              <span />
+            <div className="cc-reach__cols">
+              <div className="cc-reach__axis-head">
+                <span className="cc-hero-label">What each release opens</span>
+                {opened ? (
+                  <p className="cc-reach__summary">
+                    By rank {at}: <span>{opened.ramp.open}/{opened.ramp.total} ramps · {opened.stream.open}/{opened.stream.total} streams · {opened.audience.open}/{opened.audience.total} audiences</span>
+                    {last[0] ? <><br />Last to open: <span>{last.map((unlock) => unlock.name).join(", ")} at rank {last[0].opensAt}</span></> : null}
+                  </p>
+                ) : null}
+              </div>
               {ladder.rungs.map((rung) => (
-                <span key={rung.id} className="cc-reach__col" data-next={rung.rank === ladder.nextRank || undefined} title={`${rung.rank} ${rung.name} · ${statusLabel(rung.status)}`}>
+                <span key={rung.id} className="cc-reach__col" aria-hidden="true" data-next={rung.rank === ladder.nextRank || undefined} title={`${rung.rank} ${rung.name} · ${statusLabel(rung.status)}`}>
                   <span className="cc-reach__name">{rung.name}</span>
                   <span className="cc-ladder-dot" data-status={rung.status} />
                   <span className="cc-reach__rank">{rung.rank}</span>

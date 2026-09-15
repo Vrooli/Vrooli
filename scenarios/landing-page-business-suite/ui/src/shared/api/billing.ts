@@ -14,6 +14,7 @@ import { apiCall, CONNECT_API_BASE } from './common';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
+import type { AttributionContext } from '../lib/attribution';
 import { parseOrNull } from './safeParse';
 import {
   BundleCatalogResponseSchema,
@@ -315,6 +316,7 @@ export function createCheckoutSession(payload: {
   success_url?: string;
   cancel_url?: string;
   business_account_id?: string;
+  attribution?: AttributionContext;
 }) {
   const body: Record<string, string | undefined> = {
     price_id: payload.price_id,
@@ -330,6 +332,8 @@ export function createCheckoutSession(payload: {
   return paymentsClient.createCheckoutSession({
     priceId: body.price_id ?? '', customerEmail: body.customer_email ?? '', successUrl: body.success_url ?? '', cancelUrl: body.cancel_url ?? '', sessionKind: SessionKind.SUBSCRIPTION,
     businessAccountId: body.business_account_id ?? '',
+    visitorId: payload.attribution?.visitor_id ?? '', sessionId: payload.attribution?.session_id ?? '', variantSlug: payload.attribution?.variant_slug ?? '', landingPath: payload.attribution?.landing_path ?? '',
+    utmSource: payload.attribution?.utm_source ?? '', utmMedium: payload.attribution?.utm_medium ?? '', utmCampaign: payload.attribution?.utm_campaign ?? '', deviceClass: '',
   }).then((resp: CreateCheckoutSessionResponse) => {
     const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {
@@ -339,9 +343,9 @@ export function createCheckoutSession(payload: {
   });
 }
 
-export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string; business_account_id?: string }) {
+export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string; business_account_id?: string; attribution?: AttributionContext }) {
   return paymentsClient.createCheckoutSession({
-    priceId: payload.price_id, customerEmail: payload.customer_email, successUrl: payload.success_url ?? '', cancelUrl: payload.cancel_url ?? '', sessionKind: SessionKind.CREDITS_TOPUP, businessAccountId: payload.business_account_id ?? '',
+    priceId: payload.price_id, customerEmail: payload.customer_email, successUrl: payload.success_url ?? '', cancelUrl: payload.cancel_url ?? '', sessionKind: SessionKind.CREDITS_TOPUP, businessAccountId: payload.business_account_id ?? '', visitorId: payload.attribution?.visitor_id ?? '', sessionId: payload.attribution?.session_id ?? '', variantSlug: payload.attribution?.variant_slug ?? '', landingPath: payload.attribution?.landing_path ?? '', utmSource: payload.attribution?.utm_source ?? '', utmMedium: payload.attribution?.utm_medium ?? '', utmCampaign: payload.attribution?.utm_campaign ?? '', deviceClass: '',
   }).then((resp: CreateCheckoutSessionResponse) => {
     const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {

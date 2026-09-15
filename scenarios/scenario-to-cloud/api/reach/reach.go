@@ -23,8 +23,12 @@ import (
 // get"); Args are passed verbatim as separate argv entries. RequiredScope is
 // the governed scope the transport must hold (for example "vrooli:write").
 type Command struct {
-	Verb          string
-	Args          []string
+	Verb string
+	Args []string
+	// Workdir overrides the target binding's default repository root for this
+	// invocation. It is used during first install when setup must run from the
+	// staged release tree before that tree is activated.
+	Workdir       string
 	RequiredScope string
 	Effectful     bool
 	Timeout       time.Duration

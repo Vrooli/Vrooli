@@ -493,6 +493,13 @@ Environment values can reference allocated ports and data directories:
 | `requested[].range` | object | **Yes** | Port range for allocation |
 | `requested[].requires_socket` | boolean | No | If true, creates Unix socket |
 
+Port ranges are translated from the Tier 1 declaration as follows: a declared
+range is preserved when it is already a non-fixed role range; a fixed Tier 1
+port is replaced by its role band; otherwise the default desktop allocation
+range is used. A one-port range is never generated implicitly. This keeps
+desktop bundles independent from live Tier 1 listeners; see the [port
+allocation contract](../../../../docs/reference/port-allocation.md).
+
 ### Health Check Object
 
 ```json

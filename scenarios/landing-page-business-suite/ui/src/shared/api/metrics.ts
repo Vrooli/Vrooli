@@ -78,6 +78,7 @@ export async function trackMetric(event: MetricEvent): Promise<{ success: boolea
     landingPath: event.landing_path ?? '',
     referrer: event.referrer ?? '',
     eventData: metricDataToProto(event.event_data),
+    trafficClass: event.traffic_class ?? '',
   });
   return { success: response.success };
 }

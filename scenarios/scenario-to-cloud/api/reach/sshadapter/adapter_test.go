@@ -37,6 +37,24 @@ func adapter(runner *fakeRunner) *Adapter {
 	}}
 }
 
+func TestTOFUHostKeyCallbackCreatesPrivateTrustDirectory(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "ssh")
+	t.Setenv("VROOLI_STATE_DIR", stateDir)
+	if _, err := NewTOFUHostKeyCallback("203.0.113.10", 22); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o700 {
+		t.Fatalf("trust directory mode = %o, want 700", got)
+	}
+	if _, err := os.Stat(filepath.Join(stateDir, "known_hosts")); err != nil {
+		t.Fatalf("known_hosts was not initialized: %v", err)
+	}
+}
+
 // [REQ:STC-P0-024] Every argument is single-quoted by one policy and the
 // remote string runs the bound workdir's vrooli binary; stdin never enters
 // the command string.
@@ -109,14 +127,21 @@ func TestExecClassifiesTransportFailuresByExitCode(t *testing.T) {
 // native-CLI probe can differ.
 type scriptedRunner struct {
 	fakeRunner
-	answers map[string]Result
-	errs    map[string]error
-	copies  []string
+	answers     map[string]Result
+	errs        map[string]error
+	copies      []string
+	sha256Calls int
 }
 
 func (s *scriptedRunner) Run(ctx context.Context, cfg ConnectionConfig, command string, opts RunOptions) (Result, error) {
 	s.commands = append(s.commands, command)
 	s.stdin = append(s.stdin, opts.Stdin)
+	if strings.Contains(command, "sha256sum") {
+		s.sha256Calls++
+		if s.sha256Calls == 1 {
+			return Result{ExitCode: 0, Stdout: strings.Repeat("0", 64) + "  existing\n"}, nil
+		}
+	}
 	for needle, err := range s.errs {
 		if strings.Contains(command, needle) {
 			return s.answers[needle], err
@@ -180,11 +205,11 @@ func TestDeliverVerifiesDigestAndAppliesMode(t *testing.T) {
 	if len(receipt.Files) != 1 || receipt.Files[0].SHA256 != digest || receipt.Transport != identity.TransportSSH {
 		t.Fatalf("receipt = %+v", receipt)
 	}
-	if len(runner.copies) != 1 || !strings.HasSuffix(runner.copies[0], "-> /root/Vrooli/.vrooli/bin/vrooli") {
+	if len(runner.copies) != 1 || !strings.Contains(runner.copies[0], "-> /root/Vrooli/.vrooli/bin/vrooli.incoming.") {
 		t.Fatalf("copies = %v", runner.copies)
 	}
 	joined := strings.Join(runner.commands, "\n")
-	for _, want := range []string{"mkdir -p '/root/Vrooli/.vrooli/bin'", "sha256sum -- '/root/Vrooli/.vrooli/bin/vrooli'", "chmod 0755 '/root/Vrooli/.vrooli/bin/vrooli'"} {
+	for _, want := range []string{"mkdir -p '/root/Vrooli/.vrooli/bin'", "sha256sum -- '/root/Vrooli/.vrooli/bin/vrooli.incoming.", "chmod 0755 '/root/Vrooli/.vrooli/bin/vrooli.incoming.", "mv -- '/root/Vrooli/.vrooli/bin/vrooli.incoming."} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("commands %q lack %q", joined, want)
 		}

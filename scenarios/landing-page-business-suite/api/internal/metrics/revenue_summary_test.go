@@ -41,10 +41,13 @@ func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float6
 	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(balance_credits").WillReturnRows(
 		sqlmock.NewRows([]string{"sum"}).AddRow(creditBalance),
 	)
-	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(ABS\\(amount_credits\\)").WillReturnRows(
+	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(balance_credits.*business_account_credit_wallets").WillReturnRows(
+		sqlmock.NewRows([]string{"sum"}).AddRow(0),
+	)
+	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(credits\\)").WillReturnRows(
 		sqlmock.NewRows([]string{"sum"}).AddRow(creditBurned),
 	)
-	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FROM usage_records").WillReturnRows(
+	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FROM usage_events").WillReturnRows(
 		sqlmock.NewRows([]string{"count"}).AddRow(usage),
 	)
 }

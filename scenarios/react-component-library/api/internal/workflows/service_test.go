@@ -23,6 +23,9 @@ type fakeDispatcher struct {
 	dispatchErr    error
 	waitResult     DispatchResult
 	waitErr        error
+	refreshResult  DispatchResult
+	refreshErr     error
+	refreshEnabled bool
 	snapshot       RunSnapshot
 	snapshotErr    error
 	stopped        RunSnapshot
@@ -70,6 +73,14 @@ func (f *fakeDispatcher) Wait(_ context.Context, _ string) (DispatchResult, erro
 		return f.waitResult, f.waitErr
 	}
 	return f.dispatchResult, f.dispatchErr
+}
+
+func (f *fakeDispatcher) Refresh(_ context.Context, runID string) (DispatchResult, error) {
+	if !f.refreshEnabled {
+		return DispatchResult{ExecutionID: runID, Status: StatusRunning}, nil
+	}
+	f.refreshRuns = append(f.refreshRuns, runID)
+	return f.refreshResult, f.refreshErr
 }
 
 func (f *fakeDispatcher) Snapshot(_ context.Context, runID string, _ int64) (RunSnapshot, error) {
@@ -174,6 +185,111 @@ func TestServiceRefreshStopAndRetryUseDurableWorkflowState(t *testing.T) {
 	require.NotEqual(t, w.ID, retry.ID)
 	require.Equal(t, "execution-2", retry.AgentManagerExecutionID)
 	require.Equal(t, StatusQueued, retry.Status)
+}
+
+func TestServiceRefreshReconcilesTerminalAgentManagerOutcome(t *testing.T) {
+	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{ExecutionID: "execution-1", Status: StatusRunning}}
+	svc, repo, _ := newWorkflowService(t, dispatcher)
+
+	w, _, err := svc.Start(context.Background(), extractInput("extract:refresh-terminal"))
+	require.NoError(t, err)
+	dispatcher.refreshEnabled = true
+	dispatcher.refreshResult = DispatchResult{
+		ExecutionID: "execution-1",
+		Status:      StatusFailed,
+		Summary:     "validation was blocked",
+		Error:       "assistant outcome: blocked",
+	}
+
+	refreshed, err := svc.Refresh(context.Background(), w.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusFailed, refreshed.Status)
+	require.Equal(t, "validation was blocked", refreshed.Summary)
+	require.Equal(t, "assistant outcome: blocked", refreshed.Error)
+	require.Equal(t, []string{"execution-1"}, dispatcher.refreshRuns)
+
+	persisted, err := repo.Get(context.Background(), w.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusFailed, persisted.Status)
+	require.Equal(t, "assistant outcome: blocked", persisted.Error)
+}
+
+func TestServiceGetReconcilesActiveWorkflowAfterClientDisconnect(t *testing.T) {
+	dispatcher := &fakeDispatcher{
+		dispatchResult: DispatchResult{ExecutionID: "execution-1", Status: StatusRunning},
+		refreshEnabled: true,
+		refreshResult:  DispatchResult{ExecutionID: "execution-1", Status: StatusSucceeded, Summary: "completed"},
+	}
+	svc, repo, _ := newWorkflowService(t, dispatcher)
+
+	w, _, err := svc.Start(context.Background(), extractInput("extract:get-recovery"))
+	require.NoError(t, err)
+
+	got, err := svc.Get(context.Background(), w.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, got.Status)
+	require.Equal(t, "completed", got.Summary)
+	require.Equal(t, []string{"execution-1"}, dispatcher.refreshRuns)
+
+	persisted, err := repo.Get(context.Background(), w.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, persisted.Status)
+}
+
+func TestServiceGetReconcilesUnavailableWorkflowWithDurableExecution(t *testing.T) {
+	dispatcher := &fakeDispatcher{
+		refreshEnabled: true,
+		refreshResult:  DispatchResult{ExecutionID: "execution-disconnected", Status: StatusSucceeded, Summary: "recovered"},
+	}
+	svc, repo, _ := newWorkflowService(t, dispatcher)
+	created, err := repo.Create(context.Background(), Workflow{
+		Kind:                    KindAdopt,
+		AssetID:                 "asset-1",
+		TargetScenario:          "fixture",
+		AgentManagerExecutionID: "execution-disconnected",
+		IdempotencyKey:          "adopt:disconnected",
+		Status:                  StatusUnavailable,
+		Error:                   "wait disconnected",
+	})
+	require.NoError(t, err)
+
+	got, err := svc.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, got.Status)
+	require.Equal(t, "recovered", got.Summary)
+	require.Empty(t, got.Error)
+	require.Equal(t, []string{"execution-disconnected"}, dispatcher.refreshRuns)
+
+	persisted, err := repo.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, persisted.Status)
+}
+
+func TestServiceListReconcilesTerminalActiveWorkflow(t *testing.T) {
+	dispatcher := &fakeDispatcher{
+		refreshEnabled: true,
+		refreshResult:  DispatchResult{ExecutionID: "execution-stale", Status: StatusFailed, Summary: "budget exhausted", Error: "terminal execution"},
+	}
+	svc, repo, _ := newWorkflowService(t, dispatcher)
+	created, err := repo.Create(context.Background(), Workflow{
+		Kind:                    KindAdopt,
+		AssetID:                 "asset-1",
+		TargetScenario:          "fixture",
+		AgentManagerExecutionID: "execution-stale",
+		IdempotencyKey:          "adopt:stale",
+		Status:                  StatusRunning,
+	})
+	require.NoError(t, err)
+
+	listed, err := svc.List(context.Background(), "", "", true, 10)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, StatusFailed, listed[0].Status)
+	require.Equal(t, []string{"execution-stale"}, dispatcher.refreshRuns)
+
+	persisted, err := repo.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusFailed, persisted.Status)
 }
 
 func TestServiceRejectsIncompleteOrUnspecifiedWorkflowRequests(t *testing.T) {

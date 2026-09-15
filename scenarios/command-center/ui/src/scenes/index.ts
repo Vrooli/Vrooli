@@ -7,6 +7,7 @@ import { panoramaConstellation } from "./panoramaConstellation";
 import { signalConstellation } from "./signalConstellation";
 import { meridianArc } from "./meridianArc";
 import { funnelCascade } from "./funnelCascade";
+import { conversionFunnel } from "./conversionFunnel";
 
 /** Compositions are bound by name from the registry; an unknown name gets the orbital field. */
 export const compositions: Record<string, () => Scene> = {
@@ -18,6 +19,7 @@ export const compositions: Record<string, () => Scene> = {
   "panorama-constellation": panoramaConstellation,
   "meridian-arc": meridianArc,
   "funnel-cascade": funnelCascade,
+  "conversion-funnel": conversionFunnel,
 };
 
 export const createScene = (composition: string): Scene => (compositions[composition] ?? orbitalField)();

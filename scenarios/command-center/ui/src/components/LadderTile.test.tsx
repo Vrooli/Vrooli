@@ -19,7 +19,7 @@ describe("LadderTile", () => {
 describe("PanelTile", () => {
   it("shows a panel's leading rows and how many more it has", () => { // [REQ:CC-P1-016]
     const rows = ["US", "DE", "FR", "JP"].map((key, index) => ({ key, label: key, value: 1000 - index * 100, share: 0.25 }));
-    renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", label: "Traffic by country", rows })} /></ul>);
+    renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", label: "Traffic by country", value: 2700, rows })} /></ul>);
     expect(screen.getByText("US")).toBeInTheDocument();
     expect(screen.getByText("FR")).toBeInTheDocument();
     expect(screen.queryByText("JP")).toBeNull();
@@ -32,12 +32,12 @@ describe("PanelTile", () => {
   });
   it("says it has no rows instead of drawing an empty list", () => {
     const { container } = renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", label: "Traffic by device" })} /></ul>);
-    expect(screen.getByText("No rows available")).toBeInTheDocument();
+    expect(container.querySelector(".cc-panel-tile__empty")).toHaveTextContent(/not answering/);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-provenance", "absent");
     expect(screen.queryByText(/more$/)).toBeNull();
   });
   it("marks measured rows as measured", () => {
-    const { container } = renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", rows: [{ key: "m", label: "Mobile", value: 12, share: 1 }] })} /></ul>);
+    const { container } = renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", value: 12, rows: [{ key: "m", label: "Mobile", value: 12, share: 1 }] })} /></ul>);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-provenance", "measured");
   });
 });

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	ExtractWorkflowKey = "react-component-library/extract-assist"
-	AdoptWorkflowKey   = "react-component-library/adopt-assist"
+	ExtractWorkflowKey      = "react-component-library/extract-assist"
+	AdoptWorkflowKey        = "react-component-library/adopt-assist"
+	agentManagerHTTPTimeout = 5 * time.Minute
 )
 
 // AgentManagerDispatcher only starts and waits on RCL's declared workflow.
@@ -30,7 +32,11 @@ type AgentManagerDispatcher struct {
 }
 
 func NewAgentManagerDispatcher() *AgentManagerDispatcher {
-	return &AgentManagerDispatcher{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Client: &http.Client{}}
+	return &AgentManagerDispatcher{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Client: newAgentManagerHTTPClient()}
+}
+
+func newAgentManagerHTTPClient() *http.Client {
+	return &http.Client{Timeout: agentManagerHTTPTimeout}
 }
 
 func (d *AgentManagerDispatcher) Start(ctx context.Context, in StartInput) (DispatchResult, error) {
@@ -69,12 +75,14 @@ func workflowInput(in StartInput) map[string]any {
 		input["sourcePath"] = in.SourcePath
 		input["requestedVersion"] = in.RequestedVersion
 	case KindAdopt:
-		input["assetId"] = in.AssetID
-		input["targetScenario"] = in.TargetScenario
-		input["sourcePath"] = in.SourcePath
-		input["requestedVersion"] = in.RequestedVersion
-		input["confirmOverwrite"] = in.ConfirmOverwrite
-		input["overrideValidation"] = in.OverrideValidation
+		input["assets"] = []any{map[string]any{
+			"assetId":            in.AssetID,
+			"targetScenario":     in.TargetScenario,
+			"sourcePath":         in.SourcePath,
+			"requestedVersion":   in.RequestedVersion,
+			"confirmOverwrite":   in.ConfirmOverwrite,
+			"overrideValidation": in.OverrideValidation,
+		}}
 	}
 	return input
 }
@@ -108,12 +116,42 @@ func (d *AgentManagerDispatcher) Wait(ctx context.Context, executionID string) (
 		if err := d.get(ctx, base, "/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true", &output); err != nil {
 			return result, err
 		}
+		result.Status, result.Error = projectAssistantResult(output.Execution, result.Status)
 		result.Summary = workflowSummary(output.Execution)
 	}
 	if result.Status == StatusFailed {
-		result.Error = waited.Execution.TerminalReason.String()
+		// Preserve a typed assistant outcome (for example, blocked validation)
+		// when the orchestration envelope itself completed without a terminal
+		// reason. The catalog must not turn that outcome back into a blank error.
+		if result.Error == "" {
+			result.Error = waited.Execution.TerminalReason.String()
+		}
 	}
 	return result, nil
+}
+
+// Refresh reads the authoritative terminal execution result without waiting.
+// This closes the client-disconnect/restart gap: RCL can reconcile its durable
+// workflow projection after Agent Manager has already completed the work.
+func (d *AgentManagerDispatcher) Refresh(ctx context.Context, executionID string) (DispatchResult, error) {
+	base, err := d.baseURL(ctx)
+	if err != nil {
+		return DispatchResult{ExecutionID: executionID}, err
+	}
+	var output apipb.WorkflowExecutionResponse
+	if err := d.get(ctx, base, "/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true", &output); err != nil {
+		return DispatchResult{ExecutionID: executionID}, err
+	}
+	if output.Execution == nil {
+		return DispatchResult{ExecutionID: executionID}, fmt.Errorf("agent-manager refresh response missing execution")
+	}
+	status, resultError := projectAssistantResult(output.Execution, statusFromWorkflow(output.Execution.Status))
+	return DispatchResult{
+		ExecutionID: executionID,
+		Status:      status,
+		Summary:     workflowSummary(output.Execution),
+		Error:       resultError,
+	}, nil
 }
 
 func (d *AgentManagerDispatcher) Stop(ctx context.Context, executionID string) (RunSnapshot, error) {
@@ -144,6 +182,37 @@ func workflowSummary(execution *domainpb.WorkflowExecution) string {
 	return summary
 }
 
+func workflowError(execution *domainpb.WorkflowExecution) string {
+	if execution == nil || statusFromWorkflow(execution.Status) != StatusFailed {
+		return ""
+	}
+	return execution.TerminalReason.String()
+}
+
+// projectAssistantResult keeps the RCL projection honest when Agent Manager
+// completed the orchestration envelope but the assistant's typed result says
+// that the requested work was blocked or needs review. A successful engine
+// transition is not equivalent to a successful catalog operation.
+func projectAssistantResult(execution *domainpb.WorkflowExecution, status Status) (Status, string) {
+	if execution == nil || status != StatusSucceeded || execution.Output == nil {
+		return status, workflowError(execution)
+	}
+	output, ok := execution.Output.AsInterface().(map[string]any)
+	if !ok {
+		return status, ""
+	}
+	result, _ := output["result"].(map[string]any)
+	outcome, _ := result["outcome"].(string)
+	switch strings.ToLower(strings.TrimSpace(outcome)) {
+	case "blocked", "needs_review", "failed":
+		return StatusFailed, fmt.Sprintf("assistant outcome: %s", outcome)
+	case "completed":
+		return status, ""
+	default:
+		return status, ""
+	}
+}
+
 func (d *AgentManagerDispatcher) baseURL(ctx context.Context) (string, error) {
 	if d.Resolver == nil {
 		d.Resolver = discovery.NewResolver(discovery.ResolverConfig{})
@@ -165,7 +234,7 @@ func (d *AgentManagerDispatcher) get(ctx context.Context, base, path string, out
 
 func (d *AgentManagerDispatcher) request(ctx context.Context, method, base, path string, in, out proto.Message) error {
 	if d.Client == nil {
-		d.Client = &http.Client{}
+		d.Client = newAgentManagerHTTPClient()
 	}
 	var body io.Reader
 	if in != nil {

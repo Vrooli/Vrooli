@@ -24,6 +24,18 @@ CREATE TABLE IF NOT EXISTS download_channel_revisions (
     CONSTRAINT fk_channel_revision_app FOREIGN KEY (bundle_key, app_key)
         REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS delivery_events (
+    id BIGSERIAL PRIMARY KEY,
+    event_type VARCHAR(32) NOT NULL CHECK (event_type IN ('download_authorized','update_check','update_download')),
+    bundle_key VARCHAR(100) NOT NULL,
+    app_key VARCHAR(100) NOT NULL,
+    platform VARCHAR(32) NOT NULL,
+    variant_key VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_delivery_events_created ON delivery_events(created_at, event_type);
+CREATE INDEX IF NOT EXISTS idx_delivery_events_app ON delivery_events(bundle_key, app_key, platform, created_at);
 CREATE INDEX IF NOT EXISTS idx_download_channel_revisions_lookup
     ON download_channel_revisions(bundle_key, app_key, variant_key, revision DESC);
 

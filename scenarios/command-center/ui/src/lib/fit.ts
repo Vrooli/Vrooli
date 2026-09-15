@@ -51,17 +51,25 @@ export function pageRows(rows: RowBox[], available: number, gap: number): number
 }
 
 /** Tile index ranges [start, end) for each page, given rows per page and a fixed column count. */
-export function pageRanges(rowsPerPage: number[], columns: number, total: number): Array<[number, number]> {
+export function pageRanges(rowsPerPage: number[], columns: number, total: number, maxItems = Number.POSITIVE_INFINITY): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   let start = 0;
   rowsPerPage.forEach((rows, index) => {
     // The last page takes every remaining tile, so a short final row is never dropped.
     const end = index === rowsPerPage.length - 1 ? total : Math.min(total, start + rows * Math.max(1, columns));
-    ranges.push([start, end]);
+    let pageStart = start;
+    while (pageStart < end) {
+      const pageEnd = Math.min(end, pageStart + Math.max(1, maxItems));
+      ranges.push([pageStart, pageEnd]);
+      pageStart = pageEnd;
+    }
     start = end;
   });
   return ranges.length ? ranges : [[0, total]];
 }
+
+/** Hard desktop safety ceiling; measured height may choose an even smaller page. */
+export const MAX_DESKTOP_STRIP_ITEMS = 8;
 
 /**
  * The offsets an auto-scroll viewport rests at. Row by row it stops at each

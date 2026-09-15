@@ -31,12 +31,18 @@
 - [ ] OT-P0-008 | Brand Assignment | Link brands to scenarios, track what was applied, when, and at what version; support partial application (individual elements)
 - [ ] OT-P0-009 | CLI Surface (manifest-driven) | Commands: create, list, get, update, delete, versions, assign, unassign, scenario-status, generate, discover, apply, scan — all manifest-declared Connect-RPC bindings (no programmatic shell)
 - [ ] OT-P0-010 | WCAG AA Contrast | Validate contrast for defined color pairings (primary-on-background, text-on-surface) during generation and validation; reject / flag non-compliant pairings
+- [ ] OT-P0-011 | Logo Candidates | Explore N concepts × M variations in one request, import existing images, refine with lineage (instruction, masked object removal, background removal, vectorize), and pick/reject/restore. Each candidate stores prompt, concept, role, model, seed, origin, parent and status; a pick sets the brand's canonical mark. Linked requirements: CAND-001…CAND-006.
+- [ ] OT-P0-012 | Mark versus Container | Generation requests a mark on a transparent background; container styles and product lines are records so a product line shares one tile, background, padding, glow and safe zone. Linked requirements: STYLE-001…STYLE-003.
+- [ ] OT-P0-013 | Vector Source of Truth | A raster pick is vectorized through image-tools; every PNG, ICO and ICNS target is rasterized from the composed SVG so a vector and its rasters cannot drift. Linked requirements: RENDER-001…RENDER-004.
+- [ ] OT-P0-014 | Declared Targets and Apply | The scenario declares its brand and target profiles in `.vrooli/service.json`; apply writes every declared target to the `/public/*` layout, the marked `index.html` block, a relative-src `site.webmanifest`, og/twitter meta, and the electron PNGs, `icon.ico` and `icon.icns`. Linked requirements: TARGET-001…TARGET-005.
+- [ ] OT-P0-015 | Declared-Icon-Targets Validation | The branding validation provider checks each declared target's existence, format, exact dimensions, maskable safe-zone containment, wiring and known placeholder hashes. Linked requirements: TARGET-003 and the validation module.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | UI Dashboard | Scenario-centric view of branding status across all scenarios with brand-library browsing and search
 - [ ] OT-P1-002 | UI Wizard | Brand creation/editing with live preview, generation-option selection, and application preview before applying
 - [ ] OT-P1-003 | Dark/Light Theme Preview | Preview brand application in both theme modes before committing
 - [ ] OT-P1-004 | Framework-Extensible Scanning | Scanner plugins per framework/language beyond CSS + JSON (e.g., Tailwind config, SCSS)
+- [ ] OT-P1-005 | Logo Page | A repo-owned operator surface: candidate gallery grouped by concept with lineage, side-by-side compare, pick/reject/restore, refine by instruction or brush mask, and a live preview of every declared target at 16/32/64/180/512 px on light and dark grounds with the maskable circle overlay. Linked requirements: LOGOUI-001…LOGOUI-004.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Agent-Assisted Application | Spawn sandboxed agents via agent-manager for complex/non-standard scenario integrations with a mandatory inline-marker constraint (deferred; declare agent-manager only when built)

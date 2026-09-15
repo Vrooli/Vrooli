@@ -134,6 +134,20 @@ type Params struct {
 	StripAll   bool `json:"strip_all,omitempty"`
 	StripGPS   bool `json:"strip_gps,omitempty"`
 	AutoOrient bool `json:"auto_orient,omitempty"`
+
+	// Vector bridge (rasterize / vectorize / icon_container).
+	Colors                     int      `json:"colors,omitempty"`      // palette entries for vectorize (default 4)
+	KeepColors                 []string `json:"keep_colors,omitempty"` // keep only layers near these hex colours
+	DropBackgroundLayers       bool     `json:"drop_background_layers,omitempty"`
+	ClipToLargestRoundedRegion bool     `json:"clip_to_largest_rounded_region,omitempty"`
+	InsetPx                    float64  `json:"inset_px,omitempty"`
+	TolerancePx                float64  `json:"tolerance_px,omitempty"`
+	Smoothing                  bool     `json:"smoothing,omitempty"`
+	MinAreaPx                  float64  `json:"min_area_px,omitempty"`
+	// ContainerFormat is the icon_container output ("ico" or "icns").
+	ContainerFormat string `json:"container_format,omitempty"`
+	// Sizes are the exact pixel sizes for an icon_container.
+	Sizes []int `json:"sizes,omitempty"`
 }
 
 // resampleFilter returns the high-quality default resampling kernel.

@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"log"
+	"net/http"
+	"time"
 
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
@@ -11,6 +13,22 @@ import (
 
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
 )
+
+// waitDeadlineClearer removes the per-request server write deadline for the two
+// long-lived procedures. api-core installs a 30 s WriteTimeout (a sensible bound
+// for every ordinary request), but WaitJob and WatchJob are defined to block for
+// as long as the job runs, so a queued job over 30 s would kill the response
+// with "unavailable: unexpected EOF". Clearing the deadline for exactly these two
+// paths keeps the bound everywhere else.
+type waitDeadlineClearer struct{ next http.Handler }
+
+func (h waitDeadlineClearer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case jobsconnect.JobsServiceWaitJobProcedure, jobsconnect.JobsServiceWatchJobProcedure:
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	}
+	h.next.ServeHTTP(w, r)
+}
 
 // Module returns the jobs domain's contribution: the generated Connect-RPC
 // JobsService handler over the server-owned durable job Manager. The Manager is
@@ -25,7 +43,7 @@ func Module(mgr JobManager, logger *log.Logger) module.Module {
 	return module.Module{
 		Name: "jobs",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: waitDeadlineClearer{next: connectHandler}})
 		},
 		Endpoints: Endpoints,
 	}

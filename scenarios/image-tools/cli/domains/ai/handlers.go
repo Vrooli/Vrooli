@@ -71,6 +71,11 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 		out := flagOr(ctx, "out")
 		wait := boolOr(ctx, "wait")
 		if !wait {
+			// --json emits the typed SubmitAIResponse so a caller can read the
+			// job id, ETA, model, tier and warnings without parsing prose.
+			if ctx.JSON() {
+				return cliapp.PrintProtoJSON(ctx.Stdout(), resp)
+			}
 			return ctx.RenderMutation(cliapp.MutationReport{
 				Result: []string{fmt.Sprintf("Submitted %s as job %s (~%ds) on %s/%s", operation, resp.JobId, resp.EstimatedSeconds, resp.ModelId, resp.Tier)},
 				Changes: append(warnLines(resp.Warnings),
@@ -80,6 +85,21 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 		job, werr := waitAndDownload(h.core, resp.JobId, out)
 		if werr != nil {
 			return werr
+		}
+		if ctx.JSON() {
+			return cliapp.PrintJSON(ctx.Stdout(), struct {
+				JobId      string   `json:"job_id"`
+				State      string   `json:"state"`
+				OutputPath string   `json:"output_path,omitempty"`
+				ResultRefs []string `json:"result_refs,omitempty"`
+				Warnings   []string `json:"warnings,omitempty"`
+			}{
+				JobId:      job.GetId(),
+				State:      stateName(job.GetState()),
+				OutputPath: out,
+				ResultRefs: job.GetResultRefs(),
+				Warnings:   resp.Warnings,
+			})
 		}
 		changes := warnLines(resp.Warnings)
 		if out != "" {
@@ -152,6 +172,7 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		AllowByok:       boolOr(ctx, "byok"),
 		QualityPolicy:   flagOr(ctx, "quality-policy"),
 		FallbackPolicy:  flagOr(ctx, "fallback-policy"),
+		OpenrouterRole:  flagOr(ctx, "role"),
 		Priority:        flagOr(ctx, "priority"),
 		AllowReclaim:    optionalReclaim(ctx),
 		AutoScanNsfw:    boolOr(ctx, "auto-scan"),

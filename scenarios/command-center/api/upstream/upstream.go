@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -20,6 +21,7 @@ import (
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	swarmstatsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats"
 	swarmstatsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats/stats_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ErrNotAvailable is returned when an upstream is not configured or cannot
@@ -571,6 +573,15 @@ func lpbsProbe(ctx context.Context, c *typedClient) (map[string]string, map[stri
 }
 
 func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
+	if strings.HasPrefix(path, "/api/v1/business-digest") {
+		return fetchBusinessDigest(ctx, c, path)
+	}
+	if strings.HasPrefix(path, "/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary") {
+		return fetchAnalyticsSummary(ctx, c)
+	}
+	if strings.HasPrefix(path, "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown") {
+		return fetchTrafficBreakdown(ctx, c, path)
+	}
 	if path != "/api/v1/admin/dashboard/summary" && path != "/api/v1/admin/dashboard/revenue" {
 		return nil, fmt.Errorf("lpbs typed client does not expose path %q", path)
 	}
@@ -608,6 +619,13 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 				"today": float64(response.Msg.GetRevenueTodayMinor()) / 100,
 				"month": float64(response.Msg.GetRevenueWindowMinor()) / 100,
 			},
+			"subscriptions": map[string]any{
+				"active": response.Msg.GetActiveSubscriptions(), "churned_30d": response.Msg.GetSubscriptionsChurnedWindow(),
+			},
+			"credits": map[string]any{
+				"balance_total": response.Msg.GetCreditBalanceTotal(), "burned_window": response.Msg.GetCreditBurnedWindow(),
+			},
+			"usage":       map[string]any{"records": response.Msg.GetUsageRecordsWindow()},
 			"sample_size": response.Msg.GetSampleSize(), "currency": response.Msg.GetCurrency(),
 		}
 		encoded, err := json.Marshal(payload)
@@ -623,7 +641,7 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 			return connect.NewError(connect.CodeUnavailable, ErrNotAvailable)
 		}
 		var callErr error
-		response, callErr = lpbsconnect.NewMetricsServiceClient(httpClient, baseURL).GetAnalyticsSummary(ctx, connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{}))
+		response, callErr = lpbsconnect.NewMetricsServiceClient(httpClient, baseURL).GetAnalyticsSummary(ctx, connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{WindowDays: 30}))
 		return callErr
 	})
 	if err != nil {
@@ -644,7 +662,7 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 	}
 	payload := map[string]any{
 		"observed_at":      observedAt,
-		"contract_version": "legacy.v1",
+		"contract_version": response.Msg.GetContractVersion(),
 		"units": map[string]string{
 			"visitors":    "count",
 			"cta_clicks":  "count",
@@ -661,6 +679,91 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 		return nil, fmt.Errorf("lpbs typed metrics encode: %w", err)
 	}
 	return encoded, nil
+}
+
+func fetchTrafficBreakdown(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
+	baseURL := c.resolve()
+	if baseURL == "" {
+		return nil, ErrNotAvailable
+	}
+	dimension := lpbsv1.TrafficDimension_TRAFFIC_DIMENSION_UNSPECIFIED
+	for raw, value := range map[string]lpbsv1.TrafficDimension{"country": lpbsv1.TrafficDimension_COUNTRY, "referrer_kind": lpbsv1.TrafficDimension_REFERRER_KIND, "utm_source": lpbsv1.TrafficDimension_UTM_SOURCE, "utm_medium": lpbsv1.TrafficDimension_UTM_MEDIUM, "utm_campaign": lpbsv1.TrafficDimension_UTM_CAMPAIGN, "device_class": lpbsv1.TrafficDimension_DEVICE_CLASS, "landing_path": lpbsv1.TrafficDimension_LANDING_PATH, "variant_slug": lpbsv1.TrafficDimension_VARIANT} {
+		if strings.Contains(path, "dimension="+raw) {
+			dimension = value
+			break
+		}
+	}
+	httpClient := c.http
+	if c.token != "" {
+		httpClient = &http.Client{Timeout: c.http.Timeout, Transport: bearerTransport{base: c.http.Transport, token: c.token}}
+	}
+	var response *connect.Response[lpbsv1.GetTrafficBreakdownResponse]
+	err := retryConnect(ctx, func() error {
+		var callErr error
+		response, callErr = lpbsconnect.NewMetricsServiceClient(httpClient, baseURL).GetTrafficBreakdown(ctx, connect.NewRequest(&lpbsv1.GetTrafficBreakdownRequest{Dimension: dimension, Limit: 6, WindowDays: 30}))
+		return callErr
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lpbs typed traffic breakdown: %w", err)
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+}
+
+func fetchBusinessDigest(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
+	baseURL := c.resolve()
+	if baseURL == "" {
+		return nil, ErrNotAvailable
+	}
+	httpClient := c.http
+	if c.token != "" {
+		httpClient = &http.Client{Timeout: c.http.Timeout, Transport: bearerTransport{base: c.http.Transport, token: c.token}}
+	}
+	days := int32(30)
+	if strings.Contains(path, "days=7") {
+		days = 7
+	} else if strings.Contains(path, "days=90") {
+		days = 90
+	}
+	var response *connect.Response[lpbsv1.BusinessDigest]
+	err := retryConnect(ctx, func() error {
+		var callErr error
+		response, callErr = lpbsconnect.NewBusinessDigestServiceClient(httpClient, c.resolve()).GetBusinessDigest(ctx, connect.NewRequest(&lpbsv1.GetBusinessDigestRequest{WindowDays: days}))
+		return callErr
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lpbs typed business digest: %w", err)
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+}
+
+func fetchAnalyticsSummary(ctx context.Context, c *typedClient) (json.RawMessage, error) {
+	baseURL := c.resolve()
+	if baseURL == "" {
+		return nil, ErrNotAvailable
+	}
+	httpClient := c.http
+	if c.token != "" {
+		httpClient = &http.Client{Timeout: c.http.Timeout, Transport: bearerTransport{base: c.http.Transport, token: c.token}}
+	}
+	var response *connect.Response[lpbsv1.AnalyticsSummary]
+	err := retryConnect(ctx, func() error {
+		var callErr error
+		response, callErr = lpbsconnect.NewMetricsServiceClient(httpClient, baseURL).GetAnalyticsSummary(ctx, connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{WindowDays: 30}))
+		return callErr
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lpbs typed metrics: %w", err)
+	}
+	var ctaClicks, conversions int64
+	for _, stat := range response.Msg.GetVariantStats() {
+		ctaClicks += stat.GetCtaClicks()
+		conversions += stat.GetConversions()
+	}
+	observedAt := ""
+	if timestamp := response.Msg.GetObservedAt(); timestamp != nil {
+		observedAt = timestamp.AsTime().UTC().Format(time.RFC3339)
+	}
+	return json.Marshal(map[string]any{"observed_at": observedAt, "contract_version": response.Msg.GetContractVersion(), "units": map[string]string{"visitors": "count", "cta_clicks": "count", "conversions": "count"}, "visitors": response.Msg.GetTotalVisitors(), "cta_clicks": ctaClicks, "conversions": conversions})
 }
 
 type bearerTransport struct {

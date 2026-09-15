@@ -55,6 +55,11 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 		delivery.Files = append(delivery.Files,
 			reach.ArtifactFile{Role: "release_manifest", LocalPath: rel.ManifestPath(), RemotePath: in["release_manifest"]},
 			reach.ArtifactFile{Role: "native_cli", LocalPath: rel.NativeCLIPath(), RemotePath: in["native_cli"], Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
+			// Setup and safeguard lifecycle hooks resolve the managed launcher
+			// from the operator home, while cloud-target itself lives under the
+			// deployment workdir. Seed both locations during first bootstrap so
+			// setup cannot lose the control plane between those phases.
+			reach.ArtifactFile{Role: "native_cli_managed_launcher", LocalPath: rel.NativeCLIPath(), RemotePath: filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "bin", "vrooli"), Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
 			reach.ArtifactFile{Role: "repo_contract", LocalPath: filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "repo-contract.json")},
 			reach.ArtifactFile{Role: "repo_service_manifest", LocalPath: filepath.Join(repoRoot, ".vrooli", "service.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "service.json")},
 			reach.ArtifactFile{Role: "repo_go_mod", LocalPath: filepath.Join(repoRoot, "go.mod"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "go.mod")},
@@ -66,12 +71,47 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", ".vrooli", "service.json"),
 			})
 		}
+		// Setup resolves the selected closure from scenario service manifests at
+		// the durable repository root. Deliver those small declarations even
+		// when the scenario's executable tree lives only in the release archive.
+		for _, scenarioID := range append([]string{e.manifest.Scenario.ID}, e.manifest.Dependencies.Scenarios...) {
+			scenarioID = strings.TrimSpace(scenarioID)
+			if scenarioID == "" || scenarioID == "vrooli-autoheal" {
+				continue
+			}
+			serviceManifest := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+			if !fileExists(serviceManifest) {
+				continue
+			}
+			delivery.Files = append(delivery.Files, reach.ArtifactFile{
+				Role: "scenario_service_manifest_" + scenarioID, LocalPath: serviceManifest,
+				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", scenarioID, ".vrooli", "service.json"),
+			})
+		}
 		for _, dir := range []string{"templates", "cmd", "internal"} {
 			delivery.Files = append(delivery.Files, reach.ArtifactFile{
 				Role:       "repo_marker_" + dir,
 				LocalPath:  filepath.Join(repoRoot, "go.mod"),
 				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, dir, ".cloud-bootstrap"),
 			})
+		}
+		// The emergency watchdog is built before release staging on a fresh
+		// target. Deliver the small source closure it uses so setup can verify
+		// or rebuild the safeguard without depending on an older checkout.
+		for _, dir := range []string{
+			"cmd/vrooli-watchdog",
+			"internal/buildinfo",
+			"internal/hostpressure",
+			"internal/hostinventory",
+			"internal/setpoint",
+			"internal/workloadowner",
+			"internal/tuning",
+			"internal/logx",
+			"packages/platform-go",
+		} {
+			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, dir), filepath.Join(e.rt.Target.Locator.Workdir, dir), "repo_watchdog_source"); err != nil {
+				return "", err
+			}
 		}
 		for _, resource := range e.manifest.Dependencies.Resources {
 			resourceManifest := filepath.Join(repoRoot, "resources", resource, "resource.json")
@@ -83,6 +123,9 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 				LocalPath:  resourceManifest,
 				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "resources", resource, "resource.json"),
 			})
+			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "resources", resource), filepath.Join(e.rt.Target.Locator.Workdir, "resources", resource), "resource_source"); err != nil {
+				return "", err
+			}
 		}
 		goWorkPath, err := appendBundleFile(&delivery, local, "go.work", filepath.Join(e.rt.Target.Locator.Workdir, "go.work"))
 		if err != nil {
@@ -107,6 +150,11 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 			}
 			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", "api-core"), filepath.Join(e.rt.Target.Locator.Workdir, "packages", "api-core"), "repo_api_core_source"); err != nil {
 				return "", err
+			}
+			for _, module := range []string{"envkit-go", "repo-contract-go"} {
+				if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", module), filepath.Join(e.rt.Target.Locator.Workdir, "packages", module), "repo_shared_module_source"); err != nil {
+					return "", err
+				}
 			}
 			watchdog, err := prepareWatchdogArtifact(repoRoot)
 			if err != nil {

@@ -59,16 +59,21 @@ import (
 
 const (
 	cpuWorkersEnv         = "IMAGE_TOOLS_CPU_WORKERS"
+	networkWorkersEnv     = "IMAGE_TOOLS_NETWORK_WORKERS"
 	installMBPerSecondEnv = "IMAGE_TOOLS_INSTALL_MB_PER_SECOND"
 	defaultCPUWorkers     = 4
 	minCPUWorkers         = 1
 	maxCPUWorkers         = 32
+	defaultNetworkWorkers = 4
+	minNetworkWorkers     = 1
+	maxNetworkWorkers     = 32
 	minInstallMBPerSecond = 1
 	maxInstallMBPerSecond = 10000
 )
 
 type runtimeConfig struct {
 	CPUWorkers         int
+	NetworkWorkers     int
 	InstallMBPerSecond int
 }
 
@@ -77,11 +82,15 @@ func loadRuntimeConfig() (runtimeConfig, error) {
 	if err != nil {
 		return runtimeConfig{}, err
 	}
+	networkWorkers, err := intFromEnv(networkWorkersEnv, defaultNetworkWorkers, minNetworkWorkers, maxNetworkWorkers)
+	if err != nil {
+		return runtimeConfig{}, err
+	}
 	installMBPerSecond, err := intFromEnv(installMBPerSecondEnv, internalmodels.DefaultInstallMBPerSecond, minInstallMBPerSecond, maxInstallMBPerSecond)
 	if err != nil {
 		return runtimeConfig{}, err
 	}
-	return runtimeConfig{CPUWorkers: cpuWorkers, InstallMBPerSecond: installMBPerSecond}, nil
+	return runtimeConfig{CPUWorkers: cpuWorkers, NetworkWorkers: networkWorkers, InstallMBPerSecond: installMBPerSecond}, nil
 }
 
 func intFromEnv(name string, def, min, max int) (int, error) {
@@ -206,9 +215,10 @@ func main() {
 	// under the server-lifetime context so it is independent of any caller.
 	measureRec := internalmeasures.NewRecorder(db)
 	jobManager := internaljobs.New(db, internaljobs.Config{
-		Runner:     dispatcher.Run,
-		Clock:      schedule.System(),
-		CPUWorkers: runtimeCfg.CPUWorkers,
+		Runner:         dispatcher.Run,
+		Clock:          schedule.System(),
+		CPUWorkers:     runtimeCfg.CPUWorkers,
+		NetworkWorkers: runtimeCfg.NetworkWorkers,
 		OnComplete: func(job internaljobs.Job) {
 			sample, trace := jobSampleAndTrace(job)
 			if err := measureRec.Record(jobCtx, sample); err != nil {

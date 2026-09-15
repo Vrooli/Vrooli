@@ -71,7 +71,12 @@ func Run(
 			requirementData["required_by_graph_ram_kb"] = strconv.FormatInt(estimate.RAMKB, 10)
 			requirementData["required_by_graph_disk_kb"] = strconv.FormatInt(estimate.DiskKB, 10)
 			requirementData["required_by_graph_cpu_cores"] = strconv.FormatFloat(estimate.CPUCores, 'f', -1, 64)
-			if estimate.RAMKB > ramRequiredKB {
+			// Analyzer estimates are measured guidance. Only medium/high
+			// confidence estimates may raise the hard preflight floor; a low
+			// confidence estimate must remain advisory so a small VPS can be
+			// exercised instead of being refused solely by an extrapolation.
+			confidence := strings.ToLower(strings.TrimSpace(estimate.Confidence))
+			if confidence != "low" && estimate.RAMKB > ramRequiredKB {
 				ramRequiredKB = estimate.RAMKB
 			}
 			if estimate.RAMKB > ramRecommendedKB {
@@ -120,9 +125,9 @@ func Run(
 		}
 	}
 	if len(unreachable) > 0 {
-		fail(domain.PreflightPublicPortsID, "Public ports 80/443 reachability",
+		warn(domain.PreflightPublicPortsID, "Public ports 80/443 reachability",
 			fmt.Sprintf("Unable to reach ports %s on %s from the deployment runner", strings.Join(unreachable, ","), host),
-			"Open inbound 80/443 at the VPS firewall and provider security group, or verify the host IP.",
+			"This is expected before the edge service is installed. The deployment will configure the edge; verify the ports after activation and open them in the provider security group if they remain unreachable.",
 			map[string]string{"host": host, "ports": strings.Join(unreachable, ",")})
 	} else {
 		pass(domain.PreflightPublicPortsID, "Public ports 80/443 reachability", "Ports 80/443 reachable from the deployment runner", map[string]string{"host": host, "ports": "80,443"})

@@ -59,7 +59,7 @@ func NewServerWithTrendStore(reg *Registry, trendStore trends.Store) *Server {
 
 		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
 		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
-		lpbs:   upstream.NewLPBSTypedResolved(resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT"), resolveLPBSServiceToken(), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
+		lpbs:   upstream.NewLPBSTypedResolved(resolveLPBSBaseURL(reg), resolveLPBSReaderToken(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
 		offer:  upstream.NewJSONConnectResolved("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", declaredFeatureSet(reg, "offer-desk", "")),
 		deploy: upstream.NewRESTResolved("deployment-manager", resolveScenarioBaseURL("deployment-manager", "DEPLOYMENT_MANAGER_BASE_URL", "DEPLOYMENT_MANAGER_API_PORT"), ""),
 	}
@@ -104,18 +104,46 @@ func declaredFeatureSet(reg *Registry, integrationID, kind string) map[string]st
 	return features
 }
 
-func resolveLPBSServiceToken() string {
+func resolveLPBSReaderToken(reg *Registry) string {
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return ""
 	}
 	// LPBS mints and owns this credential. Consume the same authority entry
 	// rather than declaring a second token that can drift from its verifier.
-	token, err := authority.Require(credentialauthority.Identity("vrooli/landing-page-business-suite"), "service-secret")
+	field := "metrics-reader-token"
+	origin := strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")))
+	if origin == "production" {
+		if spec, ok := reg.Origins["production"]; ok && spec.Credential != nil && spec.Credential.Field != "" {
+			field = spec.Credential.Field
+		}
+	}
+	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
+	if origin == "production" {
+		identity = credentialauthority.Identity("vrooli/command-center")
+	}
+	token, err := authority.Require(identity, field)
 	if err != nil {
 		return ""
 	}
 	return token
+}
+
+func resolveLPBSBaseURL(reg *Registry) func() string {
+	return func() string {
+		origin := strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")))
+		if origin == "override" {
+			if raw := strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_OVERRIDE_URL")); raw != "" {
+				return strings.TrimRight(raw, "/")
+			}
+		}
+		if origin == "production" {
+			if spec, ok := reg.Origins["production"]; ok && strings.TrimSpace(spec.BaseURL) != "" {
+				return strings.TrimRight(spec.BaseURL, "/")
+			}
+		}
+		return resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT")()
+	}
 }
 
 // Handler returns the HTTP handler wrapped with recovery middleware.

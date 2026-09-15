@@ -85,6 +85,13 @@ type Dispatcher interface {
 	Stop(context.Context, string) (RunSnapshot, error)
 }
 
+// RefreshingDispatcher reconciles a durable execution after the original
+// client disconnected or the owner restarted. It is optional so test and
+// offline dispatchers remain compatible.
+type RefreshingDispatcher interface {
+	Refresh(context.Context, string) (DispatchResult, error)
+}
+
 type Repository interface {
 	Create(context.Context, Workflow) (Workflow, error)
 	Get(context.Context, string) (Workflow, error)

@@ -55,16 +55,16 @@ const brandTimeFormat = time.RFC3339Nano
 
 const (
 	insertBrandSQL = `
-INSERT INTO brands (id, name, description, identity, colors, typography, voice, notes, version, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO brands (id, name, description, identity, colors, typography, voice, notes, version, slug, mark_asset_id, small_mark_asset_id, container_style_id, product_line_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
-	selectBrandColumns = `id, name, description, identity, colors, typography, voice, notes, version, created_at, updated_at`
+	selectBrandColumns = `id, name, description, identity, colors, typography, voice, notes, version, slug, mark_asset_id, small_mark_asset_id, container_style_id, product_line_id, created_at, updated_at`
 
 	selectBrandByIDSQL = `SELECT ` + selectBrandColumns + ` FROM brands WHERE id = ?`
 
 	updateBrandSQL = `
 UPDATE brands
-SET name=?, description=?, identity=?, colors=?, typography=?, voice=?, notes=?, version=?, updated_at=?
+SET name=?, description=?, identity=?, colors=?, typography=?, voice=?, notes=?, version=?, slug=?, mark_asset_id=?, small_mark_asset_id=?, container_style_id=?, product_line_id=?, updated_at=?
 WHERE id=?
 `
 	deleteBrandSQL = `DELETE FROM brands WHERE id = ?`
@@ -103,6 +103,7 @@ func (s *sqliteRepository) Create(ctx context.Context, b Brand) (Brand, error) {
 
 	if _, err := s.db.ExecContext(ctx, insertBrandSQL,
 		b.ID, b.Name, b.Description, identity, colors, typography, voice, b.Notes, b.Version,
+		b.Slug, b.MarkAssetID, b.SmallMarkAssetID, b.ContainerStyleID, b.ProductLineID,
 		b.CreatedAt.Format(brandTimeFormat), b.UpdatedAt.Format(brandTimeFormat),
 	); err != nil {
 		return Brand{}, fmt.Errorf("insert brand %q: %w", b.ID, err)
@@ -170,6 +171,7 @@ func (s *sqliteRepository) Update(ctx context.Context, b Brand) (Brand, error) {
 
 	res, err := s.db.ExecContext(ctx, updateBrandSQL,
 		b.Name, b.Description, identity, colors, typography, voice, b.Notes, b.Version,
+		b.Slug, b.MarkAssetID, b.SmallMarkAssetID, b.ContainerStyleID, b.ProductLineID,
 		b.UpdatedAt.Format(brandTimeFormat), b.ID,
 	)
 	if err != nil {
@@ -278,7 +280,8 @@ func scanBrand(sc rowScanner) (Brand, error) {
 	)
 	if err := sc.Scan(&b.ID, &b.Name, &b.Description,
 		&identityRaw, &colorsRaw, &typographyRaw, &voiceRaw,
-		&b.Notes, &b.Version, &createdRaw, &updatedRaw,
+		&b.Notes, &b.Version, &b.Slug, &b.MarkAssetID, &b.SmallMarkAssetID,
+		&b.ContainerStyleID, &b.ProductLineID, &createdRaw, &updatedRaw,
 	); err != nil {
 		return Brand{}, err
 	}

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -402,6 +403,7 @@ func actionsFor(in CompileInputs) []Action {
 // layout resolves the target paths every scope shares.
 type layout struct {
 	workdir       string
+	setupWorkdir  string
 	bundleDir     string
 	archive       string
 	manifestPath  string
@@ -411,6 +413,10 @@ type layout struct {
 
 func layoutFor(in CompileInputs) layout {
 	workdir := strings.TrimSpace(in.Manifest.Target.VPS.Workdir)
+	setupRelease := strings.TrimSpace(in.ReleaseArtifacts.ID)
+	if setupRelease == "" {
+		setupRelease = in.Release.Digest
+	}
 	bundleDir := remoteJoin(workdir, ".vrooli", "cloud", "bundles", releaseDirName(in.Release.Digest))
 	archiveName := path.Base(in.ArtifactPath)
 	if strings.TrimSpace(in.ArtifactPath) == "" {
@@ -418,6 +424,7 @@ func layoutFor(in CompileInputs) layout {
 	}
 	return layout{
 		workdir:       workdir,
+		setupWorkdir:  remoteJoin(path.Dir(workdir), ".vrooli", "cloud", "deployments", in.Deployment.ID, "releases", releaseDirName(setupRelease)),
 		bundleDir:     bundleDir,
 		archive:       remoteJoin(bundleDir, archiveName),
 		manifestPath:  remoteJoin(bundleDir, "release-manifest.json"),
@@ -546,6 +553,8 @@ func installActions(in CompileInputs) []Action {
 			RequiredCapability: "vrooli:setup",
 			Inputs: map[string]string{
 				"workdir":             lay.workdir,
+				"setup_workdir":       lay.setupWorkdir,
+				"setup_native_cli":    in.ReleaseArtifacts.NativeCLI,
 				"environment":         "production",
 				"selection":           "setup/v1",
 				"selection_json_b64":  selectionJSON(in),
@@ -1002,6 +1011,10 @@ func totalDowntime(actions []Action) int {
 
 func targetScenarioIDs(manifest domain.CloudManifest) []string {
 	ids := sortedUnique(manifest.Bundle.Scenarios)
+	// Autoheal is delivered and configured as a host safeguard, but its API is
+	// an auxiliary service. A monitor startup failure must not prevent the
+	// primary application release from activating on a constrained target.
+	ids = slices.DeleteFunc(ids, func(id string) bool { return id == "vrooli-autoheal" })
 	if len(ids) == 0 {
 		ids = sortedUnique([]string{manifest.Scenario.ID})
 	}

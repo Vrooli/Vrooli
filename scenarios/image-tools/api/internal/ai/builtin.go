@@ -177,7 +177,54 @@ func builtinProviderSpecs() []*builtinProvider {
 	return []*builtinProvider{
 		{name: models.BackendBuiltin, ops: []string{"naturalize"}, exec: runNaturalize},
 		{name: models.BackendComputed, ops: []string{"normal_map"}, exec: dispatchComputed},
+		{name: models.BackendMaskFill, ops: []string{"object_removal"}, exec: runMaskFill},
 	}
+}
+
+// runMaskFill is the standalone object-removal executor: decode the image and
+// its mask, membrane-fill the masked region, and write the PNG. It makes
+// object-removal succeed on a host with no iopaint.
+func runMaskFill(_ context.Context, req backends.Request) error {
+	in, err := technique.Input0(req)
+	if err != nil {
+		return err
+	}
+	maskPath, err := technique.MaskPath(req)
+	if err != nil {
+		return err
+	}
+	srcData, err := os.ReadFile(in)
+	if err != nil {
+		return fmt.Errorf("ai: read object-removal input: %w", err)
+	}
+	maskData, err := os.ReadFile(maskPath)
+	if err != nil {
+		return fmt.Errorf("ai: read object-removal mask: %w", err)
+	}
+	src, err := decodeNaturalizeInput(srcData)
+	if err != nil {
+		return fmt.Errorf("ai: decode object-removal input: %w", err)
+	}
+	maskImg, err := decodeNaturalizeInput(maskData)
+	if err != nil {
+		return fmt.Errorf("ai: decode object-removal mask: %w", err)
+	}
+	p := DefaultMaskFillParams()
+	if v, err := strconv.Atoi(req.Params["grow_px"]); err == nil && v >= 0 {
+		p.GrowPx = v
+	}
+	if v, err := strconv.Atoi(req.Params["halo_threshold"]); err == nil && v >= 0 {
+		p.HaloThreshold = v
+	}
+	out := MaskFill(src, maskImg, p)
+	enc, err := encodePNG(out)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(req.Output.LocalPath, enc, 0o644); err != nil {
+		return fmt.Errorf("ai: write object-removal output: %w", err)
+	}
+	return nil
 }
 
 func dispatchComputed(ctx context.Context, req backends.Request) error {

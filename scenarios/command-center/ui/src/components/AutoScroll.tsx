@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { useBeatHold } from "../lib/boardContext";
+import { useBeatHold, useCycleScale } from "../lib/boardContext";
 import { AUTOSCROLL_TIMING, scrollStops, visibleRange, type RowBox } from "../lib/fit";
 import { useLandscapeRoom, useReducedMotion } from "../lib/media";
 
@@ -30,8 +30,13 @@ const boxesOf = (content: HTMLElement, selector: string, origin: number): RowBox
     return { top: box.top - origin, height: box.height };
   }).filter((row) => row.height > 0);
 
+/** Tolerant of sub-pixel churn: a measurement that differs by at most a pixel is the same geometry. */
 const sameGeometry = (a: Geometry | null, b: Geometry): boolean =>
-  a !== null && a.viewport === b.viewport && a.counted.length === b.counted.length && a.stops.join() === b.stops.join();
+  a !== null &&
+  Math.abs(a.viewport - b.viewport) <= 1 &&
+  a.counted.length === b.counted.length &&
+  a.stops.length === b.stops.length &&
+  a.stops.every((stop, index) => Math.abs(stop - (b.stops[index] ?? 0)) <= 1);
 
 /**
  * A list that is tall by nature, shown on a screen that never scrolls. It
@@ -42,6 +47,7 @@ const sameGeometry = (a: Geometry | null, b: Geometry): boolean =>
 export function AutoScroll({ children, rowSelector, countSelector, className, label, counter = true }: AutoScrollProps) {
   const id = useId();
   const hold = useBeatHold();
+  const scale = useCycleScale();
   const landscape = useLandscapeRoom();
   const reduced = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -91,8 +97,11 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
       setPhase("run");
       return;
     }
+    // One full pass per reading set: after it has been read the list stays at
+    // the top instead of looping and flickering for the rest of the beat.
+    if (read) return;
     const { holdStartMs, stepMs, holdEndMs, fadeMs } = AUTOSCROLL_TIMING;
-    const fade = reduced ? 0 : fadeMs;
+    const fade = reduced ? 0 : fadeMs * scale;
     let timer: number;
     if (phase === "fading") {
       timer = window.setTimeout(() => {
@@ -105,11 +114,11 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
         setRead(true);
       }, fade);
     } else {
-      const delay = current === 0 ? holdStartMs : current < last ? stepMs : holdEndMs;
+      const delay = (current === 0 ? holdStartMs : current < last ? stepMs : holdEndMs) * scale;
       timer = window.setTimeout(() => (current < last ? setStop(current + 1) : setPhase("fading")), delay);
     }
     return () => window.clearTimeout(timer);
-  }, [current, last, overflowing, phase, reduced]);
+  }, [current, last, overflowing, phase, read, reduced, scale]);
 
   const offset = overflowing && geometry ? geometry.stops[current] ?? 0 : 0;
   const end = overflowing && geometry ? geometry.stops[last] ?? 0 : 0;
@@ -129,7 +138,11 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
           {children}
         </div>
       </div>
-      {counter && range && geometry ? <span className="cc-autoscroll__position" data-testid="autoscroll-position" aria-hidden="true">{range[0]}–{range[1]} of {geometry.counted.length}</span> : null}
+      {/* Once scrolling, the counter line always holds its height: if its range
+          or presence depended on what fitted, the counter would resize the
+          viewport it is measured from and the geometry would never settle. A
+          list that fits still shows no counter. */}
+      {counter && overflowing && geometry ? <span className="cc-autoscroll__position" data-testid="autoscroll-position" aria-hidden="true">{range ? `${range[0]}–${range[1]} of ${geometry.counted.length}` : "\u00A0"}</span> : null}
     </div>
   );
 }

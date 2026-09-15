@@ -60,7 +60,7 @@ The landscape figure layer is a fixed budget, not a flow (`CC-P1-017`):
 - **The strip is capped, the hero takes the rest.** The supporting strip gets at most a third of the figure layer's height. The hero region is `minmax(0, 1fr)` and sizes its figures to its own box through container units, not to the viewport.
 - **A strip that does not fit tightens, then pages.** It first drops to a compact density. If that still does not fit, it splits into pages that cross-fade in place, with the column count held across pages and a page counter in the corner.
 - **A list that is tall by nature auto-scrolls.** Panel rows, Next Rung blockers and Reach Map lanes sit in an auto-scroll viewport. It holds the first rows for four seconds, steps up one row at a time, holds at the end, then fades back to the top; it never scrolls back up. Edges fade where more rows wait, and a counter names the rows in view. Under reduced motion it steps a viewport at a time without animation. A list that fits does not move.
-- **Paging and scrolling hold the beat.** A beat does not end until its strip has shown every page and its list has made one full pass, bounded at 90 seconds past the authored dwell. The rail waits at the segment's end so a held beat reads as reading, not frozen. Manual navigation is never held.
+- **Paging and scrolling hold the beat.** A beat does not end until its strip has shown every page and its list has made one full pass, bounded at 90 seconds past the beat's reading time. The rail waits at the segment's end so a held beat reads as reading, not frozen. Manual navigation is never held.
 - **The room reports its own fit.** The room element carries `data-fit`: `ok`, `overflow` when a figure leaves the viewport or the hero runs into the strip, or `scroll` in portrait. Workflow cases assert `ok` on the densest beats at 1280×720.
 
 ## Supporting tiles speak on exception
@@ -97,11 +97,21 @@ A beat features one reading as the hero. Its `layout` decides how much of the fi
 - **`standard`** (the default) — the hero holds the left column and the beat's composition owns the band beside it.
 - **`wide`** — the hero spans both figure columns and the scene steps back to 30% opacity. Use it only for a reading that is an axis, not a figure.
 
+Beats may also declare `readingIds`, the bounded set of readings that belongs to
+that interval. The room keeps the complete producer response for provenance and
+refresh, but renders only the active beat's group. On landscape displays the
+supporting strip measures that group, pages it when needed, and never shows more
+than eight supporting tiles at once; portrait displays may scroll within the
+active group. This keeps a crowded room legible without hiding data from the
+producer response.
+
 The hero component follows the reading's `kind`: `scalar` renders the wall figure, `panel` renders ranked rows, and `ladder` renders **Next Rung** on a standard beat and the **Reach Map** on a wide one. The Forge shows Next Rung beside the funnel-cascade scene, which draws the actual next rungs with their names; the Hive shows the Reach Map.
 
 A supporting tile follows the same kind. A list reading has no single figure, so a `panel` tile shows its leading rows and a `ladder` tile shows the next release and one segment per rung, instead of a dash (`CC-P1-016`).
 
 **A ladder beat has no supporting strip.** When the hero is the release ladder (Next Rung with the funnel-cascade scene, or the Reach Map), the schedule is the whole page: the strip is omitted and the hero takes its height. On every other beat the ladder still appears in the strip as its tile.
+
+**A beat lasts as long as it takes to read** (`CC-P1-018`). The authored `dwellSeconds` is a floor, not the length. The board counts what the beat shows: the headline, one line per panel row, Next Rung blocker, fact and gap, one line per Reach Map lane, and a glance per supporting tile, capped so a big strip cannot dominate. That count is the beat's reading time, capped at 45 seconds. A wall figure keeps roughly its authored dwell; the release ladder and a long panel run longer, and the rail's segments are drawn to those lengths. The reading time follows the data, so a ladder that gains blockers gains time. When it changes mid-beat, the board keeps the same beat at the same point through it, so the room never jumps a beat. The `cycle` parameter scales reading time like everything else. Paging and auto-scroll can still hold a beat past its reading time.
 
 Both topologies are supported from the first commit: one display cycling, and several displays each pinned to a room. That means the room is a pure URL parameter, ambient motion seeds per display so adjacent screens never run in sync, and nothing anywhere assumes exactly one room is live.
 
@@ -112,7 +122,7 @@ Both topologies are supported from the first commit: one display cycling, and se
 | Ambient | 0.02–0.2 Hz | Atmosphere. If a viewer perceives it as motion rather than atmosphere, it is too fast. |
 | Freshness | Per source TTL | The board showing its own pulse. Replaces a `STALE` badge. |
 | Value change | 380ms, changed digits only | Legibility. A whole-number crossfade reads as a flicker at distance. |
-| Beat change | Authored dwell, segmented rail | Rotates a room through complete readings without adding persistent chrome. |
+| Beat change | Reading time (authored dwell as floor), segmented rail | Rotates a room through complete readings without adding persistent chrome. |
 | Room change | 900ms fade-through-black | Lets six colour worlds sit next to each other without a hue slam. |
 
 Two deliberate absences: **no pulsing alerts** — a threshold crossing gets one 1.2s bloom and holds, because a loop trains people to stop seeing it; and **no entrance animation on cycle** beyond the fade. Beat changes carry information through the segmented rail and complete-page swap, so they do not add an entrance animation.

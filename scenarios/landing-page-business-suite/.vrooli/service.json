@@ -192,6 +192,15 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
+        "field": "metrics-reader-token",
+        "label": "Metrics reader token",
+        "description": "Scoped read-only token for Command Center business analytics. LPBS mints and rotates this through the credential authority; it is never accepted from browser clients.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
         "field": "session-secret-previous",
         "label": "Retired session signing secret",
         "description": "Previous session signing secret retained for verification after rotation; LPBS writes it during rotation and there is nothing for an operator to enter.",
@@ -514,6 +523,7 @@
     ],
     "consumers": [
       {"logical_id":"vrooli/landing-page-business-suite","field":"session-secret","kind":"generated","consumer":"session cookie manager","source_ref":"api/auth.go:110","required":true},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"metrics-reader-token","kind":"generated","consumer":"Command Center business analytics reader","source_ref":"api/main.go:198","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"session-secret-previous","kind":"authority","consumer":"session rotation verifier","source_ref":"api/auth.go:135","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"service-secret","kind":"generated","consumer":"LPBS service identity bootstrap","source_ref":"api/main.go:209","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"api-key-encryption-key","kind":"generated","consumer":"provider-key encryption ring","source_ref":"api/main.go:209","required":true},
@@ -559,13 +569,13 @@
     "ui": {
       "role": "ui",
       "build": {
-        "kind": "pnpm_vite",
-        "dir": "ui"
+        "kind": "go_module",
+        "dir": "ui",
+        "output": "ui/landing-page-business-suite-ui"
       },
       "run": {
         "argv": [
-          "node",
-          "server.js"
+          "{{bin.ui}}"
         ],
         "cwd": "ui",
         "port": "ui"

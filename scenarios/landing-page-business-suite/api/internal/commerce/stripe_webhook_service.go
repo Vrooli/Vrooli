@@ -136,6 +136,23 @@ func copyTrafficAttribution(tx *sql.Tx, subscriptionID string, metadata map[stri
 	return nil
 }
 
+func recordConversion(tx *sql.Tx, session *CheckoutSessionRecord, amount int64, currency, kind string) error {
+	if session == nil || strings.TrimSpace(session.SessionID) == "" {
+		return nil
+	}
+	data, _ := json.Marshal(map[string]interface{}{"checkout_kind": kind, "amount_minor": amount, "currency": currency, "stripe_session_id": session.SessionID})
+	metadata := session.Metadata
+	value := func(key string) string {
+		if metadata == nil {
+			return ""
+		}
+		v, _ := metadata[key].(string)
+		return v
+	}
+	_, err := tx.Exec(`INSERT INTO metrics_events (event_type,event_id,event_data,session_id,visitor_id,variant_slug,utm_source,utm_medium,utm_campaign,landing_path,referrer_kind,country_code,device_class,traffic_class) VALUES ('conversion',$1,$2,NULLIF($3,''),NULLIF($4,''),NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),'human') ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`, "conversion:"+session.SessionID, data, value("session_id"), value("visitor_id"), value("variant_slug"), value("utm_source"), value("utm_medium"), value("utm_campaign"), value("landing_path"), value("referrer_kind"), value("country_code"), value("device_class"))
+	return err
+}
+
 func (s *StripeWebhookService) config() StripeWebhookConfig {
 	if s.getConfig != nil {
 		return s.getConfig()
@@ -384,7 +401,7 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
-			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 			WHERE session_id = $6
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 			return err
@@ -393,11 +410,16 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 		if sessionRec.BusinessAccountID.Valid && strings.TrimSpace(sessionRec.BusinessAccountID.String) != "" {
 			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
 		}
-		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata)
+		if err := s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata); err != nil {
+			return err
+		}
+		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
+			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
+		})
 	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
-			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 			WHERE session_id = $6
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 			return err
@@ -407,17 +429,22 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 			"email":      customerEmail,
 			"amount":     amountCents,
 		})
-		return nil
+		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
+			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
+		})
 	default:
 		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
 			if _, err := tx.Exec(`
 				UPDATE checkout_sessions
-				SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+				SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 				WHERE session_id = $6
 			`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 				return err
 			}
-			return s.handleSubscriptionCompletion(tx, subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents)
+			if err := s.handleSubscriptionCompletion(tx, subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents); err != nil {
+				return err
+			}
+			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
 		})
 	}
 }

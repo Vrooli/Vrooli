@@ -54,11 +54,12 @@ type UpdatePolicyLookup interface {
 // UpdateDependencies holds the small edge adapters required to keep the
 // delivery transport independent from the API root's mux and response package.
 type UpdateDependencies struct {
-	BundleKey  func() string
-	PathParam  func(*http.Request, string) (string, bool)
-	WriteError func(http.ResponseWriter, int, string, string)
-	WriteData  func(http.ResponseWriter, any)
-	DecodeJSON func(http.ResponseWriter, *http.Request, any) bool
+	BundleKey   func() string
+	PathParam   func(*http.Request, string) (string, bool)
+	WriteError  func(http.ResponseWriter, int, string, string)
+	WriteData   func(http.ResponseWriter, any)
+	DecodeJSON  func(http.ResponseWriter, *http.Request, any) bool
+	RecordEvent func(context.Context, string, string, string, string) error
 }
 
 func (d UpdateDependencies) appKey(r *http.Request) (string, bool) { return d.PathParam(r, "app_key") }
@@ -136,6 +137,12 @@ func UpdateFile(deps UpdateDependencies, assets UpdateAssetLookup, artifacts Upd
 				deps.WriteError(w, http.StatusNotFound, "artifact missing sha512 — re-upload with SHA512", "not_found")
 				return
 			}
+			if deps.RecordEvent != nil {
+				if err := deps.RecordEvent(r.Context(), bundleKey, appKey, platform, "update_check"); err != nil {
+					deps.WriteError(w, http.StatusInternalServerError, "Update check could not be recorded", "server_error")
+					return
+				}
+			}
 			w.Header().Set("Content-Type", "application/x-yaml")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.WriteHeader(http.StatusOK)
@@ -159,6 +166,12 @@ func UpdateFile(deps UpdateDependencies, assets UpdateAssetLookup, artifacts Upd
 		// The redirect contains a short-lived provider URL. Do not let an
 		// intermediary cache that credential-bearing location after expiry.
 		w.Header().Set("Cache-Control", "no-store")
+		if deps.RecordEvent != nil {
+			if err := deps.RecordEvent(r.Context(), bundleKey, appKey, ManifestFilenameToPlatform(file), "update_download"); err != nil {
+				deps.WriteError(w, http.StatusInternalServerError, "Update download could not be recorded", "server_error")
+				return
+			}
+		}
 		http.Redirect(w, r, signedURL, http.StatusFound)
 	}
 }

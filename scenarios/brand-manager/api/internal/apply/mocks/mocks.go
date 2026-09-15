@@ -64,6 +64,20 @@ func (f *FakeAssetStore) Read(_ context.Context, brandID, kind string) (apply.As
 	return c, true, nil
 }
 
+// ReadByID returns an asset seeded by id (see SeedByID).
+func (f *FakeAssetStore) ReadByID(_ context.Context, assetID string) (apply.AssetContent, bool, error) {
+	if f.ReadErr != nil {
+		return apply.AssetContent{}, false, f.ReadErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c, ok := f.Assets["id/"+assetID]
+	if !ok {
+		return apply.AssetContent{}, false, nil
+	}
+	return c, true, nil
+}
+
 // Seed registers an asset for (brandID, kind).
 func (f *FakeAssetStore) Seed(brandID, kind string, content apply.AssetContent) {
 	f.mu.Lock()
@@ -72,6 +86,16 @@ func (f *FakeAssetStore) Seed(brandID, kind string, content apply.AssetContent) 
 		f.Assets = map[string]apply.AssetContent{}
 	}
 	f.Assets[brandID+"/"+kind] = content
+}
+
+// SeedByID registers an asset addressable by its id.
+func (f *FakeAssetStore) SeedByID(assetID string, content apply.AssetContent) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Assets == nil {
+		f.Assets = map[string]apply.AssetContent{}
+	}
+	f.Assets["id/"+assetID] = content
 }
 
 var _ apply.AssetStore = (*FakeAssetStore)(nil)
@@ -160,6 +184,16 @@ func (f *FakeWorkspace) SeedScenario(scenario string) {
 		f.Scenarios = map[string]bool{}
 	}
 	f.Scenarios[scenario] = true
+}
+
+// SeedFile preloads a file at "<scenario>/<rel>".
+func (f *FakeWorkspace) SeedFile(scenario, rel string, data []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Files == nil {
+		f.Files = map[string][]byte{}
+	}
+	f.Files[scenario+"/"+rel] = append([]byte(nil), data...)
 }
 
 // Written returns a copy of the file at "<scenario>/<rel>", or nil if unwritten.

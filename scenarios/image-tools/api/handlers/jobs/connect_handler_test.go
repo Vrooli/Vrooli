@@ -3,6 +3,8 @@ package jobs
 import (
 	"context"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	internaljobs "image-tools/internal/jobs"
 
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
+	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
 )
 
 // fakeManager is a hand-rolled JobManager for unary error-path coverage.
@@ -151,5 +154,59 @@ func TestProgressToProto(t *testing.T) {
 	p := progressToProto(ev)
 	if p.JobId != "j1" || p.Progress != 42 || p.State != jobsv1.JobState_JOB_STATE_RUNNING {
 		t.Fatalf("unexpected progress proto: %+v", p)
+	}
+}
+
+// slowManager blocks for a fixed delay before returning a terminal job.
+type slowManager struct {
+	fakeManager
+	delay time.Duration
+}
+
+func (s *slowManager) Wait(ctx context.Context, id string) (internaljobs.Job, error) {
+	select {
+	case <-time.After(s.delay):
+		return internaljobs.Job{ID: id, Operation: "text_to_image", Lane: internaljobs.LaneGPU, State: internaljobs.StateSucceeded, Progress: 100}, nil
+	case <-ctx.Done():
+		return internaljobs.Job{}, ctx.Err()
+	}
+}
+
+// TestWaitJobSurvivesShortServerWriteTimeout is the F3 regression: a wait that
+// outlives the server's write timeout must still return. The wrapper clears the
+// deadline for exactly the two long-lived procedure paths.
+func TestWaitJobSurvivesShortServerWriteTimeout(t *testing.T) {
+	mgr := &slowManager{delay: 2500 * time.Millisecond}
+	_, h := jobsconnect.NewJobsServiceHandler(NewConnectHandler(Deps{Manager: mgr, Logger: log.New(testWriter{}, "", 0)}))
+
+	srv := httptest.NewUnstartedServer(waitDeadlineClearer{next: h})
+	srv.Config.WriteTimeout = 1 * time.Second
+	srv.Start()
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client := jobsconnect.NewJobsServiceClient(http.DefaultClient, srv.URL)
+	resp, err := client.WaitJob(ctx, connect.NewRequest(&jobsv1.WaitJobRequest{Id: "j1"}))
+	if err != nil {
+		t.Fatalf("WaitJob after 2.5s with a 1s server write timeout: %v", err)
+	}
+	if resp.Msg.GetJob().GetId() != "j1" {
+		t.Fatalf("job id = %q, want j1", resp.Msg.GetJob().GetId())
+	}
+}
+
+func TestWaitJobWithoutDeadlineClearFails(t *testing.T) {
+	mgr := &slowManager{delay: 2500 * time.Millisecond}
+	_, h := jobsconnect.NewJobsServiceHandler(NewConnectHandler(Deps{Manager: mgr, Logger: log.New(testWriter{}, "", 0)}))
+	srv := httptest.NewUnstartedServer(h)
+	srv.Config.WriteTimeout = 1 * time.Second
+	srv.Start()
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client := jobsconnect.NewJobsServiceClient(http.DefaultClient, srv.URL)
+	if _, err := client.WaitJob(ctx, connect.NewRequest(&jobsv1.WaitJobRequest{Id: "j1"})); err == nil {
+		t.Fatal("expected the bare handler to fail when the write deadline is not cleared")
 	}
 }

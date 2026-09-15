@@ -41,6 +41,7 @@ type DependencyEdge struct {
 	StartupPolicy string
 	RuntimeOnly   bool
 	Description   string
+	IncludeUI     bool
 }
 
 // HostRequirementDeclaration is a hostTools/hostSafeguards entry as declared.
@@ -201,10 +202,11 @@ type rawEdge struct {
 	StartupPolicy string `json:"startup_policy"`
 	RuntimeOnly   bool   `json:"runtime_only"`
 	Description   string `json:"description"`
+	IncludeUI     bool   `json:"include_ui"`
 }
 
 func (e rawEdge) edge() DependencyEdge {
-	edge := DependencyEdge{Enabled: true, Required: true, StartupPolicy: e.StartupPolicy, RuntimeOnly: e.RuntimeOnly, Description: e.Description}
+	edge := DependencyEdge{Enabled: true, Required: true, StartupPolicy: e.StartupPolicy, RuntimeOnly: e.RuntimeOnly, Description: e.Description, IncludeUI: e.IncludeUI}
 	if e.Enabled != nil {
 		edge.Enabled = *e.Enabled
 	}

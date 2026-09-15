@@ -209,6 +209,20 @@ func TestRun_FailsWhenAnalyzerRequirementExceedsStaticFloor(t *testing.T) {
 	}
 }
 
+func TestRun_LowConfidenceAnalyzerRAMIsAdvisory(t *testing.T) {
+	t.Parallel()
+	resp := runPreflight(t, healthyHost("984556", false, ""), testOptions(func(context.Context, string) (*ScenarioRequirements, error) {
+		return &ScenarioRequirements{RAMKB: 2 * 1024 * 1024, CPUCores: 2, Tier: "tier-4-saas", Source: "scenario-dependency-analyzer", Confidence: "low"}, nil
+	}))
+	if !resp.OK {
+		t.Fatalf("expected low-confidence graph estimate to remain advisory, got: %+v", resp.Checks)
+	}
+	c, found := checkByID(resp, domain.PreflightRAMTotalID)
+	if !found || c.Status != domain.PreflightWarn || c.Data["required_by_graph_ram_kb"] != "2097152" {
+		t.Fatalf("ram check = %+v, want warning with graph estimate retained", c)
+	}
+}
+
 // An unreachable target is one failing reachability check with the typed
 // reach refusal in its details; the remaining host probes are not attempted.
 func TestRun_UnreachableTargetStopsAfterReachability(t *testing.T) {

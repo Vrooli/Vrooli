@@ -281,6 +281,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);

@@ -54,7 +54,7 @@ export interface Reading {
   trustReason?: string;
   empirical: Empirical;
   value: number | null;
-  kind?: "scalar" | "panel" | "ladder";
+  kind?: "scalar" | "panel" | "ladder" | "funnel" | "leaderboard";
   rows?: PanelRow[];
   ladder?: LadderReading;
   observedAt: string | null;
@@ -73,7 +73,10 @@ export interface Reading {
   origin_display: string;
 }
 
-export interface PanelRow { key: string; label: string; value: number; share: number; detail?: string; ink?: "solid" | "reduced" | "hollow" | "dotted"; }
+export interface PanelRow {
+  key: string; label: string; value: number; share: number; detail?: string; ink?: "solid" | "reduced" | "hollow" | "dotted";
+  denominator?: number; rate?: number; probability?: number; verdict?: string; is_control?: boolean; cta_clicks?: number; cta_trials?: number;
+}
 
 export interface SourceMetadata {
   from_cache: boolean;
@@ -94,7 +97,7 @@ export interface BoardRoom {
   theme?: string;
   composition?: string;
   metricIds?: string[];
-  beats?: { hero: string; composition?: string; layout?: BeatLayout; dwellSeconds?: number }[];
+	beats?: { hero: string; readingIds?: string[]; composition?: string; layout?: BeatLayout; dwellSeconds?: number }[];
 }
 
 export interface BoardSource {

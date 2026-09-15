@@ -197,6 +197,122 @@
       "testId": "generation-image-op-status",
       "selector": "[data-testid=\"generation-image-op-status\"]"
     },
+    "logo.brandSelect": {
+      "testId": "logo-brand-select",
+      "selector": "[data-testid=\"logo-brand-select\"]"
+    },
+    "logo.loading": {
+      "testId": "logo-loading",
+      "selector": "[data-testid=\"logo-loading\"]"
+    },
+    "logo.empty": {
+      "testId": "logo-empty",
+      "selector": "[data-testid=\"logo-empty\"]"
+    },
+    "logo.error": {
+      "testId": "logo-error",
+      "selector": "[data-testid=\"logo-error\"]"
+    },
+    "logo.gallery": {
+      "testId": "logo-gallery",
+      "selector": "[data-testid=\"logo-gallery\"]"
+    },
+    "logo.card": {
+      "testId": "logo-candidate-card",
+      "selector": "[data-testid=\"logo-candidate-card\"]"
+    },
+    "logo.cardThumb": {
+      "testId": "logo-candidate-thumb",
+      "selector": "[data-testid=\"logo-candidate-thumb\"]"
+    },
+    "logo.cardStatus": {
+      "testId": "logo-candidate-status",
+      "selector": "[data-testid=\"logo-candidate-status\"]"
+    },
+    "logo.cardConcept": {
+      "testId": "logo-candidate-concept",
+      "selector": "[data-testid=\"logo-candidate-concept\"]"
+    },
+    "logo.cardPick": {
+      "testId": "logo-candidate-pick",
+      "selector": "[data-testid=\"logo-candidate-pick\"]"
+    },
+    "logo.cardReject": {
+      "testId": "logo-candidate-reject",
+      "selector": "[data-testid=\"logo-candidate-reject\"]"
+    },
+    "logo.cardRestore": {
+      "testId": "logo-candidate-restore",
+      "selector": "[data-testid=\"logo-candidate-restore\"]"
+    },
+    "logo.cardCompare": {
+      "testId": "logo-candidate-compare",
+      "selector": "[data-testid=\"logo-candidate-compare\"]"
+    },
+    "logo.compare": {
+      "testId": "logo-compare",
+      "selector": "[data-testid=\"logo-compare\"]"
+    },
+    "logo.compareItem": {
+      "testId": "logo-compare-item",
+      "selector": "[data-testid=\"logo-compare-item\"]"
+    },
+    "logo.exploreForm": {
+      "testId": "logo-explore-form",
+      "selector": "[data-testid=\"logo-explore-form\"]"
+    },
+    "logo.briefInput": {
+      "testId": "logo-brief-input",
+      "selector": "[data-testid=\"logo-brief-input\"]"
+    },
+    "logo.conceptsInput": {
+      "testId": "logo-concepts-input",
+      "selector": "[data-testid=\"logo-concepts-input\"]"
+    },
+    "logo.variationsInput": {
+      "testId": "logo-variations-input",
+      "selector": "[data-testid=\"logo-variations-input\"]"
+    },
+    "logo.exploreSubmit": {
+      "testId": "logo-explore-submit",
+      "selector": "[data-testid=\"logo-explore-submit\"]"
+    },
+    "logo.refinePanel": {
+      "testId": "logo-refine-panel",
+      "selector": "[data-testid=\"logo-refine-panel\"]"
+    },
+    "logo.instructionInput": {
+      "testId": "logo-instruction-input",
+      "selector": "[data-testid=\"logo-instruction-input\"]"
+    },
+    "logo.refineSubmit": {
+      "testId": "logo-refine-submit",
+      "selector": "[data-testid=\"logo-refine-submit\"]"
+    },
+    "logo.vectorizeSubmit": {
+      "testId": "logo-vectorize-submit",
+      "selector": "[data-testid=\"logo-vectorize-submit\"]"
+    },
+    "logo.maskBrush": {
+      "testId": "logo-mask-brush",
+      "selector": "[data-testid=\"logo-mask-brush\"]"
+    },
+    "logo.maskSubmit": {
+      "testId": "logo-mask-submit",
+      "selector": "[data-testid=\"logo-mask-submit\"]"
+    },
+    "logo.preview": {
+      "testId": "logo-target-preview",
+      "selector": "[data-testid=\"logo-target-preview\"]"
+    },
+    "logo.previewTile": {
+      "testId": "logo-preview-tile",
+      "selector": "[data-testid=\"logo-preview-tile\"]"
+    },
+    "logo.previewMaskable": {
+      "testId": "logo-preview-maskable",
+      "selector": "[data-testid=\"logo-preview-maskable\"]"
+    },
     "apply.card": {
       "testId": "apply-card",
       "selector": "[data-testid=\"apply-card\"]"
@@ -353,6 +469,10 @@
       "testId": "page-generation",
       "selector": "[data-testid=\"page-generation\"]"
     },
+    "pages.logo": {
+      "testId": "page-logo",
+      "selector": "[data-testid=\"page-logo\"]"
+    },
     "pages.apply": {
       "testId": "page-apply",
       "selector": "[data-testid=\"page-apply\"]"
@@ -409,6 +529,7 @@
             "assignments",
             "assets",
             "generation",
+            "logo",
             "apply",
             "discovery",
             "design",
@@ -431,6 +552,7 @@
             "assignments",
             "assets",
             "generation",
+            "logo",
             "apply",
             "discovery",
             "design",
@@ -474,7 +596,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "d1e153e7e08dd111d0300bccb2eb281db8c8160c32a515e2953714cf72e332e4",
+    "ui/src/consts/selectors.ts": "77fc98cb0345d21cbf14c2ea6509163b7374155d6bc3b031f41fc6d8e00e8550",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

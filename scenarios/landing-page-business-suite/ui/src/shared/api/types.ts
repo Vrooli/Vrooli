@@ -200,6 +200,19 @@ export interface DownloadStorefront {
   badge?: string;
 }
 
+/**
+ * Operator-authored "signing pending / unsigned build" disclosure shown where a
+ * download happens. Configured per app and per platform in the download
+ * catalog metadata; the public projection validates and bounds the copy.
+ */
+export interface SigningNotice {
+  title: string;
+  body: string;
+  severity: 'info' | 'warning';
+  link_label?: string;
+  link_url?: string;
+}
+
 export interface DownloadApp {
   bundle_key: string;
   app_key: string;
@@ -386,6 +399,7 @@ export interface MetricEvent {
   utm_campaign?: string;
   landing_path?: string;
   referrer?: string;
+  traffic_class?: 'human' | 'bot' | 'internal';
 }
 
 export interface AnalyticsSummary {

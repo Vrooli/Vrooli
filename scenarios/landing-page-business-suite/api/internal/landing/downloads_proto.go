@@ -3,11 +3,17 @@ package landing
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 	"landing-page-business-suite-api/internal/delivery"
 )
+
+// signingNoticeMetadataKey is the operator-authored delivery metadata key that
+// carries the "unsigned build / signing pending" notice. It lives in metadata
+// because it is per-app and per-platform operator configuration, like web_url.
+const signingNoticeMetadataKey = "signing_notice"
 
 // ProtoDownloads owns the delivery-to-public-landing projection. The landing
 // aggregate deliberately contains delivery metadata in its stable public
@@ -54,12 +60,23 @@ func ProtoPresentationDownloads(downloads []delivery.App) ([]*sharedv1.DownloadA
 				metadata["web_url"] = webURL
 			}
 		}
+		// The signing notice is validated, bounded operator copy. It is
+		// intentionally the only other metadata forwarded to the public
+		// contract; installer URLs, storage references, and catalog status stay
+		// behind the authorized download operation.
+		if notice := sanitizeSigningNotice(app.Metadata[signingNoticeMetadataKey]); notice != nil {
+			metadata[signingNoticeMetadataKey] = notice
+		}
 		item := delivery.App{
 			ID: app.ID, BundleKey: app.BundleKey, AppKey: app.AppKey,
 			Metadata:  metadata,
 			Platforms: make([]delivery.Asset, 0, len(app.Platforms)),
 		}
 		for _, asset := range app.Platforms {
+			assetMetadata := map[string]interface{}{}
+			if notice := sanitizeSigningNotice(asset.Metadata[signingNoticeMetadataKey]); notice != nil {
+				assetMetadata[signingNoticeMetadataKey] = notice
+			}
 			item.Platforms = append(item.Platforms, delivery.Asset{
 				ID: asset.ID, BundleKey: asset.BundleKey, AppKey: asset.AppKey,
 				Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion,
@@ -67,11 +84,64 @@ func ProtoPresentationDownloads(downloads []delivery.App) ([]*sharedv1.DownloadA
 				// Keep the stable artifact lookup identity available to the
 				// authorized delivery flow; never expose its source or URL.
 				ArtifactID: asset.ArtifactID,
+				Metadata:   assetMetadata,
 			})
 		}
 		public = append(public, item)
 	}
 	return ProtoDownloads(public)
+}
+
+// sanitizeSigningNotice projects an operator-authored notice into the bounded,
+// validated shape the public landing contract allows. Unknown fields are
+// dropped. A missing title or body disables the notice. An explicit
+// `enabled: false` is preserved so a later platform can suppress an app-level
+// default without deleting the default for the other platforms.
+func sanitizeSigningNotice(raw interface{}) map[string]interface{} {
+	notice, ok := raw.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	if enabled, ok := notice["enabled"].(bool); ok && !enabled {
+		return map[string]interface{}{"enabled": false}
+	}
+	title := signingNoticeText(notice["title"], 160)
+	body := signingNoticeText(notice["body"], 2000)
+	if title == "" || body == "" {
+		return nil
+	}
+	result := map[string]interface{}{"enabled": true, "title": title, "body": body, "severity": "info"}
+	if severity, ok := notice["severity"].(string); ok && strings.EqualFold(strings.TrimSpace(severity), "warning") {
+		result["severity"] = "warning"
+	}
+	if label := signingNoticeText(notice["link_label"], 80); label != "" {
+		result["link_label"] = label
+	}
+	if link, ok := notice["link_url"].(string); ok {
+		if safe := presentationWebURLValue(link); safe != "" {
+			result["link_url"] = safe
+		}
+	}
+	return result
+}
+
+// signingNoticeText trims operator copy, removes NUL bytes, and caps length so a
+// misconfigured record cannot turn the public download page into an unbounded
+// or control-character payload.
+func signingNoticeText(raw interface{}, limit int) string {
+	value, ok := raw.(string)
+	if !ok {
+		return ""
+	}
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\x00", ""))
+	if value == "" {
+		return ""
+	}
+	runes := []rune(value)
+	if len(runes) > limit {
+		value = string(runes[:limit])
+	}
+	return value
 }
 
 func protoAssets(assets []delivery.Asset) ([]*sharedv1.DownloadAsset, error) {

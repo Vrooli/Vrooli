@@ -3,6 +3,9 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -196,4 +199,66 @@ func jobLaneLabel(l jobsv1.JobLane) string {
 	default:
 		return "unspecified"
 	}
+}
+
+// download fetches one result of a job through the blob endpoint by job id.
+func (h *handlers) download(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	idx := 0
+	if raw := ctx.Flag("index"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 0 {
+			return fmt.Errorf("--index must be a non-negative integer")
+		}
+		idx = v
+	}
+	out := ctx.Flag("out")
+	if out == "" {
+		return fmt.Errorf("--out is required")
+	}
+	resp, err := h.client.GetJob(context.Background(), connect.NewRequest(&jobsv1.GetJobRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get job %q", id), err, nil)
+	}
+	job := resp.Msg.GetJob()
+	refs := job.GetResultRefs()
+	if len(refs) == 0 && job.GetResultRef() != "" {
+		refs = []string{job.GetResultRef()}
+	}
+	if idx >= len(refs) {
+		return fmt.Errorf("job %s has %d result(s); --index %d is out of range", id, len(refs), idx)
+	}
+	if err := downloadResult(h.core, refs[idx], out); err != nil {
+		return err
+	}
+	return ctx.RenderMutation(cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Downloaded result %d of job %s", idx, id)},
+		Changes: []string{fmt.Sprintf("wrote %s", out)},
+	})
+}
+
+// downloadResult GETs a managed blob and writes it to out.
+func downloadResult(core *cliapp.ScenarioApp, ref, out string) error {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	url := strings.TrimRight(baseURL, "/") + "/api/v1/blobs/" + ref
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download result: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download result failed (%d)", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(out, data, 0o644); err != nil {
+		return fmt.Errorf("write output %q: %w", out, err)
+	}
+	return nil
 }

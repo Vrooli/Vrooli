@@ -30,15 +30,6 @@ type ImageBackend interface {
 	// RemoveBackground runs background_removal on the source image, producing a
 	// transparent cutout.
 	RemoveBackground(ctx context.Context, req ImageRemoveBackgroundRequest) (ImageOutput, error)
-
-	// Resize runs the deterministic resize op (aspect-preserving fit) to fit
-	// within width×height. Synchronous — no model, no job lifecycle.
-	Resize(ctx context.Context, src []byte, width, height int) (ImageOutput, error)
-
-	// Flatten composites the source onto a solid-background canvas of width×height
-	// (background is a "#rrggbb" hex color), producing an opaque image. Used for
-	// Apple-touch / maskable launcher icons where transparency renders poorly.
-	Flatten(ctx context.Context, src []byte, width, height int, background string) (ImageOutput, error)
 }
 
 // ImageGenerateRequest is a text_to_image request in brand-manager's vocabulary.

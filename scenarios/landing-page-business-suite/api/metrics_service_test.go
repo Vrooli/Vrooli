@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -8,8 +9,67 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/experimentation"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
+
+type digestVariantReader struct{}
+
+func (digestVariantReader) ListVariants() []*experimentation.VariantSnapshot {
+	return []*experimentation.VariantSnapshot{{Variant: experimentation.VariantSnapshotMeta{Slug: "control", Weight: 50, Status: "active"}}}
+}
+
+func TestBusinessDigestRetentionUsesPaidSubscriptionCohort(t *testing.T) {
+	db, service := setupMetricsTestDB(t)
+	service.SetVariantConfigReader(digestVariantReader{})
+	defer func() {
+		_, _ = db.Exec("DELETE FROM subscriptions WHERE subscription_id IN ($1, $2)", "digest-retained", "digest-churned")
+	}()
+
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, created_at, updated_at)
+		VALUES ($1, $2, $3, 'active', NOW() - INTERVAL '45 days', NOW()),
+		       ($4, $5, $6, 'canceled', NOW() - INTERVAL '45 days', NOW())
+	`, "digest-retained", "cus-retained", "retained@example.com", "digest-churned", "cus-churned", "churned@example.com"); err != nil {
+		t.Fatalf("seed retention cohort: %v", err)
+	}
+	for _, event := range []domainmetrics.Event{
+		{EventType: "page_view", EventID: "digest-page", VariantSlug: "control", SessionID: "digest-session", VisitorID: "digest-visitor"},
+		{EventType: "click", EventID: "digest-click-1", VariantSlug: "control", SessionID: "digest-session", VisitorID: "digest-visitor", EventData: map[string]interface{}{"element_type": "cta"}},
+		{EventType: "click", EventID: "digest-click-2", VariantSlug: "control", SessionID: "digest-session", VisitorID: "digest-visitor", EventData: map[string]interface{}{"element_type": "cta"}},
+	} {
+		if err := service.TrackEvent(event); err != nil {
+			t.Fatalf("seed digest event %s: %v", event.EventID, err)
+		}
+	}
+	fingerprint := experimentation.WeightFingerprint(digestVariantReader{}.ListVariants())
+	if err := service.RecordExposure("digest-visitor", "control", fingerprint); err != nil {
+		t.Fatalf("seed digest exposure: %v", err)
+	}
+
+	digest, err := service.GetBusinessDigest(context.Background(), 30)
+	if err != nil {
+		t.Fatalf("GetBusinessDigest() returned error: %v", err)
+	}
+	if digest.GetRetention().GetCohortSize() != 2 {
+		t.Fatalf("expected two paid subscriptions in the 60-30 day cohort, got %d", digest.GetRetention().GetCohortSize())
+	}
+	if digest.GetRetention().GetStillActive() != 1 {
+		t.Fatalf("expected one active subscription in the cohort, got %d", digest.GetRetention().GetStillActive())
+	}
+	if got := digest.GetFunnel().GetSteps()[1].GetValue(); got != 1 {
+		t.Fatalf("expected CTA clickers to count unique visitors, got %d", got)
+	}
+	if got := digest.GetFunnel().GetSteps()[1].GetDenominator(); got != 1 {
+		t.Fatalf("expected CTA clicker denominator to be measured visitors, got %d", got)
+	}
+	if got := digest.GetExperiment().GetArms()[0].GetCtaClick().GetTrials(); got != 1 {
+		t.Fatalf("expected experiment CTA trials to use exposures, got %d", got)
+	}
+	if got := digest.GetRetention().GetCohortEnd().AsTime(); got.After(digest.GetWindow().GetEnd().AsTime().AddDate(0, 0, -29)) || got.Before(digest.GetWindow().GetEnd().AsTime().AddDate(0, 0, -31)) {
+		t.Fatalf("retention cohort end is not 30 days before the digest end: %s", got)
+	}
+}
 
 func setupMetricsTestDB(t *testing.T) (*sql.DB, *domainmetrics.Service) {
 	t.Helper()

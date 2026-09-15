@@ -26,11 +26,36 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"BrandsService.UpdateBrand":       h.update,
 		"BrandsService.DeleteBrand":       h.delete,
 		"BrandsService.ListBrandVersions": h.versions,
-		"BrandsService.GetTokens":          h.tokens,
+		"BrandsService.GetTokens":         h.tokens,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("brands: load from manifest: %w", err)
 	}
+	group.Subcommands = append(group.Subcommands, h.identityCommands()...)
 	return group, nil
+}
+
+// identityCommands are hand-built commands for brand identity fields the
+// manifest surface does not carry (slug, mark asset, container style). They are
+// appended directly rather than bound from the manifest.
+func (h *handlers) identityCommands() []cliapp.Command {
+	return []cliapp.Command{
+		{
+			Name:        "set-identity",
+			Description: "Set a brand's slug, mark asset, small mark, container style or product line",
+			NeedsAPI:    true,
+			Args: cliapp.ArgSchema{
+				Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Brand id"}},
+				Flags: []cliapp.Flag{
+					{Name: "slug", Description: "Stable machine slug"},
+					{Name: "mark-asset", Description: "Canonical mark asset id"},
+					{Name: "small-mark-asset", Description: "Small mark asset id"},
+					{Name: "container-style", Description: "Container style id"},
+					{Name: "product-line", Description: "Product line id"},
+				},
+			},
+			RunCtx: h.setIdentity,
+		},
+	}
 }

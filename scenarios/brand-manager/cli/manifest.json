@@ -793,58 +793,6 @@
               "network:internal"
             ]
           }
-        },
-        {
-          "name": "derive-icons",
-          "description": "Derive a deterministic platform icon set (favicons + apple-touch + maskable) from a source asset",
-          "flags": [
-            {
-              "name": "brand-id",
-              "required": true,
-              "description": "Brand id the source asset belongs to"
-            },
-            {
-              "name": "source-asset-id",
-              "required": true,
-              "description": "Source brand asset id (typically the transparent logo)"
-            },
-            {
-              "name": "favicon",
-              "bool": true,
-              "description": "Emit transparent favicon PNGs (16/32/196). If no include flag is set, all families are produced",
-              "bind": {
-                "field": "include_favicon"
-              }
-            },
-            {
-              "name": "apple-touch",
-              "bool": true,
-              "description": "Emit an opaque Apple-touch icon (180)",
-              "bind": {
-                "field": "include_apple_touch"
-              }
-            },
-            {
-              "name": "maskable",
-              "bool": true,
-              "description": "Emit maskable launcher icons (192/512, solid background)",
-              "bind": {
-                "field": "include_maskable"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "GenerationService",
-            "method": "DeriveBrandIcons"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
         }
       ]
     },
@@ -1056,5 +1004,76 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "CandidatesService",
+      "method": "ExploreCandidates",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "ImportCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "ListCandidates",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "GetCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "RefineCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "PickCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "RejectCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "CandidatesService",
+      "method": "RestoreCandidate",
+      "reason": "Logo-candidate commands are hand-appended in cli/domains/candidates/candidates.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "ListContainerStyles",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "GetContainerStyle",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "CreateContainerStyle",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "UpdateContainerStyle",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "ListProductLines",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    },
+    {
+      "service": "StylesService",
+      "method": "CreateProductLine",
+      "reason": "Container-style/product-line commands are hand-appended in cli/domains/styles/styles.go (the group is built directly rather than manifest-bound)."
+    }
+  ]
 }

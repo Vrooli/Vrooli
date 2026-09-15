@@ -17,9 +17,10 @@ export function flowCurrent(): Scene {
   return {
     init(frame) {
       const { data, tier } = frame;
-      const created = read(data, "throughput_stats", 40);
-      rate = Math.max(4, Math.min(tier === "full" ? 18 : 8, created / 3));
-      pool = Math.min(40, Math.round(read(data, "blocking_stats", 0)) * 3);
+      const created = read(data, "throughput_stats");
+      const blocked = read(data, "blocking_stats");
+      rate = created === null ? 0 : Math.max(4, Math.min(tier === "full" ? 18 : 8, created / 3));
+      pool = blocked === null ? 0 : Math.min(40, Math.round(blocked) * 3);
       // Pre-warm so the first frame, and the still tier, already show a current in motion.
       const { w, rng } = frame;
       sparks = Array.from({ length: Math.round(rate * 9) }, () => ({ x: rng() * w, lane: Math.floor(rng() * lanes), speed: w * (0.05 + rng() * 0.06), size: 1 + rng() * 2.2, age: rng() * 8, pooled: false, swirl: rng() * Math.PI * 2 }));

@@ -141,6 +141,18 @@ the manifest path in `register.go` and recorded in the manifest's
 image-tools jobs watch <job-id>
 ```
 
+### `image-tools jobs download <id> [--index <n>] --out <path>`
+
+Fetch one result of a finished job by job id through the managed blob
+endpoint (`GET /api/v1/blobs/{key}`), instead of copying files out of the blob
+directory. `--index` selects a variation when the job produced several
+(`result_refs`); it defaults to `0`, and `result_ref` is the first entry.
+
+```bash
+image-tools jobs download <job-id> --out result.png
+image-tools jobs download <job-id> --index 2 --out variation-3.png
+```
+
 ## Scenario commands — `ai` and `analyze` (model lifecycle execution)
 
 AI commands submit durable jobs through the REST multipart edge and can block
@@ -197,6 +209,20 @@ image-tools ai generate --model sd-1.5 --prompt "a serene mountain lake" \
   --lora lcm-lora-sdv1-5:1.0 --wait --out lake.png
 image-tools ai generate --model sd-1.5 --prompt "a stone castle" \
   --controlnet controlnet-canny-sd15:1.0:<control-image-key> --explain
+```
+
+### OpenRouter role selection (`--role`)
+
+The `ai generate`, `img2img` and `edit` verbs accept `--role <role>` to route the
+request through the gateway with a specific role from
+`resources/openrouter/model-policy.json`. The role selects the model and its
+policy (for example `image.vector.default` requires SVG output, and
+`image.generate.logo` prefers a transparent mark). brand-manager's candidate
+explore uses these roles to ask for a mark rather than a finished tile.
+
+```bash
+image-tools ai generate --role image.vector.default --prompt "eagle line art, transparent background" --wait --out mark.svg
+image-tools ai edit in.png --role image.edit.identity --instruction "remove the shadow" --wait --out edited.png
 ```
 
 ## Scenario commands — `models` (registry read + enable/disable)
@@ -419,6 +445,53 @@ fit remains reported by `models select`.
 image-tools backends doctor
 image-tools backends doctor --json
 ```
+
+## Scenario commands — `ops` vector bridge (`rasterize`, `vectorize`, `icon_container`)
+
+Three deterministic operations turn a flat mark into every icon target. All three
+are pure Go, always available, and reachable from the CLI and the REST edge
+(`POST /api/v1/ops/{operation}?output=bytes`).
+
+### `image-tools ops vectorize <input>`
+
+Trace a flat raster mark into a clean SVG: k-means palette (or pinned
+`--keep-color` entries), per-colour masks, boundary tracing, Ramer–Douglas–Peucker
+simplification, and one nonzero-winding path per layer. The SVG renders identically
+under the pure-Go rasterizer (`fill-rule=evenodd` is avoided because oksvg ignores
+it).
+
+```bash
+image-tools ops vectorize logo.png --keep-color '#ffffff' --keep-color '#22d3ee' \
+  --clip-to-largest-rounded-region --inset-px 30 --tolerance-px 0.8 --out logo.svg
+```
+
+### `image-tools ops rasterize <input.svg>`
+
+Render an SVG at an exact pixel size. Uses pure-Go oksvg, escalates to headless
+Chrome only when the SVG uses a feature oksvg silently drops, and fails by name
+when that is unavailable. `--background` flattens the result onto an opaque hex
+colour.
+
+```bash
+image-tools ops rasterize logo.svg --width 512 --height 512 --out logo-512.png
+image-tools ops rasterize logo.svg --width 180 --height 180 --background '#0f172a' --out apple-touch-icon.png
+```
+
+### `image-tools ops icon_container <input>`
+
+Pack PNG renders of one SVG or raster into an ICO or ICNS container. Repeatable
+`--size` sets the exact pixel sizes; ICNS emits both the standard and @2x OSTypes
+for 256 and 512.
+
+```bash
+image-tools ops icon_container logo.svg --format ico --size 16 --size 24 --size 32 \
+  --size 48 --size 64 --size 128 --size 256 --out icon.ico
+image-tools ops icon_container logo.svg --format icns --size 32 --size 64 --size 128 \
+  --size 256 --size 512 --size 1024 --out icon.icns
+```
+
+`image-tools ops list` reports the three operations and lists `ico` and `icns` as
+encodable formats.
 
 ## Output contracts
 

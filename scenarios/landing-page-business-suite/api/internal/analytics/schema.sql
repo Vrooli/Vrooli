@@ -15,8 +15,10 @@ CREATE TABLE IF NOT EXISTS metrics_events (
   landing_path VARCHAR(512),
   country_code CHAR(2),
   device_class VARCHAR(16) CHECK (device_class IS NULL OR device_class IN ('desktop','mobile','tablet','unknown')),
+  traffic_class VARCHAR(16) NOT NULL DEFAULT 'human' CHECK (traffic_class IN ('human','bot','internal')),
   created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_metrics_events_created_traffic_type ON metrics_events (created_at, traffic_class, event_type);
 CREATE TABLE IF NOT EXISTS experiment_exposures (
   id SERIAL PRIMARY KEY,
   visitor_id VARCHAR(255) NOT NULL,
@@ -25,3 +27,5 @@ CREATE TABLE IF NOT EXISTS experiment_exposures (
   first_seen_at TIMESTAMP DEFAULT NOW(),
   UNIQUE (visitor_id, variant_slug, weight_fingerprint)
 );
+ALTER TABLE metrics_events ADD COLUMN IF NOT EXISTS traffic_class VARCHAR(16) NOT NULL DEFAULT 'human';
+CREATE INDEX IF NOT EXISTS idx_metrics_events_created_traffic_type ON metrics_events (created_at, traffic_class, event_type);

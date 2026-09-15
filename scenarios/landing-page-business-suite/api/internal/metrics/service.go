@@ -16,12 +16,19 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	digestdomain "landing-page-business-suite-api/internal/digest"
+	"landing-page-business-suite-api/internal/experimentation"
 )
 
 type Service struct {
 	db        Store
 	contextDB ContextStore
 	clock     schedule.Clock
+	variants  interface {
+		ListVariants() []*experimentation.VariantSnapshot
+	}
 }
 
 // Store is the persistence boundary for metrics ingestion and reporting.
@@ -79,6 +86,14 @@ func NewServiceWithContextStore(db Store, contextDB ContextStore) *Service {
 	return service
 }
 
+// SetVariantConfigReader supplies the authored active-variant catalog so
+// zero-event variants remain visible in reporting.
+func (s *Service) SetVariantConfigReader(reader interface {
+	ListVariants() []*experimentation.VariantSnapshot
+}) {
+	s.variants = reader
+}
+
 type Event struct {
 	EventType    string                 `json:"event_type"`
 	VariantSlug  string                 `json:"variant_slug"`
@@ -94,6 +109,7 @@ type Event struct {
 	LandingPath  string                 `json:"landing_path,omitempty"`
 	CountryCode  string                 `json:"country_code,omitempty"`
 	DeviceClass  string                 `json:"device_class,omitempty"`
+	TrafficClass string                 `json:"traffic_class,omitempty"`
 }
 
 type VariantStats struct {
@@ -115,6 +131,8 @@ type AnalyticsSummary struct {
 	VariantStats   []VariantStats `json:"variant_stats"`
 	TopCTA         string         `json:"top_cta,omitempty"`
 	TopCTACTR      float64        `json:"top_cta_ctr,omitempty"`
+	BotEvents      int64          `json:"bot_events,omitempty"`
+	InternalEvents int64          `json:"internal_events,omitempty"`
 	ObservedAt     *time.Time     `json:"observed_at,omitempty"`
 }
 
@@ -130,6 +148,7 @@ type TrafficBreakdownRow struct {
 type TrafficBreakdown struct {
 	Rows          []TrafficBreakdownRow `json:"rows"`
 	TotalSessions int64                 `json:"total_sessions"`
+	OtherVisitors int64                 `json:"other_visitors"`
 	Exhaustive    bool                  `json:"exhaustive"`
 	Currency      string                `json:"currency"`
 	ObservedAt    time.Time             `json:"observed_at"`
@@ -143,6 +162,226 @@ type TrafficSeries struct {
 	Points     []TrafficSeriesPoint
 	Unit       string
 	ObservedAt time.Time
+}
+
+// GetBusinessDigest is the producer-owned aggregate used by Command Center.
+// It deliberately returns only aggregate values and keeps window validation at
+// the contract edge.
+func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.BusinessDigest, error) {
+	if days == 0 {
+		days = 30
+	}
+	if days != 7 && days != 30 && days != 90 {
+		return nil, fmt.Errorf("window_days must be 7, 30, or 90")
+	}
+	end := s.clock.Now().UTC()
+	start := end.AddDate(0, 0, -int(days))
+	summary, err := s.GetAnalyticsSummary(start, end)
+	if err != nil {
+		return nil, err
+	}
+	revenue, err := s.GetRevenueSummary()
+	if err != nil {
+		return nil, err
+	}
+	var cta, ctaClickers, checkouts, paid, paidCheckoutTotal, unattributedCheckouts, unattributedPaid int64
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM metrics_events WHERE traffic_class='human' AND event_type='click' AND event_data->>'element_type'='cta' AND created_at >= $1 AND created_at <= $2`, start, end).Scan(&cta); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`WITH visitors AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='page_view' AND created_at >= $1 AND created_at < $2
+	), cta_clickers AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='click' AND event_data->>'element_type'='cta' AND created_at >= $1 AND created_at < $2
+	)
+	SELECT COUNT(*) FROM cta_clickers c JOIN visitors v USING (visitor_key)`, start, end).Scan(&ctaClickers); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`WITH visitors AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='page_view' AND created_at >= $1 AND created_at < $2
+	), cta_clickers AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='click' AND event_data->>'element_type'='cta' AND created_at >= $1 AND created_at < $2
+	), checkout_visitors AS (
+		SELECT DISTINCT visitor_id AS visitor_key FROM checkout_sessions
+		WHERE visitor_id IS NOT NULL AND visitor_id <> '' AND created_at >= $1 AND created_at < $2
+	)
+	SELECT COUNT(*) FROM checkout_visitors c JOIN cta_clickers a USING (visitor_key) JOIN visitors v USING (visitor_key)`, start, end).Scan(&checkouts); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`WITH cta_clickers AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='click' AND event_data->>'element_type'='cta' AND created_at >= $1 AND created_at < $2
+	), checkout_visitors AS (
+		SELECT DISTINCT visitor_id AS visitor_key FROM checkout_sessions
+		WHERE visitor_id IS NOT NULL AND visitor_id <> '' AND created_at >= $1 AND created_at < $2
+	), converted AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id,''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class='human' AND event_type='conversion' AND created_at >= $1 AND created_at < $2
+	)
+	SELECT COUNT(*) FROM converted p JOIN checkout_visitors c USING (visitor_key) JOIN cta_clickers a USING (visitor_key)`, start, end).Scan(&paid); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM metrics_events WHERE traffic_class='human' AND event_type='conversion' AND created_at >= $1 AND created_at < $2`, start, end).Scan(&paidCheckoutTotal); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE NULLIF(visitor_id,'') IS NULL) FROM checkout_sessions WHERE created_at >= $1 AND created_at < $2`, start, end).Scan(&unattributedCheckouts); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE NULLIF(visitor_id,'') IS NULL) FROM metrics_events WHERE traffic_class='human' AND event_type='conversion' AND created_at >= $1 AND created_at < $2`, start, end).Scan(&unattributedPaid); err != nil {
+		return nil, err
+	}
+	var digestRevenue, digestCredits, digestPurchased, digestOperations, digestConsumers int64
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents),0) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= $1 AND COALESCE(completed_at, created_at) <= $2`, start, end).Scan(&digestRevenue); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(credits),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCredits); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT user_identity) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestOperations, &digestConsumers); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COALESCE((SELECT SUM(amount_credits) FROM credit_transactions WHERE amount_credits > 0 AND created_at >= $1 AND created_at <= $2), 0) + COALESCE((SELECT SUM(amount_credits) FROM business_account_credit_transactions WHERE amount_credits > 0 AND created_at >= $1 AND created_at <= $2), 0)`, start, end).Scan(&digestPurchased); err != nil {
+		return nil, err
+	}
+	var signups, waitlist, paidSubs, trials int64
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM users WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&signups); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM waitlist_emails WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&waitlist); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1 AND created_at <= $2 AND status IN ('active','trialing')`, start, end).Scan(&paidSubs); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1 AND created_at <= $2 AND status = 'trialing'`, start, end).Scan(&trials); err != nil {
+		return nil, err
+	}
+	// Retention is a paid-subscription cohort, not a signup cohort. The
+	// subscriptions table's created_at is the first-paid timestamp recorded by
+	// the current producer; status is evaluated at read time.
+	cohortStart := end.AddDate(0, 0, -60)
+	cohortEnd := end.AddDate(0, 0, -30)
+	var cohortSize, retained int64
+	if err = s.db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(CASE WHEN status = 'active' OR (status = 'trialing' AND customer_id IS NOT NULL) THEN 1 ELSE 0 END), 0) FROM subscriptions WHERE created_at >= $1 AND created_at < $2`, cohortStart, cohortEnd).Scan(&cohortSize, &retained); err != nil {
+		return nil, err
+	}
+	apps := make([]*lpbsv1.AppActivity, 0)
+	appRows, err := s.db.Query(`SELECT app_key, COUNT(*) FILTER (WHERE event_type='download_authorized'), COUNT(*) FILTER (WHERE event_type='update_check'), COUNT(*) FILTER (WHERE event_type='update_download') FROM delivery_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_key ORDER BY app_key`, start, end)
+	if err != nil {
+		return nil, err
+	}
+	for appRows.Next() {
+		var app string
+		var downloads, checks, updateDownloads int64
+		if err := appRows.Scan(&app, &downloads, &checks, &updateDownloads); err != nil {
+			appRows.Close()
+			return nil, err
+		}
+		apps = append(apps, &lpbsv1.AppActivity{AppKey: app, AppName: app, Downloads: downloads, UpdateChecks: checks, UpdateDownloads: updateDownloads})
+	}
+	if err := appRows.Err(); err != nil {
+		appRows.Close()
+		return nil, err
+	}
+	appRows.Close()
+	byApp := make([]*lpbsv1.CreditUsageRow, 0)
+	byModel := make([]*lpbsv1.CreditUsageRow, 0)
+	usageRows, err := s.db.Query(`SELECT app_bundle_key, COALESCE(SUM(credits),0), COUNT(*) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_bundle_key ORDER BY app_bundle_key`, start, end)
+	if err != nil {
+		return nil, err
+	}
+	for usageRows.Next() {
+		var key string
+		var credits, operations int64
+		if err := usageRows.Scan(&key, &credits, &operations); err != nil {
+			usageRows.Close()
+			return nil, err
+		}
+		byApp = append(byApp, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations})
+	}
+	if err := usageRows.Err(); err != nil {
+		usageRows.Close()
+		return nil, err
+	}
+	usageRows.Close()
+	modelRows, err := s.db.Query(`SELECT model, COALESCE(SUM(credits),0), COUNT(*) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY model ORDER BY model`, start, end)
+	if err != nil {
+		return nil, err
+	}
+	for modelRows.Next() {
+		var key string
+		var credits, operations int64
+		if err := modelRows.Scan(&key, &credits, &operations); err != nil {
+			modelRows.Close()
+			return nil, err
+		}
+		byModel = append(byModel, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations})
+	}
+	if err := modelRows.Err(); err != nil {
+		modelRows.Close()
+		return nil, err
+	}
+	modelRows.Close()
+	control := "control"
+	hasControl := false
+	for _, stat := range summary.VariantStats {
+		if stat.VariantSlug == control {
+			hasControl = true
+			break
+		}
+	}
+	if !hasControl {
+		for _, stat := range summary.VariantStats {
+			if stat.VariantSlug != "" {
+				control = stat.VariantSlug
+				break
+			}
+		}
+	}
+	var controlTrials, controlConversions int64
+	for _, stat := range summary.VariantStats {
+		if stat.VariantSlug == control {
+			controlTrials, controlConversions = stat.Exposures, stat.Conversions
+			break
+		}
+	}
+	arms := make([]*lpbsv1.ExperimentArm, 0, len(summary.VariantStats))
+	for _, stat := range summary.VariantStats {
+		verdict := lpbsv1.ExperimentVerdict_EXPERIMENT_VERDICT_INSUFFICIENT_DATA
+		prob := 0.5
+		trials := stat.Exposures
+		if trials >= 100 && stat.Conversions >= 5 {
+			prob = digestdomain.ProbabilityBeatsControl(stat.Conversions, trials, controlConversions, controlTrials)
+			if stat.VariantSlug == control {
+				verdict = lpbsv1.ExperimentVerdict_EXPERIMENT_VERDICT_CONTROL
+			} else if prob >= 0.95 {
+				verdict = lpbsv1.ExperimentVerdict_EXPERIMENT_VERDICT_LEADING
+			} else if prob <= 0.05 {
+				verdict = lpbsv1.ExperimentVerdict_EXPERIMENT_VERDICT_TRAILING
+			} else {
+				verdict = lpbsv1.ExperimentVerdict_EXPERIMENT_VERDICT_INCONCLUSIVE
+			}
+		}
+		arms = append(arms, &lpbsv1.ExperimentArm{VariantSlug: stat.VariantSlug, VariantName: stat.VariantName, IsControl: stat.VariantSlug == control, CtaClick: &lpbsv1.ArmMetric{Successes: stat.CTAClicks, Trials: trials, RatePercent: percent(stat.CTAClicks, trials), ProbabilityBeatsControl: prob, Verdict: verdict}, Paid: &lpbsv1.ArmMetric{Successes: stat.Conversions, Trials: trials, RatePercent: percent(stat.Conversions, trials), ProbabilityBeatsControl: prob, Verdict: verdict}})
+	}
+	steps := []*lpbsv1.FunnelStep{{Key: "visitors", Label: "Visitors", Value: summary.TotalVisitors}, {Key: "cta_clickers", Label: "Clicked a CTA", Value: ctaClickers, DenominatorKey: "visitors", Denominator: summary.TotalVisitors}, {Key: "checkouts_started", Label: "Checkouts started", Value: checkouts, DenominatorKey: "cta_clickers", Denominator: ctaClickers}, {Key: "paid", Label: "Paid", Value: paid, DenominatorKey: "checkouts_started", Denominator: checkouts}}
+	return &lpbsv1.BusinessDigest{ContractVersion: "business-digest.v1", ObservedAt: timestamppb.New(end), Window: &lpbsv1.DigestWindow{Start: timestamppb.New(start), End: timestamppb.New(end), Days: days}, Funnel: &lpbsv1.Funnel{Steps: steps, UnattributedCheckoutsStarted: unattributedCheckouts, UnattributedPaid: unattributedPaid, PaidCheckoutsTotal: paidCheckoutTotal, PaidRevenueMinor: digestRevenue, Currency: revenue.Currency}, Apps: apps, Credits: &lpbsv1.CreditEconomy{CreditsBurned: digestCredits, CreditsPurchased: digestPurchased, DistinctConsumers: digestConsumers, Operations: digestOperations, ByApp: byApp, ByModel: byModel}, Growth: &lpbsv1.Growth{Signups: signups, WaitlistJoins: waitlist, NewPaidSubscriptions: paidSubs, TrialsStarted: trials}, Experiment: &lpbsv1.Experiment{Arms: arms, ControlSlug: control, MinimumTrials: 100, MinimumSuccesses: 5}, Retention: &lpbsv1.Retention{CohortStart: timestamppb.New(cohortStart), CohortEnd: timestamppb.New(cohortEnd), CohortSize: cohortSize, StillActive: retained}, Exclusions: &lpbsv1.TrafficExclusions{BotEvents: summary.BotEvents, InternalEvents: summary.InternalEvents}, CtaClicks: cta}, nil
+}
+
+func percent(successes, trials int64) float64 {
+	if trials <= 0 {
+		return 0
+	}
+	return float64(successes) * 100 / float64(trials)
 }
 
 func (s *Service) RecordExposure(visitorID, variantSlug, weightFingerprint string) error {
@@ -249,10 +488,10 @@ func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 		WHERE sub.status IN ('active','trialing') AND COALESCE(bp.billing_interval, 'one_time') IN ('month','year')`).Scan(&mrr, &active, &trials, &currency, &currencies); err != nil {
 		return nil, fmt.Errorf("compute revenue summary subscriptions: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND created_at >= CURRENT_DATE`).Scan(&today); err != nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= CURRENT_DATE`).Scan(&today); err != nil {
 		return nil, fmt.Errorf("compute revenue summary today: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&window); err != nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&window); err != nil {
 		return nil, fmt.Errorf("compute revenue summary window: %w", err)
 	}
 	if err := s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE canceled_at >= CURRENT_DATE - INTERVAL '30 days') FROM subscriptions WHERE canceled_at IS NOT NULL`).Scan(&churned); err != nil {
@@ -261,10 +500,15 @@ func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 	if err := s.db.QueryRow(`SELECT COALESCE(SUM(balance_credits + bonus_credits), 0) FROM credit_wallets`).Scan(&creditBalance); err != nil {
 		return nil, fmt.Errorf("compute revenue summary credits: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(ABS(amount_credits)), 0) FROM credit_transactions WHERE transaction_type IN ('usage','debit','consumption') AND created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&creditBurned); err != nil {
+	var businessCreditBalance int64
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(balance_credits + bonus_credits), 0) FROM business_account_credit_wallets`).Scan(&businessCreditBalance); err != nil {
+		return nil, fmt.Errorf("compute revenue summary business credits: %w", err)
+	}
+	creditBalance += businessCreditBalance
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(credits), 0) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&creditBurned); err != nil {
 		return nil, fmt.Errorf("compute revenue summary credit usage: %w", err)
 	}
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
 		return nil, fmt.Errorf("compute revenue summary usage: %w", err)
 	}
 	if active+churned > 0 {
@@ -301,6 +545,12 @@ func (s *Service) TrackEvent(event Event) error {
 	if eventID == "" {
 		eventID = GenerateEventIDAt(event, s.clock.Now())
 	}
+	if event.TrafficClass == "" {
+		event.TrafficClass = "human"
+	}
+	if event.TrafficClass != "human" && event.TrafficClass != "bot" && event.TrafficClass != "internal" {
+		return &ValidationError{Field: "traffic_class", Reason: "must be human, bot, or internal"}
+	}
 
 	var err error
 	if event.EventData == nil {
@@ -318,12 +568,12 @@ func (s *Service) TrackEvent(event Event) error {
 	if _, err = s.db.Exec(`INSERT INTO metrics_events
 		(variant_slug, event_type, event_data, event_id, session_id, visitor_id,
 		 referrer_host, referrer_kind, utm_source, utm_medium, utm_campaign,
-		 landing_path, country_code, device_class)
-		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''))
+		landing_path, country_code, device_class, traffic_class)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15)
 		ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`, event.VariantSlug, event.EventType, eventDataJSON,
 		eventID, event.SessionID, event.VisitorID, event.ReferrerHost, event.ReferrerKind,
 		event.UTMSource, event.UTMMedium, event.UTMCampaign, event.LandingPath,
-		event.CountryCode, event.DeviceClass); err != nil {
+		event.CountryCode, event.DeviceClass, event.TrafficClass); err != nil {
 		return fmt.Errorf("failed to insert event: %w", err)
 	}
 	return nil
@@ -335,7 +585,7 @@ func (s *Service) TrackEvent(event Event) error {
 func (s *Service) GetTrafficBreakdown(dimension string, startDate, endDate time.Time, limit int) (*TrafficBreakdown, error) {
 	columns := map[string]string{
 		"country": "country_code", "referrer_kind": "referrer_kind", "utm_source": "utm_source",
-		"utm_campaign": "utm_campaign", "device_class": "device_class", "landing_path": "landing_path", "variant": "variant_slug",
+		"utm_medium": "utm_medium", "utm_campaign": "utm_campaign", "device_class": "device_class", "landing_path": "landing_path", "variant": "variant_slug",
 	}
 	column, ok := columns[strings.ToLower(dimension)]
 	if !ok {
@@ -344,24 +594,32 @@ func (s *Service) GetTrafficBreakdown(dimension string, startDate, endDate time.
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
-	query := fmt.Sprintf(`WITH visitor_dimensions AS (
-		SELECT DISTINCT COALESCE(NULLIF(%s, ''), 'unknown') AS dimension_key,
-			COALESCE(NULLIF(visitor_id, ''), session_id) AS visitor_key
-		FROM metrics_events WHERE created_at >= $1 AND created_at <= $2
+	query := fmt.Sprintf(`WITH first_touch AS (
+		SELECT DISTINCT ON (COALESCE(NULLIF(visitor_id, ''), session_id))
+			COALESCE(NULLIF(visitor_id, ''), session_id) AS visitor_key,
+			COALESCE(NULLIF(%s, ''), 'unknown') AS dimension_key
+		FROM metrics_events
+		WHERE traffic_class = 'human' AND event_type = 'page_view' AND created_at >= $1 AND created_at <= $2
+		ORDER BY COALESCE(NULLIF(visitor_id, ''), session_id), created_at, event_id
+	), conversions AS (
+		SELECT DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id) AS visitor_key
+		FROM metrics_events
+		WHERE traffic_class = 'human' AND event_type = 'conversion' AND created_at >= $1 AND created_at <= $2
 	), grouped AS (
-		SELECT COALESCE(NULLIF(e.%s, ''), 'unknown') AS dimension_key,
-			COUNT(DISTINCT COALESCE(NULLIF(e.visitor_id, ''), e.session_id)) AS sessions,
-			COUNT(DISTINCT CASE WHEN e.event_type = 'conversion' THEN COALESCE(NULLIF(e.visitor_id, ''), e.session_id) END) AS conversions
-		FROM metrics_events e WHERE e.created_at >= $1 AND e.created_at <= $2 GROUP BY 1
+		SELECT f.dimension_key, COUNT(*) AS visitors, COUNT(c.visitor_key) AS conversions
+		FROM first_touch f LEFT JOIN conversions c USING (visitor_key)
+		GROUP BY f.dimension_key
 	), revenue AS (
-		SELECT vd.dimension_key, COALESCE(SUM(c.amount_cents), 0) AS revenue_minor
-		FROM visitor_dimensions vd JOIN checkout_sessions c ON c.visitor_id = vd.visitor_key
-		WHERE c.status IN ('paid', 'complete') GROUP BY vd.dimension_key
+		SELECT f.dimension_key, COALESCE(SUM(c.amount_cents), 0) AS revenue_minor
+		FROM first_touch f JOIN checkout_sessions c
+			ON COALESCE(NULLIF(c.visitor_id, ''), c.session_id) = f.visitor_key
+		WHERE c.status IN ('paid', 'complete') AND COALESCE(c.completed_at, c.created_at) >= $1 AND COALESCE(c.completed_at, c.created_at) <= $2
+		GROUP BY f.dimension_key
 	)
-	SELECT g.dimension_key, g.sessions, g.conversions, COALESCE(r.revenue_minor, 0),
-		SUM(g.sessions) OVER () AS total_sessions, COUNT(*) OVER () AS total_groups
+	SELECT g.dimension_key, g.visitors, g.conversions, COALESCE(r.revenue_minor, 0),
+		SUM(g.visitors) OVER () AS total_visitors, COUNT(*) OVER () AS total_groups
 	FROM grouped g LEFT JOIN revenue r USING (dimension_key)
-	ORDER BY g.sessions DESC, g.dimension_key LIMIT $3`, column, column)
+	ORDER BY g.visitors DESC, g.dimension_key LIMIT $3`, column)
 	rows, err := s.db.Query(query, startDate, endDate, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query traffic breakdown: %w", err)
@@ -377,9 +635,18 @@ func (s *Service) GetTrafficBreakdown(dimension string, startDate, endDate time.
 		row.Label = row.Key
 		out.Rows = append(out.Rows, row)
 		out.Exhaustive = totalGroups <= int64(limit)
+		if !out.Exhaustive {
+			out.OtherVisitors = out.TotalSessions
+			for _, existing := range out.Rows {
+				out.OtherVisitors -= existing.Sessions
+			}
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate traffic breakdown: %w", err)
+	}
+	if len(out.Rows) == 0 {
+		out.Exhaustive = true
 	}
 	for i := range out.Rows {
 		if out.TotalSessions > 0 {
@@ -390,7 +657,7 @@ func (s *Service) GetTrafficBreakdown(dimension string, startDate, endDate time.
 }
 
 func (s *Service) GetTrafficSeries(metric string, startDate, endDate time.Time, bucket string) (*TrafficSeries, error) {
-	metricSQL := map[string]string{"visitors": "COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id))", "sessions": "COUNT(DISTINCT session_id)", "conversions": "COUNT(*) FILTER (WHERE event_type = 'conversion')"}
+	metricSQL := map[string]string{"visitors": "COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id))", "sessions": "COUNT(DISTINCT session_id)", "conversions": "COUNT(*) FILTER (WHERE event_type = 'conversion')", "cta_clicks": "COUNT(*) FILTER (WHERE event_type = 'click' AND event_data->>'element_type' = 'cta')"}
 	expr, ok := metricSQL[strings.ToLower(metric)]
 	if !ok {
 		return nil, fmt.Errorf("unsupported traffic metric %q", metric)
@@ -401,7 +668,7 @@ func (s *Service) GetTrafficSeries(metric string, startDate, endDate time.Time, 
 	if bucket != "day" {
 		return nil, fmt.Errorf("unsupported traffic bucket %q", bucket)
 	}
-	query := fmt.Sprintf("SELECT date_trunc('day', created_at), %s FROM metrics_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY 1 ORDER BY 1", expr)
+	query := fmt.Sprintf("SELECT date_trunc('day', created_at), %s FROM metrics_events WHERE traffic_class = 'human' AND created_at >= $1 AND created_at <= $2 GROUP BY 1 ORDER BY 1", expr)
 	rows, err := s.db.Query(query, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("query traffic series: %w", err)
@@ -418,6 +685,21 @@ func (s *Service) GetTrafficSeries(metric string, startDate, endDate time.Time, 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate traffic series: %w", err)
 	}
+	byDay := make(map[string]TrafficSeriesPoint, len(out.Points))
+	for _, point := range out.Points {
+		byDay[point.BucketStart.UTC().Format("2006-01-02")] = point
+	}
+	firstDay := time.Date(startDate.UTC().Year(), startDate.UTC().Month(), startDate.UTC().Day(), 0, 0, 0, 0, time.UTC)
+	lastDay := time.Date(endDate.UTC().Year(), endDate.UTC().Month(), endDate.UTC().Day(), 0, 0, 0, 0, time.UTC)
+	points := make([]TrafficSeriesPoint, 0, int(lastDay.Sub(firstDay).Hours()/24)+1)
+	for day := firstDay; !day.After(lastDay); day = day.AddDate(0, 0, 1) {
+		if point, ok := byDay[day.Format("2006-01-02")]; ok {
+			points = append(points, point)
+		} else {
+			points = append(points, TrafficSeriesPoint{BucketStart: day})
+		}
+	}
+	out.Points = points
 	return out, nil
 }
 
@@ -444,6 +726,11 @@ func GenerateEventIDAt(event Event, now time.Time) string {
 }
 
 func (s *Service) GetVariantStats(startDate, endDate time.Time, variantSlug string) ([]VariantStats, error) {
+	args := []interface{}{startDate, endDate}
+	exposureFingerprint := ""
+	if s.variants != nil {
+		exposureFingerprint = experimentation.WeightFingerprint(s.variants.ListVariants())
+	}
 	query := `SELECT e.variant_slug,
 		COALESCE(SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN event_type = 'click' AND event_data->>'element_type' = 'cta' THEN 1 ELSE 0 END), 0),
@@ -454,13 +741,18 @@ func (s *Service) GetVariantStats(startDate, endDate time.Time, variantSlug stri
 		LEFT JOIN (
 			SELECT variant_slug, COUNT(*) AS exposures
 			FROM experiment_exposures
-			WHERE first_seen_at >= $1 AND first_seen_at <= $2
+			WHERE first_seen_at >= $1 AND first_seen_at <= $2`
+	if exposureFingerprint != "" {
+		query += ` AND weight_fingerprint = $3`
+		args = append(args, exposureFingerprint)
+	}
+	query += `
 			GROUP BY variant_slug
 		) x ON x.variant_slug = e.variant_slug
-		WHERE e.created_at >= $1 AND e.created_at <= $2`
-	args := []interface{}{startDate, endDate}
+		WHERE e.traffic_class = 'human' AND e.created_at >= $1 AND e.created_at <= $2`
 	if variantSlug != "" {
-		query += " AND e.variant_slug = $3"
+		placeholder := len(args) + 1
+		query += fmt.Sprintf(" AND e.variant_slug = $%d", placeholder)
 		args = append(args, variantSlug)
 	}
 	query += " GROUP BY e.variant_slug, x.exposures ORDER BY e.variant_slug"
@@ -470,6 +762,7 @@ func (s *Service) GetVariantStats(startDate, endDate time.Time, variantSlug stri
 	}
 	defer rows.Close()
 	var stats []VariantStats
+	bySlug := make(map[string]int)
 	for rows.Next() {
 		var stat VariantStats
 		if err := rows.Scan(&stat.VariantSlug, &stat.Views, &stat.CTAClicks, &stat.Conversions, &stat.Downloads, &stat.Exposures); err != nil {
@@ -480,9 +773,22 @@ func (s *Service) GetVariantStats(startDate, endDate time.Time, variantSlug stri
 			stat.ConversionRate = float64(stat.Conversions) / float64(stat.Exposures) * 100
 		}
 		stats = append(stats, stat)
+		bySlug[stat.VariantSlug] = len(stats) - 1
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate variant stats: %w", err)
+	}
+	if s.variants != nil {
+		for _, variant := range s.variants.ListVariants() {
+			if variant == nil || (variant.Variant.Status != "" && variant.Variant.Status != "active") || (variantSlug != "" && variant.Variant.Slug != variantSlug) {
+				continue
+			}
+			if _, ok := bySlug[variant.Variant.Slug]; ok {
+				stats[bySlug[variant.Variant.Slug]].VariantName = variant.Variant.Name
+				continue
+			}
+			stats = append(stats, VariantStats{VariantSlug: variant.Variant.Slug, VariantName: variant.Variant.Name})
+		}
 	}
 	return stats, nil
 }
@@ -493,19 +799,19 @@ func (s *Service) GetAnalyticsSummary(startDate, endDate time.Time) (*AnalyticsS
 		return nil, err
 	}
 	var totalVisitors int64
-	if err = s.db.QueryRow(`SELECT COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id)) FROM metrics_events WHERE event_type = 'page_view' AND created_at >= $1 AND created_at <= $2`, startDate, endDate).Scan(&totalVisitors); err != nil {
+	if err = s.db.QueryRow(`SELECT COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id)) FROM metrics_events WHERE traffic_class = 'human' AND event_type = 'page_view' AND created_at >= $1 AND created_at <= $2`, startDate, endDate).Scan(&totalVisitors); err != nil {
 		return nil, fmt.Errorf("failed to count visitors: %w", err)
 	}
 	var totalDownloads int64
-	if err = s.db.QueryRow(`SELECT COUNT(*) FROM metrics_events WHERE event_type = 'download' AND created_at >= $1 AND created_at <= $2`, startDate, endDate).Scan(&totalDownloads); err != nil {
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM metrics_events WHERE traffic_class = 'human' AND event_type = 'download' AND created_at >= $1 AND created_at <= $2`, startDate, endDate).Scan(&totalDownloads); err != nil {
 		return nil, fmt.Errorf("failed to count downloads: %w", err)
 	}
 	var topCTA string
 	var topCTAClicks, topCTAViews int64
-	err = s.db.QueryRow(`SELECT m.event_data->>'element_id', COUNT(*),
-		(SELECT COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id)) FROM metrics_events WHERE event_type = 'page_view' AND created_at >= $1 AND created_at <= $2)
-		FROM metrics_events m WHERE m.event_type = 'click' AND m.event_data->>'element_type' = 'cta' AND m.created_at >= $1 AND m.created_at <= $2
-		GROUP BY m.event_data->>'element_id' ORDER BY COUNT(*) DESC LIMIT 1`, startDate, endDate).Scan(&topCTA, &topCTAClicks, &topCTAViews)
+	err = s.db.QueryRow(`SELECT COALESCE(m.event_data->>'element_id', 'unknown'), COUNT(*),
+		(SELECT COUNT(DISTINCT COALESCE(NULLIF(visitor_id, ''), session_id)) FROM metrics_events WHERE traffic_class = 'human' AND event_type = 'page_view' AND created_at >= $1 AND created_at <= $2)
+		FROM metrics_events m WHERE m.traffic_class = 'human' AND m.event_type = 'click' AND m.event_data->>'element_type' = 'cta' AND m.created_at >= $1 AND m.created_at <= $2
+		GROUP BY COALESCE(m.event_data->>'element_id', 'unknown') ORDER BY COUNT(*) DESC LIMIT 1`, startDate, endDate).Scan(&topCTA, &topCTAClicks, &topCTAViews)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("failed to query top CTA: %w", err)
 	}
@@ -513,6 +819,8 @@ func (s *Service) GetAnalyticsSummary(startDate, endDate time.Time) (*AnalyticsS
 	if topCTAViews > 0 {
 		topCTACTR = float64(topCTAClicks) / float64(topCTAViews) * 100
 	}
-	observedAt := time.Now().UTC()
-	return &AnalyticsSummary{TotalVisitors: totalVisitors, TotalDownloads: totalDownloads, VariantStats: stats, TopCTA: topCTA, TopCTACTR: topCTACTR, ObservedAt: &observedAt}, nil
+	observedAt := s.clock.Now().UTC()
+	var botEvents, internalEvents int64
+	_ = s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE traffic_class='bot'), COUNT(*) FILTER (WHERE traffic_class='internal') FROM metrics_events WHERE created_at >= $1 AND created_at <= $2`, startDate, endDate).Scan(&botEvents, &internalEvents)
+	return &AnalyticsSummary{TotalVisitors: totalVisitors, TotalDownloads: totalDownloads, VariantStats: stats, TopCTA: topCTA, TopCTACTR: topCTACTR, BotEvents: botEvents, InternalEvents: internalEvents, ObservedAt: &observedAt}, nil
 }

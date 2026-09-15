@@ -35,6 +35,16 @@ type Brand struct {
 	Version     int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// Slug is the stable machine name brand-manager apply matches.
+	Slug string
+	// MarkAssetID is the canonical vector mark (set by a candidate pick).
+	MarkAssetID string
+	// SmallMarkAssetID is the optional simplified mark for 32 px and below.
+	SmallMarkAssetID string
+	// ContainerStyleID is the container style render composes the mark into.
+	ContainerStyleID string
+	// ProductLineID is the product line the brand belongs to.
+	ProductLineID string
 }
 
 // Identity holds the visual-identity facets of a brand.
@@ -85,13 +95,18 @@ type BrandVersion struct {
 // Brand so callers cannot pass an ID, version, or timestamp the service has no
 // way to honour — those belong to the persistence layer.
 type CreateInput struct {
-	Name        string
-	Description string
-	Notes       string
-	Identity    Identity
-	Colors      Colors
-	Typography  Typography
-	Voice       Voice
+	Name             string
+	Description      string
+	Notes            string
+	Identity         Identity
+	Colors           Colors
+	Typography       Typography
+	Voice            Voice
+	Slug             string
+	MarkAssetID      string
+	SmallMarkAssetID string
+	ContainerStyleID string
+	ProductLineID    string
 }
 
 // UpdateInput is the partial-update DTO Service.Update accepts. Only non-empty
@@ -101,15 +116,20 @@ type CreateInput struct {
 // ExpectedVersion, when > 0, makes the update optimistic-locked: it is rejected
 // with ErrVersionConflict unless it equals the brand's current version.
 type UpdateInput struct {
-	ID              string
-	Name            string
-	Description     string
-	Notes           string
-	Identity        Identity
-	Colors          Colors
-	Typography      Typography
-	Voice           Voice
-	ExpectedVersion int
+	ID               string
+	Name             string
+	Description      string
+	Notes            string
+	Identity         Identity
+	Colors           Colors
+	Typography       Typography
+	Voice            Voice
+	ExpectedVersion  int
+	Slug             string
+	MarkAssetID      string
+	SmallMarkAssetID string
+	ContainerStyleID string
+	ProductLineID    string
 }
 
 // ListFilter specifies optional filters for listing brands.

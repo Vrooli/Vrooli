@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"brand-manager/internal/modules"
@@ -25,10 +26,12 @@ import (
 	assetsH "brand-manager/handlers/assets"
 	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
+	candidatesH "brand-manager/handlers/candidates"
 	designH "brand-manager/handlers/design"
 	discoveryH "brand-manager/handlers/discovery"
 	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
+	stylesH "brand-manager/handlers/styles"
 	validationH "brand-manager/handlers/validation"
 )
 
@@ -84,6 +87,12 @@ func scenariosBaseDir() string {
 			return dir
 		}
 	}
+	// Anchor to the repo root when the lifecycle provides it: the process CWD is
+	// the api/ directory, so a bare "scenarios" would resolve to
+	// scenarios/brand-manager/api/scenarios and never find a target scenario.
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return filepath.Join(root, "scenarios")
+	}
 	return "scenarios"
 }
 
@@ -113,12 +122,20 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	stylesSvc, err := buildStylesService(db, schedule.System())
+	if err != nil {
+		log.Fatalf("styles seed failed: %v", err)
+	}
+	candidatesSvc, assetsSvc, brandsSvc := buildCandidatesService(db, schedule.System(), assetsDir, log.Default())
+
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "brand-manager-api", "1.0.0"),
 		assetsH.Module(db, schedule.System(), log.Default(), assetsDir),
 		assignmentsH.Module(db, schedule.System(), log.Default()),
 		brandsH.Module(db, schedule.System(), log.Default()),
+		candidatesH.Module(db, schedule.System(), log.Default(), candidatesSvc),
+		stylesH.Module(stylesSvc, log.Default()),
 		// Generation owns no table; it composes the brands + assets domains
 		// behind two adapters and writes generated images into the same assets
 		// tree (hence assetsDir). The provider chain is built from the
@@ -147,6 +164,10 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+
+	// Logo page binary endpoints (candidate thumbnails, the brand mark). Exact
+	// paths so the Connect catch-all below still owns every RPC.
+	registerLogoAssetRoutes(rootMux, logoAssetsHandler{candidates: candidatesSvc, assets: assetsSvc, brands: brandsSvc})
 
 	rootMux.Handle("/", srv.Handler())
 

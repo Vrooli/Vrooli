@@ -383,3 +383,17 @@ vrooli scenario status "<slug>"
 ---
 
 **Next**: [Admin Guide](../guides/ADMIN_GUIDE.md) | [API Reference](../reference/api/OVERVIEW.md) | [Troubleshooting](../guides/TROUBLESHOOTING.md)
+# Business analytics truth
+
+LPBS is the producer of business aggregates. A visitor key is the non-empty
+visitor id, otherwise the session id. First touch is the earliest human page
+view's attribution tuple. Events are classified as human, bot, or internal at
+ingest; only human events contribute to business counts. A completed checkout
+creates one idempotent conversion event, while unattributed checkouts remain
+in totals and are never assigned to a traffic dimension.
+
+Delivery activity records download authorizations and update-check requests per
+app. Usage activity records one finalized metered operation per app and model.
+The Business Digest owns funnel denominators, experiment verdicts, growth,
+retention, credit economy, and exclusion counts; consumers do not recompute
+those figures.

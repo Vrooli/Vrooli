@@ -3,6 +3,7 @@ import { merge, mesh } from "topojson-client";
 import type { MultiPolygon, Polygon, Topology } from "topojson-specification";
 import worldTopology from "world-atlas/countries-110m.json";
 import { clipOutsideQuiet, drawGlow, focalPoint, mulberry32, rgba, seedFrom, type Scene } from "./engine";
+import { countryCentroids } from "./geo/countryCentroids";
 
 type GeoPoint = [longitude: number, latitude: number];
 
@@ -16,17 +17,17 @@ const LAND = merge(WORLD_TOPOLOGY, WORLD_OBJECT.geometries as Array<Polygon | Mu
 const BORDERS = mesh(WORLD_TOPOLOGY, WORLD_OBJECT as Parameters<typeof mesh>[1], (a, b) => a !== b);
 const GRATICULE = geoGraticule10();
 const VIRGINIA: GeoPoint = [-77.487, 39.043];
-const DESTINATIONS: GeoPoint[] = [
-  [-0.1276, 51.5072], [-46.6333, -23.5505], [103.8198, 1.3521], [151.2093, -33.8688],
-  [139.6917, 35.6895], [18.4241, -33.9249], [37.6173, 55.7558], [-99.1332, 19.4326],
-  [-74.006, 40.7128], [2.3522, 48.8566], [72.8777, 19.076], [114.1694, 22.3193],
-];
 
 const EARTH_STYLES = [
   { landAlpha: 0.72, gridAlpha: 0.18, coastWidth: 1.25, routeAlpha: 0.92, routeWidth: 2.2 },
   { landAlpha: 0.5, gridAlpha: 0.32, coastWidth: 0.9, routeAlpha: 1, routeWidth: 1.6 },
   { landAlpha: 0.9, gridAlpha: 0.1, coastWidth: 1.65, routeAlpha: 0.78, routeWidth: 3.1 },
 ] as const;
+
+export const destinationForCountry = (key: string): GeoPoint | null => {
+  if (key.toLowerCase() === "unknown") return null;
+  return countryCentroids[key.toUpperCase()] ?? null;
+};
 
 /** Geographic traffic rendered as a restrained neon Earth, not invented screen polygons. */
 export function meridianArc(): Scene {
@@ -39,7 +40,7 @@ export function meridianArc(): Scene {
     draw(frame) {
       const { ctx, w, h, palette, data, t } = frame;
       const focus = data.readings[data.focus ?? ""];
-      const shares = focus?.rows?.map((row) => Math.max(0, Math.min(1, row.share))) ?? [1];
+      const rows = focus?.rows ?? [];
       const focal = focalPoint(frame);
       // Broadcast is a room-scale panorama. Keep the globe behind the figures,
       // but give it enough presence to read as the room's world rather than a
@@ -87,10 +88,10 @@ export function meridianArc(): Scene {
         ctx.fill();
       }
 
-      shares.slice(0, frame.tier === "full" ? DESTINATIONS.length : 6).forEach((share, index) => {
-        const destination = DESTINATIONS[index];
-        if (!destination || !source) return;
-        drawGreatCircleRoute(frame, projection, origin.x, origin.y, globeRadius, VIRGINIA, destination, share, style.routeAlpha, style.routeWidth);
+      rows.slice(0, frame.tier === "full" ? 24 : 10).forEach((row) => {
+        const destination = destinationForCountry(row.key);
+        if (!destination || row.key.toLowerCase() === "unknown" || !source) return;
+        drawGreatCircleRoute(frame, projection, origin.x, origin.y, globeRadius, VIRGINIA, destination, Math.max(0, Math.min(1, row.share)), style.routeAlpha, style.routeWidth);
       });
       // End the globe's tilt transform before drawing the room-wide ambient
       // layer. Leaving this save open made every subsequent frame inherit the

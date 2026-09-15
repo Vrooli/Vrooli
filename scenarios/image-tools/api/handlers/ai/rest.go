@@ -193,7 +193,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 
 	job, err := h.Jobs.Submit(r.Context(), internaljobs.Spec{
 		Operation:        op,
-		Lane:             ai.Lane(op),
+		Lane:             ai.LaneForTier(plan.Tier),
 		Payload:          raw,
 		EstimatedSeconds: plan.EstimatedSeconds,
 	})

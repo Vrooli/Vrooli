@@ -141,3 +141,15 @@
   .presentation-page .html-composition { padding-right: 21px; padding-bottom: 170px; }
   .presentation-page .html-art { width: 100%; height: 140px; top: auto; }
 }
+
+/* Signing-pending / unsigned-build disclosure, shown only where downloading happens. */
+.presentation-page .signing-notice{position:relative;width:100%}
+.presentation-page .signing-notice>button{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 6%,var(--paper));font:600 13px/1.3 var(--sans);text-align:left}
+.presentation-page .signing-notice>button svg{width:16px;height:16px;flex:0 0 auto;color:var(--accent)}
+.presentation-page .signing-notice.severity-warning>button{border-color:color-mix(in srgb,#b06a00 35%,var(--line));background:color-mix(in srgb,#b06a00 8%,var(--paper))}
+.presentation-page .signing-notice.severity-warning>button svg{color:#b06a00}
+.presentation-page .signing-notice-panel{position:absolute;z-index:20;left:0;top:calc(100% + 8px);width:min(420px,calc(100vw - 48px));border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 22px 44px -24px #1c2a2140;padding:16px 16px 13px}
+.presentation-page .signing-notice-title{margin-bottom:6px;font:600 15px/1.35 var(--display)}
+.presentation-page .signing-notice-body{color:var(--muted);font-size:14px;line-height:1.6}
+.presentation-page .signing-notice-panel a{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+.presentation-page .signing-notice-panel a:hover{color:var(--ink)}

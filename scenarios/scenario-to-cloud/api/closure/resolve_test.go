@@ -263,6 +263,22 @@ func TestResolveTransitiveClosureWithReasons(t *testing.T) {
 	}
 }
 
+func TestScenarioDependencyUIIsOptIn(t *testing.T) {
+	decl, err := ParseScenarioDeclaration("app", "app/.vrooli/service.json", []byte(`{
+		"service":{"name":"app"},
+		"dependencies":{"scenarios":{"records-service":{"required":true,"include_ui":true}}}
+	}`))
+	if err != nil {
+		t.Fatalf("parse declaration: %v", err)
+	}
+	if !decl.Scenarios["records-service"].IncludeUI {
+		t.Fatal("include_ui=true was not carried onto the dependency edge")
+	}
+	if decl.Scenarios["other"].IncludeUI {
+		t.Fatal("undeclared dependency unexpectedly opted into a UI")
+	}
+}
+
 // TestResolveIsDeterministic proves identical inputs produce identical bytes
 // and digests, the ground for API/CLI/UI parity.
 func TestResolveIsDeterministic(t *testing.T) {

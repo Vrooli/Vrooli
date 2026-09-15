@@ -73,7 +73,7 @@ func TestInstallScopeVerbsNeverTouchTheLiveTree(t *testing.T) {
 				t.Fatalf("inventory must be a read verb: %+v", commands[0])
 			}
 		case execplan.OpConfigApply:
-			if commands[0].Command.Verb != "setup" || !containsArgSequence(commands[0].Command.Args, "--yes", "yes", "--environment", "production") || !containsArg(commands[0].Command.Args, "--selection-b64") {
+			if commands[0].Command.Verb != "setup" || !containsArgSequence(commands[0].Command.Args, "--yes", "yes", "--environment", "production", "--bootstrap-only") || containsArg(commands[0].Command.Args, "--selection-b64") {
 				t.Fatalf("setup argv = %v", commands[0].Command.Argv())
 			}
 		case execplan.OpReleaseActivate:

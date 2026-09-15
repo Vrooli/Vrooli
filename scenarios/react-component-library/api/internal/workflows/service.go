@@ -93,16 +93,77 @@ func (s *service) Start(ctx context.Context, in StartInput) (Workflow, int, erro
 }
 
 func (s *service) List(ctx context.Context, asset, target string, active bool, limit int) ([]Workflow, error) {
-	return s.repo.List(ctx, asset, target, active, limit)
+	workflows, err := s.repo.List(ctx, asset, target, active, limit)
+	if err != nil {
+		return nil, err
+	}
+	refresher, ok := s.dispatcher.(RefreshingDispatcher)
+	if !ok {
+		return workflows, nil
+	}
+	for index := range workflows {
+		workflow := workflows[index]
+		if !workflow.Status.Active() || workflow.AgentManagerExecutionID == "" {
+			continue
+		}
+		// Listing is a best-effort read path. A temporary Agent Manager outage
+		// must not make durable RCL history disappear; the next read can retry
+		// reconciliation. A successful terminal refresh is persisted so active
+		// filters stop exposing executions that have already ended.
+		snapshot, refreshErr := refresher.Refresh(ctx, workflow.AgentManagerExecutionID)
+		if refreshErr != nil {
+			continue
+		}
+		workflow.Status, workflow.Summary, workflow.Error = snapshot.Status, snapshot.Summary, snapshot.Error
+		if !workflow.Status.Active() {
+			updated, updateErr := s.repo.Update(ctx, workflow)
+			if updateErr != nil {
+				return nil, updateErr
+			}
+			workflow = updated
+		}
+		workflows[index] = workflow
+	}
+	return workflows, nil
 }
-func (s *service) Get(ctx context.Context, id string) (Workflow, error) { return s.repo.Get(ctx, id) }
+func (s *service) Get(ctx context.Context, id string) (Workflow, error) {
+	w, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return Workflow{}, err
+	}
+	return s.reconcileActive(ctx, w)
+}
 func (s *service) Refresh(ctx context.Context, id string) (Workflow, error) {
 	w, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return Workflow{}, err
 	}
-	// Execution waits are server-owned and completed during Dispatch. Refresh
-	// reads RCL's durable projection; it must not become a consumer poller.
+	return s.reconcileActive(ctx, w)
+}
+
+// reconcileActive makes reads recovery-aware. A client can disconnect after
+// Agent Manager has persisted a terminal result but before RCL's synchronous
+// waiter persists its projection (manual review is one example). The waiter
+// records that boundary as unavailable, so an execution-backed unavailable
+// row must be reconciled just like an active row. Without a read-time
+// reconciliation, the durable RCL row would remain stale forever.
+func (s *service) reconcileActive(ctx context.Context, w Workflow) (Workflow, error) {
+	if (w.Status.Active() || w.Status == StatusUnavailable) && w.AgentManagerExecutionID != "" {
+		if refresher, ok := s.dispatcher.(RefreshingDispatcher); ok {
+			snapshot, refreshErr := refresher.Refresh(ctx, w.AgentManagerExecutionID)
+			if refreshErr != nil {
+				return Workflow{}, refreshErr
+			}
+			w.Status, w.Summary, w.Error = snapshot.Status, snapshot.Summary, snapshot.Error
+			if !w.Status.Active() {
+				updated, err := s.repo.Update(ctx, w)
+				if err != nil {
+					return Workflow{}, err
+				}
+				w = updated
+			}
+		}
+	}
 	return w, nil
 }
 

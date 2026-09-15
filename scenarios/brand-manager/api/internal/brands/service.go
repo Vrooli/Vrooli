@@ -72,13 +72,18 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Brand, error) {
 		return Brand{}, ErrInvalidBrand{Field: "name", Reason: "required"}
 	}
 	created, err := s.repo.Create(ctx, Brand{
-		Name:        name,
-		Description: in.Description,
-		Notes:       in.Notes,
-		Identity:    in.Identity,
-		Colors:      in.Colors,
-		Typography:  in.Typography,
-		Voice:       in.Voice,
+		Name:             name,
+		Description:      in.Description,
+		Notes:            in.Notes,
+		Identity:         in.Identity,
+		Colors:           in.Colors,
+		Typography:       in.Typography,
+		Voice:            in.Voice,
+		Slug:             strings.TrimSpace(in.Slug),
+		MarkAssetID:      in.MarkAssetID,
+		SmallMarkAssetID: in.SmallMarkAssetID,
+		ContainerStyleID: in.ContainerStyleID,
+		ProductLineID:    in.ProductLineID,
 	})
 	if err != nil {
 		return Brand{}, err
@@ -171,6 +176,11 @@ func mergeBrand(current Brand, in UpdateInput) Brand {
 	out.Name = orStr(in.Name, out.Name)
 	out.Description = orStr(in.Description, out.Description)
 	out.Notes = orStr(in.Notes, out.Notes)
+	out.Slug = orStr(in.Slug, out.Slug)
+	out.MarkAssetID = orStr(in.MarkAssetID, out.MarkAssetID)
+	out.SmallMarkAssetID = orStr(in.SmallMarkAssetID, out.SmallMarkAssetID)
+	out.ContainerStyleID = orStr(in.ContainerStyleID, out.ContainerStyleID)
+	out.ProductLineID = orStr(in.ProductLineID, out.ProductLineID)
 
 	out.Identity.DisplayName = orStr(in.Identity.DisplayName, out.Identity.DisplayName)
 	out.Identity.Tagline = orStr(in.Identity.Tagline, out.Identity.Tagline)

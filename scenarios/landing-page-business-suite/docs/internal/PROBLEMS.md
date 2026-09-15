@@ -2,6 +2,14 @@
 
 This file tracks known issues and technical debt that need attention.
 
+## Broadcast analytics plan — production gate — 2026-09-15
+
+| Finding | Evidence | Disposition |
+|---|---|---|
+| Production origin was unavailable during Phase 14. | `evidence/after/production-health-2026-09-15.txt`; HTTP 502 from `https://vrooli.com/health`; Plan Manager finding `f84cc56b-c89a-40bf-8d1b-331005276cce`. | Open, deployment-owner responsibility. No production deploy, token issuance, tier-2 migration, or promotion was attempted. |
+| Traffic, checkout, delivery and usage instrumentation is implemented and locally focused-tested, but production journey receipts are missing. | Phase 3–8 Plan Manager evidence; scoped Go tests; Phase 15 `evidence/DOD.md`. | Open until production is restored and the visitor, usage and delivery journeys can be replayed without copying customer data locally. |
+| Shared `TrafficExclusions` proto type was moved to `v1/shared` and regenerated. | `packages/proto/schemas/landing-page-business-suite/v1/shared.proto`; `make verify-committed-gen`. | Resolved. |
+
 ---
 
 ## Work ladder

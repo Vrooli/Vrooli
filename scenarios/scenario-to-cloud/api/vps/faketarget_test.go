@@ -183,6 +183,11 @@ func (t *fakeTarget) Exec(_ context.Context, _ identity.TargetRef, cmd reach.Com
 	t.calls = append(t.calls, cmd)
 	flags, positional := flagsOf(cmd.Args)
 	switch cmd.Verb {
+	case "cloud-target host bootstrap":
+		return t.effect(flags, func() (map[string]any, string, string) {
+			t.events = append(t.events, "host:bootstrap")
+			return map[string]any{"status": "bootstrapped"}, "succeeded", ""
+		}), nil
 	case "cloud-target host repair":
 		return t.effect(flags, func() (map[string]any, string, string) {
 			action := first(flags, "action")

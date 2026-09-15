@@ -29,6 +29,8 @@ import (
 	internalassets "brand-manager/internal/assets"
 	internalassignments "brand-manager/internal/assignments"
 	internalbrands "brand-manager/internal/brands"
+	internalimagetools "brand-manager/internal/imagetools"
+	internalstyles "brand-manager/internal/styles"
 )
 
 // Module returns the apply domain's contribution to the API: the generated
@@ -56,11 +58,14 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, scena
 		logger,
 	)
 
+	stylesSvc := internalstyles.NewService(internalstyles.NewSQLiteStore(db, clk.Now))
 	svc := internalapply.NewService(
 		brandStore{brands: brandsSvc},
 		assetStore{assets: assetsSvc},
 		assignmentRecorder{assignments: assignmentsSvc},
 		internalapply.NewFSWorkspace(scenariosRoot),
+		internalimagetools.NewClient(),
+		styleStore{styles: stylesSvc},
 		logger,
 	)
 	connectPath, connectHandler := applyconnect.NewApplyServiceHandler(NewConnectHandler(Deps{
@@ -110,6 +115,9 @@ func (s brandStore) Get(ctx context.Context, brandID string) (internalapply.Bran
 			MonoFont:     b.Typography.MonoFont,
 			BaseFontSize: b.Typography.BaseFontSize,
 		},
+		MarkAssetID:      b.MarkAssetID,
+		SmallMarkAssetID: b.SmallMarkAssetID,
+		ContainerStyleID: b.ContainerStyleID,
 	}, nil
 }
 
@@ -142,6 +150,50 @@ func (s assetStore) Read(ctx context.Context, brandID, kind string) (internalapp
 		return internalapply.AssetContent{}, false, err
 	}
 	return internalapply.AssetContent{Filename: content.Filename, Bytes: content.Bytes}, true, nil
+}
+
+// ReadByID fetches an asset by its id (a picked mark).
+func (s assetStore) ReadByID(ctx context.Context, assetID string) (internalapply.AssetContent, bool, error) {
+	content, err := s.assets.Download(ctx, assetID)
+	if err != nil {
+		var notFound internalassets.ErrAssetNotFound
+		if errors.As(err, &notFound) {
+			return internalapply.AssetContent{}, false, nil
+		}
+		return internalapply.AssetContent{}, false, err
+	}
+	return internalapply.AssetContent{Filename: content.Filename, Bytes: content.Bytes}, true, nil
+}
+
+// styleStore adapts the styles service onto the apply StyleStore seam.
+type styleStore struct {
+	styles *internalstyles.Service
+}
+
+func (s styleStore) ContainerStyle(ctx context.Context, id string) (internalapply.ContainerStyleView, bool, error) {
+	st, err := s.styles.GetStyle(ctx, id)
+	if err != nil {
+		var notFound internalstyles.ErrNotFound
+		if errors.As(err, &notFound) {
+			return internalapply.ContainerStyleView{}, false, nil
+		}
+		return internalapply.ContainerStyleView{}, false, err
+	}
+	glow := make([]internalapply.GlowLayerView, 0, len(st.Glow))
+	for _, g := range st.Glow {
+		glow = append(glow, internalapply.GlowLayerView{Width: g.Width, Opacity: g.Opacity})
+	}
+	return internalapply.ContainerStyleView{
+		Shape:                st.Shape,
+		CornerRatio:          st.CornerRatio,
+		BackgroundTop:        st.BackgroundTop,
+		BackgroundBottom:     st.BackgroundBottom,
+		MarkScale:            st.MarkScale,
+		MaskableScale:        st.MaskableScale,
+		AccentColor:          st.AccentColor,
+		Glow:                 glow,
+		SmallMarkThresholdPx: st.SmallMarkThresholdPx,
+	}, true, nil
 }
 
 // assignmentRecorder adapts the assignments service onto the apply

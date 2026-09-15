@@ -77,13 +77,29 @@ deployment-manager deploy-desktop --profile my-profile --signing-config ./signin
 ### Option 2: Configure separately via scenario-to-desktop
 
 ```bash
-# Use scenario-to-desktop UI
-# Navigate to Signing tab in scenario-to-desktop web UI
+# Use the scenario-to-desktop UI Signing tab, or set the whole platform config
+# from canonical Proto JSON. The CLI takes a single --config payload, not
+# per-platform flags.
+scenario-to-desktop signing set <scenario> --config @signing.json
 
-# Or use scenario-to-desktop CLI
-scenario-to-desktop signing set <scenario> --platform windows --certificate-file ./cert.pfx
-scenario-to-desktop signing set <scenario> --platform macos --identity "Developer ID Application: Your Name"
-scenario-to-desktop signing set <scenario> --platform linux --gpg-key-id YOUR_KEY_ID
+# Generate a Linux key custodied by the credential authority (recommended).
+scenario-to-desktop signing generate-key <scenario> \
+  --name "Your Publisher" --email publisher@example.test \
+  --logical-id vrooli/desktop-signing
+
+scenario-to-desktop signing validate <scenario>
+```
+
+**Example `signing.json` (Linux, authority-managed key):**
+```json
+{
+  "enabled": true,
+  "linux": {
+    "gpgKeyId": "YOUR_GPG_KEY_ID",
+    "passphraseEnv": "VROOLI_GPG_PASSPHRASE",
+    "managedKey": { "logicalId": "vrooli/desktop-signing" }
+  }
+}
 ```
 
 ## Deployment-Manager Signing Endpoints (Deprecated)

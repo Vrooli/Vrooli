@@ -467,16 +467,27 @@ func classifyStripeError(err error) (int, string, string, bool) {
 // --- Shared types and helpers used by multiple service files ---
 
 type checkoutSessionRecord struct {
-	SessionID         string
-	Status            string
-	PriceID           sql.NullString
-	SessionType       sql.NullString
-	AmountCents       sql.NullInt64
-	ScheduleID        sql.NullString
-	CustomerID        sql.NullString
-	CustomerEmail     sql.NullString
-	BusinessAccountID sql.NullString
-	SubscriptionID    sql.NullString
+	SessionID            string
+	Status               string
+	PriceID              sql.NullString
+	SessionType          sql.NullString
+	AmountCents          sql.NullInt64
+	ScheduleID           sql.NullString
+	CustomerID           sql.NullString
+	CustomerEmail        sql.NullString
+	BusinessAccountID    sql.NullString
+	SubscriptionID       sql.NullString
+	Metadata             map[string]interface{}
+	VisitorID            sql.NullString
+	AttributionSessionID sql.NullString
+	VariantSlug          sql.NullString
+	LandingPath          sql.NullString
+	DeviceClass          sql.NullString
+	UTMSource            sql.NullString
+	UTMMedium            sql.NullString
+	UTMCampaign          sql.NullString
+	ReferrerKind         sql.NullString
+	CountryCode          sql.NullString
 }
 
 func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionRecord, error) {
@@ -503,6 +514,11 @@ func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionR
 	// account column. The account-scoped production schema does; the best
 	// effort fallback preserves compatibility for unscoped legacy checkouts.
 	_ = s.db.QueryRow(`SELECT business_account_id FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&record.BusinessAccountID)
+	var metadata []byte
+	_ = s.db.QueryRow(`SELECT metadata, visitor_id, attribution_session_id, variant_slug, landing_path, device_class, utm_source, utm_medium, utm_campaign, referrer_kind, country_code FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&metadata, &record.VisitorID, &record.AttributionSessionID, &record.VariantSlug, &record.LandingPath, &record.DeviceClass, &record.UTMSource, &record.UTMMedium, &record.UTMCampaign, &record.ReferrerKind, &record.CountryCode)
+	if len(metadata) > 0 {
+		_ = json.Unmarshal(metadata, &record.Metadata)
+	}
 	return record, nil
 }
 

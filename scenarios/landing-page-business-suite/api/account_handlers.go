@@ -23,7 +23,7 @@ type managedDownloadResolutionError struct {
 func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
 func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
-func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.Dependencies {
+func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService, db StartupStore) downloadhttp.Dependencies {
 	return downloadhttp.Dependencies{
 		UserEmail: getUserEmail,
 		Authorize: func(ctx context.Context, appKey, platform, user string) (downloadhttp.Authorization, error) {
@@ -80,13 +80,20 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 		WriteJSON:  writeJSON,
 		WriteError: writeJSONError,
 		Log:        logx.Error,
+		RecordEvent: func(ctx context.Context, app, platform, event string) error {
+			if db == nil {
+				return nil
+			}
+			_, err := db.ExecContext(ctx, `INSERT INTO delivery_events (event_type,bundle_key,app_key,platform) VALUES ($1,$2,$3,$4)`, event, plans.BundleKey(), app, platform)
+			return err
+		},
 	}
 }
 
 // downloadConnectAuthorizationDependencies composes the generated delivery
 // procedure around the same entitlement and managed-artifact services as the
 // established REST endpoint.
-func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.ConnectAuthorizationDependencies {
+func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService, db StartupStore) downloadhttp.ConnectAuthorizationDependencies {
 	return downloadhttp.ConnectAuthorizationDependencies{
 		UserEmail:         getUserEmail,
 		Authorize:         authorizer.Authorize,
@@ -125,6 +132,13 @@ func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAutho
 			return url, true, nil
 		},
 		Log: logx.Error,
+		RecordEvent: func(ctx context.Context, app, platform, event string) error {
+			if db == nil {
+				return nil
+			}
+			_, err := db.ExecContext(ctx, `INSERT INTO delivery_events (event_type,bundle_key,app_key,platform) VALUES ($1,$2,$3,$4)`, event, plans.BundleKey(), app, platform)
+			return err
+		},
 	}
 }
 

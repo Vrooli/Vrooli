@@ -186,38 +186,6 @@ func (h *handlers) removeBackground(ctx cliapp.RunContext) error {
 	return h.renderImageAsset(ctx, resp.Msg, "Cut out")
 }
 
-func (h *handlers) deriveIcons(ctx cliapp.RunContext) error {
-	resp, err := h.client.DeriveBrandIcons(context.Background(), connect.NewRequest(&generationv1.DeriveBrandIconsRequest{
-		BrandId:           ctx.Flag("brand-id"),
-		SourceAssetId:     ctx.Flag("source-asset-id"),
-		IncludeMaskable:   ctx.BoolFlag("maskable"),
-		IncludeAppleTouch: ctx.BoolFlag("apple-touch"),
-		IncludeFavicon:    ctx.BoolFlag("favicon"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("derive brand icons", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no icons response")
-	}
-	changes := make([]string, 0, len(resp.Msg.Icons))
-	for _, ic := range resp.Msg.Icons {
-		changes = append(changes, fmt.Sprintf("%s — %s (%d bytes)", ic.Kind, ic.Filename, ic.Size))
-	}
-	results := append([]string(nil), changes...)
-	for _, w := range resp.Msg.Warnings {
-		results = append(results, "warning: "+w)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Derived %d icon variant(s).", len(resp.Msg.Icons))},
-		Changes: results,
-		NextCommand: []string{
-			fmt.Sprintf("`apply preview --brand-id %s --scenario <name>` — preview applying the icon set", ctx.Flag("brand-id")),
-		},
-	})
-}
-
-// renderImageAsset renders a single BrandImageAsset mutation result.
 func (h *handlers) renderImageAsset(ctx cliapp.RunContext, m *generationv1.BrandImageAsset, verb string) error {
 	model := m.ModelId
 	if model == "" {

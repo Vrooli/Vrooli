@@ -32,15 +32,28 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("jobs: load from manifest: %w", err)
 	}
-	group.Subcommands = append(group.Subcommands, cliapp.Command{
-		Name:        "watch",
-		Description: "Stream a job's progress until it reaches a terminal state",
-		Args: cliapp.ArgSchema{
-			Positionals: []cliapp.Positional{
-				{Name: "id", Required: true, Description: "Job id"},
+	group.Subcommands = append(group.Subcommands,
+		cliapp.Command{
+			Name:        "download",
+			Description: "Download a job result by id through the blob endpoint",
+			Args: cliapp.ArgSchema{
+				Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Job id"}},
+				Flags: []cliapp.Flag{
+					{Name: "index", Description: "Which result to fetch when the job produced several (default 0)"},
+					{Name: "out", Description: "Path to write the result"},
+				},
 			},
+			RunCtx: h.download,
 		},
-		RunCtx: h.watch,
-	})
+		cliapp.Command{
+			Name:        "watch",
+			Description: "Stream a job's progress until it reaches a terminal state",
+			Args: cliapp.ArgSchema{
+				Positionals: []cliapp.Positional{
+					{Name: "id", Required: true, Description: "Job id"},
+				},
+			},
+			RunCtx: h.watch,
+		})
 	return group, nil
 }

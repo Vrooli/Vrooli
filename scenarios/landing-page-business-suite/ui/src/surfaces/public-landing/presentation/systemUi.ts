@@ -22,6 +22,7 @@ export const downloadSystemUi = {
   access: 'Download access is verified when you prepare a download.',
   returnNote: 'After signing in, return to this page and recheck your session.',
   checksum: 'Checksum', notes: 'Release notes', file: 'File',
+  signingNotice: { summary: 'Release trust', linkFallback: 'Learn more' },
   billing: { month: 'Billed monthly', year: 'Billed yearly', one_time: 'One-time payment' },
   standardPrice: 'Standard price shown. Any applicable introductory terms are confirmed at checkout.',
 };

@@ -51,7 +51,7 @@ type imageSpec struct {
 }
 
 // imageSpecs are the text_to_image canvas sizes per type. A favicon is generated
-// at a model-friendly size and then downscaled via DeriveIcons; a 16/32px canvas
+// at a model-friendly size; a 16/32px canvas
 // is far too small for a diffusion model to produce anything legible.
 var imageSpecs = map[string]imageSpec{
 	"logo":    {width: 512, height: 512},
@@ -67,9 +67,6 @@ const (
 	openRouterRoleLogoGenerate = "image.generate.logo"
 	openRouterRoleLogoEdit     = "image.edit.identity"
 
-	// defaultIconBackground is the solid background used for opaque icon variants
-	// when the brand has no usable primary color.
-	defaultIconBackground = "#ffffff"
 )
 
 // logoNegativePrompt steers logo generation away from common diffusion failure
@@ -105,10 +102,6 @@ type Service interface {
 	// RemoveBackground isolates the mark in an existing brand image through
 	// image-tools (background_removal) and stores the transparent cutout.
 	RemoveBackground(ctx context.Context, in RemoveBackgroundInput) (ImageResult, error)
-
-	// DeriveIcons produces a deterministic set of platform icon variants from a
-	// source asset using image-tools' deterministic ops (resize / flatten).
-	DeriveIcons(ctx context.Context, in DeriveIconsInput) (icons []ImageResult, warnings []string, err error)
 }
 
 // GenerateImageInput is the GenerateImage request in domain terms.
@@ -148,41 +141,6 @@ type RemoveBackgroundInput struct {
 	AllowBYOK     bool
 	SetCanonical  bool
 }
-
-// DeriveIconsInput is the DeriveIcons request in domain terms. When none of the
-// include flags is set, all variant families are produced.
-type DeriveIconsInput struct {
-	BrandID           string
-	SourceAssetID     string
-	IncludeMaskable   bool
-	IncludeAppleTouch bool
-	IncludeFavicon    bool
-}
-
-// iconVariant is one deterministic derived icon: a target size and whether it is
-// flattened onto a solid brand-color background (opaque) or kept transparent.
-type iconVariant struct {
-	kind     string
-	filename string
-	width    int
-	height   int
-	solid    bool
-}
-
-var (
-	faviconVariants = []iconVariant{
-		{kind: "favicon-16", filename: "favicon-16.png", width: 16, height: 16},
-		{kind: "favicon-32", filename: "favicon-32.png", width: 32, height: 32},
-		{kind: "favicon-196", filename: "favicon-196.png", width: 196, height: 196},
-	}
-	appleTouchVariants = []iconVariant{
-		{kind: "apple-touch-icon", filename: "apple-touch-icon.png", width: 180, height: 180, solid: true},
-	}
-	maskableVariants = []iconVariant{
-		{kind: "maskable-192", filename: "maskable-icon-192.png", width: 192, height: 192, solid: true},
-		{kind: "maskable-512", filename: "maskable-icon-512.png", width: 512, height: 512, solid: true},
-	}
-)
 
 type service struct {
 	providers Providers
@@ -407,79 +365,6 @@ func (s *service) RemoveBackground(ctx context.Context, in RemoveBackgroundInput
 	return s.storeImage(ctx, brandID, kindLogoTransparent, out, in.SetCanonical)
 }
 
-func (s *service) DeriveIcons(ctx context.Context, in DeriveIconsInput) ([]ImageResult, []string, error) {
-	brandID := strings.TrimSpace(in.BrandID)
-	if brandID == "" {
-		return nil, nil, ErrInvalidGeneration{Field: "brand_id", Reason: "required"}
-	}
-	brand, err := s.brands.Get(ctx, brandID)
-	if err != nil {
-		return nil, nil, err
-	}
-	src, err := s.loadSource(ctx, brandID, in.SourceAssetID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	background := normalizeHexColor(brand.PrimaryColor)
-	variants := selectIconVariants(in)
-
-	results := make([]ImageResult, 0, len(variants))
-	var warnings []string
-	for _, v := range variants {
-		var out ImageOutput
-		var derr error
-		if v.solid {
-			out, derr = s.images.Flatten(ctx, src.Content, v.width, v.height, background)
-		} else {
-			out, derr = s.images.Resize(ctx, src.Content, v.width, v.height)
-		}
-		if derr != nil {
-			return nil, nil, derr
-		}
-		res, serr := s.storeDerived(ctx, brandID, v, out)
-		if serr != nil {
-			return nil, nil, serr
-		}
-		results = append(results, res)
-		warnings = append(warnings, out.Warnings...)
-	}
-	return results, warnings, nil
-}
-
-// selectIconVariants resolves the requested variant families. When no include
-// flag is set, every family is produced (empty selection = all).
-func selectIconVariants(in DeriveIconsInput) []iconVariant {
-	all := !in.IncludeMaskable && !in.IncludeAppleTouch && !in.IncludeFavicon
-	var variants []iconVariant
-	if all || in.IncludeFavicon {
-		variants = append(variants, faviconVariants...)
-	}
-	if all || in.IncludeAppleTouch {
-		variants = append(variants, appleTouchVariants...)
-	}
-	if all || in.IncludeMaskable {
-		variants = append(variants, maskableVariants...)
-	}
-	return variants
-}
-
-// loadSource validates the brand exists and loads the source asset bytes.
-func (s *service) loadSource(ctx context.Context, brandID, sourceAssetID string) (AssetBytes, error) {
-	sourceAssetID = strings.TrimSpace(sourceAssetID)
-	if sourceAssetID == "" {
-		return AssetBytes{}, ErrInvalidGeneration{Field: "source_asset_id", Reason: "required"}
-	}
-	if _, err := s.brands.Get(ctx, brandID); err != nil {
-		return AssetBytes{}, err
-	}
-	src, err := s.assets.Read(ctx, sourceAssetID)
-	if err != nil {
-		return AssetBytes{}, err
-	}
-	return src, nil
-}
-
 // storeImage persists an exploratory image under a unique per-kind filename
 // (never clobbering a prior result), then promotes it to the canonical per-kind
 // asset when set_canonical is true OR the brand has no canonical for this kind
@@ -532,32 +417,20 @@ func (s *service) storeImage(ctx context.Context, brandID, kind string, out Imag
 	}, nil
 }
 
-// storeDerived persists a deterministic icon variant under its stable canonical
-// filename (idempotent: re-deriving overwrites byte-identically).
-func (s *service) storeDerived(ctx context.Context, brandID string, v iconVariant, out ImageOutput) (ImageResult, error) {
-	mime := out.MimeType
-	if mime == "" {
-		mime = "image/png"
+// loadSource validates the brand exists and loads the source asset bytes.
+func (s *service) loadSource(ctx context.Context, brandID, sourceAssetID string) (AssetBytes, error) {
+	sourceAssetID = strings.TrimSpace(sourceAssetID)
+	if sourceAssetID == "" {
+		return AssetBytes{}, ErrInvalidGeneration{Field: "source_asset_id", Reason: "required"}
 	}
-	stored, err := s.assets.Store(ctx, AssetUpload{
-		BrandID:  brandID,
-		Filename: v.filename,
-		MimeType: mime,
-		Content:  out.Data,
-	})
+	if _, err := s.brands.Get(ctx, brandID); err != nil {
+		return AssetBytes{}, err
+	}
+	src, err := s.assets.Read(ctx, sourceAssetID)
 	if err != nil {
-		return ImageResult{}, err
+		return AssetBytes{}, err
 	}
-	return ImageResult{
-		BrandID:   brandID,
-		AssetID:   stored.ID,
-		Kind:      v.kind,
-		Filename:  stored.Filename,
-		MimeType:  stored.MimeType,
-		Size:      stored.Size,
-		Tier:      "deterministic",
-		Canonical: true,
-	}, nil
+	return src, nil
 }
 
 func (s *service) uniqueFilename(kind, mime string) string {
@@ -579,27 +452,6 @@ func imageExtension(mime string) string {
 	default:
 		return ".png"
 	}
-}
-
-// normalizeHexColor returns a "#rrggbb" color for an icon background, defaulting
-// to white when the brand color is absent or malformed.
-func normalizeHexColor(c string) string {
-	c = strings.TrimSpace(c)
-	if len(c) == 7 && c[0] == '#' && isHex(c[1:]) {
-		return c
-	}
-	return defaultIconBackground
-}
-
-func isHex(s string) bool {
-	for _, r := range s {
-		switch {
-		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
-		default:
-			return false
-		}
-	}
-	return true
 }
 
 // promptFor returns the text-generation prompt for a supported element.

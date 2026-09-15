@@ -21,6 +21,7 @@ const ROUTES: ReadonlyArray<{ path: string; selector: string; label: string }> =
   { path: "/assignments", selector: selectors.pages.assignments, label: "assignments page at /assignments" },
   { path: "/assets", selector: selectors.pages.assets, label: "assets page at /assets" },
   { path: "/generation", selector: selectors.pages.generation, label: "generation page at /generation" },
+  { path: "/logo", selector: selectors.pages.logo, label: "logo page at /logo" },
   { path: "/apply", selector: selectors.pages.apply, label: "apply page at /apply" },
   { path: "/discovery", selector: selectors.pages.discovery, label: "discovery page at /discovery" },
   { path: "/design", selector: selectors.pages.design, label: "design page at /design" },

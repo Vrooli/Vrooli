@@ -22,7 +22,7 @@ import (
 func newClient(t *testing.T, brands *mocks.FakeBrandStore, assets *mocks.FakeAssetStore, recorder *mocks.FakeAssignmentRecorder, ws *mocks.FakeWorkspace) applyconnect.ApplyServiceClient {
 	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
-	svc := internalapply.NewService(brands, assets, recorder, ws, logger)
+	svc := internalapply.NewService(brands, assets, recorder, ws, nil, nil, logger)
 	path, handler := applyconnect.NewApplyServiceHandler(apply.NewConnectHandler(apply.Deps{Service: svc, Logger: logger}))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return applyconnect.NewApplyServiceClient(server.Client(), server.URL)

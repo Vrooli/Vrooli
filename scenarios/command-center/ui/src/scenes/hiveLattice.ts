@@ -12,9 +12,12 @@ export function hiveLattice(): Scene {
   return {
     init(frame) {
       const { w, h, rng, data } = frame;
-      const total = Math.max(12, Math.round(read(data, "total_scenarios", 120)));
-      const running = Math.round(read(data, "composite_portfolio", read(data, "scenario_completeness", total * 0.5)));
-      const healthy = Math.round(read(data, "scenario_completeness", running * 0.7));
+      const totalValue = read(data, "total_scenarios");
+      const runningValue = read(data, "composite_portfolio") ?? read(data, "scenario_completeness");
+      const healthyValue = read(data, "scenario_completeness");
+      const total = Math.max(0, Math.round(totalValue ?? 0));
+      const running = Math.max(0, Math.round(runningValue ?? 0));
+      const healthy = Math.max(0, Math.round(healthyValue ?? 0));
       const area = (w * h) / (total * 2.4);
       radius = Math.max(14, Math.min(Math.sqrt(area / 2.6), Math.min(w, h) / 12));
       const dx = radius * Math.sqrt(3);
@@ -34,7 +37,7 @@ export function hiveLattice(): Scene {
           all[j] = a;
         }
       }
-      cells = all.map(([x, y], i) => ({ x, y, phase: rng() * Math.PI * 2, lit: i < running, healthy: i < healthy }));
+      cells = all.map(([x, y], i) => ({ x, y, phase: rng() * Math.PI * 2, lit: total > 0 && i < running, healthy: total > 0 && i < healthy }));
       waves = [];
     },
     draw(frame) {

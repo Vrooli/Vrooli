@@ -74,7 +74,7 @@ it("advances the cycle rail without re-rendering the room surfaces", async () =>
   try {
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     const settledRenders = surfaceRenders;
-    // Twelve 250 ms cycle ticks.
+    // Three seconds of animation frames.
     await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
     expect(railProgress).toBeGreaterThan(0);
     expect(surfaceRenders).toBe(settledRenders);

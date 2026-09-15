@@ -12,6 +12,11 @@ import (
 
 var ErrReservationNotOwned = errors.New("reservation does not belong to authenticated user")
 
+const (
+	defaultUsageEventAppKey = "unattributed"
+	defaultUsageEventModel  = "unknown"
+)
+
 // ReservationService owns atomic credit reservations, settlement, expiry, and
 // adjustments. Its collaborators are explicit so monetization policy remains
 // testable without the root API package.
@@ -152,7 +157,10 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	}
 
 	// Record the usage within the same transaction
-	var appKey interface{}
+	// Keep the composite uniqueness key deterministic. PostgreSQL and SQLite
+	// both allow multiple NULL values in a unique composite key, which would
+	// duplicate the aggregate row for operations without an app key.
+	appKey := ""
 	if metadata.AppBundleKey != "" {
 		appKey = strings.TrimSpace(strings.ToLower(metadata.AppBundleKey))
 	}
@@ -183,6 +191,29 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	_, err = tx.ExecContext(ctx, insertQuery, userIdentity, billingPeriod, limitKey, amount, appKey)
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
+	}
+	eventAppKey := defaultUsageEventAppKey
+	model := defaultUsageEventModel
+	if appKey != "" {
+		eventAppKey = appKey
+	}
+	if metadata.Metadata != nil {
+		if value := strings.TrimSpace(metadata.Metadata["model"]); value != "" {
+			model = value
+		}
+	}
+	var operationID interface{}
+	if metadata.OperationID != nil {
+		operationID = strings.TrimSpace(*metadata.OperationID)
+	}
+	var eventQuery string
+	if s.dialect == "sqlite" {
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES (?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
+	} else {
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (operation_id) DO NOTHING`
+	}
+	if _, err = tx.ExecContext(ctx, eventQuery, operationID, userIdentity, eventAppKey, model, amount); err != nil {
+		return fmt.Errorf("record usage event: %w", err)
 	}
 
 	// Commit the transaction
@@ -363,6 +394,15 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 // FinalizeReservation marks a reservation as finalized and records the actual usage.
 // Call this after a streaming request completes successfully.
 func (s *ReservationService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
+	return s.finalizeReservation(ctx, reservationID, actualAmount, nil)
+}
+
+type finalizedUsageMetadata struct {
+	appBundleKey string
+	model        string
+}
+
+func (s *ReservationService) finalizeReservation(ctx context.Context, reservationID string, actualAmount int64, metadata *finalizedUsageMetadata) error {
 	if reservationID == "" {
 		return fmt.Errorf("reservation_id is required")
 	}
@@ -433,8 +473,8 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 	var insertQuery string
 	if s.dialect == "sqlite" {
 		insertQuery = `
-			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, last_operation_at)
-			VALUES (?, ?, ?, ?, datetime('now'))
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
+			VALUES (?, ?, ?, ?, ?, datetime('now'))
 			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
 			DO UPDATE SET
 				usage_amount = usage_records.usage_amount + excluded.usage_amount,
@@ -443,8 +483,8 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 		`
 	} else {
 		insertQuery = `
-			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, last_operation_at)
-			VALUES ($1, $2, $3, $4, NOW())
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
 			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
 			DO UPDATE SET
 				usage_amount = usage_records.usage_amount + $4,
@@ -452,9 +492,31 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 				updated_at = NOW()
 		`
 	}
-	_, err = tx.ExecContext(ctx, insertQuery, userIdentity, billingPeriod, limitKey, actualAmount)
+	_, err = tx.ExecContext(ctx, insertQuery, userIdentity, billingPeriod, limitKey, actualAmount, "")
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
+	}
+	if metadata != nil {
+		appBundleKey := strings.TrimSpace(strings.ToLower(metadata.appBundleKey))
+		if appBundleKey == "" {
+			appBundleKey = defaultUsageEventAppKey
+		}
+		model := strings.TrimSpace(metadata.model)
+		if model == "" {
+			model = defaultUsageEventModel
+		}
+		var eventQuery string
+		var eventArgs []any
+		if s.dialect == "sqlite" {
+			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES (?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
+			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount}
+		} else {
+			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (operation_id) DO NOTHING`
+			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount}
+		}
+		if _, err := tx.ExecContext(ctx, eventQuery, eventArgs...); err != nil {
+			return fmt.Errorf("record finalized usage event: %w", err)
+		}
 	}
 
 	// Commit the transaction
@@ -471,6 +533,13 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 	})
 
 	return nil
+}
+
+// FinalizeReservationWithMetadata settles a metered operation and appends its
+// producer-owned usage event. The reservation id is the operation key, so a
+// retry cannot create a second ledger row.
+func (s *ReservationService) FinalizeReservationWithMetadata(ctx context.Context, reservationID string, actualAmount int64, appBundleKey, model string) error {
+	return s.finalizeReservation(ctx, reservationID, actualAmount, &finalizedUsageMetadata{appBundleKey: appBundleKey, model: model})
 }
 
 // FinalizeReservationForUser binds settlement to the authenticated identity

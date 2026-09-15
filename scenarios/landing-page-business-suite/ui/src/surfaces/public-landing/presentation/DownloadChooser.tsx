@@ -1,8 +1,9 @@
 import { useId } from 'react';
 import type { DownloadAsset } from '../../../shared/api/types';
-import { getPlatformLabel } from '../services/downloads.service';
+import { getPlatformLabel, resolveSigningNotice } from '../services/downloads.service';
 import { downloadSystemUi as ui } from './systemUi';
 import { ActionLink } from './primitives';
+import { SigningNoticeDisclosure } from './SigningNoticeDisclosure';
 import type { Action, ResolvedActions } from './types';
 
 export type DownloadState = { status: 'idle' | 'preparing' } | { status: 'error'; message: string } | { status: 'ready'; href: string };
@@ -10,13 +11,15 @@ export interface DownloadChooserProps {
   title: string; description: string; options: DownloadAsset[]; selected: string;
   onSelect: (value: string) => void; onPrepare?: () => void; state: DownloadState;
   unavailableReason: string; disabledReason?: string;
+  appMetadata?: Record<string, unknown>;
   launchActions?: Action[]; resolvedActions?: ResolvedActions;
 }
 
 /** Controlled native view. No auth, transport, navigation or analytics effects. */
-export function DownloadChooser({ title, description, options, selected, onSelect, onPrepare, state, unavailableReason, disabledReason, launchActions = [], resolvedActions }: DownloadChooserProps) {
+export function DownloadChooser({ title, description, options, selected, onSelect, onPrepare, state, unavailableReason, disabledReason, appMetadata, launchActions = [], resolvedActions }: DownloadChooserProps) {
   const id = useId();
   const asset = selected === '' ? undefined : options[Number(selected)];
+  const notice = resolveSigningNotice(appMetadata, asset?.metadata);
   const platforms = [...new Set(options.map(option => option.platform))];
   return <section className="download-chooser" aria-labelledby={`${id}-title`}>
     <div className="section-intro"><p className="eyebrow">{ui.title}</p><h1 id={`${id}-title`}>{title}</h1><p>{description}</p></div>
@@ -31,6 +34,7 @@ export function DownloadChooser({ title, description, options, selected, onSelec
         {asset?.release_notes && <details><summary>{ui.notes}</summary><p className="artifact-text">{asset.release_notes}</p></details>}
       </div>
       <div className="download-next"><p>{ui.access}</p>
+        {notice && <SigningNoticeDisclosure notice={notice} />}
         <button type="button" className="button button-primary" disabled={!asset || !onPrepare || Boolean(disabledReason) || state.status === 'preparing'} onClick={onPrepare} aria-describedby={`${id}-status`}>{state.status === 'preparing' ? ui.preparing : ui.prepare}</button>
         <div id={`${id}-status`} role="status" aria-live="polite">{disabledReason || (state.status === 'error' ? state.message : state.status === 'ready' ? ui.ready : '')}</div>
         {state.status === 'ready' && !disabledReason && <a className="button button-primary" href={state.href} rel="noreferrer" referrerPolicy="no-referrer">{ui.open}</a>}

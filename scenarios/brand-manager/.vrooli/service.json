@@ -128,6 +128,13 @@
         ],
         "startup_policy": "try_start"
       }
+    },
+    "scenarios": {
+      "image-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Generation, refine and render for brand imagery: text_to_image/edit_instruct/object_removal, plus the deterministic vectorize, rasterize and icon_container operations used to build the icon set."
+      }
     }
   },
   "environment": {

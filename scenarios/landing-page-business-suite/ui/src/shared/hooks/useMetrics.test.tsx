@@ -156,7 +156,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     const { result } = renderHook(() => useMetrics());
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledOnce(); });
-    result.current.trackConversion({ source: 'restricted-browser' });
+    result.current.trackEvent('conversion', { source: 'restricted-browser' });
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(2); });
     expect(trackMetricMock.mock.calls[1]?.[0]).toMatchObject({
       event_type: 'conversion', variant_slug: 'control', event_data: { source: 'restricted-browser' },
@@ -177,7 +177,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
       return undefined;
     });
     const { result } = renderHook(() => useMetrics());
-    result.current.trackConversion({ source: 'test' });
+    result.current.trackEvent('conversion', { source: 'test' });
     await Promise.resolve();
     expect(trackMetricMock).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith('[useMetrics] No variant selected, skipping event tracking');
@@ -191,7 +191,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     });
     const { result } = renderHook(() => useMetrics());
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
-    result.current.trackFormSubmit('waitlist', { email: 'customer@example.com' });
+    result.current.trackEvent('form_submit', { form_id: 'waitlist', email: 'customer@example.com' });
     result.current.trackDownload({ platform: 'linux' });
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(3); });
     expect(errorSpy).toHaveBeenCalledWith('[useMetrics] Error tracking event:', expect.any(Error));
@@ -205,8 +205,8 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     trackMetricMock.mockClear();
 
     result.current.trackCTAClick('hero-cta', { placement: 'hero' });
-    result.current.trackFormSubmit('waitlist', { source: 'footer' });
-    result.current.trackConversion({ order_id: 'order_1' });
+    result.current.trackEvent('form_submit', { form_id: 'waitlist', source: 'footer' });
+    result.current.trackEvent('conversion', { order_id: 'order_1' });
     result.current.trackDownload({ platform: 'linux' });
 
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(4); });

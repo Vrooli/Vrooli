@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/authz"
 	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/identity"
@@ -158,6 +161,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			apierrors.Write(w, err)
 			return
 		}
+		s.ensureOperatorSSHKeyBinding(r.Context(), existing.ID)
 
 		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"deployment": existing,
@@ -198,6 +202,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		apierrors.Write(w, err)
 		return
 	}
+	s.ensureOperatorSSHKeyBinding(r.Context(), deployment.ID)
 
 	s.appendHistoryEvent(r.Context(), deployment.ID, domain.HistoryEvent{
 		Type:      domain.EventDeploymentCreated,
@@ -211,6 +216,39 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		"created":    true,
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// ensureOperatorSSHKeyBinding binds the operator-held key path from the local
+// credential authority to a new SSH deployment. The path is metadata only; key
+// bytes never enter the deployment database or manifest. An unconfigured key
+// remains valid for ambient SSH identities and is therefore not an error.
+func (s *Server) ensureOperatorSSHKeyBinding(ctx context.Context, deploymentID string) {
+	if s.repo == nil || strings.TrimSpace(deploymentID) == "" {
+		return
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		s.log("operator SSH key authority unavailable", map[string]interface{}{"error": err.Error()})
+		return
+	}
+	identity, err := credentialauthority.ParseIdentity(credentials.SSHKeyDescriptor.LogicalID)
+	if err != nil {
+		s.log("operator SSH key identity invalid", map[string]interface{}{"error": err.Error()})
+		return
+	}
+	keyPath, err := authority.Resolve(identity, credentials.SSHKeyDescriptor.Field)
+	if err != nil {
+		if !errors.Is(err, credentialauthority.ErrUnconfigured) {
+			s.log("operator SSH key resolve failed", map[string]interface{}{"error": err.Error()})
+		}
+		return
+	}
+	if strings.TrimSpace(keyPath) == "" {
+		return
+	}
+	if err := s.repo.UpsertBinding(ctx, credentials.NewSSHKeyBinding(deploymentID, keyPath, time.Now())); err != nil {
+		s.log("persist operator SSH key binding failed", map[string]interface{}{"deployment_id": deploymentID, "error": err.Error()})
+	}
 }
 
 // handleGetDeployment returns a single deployment by ID.

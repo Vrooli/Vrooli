@@ -18,7 +18,8 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
+- [ui/src/features/health/HealthCard.tsx](../../ui/src/features/health/HealthCard.tsx)
+- [ui/src/components/ErrorBoundary.test.tsx](../../ui/src/components/ErrorBoundary.test.tsx)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 

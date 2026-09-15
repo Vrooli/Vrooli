@@ -24,4 +24,23 @@ export async function getAsset(id: string): Promise<Asset> {
   return resp.asset;
 }
 
+/** uploadAsset persists raw bytes as a brand asset and returns the catalog entry. */
+export async function uploadAsset(input: {
+  brandId: string;
+  filename: string;
+  mimeType: string;
+  content: Uint8Array;
+}): Promise<Asset> {
+  const resp = await assetsClient.uploadAsset({
+    brandId: input.brandId,
+    filename: input.filename,
+    mimeType: input.mimeType,
+    content: input.content,
+  });
+  if (!resp.asset) {
+    throw new Error("upload returned no asset");
+  }
+  return resp.asset;
+}
+
 export type { Asset, ListAssetsResponse };

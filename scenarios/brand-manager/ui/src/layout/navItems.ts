@@ -14,6 +14,7 @@ export interface NavItem {
     | "assignments"
     | "assets"
     | "generation"
+    | "logo"
     | "apply"
     | "discovery"
     | "design"
@@ -32,6 +33,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "assignments", path: "/assignments", labelKey: strings.layout.nav.assignments },
   { key: "assets", path: "/assets", labelKey: strings.layout.nav.assets },
   { key: "generation", path: "/generation", labelKey: strings.layout.nav.generation },
+  { key: "logo", path: "/logo", labelKey: strings.layout.nav.logo },
   { key: "apply", path: "/apply", labelKey: strings.layout.nav.apply },
   { key: "discovery", path: "/discovery", labelKey: strings.layout.nav.discovery },
   { key: "design", path: "/design", labelKey: strings.layout.nav.design },

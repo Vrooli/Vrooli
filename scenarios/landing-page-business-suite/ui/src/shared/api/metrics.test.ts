@@ -13,7 +13,7 @@ describe('metrics API', () => {
 
     await expect(trackMetric({ event_type: 'click', variant_slug: 'control', session_id: 'session-1', event_data: { element: 'hero', depth: 50 } })).resolves.toEqual({ success: true });
     expect(metricsClient.trackEvent).toHaveBeenCalledWith({
-      eventType: 'click', variantSlug: 'control', sessionId: 'session-1', visitorId: '', eventId: '', utmSource: '', utmMedium: '', utmCampaign: '', landingPath: '', referrer: '', eventData: { element: 'hero', depth: 50 },
+      eventType: 'click', variantSlug: 'control', sessionId: 'session-1', visitorId: '', eventId: '', utmSource: '', utmMedium: '', utmCampaign: '', landingPath: '', referrer: '', trafficClass: '', eventData: { element: 'hero', depth: 50 },
     });
   });
 

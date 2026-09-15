@@ -22,6 +22,9 @@ describe("strip paging", () => { // [REQ:CC-P1-017]
     expect(pageRanges([2], 6, 9)).toEqual([[0, 9]]);
     expect(pageRanges([], 6, 4)).toEqual([[0, 4]]);
   });
+  it("applies a hard tile ceiling even when the measured rows fit", () => {
+    expect(pageRanges([1], 16, 16, 8)).toEqual([[0, 8], [8, 16]]);
+  });
 });
 
 describe("auto-scroll stops", () => { // [REQ:CC-P1-017]

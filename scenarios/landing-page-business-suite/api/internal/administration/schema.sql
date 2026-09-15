@@ -14,3 +14,10 @@ CREATE TABLE IF NOT EXISTS credential_mint_witness (
   minted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   PRIMARY KEY (logical_id, field)
 );
+CREATE TABLE IF NOT EXISTS reader_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), label TEXT NOT NULL,
+  scope TEXT NOT NULL, token_sha256 CHAR(64) NOT NULL UNIQUE, prefix VARCHAR(32) NOT NULL,
+  source TEXT NOT NULL DEFAULT 'operator', created_by INTEGER REFERENCES admin_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(), last_used_at TIMESTAMP, revoked_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_reader_tokens_scope_active ON reader_tokens(scope, revoked_at);

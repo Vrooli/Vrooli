@@ -84,6 +84,7 @@ This row is `IN-REACH` rather than `MISSING` because the monetization instrument
 Two invariants, each with a test (`CC-P0-003`):
 
 1. **A sample may never originate from an upstream.** No code path constructs a sample from a response, a previous reading, or a runtime computation.
+2. **Scenes and readouts never substitute a number for an unmeasured reading in any audience mode.** Hide mode removes illustrative values; an outage keeps its coverage and shows the stated reason.
 2. **A sample is stamped.** Every emitted sample carries the `basis` string that authored it, so nothing downstream — a CLI consumer, an export, a screenshot pipeline — can mistake it for a measurement.
 
 The dangerous version of this feature invents plausible numbers at runtime. That version is indistinguishable from a bug, and it is forbidden here.

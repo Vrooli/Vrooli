@@ -9,7 +9,7 @@
   "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": true,
-  "sandboxConfig": {"manualReview": true},
+  "sandboxConfig": {"mode": "SANDBOX_MODE_TRACKING", "manualReview": true},
   "createdBy": "react-component-library",
   "effort": "medium"
 }

@@ -43,6 +43,7 @@ type ConnectAuthorizationDependencies struct {
 	ClassifyError     func(error) ErrorKind
 	ResolveManaged    func(context.Context, int64) (string, bool, error)
 	Log               func(string, map[string]any)
+	RecordEvent       func(context.Context, string, string, string) error
 }
 
 // WithAuthorization attaches the user-scoped delivery authorization seam.
@@ -98,6 +99,11 @@ func (h *ConnectHandler) AuthorizeDownload(ctx context.Context, request *connect
 	result, err := assetProto(*asset)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if h.authorization.RecordEvent != nil {
+		if err := h.authorization.RecordEvent(ctx, appKey, platform, "download_authorized"); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("record download authorization: %w", err))
+		}
 	}
 	return connect.NewResponse(&lpbsv1.AuthorizeDownloadResponse{Asset: result}), nil
 }

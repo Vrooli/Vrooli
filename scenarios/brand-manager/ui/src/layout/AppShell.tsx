@@ -1,4 +1,4 @@
-import { Aperture, Compass, FileImage, FlaskConical, FolderKanban, LayoutDashboard, Palette, Settings, WandSparkles } from "lucide-react";
+import { Aperture, Compass, FileImage, FlaskConical, FolderKanban, LayoutDashboard, Palette, Settings, Shapes, WandSparkles } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
 
@@ -15,6 +15,7 @@ const NAV_ICONS = {
   assignments: <FolderKanban aria-hidden className="h-5 w-5" />,
   assets: <FileImage aria-hidden className="h-5 w-5" />,
   generation: <WandSparkles aria-hidden className="h-5 w-5" />,
+  logo: <Shapes aria-hidden className="h-5 w-5" />,
   apply: <FlaskConical aria-hidden className="h-5 w-5" />,
   discovery: <Compass aria-hidden className="h-5 w-5" />,
   design: <Palette aria-hidden className="h-5 w-5" />,

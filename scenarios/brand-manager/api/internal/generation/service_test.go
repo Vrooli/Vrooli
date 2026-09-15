@@ -345,49 +345,6 @@ func TestRemoveBackground_StoresTransparentKind(t *testing.T) {
 	require.Equal(t, "logo-transparent-u1.png", res.Filename)
 }
 
-func TestDeriveIcons_ProducesFullSetWithSolidAndTransparentVariants(t *testing.T) {
-	brands := &mocks.FakeBrandStore{}
-	brands.Seed(generation.BrandView{ID: "b1", Name: "Acme", PrimaryColor: "#102030"})
-	assets := &mocks.FakeAssetStore{}
-	assets.SeedAsset("src1", "b1", "logo-transparent.png", "image/png", []byte("mark"))
-	images := &mocks.FakeImageBackend{}
-	svc := newService(t, &mocks.FakeProviders{}, images, brands, assets)
-
-	icons, _, err := svc.DeriveIcons(context.Background(), generation.DeriveIconsInput{BrandID: "b1", SourceAssetID: "src1"})
-	require.NoError(t, err)
-
-	names := map[string]bool{}
-	for _, ic := range icons {
-		names[ic.Filename] = true
-		require.Equal(t, "deterministic", ic.Tier)
-		require.True(t, ic.Canonical)
-	}
-	require.True(t, names["favicon-16.png"])
-	require.True(t, names["favicon-32.png"])
-	require.True(t, names["favicon-196.png"])
-	require.True(t, names["apple-touch-icon.png"])
-	require.True(t, names["maskable-icon-192.png"])
-	require.True(t, names["maskable-icon-512.png"])
-
-	// Solid variants flatten onto the brand color; favicons stay transparent.
-	require.Equal(t, []string{"#102030", "#102030", "#102030"}, images.FlattenBackgrounds(),
-		"apple-touch + two maskable icons flatten onto the brand primary color")
-}
-
-func TestDeriveIcons_RespectsFaviconOnlySelection(t *testing.T) {
-	brands := &mocks.FakeBrandStore{}
-	brands.Seed(generation.BrandView{ID: "b1", Name: "Acme"})
-	assets := &mocks.FakeAssetStore{}
-	assets.SeedAsset("src1", "b1", "logo.png", "image/png", []byte("mark"))
-	images := &mocks.FakeImageBackend{}
-	svc := newService(t, &mocks.FakeProviders{}, images, brands, assets)
-
-	icons, _, err := svc.DeriveIcons(context.Background(), generation.DeriveIconsInput{BrandID: "b1", SourceAssetID: "src1", IncludeFavicon: true})
-	require.NoError(t, err)
-	require.Len(t, icons, 3, "only the favicon family")
-	require.Empty(t, images.FlattenBackgrounds(), "no solid variants when only favicons requested")
-}
-
 func TestImageBackendStatus_PassesThrough(t *testing.T) {
 	images := &mocks.FakeImageBackend{StatusValue: generation.ImageBackendStatus{
 		Available:  true,

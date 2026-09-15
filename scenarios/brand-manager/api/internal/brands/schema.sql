@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS brands (
   voice       TEXT NOT NULL DEFAULT '{}',
   notes       TEXT NOT NULL DEFAULT '',
   version     INTEGER NOT NULL DEFAULT 1,
+  slug               TEXT NOT NULL DEFAULT '',
+  mark_asset_id      TEXT NOT NULL DEFAULT '',
+  small_mark_asset_id TEXT NOT NULL DEFAULT '',
+  container_style_id TEXT NOT NULL DEFAULT '',
+  product_line_id    TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );

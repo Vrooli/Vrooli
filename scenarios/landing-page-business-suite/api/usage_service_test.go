@@ -57,6 +57,16 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
 
+		CREATE TABLE IF NOT EXISTS usage_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			operation_id TEXT UNIQUE,
+			user_identity TEXT NOT NULL,
+			app_bundle_key TEXT NOT NULL DEFAULT 'unattributed',
+			model TEXT NOT NULL DEFAULT 'unknown',
+			credits INTEGER NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
 		CREATE TABLE IF NOT EXISTS credit_reservations (
 			id TEXT PRIMARY KEY,
 			user_identity TEXT NOT NULL,
@@ -983,6 +993,13 @@ func TestUsageService_ReserveAndCharge_Success_WithSufficientCredits(t *testing.
 	if err != nil {
 		t.Fatalf("ReserveAndCharge() returned error: %v", err)
 	}
+	var eventAppKey, eventModel string
+	if err := db.QueryRow(`SELECT app_bundle_key, model FROM usage_events ORDER BY id DESC LIMIT 1`).Scan(&eventAppKey, &eventModel); err != nil {
+		t.Fatalf("read default usage event: %v", err)
+	}
+	if eventAppKey != "test-app" || eventModel != "unknown" {
+		t.Fatalf("unexpected usage event defaults: app=%q model=%q", eventAppKey, eventModel)
+	}
 
 	// Verify usage was recorded
 	var usageAmount int64
@@ -1241,6 +1258,45 @@ func TestUsageService_FinalizeReservation_Success_RecordsUsage(t *testing.T) {
 	if usageAmount != 80000 {
 		t.Errorf("Expected usage 80000, got %d", usageAmount)
 	}
+
+	// A reservation without an app key must reuse the same aggregate row. An
+	// omitted app_bundle_key would be NULL and SQLite/Postgres both allow
+	// multiple NULLs through a composite unique constraint.
+	secondReservation, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 10000)
+	if err != nil {
+		t.Fatalf("second ReserveCredits() returned error: %v", err)
+	}
+	if err := svc.FinalizeReservation(ctx, secondReservation, 10000); err != nil {
+		t.Fatalf("second FinalizeReservation() returned error: %v", err)
+	}
+	var usageRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity = ? AND limit_key = ?`, "user@example.com", "ai_credits").Scan(&usageRows); err != nil {
+		t.Fatalf("count usage rows: %v", err)
+	}
+	if usageRows != 1 {
+		t.Fatalf("expected one usage row for an empty app key, got %d", usageRows)
+	}
+	if err := db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ? AND limit_key = ?`, "user@example.com", "ai_credits").Scan(&usageAmount); err != nil {
+		t.Fatalf("read aggregated usage: %v", err)
+	}
+	if usageAmount != 90000 {
+		t.Errorf("expected aggregated usage 90000, got %d", usageAmount)
+	}
+
+	metadataReservation, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 5000)
+	if err != nil {
+		t.Fatalf("metadata ReserveCredits() returned error: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, metadataReservation, 5000, "bundle-a", "model-a"); err != nil {
+		t.Fatalf("FinalizeReservationWithMetadata() returned error: %v", err)
+	}
+	var appKey, model string
+	if err := db.QueryRow(`SELECT app_bundle_key, model FROM usage_events WHERE operation_id = ?`, metadataReservation).Scan(&appKey, &model); err != nil {
+		t.Fatalf("read metadata usage event: %v", err)
+	}
+	if appKey != "bundle-a" || model != "model-a" {
+		t.Fatalf("unexpected metadata usage event: app=%q model=%q", appKey, model)
+	}
 }
 
 func TestUsageService_FinalizeReservation_EmptyReservationID_ReturnsError(t *testing.T) {
@@ -1252,6 +1308,49 @@ func TestUsageService_FinalizeReservation_EmptyReservationID_ReturnsError(t *tes
 	err := svc.FinalizeReservation(ctx, "", 100000)
 	if err == nil {
 		t.Error("Expected error for empty reservation_id, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservationWithMetadata_RollsBackAtomically(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+	ctx := context.Background()
+
+	reservationID, err := svc.ReserveCredits(ctx, "atomic@example.com", "solo", "ai_credits", 1000)
+	if err != nil {
+		t.Fatalf("ReserveCredits() returned error: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TRIGGER fail_usage_event BEFORE INSERT ON usage_events BEGIN SELECT RAISE(ABORT, 'forced usage event failure'); END`); err != nil {
+		t.Fatalf("create failure trigger: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, reservationID, 900, "bundle-a", "model-a"); err == nil {
+		t.Fatal("expected metadata finalization to fail")
+	}
+	var status string
+	if err := db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status); err != nil {
+		t.Fatalf("read reservation status: %v", err)
+	}
+	if status != "pending" {
+		t.Fatalf("expected failed finalization to remain pending, got %q", status)
+	}
+	var usageRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity = ?`, "atomic@example.com").Scan(&usageRows); err != nil {
+		t.Fatalf("count rolled-back usage rows: %v", err)
+	}
+	if usageRows != 0 {
+		t.Fatalf("expected no usage row after rollback, got %d", usageRows)
+	}
+	if _, err := db.Exec(`DROP TRIGGER fail_usage_event`); err != nil {
+		t.Fatalf("drop failure trigger: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, reservationID, 900, "bundle-a", "model-a"); err != nil {
+		t.Fatalf("retry metadata finalization: %v", err)
+	}
+	if err := db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status); err != nil {
+		t.Fatalf("read retried reservation status: %v", err)
+	}
+	if status != "finalized" {
+		t.Fatalf("expected retried reservation to be finalized, got %q", status)
 	}
 }
 

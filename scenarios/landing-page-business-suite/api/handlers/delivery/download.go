@@ -35,6 +35,7 @@ type Dependencies struct {
 	WriteJSON      func(http.ResponseWriter, any)
 	WriteError     func(http.ResponseWriter, int, string, string)
 	Log            func(string, map[string]any)
+	RecordEvent    func(context.Context, string, string, string) error
 }
 
 func Authorize(deps Dependencies) http.HandlerFunc {
@@ -90,6 +91,13 @@ func Authorize(deps Dependencies) http.HandlerFunc {
 				return
 			}
 			asset.SetURL(url)
+		}
+		if deps.RecordEvent != nil {
+			if err := deps.RecordEvent(r.Context(), appKey, platform, "download_authorized"); err != nil {
+				deps.Log("delivery_event_failed", map[string]any{"event_type": "download_authorized", "app_key": appKey, "platform": platform, "error": err.Error()})
+				deps.WriteError(w, http.StatusInternalServerError, "Download authorization could not be recorded.", "server_error")
+				return
+			}
 		}
 		deps.WriteJSON(w, asset.Payload)
 	}

@@ -48,14 +48,17 @@ const (
 	FormatBMP  = "bmp"
 	FormatAVIF = "avif"
 	FormatHEIC = "heic"
-	FormatSVG  = "svg" // input-only (vector → raster); never an output format.
+	FormatSVG  = "svg" // input-only (vector → raster); never a generic convert output.
+	FormatICO  = "ico"
+	FormatICNS = "icns"
 )
 
 // EncodableFormats are the formats Encode can write. HEIC is intentionally
 // absent: the patent-encumbered HEVC encoder is not bundled (decode-in /
-// convert-out only), and SVG is vector (raster import only).
+// convert-out only). SVG is vector and is written only by the vectorize op, so
+// it is not a generic encodable format. ico/icns are icon containers.
 var EncodableFormats = []string{
-	FormatPNG, FormatJPEG, FormatGIF, FormatWebP, FormatTIFF, FormatBMP, FormatAVIF,
+	FormatPNG, FormatJPEG, FormatGIF, FormatWebP, FormatTIFF, FormatBMP, FormatAVIF, FormatICO, FormatICNS,
 }
 
 // DecodableFormats are the formats Decode recognizes (auto-detected, plus SVG
@@ -148,6 +151,21 @@ func encodeTo(w io.Writer, img image.Image, format string, opts EncodeOptions) e
 			q = 60
 		}
 		return avif.Encode(w, img, avif.Options{Quality: clampQuality(q), QualityAlpha: clampQuality(q)})
+	case FormatICO:
+		data, err := encodeICO([]image.Image{img})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
+	case FormatICNS:
+		b := img.Bounds()
+		data, err := encodeICNS(map[int]image.Image{minInt(b.Dx(), b.Dy()): img})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
 	default:
 		return fmt.Errorf("%w: %q", ErrUnsupportedEncodeFormat, format)
 	}
@@ -174,6 +192,10 @@ func MIMEFor(format string) string {
 		return "image/heic"
 	case FormatSVG:
 		return "image/svg+xml"
+	case FormatICO:
+		return "image/x-icon"
+	case FormatICNS:
+		return "image/icns"
 	default:
 		return ""
 	}
@@ -202,6 +224,10 @@ func FormatFromExt(ext string) string {
 		return FormatHEIC
 	case "svg":
 		return FormatSVG
+	case "ico":
+		return FormatICO
+	case "icns":
+		return FormatICNS
 	default:
 		return ""
 	}

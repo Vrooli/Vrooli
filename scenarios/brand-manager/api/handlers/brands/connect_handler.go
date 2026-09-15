@@ -48,13 +48,18 @@ func (h *connectHandler) ListBrands(ctx context.Context, req *connect.Request[br
 
 func (h *connectHandler) CreateBrand(ctx context.Context, req *connect.Request[brandsv1.CreateBrandRequest]) (*connect.Response[brandsv1.CreateBrandResponse], error) {
 	created, err := h.deps.Service.Create(ctx, brands.CreateInput{
-		Name:        req.Msg.GetName(),
-		Description: req.Msg.GetDescription(),
-		Notes:       req.Msg.GetNotes(),
-		Identity:    identityFromProto(req.Msg.GetIdentity()),
-		Colors:      colorsFromProto(req.Msg.GetColors()),
-		Typography:  typographyFromProto(req.Msg.GetTypography()),
-		Voice:       voiceFromProto(req.Msg.GetVoice()),
+		Name:             req.Msg.GetName(),
+		Description:      req.Msg.GetDescription(),
+		Notes:            req.Msg.GetNotes(),
+		Identity:         identityFromProto(req.Msg.GetIdentity()),
+		Colors:           colorsFromProto(req.Msg.GetColors()),
+		Typography:       typographyFromProto(req.Msg.GetTypography()),
+		Voice:            voiceFromProto(req.Msg.GetVoice()),
+		Slug:             req.Msg.GetSlug(),
+		MarkAssetID:      req.Msg.GetMarkAssetId(),
+		SmallMarkAssetID: req.Msg.GetSmallMarkAssetId(),
+		ContainerStyleID: req.Msg.GetContainerStyleId(),
+		ProductLineID:    req.Msg.GetProductLineId(),
 	})
 	if err != nil {
 		return nil, h.translate("brands.CreateBrand", err)
@@ -72,15 +77,20 @@ func (h *connectHandler) GetBrand(ctx context.Context, req *connect.Request[bran
 
 func (h *connectHandler) UpdateBrand(ctx context.Context, req *connect.Request[brandsv1.UpdateBrandRequest]) (*connect.Response[brandsv1.UpdateBrandResponse], error) {
 	updated, err := h.deps.Service.Update(ctx, brands.UpdateInput{
-		ID:              req.Msg.GetId(),
-		Name:            req.Msg.GetName(),
-		Description:     req.Msg.GetDescription(),
-		Notes:           req.Msg.GetNotes(),
-		Identity:        identityFromProto(req.Msg.GetIdentity()),
-		Colors:          colorsFromProto(req.Msg.GetColors()),
-		Typography:      typographyFromProto(req.Msg.GetTypography()),
-		Voice:           voiceFromProto(req.Msg.GetVoice()),
-		ExpectedVersion: int(req.Msg.GetExpectedVersion()),
+		ID:               req.Msg.GetId(),
+		Name:             req.Msg.GetName(),
+		Description:      req.Msg.GetDescription(),
+		Notes:            req.Msg.GetNotes(),
+		Identity:         identityFromProto(req.Msg.GetIdentity()),
+		Colors:           colorsFromProto(req.Msg.GetColors()),
+		Typography:       typographyFromProto(req.Msg.GetTypography()),
+		Voice:            voiceFromProto(req.Msg.GetVoice()),
+		ExpectedVersion:  int(req.Msg.GetExpectedVersion()),
+		Slug:             req.Msg.GetSlug(),
+		MarkAssetID:      req.Msg.GetMarkAssetId(),
+		SmallMarkAssetID: req.Msg.GetSmallMarkAssetId(),
+		ContainerStyleID: req.Msg.GetContainerStyleId(),
+		ProductLineID:    req.Msg.GetProductLineId(),
 	})
 	if err != nil {
 		return nil, h.translate("brands.UpdateBrand", err)

@@ -23,6 +23,21 @@ func Enrich(r *http.Request, referrer string) Dimensions {
 	return Dimensions{ReferrerHost: host, ReferrerKind: classifyReferrer(host, os.Getenv("LANDING_SITE_HOST")), CountryCode: countryForRequest(r), DeviceClass: classifyDevice(r.Header.Get("User-Agent"))}
 }
 
+// ClassifyTraffic applies the ingest boundary classification. It intentionally
+// accepts only request metadata and never persists the identifying inputs.
+func ClassifyTraffic(userAgent, cookie, internalHeader string) string {
+	if strings.TrimSpace(internalHeader) == "1" || strings.Contains(cookie, "admin_session=") || strings.Contains(cookie, "admin_preview=") {
+		return "internal"
+	}
+	ua := strings.ToLower(userAgent)
+	for _, pattern := range botUserAgentPatterns {
+		if strings.Contains(ua, pattern) {
+			return "bot"
+		}
+	}
+	return "human"
+}
+
 func classifyReferrer(host, site string) string {
 	host = strings.TrimPrefix(strings.ToLower(host), "www.")
 	site = strings.TrimPrefix(strings.ToLower(site), "www.")
@@ -68,15 +83,23 @@ func countryForRequest(r *http.Request) string {
 		peer = r.RemoteAddr
 	}
 	trusted := false
-	for _, raw := range strings.Split(os.Getenv("TRUSTED_PROXY_CIDRS"), ",") {
+	proxyCIDRs := os.Getenv("ANALYTICS_TRUSTED_PROXIES")
+	if strings.TrimSpace(proxyCIDRs) == "" {
+		proxyCIDRs = "127.0.0.1/32,::1/128"
+	}
+	for _, raw := range strings.Split(proxyCIDRs, ",") {
 		_, network, err := net.ParseCIDR(strings.TrimSpace(raw))
 		if err == nil && network.Contains(net.ParseIP(peer)) {
 			trusted = true
 			break
 		}
 	}
-	if trusted && r.Header.Get("X-Geo-Country") != "" {
-		return strings.ToUpper(strings.TrimSpace(r.Header.Get("X-Geo-Country")))
+	if trusted {
+		for _, header := range []string{"CF-IPCountry", "X-Geo-Country"} {
+			if value := strings.TrimSpace(r.Header.Get(header)); value != "" && value != "XX" && value != "T1" {
+				return strings.ToUpper(value)
+			}
+		}
 	}
 	if !trusted && r.Header.Get("X-Geo-Country") != "" {
 		return ""

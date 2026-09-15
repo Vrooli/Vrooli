@@ -42,7 +42,7 @@ type updatePolicyLookup interface {
 type updateBundleKeyProvider interface{ BundleKey() string }
 
 func testUpdateDependencies(bundles updateBundleKeyProvider) downloadhttp.UpdateDependencies {
-	return updateDependencies(bundles)
+	return updateDependencies(bundles, nil)
 }
 
 func requireUpdateAPIKey(apps updateAppLookup, bundles updateBundleKeyProvider) func(http.HandlerFunc) http.HandlerFunc {

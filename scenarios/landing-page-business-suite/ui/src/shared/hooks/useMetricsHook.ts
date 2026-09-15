@@ -2,93 +2,15 @@ import { useCallback, useContext, useEffect, useRef } from 'react';
 import { useLandingVariant } from '../../app/providers/useLandingVariant';
 import { MetricsModeContext } from './MetricsModeContext';
 import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
-import { getVisitorId } from '../lib/visitorIdentity';
+import { getAttributionContext } from '../lib/attribution';
 
-const SESSION_STORAGE_KEY = 'metrics_session_id';
-const CAMPAIGN_STORAGE_KEY = 'metrics_campaign';
-
-let fallbackSessionId: string | null = null;
-let sessionWarningLogged = false;
-let visitorWarningLogged = false;
 const activePageViews = new Map<string, number>();
 const trackedScrollDepth = new Map<string, Set<number>>();
 const activeScrollListeners = new Map<string, { count: number; handler: () => void }>();
 
-function generateId(prefix: string) {
-	return `${prefix}_${Date.now().toString()}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
-function logStorageWarning(kind: 'session' | 'local', error: unknown) {
-  if (kind === 'session') {
-    if (sessionWarningLogged) return;
-    sessionWarningLogged = true;
-  } else {
-    if (visitorWarningLogged) return;
-    visitorWarningLogged = true;
-  }
-  console.warn(`[useMetrics] Access to ${kind}Storage unavailable:`, error);
-}
-
-function getStorage(kind: 'session' | 'local') {
-  if (typeof window === 'undefined') {
-    return undefined;
-  }
-
-  try {
-    return kind === 'session' ? window.sessionStorage : window.localStorage;
-  } catch (error) {
-    logStorageWarning(kind, error);
-    return undefined;
-  }
-}
-
-// Generate session ID (persisted in sessionStorage)
-function getSessionID(): string {
-  const fallback = () => {
-    if (!fallbackSessionId) {
-      fallbackSessionId = generateId('session');
-    }
-    return fallbackSessionId;
-  };
-
-  const storage = getStorage('session');
-  if (!storage) {
-    return fallback();
-  }
-
-  try {
-    let sessionID = storage.getItem(SESSION_STORAGE_KEY);
-    if (!sessionID) {
-      sessionID = generateId('session');
-      storage.setItem(SESSION_STORAGE_KEY, sessionID);
-    }
-    fallbackSessionId = sessionID;
-    return sessionID;
-  } catch (error) {
-    logStorageWarning('session', error);
-    return fallback();
-  }
-}
-
 function getPageMetricKey(variantSlug: string) {
   const path = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
   return `${variantSlug}:${path}`;
-}
-
-type CampaignAttribution = { utm_source: string; utm_medium: string; utm_campaign: string; landing_path: string; referrer: string };
-
-function getCampaignAttribution(): CampaignAttribution {
-  const empty = { utm_source: '', utm_medium: '', utm_campaign: '', landing_path: typeof window === 'undefined' ? '/' : window.location.pathname, referrer: '' };
-  const storage = getStorage('session');
-  if (!storage) return empty;
-  try {
-    const existing = storage.getItem(CAMPAIGN_STORAGE_KEY);
-    if (existing) return JSON.parse(existing) as CampaignAttribution;
-    const params = new URLSearchParams(window.location.search);
-    const value = { utm_source: params.get('utm_source') ?? '', utm_medium: params.get('utm_medium') ?? '', utm_campaign: params.get('utm_campaign') ?? '', landing_path: window.location.pathname, referrer: document.referrer };
-    storage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(value));
-    return value;
-  } catch { return empty; }
 }
 
 type MetricEventPayload = APIMetricEvent & {
@@ -104,12 +26,8 @@ export function useMetrics() {
   const { variant, visitorId: assignedVisitor } = useLandingVariant();
   const metricsMode = useContext(MetricsModeContext);
   const previewMode = metricsMode === 'preview';
-  const sessionID = useRef('');
-  const visitorID = useRef('');
-  if (!previewMode && variant?.slug) {
-    if (!sessionID.current) sessionID.current = getSessionID();
-    visitorID.current = getVisitorId(assignedVisitor);
-  }
+  const attributionRef = useRef<ReturnType<typeof getAttributionContext>>();
+  if (!previewMode && variant?.slug) attributionRef.current = getAttributionContext(variant.slug, assignedVisitor);
 
   // Track event to API
   const trackEvent = useCallback(async (
@@ -124,12 +42,12 @@ export function useMetrics() {
       return;
     }
 
-    const attribution = getCampaignAttribution();
+    const attribution = attributionRef.current ?? getAttributionContext(variant.slug, assignedVisitor);
     const event: MetricEventPayload = {
       event_type: eventType,
       variant_slug: variant.slug,
-      session_id: sessionID.current,
-      visitor_id: visitorID.current,
+      session_id: attribution.session_id,
+      visitor_id: attribution.visitor_id,
       event_data: eventData,
       ...attribution,
       referrer: eventType === 'page_view' ? attribution.referrer : '',
@@ -140,7 +58,7 @@ export function useMetrics() {
     } catch (error) {
       console.error('[useMetrics] Error tracking event:', error);
     }
-  }, [previewMode, variant]);
+  }, [assignedVisitor, previewMode, variant]);
 
   // Track page view on mount
   useEffect(() => {
@@ -229,21 +147,6 @@ export function useMetrics() {
     });
   }, [previewMode, trackEvent]);
 
-  // Track form submission
-  const trackFormSubmit = useCallback((formId: string, formData?: Record<string, unknown>) => {
-    if (previewMode) return;
-    void trackEvent('form_submit', {
-      form_id: formId,
-      ...formData,
-    });
-  }, [previewMode, trackEvent]);
-
-  // Track conversion (e.g., Stripe checkout success)
-  const trackConversion = useCallback((conversionData?: Record<string, unknown>) => {
-    if (previewMode) return;
-    void trackEvent('conversion', conversionData);
-  }, [previewMode, trackEvent]);
-
   const trackDownload = useCallback((downloadData?: Record<string, unknown>) => {
     if (previewMode) return;
     void trackEvent('download', downloadData);
@@ -251,8 +154,6 @@ export function useMetrics() {
 
   return {
     trackCTAClick,
-    trackFormSubmit,
-    trackConversion,
     trackDownload,
     trackEvent, // Generic event tracker
   };

@@ -363,8 +363,11 @@ func TestMaterializeAdapterImages(t *testing.T) {
 }
 
 func TestEngineHelpers(t *testing.T) {
-	if Lane("anything") != internaljobs.LaneGPU {
-		t.Fatalf("AI lane should be GPU lane")
+	if LaneForTier("local-gpu") != internaljobs.LaneGPU {
+		t.Fatalf("local-gpu tier should use the GPU lane")
+	}
+	if LaneForTier("byok-cloud") != internaljobs.LaneNetwork {
+		t.Fatalf("byok-cloud tier should use the network lane")
 	}
 	if estimateSeconds("naturalize", false) != 2 {
 		t.Fatal("naturalize should keep deterministic short ETA")

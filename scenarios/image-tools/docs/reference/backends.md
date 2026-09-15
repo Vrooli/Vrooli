@@ -118,6 +118,15 @@ or backend reassignment.
 | `text_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
 | `upscale` | `real-esrgan` | `realesrgan-ncnn-vulkan` | `default` | `realesrgan-ncnn-vulkan` binary on a Vulkan-capable host; provision through SDA. |
 
+`object_removal` has a second, always-available provider: the builtin
+`mask-fill` backend (model `mask-fill`) is a pure-Go membrane fill — dilate the
+mask, grow it over a colour halo, solve Laplace inside the region, composite. It
+needs no host tool, so object removal succeeds even when `iopaint` is absent.
+`iopaint` remains the quality path and is ranked ahead of `mask-fill`; the
+builtin is deterministic and exact on flat or smooth backgrounds but smears on
+textured ones. `vrooli host install iopaint` reports `manual_action_required`
+until a governed installer is provisioned.
+
 > Status (2026-06-19): Phase 1 catalog hardening has direct install assets for
 > every enabled weight-backed seed model. The final migrated slice added
 > `instruct-pix2pix`, `sd-1.5-inpainting`, `mi-gan`, `real-esrgan`, `dncnn`,

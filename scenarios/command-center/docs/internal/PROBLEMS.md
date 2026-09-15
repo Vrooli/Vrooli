@@ -2,11 +2,25 @@
 
 Known defects and divergences, newest first. This file is the honest record of where the code differs from the documents around it.
 
+## Broadcast / LPBS production gate — 2026-09-15
+
+| Finding | Evidence | Disposition |
+|---|---|---|
+| Production LPBS is unavailable and Broadcast cannot be promoted to `NOW`. | `evidence/after/production-health-2026-09-15.txt` records HTTP 502 from `https://vrooli.com/health`; Plan Manager finding `f84cc56b-c89a-40bf-8d1b-331005276cce`. | Open, owned by the concurrent deployment workflow. Keep LPBS-bound readings `IN-REACH`; do not fabricate promotion evidence. |
+| Local override now supplies typed LPBS digest, traffic, revenue, funnel and leaderboard readings. | `evidence/phase-12/broadcast-mark.json`, `broadcast-hide.json`, and `evidence/phase-13/direct-dom-summary.txt`. | Implemented locally. Override origin is explicitly labeled and is not production proof. |
+| Unknown countries and update checks are not equivalent to complete geographic or install attribution. | `SOURCE-MAP.md`; current producer contracts. | Open limitation; retain `Unknown` and `update checks` wording in the UI. |
+| Test Genie workflow health reports legacy case failures and unavailable experience-profile bindings. | Runs `20260915-193610-310ce0e3` and `20260915-193847-155d9d84`; Plan Manager finding `731677e8-9eb6-49b0-8031-1e523d776438`. | Dispositioned as validation infrastructure/legacy debt; new local UI behavior has focused unit/build and direct DOM evidence. |
+
 ## Performance audit — 2026-09-15
 
 | Finding | Evidence | Disposition |
 |---|---|---|
 | Every room surface re-rendered on each 250 ms cycle tick | `progress` sat in the controller context value, so every `useBoardController` consumer committed four times a second. | Fixed: `BoardProgressContext`; regression test `advances the cycle rail without re-rendering the room surfaces`. |
+| The cycle rail stuttered and a held beat looked frozen | The 250 ms `setInterval` and the rail's 250 ms `transition` raced, so the transition finished before the next target and the fill stalled 100–180 ms then jumped (live rAF probe showed `d=0` runs); a hold froze the fill short of the segment end and marked nothing. | Fixed 2026-09-15: `tickCycle` drives progress from `requestAnimationFrame`; holds wait at the segment end and set `data-held`; the CSS transition is a 120 ms jank buffer. See PROGRESS 2026-09-15; regression tests in `cycle.test.ts` and `AmbientDisplayShell.test.tsx`. |
+| `samples=hide` can loop forever and peg the tab | `RoomPage` advanced hidden-hero beats with `(beatIndex + 1) % beats.length`. When no beat's hero is measured but a supporting reading is (`visible.length > 0`), it advances every render without converging. | Fixed 2026-09-15: `nextMeasuredBeat` jumps once to a measured-hero beat and stops at `-1`; regression tests in `hero.test.ts`; live `forge?beat=3&samples=hide` settles instead of looping. See PROGRESS 2026-09-15. |
+| A scene draw exception killed the animation loop | `frame()` allowed a negative `t`/`dt`, so a scene could call `arc`/`drawImage` with a negative radius (observed `arc(...-0.8...)` in `signalConstellation`); the throw escaped the rAF loop, so the canvas stopped animating. | Fixed 2026-09-15: clamp the scene clock to non-negative, guard `drawGlow`, and catch a failed draw in `AmbientCanvas` to fall back to the composed still; regression test in `engine.test.ts`. |
+| An auto-scrolling panel held the room for the full 90 s | The optional counter line rendered only when a row was wholly visible; its appearance shrank the viewport it was measured from, so `stops`/viewport flipped every frame (3↔4, 91↔104), the step timer was cleared before it fired, and `read` never became true. Observed live on Forge beat 3 (`goal_progress`) at 1280×560. | Fixed 2026-09-15: reserve the counter line whenever the list is scrolling (nbsp when no range is named) and tolerate a pixel of churn in `sameGeometry`. See PROGRESS 2026-09-15; 180 s live run shows no hold; regression in `AutoScroll.test.tsx`. |
+| The Forge release-ladder details looped forever and held the beat | `AutoScroll`'s step effect ignored its `read` flag, so it restarted from the top after one pass. Separately, `AUTOSCROLL_TIMING`/`STRIP_PAGE_MS` are fixed milliseconds while beat durations scale with `?cycle`, so a short cycle left the pass longer than the beat: the list never reached `read`, the beat held every visit, and each remount restarted the pass. | Fixed 2026-09-15: the list rests at the top after one pass, and `cycleScale` scales auto-scroll and strip-paging timing with the beat. See PROGRESS 2026-09-15; live stall at 1280×560 dropped 9.9 s → 4.0 s (cycle 20) and 8.4 s → 1.1 s (cycle 30); regressions in `AutoScroll.test.tsx` and `cycle.test.ts`. |
 | Per-frame layout, style and reading resolution in the scene loop | `AmbientCanvas` called `getBoundingClientRect` ×3, `getComputedStyle` and `sceneData()` in every frame, and twice per frame during a crossfade. | Fixed: 250 ms layout/palette cadence; readings resolved on change. Not isolated in a measurement; the expected saving is small. |
 | Colour-string parsing and per-segment strokes in scene loops | orbitalField issued about 2,750 stroke calls a frame; hive-lattice parsed about 600 `rgba()` strings a frame. | Fixed; see PROGRESS 2026-09-15 for A/B numbers. |
 | orbitalField re-stroked 110 static orbit rings every frame | Layer breakdown: removing the rings took the frame from 18.5 to 5.2 ms. | Fixed with a cached ring layer; see PROGRESS 2026-09-15. Remaining orbital, hive and flow cost is moving content (stars, glows, cells, sparks). |
@@ -15,6 +29,13 @@ Known defects and divergences, newest first. This file is the honest record of w
 | Canvas density is the largest remaining cost | Raster dominates orbital, hive and globe. At 1.5× instead of 2× density: orbital 17.5→12.6 ms, hive 15.0→7.6, flow 8.1→4.9, globe 19.6→14.2. | Decided 2026-09-15: the operator keeps 2× density and 60 fps. Further work must be pixel-preserving. A 30 fps cap would halve the cost if the display hardware ever needs it. |
 | No performance-health baseline | BAS shares one browser, and CDP tracing is browser-wide, so concurrent sessions fail `Tracing.start`. QA `knw-1789451555082051158`. | Not ours to fix. Re-audit with `performance-health audit run command-center --workflow perf-room-cycle` when BAS is quiet. |
 | drawn-fps is unusable | The analyzer reports `drawn-fps=0.0` with a 1.1e9 ms frame duration. QA `knw-1789452282548236326`. | Do not set a `drawn_fps_min` budget until it is fixed. No per-flow budget is set yet: one after-sample from a contended host is too noisy to ratchet. |
+
+## Work ladder — cycle rail freeze and jitter (2026-09-15)
+
+- Rung: W3
+- Evidence: `CC-P1-008` ("the cycle rail visibly stops and restarts") and `CC-P1-017` ("a beat does not end until its strip has shown every page … the rail waits at the segment's end so a held beat reads as reading, not frozen") already define the expected behavior. Live Chromium probe against the running scenario (`/forge`, 1280×720) reproduced the defect: the active fill froze 5.7–7.7 s at `scaleX(0.974–0.992)` with `data-paused` empty (hold), and rAF sampling showed 100–180 ms `d=0` stalls between jumps (transition/tick race). Cause is implementation, not contract.
+- Blocker: none; repaired and validated under the scoped UI suite.
+- Measured: 2026-09-15
 
 ## Morning walk friction review — 2026-09-06
 
@@ -107,8 +128,8 @@ remaining items are either upstream data limitations or a dependency-tooling lim
 
 | Divergence | Owner | Contract / requirement |
 |---|---|---|
-| Ledger has no live revenue readings; monetization exposes no revenue or subscription surface yet. | monetization | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-003` |
-| Broadcast has no readable source; `marketing-crew` declares no aggregator. | marketing-crew | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-004` |
+| Ledger revenue and subscription readings are implemented against LPBS, but production promotion remains pending while `vrooli.com` is unavailable. | monetization / deployment owner | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-003`, `evidence/after/production-health-2026-09-15.txt` |
+| Broadcast source plumbing is implemented against LPBS; social and SEO remain explicit unowned gaps, and production promotion is blocked by the 502 origin outage. | marketing-crew / deployment owner | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-004`, `evidence/after/production-health-2026-09-15.txt` |
 | Governed local-package installation currently emits a registry install command for the approved `@vrooli/react-component-library` file record and fails with npm 404; the manifest and lock entry are retained from the approved record. | scenario-dependency-analyzer | Phase 9 |
 | `AmbientDisplayShell` and `CycleController` remain scenario-local (`ui/src/components/AmbientShell.tsx`, `BoardController.tsx`): they bind to react-router and the board API, and the library's ingest has no seam for host-provided routing yet. The four primitives beneath them are library assets. | command-center / react-component-library | Decision 10 |
 | The contrast floor was measured under software WebGL (SwiftShader) at 1600×1000, ten frames per room, digit rows only. Every room clears 14:1. A GPU run and a portrait run are still owed. | command-center | Phase 12 |
@@ -120,8 +141,8 @@ remaining items are either upstream data limitations or a dependency-tooling lim
 
 Neither is scenario work. Both are tracked as source bindings in [SOURCE-MAP.md](../concepts/SOURCE-MAP.md).
 
-- **Ledger has no live revenue readings.** The monetization instrument is `live` but exposes no revenue or subscription surface. Coverage is `IN-REACH`, not `MISSING` — the substrate exists. (`CC-P2-003`)
-- **Broadcast has no readable source at all.** `marketing-crew` declares no aggregator, and the social-scheduling capability "has no scenario at all — that capability is unowned, not merely unaggregated." This is one finding with one owner, not six pipeline gaps. (`CC-P2-004`)
+- **Ledger has LPBS revenue and subscription readings, but production promotion is pending.** Coverage remains `IN-REACH` because the production origin returned HTTP 502. (`CC-P2-003`; evidence in the dated production-gate entry above)
+- **Broadcast has an LPBS source for business analytics.** Social reach and SEO remain unowned capabilities, so those gaps remain explicit rather than being presented as LPBS measurements. (`CC-P2-004`)
 
 ---
 

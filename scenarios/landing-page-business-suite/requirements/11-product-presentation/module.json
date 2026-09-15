@@ -1,14 +1,15 @@
 {
   "_metadata": {
-    "description": "Operator-authorized configurable product presentation; planned validations remain unverified until observed."
+    "description": "Operator-authorized configurable product presentation; planned validations remain unverified until observed.",
+    "last_validated_at": "2026-09-15T15:25:46-04:00"
   },
   "requirements": [
     {
       "id": "LP-PRES-001",
       "title": "Amended LPBS PRD and requirement registry with stable operational targets for the product-presentation model",
-      "description": "The landing-page contract must define bundle scope, app scope, app visibility, single-app mode, multi-app mode, app slide limits, app ordering, detail routes, and acceptance parity between the single-app landing view and an app detail view.",
-      "prd_ref": "OT-P0-035",
       "status": "planned",
+      "prd_ref": "OT-P0-035",
+      "description": "The landing-page contract must define bundle scope, app scope, app visibility, single-app mode, multi-app mode, app slide limits, app ordering, detail routes, and acceptance parity between the single-app landing view and an app detail view.",
       "validation": [
         {
           "type": "manual",
@@ -21,9 +22,9 @@
     {
       "id": "LP-PRES-002",
       "title": "Canonical BAS app profile containing the recovered identity, narrative, feature copy, availability, installer metadata, screenshots/assets, and disabled/planned state",
-      "description": "Existing Browser Automation Studio material must survive as an explicit disabled app profile without being silently deleted or diluted.",
+      "status": "complete",
       "prd_ref": "OT-P0-038",
-      "status": "in_progress",
+      "description": "Existing Browser Automation Studio material must survive as an explicit disabled app profile without being silently deleted or diluted.",
       "validation": [
         {
           "type": "test",
@@ -31,28 +32,28 @@
           "status": "implemented",
           "notes": "Canonical preservation gate checks the disabled/private/draft BAS profile, 1,071 field mappings, 9 payload digests, and 5 asset identities. It does not prove public cutover, real asset release, or owner qualification."
         },
-      {
-        "type": "test",
-        "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyRecoveryPersistsPrivatelyWithoutPublication",
-        "status": "implemented",
-        "notes": "Parent race test proves exact UTF-8 recovery chunks and receipt survive typed draft save/read without publication, stale saves conflict, renderer projections omit private recovery bytes, and disabled BAS has no public route. This tests storage/transport, not the local import adapter itself."
-      },
-      {
-        "type": "test",
-        "ref": "ui/src/shared/lib/presentationLegacyImport.test.ts",
-        "status": "implemented",
-        "notes": "Version1 explicit local adapter preserves exact source bytes and field dispositions, maps only safe narrative content into the selected disabled/private/draft app, rejects malformed or damaged provenance, and is deterministic and idempotent. No default network or persistence writes."
-      },
-      {
-        "type": "test",
-        "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyImportAdapterDocumentIntegration",
-        "status": "implemented",
-        "notes": "Opt-in cross-language bridge: actual canonical generated seed through the real TypeScript adapter then authoritative SaveDraft/GetPresentation validation. Parent passed synthetic edge cases and the archived agency BAS variant with byte-exact storage and no publication; default suites skip this opt-in artifact workflow."
-      },
+        {
+          "type": "test",
+          "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyRecoveryPersistsPrivatelyWithoutPublication",
+          "status": "implemented",
+          "notes": "Parent race test proves exact UTF-8 recovery chunks and receipt survive typed draft save/read without publication, stale saves conflict, renderer projections omit private recovery bytes, and disabled BAS has no public route. This tests storage/transport, not the local import adapter itself."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/shared/lib/presentationLegacyImport.test.ts",
+          "status": "implemented",
+          "notes": "Version1 explicit local adapter preserves exact source bytes and field dispositions, maps only safe narrative content into the selected disabled/private/draft app, rejects malformed or damaged provenance, and is deterministic and idempotent. No default network or persistence writes."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationLegacyImportAdapterDocumentIntegration",
+          "status": "implemented",
+          "notes": "Opt-in cross-language bridge: actual canonical generated seed through the real TypeScript adapter then authoritative SaveDraft/GetPresentation validation. Parent passed synthetic edge cases and the archived agency BAS variant with byte-exact storage and no publication; default suites skip this opt-in artifact workflow."
+        },
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. A before/after content snapshot proves that every recovered BAS field is either preserved in the profile or explicitly marked as intentionally superseded by an accepted decision; generic Aquila sections contain no BAS-only copy."
         }
       ]
@@ -60,9 +61,9 @@
     {
       "id": "LP-PRES-003",
       "title": "Canonical app and bundle manifest with duplicate identity handling for Aquila/web-console and a documented Backdrop Studio product-versus-provider decision",
-      "description": "The bundle must have one canonical catalog of independently marketable app profiles with explicit public status, stable key, slug, priority, detail route, launch/download targets, narrative, and visual assets.",
+      "status": "complete",
       "prd_ref": "OT-P0-035",
-      "status": "in_progress",
+      "description": "The bundle must have one canonical catalog of independently marketable app profiles with explicit public status, stable key, slug, priority, detail route, launch/download targets, narrative, and visual assets.",
       "validation": [
         {
           "type": "test",
@@ -91,7 +92,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. Public resolution never relies on database insertion order or default-enabled records; only explicitly published apps participate in public bundle mode."
         }
       ]
@@ -99,9 +100,9 @@
     {
       "id": "LP-PRES-004",
       "title": "Versioned page/block schema and coverage audit that distinguishes configured content, shared system strings, and code-owned renderer behavior",
-      "description": "All user-facing marketing copy and block data must be supplied by validated presentation configuration, app profiles, plan/catalog data, or shared localization/system strings rather than hidden product-specific JSX defaults.",
+      "status": "complete",
       "prd_ref": "OT-P0-037",
-      "status": "in_progress",
+      "description": "All user-facing marketing copy and block data must be supplied by validated presentation configuration, app profiles, plan/catalog data, or shared localization/system strings rather than hidden product-specific JSX defaults.",
       "validation": [
         {
           "type": "test",
@@ -136,7 +137,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. A static/content provenance check fails for stale BAS or Web Console marketing strings in generic public renderers and validates every configured block type before publication."
         }
       ]
@@ -144,9 +145,9 @@
     {
       "id": "LP-PRES-005",
       "title": "Server-side presentation resolver covering zero, one, and multiple public apps",
-      "description": "The resolver must render a product-led page when exactly one public app is available and a bundle-led page when multiple public apps are available.",
-      "prd_ref": "OT-P0-035",
       "status": "in_progress",
+      "prd_ref": "OT-P0-035",
+      "description": "The resolver must render a product-led page when exactly one public app is available and a bundle-led page when multiple public apps are available.",
       "validation": [
         {
           "type": "test",
@@ -171,9 +172,9 @@
     {
       "id": "LP-PRES-006",
       "title": "Configurable app rail/spotlight block with deterministic app order and `/apps/:appKey` detail routing",
-      "description": "A multi-app bundle must show at most configured k app slides, and every app slide must link to a complete app-specific route.",
-      "prd_ref": "OT-P0-036",
       "status": "in_progress",
+      "prd_ref": "OT-P0-036",
+      "description": "A multi-app bundle must show at most configured k app slides, and every app slide must link to a complete app-specific route.",
       "validation": [
         {
           "type": "test",
@@ -204,9 +205,9 @@
     {
       "id": "LP-PRES-007",
       "title": "App-detail presentation API and UI route with parity tests",
-      "description": "App detail pages must use the same composition engine and product scope as the main page would use when that app is the only public app.",
-      "prd_ref": "OT-P0-036",
       "status": "in_progress",
+      "prd_ref": "OT-P0-036",
+      "description": "App detail pages must use the same composition engine and product scope as the main page would use when that app is the only public app.",
       "validation": [
         {
           "type": "test",
@@ -237,9 +238,9 @@
     {
       "id": "LP-PRES-008",
       "title": "Order resolver and validation rules for page blocks, app slides, and scoped overrides",
-      "description": "Configured block order must be authoritative; hidden renderer sorting may not move downloads, footer, or other blocks without an explicit schema constraint.",
-      "prd_ref": "OT-P0-037",
       "status": "in_progress",
+      "prd_ref": "OT-P0-037",
+      "description": "Configured block order must be authoritative; hidden renderer sorting may not move downloads, footer, or other blocks without an explicit schema constraint.",
       "validation": [
         {
           "type": "test",
@@ -270,9 +271,9 @@
     {
       "id": "LP-PRES-009",
       "title": "Validated backdrop reference fields for hero, app spotlight, and app-detail assets, plus same-origin resolution and release metadata",
-      "description": "Backdrop Studio must be used as a released, surface-specific visual asset provider with reserved regions and legibility evidence, while LPBS remains responsible for HTML, copy, and page composition.",
+      "status": "complete",
       "prd_ref": "OT-P0-039",
-      "status": "in_progress",
+      "description": "Backdrop Studio must be used as a released, surface-specific visual asset provider with reserved regions and legibility evidence, while LPBS remains responsible for HTML, copy, and page composition.",
       "validation": [
         {
           "type": "test",
@@ -307,7 +308,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. A configured reference resolves to a released asset and metadata for desktop and mobile surfaces; missing, stale, or illegible references fail or use an explicit configured fallback rather than silently rendering an empty or black frame. Tag correction: LP-PRES-009 belongs on presentationassets publication/provenance, asset-composition, and qualification-gate tests; recording and generic landing diagnostics are not asset-release evidence."
         }
       ]
@@ -315,9 +316,9 @@
     {
       "id": "LP-PRES-010",
       "title": "Catalog/app spotlight block and app profile visual asset treatment for desktop and mobile",
-      "description": "The catalog must communicate product value through designed visual cards, screenshots or released backdrop compositions, availability status, and a clear view-details action.",
+      "status": "complete",
       "prd_ref": "OT-P0-036",
-      "status": "in_progress",
+      "description": "The catalog must communicate product value through designed visual cards, screenshots or released backdrop compositions, availability status, and a clear view-details action.",
       "validation": [
         {
           "type": "test",
@@ -346,7 +347,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. Given a fixture with public Aquila and Backdrop Studio and disabled BAS, when the public catalog renders, then it shows two distinct product presentations with clear detail actions; BAS remains available only through an authorized private preview."
         }
       ]
@@ -354,9 +355,9 @@
     {
       "id": "LP-PRES-011",
       "title": "Evidence preflight and recording assertions covering first frame, frame diversity, content landmarks, desktop/mobile dimensions, and route identity",
-      "description": "Evidence capture must detect blank, black, stale, or mismatched presentation output instead of returning a superficially successful recording.",
-      "prd_ref": "OT-P0-041",
       "status": "in_progress",
+      "prd_ref": "OT-P0-041",
+      "description": "Evidence capture must detect blank, black, stale, or mismatched presentation output instead of returning a superficially successful recording.",
       "validation": [
         {
           "type": "test",
@@ -411,9 +412,9 @@
     {
       "id": "LP-PRES-012",
       "title": "Variant resolution diagnostics, explicit fallback metadata, and evidence labeling/guardrails",
-      "description": "Configured variant failure must be visible and diagnosable; the runtime must not silently substitute the fallback page while evidence is presented as proof of the requested variant.",
+      "status": "complete",
       "prd_ref": "OT-P0-040",
-      "status": "in_progress",
+      "description": "Configured variant failure must be visible and diagnosable; the runtime must not silently substitute the fallback page while evidence is presented as proof of the requested variant.",
       "validation": [
         {
           "type": "test",
@@ -448,7 +449,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. The API and capture pipeline expose requested variant, resolved variant, fallback state, and reason; a capture for control cannot be labeled control when the response is fallback. Tag correction: LP-PRES-012 belongs on resolver/landing diagnostics and capture variant-mismatch tests; asset-release and recording-only tags are not diagnostic evidence."
         }
       ]
@@ -456,9 +457,9 @@
     {
       "id": "LP-PRES-014",
       "title": "App capability records, evidence/constraint fields, artifact-explorer and voice-story blocks, session narrative and a distinct roadmap block, shared by single-app and detail routes",
-      "description": "When Aquila is presented, the product page MUST explain local STT/TTS, AI summarization, supported artifact viewing, grouping, session search, and archive/unarchive through configured app-owned content; remote-computer and Android/iPhone control MUST remain explicitly coming soon until release evidence supports availability.",
+      "status": "complete",
       "prd_ref": "OT-P0-038",
-      "status": "in_progress",
+      "description": "When Aquila is presented, the product page MUST explain local STT/TTS, AI summarization, supported artifact viewing, grouping, session search, and archive/unarchive through configured app-owned content; remote-computer and Android/iPhone control MUST remain explicitly coming soon until release evidence supports availability.",
       "validation": [
         {
           "type": "test",
@@ -493,7 +494,7 @@
         {
           "type": "manual",
           "ref": "docs/concepts/PRODUCT-PRESENTATION.md",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pending acceptance procedure; not implementation evidence. Given the same Aquila profile revision, when single-app root and detail routes render, then capability copy/status and order agree; artifact selection works with pointer and keyboard; local speech does not imply all AI processing is local; upcoming device control has no current connect/control action."
         }
       ]
@@ -501,9 +502,9 @@
     {
       "id": "LP-PRES-015",
       "title": "Validated hero-exhibit configuration and supported composition variants, with explicit app identity, order, eligibility and detail targets",
-      "description": "When the bundle hero contains app exhibits, the renderer MUST use configured eligible app references and show one identifiable visual group per selected app with a matching detail link; multiple artifacts within one group MUST NOT imply additional apps.",
-      "prd_ref": "OT-P0-036",
       "status": "in_progress",
+      "prd_ref": "OT-P0-036",
+      "description": "When the bundle hero contains app exhibits, the renderer MUST use configured eligible app references and show one identifiable visual group per selected app with a matching detail link; multiple artifacts within one group MUST NOT imply additional apps.",
       "validation": [
         {
           "type": "test",

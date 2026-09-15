@@ -144,8 +144,10 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     };
 
     const frame = (nowMs: number, rng: () => number): Frame => {
-      const t = started ? (nowMs - started) / 1000 : 0;
-      const dt = last ? Math.min(0.1, (nowMs - last) / 1000) : 1 / 60;
+      // The scene clock only moves forward: a negative t or dt would make a
+      // scene's geometry (e.g. a wave radius) negative and throw.
+      const t = started ? Math.max(0, (nowMs - started) / 1000) : 0;
+      const dt = last ? Math.max(0, Math.min(0.1, (nowMs - last) / 1000)) : 1 / 60;
       return { ctx: context, w: width, h: height, t, dt, quiet, tier: drawTier, palette, data: currentData(), rng };
     };
 
@@ -196,25 +198,38 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       }
     };
 
+    // A bad frame must not kill the scene loop or leave a blank canvas: report
+    // it and fall back to the composed still, the documented degradation.
+    const paintSafely = (nowMs: number, still: boolean): boolean => {
+      try {
+        paint(nowMs, still);
+        return true;
+      } catch (error) {
+        console.error("[command-center] scene draw failed; showing the still frame", error);
+        setState("fallback");
+        return false;
+      }
+    };
+
     // A requested repaint follows a room, beat or theme change: read layout fresh.
     repaintRef.current = () => {
       layoutReadAt = Number.NEGATIVE_INFINITY;
-      paint(performance.now(), probed === "still");
+      paintSafely(performance.now(), probed === "still");
     };
 
     const loop = (nowMs: number) => {
-      if (!document.hidden) paint(nowMs, false);
+      if (!document.hidden && !paintSafely(nowMs, false)) return;
       raf = window.requestAnimationFrame(loop);
     };
 
     resize();
     const observer = new ResizeObserver(() => {
       resize();
-      if (probed === "still") paint(performance.now(), true);
+      if (probed === "still") paintSafely(performance.now(), true);
     });
     observer.observe(canvas);
     if (probed === "still") {
-      paint(performance.now(), true);
+      paintSafely(performance.now(), true);
     } else {
       raf = window.requestAnimationFrame(loop);
     }

@@ -87,11 +87,14 @@ func ToSelection(closure domain.Closure, target string, overrides Overrides) *se
 // dependencies and bundle sections. Both always include the target scenario;
 // resources are every included resource (required or selected).
 func ManifestDependencies(closure domain.Closure) (domain.ManifestDependencies, domain.ManifestBundle) {
-	var scenarios, resources []string
+	var scenarios, resources, uiScenarios []string
 	for _, component := range closure.Components {
 		switch component.Kind {
 		case domain.ClosureKindScenario:
 			scenarios = append(scenarios, component.ID)
+			if component.IncludeUI {
+				uiScenarios = append(uiScenarios, component.ID)
+			}
 		case domain.ClosureKindResource:
 			resources = append(resources, component.ID)
 		}
@@ -102,5 +105,6 @@ func ManifestDependencies(closure domain.Closure) (domain.ManifestDependencies, 
 	deps := domain.ManifestDependencies{Scenarios: scenarios, Resources: resources, ClosureDigest: closure.Digest}
 	deps.Analyzer.Tool = closure.Sources.AnalyzerTool
 	bundle := domain.ManifestBundle{Scenarios: append([]string(nil), scenarios...), Resources: append([]string(nil), resources...)}
+	bundle.UIScenarios = stringutil.SortedUnique(uiScenarios)
 	return deps, bundle
 }

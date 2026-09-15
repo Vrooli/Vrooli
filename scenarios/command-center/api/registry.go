@@ -81,9 +81,16 @@ type SourceBinding struct {
 	InstrumentArchetype string `json:"instrumentArchetype,omitempty"`
 }
 type OriginSpec struct {
-	Mode        string `json:"mode"`
-	Environment string `json:"environment"`
-	Display     string `json:"display"`
+	Mode        string         `json:"mode"`
+	Environment string         `json:"environment"`
+	Display     string         `json:"display"`
+	BaseURL     string         `json:"baseUrl,omitempty"`
+	Credential  *CredentialRef `json:"credential,omitempty"`
+}
+
+type CredentialRef struct {
+	LogicalID string `json:"logicalId"`
+	Field     string `json:"field"`
 }
 type Target struct {
 	Direction string `json:"direction"`
@@ -145,14 +152,17 @@ type Room struct {
 // (the scene dims behind it); omitted or "standard" keeps the hero column and
 // leaves the right band to the composition.
 type Beat struct {
-	Hero         string  `json:"hero"`
-	Composition  string  `json:"composition,omitempty"`
-	Layout       string  `json:"layout,omitempty"`
-	DwellSeconds float64 `json:"dwellSeconds,omitempty"`
+	Hero string `json:"hero"`
+	// ReadingIDs bounds the readings rendered during this beat. When omitted,
+	// the beat retains the legacy behavior of exposing the whole room.
+	ReadingIDs   []string `json:"readingIds,omitempty"`
+	Composition  string   `json:"composition,omitempty"`
+	Layout       string   `json:"layout,omitempty"`
+	DwellSeconds float64  `json:"dwellSeconds,omitempty"`
 }
 
 func validKind(kind string) bool {
-	return kind == "" || kind == "scalar" || kind == "panel" || kind == "ladder"
+	return kind == "" || kind == "scalar" || kind == "panel" || kind == "ladder" || kind == "funnel" || kind == "leaderboard"
 }
 
 func validLayout(layout string) bool {
@@ -271,6 +281,17 @@ func LoadRegistry(path string) (*Registry, error) {
 		for _, beat := range room.Beats {
 			if !validLayout(beat.Layout) {
 				return nil, fmt.Errorf("room %s beat %s has invalid layout %q", room.ID, beat.Hero, beat.Layout)
+			}
+			if len(room.MetricIDs) == 0 || len(beat.ReadingIDs) == 0 {
+				continue
+			}
+			if !contains(room.MetricIDs, beat.Hero) {
+				return nil, fmt.Errorf("room %s beat %s hero is not in metricIds", room.ID, beat.Hero)
+			}
+			for _, readingID := range beat.ReadingIDs {
+				if !contains(room.MetricIDs, readingID) {
+					return nil, fmt.Errorf("room %s beat %s reading %s is not in metricIds", room.ID, beat.Hero, readingID)
+				}
 			}
 		}
 	}

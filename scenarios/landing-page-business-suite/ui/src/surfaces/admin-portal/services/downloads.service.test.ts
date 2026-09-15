@@ -13,6 +13,7 @@ import {
   buildStorageUpdatePayload,
   PLATFORM_KEYS,
   type AppFormValues,
+  type PlatformFormValues,
   type StorageFormValues,
   type CredentialsFormValues,
 } from './downloads.service';
@@ -25,6 +26,12 @@ const createAsset = (overrides: Partial<DownloadAsset>): DownloadAsset => ({
   artifact_url: '',
   release_version: '',
   requires_entitlement: false,
+  ...overrides,
+});
+
+// Helper to build a complete windows platform form for serialization tests.
+const windowsPlatform = (overrides: Partial<PlatformFormValues> = {}): PlatformFormValues => ({
+  ...buildPlatformForm('windows'),
   ...overrides,
 });
 
@@ -57,6 +64,12 @@ describe('downloads.service', () => {
         releaseVersion: '',
         releaseNotes: '',
         requiresEntitlement: false,
+        signingNoticeMode: 'inherit',
+        signingNoticeTitle: '',
+        signingNoticeBody: '',
+        signingNoticeLinkLabel: '',
+        signingNoticeLinkUrl: '',
+        signingNoticeSeverity: 'info',
         artifactFilename: undefined,
         artifactSizeBytes: undefined,
         artifactCount: undefined,
@@ -444,16 +457,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: 'Initial release',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -477,16 +487,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: false,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -501,16 +508,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -525,16 +529,14 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -551,16 +553,14 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -659,16 +659,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -696,16 +693,14 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -845,6 +840,69 @@ describe('downloads.service', () => {
       expect(result.access_key_id).toBeUndefined();
       expect(result.secret_access_key).toBeUndefined();
       expect(result.session_token).toBeUndefined();
+    });
+  });
+
+  describe('signing notice configuration', () => {
+    const shippedPlatform = (platform: PlatformFormValues['platform'], overrides: Partial<PlatformFormValues> = {}): PlatformFormValues =>
+      windowsPlatform({ platform, enabled: true, artifactSource: 'direct', artifactUrl: `https://example.com/app-${platform}`, releaseVersion: '1.0.0', ...overrides });
+
+    it('serializes a trimmed app-level default notice', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('web-console'),
+        signingNoticeEnabled: true,
+        signingNoticeTitle: '  Preview release  ',
+        signingNoticeBody: '  Signing is in progress.  ',
+        signingNoticeLinkLabel: '  Review the source  ',
+        signingNoticeLinkUrl: '  https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console  ',
+        signingNoticeSeverity: 'warning',
+      };
+
+      expect(serializeApp(values).metadata?.signing_notice).toEqual({
+        enabled: true,
+        title: 'Preview release',
+        body: 'Signing is in progress.',
+        severity: 'warning',
+        link_label: 'Review the source',
+        link_url: 'https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console',
+      });
+    });
+
+    it('omits the app notice when disabled or incomplete', () => {
+      expect(serializeApp(buildDefaultAppValues('web-console')).metadata?.signing_notice).toBeUndefined();
+      const incomplete: AppFormValues = { ...buildDefaultAppValues('web-console'), signingNoticeEnabled: true, signingNoticeTitle: 'Only a title' };
+      expect(serializeApp(incomplete).metadata?.signing_notice).toBeUndefined();
+    });
+
+    it('writes per-platform override and hide metadata, leaving inherit empty', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('web-console'),
+        platforms: {
+          windows: shippedPlatform('windows', { signingNoticeMode: 'override', signingNoticeTitle: 'Windows build', signingNoticeBody: 'Unsigned.' }),
+          mac: shippedPlatform('mac', { signingNoticeMode: 'hide' }),
+          linux: shippedPlatform('linux'),
+        },
+      };
+
+      const platforms = serializeApp(values).platforms;
+      expect(platforms.find((entry) => entry.platform === 'windows')?.metadata).toMatchObject({ signing_notice: { enabled: true, title: 'Windows build' } });
+      expect(platforms.find((entry) => entry.platform === 'mac')?.metadata).toMatchObject({ signing_notice: { enabled: false } });
+      expect(platforms.find((entry) => entry.platform === 'linux')?.metadata?.signing_notice).toBeUndefined();
+    });
+
+    it('deserializes app-level defaults and per-platform suppression', () => {
+      const app = createApp({
+        app_key: 'web-console',
+        metadata: { signing_notice: { enabled: true, title: 'Preview release', body: 'Signing.', severity: 'info', link_label: 'Source', link_url: 'https://example.com/src' } },
+        platforms: [createAsset({ platform: 'linux', release_version: '1.0.0', metadata: { signing_notice: { enabled: false } } })],
+      });
+
+      const values = deserializeApp(app);
+      expect(values.signingNoticeEnabled).toBe(true);
+      expect(values.signingNoticeTitle).toBe('Preview release');
+      expect(values.signingNoticeSeverity).toBe('info');
+      expect(values.platforms.linux.signingNoticeMode).toBe('hide');
+      expect(values.platforms.windows.signingNoticeMode).toBe('inherit');
     });
   });
 });

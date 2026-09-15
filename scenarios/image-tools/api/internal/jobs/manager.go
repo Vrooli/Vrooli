@@ -55,6 +55,9 @@ type Config struct {
 	Clock schedule.Clock
 	// CPUWorkers is the concurrent CPU lane size. Defaults to 4 when <= 0.
 	CPUWorkers int
+	// NetworkWorkers is the concurrent network lane size for remote tiers.
+	// Defaults to 4 when <= 0.
+	NetworkWorkers int
 	// OnComplete, when set, is called once per job as it reaches a terminal state
 	// (succeeded/failed/canceled). The measures recorder uses it to capture op
 	// latency + queue-wait without coupling the Manager to the measures package.
@@ -70,6 +73,7 @@ type Manager struct {
 	runner     Runner
 	clock      schedule.Clock
 	cpuN       int
+	netN       int
 	onComplete func(Job)
 	baseCtx    context.Context
 	cancel     context.CancelFunc
@@ -78,6 +82,7 @@ type Manager struct {
 	entries map[string]*jobEntry
 	gpuCh   chan *jobEntry
 	cpuCh   chan *jobEntry
+	netCh   chan *jobEntry
 	started bool
 	wg      sync.WaitGroup
 }
@@ -106,15 +111,21 @@ func New(db SQLExecutor, cfg Config) *Manager {
 	if n <= 0 {
 		n = 4
 	}
+	netN := cfg.NetworkWorkers
+	if netN <= 0 {
+		netN = 4
+	}
 	return &Manager{
 		st:         newStore(db),
 		runner:     cfg.Runner,
 		clock:      clk,
 		cpuN:       n,
+		netN:       netN,
 		onComplete: cfg.OnComplete,
 		entries:    make(map[string]*jobEntry),
 		gpuCh:      make(chan *jobEntry, laneQueueCap),
 		cpuCh:      make(chan *jobEntry, laneQueueCap),
+		netCh:      make(chan *jobEntry, laneQueueCap),
 	}
 }
 
@@ -141,12 +152,17 @@ func (m *Manager) Start(ctx context.Context) error {
 		return err
 	}
 
-	// One GPU worker (serialization); N CPU workers (concurrency).
+	// One GPU worker (serialization); N CPU workers (concurrency); a separate
+	// bounded network pool so remote tiers never queue behind the GPU worker.
 	m.wg.Add(1)
 	go m.worker(m.gpuCh)
 	for i := 0; i < m.cpuN; i++ {
 		m.wg.Add(1)
 		go m.worker(m.cpuCh)
+	}
+	for i := 0; i < m.netN; i++ {
+		m.wg.Add(1)
+		go m.worker(m.netCh)
 	}
 	return nil
 }
@@ -197,10 +213,7 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 	}
 	m.mu.Unlock()
 
-	lane := spec.Lane
-	if lane != LaneGPU {
-		lane = LaneCPU
-	}
+	lane := normalizeLane(spec.Lane)
 	now := m.clock.Now()
 	job := Job{
 		ID:               uuid.NewString(),
@@ -219,10 +232,7 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 	entry := &jobEntry{job: job, done: make(chan struct{})}
 	m.mu.Lock()
 	m.entries[job.ID] = entry
-	ch := m.cpuCh
-	if lane == LaneGPU {
-		ch = m.gpuCh
-	}
+	ch := m.laneChannel(lane)
 	m.mu.Unlock()
 
 	select {
@@ -254,10 +264,7 @@ func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error)
 	if !started {
 		return Job{}, ErrNotStarted
 	}
-	lane := spec.Lane
-	if lane != LaneGPU {
-		lane = LaneCPU
-	}
+	lane := normalizeLane(spec.Lane)
 	now := m.clock.Now()
 	job := Job{
 		ID:               uuid.NewString(),
@@ -541,4 +548,27 @@ func (m *Manager) Subscribe(id string) (<-chan ProgressEvent, func(), error) {
 		}
 	}
 	return sub.ch, unsub, nil
+}
+
+// normalizeLane folds an unknown or empty lane onto the CPU lane; the three
+// declared lanes pass through.
+func normalizeLane(lane Lane) Lane {
+	switch lane {
+	case LaneGPU, LaneCPU, LaneNetwork:
+		return lane
+	default:
+		return LaneCPU
+	}
+}
+
+// laneChannel returns the queue a lane's workers read from.
+func (m *Manager) laneChannel(lane Lane) chan *jobEntry {
+	switch lane {
+	case LaneGPU:
+		return m.gpuCh
+	case LaneNetwork:
+		return m.netCh
+	default:
+		return m.cpuCh
+	}
 }

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-10T18:14:08-04:00"
+    "last_validated_at": "2026-09-15T15:48:55-04:00"
   },
   "requirements": [
     {
@@ -14,21 +14,21 @@
           "type": "test",
           "ref": "api/internal/landing/presentation_landing_test.go::TestGetLandingConfigForRequestDoesNotUseGenericFallbackForDetailWithoutPublication",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves absent publication cannot substitute generic content on an app detail route. The amended OT-P0-031 follows the accepted product-scope contract. No last-known-good fallback store or fallback activation is claimed."
         },
         {
           "type": "test",
           "ref": "api/internal/landing/presentation_landing_test.go::TestGetLandingConfigForRequestDoesNotUseGenericFallbackForRootWithoutPublication",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves root fails unavailable when no public revision exists instead of emitting baked marketing copy."
         },
         {
           "type": "test",
           "ref": "api/internal/landing/presentation_landing_test.go::TestLocaleFallbackIsReportedWithoutChangingAppScope",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Red-to-green regression proves top-level and nested fallback flags agree, resolved locale and reason are explicit, and root/detail keep their app, variant and route identities."
         },
         {
@@ -51,7 +51,7 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/presentation/PresentationLocalPreview.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Mounted editor regression proves the editing and preview regions share the split-layout container, preserve source, and use the same private renderer. Browser layout measurements at 320/390/768/1440 are retained in the UI presentation README; these are isolated editor fixtures, not live authenticated-backend proof."
         }
       ]
@@ -67,14 +67,14 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/presentation/PresentationLocalPreview.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Six mounted regressions cover debounce, no automatic writes, stale route/locale responses, invalid edits, retained-revision inspection, and authorization loss. Parent independently passed the focused UI suite."
         },
         {
           "type": "test",
           "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationAdminEphemeralPreviewIsReadOnlyAndContentIdentified",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Generated Preview document path validates and resolves without changing stored revisions or generation. Known-variant and missing/expired lease checks have separate backend regressions."
         }
       ]

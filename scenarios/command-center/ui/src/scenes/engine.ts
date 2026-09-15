@@ -26,7 +26,7 @@ export interface SceneReading {
 	value: number | null;
 	ink: Ink;
 	/** Panel and ladder rows; ladder rows carry the rung name and its status as detail. */
-	rows?: Array<{ share: number; value: number; label?: string; detail?: string }>;
+	rows?: Array<{ key: string; share: number; value: number; label?: string; detail?: string }>;
 }
 
 /** One room drawn by the panorama: its signals in registry order, each with where it stands. */
@@ -80,16 +80,17 @@ export const sceneData = (readings: Reading[], focus?: string, constellations?: 
   readings: Object.fromEntries(
     readings.map((reading) => {
       const resolution = resolveReading(reading);
-		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: (reading.rows ?? reading.sample?.rows)?.map((row) => ({ share: row.share, value: row.value, label: row.label, detail: row.detail })) }];
+		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: (resolution.figure === "measured" ? reading.rows : resolution.figure === "sample" ? reading.sample?.rows : undefined)?.map((row) => ({ key: row.key, share: row.share, value: row.value, label: row.label, detail: row.detail })) }];
     }),
   ),
   order: readings.map((reading) => reading.id),
   focus,
 });
 
-export const read = (data: SceneData, id: string, fallback: number): number => {
+export const read = (data: SceneData, id: string): number | null => {
   const entry = data.readings[id];
-  return entry && entry.value !== null ? entry.value : fallback;
+  if (!entry || entry.value === null || entry.ink === "none" || entry.ink === "unavailable") return null;
+  return entry.value;
 };
 
 export function mulberry32(seed: number): () => number {
@@ -155,6 +156,7 @@ export function glowSprite(ctx: CanvasRenderingContext2D, color: string, size = 
 }
 
 export function drawGlow(frame: Frame, x: number, y: number, radius: number, color: string, alpha = 1): void {
+  if (!(radius > 0)) return;
   const { ctx } = frame;
   ctx.globalAlpha = alpha;
   ctx.drawImage(glowSprite(ctx, color), x - radius, y - radius, radius * 2, radius * 2);

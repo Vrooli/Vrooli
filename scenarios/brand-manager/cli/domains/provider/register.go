@@ -12,6 +12,12 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
+	// Register brand-manager's native scan payload so protojson can expand the
+	// Any field in ValidateScenarioResponse when `provider validate --json`
+	// marshals it. Without this link the type_url is unresolvable client-side
+	// and every --json call fails with "google.protobuf.Any: unable to resolve".
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/validation"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 

@@ -16,7 +16,8 @@
       "generation": "التوليد",
       "apply": "تطبيق",
       "discovery": "الاكتشاف",
-      "design": "التصميم"
+      "design": "التصميم",
+      "logo": "الشعار"
     }
   },
   "theme": {
@@ -58,6 +59,9 @@
     },
     "design": {
       "title": "التصميم"
+    },
+    "logo": {
+      "title": "الشعار"
     }
   },
   "health": {
@@ -69,16 +73,16 @@
     "refreshCount_one": "تم التحديث مرة واحدة",
     "statusLabel": "الحالة:",
     "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
-    ,"providerMaturity": "نضج المزوّد"
-    ,"providerLoading": "جارٍ تحميل ملخص نضج المزوّد…"
-    ,"providerUnavailable": "ملخص النضج المشترك للمزوّد غير متاح. تظل تقارير نطاق العلامة التجارية متاحة."
-    ,"providerHistorical": "أعاد المزوّد عقد عرض تاريخيًا أو غير مدعوم ({{version}})؛ لم يُنشأ ملخص نضج بديل."
-    ,"providerContract": "عقد العرض المقدم من المزوّد {{version}}"
-    ,"providerNorthStar": "الهدف الأسمى:"
-    ,"providerNextAction": "الإجراء التالي:"
-    ,"providerCapabilities": "نضج قدرات المزوّد"
-    ,"providerDocumentation": "التوثيق: {{topics}}"
+    "timestampLabel": "الطابع الزمني:",
+    "providerMaturity": "نضج المزوّد",
+    "providerLoading": "جارٍ تحميل ملخص نضج المزوّد…",
+    "providerUnavailable": "ملخص النضج المشترك للمزوّد غير متاح. تظل تقارير نطاق العلامة التجارية متاحة.",
+    "providerHistorical": "أعاد المزوّد عقد عرض تاريخيًا أو غير مدعوم ({{version}})؛ لم يُنشأ ملخص نضج بديل.",
+    "providerContract": "عقد العرض المقدم من المزوّد {{version}}",
+    "providerNorthStar": "الهدف الأسمى:",
+    "providerNextAction": "الإجراء التالي:",
+    "providerCapabilities": "نضج قدرات المزوّد",
+    "providerDocumentation": "التوثيق: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} إشعارات",
@@ -182,5 +186,57 @@
     "generateButton": "إنشاء",
     "generating": "جارٍ الإنشاء…",
     "resultHeading": "DESIGN.md للعلامة"
+  },
+  "logo": {
+    "title": "الشعار",
+    "brandLabel": "العلامة التجارية",
+    "brandPlaceholder": "اختر علامة تجارية",
+    "loading": "جارٍ تحميل المرشّحات…",
+    "empty": "لا توجد مرشّحات بعد. استكشف المفاهيم لاقتراح بعضها.",
+    "conceptLabel": "المفهوم",
+    "lineage": "مشتق من",
+    "promptLabel": "الموجّه",
+    "pick": "اعتماد",
+    "picking": "جارٍ الاعتماد…",
+    "reject": "رفض",
+    "restore": "استعادة",
+    "statusProposed": "مقترح",
+    "statusPicked": "معتمد",
+    "statusRejected": "مرفوض",
+    "statusSuperseded": "مستبدل",
+    "compare": "مقارنة",
+    "compareClear": "إلغاء المقارنة",
+    "compareTitle": "مقارنة المرشّحات",
+    "exploreTitle": "استكشاف المفاهيم",
+    "briefLabel": "الموجز",
+    "briefPlaceholder": "ما هو المنتج؟",
+    "conceptsLabel": "المفاهيم (واحد لكل سطر)",
+    "conceptsPlaceholder": "رسم خطي لكوكبة نسر\nمونوغرام",
+    "variationsLabel": "تنويعات لكل مفهوم",
+    "preferVectorLabel": "تفضيل الإخراج المتجهي",
+    "exploreSubmit": "استكشاف",
+    "exploring": "جارٍ الاستكشاف…",
+    "refineTitle": "تحسين المرشّح",
+    "instructionLabel": "التعليمات",
+    "instructionPlaceholder": "مثال: أزل الظل",
+    "refineSubmit": "تحسين",
+    "refining": "جارٍ التحسين…",
+    "vectorize": "تحويل إلى متجه",
+    "vectorizing": "جارٍ التحويل…",
+    "removeBackground": "إزالة الخلفية",
+    "removingBackground": "جارٍ الإزالة…",
+    "maskTitle": "الإزالة بالقناع",
+    "maskHint": "لون فوق المنطقة المراد إزالتها.",
+    "maskBrushSize": "حجم الفرشاة",
+    "maskClear": "مسح",
+    "maskSubmit": "إزالة المنطقة المقنّعة",
+    "maskUploading": "جارٍ رفع القناع…",
+    "previewTitle": "معاينة الأهداف",
+    "previewHint": "العلامة المعتمدة بكل حجم مُعلن.",
+    "previewNoMark": "اعتمد مرشّحًا لمعاينة الأيقونة المطبّقة.",
+    "lightGround": "فاتح",
+    "darkGround": "داكن",
+    "maskableLabel": "المنطقة الآمنة القابلة للتقنيع",
+    "sizeLabel": "{{size}} px"
   }
 }

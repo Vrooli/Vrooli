@@ -159,7 +159,7 @@ func classify(err error, target identity.TargetRef) error {
 			return &reach.Error{Kind: reach.KindEnrollmentRevoked, Transport: identity.TransportBridge, Target: target.Key(), Detail: "node is not enrolled", Err: err}
 		case nodereach.ErrNodeUnavailable:
 			return &reach.Error{Kind: reach.KindTargetOffline, Transport: identity.TransportBridge, Target: target.Key(), Err: err}
-		case nodereach.ErrMissingScope, nodereach.ErrMissingReauth:
+		case nodereach.ErrMissingScope, nodereach.ErrMissingReauth, nodereach.ErrUnauthenticated:
 			return &reach.Error{Kind: reach.KindScopeMissing, Transport: identity.TransportBridge, Target: target.Key(), Err: err}
 		case nodereach.ErrHandshakeRejected, nodereach.ErrStreaming:
 			return &reach.Error{Kind: reach.KindProtocolUnsupported, Transport: identity.TransportBridge, Target: target.Key(), Err: err}

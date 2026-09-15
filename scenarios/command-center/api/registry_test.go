@@ -12,7 +12,7 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(reg.Metrics) != 46 {
+	if len(reg.Metrics) != 52 {
 		t.Fatalf("metrics = %d, want current authored set", len(reg.Metrics))
 	}
 	for _, metric := range reg.Metrics {
@@ -147,7 +147,7 @@ func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 46 {
+	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 52 {
 		t.Fatalf("schema=%s metrics=%d", reg.SchemaVersion, len(reg.Metrics))
 	}
 	for _, m := range reg.Metrics {
@@ -156,6 +156,70 @@ func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
 		}
 		if m.Coverage != CoverageNow && (m.Sample == nil || m.Sample.Basis == "") {
 			t.Fatalf("%s has no authored sample basis", m.ID)
+		}
+	}
+}
+
+func TestBroadcastRegistryUsesProductionLPBSAndTombstonesRetiredIDs(t *testing.T) {
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retired := map[string]bool{"variant_ab": true, "scroll_depth": true, "composite_reach": true, "composite_revenue": true, "credit_consumption": true, "usage_records": true}
+	tombstones := map[string]bool{}
+	for _, tombstone := range reg.Tombstones {
+		if strings.TrimSpace(tombstone.Reason) == "" {
+			t.Errorf("tombstone %q has no reason", tombstone.ID)
+		}
+		tombstones[tombstone.ID] = true
+	}
+	for id := range retired {
+		if !tombstones[id] {
+			t.Errorf("retired id %q has no tombstone", id)
+		}
+	}
+	for _, metric := range reg.Metrics {
+		if metric.Source.IntegrationID == "landing-page-business-suite" && (metric.Source.Origin != "production" || metric.Source.ContractVersion == "") {
+			t.Errorf("LPBS metric %q is not production-bound with a contract: %+v", metric.ID, metric.Source)
+		}
+		if retired[metric.ID] {
+			t.Errorf("retired id %q remains a metric", metric.ID)
+		}
+	}
+	for _, room := range reg.Rooms {
+		for _, id := range room.MetricIDs {
+			if retired[id] {
+				t.Errorf("room %q lists retired id %q", room.ID, id)
+			}
+		}
+	}
+	var broadcast *Room
+	for i := range reg.Rooms {
+		if reg.Rooms[i].ID == "broadcast" {
+			broadcast = &reg.Rooms[i]
+		}
+	}
+	if broadcast == nil {
+		t.Fatal("broadcast room missing")
+	}
+	ids := map[string]bool{}
+	for _, id := range broadcast.MetricIDs {
+		ids[id] = true
+	}
+	for _, beat := range broadcast.Beats {
+		if !ids[beat.Hero] {
+			t.Errorf("broadcast beat hero %q is not in metricIds", beat.Hero)
+		}
+	}
+	seen := map[string]bool{}
+	for _, beat := range broadcast.Beats {
+		for _, id := range beat.ReadingIDs {
+			seen[id] = true
+		}
+	}
+	for _, id := range broadcast.MetricIDs {
+		if !seen[id] {
+			t.Errorf("broadcast metric %q is not assigned to any beat", id)
 		}
 	}
 }

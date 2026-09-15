@@ -64,6 +64,10 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 	return s.reservationService().ReserveCredits(ctx, userIdentity, tier, limitKey, amount)
 }
 
+func (s *UsageService) FinalizeReservationWithMetadata(ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
+	return s.reservationService().FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
+}
+
 // ReserveCreditsWithWindow exposes the bounded reservation window needed by
 // long-lived compute capacity while retaining the same ownership and limit
 // checks as the default reservation path.

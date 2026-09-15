@@ -3,7 +3,6 @@ package apply
 import (
 	"context"
 	"log"
-	"path"
 	"strings"
 )
 
@@ -12,7 +11,6 @@ import (
 const (
 	brandCSSPath = "ui/src/styles/brand.css"
 	manifestPath = "ui/public/manifest.json"
-	publicDir    = "ui/public"
 )
 
 // Service is the application-layer surface the apply handlers depend on. It
@@ -35,16 +33,19 @@ type service struct {
 	assets      AssetStore
 	assignments AssignmentRecorder
 	workspace   Workspace
+	renderer    TargetRenderer
+	styles      StyleStore
 	logger      *log.Logger
 }
 
-// NewService constructs the production Service. A nil logger defaults to
-// log.Default().
-func NewService(brands BrandStore, assets AssetStore, assignments AssignmentRecorder, workspace Workspace, logger *log.Logger) Service {
+// NewService constructs the production Service. renderer and styles may be nil
+// (the profile-icon path then skips), which keeps the non-icon tests free of an
+// image-tools dependency. A nil logger defaults to log.Default().
+func NewService(brands BrandStore, assets AssetStore, assignments AssignmentRecorder, workspace Workspace, renderer TargetRenderer, styles StyleStore, logger *log.Logger) Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &service{brands: brands, assets: assets, assignments: assignments, workspace: workspace, logger: logger}
+	return &service{brands: brands, assets: assets, assignments: assignments, workspace: workspace, renderer: renderer, styles: styles, logger: logger}
 }
 
 // Compile-time guarantee.
@@ -131,8 +132,6 @@ func (s *service) applyElement(ctx context.Context, brand BrandView, scenario, e
 		return one(s.applyIdentity(ctx, brand, scenario, write))
 	case ElementIcons:
 		return s.applyIcons(ctx, brand, scenario, write)
-	case ElementFavicon, ElementLogo:
-		return one(s.applyAsset(ctx, brand, scenario, element, write))
 	default:
 		return nil, &Skip{Element: element, Reason: "unknown element"}, nil
 	}
@@ -199,23 +198,6 @@ func (s *service) applyIdentity(ctx context.Context, brand BrandView, scenario s
 		}
 	}
 	return &Action{Type: ActionJSON, File: manifestPath, Element: ElementIdentity}, nil, nil
-}
-
-func (s *service) applyAsset(ctx context.Context, brand BrandView, scenario, kind string, write bool) (*Action, *Skip, error) {
-	content, found, err := s.assets.Read(ctx, brand.ID, kind)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !found {
-		return nil, &Skip{Element: kind, Reason: "no " + kind + " asset"}, nil
-	}
-	rel := path.Join(publicDir, content.Filename)
-	if write {
-		if err := s.workspace.WriteFile(ctx, scenario, rel, content.Bytes); err != nil {
-			return nil, nil, err
-		}
-	}
-	return &Action{Type: ActionAsset, File: rel, Element: kind}, nil, nil
 }
 
 // normalizeElements lower-cases and trims the requested elements, dropping

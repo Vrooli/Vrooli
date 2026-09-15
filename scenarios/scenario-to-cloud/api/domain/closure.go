@@ -111,6 +111,7 @@ type ClosureComponent struct {
 	Kind             ClosureComponentKind `json:"kind"`
 	Required         bool                 `json:"required"`
 	OptionalSelected bool                 `json:"optional_selected"`
+	IncludeUI        bool                 `json:"include_ui,omitempty"`
 	Reasons          []ClosureReason      `json:"reasons"`
 	Version          string               `json:"version,omitempty"`
 	ContentIdentity  string               `json:"content_identity,omitempty"`

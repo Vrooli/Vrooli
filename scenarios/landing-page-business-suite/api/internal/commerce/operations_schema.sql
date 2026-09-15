@@ -14,3 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash); CREA
 CREATE TABLE IF NOT EXISTS user_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, refresh_token_hash VARCHAR(255) NOT NULL, refresh_token_family_id UUID NOT NULL DEFAULT gen_random_uuid(), expires_at TIMESTAMP NOT NULL, created_at TIMESTAMP DEFAULT NOW(), last_used_at TIMESTAMP DEFAULT NOW(), ip_address INET, user_agent TEXT, device_info JSONB DEFAULT '{}', revoked BOOLEAN DEFAULT FALSE);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id); CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash); CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
 CREATE TABLE IF NOT EXISTS refresh_token_history (refresh_token_hash VARCHAR(255) PRIMARY KEY, session_id UUID NOT NULL REFERENCES user_sessions(id) ON DELETE CASCADE, family_id UUID NOT NULL, retired_at TIMESTAMP NOT NULL DEFAULT NOW());
+
+CREATE TABLE IF NOT EXISTS usage_events (id BIGSERIAL PRIMARY KEY, operation_id TEXT UNIQUE, user_identity VARCHAR(255) NOT NULL, app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed', model VARCHAR(255) NOT NULL DEFAULT 'unknown', credits BIGINT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW());
+CREATE INDEX IF NOT EXISTS idx_usage_events_created ON usage_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_events_app_model ON usage_events(app_bundle_key, model, created_at);

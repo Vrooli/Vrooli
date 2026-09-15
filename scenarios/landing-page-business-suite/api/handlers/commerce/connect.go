@@ -106,9 +106,9 @@ func (h *ConnectHandler) CreateCheckoutSession(ctx context.Context, request *con
 		if !ok {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("account-scoped checkout unavailable"))
 		}
-		session, err = attributed.CreateCheckoutSessionForBusinessAccountWithAttribution(priceID, successURL, cancelURL, email, businessAccountID, commerce.Attribution{VisitorID: input.GetVisitorId(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), ReferrerKind: input.GetReferrerKind(), CountryCode: input.GetCountryCode()})
+		session, err = attributed.CreateCheckoutSessionForBusinessAccountWithAttribution(priceID, successURL, cancelURL, email, businessAccountID, commerce.Attribution{VisitorID: input.GetVisitorId(), SessionID: input.GetSessionId(), VariantSlug: input.GetVariantSlug(), LandingPath: input.GetLandingPath(), DeviceClass: input.GetDeviceClass(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign()})
 	} else if attributed, ok := h.deps.Payments.(AttributedPayments); ok {
-		session, err = attributed.CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, email, commerce.Attribution{VisitorID: input.GetVisitorId(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), ReferrerKind: input.GetReferrerKind(), CountryCode: input.GetCountryCode()})
+		session, err = attributed.CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, email, commerce.Attribution{VisitorID: input.GetVisitorId(), SessionID: input.GetSessionId(), VariantSlug: input.GetVariantSlug(), LandingPath: input.GetLandingPath(), DeviceClass: input.GetDeviceClass(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign()})
 	} else {
 		session, err = h.deps.Payments.CreateCheckoutSession(priceID, successURL, cancelURL, email)
 	}

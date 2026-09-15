@@ -72,14 +72,4 @@ func imageResultToProto(r generation.ImageResult) *generationv1.BrandImageAsset 
 	}
 }
 
-// deriveIconsResultToProto converts the derived icon set into the wire shape.
-func deriveIconsResultToProto(icons []generation.ImageResult, warnings []string) *generationv1.DeriveBrandIconsResponse {
-	out := make([]*generationv1.BrandImageAsset, 0, len(icons))
-	for _, ic := range icons {
-		out = append(out, imageResultToProto(ic))
-	}
-	return &generationv1.DeriveBrandIconsResponse{
-		Icons:    out,
-		Warnings: append([]string(nil), warnings...),
-	}
-}
+

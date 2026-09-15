@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-10T18:14:08-04:00"
+    "last_validated_at": "2026-09-15T15:48:55-04:00"
   },
   "requirements": [
     {
@@ -21,7 +21,7 @@
           "type": "manual",
           "ref": "owner-migration-gap:api-landing-config-fallback",
           "phase": "unit",
-          "status": "planned",
+          "status": "failing",
           "notes": "The former Beauvoir-owned service fallback test is being retired during this migration. No current API test proves that missing variants trigger a baked fallback response; current tests instead cover configured publication and fail-closed resolution. Keep this requirement in progress pending owner replacement proof or an explicit OT-P0-031 contract decision."
         }
       ]

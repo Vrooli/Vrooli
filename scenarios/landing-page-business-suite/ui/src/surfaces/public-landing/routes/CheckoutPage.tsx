@@ -4,6 +4,7 @@ import { WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { createCheckoutSession, getPlans, isApiError, type PlanOption, type PricingOverview } from '../../../shared/api';
+import { getAttributionContext } from '../../../shared/lib/attribution';
 
 function formatCurrency(amount: number, currency = 'usd') {
   return new Intl.NumberFormat('en-US', {
@@ -168,6 +169,7 @@ export function CheckoutPage() {
           success_url: urls.success,
           cancel_url: urls.cancel,
           business_account_id: businessAccountId,
+          attribution: getAttributionContext(new URLSearchParams(window.location.search).get('variant_slug') ?? new URLSearchParams(window.location.search).get('variant')),
         });
 
         if (!cancelled && session.url) {

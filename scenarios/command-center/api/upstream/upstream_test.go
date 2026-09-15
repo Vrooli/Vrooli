@@ -178,9 +178,10 @@ type typedLPBSTestService struct {
 func (s *typedLPBSTestService) GetAnalyticsSummary(_ context.Context, req *connect.Request[lpbsv1.GetAnalyticsSummaryRequest]) (*connect.Response[lpbsv1.AnalyticsSummary], error) {
 	s.receivedAuth = req.Header().Get("Authorization")
 	return connect.NewResponse(&lpbsv1.AnalyticsSummary{
-		TotalVisitors: 12,
-		ObservedAt:    timestamppb.New(time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)),
-		VariantStats:  []*lpbsv1.VariantStats{{CtaClicks: 4, Conversions: 2}},
+		TotalVisitors:   12,
+		ContractVersion: "analytics-summary.v1",
+		ObservedAt:      timestamppb.New(time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)),
+		VariantStats:    []*lpbsv1.VariantStats{{CtaClicks: 4, Conversions: 2}},
 	}), nil
 }
 
@@ -205,7 +206,7 @@ func TestLPBSTypedClientUsesGeneratedReadContract(t *testing.T) {
 	if payload["observed_at"] != "2026-09-03T12:00:00Z" || payload["cta_clicks"] != float64(4) || payload["conversions"] != float64(2) || payload["variant_ab"] != float64(1) || payload["visitors"] != float64(12) {
 		t.Fatalf("normalized payload = %s", raw)
 	}
-	if payload["contract_version"] != "legacy.v1" {
+	if payload["contract_version"] != "analytics-summary.v1" {
 		t.Fatalf("contract_version = %v", payload["contract_version"])
 	}
 }

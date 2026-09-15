@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	accounthttp "landing-page-business-suite-api/handlers/account"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	assethttp "landing-page-business-suite-api/handlers/assets"
@@ -21,6 +22,7 @@ import (
 	downloadhttp "landing-page-business-suite-api/handlers/delivery"
 	deploymenthttp "landing-page-business-suite-api/handlers/deployment"
 	desktoplinkhttp "landing-page-business-suite-api/handlers/desktoplink"
+	digesthttp "landing-page-business-suite-api/handlers/digest"
 	docshandler "landing-page-business-suite-api/handlers/docs"
 	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
@@ -80,11 +82,13 @@ func (s *Server) setupRoutes() {
 	registerReceiptRoutes(s)
 	registerBillingRoutes(s)
 	registerAdminCoreRoutes(s)
+	registerReaderTokenRoutes(s)
 	registerRemoteProfileRoutes(s)
 	registerCommerceAdminRoutes(s)
 	registerVariantRoutes(s)
 	registerContentRoutes(s)
 	registerMetricsRoutes(s)
+	registerBusinessDigestRoutes(s)
 	monetization.RegisterRoutes(s.router, s.primaryDB(), s.planService.BundleKey)
 	registerFeedbackRoutes(s)
 	registerWaitlistRoutes(s)
@@ -95,6 +99,19 @@ func (s *Server) setupRoutes() {
 	registerUpdateRoutes(s)
 	registerMeasuresRoutes(s)
 	registerDeployReadinessRoute(s)
+}
+
+func registerReaderTokenRoutes(s *Server) {
+	_, handler := lpbsconnect.NewReaderTokenServiceHandler(adminhttp.NewReaderTokenHandler(adminhttp.ReaderTokenDependencies{Service: s.readerTokens}))
+	wrapped := s.requireAdmin(http.HandlerFunc(handler.ServeHTTP))
+	for _, path := range []string{lpbsconnect.ReaderTokenServiceIssueReaderTokenProcedure, lpbsconnect.ReaderTokenServiceListReaderTokensProcedure, lpbsconnect.ReaderTokenServiceRevokeReaderTokenProcedure} {
+		s.router.Handle(path, wrapped).Methods(http.MethodPost)
+	}
+}
+
+func registerBusinessDigestRoutes(s *Server) {
+	_, handler := lpbsconnect.NewBusinessDigestServiceHandler(digesthttp.New(s.metricsService))
+	s.router.Handle(lpbsconnect.BusinessDigestServiceGetBusinessDigestProcedure, s.requireMetricsReader(http.HandlerFunc(handler.ServeHTTP))).Methods(http.MethodPost)
 }
 
 func registerPresentationAssetRoutes(s *Server) {
@@ -268,8 +285,8 @@ func registerAuthRoutes(s *Server) {
 func registerAccountRoutes(s *Server) {
 	accounthttp.RegisterRoutes(s.router, accounthttp.NewCommerceReader(s.accountService), getUserEmail, s.requireUserAuth)
 	registerEntitlementRoute(s)
-	downloadhttp.RegisterConnectAuthorizationRoute(s.router, s.planService.BundleKey, s.downloadService, downloadConnectAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService), s.requireUserAuth)
-	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(downloadhttp.Authorize(downloadAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService)))).Methods("GET")
+	downloadhttp.RegisterConnectAuthorizationRoute(s.router, s.planService.BundleKey, s.downloadService, downloadConnectAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db), s.requireUserAuth)
+	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(downloadhttp.Authorize(downloadAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db)))).Methods("GET")
 }
 
 func registerEntitlementRoute(s *Server) {
@@ -420,7 +437,7 @@ func registerContentRoutes(s *Server) {
 }
 
 func registerMetricsRoutes(s *Server) {
-	metricshttp.RegisterConnectRoutes(s.router, metricsConnectDependencies(s.metricsService), s.requireAdminOrService)
+	metricshttp.RegisterConnectRoutes(s.router, metricsConnectDependencies(s.metricsService), s.requireMetricsReader)
 }
 
 func registerFeedbackRoutes(s *Server) {

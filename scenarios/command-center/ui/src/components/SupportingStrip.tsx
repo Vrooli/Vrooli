@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from "react";
-import { useBeatHold } from "../lib/boardContext";
-import { STRIP_PAGE_MS, pageRanges, pageRows, rowsOf } from "../lib/fit";
+import { useBeatHold, useCycleScale } from "../lib/boardContext";
+import { MAX_DESKTOP_STRIP_ITEMS, STRIP_PAGE_MS, pageRanges, pageRows, rowsOf } from "../lib/fit";
 import { useLandscapeRoom } from "../lib/media";
 
 type Density = "normal" | "compact";
@@ -27,6 +27,7 @@ const px = (value: string): number => {
 export const SupportingStrip = forwardRef<HTMLUListElement, { children: ReactElement[] }>(function SupportingStrip({ children }, forwardedRef) {
   const id = useId();
   const hold = useBeatHold();
+  const scale = useCycleScale();
   const landscape = useLandscapeRoom();
   const listRef = useRef<HTMLUListElement | null>(null);
   const [trial, setTrial] = useState<Density>("normal");
@@ -79,7 +80,7 @@ export const SupportingStrip = forwardRef<HTMLUListElement, { children: ReactEle
       first += count;
       return page.reduce((sum, row) => sum + row.height, 0) + gap * Math.max(0, page.length - 1);
     });
-    setLayout({ density: trial, columns, ranges: pageRanges(pages, columns, boxes.length), height: Math.max(0, ...heights) });
+    setLayout({ density: trial, columns, ranges: pageRanges(pages, columns, boxes.length, MAX_DESKTOP_STRIP_ITEMS), height: Math.max(0, ...heights) });
   }, [landscape, layout, trial]);
 
   // A tile that grows after the measurement (a qualifier line appearing) re-measures, twice at most per reading set.
@@ -110,16 +111,17 @@ export const SupportingStrip = forwardRef<HTMLUListElement, { children: ReactEle
   }, [landscape, remeasure]);
 
   const pages = layout?.ranges.length ?? 1;
+  const pageMs = STRIP_PAGE_MS * scale;
   useEffect(() => {
     setReadAll(pages <= 1);
     if (pages <= 1) return;
-    const flip = window.setInterval(() => setPage((current) => (current + 1) % pages), STRIP_PAGE_MS);
-    const done = window.setTimeout(() => setReadAll(true), pages * STRIP_PAGE_MS);
+    const flip = window.setInterval(() => setPage((current) => (current + 1) % pages), pageMs);
+    const done = window.setTimeout(() => setReadAll(true), pages * pageMs);
     return () => {
       window.clearInterval(flip);
       window.clearTimeout(done);
     };
-  }, [pages]);
+  }, [pages, pageMs]);
 
   useEffect(() => {
     hold(id, pages > 1 && !readAll);

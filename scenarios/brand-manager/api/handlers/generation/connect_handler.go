@@ -103,20 +103,6 @@ func (h *connectHandler) RemoveBrandImageBackground(ctx context.Context, req *co
 	return connect.NewResponse(imageResultToProto(result)), nil
 }
 
-func (h *connectHandler) DeriveBrandIcons(ctx context.Context, req *connect.Request[generationv1.DeriveBrandIconsRequest]) (*connect.Response[generationv1.DeriveBrandIconsResponse], error) {
-	icons, warnings, err := h.deps.Service.DeriveIcons(ctx, generation.DeriveIconsInput{
-		BrandID:           req.Msg.GetBrandId(),
-		SourceAssetID:     req.Msg.GetSourceAssetId(),
-		IncludeMaskable:   req.Msg.GetIncludeMaskable(),
-		IncludeAppleTouch: req.Msg.GetIncludeAppleTouch(),
-		IncludeFavicon:    req.Msg.GetIncludeFavicon(),
-	})
-	if err != nil {
-		return nil, h.translate("generation.DeriveBrandIcons", err)
-	}
-	return connect.NewResponse(deriveIconsResultToProto(icons, warnings)), nil
-}
-
 // translate maps a domain error to a Connect error, logging only genuine
 // internal failures (never the client-fault codes).
 func (h *connectHandler) translate(op string, err error) error {

@@ -1,6 +1,9 @@
 package jobs
 
 import (
+	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	internaljobs "image-tools/internal/jobs"
@@ -10,8 +13,23 @@ import (
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 )
 
+// payloadEcho is the subset of the stored ai.Payload needed to reconstruct the
+// request. It is declared locally rather than importing the ai package, which
+// would invert the dependency edge.
+type payloadEcho struct {
+	Operation  string            `json:"operation"`
+	ModelID    string            `json:"model_id"`
+	Backend    string            `json:"backend"`
+	Tier       string            `json:"tier"`
+	Variations int               `json:"variations"`
+	Params     map[string]string `json:"params"`
+	Adapters   []struct {
+		ID string `json:"id"`
+	} `json:"adapters"`
+}
+
 func domainToProto(j internaljobs.Job) *jobsv1.Job {
-	return &jobsv1.Job{
+	out := &jobsv1.Job{
 		Id:               j.ID,
 		Operation:        j.Operation,
 		Lane:             laneToProto(j.Lane),
@@ -25,7 +43,52 @@ func domainToProto(j internaljobs.Job) *jobsv1.Job {
 		CreatedAt:        timeToProto(&j.CreatedAt),
 		StartedAt:        timeToProto(j.StartedAt),
 		FinishedAt:       timeToProto(j.FinishedAt),
+		Request:          payloadToRequest(j.Payload),
 	}
+	if refs := j.Meta["result_refs"]; refs != "" {
+		out.ResultRefs = strings.Split(refs, ",")
+	} else if j.ResultRef != "" {
+		out.ResultRefs = []string{j.ResultRef}
+	}
+	return out
+}
+
+// payloadToRequest rebuilds the typed request echo from the stored payload.
+// A missing or unparsable payload yields nil rather than an error: the echo is
+// provenance, and a legacy job with no payload must still be readable.
+func payloadToRequest(raw []byte) *jobsv1.JobRequest {
+	if len(raw) == 0 {
+		return nil
+	}
+	var p payloadEcho
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return nil
+	}
+	req := &jobsv1.JobRequest{
+		Operation:  p.Operation,
+		ModelId:    p.ModelID,
+		Backend:    p.Backend,
+		Tier:       p.Tier,
+		Variations: int32(p.Variations),
+		Role:       p.Params["openrouter_role"],
+		Prompt:     p.Params["prompt"],
+	}
+	req.NegativePrompt = p.Params["negative_prompt"]
+	if v, err := strconv.ParseInt(p.Params["seed"], 10, 64); err == nil {
+		req.Seed = v
+	}
+	if v, err := strconv.Atoi(p.Params["width"]); err == nil {
+		req.Width = int32(v)
+	}
+	if v, err := strconv.Atoi(p.Params["height"]); err == nil {
+		req.Height = int32(v)
+	}
+	for _, a := range p.Adapters {
+		if a.ID != "" {
+			req.Adapters = append(req.Adapters, a.ID)
+		}
+	}
+	return req
 }
 
 func progressToProto(e internaljobs.ProgressEvent) *jobsv1.ProgressEvent {
@@ -62,6 +125,8 @@ func laneToProto(l internaljobs.Lane) jobsv1.JobLane {
 		return jobsv1.JobLane_JOB_LANE_GPU
 	case internaljobs.LaneCPU:
 		return jobsv1.JobLane_JOB_LANE_CPU
+	case internaljobs.LaneNetwork:
+		return jobsv1.JobLane_JOB_LANE_NETWORK
 	default:
 		return jobsv1.JobLane_JOB_LANE_UNSPECIFIED
 	}

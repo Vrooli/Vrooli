@@ -79,6 +79,10 @@ var specs = []ruleSpec{
 	// Phase 7 — public-asset edge convention (assets served under /public/ so an
 	// Access bypass can serve them to anonymous fetchers; see PUBLIC_ASSETS.md).
 	{id: "public-asset-convention", surfaces: []surface{surfaceUI}, eval: rulePublicAssetConvention},
+
+	// Phase 8 — declared icon targets: the scenario's branding.targets actually
+	// exist, are the right size/format, are not placeholders, and are wired.
+	{id: "declared-icon-targets", eval: ruleDeclaredIconTargets},
 }
 
 // fixerByID maps a rule id to its deterministic fixer. Only rules listed here

@@ -360,3 +360,52 @@ func TestARunnerThatReportsNothingLeavesNoRecord(t *testing.T) {
 		t.Fatalf("meta = %v, want nil for a runner that reported nothing", persisted.Meta)
 	}
 }
+
+// TestNetworkLaneDoesNotQueueBehindGPU is the F7 regression: a remote-tier job
+// must run while a local GPU job holds the single GPU worker.
+func TestNetworkLaneDoesNotQueueBehindGPU(t *testing.T) {
+	ctx := context.Background()
+	gpuStarted := make(chan struct{})
+	releaseGPU := make(chan struct{})
+	m := startManager(t, Config{
+		NetworkWorkers: 2,
+		Runner: func(_ context.Context, j Job, _ func(int, string)) (Result, error) {
+			if j.Lane == LaneNetwork {
+				return Result{Ref: "out/net.png"}, nil
+			}
+			close(gpuStarted)
+			<-releaseGPU
+			return Result{Ref: "out/gpu.png"}, nil
+		},
+	})
+
+	gpu, err := m.Submit(ctx, Spec{Operation: "text_to_image", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-gpuStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("gpu job never started")
+	}
+
+	netJob, err := m.Submit(ctx, Spec{Operation: "text_to_image", Lane: LaneNetwork})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if netJob.Lane != LaneNetwork {
+		t.Fatalf("lane = %s, want network", netJob.Lane)
+	}
+	done, err := m.Wait(ctx, netJob.ID)
+	if err != nil {
+		t.Fatalf("network job did not finish behind a blocked gpu job: %v", err)
+	}
+	if done.State != StateSucceeded {
+		t.Fatalf("network job state = %s", done.State)
+	}
+
+	close(releaseGPU)
+	if _, err := m.Wait(ctx, gpu.ID); err != nil {
+		t.Fatalf("gpu wait: %v", err)
+	}
+}

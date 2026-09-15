@@ -1,9 +1,31 @@
 # Brand Manager
 
-Full branding lifecycle — generate, manage, apply, and validate brand identity across all Vrooli scenarios
+Brand meaning and the logo-to-icons pipeline for every Vrooli scenario.
 
-This scenario provides
-the standard full-stack Vrooli scenario shape:
+brand-manager turns a proposed mark into an applied, validated identity. It
+stores brands and their version history, logo **candidates** (explore, import,
+refine with lineage, pick, reject, restore), the **container styles** and
+**product lines** that compose a mark into a tile, the **target profiles**
+(`web-public-v1`, `electron-v1`) that define every icon a scenario ships, the
+**render** package that composes filter-free variant SVGs, and the **apply**
+domain that writes those targets into a scenario's `/public/*` layout and
+`platforms/electron/assets`. The branding validation provider
+(`declared-icon-targets`) proves the applied set. Pixel and vector operations
+(rasterize, vectorize, icon packing, object removal, generation) belong to
+**image-tools**; brand-manager calls them over Connect and never reaches into
+another scenario's storage.
+
+The logo-refresh flow is five commands, or the Logo page in the UI:
+
+```bash
+brand-manager candidates explore --brand-id aquila --brief "a desktop constellation app" --concept "constellation eagle line art" --variations 2
+brand-manager candidates list --brand-id aquila
+brand-manager candidates refine cand-123 --instruction "remove the drop shadow"
+brand-manager candidates pick cand-123
+brand-manager apply run --brand-id aquila --scenario web-console --elements icons
+```
+
+This scenario provides the standard full-stack Vrooli shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -15,25 +37,27 @@ the standard full-stack Vrooli scenario shape:
 > owns the first-session initialization protocol — charter, requirements,
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
+> The pipeline design itself is in
+> [`docs/concepts/BRAND-ASSET-PIPELINE.md`](docs/concepts/BRAND-ASSET-PIPELINE.md).
 
 ## What's In This Scenario
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, Apple/home-screen icons, social preview metadata, and generic
-  placeholder icons ready for scenario-specific replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`) coordinated
+  through generated proto contracts.
+- Domains: `brands` (with version history), `candidates`, `styles` (container
+  styles + product lines), `assets`, `assignments`, `apply`, `design`,
+  `discovery`, `generation`, and the served branding `validation` provider.
+- The logo pipeline: candidate explore/refine/pick, deterministic render of
+  mark + container style, and apply to the `/public/*` and electron target sets.
+- SQLite by default; image-tools is the declared runtime dependency for
+  generation, rasterization, vectorization and icon packing.
+- UI/CLI guardrails for i18n, accessibility, API base resolution, declarative
+  command args, generated Connect clients, and report-shaped output.
+- The Logo page: a candidate gallery grouped by concept with lineage, compare,
+  pick/reject/restore, refine (instruction, vectorize, masked removal), an
+  explore form, and a live target-preview sheet.
+- Root-level `DESIGN.md` plus generated UI token assets from the selected
+  design kit.
 - A documentation contract in `docs/manifest.json`, with stubs for
   domains, flows, data, integrations, monetization, deployment,
   runbooks, observability, security, performance, and durable

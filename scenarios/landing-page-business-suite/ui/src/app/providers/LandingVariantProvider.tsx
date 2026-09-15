@@ -7,7 +7,7 @@ import { LandingVariantContext, type LandingVariantContextType } from './Landing
 import { waitForLandingWorkflowLoadingState } from './landingWorkflowLoading';
 import { presentationSystemUi } from '../../surfaces/public-landing/presentation/systemUi';
 import { readPresentationBootstrap } from './landingPresentationBootstrap';
-import { getVisitorId } from '../../shared/lib/visitorIdentity';
+import { getVisitorId } from '../../shared/lib/attribution';
 
 export type { VariantResolution } from './LandingVariantContext';
 interface State {

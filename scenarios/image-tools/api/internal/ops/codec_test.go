@@ -23,6 +23,11 @@ func TestEncodeDecodeRoundTripAllFormats(t *testing.T) {
 	for _, format := range EncodableFormats {
 		format := format
 		t.Run(format, func(t *testing.T) {
+			// ICO and ICNS are output containers, not decodable image formats;
+			// their encode paths are covered by the icon_container golden tests.
+			if format == FormatICO || format == FormatICNS {
+				t.Skip("container format; not decodable")
+			}
 			data, err := Encode(src, format, EncodeOptions{Quality: 90})
 			if err != nil {
 				t.Fatalf("Encode(%s): %v", format, err)

@@ -38,6 +38,15 @@ func (s commerceUsageServicer) FinalizeReservation(ctx context.Context, id strin
 	return s.usage.FinalizeReservation(ctx, id, amount)
 }
 
+func (s commerceUsageServicer) FinalizeReservationWithMetadata(ctx context.Context, id string, amount int64, appBundleKey, model string) error {
+	if detailed, ok := s.usage.(interface {
+		FinalizeReservationWithMetadata(context.Context, string, int64, string, string) error
+	}); ok {
+		return detailed.FinalizeReservationWithMetadata(ctx, id, amount, appBundleKey, model)
+	}
+	return s.usage.FinalizeReservation(ctx, id, amount)
+}
+
 func (s commerceUsageServicer) ReleaseReservation(ctx context.Context, id string) error {
 	return s.usage.ReleaseReservation(ctx, id)
 }

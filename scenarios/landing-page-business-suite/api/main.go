@@ -83,6 +83,7 @@ type Server struct {
 	backdropHTTPClient       *http.Client
 	presentationAssetHandler http.Handler
 	adminAuthService         *administration.AdminAuthService
+	readerTokens             *administration.ReaderTokens
 	emailService             *EmailService
 	waitlistService          *domainmetrics.WaitlistService
 	// Credit system services
@@ -212,6 +213,13 @@ func NewServer() (*Server, error) {
 		if _, err := resolveGeneratedSecret(generated.key, generated.mint); err != nil {
 			return nil, fmt.Errorf("resolve %s: %w", generated.key, err)
 		}
+	}
+	metricsReaderToken, err := resolveGeneratedSecret("METRICS_READER_TOKEN", administration.MintReaderToken)
+	if err != nil {
+		return nil, fmt.Errorf("resolve metrics reader token: %w", err)
+	}
+	if err := administration.NewReaderTokens(db).UpsertAuthority(metricsReaderToken); err != nil {
+		return nil, fmt.Errorf("persist metrics reader token: %w", err)
 	}
 
 	// Initialize config store from tracked scenario config files.
@@ -413,6 +421,8 @@ func NewServer() (*Server, error) {
 	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService)
 	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
+	metricsService := domainmetrics.NewServiceWithContextStore(db, strictPresentationExposureStore{routed: routedDB})
+	metricsService.SetVariantConfigReader(configStore)
 	srv := &Server{
 		config:                   &RuntimeConfig{},
 		db:                       db,
@@ -422,7 +432,7 @@ func NewServer() (*Server, error) {
 		router:                   mux.NewRouter(),
 		variantSpace:             variantSpace,
 		configStore:              configStore,
-		metricsService:           domainmetrics.NewServiceWithContextStore(db, strictPresentationExposureStore{routed: routedDB}),
+		metricsService:           metricsService,
 		stripeService:            stripeService,
 		planService:              planService,
 		downloadService:          downloadService,
@@ -437,6 +447,7 @@ func NewServer() (*Server, error) {
 		seoService:               seoService,
 		feedbackService:          feedbackService,
 		adminAuthService:         administration.NewAdminAuthService(routedDB),
+		readerTokens:             administration.NewReaderTokens(db),
 		emailService:             emailService,
 		waitlistService:          waitlistService,
 		// Credit system services

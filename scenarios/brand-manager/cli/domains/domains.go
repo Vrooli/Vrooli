@@ -5,10 +5,12 @@ import (
 	"brand-manager/cli/domains/assets"
 	"brand-manager/cli/domains/assignments"
 	"brand-manager/cli/domains/brands"
+	"brand-manager/cli/domains/candidates"
 	"brand-manager/cli/domains/design"
 	"brand-manager/cli/domains/discovery"
 	"brand-manager/cli/domains/generation"
 	"brand-manager/cli/domains/provider"
+	"brand-manager/cli/domains/styles"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -49,6 +51,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, brandsGroup)
+	candidatesGroup := candidates.Register(core)
+	groups = append(groups, candidatesGroup)
+	stylesGroup := styles.Register(core)
+	groups = append(groups, stylesGroup)
 	assignmentsGroup, err := assignments.Register(core, manifest)
 	if err != nil {
 		return nil, err

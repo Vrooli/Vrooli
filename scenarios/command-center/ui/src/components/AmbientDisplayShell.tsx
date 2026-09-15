@@ -2,18 +2,18 @@ import { useEffect, useState, type ReactNode } from "react";
 
 export interface AmbientDisplayShellProps {
   theme: string; title: string; position: string; status?: ReactNode; legend?: ReactNode;
-  samples?: string; paused?: boolean; progress?: number;
+  samples?: string; paused?: boolean; held?: boolean; progress?: number;
   beatIndex?: number; beatCount?: number; beatProgress?: number; beatDurations?: number[];
   onBeatSelect?: (index: number) => void; children: ReactNode;
 }
 
-export function AmbientDisplayShell({ theme, title, position, status, legend, samples = "mark", paused = false, progress = 0, beatIndex = 0, beatCount = 0, beatProgress = 0, beatDurations = [], onBeatSelect, children }: AmbientDisplayShellProps) {
+export function AmbientDisplayShell({ theme, title, position, status, legend, samples = "mark", paused = false, held = false, progress = 0, beatIndex = 0, beatCount = 0, beatProgress = 0, beatDurations = [], onBeatSelect, children }: AmbientDisplayShellProps) {
   const [clock, setClock] = useState(() => new Date().toISOString());
   useEffect(() => { const timer = window.setInterval(() => setClock(new Date().toISOString()), 1000); return () => window.clearInterval(timer); }, []);
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); return () => document.documentElement.removeAttribute("data-theme"); }, [theme]);
   const bounded = Math.max(0, Math.min(1, progress));
   return <div className="cc-shell" data-theme={theme} data-rcl-ambient-shell>
-    <div className={beatCount > 0 ? "cc-cycle-rail cc-cycle-rail-segmented" : "cc-cycle-rail"} data-testid="cycle-rail" role="progressbar" aria-label={paused ? "Cycle paused" : "Cycle running"} aria-valuenow={Math.round(bounded * 100)} aria-valuemin={0} aria-valuemax={100} data-paused={paused || undefined}>
+    <div className={beatCount > 0 ? "cc-cycle-rail cc-cycle-rail-segmented" : "cc-cycle-rail"} data-testid="cycle-rail" role="progressbar" aria-label={paused ? "Cycle paused" : held ? "Reading the held section" : "Cycle running"} aria-valuenow={Math.round(bounded * 100)} aria-valuemin={0} aria-valuemax={100} data-paused={paused || undefined} data-held={held || undefined}>
       {beatCount > 0 ? Array.from({ length: beatCount }, (_, index) => {
         const fill = index < beatIndex ? 1 : index === beatIndex ? Math.max(0, Math.min(1, beatProgress)) : 0;
         const width = beatDurations[index] ?? 1;

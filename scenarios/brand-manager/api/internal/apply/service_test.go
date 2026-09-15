@@ -2,6 +2,7 @@ package apply_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -33,16 +34,16 @@ func TestPreview_PlansWithoutWriting(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 3))
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	res, err := svc.Preview(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console"})
 	require.NoError(t, err)
 	require.True(t, res.DryRun)
 	require.Equal(t, 3, res.BrandVersion)
-	// colors, typography, identity, and icons (manifest metadata from the brand
-	// colors) produce actions; favicon + logo are skipped (no assets seeded).
-	require.Len(t, res.Applied, 4)
-	require.Len(t, res.Skipped, 2)
+	// colors, typography and identity produce actions; icons is skipped (no
+	// branding declaration/renderer here).
+	require.Len(t, res.Applied, 3)
+	require.Len(t, res.Skipped, 1)
 	// A preview writes nothing and records nothing.
 	require.Zero(t, ws.WriteCount())
 	require.Empty(t, recorder.Recorded())
@@ -51,15 +52,14 @@ func TestPreview_PlansWithoutWriting(t *testing.T) {
 func TestApply_WritesFilesAndRecordsAssignment(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 5))
-	assets.Seed("b1", apply.ElementLogo, apply.AssetContent{Filename: "logo.png", Bytes: []byte("PNGDATA")})
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	res, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console"})
 	require.NoError(t, err)
 	require.False(t, res.DryRun)
-	// colors + typography + identity + icons(manifest) + logo applied; favicon skipped.
-	require.Len(t, res.Applied, 5)
+	// colors + typography + identity applied; icons skipped.
+	require.Len(t, res.Applied, 3)
 
 	// brand.css carries both the colors block and the appended typography block.
 	css := string(ws.Written("web-console", "ui/src/styles/brand.css"))
@@ -69,53 +69,75 @@ func TestApply_WritesFilesAndRecordsAssignment(t *testing.T) {
 	manifest := string(ws.Written("web-console", "ui/public/manifest.json"))
 	require.Contains(t, manifest, "_brand_display_name")
 	require.Contains(t, manifest, "Acme")
-	require.Contains(t, manifest, "theme_color")
-	// logo bytes copied verbatim into ui/public.
-	require.Equal(t, []byte("PNGDATA"), ws.Written("web-console", "ui/public/logo.png"))
-
 	// The assignment is recorded once with exactly the applied elements.
 	recorded := recorder.Recorded()
 	require.Len(t, recorded, 1)
 	require.Equal(t, "b1", recorded[0].BrandID)
 	require.Equal(t, "web-console", recorded[0].Scenario)
-	require.Equal(t, []string{"colors", "typography", "identity", "icons", "logo"}, recorded[0].Elements)
+	require.Equal(t, []string{"colors", "typography", "identity"}, recorded[0].Elements)
 }
 
-func TestApply_InstallsIconSetAndManifestIconsIdempotently(t *testing.T) {
+// fakeRenderer is a deterministic stand-in for image-tools' rasterize/
+// icon_container, so the apply tests do not need a live image-tools.
+type fakeRenderer struct{}
+
+func (fakeRenderer) Rasterize(_ context.Context, svg []byte, w, h int, _ string) ([]byte, error) {
+	return []byte(fmt.Sprintf("PNG %dx%d of %d svg bytes", w, h, len(svg))), nil
+}
+
+func (fakeRenderer) IconContainer(_ context.Context, _ []byte, format string, sizes []int) ([]byte, error) {
+	return []byte(fmt.Sprintf("%s %d entries", format, len(sizes))), nil
+}
+
+type fakeStyles struct{ view apply.ContainerStyleView }
+
+func (f fakeStyles) ContainerStyle(context.Context, string) (apply.ContainerStyleView, bool, error) {
+	return f.view, true, nil
+}
+
+func TestApply_ProfilesIconSetAndMarkerBlock(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
-	brands.Seed(fullBrand("b1", 2))
-	// A derived icon set: two favicons (transparent) + one maskable (solid).
-	assets.Seed("b1", "favicon-16", apply.AssetContent{Filename: "favicon-16.png", Bytes: []byte("F16")})
-	assets.Seed("b1", "favicon-32", apply.AssetContent{Filename: "favicon-32.png", Bytes: []byte("F32")})
-	assets.Seed("b1", "maskable-icon-192", apply.AssetContent{Filename: "maskable-icon-192.png", Bytes: []byte("M192")})
+	brand := fullBrand("b1", 2)
+	brand.MarkAssetID = "mark1"
+	brands.Seed(brand)
+	assets.SeedByID("mark1", apply.AssetContent{Filename: "logo.svg", Bytes: []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><path fill="#ffffff" d="M10 10H90V70H10Z"/></svg>`)})
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	ws.SeedFile("web-console", ".vrooli/service.json", []byte(`{"branding":{"brand":"aquila","targets":["web-public-v1"]}}`))
+	ws.SeedFile("web-console", "ui/index.html", []byte(`<html><head><link rel="icon" href="/favicon.ico"><link rel="manifest" href="/manifest.json"></head><body></body></html>`))
+	svc := apply.NewService(brands, assets, recorder, ws, fakeRenderer{}, fakeStyles{}, nil)
 
 	res, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console", Elements: []string{"icons"}})
 	require.NoError(t, err)
-	// three icon file copies + one manifest write.
-	require.Len(t, res.Applied, 4)
-	require.Equal(t, []byte("F16"), ws.Written("web-console", "ui/public/favicon-16.png"))
-	require.Equal(t, []byte("M192"), ws.Written("web-console", "ui/public/maskable-icon-192.png"))
+	require.NotEmpty(t, res.Applied)
 
-	manifest := string(ws.Written("web-console", "ui/public/manifest.json"))
-	require.Contains(t, manifest, `"src": "/favicon-16.png"`)
-	require.Contains(t, manifest, `"sizes": "192x192"`)
+	// Targets live under the /public/* layout, not the URL root.
+	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/logo.svg"))
+	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/favicon-16.png"))
+	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/maskable-icon-512.png"))
+	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/og-image.png"))
+	require.Nil(t, ws.Written("web-console", "ui/public/favicon-16.png"), "old root-layout writer must not be used")
+
+	manifest := string(ws.Written("web-console", "ui/public/public/site.webmanifest"))
+	require.Contains(t, manifest, `"src": "icon-192.png"`, "manifest srcs are relative")
 	require.Contains(t, manifest, `"purpose": "maskable"`)
-	require.Contains(t, manifest, "theme_color")
 
-	// Idempotent: a second apply produces a byte-identical manifest.
-	first := ws.Written("web-console", "ui/public/manifest.json")
+	html := string(ws.Written("web-console", "ui/index.html"))
+	require.Contains(t, html, "brand-manager:icons:start")
+	require.Contains(t, html, `href="/public/logo.svg"`)
+	require.NotContains(t, html, `href="/favicon.ico"`, "old root link tags are replaced")
+
+	// Idempotent: a second apply is byte-identical.
 	_, err = svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console", Elements: []string{"icons"}})
 	require.NoError(t, err)
-	require.Equal(t, first, ws.Written("web-console", "ui/public/manifest.json"), "re-apply is byte-identical (no duplicate icon entries)")
+	require.Equal(t, manifest, string(ws.Written("web-console", "ui/public/public/site.webmanifest")))
+	require.Equal(t, html, string(ws.Written("web-console", "ui/index.html")))
 }
 
 func TestApply_PartialElementsSubset(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 1))
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	res, err := svc.Apply(context.Background(), apply.Request{
 		BrandID:  "b1",
@@ -134,7 +156,7 @@ func TestApply_UnknownElementIsSkipped(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 1))
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	res, err := svc.Apply(context.Background(), apply.Request{
 		BrandID:  "b1",
@@ -153,7 +175,7 @@ func TestApply_NoFacetIsSkippedNotFailed(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(apply.BrandView{ID: "b1", Version: 1}) // empty brand: no colors/typography/identity
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	res, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console"})
 	require.NoError(t, err)
@@ -166,7 +188,7 @@ func TestApply_NoFacetIsSkippedNotFailed(t *testing.T) {
 func TestApply_UnknownBrandIsNotFound(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	_, err := svc.Apply(context.Background(), apply.Request{BrandID: "ghost", Scenario: "web-console"})
 	var notFound apply.ErrBrandNotFound
@@ -176,7 +198,7 @@ func TestApply_UnknownBrandIsNotFound(t *testing.T) {
 func TestApply_MissingScenarioIsNotFound(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 1))
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	_, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "missing"})
 	var notFound apply.ErrScenarioNotFound
@@ -185,7 +207,7 @@ func TestApply_MissingScenarioIsNotFound(t *testing.T) {
 
 func TestApply_MissingInputIsInvalid(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	_, err := svc.Apply(context.Background(), apply.Request{Scenario: "web-console"})
 	var invalid apply.ErrInvalidApply
@@ -201,7 +223,7 @@ func TestApply_ReapplyConverges(t *testing.T) {
 	brands, assets, recorder, ws := newDeps(t)
 	brands.Seed(fullBrand("b1", 1))
 	ws.SeedScenario("web-console")
-	svc := apply.NewService(brands, assets, recorder, ws, nil)
+	svc := apply.NewService(brands, assets, recorder, ws, nil, nil, nil)
 
 	_, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console", Elements: []string{"colors"}})
 	require.NoError(t, err)

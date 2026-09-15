@@ -128,7 +128,11 @@ func (a *Adapter) Exec(ctx context.Context, target identity.TargetRef, cmd reach
 		return reach.Result{}, err
 	}
 	argv := cmd.Argv()
-	remote := RemoteCommand(target.Locator.Workdir, argv[1:])
+	workdir := target.Locator.Workdir
+	if strings.TrimSpace(cmd.Workdir) != "" {
+		workdir = cmd.Workdir
+	}
+	remote := RemoteCommand(workdir, argv[1:])
 	if cmd.IsObservation() && cmd.Observation == nil {
 		remote = ObservationCommand(argv)
 	}
@@ -152,6 +156,9 @@ func (a *Adapter) Deliver(ctx context.Context, target identity.TargetRef, delive
 	if err := reach.ValidateDelivery(delivery); err != nil {
 		return reach.DeliveryReceipt{}, err
 	}
+	if err := ensureKnownHostsStore(KnownHostsFile()); err != nil {
+		return reach.DeliveryReceipt{}, a.unavailable(target, "ssh trust store is unavailable", err)
+	}
 	cfg, err := a.connect(ctx, target)
 	if err != nil {
 		return reach.DeliveryReceipt{}, err
@@ -171,10 +178,29 @@ func (a *Adapter) Deliver(ctx context.Context, target identity.TargetRef, delive
 		if _, err := a.run(ctx, target, cfg, "mkdir -p "+shellutil.QuoteSingle(path.Dir(file.RemotePath)), DefaultRunOptions()); err != nil {
 			return receipt, err
 		}
-		if err := a.SCP.Copy(ctx, cfg, file.LocalPath, file.RemotePath, DefaultSCPOptions()); err != nil {
+		// Avoid retransferring files that are already present from a previous
+		// durable attempt. This keeps repair retries bounded on low bandwidth
+		// VPS links while retaining the digest proof below for new bytes.
+		if existing, checkErr := a.run(ctx, target, cfg, "sha256sum -- "+shellutil.QuoteSingle(file.RemotePath), DefaultRunOptions()); checkErr == nil {
+			fields := strings.Fields(existing.Stdout)
+			if existing.ExitCode == 0 && len(fields) > 0 && strings.EqualFold(fields[0], localSum) {
+				if file.Mode != 0 {
+					if _, err := a.run(ctx, target, cfg, fmt.Sprintf("chmod %04o %s", file.Mode&0o7777, shellutil.QuoteSingle(file.RemotePath)), DefaultRunOptions()); err != nil {
+						return receipt, err
+					}
+				}
+				receipt.Files = append(receipt.Files, reach.DeliveredFile{Role: file.Role, RemotePath: file.RemotePath, SHA256: localSum})
+				continue
+			}
+		}
+		// Copy to a digest-named temporary path and atomically rename it. A
+		// native CLI can be running from the destination while a release is
+		// delivered; scp cannot replace an executing file directly on Linux.
+		temporary := file.RemotePath + ".incoming." + localSum[:16]
+		if err := a.SCP.Copy(ctx, cfg, file.LocalPath, temporary, DefaultSCPOptions()); err != nil {
 			return receipt, &reach.Error{Kind: reach.KindTransport, Transport: identity.TransportSSH, Target: target.Key(), Detail: "artifact copy failed: " + file.RemotePath, Err: err}
 		}
-		res, err := a.run(ctx, target, cfg, "sha256sum -- "+shellutil.QuoteSingle(file.RemotePath), DefaultRunOptions())
+		res, err := a.run(ctx, target, cfg, "sha256sum -- "+shellutil.QuoteSingle(temporary), DefaultRunOptions())
 		if err != nil {
 			return receipt, err
 		}
@@ -183,12 +209,15 @@ func (a *Adapter) Deliver(ctx context.Context, target identity.TargetRef, delive
 			observed = strings.ToLower(fields[0])
 		}
 		if res.ExitCode != 0 || observed != localSum {
-			return receipt, &reach.Error{Kind: reach.KindTransport, Transport: identity.TransportSSH, Target: target.Key(), Detail: fmt.Sprintf("delivered bytes at %s hash to %q, expected %s", file.RemotePath, observed, localSum)}
+			return receipt, &reach.Error{Kind: reach.KindTransport, Transport: identity.TransportSSH, Target: target.Key(), Detail: fmt.Sprintf("delivered bytes at %s hash to %q, expected %s", temporary, observed, localSum)}
 		}
 		if file.Mode != 0 {
-			if _, err := a.run(ctx, target, cfg, fmt.Sprintf("chmod %04o %s", file.Mode&0o7777, shellutil.QuoteSingle(file.RemotePath)), DefaultRunOptions()); err != nil {
+			if _, err := a.run(ctx, target, cfg, fmt.Sprintf("chmod %04o %s", file.Mode&0o7777, shellutil.QuoteSingle(temporary)), DefaultRunOptions()); err != nil {
 				return receipt, err
 			}
+		}
+		if _, err := a.run(ctx, target, cfg, "mv -- "+shellutil.QuoteSingle(temporary)+" "+shellutil.QuoteSingle(file.RemotePath), DefaultRunOptions()); err != nil {
+			return receipt, err
 		}
 		receipt.Files = append(receipt.Files, reach.DeliveredFile{Role: file.Role, RemotePath: file.RemotePath, SHA256: localSum})
 	}

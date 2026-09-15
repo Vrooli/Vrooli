@@ -42,9 +42,9 @@ export function AmbientShell({ theme, title, position, status, legend = false, c
  * The only subscriber to cycle progress. A tick re-renders the shell chrome and
  * rail; the children are the caller's unchanged elements, so React skips them.
  */
-function CycledDisplayShell(props: Omit<AmbientDisplayShellProps, "progress" | "beatProgress">) {
-  const { progress, beatProgress } = useBoardProgress();
-  return <AmbientDisplayShell {...props} progress={progress} beatProgress={beatProgress} />;
+function CycledDisplayShell(props: Omit<AmbientDisplayShellProps, "progress" | "beatProgress" | "held">) {
+  const { progress, beatProgress, held } = useBoardProgress();
+  return <AmbientDisplayShell {...props} progress={progress} beatProgress={beatProgress} held={held} />;
 }
 
 function ControlBar() {

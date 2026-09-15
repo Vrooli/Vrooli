@@ -436,21 +436,23 @@ type publicPlanSnapshot struct {
 }
 
 type publicAssetSnapshot struct {
-	AppKey              string `json:"app_key"`
-	Platform            string `json:"platform"`
-	ReleaseVersion      string `json:"release_version"`
-	ReleaseNotes        string `json:"release_notes,omitempty"`
-	Checksum            string `json:"checksum,omitempty"`
-	RequiresEntitlement bool   `json:"requires_entitlement"`
+	AppKey              string                 `json:"app_key"`
+	Platform            string                 `json:"platform"`
+	ReleaseVersion      string                 `json:"release_version"`
+	ReleaseNotes        string                 `json:"release_notes,omitempty"`
+	Checksum            string                 `json:"checksum,omitempty"`
+	RequiresEntitlement bool                   `json:"requires_entitlement"`
+	SigningNotice       map[string]interface{} `json:"signing_notice,omitempty"`
 }
 
 type publicAppSnapshot struct {
-	AppKey      string                `json:"app_key"`
-	Name        string                `json:"name"`
-	Tagline     string                `json:"tagline,omitempty"`
-	Description string                `json:"description,omitempty"`
-	WebURL      string                `json:"web_url,omitempty"`
-	Platforms   []publicAssetSnapshot `json:"platforms"`
+	AppKey        string                 `json:"app_key"`
+	Name          string                 `json:"name"`
+	Tagline       string                 `json:"tagline,omitempty"`
+	Description   string                 `json:"description,omitempty"`
+	WebURL        string                 `json:"web_url,omitempty"`
+	SigningNotice map[string]interface{} `json:"signing_notice,omitempty"`
+	Platforms     []publicAssetSnapshot  `json:"platforms"`
 }
 
 func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []delivery.App) string {
@@ -497,9 +499,9 @@ func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []deliv
 	sort.Slice(value.Yearly, func(i, j int) bool { return planLess(value.Yearly[i], value.Yearly[j]) })
 	sort.Slice(value.Topups, func(i, j int) bool { return planLess(value.Topups[i], value.Topups[j]) })
 	for _, app := range downloads {
-		projection := publicAppSnapshot{AppKey: app.AppKey, Name: app.Name, Tagline: app.Tagline, Description: app.Description, WebURL: presentationWebURL(app.Metadata), Platforms: []publicAssetSnapshot{}}
+		projection := publicAppSnapshot{AppKey: app.AppKey, Name: app.Name, Tagline: app.Tagline, Description: app.Description, WebURL: presentationWebURL(app.Metadata), SigningNotice: sanitizeSigningNotice(app.Metadata[signingNoticeMetadataKey]), Platforms: []publicAssetSnapshot{}}
 		for _, asset := range app.Platforms {
-			projection.Platforms = append(projection.Platforms, publicAssetSnapshot{AppKey: asset.AppKey, Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion, ReleaseNotes: asset.ReleaseNotes, Checksum: asset.Checksum, RequiresEntitlement: asset.RequiresEntitlement})
+			projection.Platforms = append(projection.Platforms, publicAssetSnapshot{AppKey: asset.AppKey, Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion, ReleaseNotes: asset.ReleaseNotes, Checksum: asset.Checksum, RequiresEntitlement: asset.RequiresEntitlement, SigningNotice: sanitizeSigningNotice(asset.Metadata[signingNoticeMetadataKey])})
 		}
 		value.Downloads = append(value.Downloads, projection)
 	}

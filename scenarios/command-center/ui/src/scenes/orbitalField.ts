@@ -14,9 +14,11 @@ export function orbitalField(): Scene {
       const { rng, tier, data } = frame;
       const starCount = tier === "full" ? 2400 : 900;
       stars = Array.from({ length: starCount }, () => ({ x: rng() * 1.4 - 0.2, y: rng() * 1.4 - 0.2, z: 0.15 + rng() ** 2 * 0.85, twinkle: rng() * Math.PI * 2 }));
-      const running = Math.round(read(data, "active_scenarios", 48));
-      const healthy = Math.round(read(data, "scenario_health", running));
-      const count = Math.max(6, Math.min(running, tier === "full" ? 110 : 48));
+      const runningValue = read(data, "active_scenarios");
+      const healthyValue = read(data, "scenario_health");
+      const running = Math.max(0, Math.round(runningValue ?? 0));
+      const healthy = Math.max(0, Math.round(healthyValue ?? 0));
+      const count = runningValue === null ? 0 : Math.min(running, tier === "full" ? 110 : 48);
       const unhealthyEvery = running > healthy ? Math.max(1, Math.round(count / (running - healthy))) : Infinity;
       bodies = Array.from({ length: count }, (_, i) => {
         const r = 0.14 + rng() ** 0.8 * 0.36;

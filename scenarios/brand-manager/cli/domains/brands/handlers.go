@@ -236,3 +236,24 @@ func formatVersion(v *brandsv1.BrandVersion) string {
 	}
 	return fmt.Sprintf("v%d — %s [created=%s]", v.Version, v.Id, created)
 }
+
+// setIdentity updates the brand-identity fields the manifest surface omits.
+func (h *handlers) setIdentity(ctx cliapp.RunContext) error {
+	resp, err := h.client.UpdateBrand(context.Background(), connect.NewRequest(&brandsv1.UpdateBrandRequest{
+		Id:               ctx.Positional("id"),
+		Slug:             ctx.Flag("slug"),
+		MarkAssetId:      ctx.Flag("mark-asset"),
+		SmallMarkAssetId: ctx.Flag("small-mark-asset"),
+		ContainerStyleId: ctx.Flag("container-style"),
+		ProductLineId:    ctx.Flag("product-line"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("set brand identity", err, nil)
+	}
+	b := resp.Msg.GetBrand()
+	return ctx.RenderList(cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Updated brand %s (v%d)", b.GetId(), b.GetVersion())},
+		ResultsHeading: "Brand",
+		Results:        []string{fmt.Sprintf("slug=%s mark=%s style=%s line=%s", b.GetSlug(), b.GetMarkAssetId(), b.GetContainerStyleId(), b.GetProductLineId())},
+	})
+}

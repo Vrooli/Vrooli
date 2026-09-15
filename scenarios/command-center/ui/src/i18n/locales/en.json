@@ -19,6 +19,12 @@
   },
   "errors": {
     "dashboardNotFound": "Dashboard not found",
-    "sourceUnavailable": "Source unavailable"
+    "sourceUnavailable": "Source unavailable",
+    "nothingMeasured": "Nothing measured yet",
+    "unknownTraffic": "Unknown",
+    "paidStep": "Paid step",
+    "leaderVerdict": "Leader verdict",
+    "control": "CONTROL",
+    "insufficientData": "INSUFFICIENT DATA"
   }
 }

@@ -51,7 +51,7 @@ func TestHandleDownloads_Success(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
+		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=windows", nil)
 	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "downloads@example.com"})
@@ -74,7 +74,7 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
+		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?platform=windows", nil)
 	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})
@@ -103,7 +103,7 @@ func TestHandleDownloads_MissingPlatform(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
+		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app", nil)
 	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})
@@ -126,7 +126,7 @@ func TestHandleDownloads_Unauthenticated(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
+		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=windows", nil)
 	// No user context
@@ -149,7 +149,7 @@ func TestHandleDownloads_AppNotFound(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
+		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=nonexistent_app&platform=windows", nil)
 	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})

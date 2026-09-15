@@ -23,8 +23,18 @@ func KnownHostsFile() string {
 // packages/ssh-core over the scenario's known_hosts store.
 func NewTOFUHostKeyCallback(host string, port int) (gossh.HostKeyCallback, error) {
 	path := KnownHostsFile()
-	if err := sshcore.EnsureKnownHostsFile(path); err != nil {
-		return nil, fmt.Errorf("initialize cloud SSH known_hosts: %w", err)
+	if err := ensureKnownHostsStore(path); err != nil {
+		return nil, err
 	}
 	return sshcore.NewTOFUHostKeyCallback(host, port, path)
+}
+
+func ensureKnownHostsStore(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("create cloud SSH trust directory: %w", err)
+	}
+	if err := sshcore.EnsureKnownHostsFile(path); err != nil {
+		return fmt.Errorf("initialize cloud SSH known_hosts: %w", err)
+	}
+	return nil
 }

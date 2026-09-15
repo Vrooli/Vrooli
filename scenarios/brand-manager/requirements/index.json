@@ -15,6 +15,11 @@
     "08-validation/module.json",
     "09-cli/module.json",
     "10-ui/module.json",
-    "11-future/module.json"
+    "11-future/module.json",
+    "12-candidates/module.json",
+    "13-styles/module.json",
+    "14-render/module.json",
+    "15-targets/module.json",
+    "16-logo-ui/module.json"
   ]
 }

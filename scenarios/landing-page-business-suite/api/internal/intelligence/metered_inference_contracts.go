@@ -21,6 +21,17 @@ type UsageServicer interface {
 	RecordUsage(context.Context, UsageReport) error
 }
 
+type UsageMetadataFinalizer interface {
+	FinalizeReservationWithMetadata(context.Context, string, int64, string, string) error
+}
+
+func finalizeUsage(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
+	if detailed, ok := s.(UsageMetadataFinalizer); ok {
+		return detailed.FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
+	}
+	return s.FinalizeReservation(ctx, reservationID, amount)
+}
+
 // UsageReport is the minimum credit-accounting data emitted by the gateway.
 // It is intentionally domain-owned: the API composition adapter converts it
 // to commerce persistence types, avoiding a sibling-domain import.

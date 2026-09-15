@@ -126,7 +126,7 @@ func ResolveGeneratedSecret(key string, mint func() (string, error)) (string, er
 	}
 	field := AuthorityFieldForKey(key)
 	switch field {
-	case "session-secret", "service-secret", "consumer-auth-private-key", "api-key-encryption-key", "remote-profile-encryption-key":
+	case "session-secret", "service-secret", "metrics-reader-token", "consumer-auth-private-key", "api-key-encryption-key", "remote-profile-encryption-key":
 		if envx.Get("VROOLI_ACCEPT_CREDENTIAL_LOSS") == "1" {
 			return authority.ResolveOrMintWithCredentialLossOverride(credentialAuthorityIdentity, field, credentialWitness, mint)
 		}

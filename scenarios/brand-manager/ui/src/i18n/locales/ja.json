@@ -16,7 +16,8 @@
       "generation": "生成",
       "apply": "適用",
       "discovery": "検出",
-      "design": "デザイン"
+      "design": "デザイン",
+      "logo": "ロゴ"
     }
   },
   "theme": {
@@ -58,6 +59,9 @@
     },
     "design": {
       "title": "デザイン"
+    },
+    "logo": {
+      "title": "ロゴ"
     }
   },
   "health": {
@@ -68,16 +72,16 @@
     "refreshCount": "{{count}} 回更新しました",
     "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-    ,"providerMaturity": "プロバイダー成熟度"
-    ,"providerLoading": "プロバイダー成熟度の要約を読み込んでいます…"
-    ,"providerUnavailable": "共有プロバイダー成熟度の要約を利用できません。ブランディングのドメイン報告は引き続き利用できます。"
-    ,"providerHistorical": "プロバイダーが履歴上または未対応の表示契約（{{version}}）を返しました。成熟度の要約は再構築されませんでした。"
-    ,"providerContract": "プロバイダー提供の表示契約 {{version}}"
-    ,"providerNorthStar": "ノーススター:"
-    ,"providerNextAction": "次のアクション:"
-    ,"providerCapabilities": "プロバイダー能力の成熟度"
-    ,"providerDocumentation": "ドキュメント: {{topics}}"
+    "timestampLabel": "タイムスタンプ:",
+    "providerMaturity": "プロバイダー成熟度",
+    "providerLoading": "プロバイダー成熟度の要約を読み込んでいます…",
+    "providerUnavailable": "共有プロバイダー成熟度の要約を利用できません。ブランディングのドメイン報告は引き続き利用できます。",
+    "providerHistorical": "プロバイダーが履歴上または未対応の表示契約（{{version}}）を返しました。成熟度の要約は再構築されませんでした。",
+    "providerContract": "プロバイダー提供の表示契約 {{version}}",
+    "providerNorthStar": "ノーススター:",
+    "providerNextAction": "次のアクション:",
+    "providerCapabilities": "プロバイダー能力の成熟度",
+    "providerDocumentation": "ドキュメント: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
@@ -179,5 +183,57 @@
     "generateButton": "生成",
     "generating": "生成中…",
     "resultHeading": "ブランドのDESIGN.md"
+  },
+  "logo": {
+    "title": "ロゴ",
+    "brandLabel": "ブランド",
+    "brandPlaceholder": "ブランドを選択",
+    "loading": "候補を読み込み中…",
+    "empty": "候補がありません。コンセプトを探索して提案してください。",
+    "conceptLabel": "コンセプト",
+    "lineage": "派生元",
+    "promptLabel": "プロンプト",
+    "pick": "採用",
+    "picking": "採用中…",
+    "reject": "却下",
+    "restore": "復元",
+    "statusProposed": "提案",
+    "statusPicked": "採用済み",
+    "statusRejected": "却下済み",
+    "statusSuperseded": "置換済み",
+    "compare": "比較",
+    "compareClear": "比較を解除",
+    "compareTitle": "候補の比較",
+    "exploreTitle": "コンセプトを探索",
+    "briefLabel": "概要",
+    "briefPlaceholder": "製品は何ですか？",
+    "conceptsLabel": "コンセプト（1行に1つ）",
+    "conceptsPlaceholder": "星座の鷲のラインアート\nモノグラム",
+    "variationsLabel": "コンセプトごとのバリエーション",
+    "preferVectorLabel": "ベクター出力を優先",
+    "exploreSubmit": "探索",
+    "exploring": "探索中…",
+    "refineTitle": "候補を調整",
+    "instructionLabel": "指示",
+    "instructionPlaceholder": "例：ドロップシャドウを削除",
+    "refineSubmit": "調整",
+    "refining": "調整中…",
+    "vectorize": "ベクター化",
+    "vectorizing": "ベクター化中…",
+    "removeBackground": "背景を削除",
+    "removingBackground": "削除中…",
+    "maskTitle": "マスク削除",
+    "maskHint": "削除する領域を塗ってください。",
+    "maskBrushSize": "ブラシサイズ",
+    "maskClear": "クリア",
+    "maskSubmit": "マスク領域を削除",
+    "maskUploading": "マスクをアップロード中…",
+    "previewTitle": "ターゲットプレビュー",
+    "previewHint": "採用マークを各サイズで表示します。",
+    "previewNoMark": "候補を採用すると適用アイコンをプレビューできます。",
+    "lightGround": "ライト",
+    "darkGround": "ダーク",
+    "maskableLabel": "マスカブル安全領域",
+    "sizeLabel": "{{size}} px"
   }
 }

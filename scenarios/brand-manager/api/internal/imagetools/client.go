@@ -25,10 +25,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -135,30 +131,6 @@ func (c *Client) RemoveBackground(ctx context.Context, req generation.ImageRemov
 		AllowByok:     req.AllowBYOK,
 	}
 	return c.submitAndWait(ctx, opBackgroundRemove, req.Source, params)
-}
-
-// Resize runs the deterministic resize op to width×height.
-func (c *Client) Resize(ctx context.Context, src []byte, width, height int) (generation.ImageOutput, error) {
-	data, err := c.runOp(ctx, "resize", src, fmt.Sprintf(`{"resize":{"width":%d,"height":%d}}`, width, height))
-	if err != nil {
-		return generation.ImageOutput{}, err
-	}
-	return generation.ImageOutput{Data: data, MimeType: "image/png", Tier: "deterministic"}, nil
-}
-
-// Flatten resizes the source to width×height (via image-tools) and composites it
-// over a solid background of that size. The same-size alpha composite is done
-// with the image stdlib because the ops `canvas` op pastes rather than blends.
-func (c *Client) Flatten(ctx context.Context, src []byte, width, height int, background string) (generation.ImageOutput, error) {
-	resized, err := c.runOp(ctx, "resize", src, fmt.Sprintf(`{"resize":{"width":%d,"height":%d}}`, width, height))
-	if err != nil {
-		return generation.ImageOutput{}, err
-	}
-	flattened, err := flattenOnto(resized, width, height, background)
-	if err != nil {
-		return generation.ImageOutput{}, generation.ErrImageJobFailed{Operation: "flatten", Detail: err.Error()}
-	}
-	return generation.ImageOutput{Data: flattened, MimeType: "image/png", Tier: "deterministic"}, nil
 }
 
 // Status reports image-tools reachability + per-operation readiness via
@@ -383,63 +355,6 @@ func (c *Client) downloadBlob(ctx context.Context, baseURL, ref string) ([]byte,
 		mime = "image/png"
 	}
 	return data, mime, nil
-}
-
-// flattenOnto composites a (transparent) PNG over a solid-color opaque canvas of
-// width×height, returning an opaque PNG. Pure image stdlib — no scaling here, the
-// input is already the target size.
-func flattenOnto(srcPNG []byte, width, height int, background string) ([]byte, error) {
-	src, err := png.Decode(bytes.NewReader(srcPNG))
-	if err != nil {
-		return nil, fmt.Errorf("decode source: %w", err)
-	}
-	bg := parseHexColor(background)
-	canvas := image.NewRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
-	// Center the source if it is not exactly the canvas size (defensive).
-	sb := src.Bounds()
-	offset := image.Pt((width-sb.Dx())/2, (height-sb.Dy())/2)
-	draw.Draw(canvas, sb.Add(offset), src, sb.Min, draw.Over)
-
-	var out bytes.Buffer
-	if err := png.Encode(&out, canvas); err != nil {
-		return nil, fmt.Errorf("encode: %w", err)
-	}
-	return out.Bytes(), nil
-}
-
-// parseHexColor parses "#rrggbb" into an opaque color, defaulting to white.
-func parseHexColor(s string) color.Color {
-	s = strings.TrimSpace(s)
-	if len(s) == 7 && s[0] == '#' {
-		r, rok := hexByte(s[1:3])
-		g, gok := hexByte(s[3:5])
-		b, bok := hexByte(s[5:7])
-		if rok && gok && bok {
-			return color.RGBA{R: r, G: g, B: b, A: 0xff}
-		}
-	}
-	return color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
-}
-
-func hexByte(s string) (uint8, bool) {
-	var v uint8
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		var d uint8
-		switch {
-		case c >= '0' && c <= '9':
-			d = c - '0'
-		case c >= 'a' && c <= 'f':
-			d = c - 'a' + 10
-		case c >= 'A' && c <= 'F':
-			d = c - 'A' + 10
-		default:
-			return 0, false
-		}
-		v = v<<4 | d
-	}
-	return v, true
 }
 
 // explainErrorHint turns an ExplainResolution error into a short readiness hint.

@@ -114,12 +114,16 @@ func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand,
 	timeout := verbTimeout(action.ID)
 	switch action.OwnerOperation {
 	case execplan.OpHostPrepare:
+		bootstrapArgs := append([]string{}, cc.fenceArgs(action.ID+".bootstrap")...)
 		subject, err := EncodeJSONArg(map[string]any{"apt": map[string]any{"packages": csv(in["packages"])}})
 		if err != nil {
 			return nil, err
 		}
 		args := append([]string{"--action", "apt.packages.ensure", "--subject", subject}, cc.fenceArgs(action.ID)...)
-		return []TargetCommand{effectful(action.ID, "cloud-target host repair", args, timeout)}, nil
+		return []TargetCommand{
+			effectful(action.ID+".bootstrap", "cloud-target host bootstrap", bootstrapArgs, timeout),
+			effectful(action.ID, "cloud-target host repair", args, timeout),
+		}, nil
 	case execplan.OpEdgeFirewallAllow:
 		var out []TargetCommand
 		for _, port := range csv(in["ports"]) {
@@ -194,17 +198,17 @@ func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand,
 		}
 		return out, nil
 	case execplan.OpConfigApply:
-		args := []string{"--yes", "yes", "--environment", in["environment"], "--include-optional"}
-		if resources := strings.TrimSpace(in["resources"]); resources != "" {
-			args = append(args, "--resources", resources)
-		}
-		if scenarios := strings.TrimSpace(in["scenarios"]); scenarios != "" {
-			args = append(args, "--scenarios", scenarios)
-		}
-		if selection := strings.TrimSpace(in["selection_json_b64"]); selection != "" {
-			args = append(args, "--selection-b64", selection)
-		}
-		return []TargetCommand{effectful(action.ID, "setup", args, timeout)}, nil
+		// A cloud release is a sealed artifact, not a full source checkout.
+		// Keep target setup limited to the bootstrap contract; resources and
+		// workloads are reconciled by their own typed lifecycle actions below.
+		args := []string{"--yes", "yes", "--environment", in["environment"], "--bootstrap-only"}
+		command := effectful(action.ID, "setup", args, timeout)
+		// Setup resolves the repository contract and service manifest from its
+		// project root. The release staging directory is an artifact location,
+		// not a repository root, so run the delivered CLI from the durable VPS
+		// workdir.
+		command.Command.Workdir = strings.TrimSpace(in["workdir"])
+		return []TargetCommand{command}, nil
 	case execplan.OpRuntimeStartDeps:
 		var out []TargetCommand
 		for _, res := range csv(in["resources"]) {

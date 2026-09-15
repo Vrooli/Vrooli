@@ -149,13 +149,24 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		if pattern == "cli/**" {
 			continue
 		}
+		// The primary scenario UI is part of every deployment. Remove generic
+		// UI exclusions here; dependency UIs are re-added below by exact
+		// scenario path when they are not explicitly opted in.
+		if strings.Contains(pattern, "ui/**") {
+			continue
+		}
 		filteredExcludes = append(filteredExcludes, pattern)
 	}
 	for _, scenarioID := range scenarioIDs {
-		if scenarioID == "vrooli-autoheal" {
-			continue
+		if scenarioID != "vrooli-autoheal" {
+			filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/cli/**")
 		}
-		filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/cli/**")
+		// The deployed scenario owns the primary user experience and must
+		// always carry its UI. Dependency UIs remain opt-in through
+		// Bundle.UIScenarios.
+		if scenarioID != manifest.Scenario.ID && !stringutil.Contains(manifest.Bundle.UIScenarios, scenarioID) {
+			filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/ui/**")
+		}
 	}
 	excludes = filteredExcludes
 	// Autoheal must be self-repairable on the target. Its CLI freshness
@@ -226,12 +237,57 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		}
 		extra[scenarioServicePath] = scenarioServiceJSON
 	}
+	// Dependency UIs are opt-in. Keep their runtime manifests aligned with
+	// the source filter so lifecycle setup cannot start a UI whose sources were
+	// intentionally omitted from the bundle.
+	for _, scenarioID := range scenarioIDs {
+		if scenarioID == manifest.Scenario.ID || stringutil.Contains(manifest.Bundle.UIScenarios, scenarioID) {
+			continue
+		}
+		path, err := ResolveScenarioFileRelative(repoRoot, scenarioID, "service")
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("resolve dependency service.json for %s: %w", scenarioID, err)
+		}
+		bytes, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("read dependency service.json for %s: %w", scenarioID, err)
+		}
+		filtered, err := withoutUIComponent(bytes)
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("filter dependency UI for %s: %w", scenarioID, err)
+		}
+		extra[path] = filtered
+	}
 
 	return MiniBundleSpec{
 		IncludeRoots: roots,
 		Excludes:     excludes,
 		ExtraFiles:   extra,
 	}, nil
+}
+
+func withoutUIComponent(data []byte) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	if components, ok := doc["components"].(map[string]any); ok {
+		delete(components, "ui")
+	}
+	if deployment, ok := doc["deployment"].(map[string]any); ok {
+		if listeners, ok := deployment["listeners"].([]any); ok {
+			filtered := listeners[:0]
+			for _, item := range listeners {
+				listener, ok := item.(map[string]any)
+				if ok && (listener["id"] == "ui" || listener["port"] == "ui") {
+					continue
+				}
+				filtered = append(filtered, item)
+			}
+			deployment["listeners"] = filtered
+		}
+	}
+	return json.MarshalIndent(doc, "", "  ")
 }
 
 func existingProfileRoots(repoRoot string, required, optional []string) []string {

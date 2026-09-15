@@ -212,6 +212,35 @@ func (h *handlers) metadataParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	}}}
 }
 
+func (h *handlers) rasterizeParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Rasterize{Rasterize: &opsv1.RasterizeParams{
+		Width: i32(ctx.Flag("width")), Height: i32(ctx.Flag("height")), Background: ctx.Flag("background"),
+	}}}
+}
+
+func (h *handlers) vectorizeParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Vectorize{Vectorize: &opsv1.VectorizeParams{
+		Colors:                     i32(ctx.Flag("colors")),
+		KeepColors:                 ctx.FlagValues("keep-color"),
+		DropBackgroundLayers:       ctx.BoolFlag("drop-background-layers"),
+		ClipToLargestRoundedRegion: ctx.BoolFlag("clip-to-largest-rounded-region"),
+		InsetPx:                    f64(ctx.Flag("inset-px")),
+		TolerancePx:                f64(ctx.Flag("tolerance-px")),
+		Smoothing:                  ctx.BoolFlag("smoothing"),
+		MinAreaPx:                  f64(ctx.Flag("min-area-px")),
+	}}}
+}
+
+func (h *handlers) iconContainerParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	sizes := make([]int32, 0)
+	for _, s := range ctx.FlagValues("size") {
+		sizes = append(sizes, i32(s))
+	}
+	return &opsv1.OpParams{Op: &opsv1.OpParams_IconContainer{IconContainer: &opsv1.IconContainerParams{
+		Format: ctx.Flag("format"), Sizes: sizes,
+	}}}
+}
+
 // --- flag parse helpers (empty/invalid → zero, the proto default) ---
 
 func i32(s string) int32 {

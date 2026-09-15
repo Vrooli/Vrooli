@@ -88,6 +88,10 @@ type ManifestBundle struct {
 	IncludeAutoheal bool     `json:"include_autoheal"`
 	Scenarios       []string `json:"scenarios,omitempty"`
 	Resources       []string `json:"resources,omitempty"`
+	// UIScenarios identifies the primary scenario and dependencies whose UI is
+	// part of the deployment. Dependency UIs are omitted unless declared by
+	// include_ui on the consuming scenario's service.json edge.
+	UIScenarios []string `json:"ui_scenarios,omitempty"`
 }
 
 // ManifestPorts maps scenario listener port names to fixed deployment ports.

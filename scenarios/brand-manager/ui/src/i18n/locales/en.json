@@ -16,7 +16,8 @@
       "generation": "Generation",
       "apply": "Apply",
       "discovery": "Discovery",
-      "design": "Design"
+      "design": "Design",
+      "logo": "Logo"
     }
   },
   "theme": {
@@ -58,6 +59,9 @@
     },
     "design": {
       "title": "Design"
+    },
+    "logo": {
+      "title": "Logo"
     }
   },
   "health": {
@@ -69,16 +73,16 @@
     "refreshCount_one": "Refreshed once",
     "statusLabel": "Status:",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-    ,"providerMaturity": "Provider maturity"
-    ,"providerLoading": "Loading the provider maturity summary…"
-    ,"providerUnavailable": "The shared provider maturity summary is unavailable. Branding domain reports remain available."
-    ,"providerHistorical": "The provider returned an historical or unsupported presentation contract ({{version}}); no maturity summary was reconstructed."
-    ,"providerContract": "Provider-supplied presentation contract {{version}}"
-    ,"providerNorthStar": "North star:"
-    ,"providerNextAction": "Next action:"
-    ,"providerCapabilities": "Provider capability maturity"
-    ,"providerDocumentation": "Documentation: {{topics}}"
+    "timestampLabel": "Timestamp:",
+    "providerMaturity": "Provider maturity",
+    "providerLoading": "Loading the provider maturity summary…",
+    "providerUnavailable": "The shared provider maturity summary is unavailable. Branding domain reports remain available.",
+    "providerHistorical": "The provider returned an historical or unsupported presentation contract ({{version}}); no maturity summary was reconstructed.",
+    "providerContract": "Provider-supplied presentation contract {{version}}",
+    "providerNorthStar": "North star:",
+    "providerNextAction": "Next action:",
+    "providerCapabilities": "Provider capability maturity",
+    "providerDocumentation": "Documentation: {{topics}}"
   },
   "notifications": {
     "summary": "{{count}} notifications",
@@ -182,5 +186,57 @@
     "generateButton": "Generate",
     "generating": "Generating…",
     "resultHeading": "DESIGN.md for brand"
+  },
+  "logo": {
+    "title": "Logo",
+    "brandLabel": "Brand",
+    "brandPlaceholder": "Select a brand",
+    "loading": "Loading candidates…",
+    "empty": "No candidates yet. Explore concepts to propose some.",
+    "conceptLabel": "Concept",
+    "lineage": "Derived from",
+    "promptLabel": "Prompt",
+    "pick": "Pick",
+    "picking": "Picking…",
+    "reject": "Reject",
+    "restore": "Restore",
+    "statusProposed": "Proposed",
+    "statusPicked": "Picked",
+    "statusRejected": "Rejected",
+    "statusSuperseded": "Superseded",
+    "compare": "Compare",
+    "compareClear": "Clear compare",
+    "compareTitle": "Compare candidates",
+    "exploreTitle": "Explore concepts",
+    "briefLabel": "Brief",
+    "briefPlaceholder": "What is the product?",
+    "conceptsLabel": "Concepts (one per line)",
+    "conceptsPlaceholder": "constellation eagle line art\nmonogram",
+    "variationsLabel": "Variations per concept",
+    "preferVectorLabel": "Prefer vector output",
+    "exploreSubmit": "Explore",
+    "exploring": "Exploring…",
+    "refineTitle": "Refine candidate",
+    "instructionLabel": "Instruction",
+    "instructionPlaceholder": "e.g. remove the drop shadow",
+    "refineSubmit": "Refine",
+    "refining": "Refining…",
+    "vectorize": "Vectorize",
+    "vectorizing": "Vectorizing…",
+    "removeBackground": "Remove background",
+    "removingBackground": "Removing…",
+    "maskTitle": "Masked removal",
+    "maskHint": "Paint over the area to remove.",
+    "maskBrushSize": "Brush size",
+    "maskClear": "Clear",
+    "maskSubmit": "Remove masked area",
+    "maskUploading": "Uploading mask…",
+    "previewTitle": "Target preview",
+    "previewHint": "The picked mark at each declared size.",
+    "previewNoMark": "Pick a candidate to preview the applied icon.",
+    "lightGround": "Light",
+    "darkGround": "Dark",
+    "maskableLabel": "Maskable safe zone",
+    "sizeLabel": "{{size}} px"
   }
 }

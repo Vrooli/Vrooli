@@ -308,7 +308,7 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 		return Selection{}, fmt.Errorf("%w: model %q cannot run on this host", ErrOverrideInvalid, req.OverrideID)
 	}
 	sel := r.buildSelection(m, req)
-	if !sel.GPUViable {
+	if !sel.GPUViable && !isRemoteBackend(m) {
 		appendFreeVRAMShortfallWarning(&sel, fit.VRAMShortfallGB)
 	}
 	sel.Reason = fmt.Sprintf("model %q selected by explicit override", m.ID)
@@ -320,6 +320,10 @@ func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
 	sel := Selection{Model: m, GPUViable: fit.GPUViable}
 
 	switch {
+	case isRemoteBackend(m):
+		// A remote backend runs on the provider, not on this host's CPU: the
+		// local hardware-fit warning and ETA do not apply.
+		sel.Reason = fmt.Sprintf("model %q runs remotely via %s", m.ID, m.Backend)
 	case fit.GPUViable:
 		sel.Reason = fmt.Sprintf("model %q runs on GPU (needs >=%d GB VRAM)", m.ID, m.Hardware.MinVRAMGB)
 	case m.Hardware.CPUCapable:
@@ -348,3 +352,7 @@ func appendFreeVRAMShortfallWarning(sel *Selection, shortfallGB int) {
 		sel.Warnings = append(sel.Warnings, fmt.Sprintf("GPU detected but free VRAM is ~%d GB short; falling back to CPU to avoid OOM", shortfallGB))
 	}
 }
+
+// isRemoteBackend reports whether a model runs on an external provider rather
+// than on this host, so local hardware-fit warnings and CPU ETAs do not apply.
+func isRemoteBackend(m Model) bool { return m.Backend == BackendOpenRouter }

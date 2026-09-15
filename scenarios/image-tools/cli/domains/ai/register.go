@@ -36,6 +36,7 @@ func commonFlags() []cliapp.Flag {
 		{Name: "byok", Bool: true, Description: "Allow a paid BYOK cloud provider unless --fallback-policy=local_only"},
 		{Name: "quality-policy", Description: "Candidate ordering policy: quality, balanced, or fast"},
 		{Name: "fallback-policy", Description: "Provider fallback policy: any, cloud_allowed, or local_only"},
+		{Name: "role", Description: "OpenRouter model role (e.g. image.vector.default, image.generate.logo) for the gateway"},
 		{Name: "priority", Description: "Capacity priority: service, interactive, or batch"},
 		{Name: "no-reclaim", Bool: true, Description: "Do not reclaim cold-idle local resources for this job"},
 		{Name: "explain", Bool: true, Description: "Print which model/technique would run (native-vs-derived) and exit without submitting"},

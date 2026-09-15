@@ -26,19 +26,23 @@ import (
 	assetsH "brand-manager/handlers/assets"
 	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
+	candidatesH "brand-manager/handlers/candidates"
 	designH "brand-manager/handlers/design"
 	discoveryH "brand-manager/handlers/discovery"
 	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
+	stylesH "brand-manager/handlers/styles"
 	localdb "brand-manager/internal/database"
 
 	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/apply"
 	assetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assets"
 	assignmentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assignments"
 	brandsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/brands"
+	candidatesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/candidates"
 	designv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/design"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/discovery"
 	generationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation"
+	stylesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/styles"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -52,9 +56,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, assetsH.Endpoints...)
 	out = append(out, assignmentsH.Endpoints...)
 	out = append(out, brandsH.Endpoints...)
+	out = append(out, candidatesH.Endpoints...)
 	out = append(out, designH.Endpoints...)
 	out = append(out, discoveryH.Endpoints...)
 	out = append(out, generationH.Endpoints...)
+	out = append(out, stylesH.Endpoints...)
 	return out
 }
 
@@ -85,9 +91,11 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "assets", File: assetsv1.File_brand_manager_v1_assets_assets_proto},
 		{Module: "assignments", File: assignmentsv1.File_brand_manager_v1_assignments_assignments_proto},
 		{Module: "brands", File: brandsv1.File_brand_manager_v1_brands_brands_proto},
+		{Module: "candidates", File: candidatesv1.File_brand_manager_v1_candidates_candidates_proto},
 		{Module: "design", File: designv1.File_brand_manager_v1_design_design_proto},
 		{Module: "discovery", File: discoveryv1.File_brand_manager_v1_discovery_discovery_proto},
 		{Module: "generation", File: generationv1.File_brand_manager_v1_generation_generation_proto},
+		{Module: "styles", File: stylesv1.File_brand_manager_v1_styles_styles_proto},
 	}
 }
 
@@ -105,5 +113,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(assetsH.Schema),
 		apidb.SchemaProviderFunc(assignmentsH.Schema),
 		apidb.SchemaProviderFunc(brandsH.Schema),
+		apidb.SchemaProviderFunc(candidatesH.Schema),
+		apidb.SchemaProviderFunc(stylesH.Schema),
 	}
 }

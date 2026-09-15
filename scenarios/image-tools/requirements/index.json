@@ -40,6 +40,9 @@
     "33-instruction-edit/module.json",
     "34-responsible-use-gate/module.json",
     "35-conditioning-adapters/module.json",
-    "36-byo-import/module.json"
+    "36-byo-import/module.json",
+    "37-vector-bridge/module.json",
+    "38-object-removal-fallback/module.json",
+    "39-job-ergonomics/module.json"
   ]
 }

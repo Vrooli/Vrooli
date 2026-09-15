@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-10T19:11:24-04:00"
+    "last_validated_at": "2026-09-15T13:51:19-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-029",
       "title": "Declared data bindings with consistent recovery points",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "data-and-credentials",
       "description": "Persistent data is declared with owner, backup provider and migration hooks; recovery points capture database-native consistency and object inventory with schema and credential-version references.",
@@ -19,14 +19,14 @@
           "type": "test",
           "ref": "api/backup/bindings_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "[REQ:STC-P0-029] bindings from closure, postgres hook argv, DBM registrar"
         },
         {
           "type": "test",
           "ref": "api/persistence/backup_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "recovery points + restore receipts round trip"
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "STC-P0-030",
       "title": "Fresh-host restore with measured RTO/RPO",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "data-and-credentials",
       "description": "Restoration of database and object data onto a clean host asserts application invariants and records measured recovery time and recovery-point age against declared budgets; corrupt archives and missing keys are refused.",
@@ -47,14 +47,14 @@
           "type": "test",
           "ref": "api/backup/drill_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "[REQ:STC-P0-030] fresh-host restore drill with measured RTO/RPO, corrupt archive and missing key refusals"
         },
         {
           "type": "test",
           "ref": "api/handlers_backup_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "recovery-point routes"
         }
       ]
@@ -62,7 +62,7 @@
     {
       "id": "STC-P0-031",
       "title": "Schema-aware rollback admission",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "data-and-credentials",
       "description": "Code rollback is refused when the predecessor cannot read the current schema; a typed forward-repair or restore plan is offered instead.",
@@ -75,14 +75,14 @@
           "type": "test",
           "ref": "api/backup/compat_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "[REQ:STC-P0-031] schema-strategy-aware rollback admission, posture selection"
         },
         {
           "type": "test",
           "ref": "api/backup/retention_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "protected recovery points never deleted"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "STC-P0-032",
       "title": "Versioned credential distribution, rotation, revocation and recovery",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "category": "data-and-credentials",
       "description": "Credential bindings reference descriptor and version; rotation stages provider preparation, consumer update, verification and predecessor revocation; unreachable consumers keep rotation explicitly incomplete; synthetic canaries never appear in retained surfaces.",
@@ -103,21 +103,21 @@
           "type": "test",
           "ref": "api/credentials/lifecycle_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Preservation on redeploy (A01), consumer verification before predecessor retirement (A02), provider rejection retains predecessor, unreachable consumer keeps rotation incomplete (A05), revoked grant denies distribution (A04), online vs unreachable revocation, operator handoff, signing overlap, enrollment refusal, lost-host recovery and locked store (A06), break-glass window and auto-revocation, concurrency, encryption-key rewrap proof."
         },
         {
           "type": "test",
           "ref": "api/credentials/bindings_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Descriptor collision refusal (A03), exact descriptors and stable ids, cross-deployment ambiguity, closure-derived consumers and classes."
         },
         {
           "type": "test",
           "ref": "api/credentials/distribution_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "SSH value on stdin only, locked vs unreachable classification, target refusals and replays, Bridge grant recheck and env injection."
         },
         {
@@ -131,7 +131,7 @@
           "type": "test",
           "ref": "api/persistence/credentials_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Ledger round trip for bindings, acks and operations; exact descriptor lookup."
         },
         {

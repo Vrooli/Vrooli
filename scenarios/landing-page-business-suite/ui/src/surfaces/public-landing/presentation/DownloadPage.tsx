@@ -27,10 +27,10 @@ export function DownloadPage() {
   const bundle = config?.presentation.diagnostics?.bundleKey;
   const apps = config?.downloads.filter(app => app.app_key === appKey && app.bundle_key === bundle) ?? [];
   const options = apps.length === 1 ? (apps[0]?.platforms ?? []).filter(asset => asset.app_key === appKey && asset.bundle_key === bundle && asset.platform && asset.release_version) : [];
-  return <DownloadSession key={`${location.pathname}:${resolved.presentation.diagnostics.resolved_revision}`} presentation={resolved.presentation} resolvedActions={resolved.resolvedActions} options={options} base={base} detailRoute={request.route} canonicalBaseUrl={canonicalBaseUrl} />;
+  return <DownloadSession key={`${location.pathname}:${resolved.presentation.diagnostics.resolved_revision}`} presentation={resolved.presentation} resolvedActions={resolved.resolvedActions} options={options} appMetadata={apps[0]?.metadata} base={base} detailRoute={request.route} canonicalBaseUrl={canonicalBaseUrl} />;
 }
 
-function DownloadSession({ presentation, resolvedActions, options, base, detailRoute, canonicalBaseUrl }: { presentation: Presentation; resolvedActions: ResolvedActions; options: DownloadAsset[]; base: string; detailRoute: string; canonicalBaseUrl?: string }) {
+function DownloadSession({ presentation, resolvedActions, options, appMetadata, base, detailRoute, canonicalBaseUrl }: { presentation: Presentation; resolvedActions: ResolvedActions; options: DownloadAsset[]; appMetadata?: Record<string, unknown>; base: string; detailRoute: string; canonicalBaseUrl?: string }) {
   const auth = useUserAuth();
   const { request } = useLandingVariant();
   const { refreshSession } = auth;
@@ -85,7 +85,7 @@ function DownloadSession({ presentation, resolvedActions, options, base, detailR
       <button type="button" disabled={auth.isSessionLoading} onClick={() => { void auth.refreshSession(); }}>{ui.recheck}</button>
     </div>}</header>
     {options.length > 0 && !auth.isAuthenticated && <p className="commerce-note">{ui.returnNote}</p>}
-    <DownloadChooser title={presentation.page.title} description={presentation.page.description} options={options} selected={selected} onSelect={choose} onPrepare={() => { void prepare(); }} state={stateValue} disabledReason={disabledReason} unavailableReason={presentation.page.display.shell.unavailable_reason} launchActions={launchActions} resolvedActions={resolvedActions} />
+    <DownloadChooser title={presentation.page.title} description={presentation.page.description} options={options} selected={selected} onSelect={choose} onPrepare={() => { void prepare(); }} state={stateValue} disabledReason={disabledReason} unavailableReason={presentation.page.display.shell.unavailable_reason} appMetadata={appMetadata} launchActions={launchActions} resolvedActions={resolvedActions} />
     </div>
   </main>;
 }

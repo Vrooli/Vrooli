@@ -27,6 +27,7 @@ require (
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	github.com/vrooli/platform-go v0.0.0
 )
 
 require (
@@ -37,7 +38,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
-	github.com/vrooli/platform-go v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -92,7 +92,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect

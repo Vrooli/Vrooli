@@ -278,6 +278,22 @@ func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireMetricsReader accepts an admin session or a narrowly scoped LPBS
+// reader token. The broad service secret is intentionally not accepted here.
+func (s *Server) requireMetricsReader(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if token := strings.TrimSpace(extractBearerToken(r)); token != "" {
+			if s.readerTokens == nil || s.readerTokens.Authenticate(r.Context(), token, administration.ScopeMetricsRead) != nil {
+				writeJSONError(w, http.StatusUnauthorized, "reader_token_rejected", ApiErrorTypeUnauthorized)
+				return
+			}
+			next(w, r)
+			return
+		}
+		s.requireAdmin(next)(w, r)
+	}
+}
+
 const servicePrincipalContextKey contextKey = "service_principal"
 
 // requireAdmin is middleware to protect admin routes

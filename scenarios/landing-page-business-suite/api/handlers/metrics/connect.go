@@ -73,11 +73,12 @@ func (h *ConnectHandler) TrackEvent(_ context.Context, request *connect.Request[
 	if parsed, err := url.Parse(input.GetReferrer()); err == nil && parsed.Hostname() != "" {
 		referrerHost = parsed.Hostname()
 	}
-	dimensions := analytics.Enrich(&http.Request{Header: request.Header(), RemoteAddr: ""}, input.GetReferrer())
+	dimensions := analytics.Enrich(&http.Request{Header: request.Header(), RemoteAddr: request.Peer().Addr}, input.GetReferrer())
 	if dimensions.ReferrerHost == "" {
 		dimensions.ReferrerHost = referrerHost
 	}
-	if err := h.deps.Tracker.TrackEvent(metrics.Event{EventType: input.GetEventType(), VariantSlug: slug, EventData: data, SessionID: input.GetSessionId(), VisitorID: input.GetVisitorId(), EventID: input.GetEventId(), ReferrerHost: dimensions.ReferrerHost, ReferrerKind: dimensions.ReferrerKind, DeviceClass: dimensions.DeviceClass, CountryCode: dimensions.CountryCode, UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), LandingPath: input.GetLandingPath()}); err != nil {
+	trafficClass := analytics.ClassifyTraffic(request.Header().Get("User-Agent"), request.Header().Get("Cookie"), request.Header().Get("X-LPBS-Internal"))
+	if err := h.deps.Tracker.TrackEvent(metrics.Event{EventType: input.GetEventType(), VariantSlug: slug, EventData: data, SessionID: input.GetSessionId(), VisitorID: input.GetVisitorId(), EventID: input.GetEventId(), ReferrerHost: dimensions.ReferrerHost, ReferrerKind: dimensions.ReferrerKind, DeviceClass: dimensions.DeviceClass, CountryCode: dimensions.CountryCode, UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), LandingPath: input.GetLandingPath(), TrafficClass: trafficClass}); err != nil {
 		var validation *metrics.ValidationError
 		if errors.As(err, &validation) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -120,9 +121,9 @@ func (h *ConnectHandler) GetTrafficBreakdown(_ context.Context, request *connect
 	}
 	rows := make([]*lpbsv1.TrafficBreakdownRow, 0, len(result.Rows))
 	for _, row := range result.Rows {
-		rows = append(rows, &lpbsv1.TrafficBreakdownRow{Key: row.Key, Label: row.Label, Sessions: row.Sessions, Conversions: row.Conversions, RevenueMinor: row.RevenueMinor, Share: row.Share})
+		rows = append(rows, &lpbsv1.TrafficBreakdownRow{Key: row.Key, Label: row.Label, Visitors: row.Sessions, Conversions: row.Conversions, RevenueMinor: row.RevenueMinor, Share: row.Share})
 	}
-	return connect.NewResponse(&lpbsv1.GetTrafficBreakdownResponse{Rows: rows, TotalSessions: result.TotalSessions, Exhaustive: result.Exhaustive, Currency: result.Currency, ObservedAt: timestamppb.New(result.ObservedAt)}), nil
+	return connect.NewResponse(&lpbsv1.GetTrafficBreakdownResponse{Rows: rows, TotalVisitors: result.TotalSessions, OtherVisitors: result.OtherVisitors, Exhaustive: result.Exhaustive, Currency: result.Currency, ObservedAt: timestamppb.New(result.ObservedAt)}), nil
 }
 
 func (h *ConnectHandler) GetTrafficSeries(_ context.Context, request *connect.Request[lpbsv1.GetTrafficSeriesRequest]) (*connect.Response[lpbsv1.GetTrafficSeriesResponse], error) {
@@ -208,7 +209,11 @@ func summaryProto(summary *metrics.AnalyticsSummary) *lpbsv1.AnalyticsSummary {
 	for _, stat := range summary.VariantStats {
 		stats = append(stats, statProto(stat))
 	}
-	result := &lpbsv1.AnalyticsSummary{TotalVisitors: summary.TotalVisitors, TotalDownloads: summary.TotalDownloads, VariantStats: stats}
+	result := &lpbsv1.AnalyticsSummary{TotalVisitors: summary.TotalVisitors, TotalDownloads: summary.TotalDownloads, VariantStats: stats, ContractVersion: "analytics-summary.v1", Exclusions: &lpbsv1.TrafficExclusions{BotEvents: summary.BotEvents, InternalEvents: summary.InternalEvents}}
+	if summary.TopCTA != "" {
+		result.TopCta = &summary.TopCTA
+		result.TopCtaCtr = &summary.TopCTACTR
+	}
 	if summary.ObservedAt != nil {
 		result.ObservedAt = timestamppb.New(*summary.ObservedAt)
 	}

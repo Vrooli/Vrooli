@@ -444,6 +444,20 @@
         ],
         "clean_requirement": "required"
       },
+      "declared-icon-targets": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "pending",
+        "reason": "Every target a scenario declares in its branding block must exist, be the right size and format, carry no placeholder bytes, and be wired through the marked index.html block and relative manifest srcs.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
       "wcag-aa-contrast": {
         "capability_id": "accessibility_application",
         "local_level_impact": "L1",

@@ -19,13 +19,13 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 
 /* ── Cycle rail, eyebrow ───────────────────────────────────────────── */
 .cc-cycle-rail { position: absolute; top: 0; right: 0; left: 0; z-index: 30; height: 3px; background: color-mix(in srgb, var(--color-primary) 14%, transparent); }
-.cc-cycle-rail > span { display: block; height: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 0.25s linear; }
+.cc-cycle-rail > span { display: block; height: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 120ms linear; }
 .cc-cycle-rail[data-paused] > span { background: var(--color-warning); box-shadow: none; }
 .cc-cycle-rail-segmented { display: flex; gap: 2px; background: transparent; }
 .cc-cycle-rail-segment { display: block; min-width: 0; overflow: hidden; padding: 0; border: 0; border-inline-end: 2px solid var(--color-background); background: color-mix(in srgb, var(--color-primary) 14%, transparent); cursor: pointer; }
 .cc-cycle-rail-segment:last-child { border-inline-end: 0; }
 .cc-cycle-rail-segment:hover, .cc-cycle-rail-segment:focus-visible { background: color-mix(in srgb, var(--color-primary) 32%, transparent); outline: none; }
-.cc-cycle-rail-segment > span { display: block; block-size: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 0.25s linear; }
+.cc-cycle-rail-segment > span { display: block; block-size: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 120ms linear; }
 .cc-cycle-rail[data-paused] .cc-cycle-rail-segment > span { background: var(--color-warning); box-shadow: none; }
 .cc-eyebrow { position: absolute; top: 0; right: 0; left: 0; z-index: 20; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding: calc(var(--viewport-pad) * 0.7) var(--viewport-pad) 0; pointer-events: none; }
 .cc-room-title { margin: 0; font: 600 var(--text-title-size) var(--font-sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-foreground); }
@@ -34,10 +34,17 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-clock { font: 500 var(--text-label-size) var(--font-mono); letter-spacing: 0.12em; color: var(--color-muted-foreground); font-variant-numeric: tabular-nums; }
 .cc-sources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35em 1em; font: 500 var(--text-micro) var(--font-mono); letter-spacing: 0.08em; color: var(--color-muted-foreground); }
 .cc-source { display: inline-flex; align-items: center; gap: 0.45em; }
-.cc-source-dot { width: 0.55em; height: 0.55em; border-radius: 50%; border: 1px solid currentColor; }
-.cc-source[data-answering="yes"] .cc-source-dot, li[data-readable="true"] .cc-source-dot { background: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 0 6px var(--color-glow); }
-.cc-source[data-answering="stale"] { color: var(--color-warning); }
+/* The dot is the status: its fill shape carries it so a greyscale render stays unambiguous; hue only reinforces. */
+.cc-source-dot { box-sizing: border-box; width: 0.55em; height: 0.55em; border-radius: 50%; border: 1px solid currentColor; }
+.cc-source[data-answering="available"] .cc-source-dot { background: currentColor; }
+.cc-source[data-answering="degraded"] .cc-source-dot { background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+.cc-source[data-answering="unknown"] .cc-source-dot { opacity: 0.55; }
+.cc-source[data-answering="stale"], .cc-source[data-answering="degraded"] { color: var(--color-warning); }
 .cc-source[data-answering="stale"] .cc-source-dot { border-style: dashed; }
+.cc-source[data-answering="unavailable"] { color: var(--color-danger); }
+.cc-source[data-answering="unavailable"] .cc-source-dot { position: relative; }
+.cc-source[data-answering="unavailable"] .cc-source-dot::after { content: ""; position: absolute; left: -25%; top: 50%; width: 150%; height: 1.5px; background: currentColor; transform: translateY(-50%) rotate(-45deg); }
+li[data-readable="true"] .cc-source-dot { background: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 0 6px var(--color-glow); }
 .cc-source-fetching { animation: cc-blink 1s steps(2) infinite; }
 @keyframes cc-blink { to { opacity: 0.2; } }
 
@@ -47,7 +54,7 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-scene canvas { display: block; width: 100%; height: 100%; }
 .cc-scene-still { position: absolute; inset: 0; background: radial-gradient(60% 60% at 68% 50%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 70%), repeating-radial-gradient(circle at 68% 50%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0 1px, transparent 1px 42px); }
 @keyframes cc-beat-enter { from { opacity: 0; transform: translateY(0.45rem); } to { opacity: 1; transform: none; } }
-.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto minmax(0, 1fr) auto; --strip-max: calc((100vh - var(--viewport-pad) * 4.2 - 1.6rem) * 0.36); padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
+.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto minmax(0, 1fr) auto; --strip-max: calc((100% - var(--viewport-pad) * 4.2 - 1.6rem) * 0.36); padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
 .cc-figure-layer > * { pointer-events: auto; }
 /* The hero gets what the strip leaves and sizes to its own box, so a short screen shrinks the figure instead of pushing it into the strip. */
 .cc-hero-region { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; justify-content: safe center; min-width: 0; min-height: 0; container-type: size; }
@@ -110,7 +117,7 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-mode-stamp { position: absolute; right: var(--viewport-pad); bottom: calc(var(--viewport-pad) * 0.55); z-index: 20; font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted-foreground); }
 
 /* ── Control layer: hidden until input, 64px targets, fades after 4s ── */
-.cc-controls { position: absolute; left: 50%; bottom: var(--viewport-pad); z-index: 40; display: flex; align-items: center; gap: var(--space-2); max-width: calc(100vw - 2 * var(--viewport-pad)); padding: var(--space-2); background: color-mix(in srgb, var(--color-background) 82%, transparent); border: 1px solid var(--color-border); border-radius: var(--radius-pill); box-shadow: 0 10px 40px color-mix(in srgb, var(--color-background-deep) 70%, transparent); backdrop-filter: blur(14px); transform: translate(-50%, 12px); opacity: 0; visibility: hidden; transition: opacity var(--motion-controls) ease, transform var(--motion-controls) ease, visibility 0s linear var(--motion-controls); }
+.cc-controls { position: absolute; left: 50%; bottom: var(--viewport-pad); z-index: 40; display: flex; align-items: center; gap: var(--space-2); max-width: calc(100% - 2 * var(--viewport-pad)); padding: var(--space-2); background: color-mix(in srgb, var(--color-background) 82%, transparent); border: 1px solid var(--color-border); border-radius: var(--radius-pill); box-shadow: 0 10px 40px color-mix(in srgb, var(--color-background-deep) 70%, transparent); backdrop-filter: blur(14px); transform: translate(-50%, 12px); opacity: 0; visibility: hidden; transition: opacity var(--motion-controls) ease, transform var(--motion-controls) ease, visibility 0s linear var(--motion-controls); }
 .cc-controls-visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition-delay: 0s; }
 .cc-control { display: inline-flex; align-items: center; justify-content: center; min-width: var(--remote-target); min-height: var(--remote-target); padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; color: var(--color-foreground); font: 600 1.1rem var(--font-sans); cursor: pointer; }
 .cc-control-text { font: 600 var(--text-label-size) var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -123,7 +130,7 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-room-dot-current { background: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 0 8px var(--color-glow); }
 .cc-ack { padding: 0 var(--space-3); font: 500 var(--text-micro) var(--font-mono); letter-spacing: 0.1em; color: var(--color-muted-foreground); white-space: nowrap; }
 .cc-help { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; background: color-mix(in srgb, var(--color-background-deep) 70%, transparent); backdrop-filter: blur(6px); }
-.cc-help-panel { width: min(44rem, calc(100vw - 2 * var(--viewport-pad))); padding: var(--space-8); background: color-mix(in srgb, var(--color-background) 92%, var(--color-primary) 4%); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.cc-help-panel { width: min(44rem, calc(100% - 2 * var(--viewport-pad))); padding: var(--space-8); background: color-mix(in srgb, var(--color-background) 92%, var(--color-primary) 4%); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
 .cc-help-panel h2 { margin: 0 0 var(--space-2); font: 600 var(--text-title-size) var(--font-sans); letter-spacing: 0.2em; text-transform: uppercase; }
 .cc-help-panel p { margin: 0 0 var(--space-4); font-size: var(--text-body-size); color: var(--color-muted-foreground); }
 .cc-help-panel table { width: 100%; margin-bottom: var(--space-4); border-collapse: collapse; font: 500 var(--text-label-size) var(--font-mono); }
@@ -221,6 +228,19 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-panel-readout__row--hollow { border-style: dashed; background: transparent; }
 .cc-panel-readout__row--dotted { border-style: dotted; opacity: .56; }
 .cc-panel-readout__empty { padding-top: .5rem; color: var(--color-muted-foreground); font-size: var(--text-micro, .68rem); letter-spacing: .08em; }
+.cc-funnel-readout, .cc-leaderboard-readout { width: min(42rem, 72vw); display: flex; flex-direction: column; gap: .7rem; }
+.cc-funnel-readout ol, .cc-leaderboard-readout ol { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.cc-funnel-readout li, .cc-leaderboard-readout li { display: grid; grid-template-columns: minmax(8rem, 1.4fr) auto auto; gap: .35rem .8rem; align-items: baseline; padding: .55rem .7rem; border-left: 2px solid var(--color-primary); background: color-mix(in srgb, var(--color-surface) 65%, transparent); }
+.cc-funnel-readout strong, .cc-leaderboard-readout strong { font: 600 var(--text-body-size) var(--font-mono); color: var(--color-foreground); }
+.cc-funnel-readout small, .cc-leaderboard-readout small { grid-column: 2 / -1; color: var(--color-muted-foreground); }
+.cc-funnel-readout li > span:last-of-type, .cc-leaderboard-readout li > span:nth-child(2) { color: var(--color-muted-foreground); font: 500 var(--text-micro) var(--font-mono); }
+.cc-leaderboard-readout li { grid-template-columns: minmax(8rem, 1fr) auto auto auto; }
+.cc-leaderboard-readout em { margin-left: .5rem; color: var(--color-accent); font: 600 var(--text-micro) var(--font-mono); font-style: normal; letter-spacing: .08em; }
+.cc-verdict { padding: .15rem .4rem; border: 1px solid currentColor; border-radius: var(--radius-pill); color: var(--color-muted-foreground); font: 600 var(--text-micro) var(--font-mono); letter-spacing: .04em; }
+.cc-verdict-leading { color: var(--color-primary); }
+.cc-verdict-trailing { color: var(--color-warning); }
+.cc-structured-tile strong { display: block; margin-top: .2rem; font: 600 var(--text-body-size) var(--font-mono); }
+@media (max-width: 700px) { .cc-funnel-readout, .cc-leaderboard-readout { width: 100%; } .cc-leaderboard-readout li { grid-template-columns: 1fr auto; } .cc-leaderboard-readout small { grid-column: 1 / -1; } }
 
 /* ── Wide beats: the hero takes both figure columns and the scene steps back ── */
 .cc-room[data-layout="wide"] .cc-hero-region { grid-column: 1 / -1; }
@@ -273,8 +293,8 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 
 /* ── Reach Map: the wide beat ──────────────────────────────────────── */
 .cc-reach { width: 100%; }
-.cc-reach__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-6); width: 100%; }
-.cc-reach__summary { margin: 0; font: 500 var(--text-label-size)/1.5 var(--font-mono); text-align: right; color: var(--color-foreground); }
+.cc-reach__axis-head { grid-column: 1; grid-row: 1; align-self: start; display: flex; flex-direction: column; gap: 0.3rem; padding-right: 0.6rem; }
+.cc-reach__summary { margin: 0; font: 500 var(--text-label-size)/1.45 var(--font-mono); color: var(--color-foreground); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 .cc-reach__summary span { color: var(--color-muted-foreground); }
 /* Landscape: the rung axis always fits the width and the lanes auto-scroll in the height left under the header. */
 .cc-reach__scroll { display: flex; flex-direction: column; width: 100%; min-height: 0; }
@@ -340,7 +360,6 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 @media (orientation: portrait), (max-width: 760px) {
   .cc-next-rung__head { gap: var(--space-4); }
   .cc-next-rung__facts { grid-template-columns: minmax(0, 1fr); }
-  .cc-reach__summary { text-align: left; }
   /* The desk view scrolls: lists show in full and the rung axis scrolls inside its own container. */
   .cc-autoscroll__viewport { overflow: visible; mask-image: none; }
   .cc-reach__scroll { display: block; overflow-x: auto; }

@@ -35,7 +35,8 @@ func (s State) Terminal() bool {
 }
 
 // Lane selects the execution lane. GPU jobs are serialized; CPU jobs run
-// concurrently.
+// concurrently; network jobs (remote BYOK-cloud tiers) run on their own bounded
+// pool so they never queue behind the single local GPU worker.
 type Lane string
 
 const (
@@ -43,6 +44,9 @@ const (
 	LaneGPU Lane = "gpu"
 	// LaneCPU runs cheap work concurrently.
 	LaneCPU Lane = "cpu"
+	// LaneNetwork runs remote-tier work on a bounded worker pool, independent of
+	// the local GPU lane.
+	LaneNetwork Lane = "network"
 )
 
 // Spec describes a unit of work to submit.

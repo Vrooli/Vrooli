@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
@@ -82,8 +83,12 @@ type Request struct {
 	ModelOverride string
 	Host          capabilities.Host
 	AllowBYOK     bool
-	QualityPolicy string
-	IsEnabled     models.EnabledFunc
+	// FallbackPolicy resolves the tier ladder: local_only forbids a remote tier,
+	// cloud_allowed permits it, any prefers local and allows cloud as fallback.
+	// Empty leaves AllowBYOK as the caller set it.
+	FallbackPolicy string
+	QualityPolicy  string
+	IsEnabled      models.EnabledFunc
 	// Adapters is the requested conditioning stack (LoRA / ControlNet / IP-Adapter).
 	// Empty for an unconditioned op.
 	Adapters []adapters.AdapterRequest
@@ -118,12 +123,22 @@ func New(registry *models.Registry, be *backends.Registry) *Resolver {
 // message. A derived operation whose technique is not yet proven (Ready=false) is
 // not served and surfaces as a selection error, honestly, never a silent run.
 func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error) {
+	// The fallback policy is the caller's tier intent; fold it onto AllowBYOK so
+	// model selection and backend selection never disagree about whether a remote
+	// tier is permitted.
+	allowBYOK := req.AllowBYOK
+	switch strings.ToLower(strings.TrimSpace(req.FallbackPolicy)) {
+	case "local_only":
+		allowBYOK = false
+	case "cloud_allowed":
+		allowBYOK = true
+	}
 	candidates, err := r.registry.SelectCandidates(models.SelectRequest{
 		Operation:     req.Operation,
 		Host:          req.Host,
 		OverrideID:    req.ModelOverride,
 		QualityPolicy: req.QualityPolicy,
-		AllowBYOK:     req.AllowBYOK,
+		AllowBYOK:     allowBYOK,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err
@@ -143,7 +158,7 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 			Operation:       req.Operation,
 			ModelBackend:    sel.Model.Backend,
 			GPUViable:       sel.GPUViable,
-			AllowBYOK:       req.AllowBYOK,
+			AllowBYOK:       allowBYOK,
 			RequireAdapters: len(res.Adapters) > 0,
 		})
 		if berr != nil {

@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-09-14
+2026-09-15
 
 ## Integration Status
 
@@ -12,6 +12,7 @@
 | Public visibility | ✅ | App-level `metadata.enabled` is independent from stored release metadata; disabled records remain editable but are not advertised. |
 | CMS metadata | ✅ | Admin can edit web URL, catalog status, feature gates, agent-plugin classification, copy, installers, and store links while preserving arbitrary metadata. |
 | Desktop delivery | ✅ | Managed/direct assets, platform release notes, checksums, and entitlement flags remain supported. |
+| Signing notice | ✅ | App-level `metadata.signing_notice` sets the default download-page disclosure (title, body, optional link, severity); each platform asset can override it or set `enabled: false` to hide it. The public projection validates and bounds the copy, and the notice renders only where a download happens. |
 | App stores | ✅ | Apple App Store and Google Play storefront URLs are persisted and rendered as external links. |
 | Subscription/credits | ✅ | Existing LPBS entitlement and credit APIs remain the source of truth; catalog feature-gate labels are descriptive and do not duplicate billing. |
 | Scenario to Plugin | ✅ | The staged catalog contains a disabled Scenario to Plugin entry with `agent_plugin` metadata for future agent-facing publication. |

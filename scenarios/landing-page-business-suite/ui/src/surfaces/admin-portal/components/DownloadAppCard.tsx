@@ -22,6 +22,56 @@ const surfacePanelClassName = 'rounded-2xl border border-white/10 bg-surface-dar
 const isArtifactSource = (value: string): value is PlatformFormValues['artifactSource'] =>
   value === 'direct' || value === 'managed';
 
+type SigningNoticeField = 'signingNoticeTitle' | 'signingNoticeBody' | 'signingNoticeLinkLabel' | 'signingNoticeLinkUrl' | 'signingNoticeSeverity';
+
+interface SigningNoticeEditorProps {
+  idPrefix: string;
+  title: string;
+  body: string;
+  linkLabel: string;
+  linkUrl: string;
+  severity: string;
+  disabled?: boolean;
+  onChange: (field: SigningNoticeField, value: string) => void;
+}
+
+/**
+ * Shared editor for the app-level default and per-platform override of the
+ * signing-pending notice. The public page resolves platform > app > hidden.
+ */
+function SigningNoticeEditor({ idPrefix, title, body, linkLabel, linkUrl, severity, disabled, onChange }: SigningNoticeEditorProps) {
+  const fieldClassName = 'w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50';
+  return (
+    <div className="grid gap-3 rounded-xl border border-white/10 bg-black/10 p-3">
+      <div className="space-y-2">
+        <label className="text-xs text-slate-500" htmlFor={`${idPrefix}-title`}>Notice title</label>
+        <input id={`${idPrefix}-title`} type="text" value={title} disabled={disabled} onChange={(event) => { onChange('signingNoticeTitle', event.target.value); }} className={fieldClassName} placeholder="Preview release: signing in progress" />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs text-slate-500" htmlFor={`${idPrefix}-body`}>Notice body</label>
+        <textarea id={`${idPrefix}-body`} value={body} disabled={disabled} onChange={(event) => { onChange('signingNoticeBody', event.target.value); }} rows={3} className={`${fieldClassName} resize-none`} placeholder="Explain that the build is unsigned while signing is completed, and how to verify it." />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-xs text-slate-500" htmlFor={`${idPrefix}-link-label`}>Link label</label>
+          <input id={`${idPrefix}-link-label`} type="text" value={linkLabel} disabled={disabled} onChange={(event) => { onChange('signingNoticeLinkLabel', event.target.value); }} className={fieldClassName} placeholder="Review the source" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs text-slate-500" htmlFor={`${idPrefix}-link-url`}>Link URL</label>
+          <input id={`${idPrefix}-link-url`} type="url" value={linkUrl} disabled={disabled} onChange={(event) => { onChange('signingNoticeLinkUrl', event.target.value); }} className={fieldClassName} placeholder="https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs text-slate-500" htmlFor={`${idPrefix}-severity`}>Severity</label>
+        <select id={`${idPrefix}-severity`} value={severity} disabled={disabled} onChange={(event) => { onChange('signingNoticeSeverity', event.target.value); }} className={fieldClassName}>
+          <option value="info">Info</option>
+          <option value="warning">Warning</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
 
 interface AppCardProps {
   form: AppFormState;
@@ -280,6 +330,37 @@ export function DownloadAppCard({
           </div>
         </div>
 
+        <div className={`${surfacePanelClassName} space-y-4`}>
+          <div>
+            <p className="text-sm font-semibold text-white">Signing notice</p>
+            <p className="mt-1 text-xs text-slate-500">Shown where a download actually happens, never on the marketing page. Use it for preview builds that are not code-signed yet. Each installer card below can override or hide this default.</p>
+          </div>
+          <label className="flex items-start gap-3 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.values.signingNoticeEnabled}
+              onChange={(event) => { onFieldChange(form.key, 'signingNoticeEnabled', event.target.checked); }}
+              className="mt-0.5 rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
+              data-testid={`download-signing-notice-enabled-${form.key}`}
+            />
+            <span>
+              <span className="block font-medium text-white">Show as the default for every platform</span>
+              <span className="mt-1 block text-xs text-slate-500">Needs a title and body to appear. A per-platform override can replace or hide it.</span>
+            </span>
+          </label>
+          {form.values.signingNoticeEnabled && (
+            <SigningNoticeEditor
+              idPrefix={`${form.key}-app-notice`}
+              title={form.values.signingNoticeTitle}
+              body={form.values.signingNoticeBody}
+              linkLabel={form.values.signingNoticeLinkLabel}
+              linkUrl={form.values.signingNoticeLinkUrl}
+              severity={form.values.signingNoticeSeverity}
+              onChange={(field, value) => { onFieldChange(form.key, field, value); }}
+            />
+          )}
+        </div>
+
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Mobile store links</p>
           <div className="grid gap-4 md:grid-cols-2">
@@ -469,6 +550,32 @@ export function DownloadAppCard({
                       />
                       Requires entitlement
                     </label>
+                  </div>
+                  <div className="space-y-2 border-t border-white/5 pt-3">
+                    <label className="text-xs text-slate-500" htmlFor={`${form.key}-${platformKey}-notice-mode`}>Signing notice</label>
+                    <select
+                      id={`${form.key}-${platformKey}-notice-mode`}
+                      value={platform.signingNoticeMode}
+                      disabled={isDisabled}
+                      onChange={(event) => { onPlatformChange(form.key, platformKey, 'signingNoticeMode', event.target.value); }}
+                      className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
+                    >
+                      <option value="inherit">Inherit app default</option>
+                      <option value="override">Custom for this platform</option>
+                      <option value="hide">Hide for this platform</option>
+                    </select>
+                    {platform.signingNoticeMode === 'override' && (
+                      <SigningNoticeEditor
+                        idPrefix={`${form.key}-${platformKey}-notice`}
+                        title={platform.signingNoticeTitle}
+                        body={platform.signingNoticeBody}
+                        linkLabel={platform.signingNoticeLinkLabel}
+                        linkUrl={platform.signingNoticeLinkUrl}
+                        severity={platform.signingNoticeSeverity}
+                        disabled={isDisabled}
+                        onChange={(field, value) => { onPlatformChange(form.key, platformKey, field, value); }}
+                      />
+                    )}
                   </div>
                 </div>
               );

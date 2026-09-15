@@ -12,6 +12,12 @@ import { isFormDirtyNormalized } from '../../../shared/lib/formUtils';
  */
 export type PlatformKey = 'windows' | 'mac' | 'linux';
 
+/** Severity of an operator-authored signing notice. */
+export type SigningNoticeSeverity = 'info' | 'warning';
+
+/** Whether a platform inherits, overrides, or hides the app-level signing notice. */
+export type SigningNoticeMode = 'inherit' | 'override' | 'hide';
+
 /**
  * Platform form values for a single platform (Windows/Mac/Linux)
  */
@@ -24,6 +30,13 @@ export interface PlatformFormValues {
   releaseVersion: string;
   releaseNotes: string;
   requiresEntitlement: boolean;
+  /** Inherit the app-level signing notice, override it, or hide it for this platform. */
+  signingNoticeMode: SigningNoticeMode;
+  signingNoticeTitle: string;
+  signingNoticeBody: string;
+  signingNoticeLinkLabel: string;
+  signingNoticeLinkUrl: string;
+  signingNoticeSeverity: SigningNoticeSeverity;
   // Read-only artifact metadata (populated from API when source is 'managed')
   artifactFilename?: string;
   artifactSizeBytes?: number;
@@ -55,6 +68,13 @@ export interface AppFormValues {
   catalogStatus: string;
   /** Marks a catalog entry as an agent-facing plugin capability. */
   agentPlugin: boolean;
+  /** App-level signing-pending notice shown as the default for every platform. */
+  signingNoticeEnabled: boolean;
+  signingNoticeTitle: string;
+  signingNoticeBody: string;
+  signingNoticeLinkLabel: string;
+  signingNoticeLinkUrl: string;
+  signingNoticeSeverity: SigningNoticeSeverity;
   appleEnabled: boolean;
   appleLabel: string;
   appleUrl: string;
@@ -110,6 +130,59 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
   );
 }
 
+interface SigningNoticeFields {
+  title: string;
+  body: string;
+  linkLabel: string;
+  linkUrl: string;
+  severity: SigningNoticeSeverity;
+}
+
+const EMPTY_SIGNING_NOTICE: SigningNoticeFields = { title: '', body: '', linkLabel: '', linkUrl: '', severity: 'info' };
+
+function readString(record: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string') return value;
+  }
+  return '';
+}
+
+/**
+ * Reads the operator-authored signing notice from normalized catalog metadata.
+ * Absent copy means "inherit"; `enabled: false` means "hide".
+ */
+function readSigningNotice(metadata: Record<string, unknown>): { mode: SigningNoticeMode; values: SigningNoticeFields } {
+  const raw = metadata.signing_notice;
+  if (raw === undefined || raw === null) return { mode: 'inherit', values: { ...EMPTY_SIGNING_NOTICE } };
+  const notice = normalizeMetadata(raw);
+  if (Object.keys(notice).length === 0) return { mode: 'inherit', values: { ...EMPTY_SIGNING_NOTICE } };
+  if (notice.enabled === false) return { mode: 'hide', values: { ...EMPTY_SIGNING_NOTICE } };
+  return {
+    mode: 'override',
+    values: {
+      title: readString(notice, 'title'),
+      body: readString(notice, 'body'),
+      linkLabel: readString(notice, 'link_label', 'linkLabel'),
+      linkUrl: readString(notice, 'link_url', 'linkUrl'),
+      severity: notice.severity === 'warning' ? 'warning' : 'info',
+    },
+  };
+}
+
+/** Serializes notice copy, returning undefined when required copy is missing. */
+function serializeSigningNotice(values: SigningNoticeFields): Record<string, unknown> | undefined {
+  const title = values.title.trim();
+  const body = values.body.trim();
+  if (!title || !body) return undefined;
+  const notice: Record<string, unknown> = { enabled: true, title, body, severity: values.severity };
+  const label = values.linkLabel.trim();
+  if (label) notice.link_label = label;
+  const url = values.linkUrl.trim();
+  if (url) notice.link_url = url;
+  return notice;
+}
+
 /**
  * Build platform form values from a download asset
  *
@@ -120,10 +193,12 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
  * @returns Platform form values for the form
  */
 export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset): PlatformFormValues {
+  const metadata = normalizeMetadata(asset?.metadata);
   const hasContent = Boolean(asset?.artifact_url || asset?.artifact_id || asset?.release_version);
-  const explicitEnabled = asset?.metadata?.enabled;
+  const explicitEnabled = metadata.enabled;
   const enabled = explicitEnabled !== undefined ? Boolean(explicitEnabled) : hasContent;
   const artifactSource = asset?.artifact_source ?? (asset?.artifact_id ? 'managed' : 'direct');
+  const notice = readSigningNotice(metadata);
 
   return {
     platform,
@@ -134,6 +209,12 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
     releaseVersion: asset?.release_version ?? '',
     releaseNotes: asset?.release_notes ?? '',
     requiresEntitlement: asset?.requires_entitlement ?? false,
+    signingNoticeMode: notice.mode,
+    signingNoticeTitle: notice.values.title,
+    signingNoticeBody: notice.values.body,
+    signingNoticeLinkLabel: notice.values.linkLabel,
+    signingNoticeLinkUrl: notice.values.linkUrl,
+    signingNoticeSeverity: notice.values.severity,
     // Read-only artifact metadata from API
     artifactFilename: asset?.artifact_filename,
     artifactSizeBytes: asset?.artifact_size_bytes,
@@ -156,6 +237,7 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
   const platforms = normalizeDownloadAssets(rawPlatforms);
   const rawName: unknown = app.name;
   const metadata = normalizeMetadata(app.metadata);
+  const signingNotice = readSigningNotice(metadata);
 
   const platformMap: Record<PlatformKey, PlatformFormValues> = PLATFORM_KEYS.reduce((acc, key) => {
     const asset = platforms.find((platform) => platform.platform === key);
@@ -185,6 +267,12 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
       : '',
     catalogStatus: typeof metadata.catalog_status === 'string' ? metadata.catalog_status : '',
     agentPlugin: metadata.agent_plugin === true,
+    signingNoticeEnabled: signingNotice.mode === 'override',
+    signingNoticeTitle: signingNotice.values.title,
+    signingNoticeBody: signingNotice.values.body,
+    signingNoticeLinkLabel: signingNotice.values.linkLabel,
+    signingNoticeLinkUrl: signingNotice.values.linkUrl,
+    signingNoticeSeverity: signingNotice.values.severity,
     appleEnabled,
     appleLabel: appleStore?.label ?? 'App Store',
     appleUrl: appleStore?.url ?? '',
@@ -228,6 +316,12 @@ export function buildDefaultAppValues(appKey = ''): AppFormValues {
     featureGates: '',
     catalogStatus: 'planned',
     agentPlugin: false,
+    signingNoticeEnabled: false,
+    signingNoticeTitle: '',
+    signingNoticeBody: '',
+    signingNoticeLinkLabel: '',
+    signingNoticeLinkUrl: '',
+    signingNoticeSeverity: 'info',
     appleEnabled: false,
     appleLabel: 'App Store',
     appleUrl: '',
@@ -276,6 +370,13 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
   const platforms = PLATFORM_KEYS.map((key) => {
     const entry = values.platforms[key];
     const artifactSource = entry.artifactSource;
+    const platformMetadata: Record<string, unknown> = { enabled: entry.enabled };
+    if (entry.signingNoticeMode === 'hide') {
+      platformMetadata.signing_notice = { enabled: false };
+    } else if (entry.signingNoticeMode === 'override') {
+      const notice = serializeSigningNotice({ title: entry.signingNoticeTitle, body: entry.signingNoticeBody, linkLabel: entry.signingNoticeLinkLabel, linkUrl: entry.signingNoticeLinkUrl, severity: entry.signingNoticeSeverity });
+      if (notice) platformMetadata.signing_notice = notice;
+    }
     return {
       platform: entry.platform,
       artifact_source: artifactSource,
@@ -284,9 +385,7 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
       release_version: entry.releaseVersion.trim(),
       release_notes: entry.releaseNotes.trim(),
       requires_entitlement: entry.requiresEntitlement,
-      metadata: {
-        enabled: entry.enabled,
-      },
+      metadata: platformMetadata,
     };
   }).filter((platform) => {
     if (!platform.metadata.enabled) return false;
@@ -308,6 +407,13 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
   else delete metadata.catalog_status;
   if (values.agentPlugin) metadata.agent_plugin = true;
   else delete metadata.agent_plugin;
+  if (values.signingNoticeEnabled) {
+    const notice = serializeSigningNotice({ title: values.signingNoticeTitle, body: values.signingNoticeBody, linkLabel: values.signingNoticeLinkLabel, linkUrl: values.signingNoticeLinkUrl, severity: values.signingNoticeSeverity });
+    if (notice) metadata.signing_notice = notice;
+    else delete metadata.signing_notice;
+  } else {
+    delete metadata.signing_notice;
+  }
 
   return {
     app_key: values.appKey.trim(),

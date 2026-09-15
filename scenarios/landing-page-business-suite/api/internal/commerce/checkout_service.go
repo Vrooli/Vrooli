@@ -43,7 +43,7 @@ type CheckoutServiceOptions struct {
 	Log         func(string, map[string]interface{})
 }
 
-type Attribution struct{ VisitorID, UTMSource, UTMMedium, UTMCampaign, ReferrerKind, CountryCode string }
+type Attribution struct{ VisitorID, SessionID, VariantSlug, LandingPath, DeviceClass, UTMSource, UTMMedium, UTMCampaign, ReferrerKind, CountryCode string }
 
 func NewCheckoutService(options CheckoutServiceOptions) *CheckoutService {
 	return &CheckoutService{store: options.Store, plans: options.Plans, requester: options.Requester, introOffers: options.IntroOffers, introCoupon: options.IntroCoupon, publicKey: options.PublicKey, logf: options.Log}
@@ -225,6 +225,15 @@ func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessi
 	if attribution.VisitorID != "" {
 		metadata["visitor_id"] = attribution.VisitorID
 	}
+	if attribution.SessionID != "" {
+		metadata["session_id"] = attribution.SessionID
+	}
+	if attribution.VariantSlug != "" {
+		metadata["variant_slug"] = attribution.VariantSlug
+	}
+	if attribution.LandingPath != "" {
+		metadata["landing_path"] = attribution.LandingPath
+	}
 	if attribution.UTMSource != "" {
 		metadata["utm_source"] = attribution.UTMSource
 	}
@@ -245,10 +254,10 @@ func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessi
 	}
 	encoded, _ := json.Marshal(metadata)
 	if strings.TrimSpace(businessAccountID) != "" {
-		_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, business_account_id, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, business_account_id = EXCLUDED.business_account_id, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, businessAccountID, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
+		_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, business_account_id, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, attribution_session_id, variant_slug, landing_path, device_class, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, business_account_id = EXCLUDED.business_account_id, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, attribution_session_id = EXCLUDED.attribution_session_id, variant_slug = EXCLUDED.variant_slug, landing_path = EXCLUDED.landing_path, device_class = EXCLUDED.device_class, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, businessAccountID, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.SessionID, attribution.VariantSlug, attribution.LandingPath, attribution.DeviceClass, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
 		return err
 	}
-	_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
+	_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, attribution_session_id, variant_slug, landing_path, device_class, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, attribution_session_id = EXCLUDED.attribution_session_id, variant_slug = EXCLUDED.variant_slug, landing_path = EXCLUDED.landing_path, device_class = EXCLUDED.device_class, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.SessionID, attribution.VariantSlug, attribution.LandingPath, attribution.DeviceClass, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
 	return err
 }
 

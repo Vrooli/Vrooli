@@ -151,32 +151,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{{Name: "Remove background", Curl: "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/RemoveBrandImageBackground -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"source_asset_id\":\"asset1\"}'"}},
 	},
-	{
-		ID:          "generation_derive_icons",
-		Path:        generationconnect.GenerationServiceDeriveBrandIconsProcedure,
-		Method:      "POST",
-		Summary:     "Derive a platform icon set",
-		Description: "Produces a deterministic set of platform icon variants (transparent favicons + solid-background Apple-touch/maskable launcher icons) from a source asset using image-tools' deterministic resize/flatten. Idempotent: re-deriving overwrites byte-identically. When no include flag is set, all variant families are produced.",
-		Category:    "generation",
-		Request: &module.Schema{Type: "object", Properties: map[string]string{
-			"brand_id":            "string (required, must exist)",
-			"source_asset_id":     "string (required, existing brand asset)",
-			"include_maskable":    "bool (emit maskable 192/512)",
-			"include_apple_touch": "bool (emit apple-touch 180)",
-			"include_favicon":     "bool (emit favicon 16/32/196)",
-		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{
-			"icons":    "array<BrandImageAsset>",
-			"warnings": "array<string>",
-		}},
-		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing brand_id or source_asset_id"},
-			{Status: 404, Code: "not_found", Description: "Brand or source asset not found"},
-			{Status: 503, Code: "unavailable", Description: "image-tools is not reachable"},
-			{Status: 500, Code: "internal", Description: "A derivation op or asset write failed"},
-		},
-		Examples: []module.Example{{Name: "Derive icons", Curl: "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/DeriveBrandIcons -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"source_asset_id\":\"asset1\"}'"}},
-	},
 }
 
 // imageAssetSchema is the shared BrandImageAsset response shape for the image

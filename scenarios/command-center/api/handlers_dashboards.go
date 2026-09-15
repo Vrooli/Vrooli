@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -188,7 +189,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			m.trustFromProducerTime(env, err)
 			continue
 		}
-		if strings.EqualFold(m.Kind, "panel") {
+		if strings.EqualFold(m.Kind, "panel") || strings.EqualFold(m.Kind, "funnel") || strings.EqualFold(m.Kind, "leaderboard") {
 			if !panelKnown {
 				m.Trust = TrustUntrusted
 				m.TrustReason = "no panel selector named " + selectorID
@@ -200,12 +201,17 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 				m.TrustReason = "panel selector " + selectorID + " found no rows in the source payload"
 				continue
 			}
-			if !plausiblePanelRows(rows, 6, true) {
+			if strings.EqualFold(m.Kind, "panel") && !plausiblePanelRows(rows, 6, true) {
 				m.Trust = TrustUntrusted
 				m.TrustReason = "panel selector " + selectorID + " returned implausible rows"
 				continue
 			}
 			m.Rows = rows
+			var panelTotal float64
+			for _, row := range rows {
+				panelTotal += row.Value
+			}
+			m.Value = panelTotal
 			m.trustFromProducerTime(env, err)
 			continue
 		}
@@ -288,7 +294,10 @@ func (m *MetricEntry) trustFromProducerTime(env Envelope, err error) {
 }
 
 func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {
-	if len(rows) == 0 || len(rows) > limit {
+	if len(rows) == 0 {
+		return exhaustive
+	}
+	if len(rows) > limit {
 		return false
 	}
 	total := 0.0
@@ -302,6 +311,9 @@ func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {
 }
 
 func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")), "override") && binding.IntegrationID == "landing-page-business-suite" {
+		return "override", "override", "Local LPBS override"
+	}
 	origin := first(binding.Origin, "local")
 	if spec, ok := s.registry.Origins[origin]; ok {
 		return origin, first(spec.Environment, "local"), first(spec.Display, origin)

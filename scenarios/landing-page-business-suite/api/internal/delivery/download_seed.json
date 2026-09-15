@@ -89,7 +89,15 @@
         "subscription",
         "ai_credits"
       ],
-      "web_url": "/app/web-console"
+      "web_url": "/app/web-console",
+      "signing_notice": {
+        "enabled": true,
+        "title": "Preview release: code signing in progress",
+        "body": "This build ships ahead of full platform code signing, so your operating system may show an unidentified-developer warning. Download only from vrooli.com, verify the checksum shown with the release, and review the full source in our public repository.",
+        "severity": "info",
+        "link_label": "Review the source",
+        "link_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console"
+      }
     },
     "platforms": []
   },

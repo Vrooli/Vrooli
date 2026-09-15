@@ -14,6 +14,7 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { DesignPage } from "../pages/DesignPage";
 import { DiscoveryPage } from "../pages/DiscoveryPage";
 import { GenerationPage } from "../pages/GenerationPage";
+import { LogoPage } from "../pages/LogoPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -32,6 +33,7 @@ export const routes: RouteObject[] = [
       { path: "assignments", element: <AssignmentsPage /> },
       { path: "assets", element: <AssetsPage /> },
       { path: "generation", element: <GenerationPage /> },
+      { path: "logo", element: <LogoPage /> },
       { path: "apply", element: <ApplyPage /> },
       { path: "discovery", element: <DiscoveryPage /> },
       { path: "design", element: <DesignPage /> },

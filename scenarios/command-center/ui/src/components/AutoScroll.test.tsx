@@ -7,8 +7,8 @@ import { AutoScroll } from "./AutoScroll";
 
 vi.mock("../lib/media", () => ({ useLandscapeRoom: () => true, useReducedMotion: () => false }));
 
-const ROW = 50;
-const VIEWPORT = 200;
+let ROW = 50;
+let VIEWPORT = 200;
 let contentHeight = 500;
 
 /** jsdom has no layout: rows report their authored top, the viewport a fixed height. */
@@ -47,6 +47,8 @@ describe("AutoScroll", () => { // [REQ:CC-P1-017]
     vi.useRealTimers();
     vi.restoreAllMocks();
     contentHeight = 500;
+    ROW = 50;
+    VIEWPORT = 200;
   });
 
   it("holds the first rows, steps one row at a time, fades back to the top and releases the beat after one pass", () => {
@@ -71,6 +73,23 @@ describe("AutoScroll", () => { // [REQ:CC-P1-017]
     expect(content()?.style.transform).toBe("translate3d(0, 0px, 0)");
     advance(AUTOSCROLL_TIMING.fadeMs);
     expect(held()).toBe(false);
+
+    // It has been read once; the list rests at the top rather than looping.
+    const callsAfterPass = holdBeat.mock.calls.length;
+    advance(60_000);
+    expect(content()?.style.transform).toBe("translate3d(0, 0px, 0)");
+    expect(holdBeat.mock.calls.slice(callsAfterPass).some((call) => call[1] === true)).toBe(false);
+  });
+
+  it("reserves the counter line when no row is wholly visible, so the viewport cannot oscillate", () => { // [REQ:CC-P1-017]
+    // A row taller than the viewport means no row is wholly visible and the
+    // counter has no range to name. The line must still hold its place, or its
+    // appearance would resize the viewport it is measured from.
+    ROW = 300;
+    VIEWPORT = 100;
+    contentHeight = 600;
+    renderList(3);
+    expect(screen.getByTestId("autoscroll-position")).toBeInTheDocument();
   });
 
   it("never moves or holds a list that fits", () => {

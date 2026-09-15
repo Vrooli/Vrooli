@@ -274,6 +274,10 @@ const (
 	// model lives on the provider), so it is always "installed"; runnability is
 	// gated instead by the cloud provider's Available() (a usable API key).
 	BackendOpenRouter = "openrouter"
+	// BackendMaskFill is the standalone builtin object-removal provider: a
+	// deterministic membrane fill that is always available, so object-removal
+	// works on a host with no iopaint. Ranked below iopaint for quality.
+	BackendMaskFill = "mask-fill"
 )
 
 // RequiresWeights reports whether a model needs downloaded artifacts on disk to
@@ -283,7 +287,7 @@ const (
 // launch.
 func (m Model) RequiresWeights() bool {
 	switch m.Backend {
-	case BackendBuiltin, BackendComputed, BackendLibraryGo, BackendOpenRouter:
+	case BackendBuiltin, BackendComputed, BackendLibraryGo, BackendOpenRouter, BackendMaskFill:
 		return false
 	default:
 		return true

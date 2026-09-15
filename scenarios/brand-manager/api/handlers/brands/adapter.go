@@ -23,6 +23,11 @@ func domainToProto(b brands.Brand) *brandsv1.Brand {
 		Version:     int32(b.Version),
 		CreatedAt:   timestamppb.New(b.CreatedAt.UTC()),
 		UpdatedAt:   timestamppb.New(b.UpdatedAt.UTC()),
+		Slug:             b.Slug,
+		MarkAssetId:      b.MarkAssetID,
+		SmallMarkAssetId: b.SmallMarkAssetID,
+		ContainerStyleId: b.ContainerStyleID,
+		ProductLineId:    b.ProductLineID,
 	}
 }
 

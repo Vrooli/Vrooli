@@ -19,7 +19,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | `meta-optimization` | `meta-optimization-manager` | `live` | coverage-board | The reference case. One address, named projections, denominator-confidence, the two attestation axes. Readable cleanly, with confidence attached to every ratio. |
 | `monetization` | `offer-desk` | `live` | production-ledger | Live but ledger-shaped. The release ladder is read as a `ladder` reading timed by Offer Desk's `generated_at`; revenue and subscription attribution remain LPBS-owned projections. |
 | `infra-health` | `infrastructure-manager` | `partial` | coverage-board | Wired, with a long stated gap marker: setpoint confidence `SKETCH`, most peer sources untyped, capability availability history unavailable, and the team loop paused since 2026-07-24. Readable with confidence attached. |
-| `marketing-crew` | `landing-page-business-suite` | `partial` | production-ledger | LPBS provides dimensioned visitor, referrer, campaign, device, path, and variant projections. Social reach and SEO remain declared gaps. |
+| `marketing-crew` | `landing-page-business-suite` | `partial` | production-ledger | LPBS is the producer for the production Business Digest, typed traffic breakdowns, and revenue summary. Social reach and SEO remain declared gaps. |
 | `director-swarm` | *two addresses* | `partial` | production-ledger | The team this board serves. `swarm-manager` holds portfolio state and is read as a source; this scenario becomes the address. |
 | `scenario-qa` | *none* | `none` | coverage-board | "test-genie, scenario-auditor, scenario-completeness-scoring and tidiness-manager each hold part of the answer and no denominator is authored." No control loop, no room today. |
 
@@ -31,7 +31,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | The Hive | Vrooli control plane, `meta-optimization-manager` | Mostly `NOW`. Usage frequency is `MISSING` — nothing anywhere collects invocation counts. |
 | The Forge | `swarm-manager` | Fully `NOW`-capable. The only room whose sources are all live today. |
 | Ledger | `offer-desk`, `money-ledger`, `landing-page-business-suite` | The monetization instrument is `live` but exposes no revenue surface, so readings are `IN-REACH`, not `MISSING`. A pipeline, not a control loop, is what is absent. |
-| Broadcast | `landing-page-business-suite` | LPBS provides the traffic projections; unimplemented social and SEO capabilities remain explicit gaps. |
+| Broadcast | `landing-page-business-suite` | Broadcast reads LPBS production through scoped `metrics:read` procedures; unimplemented social and SEO capabilities remain explicit gaps. |
 | Panorama | Composed from every other room in the registry | Inherits the worst state of its inputs, per input. Cannot be more honest than what feeds it. Counts each signal once, however many rooms show it. |
 
 ## Reading a source

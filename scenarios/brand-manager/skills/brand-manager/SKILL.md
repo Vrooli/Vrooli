@@ -1,226 +1,96 @@
 ---
 name: "brand-manager"
-description: "Use the brand-manager CLI to check branding status across scenarios, generate brand assets (AI-assisted via OpenRouter), apply brands to scenarios, and export brand packages."
+description: "Run the brand-identity pipeline with the brand-manager CLI: explore and pick logo candidates, refine and vectorize a mark, compose container-styled icon targets, apply them to a scenario's /public/* layout and electron assets, and validate the result."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["branding","design-system","assets","validation","openrouter"]
-  status: "draft"
-  revision: 1
+  tags: ["branding","design-system","logo","icons","assets","validation"]
+  status: "active"
+  revision: 2
   createdAt: "2026-03-20T00:00:00Z"
-  updatedAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-09-15T00:00:00Z"
   requires:
-    scenarios: ["swarm-manager", "vrooli"]
-    commands: ["swarm-manager ideas", "vrooli"]
+    scenarios: ["image-tools"]
+    commands: ["brand-manager", "image-tools", "vrooli"]
   origin:
     kind: "authored"
 ---
 ## Tools focus: Brand Manager
 
-Manage the full branding lifecycle for Vrooli scenarios — check status, generate assets, apply brands, and export packages using the brand-manager CLI.
+brand-manager owns brand meaning: logo candidates, marks, container styles,
+product lines, target profiles, render composition, apply and validation.
+image-tools owns the pixel and vector operations (generate, edit, object
+removal, vectorize, rasterize, icon pack); brand-manager calls it only over its
+HTTP/Connect API.
 
-> **Draft skill.** The brand-manager scenario is in the swarm-manager ideas backlog. This skill documents the planned CLI interface so the ecosystem knows how to use it once built. Commands below are planned, not yet functional.
+The pipeline concept and the exact target profiles live in
+`scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`.
 
-Required reading:
-- `docs/agent-system/SKILL_AUTHORING.md`
-
----
-
-### 1. When to Use This Tool
+### 1. When to use this
 
 | Goal | Command |
 |------|---------|
-| Check branding status across all scenarios | `brand-manager status` |
-| Check branding status for one scenario | `brand-manager status --scenario <name>` |
-| Generate brand assets (AI-assisted) | `brand-manager generate` |
-| Apply a brand to a scenario | `brand-manager apply --brand <name> --scenario <name>` |
-| Partially apply specific aspects | `brand-manager apply --brand <name> --scenario <name> --only <aspect>` |
-| Export a brand package | `brand-manager export --brand <name>` |
-| List all brands | `brand-manager list` |
-| Show brand details and history | `brand-manager show <name>` |
+| List brands | `brand-manager brands list` |
+| Create a brand | `brand-manager brands create --name <name> --display-name <name>` |
+| Link a brand's slug, mark, style and line | `brand-manager brands set-identity <id> --slug <slug> --mark-asset <asset> --container-style <style-id> --product-line <line-id>` |
+| Explore concepts | `brand-manager candidates explore --brand-id <id> --brief "<product>" --concept "<direction>" --variations 2` |
+| Import an existing image | `brand-manager candidates import --brand-id <id> --asset-id <asset> --concept "<label>"` |
+| Refine a candidate | `brand-manager candidates refine <candidate-id> --instruction "…"` / `--mask-asset <asset>` / `--remove-background` / `--vectorize` |
+| Pick the mark | `brand-manager candidates pick <candidate-id>` |
+| List container styles / product lines | `brand-manager styles list` / `brand-manager styles lines` |
+| Preview an apply | `brand-manager apply preview --brand-id <id> --scenario <scenario> --elements icons` |
+| Apply the icon set | `brand-manager apply run --brand-id <id> --scenario <scenario> --elements icons` |
+| Validate a scenario | `brand-manager provider validate <scenario>` |
 
-**In scope:**
-- Brand generation (logo, favicon, icon, colors, typography, voice, copy)
-- Brand storage with versioning and notes
-- Assignment to scenarios (one brand can serve multiple scenarios)
-- Application to scenarios (programmatic and agent-assisted)
-- Branding status and validation
-- Export for external use
+### 2. The logo-refresh workflow
 
-**Out of scope:**
-- Digital twin / behavioral personalization — different concern entirely
-- Multi-tenant white-labeling — deployment concern, handled by scenario-to-desktop
-- A/B testing or analytics — premature
-- Auto-applying on brand update — application is always manual
-- Scenario Auditor rule authoring — brand-manager registers rules; auditor enforces them
+1. **Explore when the direction is open.** `candidates explore` fans out one
+   generation per concept and variation. Ask for variations once a direction is
+   chosen, not before.
+2. **Write mark-only prompts.** Ask for the figure on a transparent background.
+   Never ask the model for the tile, frame, padding, shadow or text — the
+   container is composed deterministically from a `ContainerStyle`.
+3. **Show candidates on the Logo page.** The UI (`/logo`) is the operator
+   surface: gallery, compare, pick/reject/restore, refine and the target preview
+   sheet. CLI `candidates list` also lists them.
+4. **Pick deliberately.** `candidates pick` promotes one candidate to the
+   brand's canonical mark. A raster pick is vectorized through image-tools first
+   and the VECTORIZED child is what is picked; the raster stays in history.
+5. **Apply.** The scenario declares its targets in `.vrooli/service.json`
+   (`branding.brand` + `branding.targets`); `apply run --elements icons` writes
+   every declared target to the `/public/*` layout, the marked `index.html`
+   block, a relative-src `site.webmanifest`, the og/twitter meta, and the
+   electron PNGs, `icon.ico` and `icon.icns`.
+6. **Validate and publish.** `provider validate <scenario>` proves the declared
+   targets; `vrooli scenario restart <scenario>` (use a UI-only restart when
+   available) publishes the new assets.
 
----
+### 3. Judgment rules
 
-### 2. Core Concepts
+- **Never apply an unpicked candidate.** Apply renders the brand's picked mark.
+- **Follow `docs/marketing/strategy/ASSETS.md`.** Do not recompose or recolour an
+  accepted logo without an accepted decision; differences beyond anti-aliasing
+  are shown to the operator as a candidate, never applied silently.
+- **Propose a small mark when 16 px loses detail.** A small mark is an optional
+  simplified mark for targets at or below `small_mark_threshold_px`; it is
+  applied only after the operator picks it.
+- **The branding declaration is a prerequisite for apply.** A scenario with no
+  `branding` block has no targets to write.
 
-**Brand** — A versioned bundle containing:
-- **Identity:** display name, tagline, description, author
-- **Visual assets:** logo (SVG + rasterized sizes), favicon (multi-size), app icon, og-image
-- **Color system:** primary, secondary, accent, semantic colors (success/warning/error), dark/light variants — all WCAG-validated
-- **Typography:** heading, body, and mono fonts with scale/weights
-- **Voice:** tone descriptors and example copy snippets (for LLM consumption by other scenarios)
-- **Notes:** freeform user input that influences generation (e.g., "ocean theme", "bold and playful")
+### 4. Troubleshooting
 
-**Assignment** — A record that brand X is applied to scenario Y, tracking what was applied, when, and which version.
+| Symptom | Cause and action |
+|---------|------------------|
+| `image-tools is not reachable` | Start it: `vrooli scenario start image-tools`. |
+| Generation falls back to raster | The SVG role may be unavailable; record `media_type` and rely on `candidates pick` vectorizing the raster. |
+| Vectorize parity is off | Tune `--keep-color`, `--inset-px` and `--tolerance-px`, or re-pick. |
+| UI still shows old icons after apply | Rebuild/restart the UI component; an icon-only change lives under `ui/public/**`, which the `pnpm_vite` builder treats as an input. |
+| `provider validate` reports `declared-icon-targets` | Run `apply run --elements icons` for the declared brand, then re-validate. |
 
-**Asset** — An individual generated file with metadata (dimensions, format, purpose, version).
+### 5. References
 
-**Opt-out** — Rare and explicit. Only for scenarios that exist purely for testing (e.g., `test-scenario`, `hello-world`). Signaled via a tag or field in service.json. 99% of scenarios need branding — all are intended for monetization.
-
----
-
-### 3. Command Reference
-
-| Command | Purpose |
-|---------|---------|
-| `brand-manager status` | Show branding completeness for all scenarios |
-| `brand-manager status --scenario <name>` | Detailed branding status for one scenario |
-| `brand-manager generate` | Interactive brand generation (user provides what they know, AI fills gaps via OpenRouter) |
-| `brand-manager apply --brand <name> --scenario <name>` | Apply brand to scenario (two-tier: programmatic + agent-assisted) |
-| `brand-manager apply --brand <name> --scenario <name> --only <aspect>` | Partial apply (e.g., `--only logo`, `--only colors`, `--only typography`) |
-| `brand-manager export --brand <name>` | Export brand package (assets + metadata) |
-| `brand-manager list` | List all brands in the library |
-| `brand-manager show <name>` | Show brand details, assigned scenarios, and version history |
-| `brand-manager help` | Full command reference (once CLI is available) |
-
----
-
-### 4. Primary Workflow
-
-#### Step 1: Check status
-
-```bash
-brand-manager status
-```
-
-Shows a table of all scenarios with their branding completeness. Example output:
-
-```
-Scenario                          Status      Brand            Missing
-landing-page-business-suite       ✓ complete  Acme Analytics   —
-web-console                       ◐ partial   Vrooli Core      favicon, typography
-vrooli-onboarding                 ✗ none      —                all
-test-scenario                     ⊘ opted-out —                —
-```
-
-#### Step 2: Generate or import
-
-```bash
-brand-manager generate
-```
-
-Interactive wizard. The user fills in what they know (a specific primary color, a tagline, notes like "ocean theme") and leaves the rest blank. Brand Manager uses OpenRouter to generate everything that's missing — logo concepts, color palette, typography pairings, copy. The user picks from options and refines iteratively.
-
-#### Step 3: Review
-
-```bash
-brand-manager show my-brand
-```
-
-Displays the full brand definition, assigned scenarios, and version history.
-
-#### Step 4: Apply
-
-```bash
-brand-manager apply --brand my-brand --scenario my-scenario
-```
-
-Application decision:
-
-```
-Apply brand to scenario
-├─ Standard patterns found (CSS custom properties, manifest.json, favicon dirs, service.json)?
-│   └─ Programmatic application (fast, deterministic)
-├─ Non-standard or complex UI integration needed?
-│   └─ Agent-assisted application (agent sets things up to be programmatically validatable)
-└─ Partial apply requested (--only)?
-    └─ Only specified aspects applied; validation flags remaining gaps
-```
-
-Partial apply is supported — you can apply just the logo now and the color system later.
-
-#### Step 5: Validate
-
-```bash
-brand-manager status --scenario my-scenario
-```
-
-Confirms all branding checks pass. If gaps remain, the output tells you exactly what's missing.
-
----
-
-### 5. Discovery (Auto-Populate)
-
-When a user first works with a scenario in Brand Manager, it scans the scenario's existing state — service.json, theme files, static assets, manifests — and populates a draft brand from what it finds. If the display name is just the slug or clearly not a proper name, it's flagged as needing attention, not silently accepted.
-
-This means you never start from zero — Brand Manager bootstraps from whatever branding already exists.
-
----
-
-### 6. Ecosystem Integration
-
-**Scenario Auditor:** Brand Manager registers validation rules for each branding requirement (has logo, has favicon, has color system, has display name, has typography). These rules are always programmatically checkable — that's a hard constraint on how application works. The auditor scans and reports; it does not gate deployments directly.
-
-**deployment-coordinator:** Checks branding readiness during Phase 2 (Assess Target). If branding is incomplete for a scenario being deployed, it suggests loading this skill for remediation.
-
-**cross-platform-readiness:** The Red Flags Checklist includes branding items. Branding gaps are deployment red flags — a scenario without a proper display name or favicon is not ready for distribution.
-
-**marketing-crew:** Brand Manager is the authoritative source for visual identity. Marketing content should pull brand colors, logos, and voice from Brand Manager rather than improvising.
-
----
-
-### 7. Troubleshooting & Edge Cases
-
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| `brand-manager` command not found | Scenario not built or not running | Start brand-manager: `cd scenarios/brand-manager && make start` |
-| Generate produces low-quality assets | Notes too vague for OpenRouter | Provide specific notes (e.g., "ocean theme, bold geometric logo, dark mode primary") |
-| Apply fails on non-standard scenario | Complex integration beyond programmatic patterns | Agent-assisted apply handles this; check agent output for details |
-| Validation still fails after apply | Partial apply — some aspects not yet applied | Run `brand-manager status --scenario <name>` to see what's missing |
-| Brand not found | Name mismatch or brand not yet created | Run `brand-manager list` to see available brands |
-| Status shows opted-out for a real scenario | Incorrect opt-out tag/field in service.json | Remove the opt-out marker; only pure test scenarios should opt out |
-
----
-
-### 8. Guardrails
-
-**Do:**
-- Run `brand-manager status` before applying to understand current state
-- Use `brand-manager generate` rather than manually creating brand assets
-- Apply brands iteratively — partial apply is supported and expected
-- Validate after every apply with `brand-manager status --scenario <name>`
-- Let discovery auto-populate from existing scenario state before generating new assets
-
-**Do NOT:**
-- Manually edit scenario theme files or manifests when brand-manager can apply them programmatically
-- Skip validation after applying — always confirm status
-- Apply a brand without the target scenario running (apply needs to read scenario state)
-- Assume all scenarios need the same brand — brands are reusable but assignment is explicit
-- Opt out scenarios from branding unless they are purely for testing (this is rare and intentional)
-
----
-
-### **9. Output Expectations**
-
-| Command | Expected Result |
-|---------|----------------|
-| `status` | Human-readable table showing per-scenario branding completeness |
-| `generate` | Brand created in library with all generated assets |
-| `apply` | Scenario updated with branding assets; validation passes for applied aspects |
-| `export` | Brand package file at specified output path |
-| `list` | Table of all brands with assignment counts |
-| `show` | Full brand details, assigned scenarios, version history |
-
----
-
-### 10. Resource Dependencies
-
-- **OpenRouter** — image generation (logos, favicons, icons) + LLM for copy and palette suggestions, following agent-inbox's established patterns
-- **SQLite** — brand metadata, assignments, version history (portable, no server required)
+- Pipeline + profiles: `scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`
+- Public asset convention: `docs/concepts/PUBLIC_ASSETS.md`
+- Asset decisions: `docs/marketing/strategy/ASSETS.md`

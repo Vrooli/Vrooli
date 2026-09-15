@@ -175,6 +175,28 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 			p.Amplitude, p.Seed, p.Spacing = v.GetAmplitude(), v.GetSeed(), v.GetSpacing()
 			p.SpacingRel, p.AmplitudeRel = v.GetSpacingRel(), v.GetAmplitudeRel()
 		}
+	case "rasterize":
+		if v := pb.GetRasterize(); v != nil {
+			p.Width, p.Height, p.Background = int(v.GetWidth()), int(v.GetHeight()), v.GetBackground()
+		}
+	case "vectorize":
+		if v := pb.GetVectorize(); v != nil {
+			p.Colors = int(v.GetColors())
+			p.KeepColors = v.GetKeepColors()
+			p.DropBackgroundLayers = v.GetDropBackgroundLayers()
+			p.ClipToLargestRoundedRegion = v.GetClipToLargestRoundedRegion()
+			p.InsetPx = v.GetInsetPx()
+			p.TolerancePx = v.GetTolerancePx()
+			p.Smoothing = v.GetSmoothing()
+			p.MinAreaPx = v.GetMinAreaPx()
+		}
+	case "icon_container":
+		if v := pb.GetIconContainer(); v != nil {
+			p.ContainerFormat = v.GetFormat()
+			for _, s := range v.GetSizes() {
+				p.Sizes = append(p.Sizes, int(s))
+			}
+		}
 	default:
 		return nil, fmt.Errorf("unknown operation %q", operation)
 	}

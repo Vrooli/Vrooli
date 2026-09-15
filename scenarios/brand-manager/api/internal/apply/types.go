@@ -31,18 +31,17 @@ const (
 	ElementColors     = "colors"
 	ElementTypography = "typography"
 	ElementIdentity   = "identity"
-	ElementFavicon    = "favicon"
-	ElementLogo       = "logo"
-	// ElementIcons copies the derived PWA/launcher icon set into ui/public and
-	// writes the manifest icon metadata (icons array, theme/background color).
+	// ElementIcons resolves the scenario's declared target profiles, renders the
+	// icon set from the brand's vector mark, and writes it to the /public/* layout
+	// and the electron assets.
 	ElementIcons = "icons"
 )
 
 // AllElements is the canonical apply order when no subset is requested. Colors
 // writes the managed CSS file; typography appends to it; so colors must precede
 // typography for a deterministic combined file. Icons runs after identity so the
-// manifest already carries the brand name before the icon metadata is merged.
-var AllElements = []string{ElementColors, ElementTypography, ElementIdentity, ElementIcons, ElementFavicon, ElementLogo}
+// manifest already carries the brand name before the icon set is written.
+var AllElements = []string{ElementColors, ElementTypography, ElementIdentity, ElementIcons}
 
 // Action types — the kind of write an ApplyAction records.
 const (
@@ -61,6 +60,42 @@ type BrandView struct {
 	Tagline     string
 	Colors      Colors
 	Typography  Typography
+	// MarkAssetID is the picked vector mark; SmallMarkAssetID the optional
+	// simplified mark; ContainerStyleID the style render composes with.
+	MarkAssetID      string
+	SmallMarkAssetID string
+	ContainerStyleID string
+}
+
+// ContainerStyleView is the container style render needs.
+type ContainerStyleView struct {
+	Shape                string
+	CornerRatio          float64
+	BackgroundTop        string
+	BackgroundBottom     string
+	MarkScale            float64
+	MaskableScale        float64
+	AccentColor          string
+	Glow                 []GlowLayerView
+	SmallMarkThresholdPx int
+}
+
+// GlowLayerView is one accent halo layer.
+type GlowLayerView struct {
+	Width   float64
+	Opacity float64
+}
+
+// StyleStore reads a container style by id (wired to the styles service).
+type StyleStore interface {
+	ContainerStyle(ctx context.Context, id string) (ContainerStyleView, bool, error)
+}
+
+// TargetRenderer renders a composed SVG into a raster or icon container through
+// image-tools (wired to imagetools.Client).
+type TargetRenderer interface {
+	Rasterize(ctx context.Context, svg []byte, width, height int, background string) ([]byte, error)
+	IconContainer(ctx context.Context, svg []byte, format string, sizes []int) ([]byte, error)
 }
 
 // Colors mirrors brands.Colors so the composition-root adapter maps one-to-one.
@@ -145,6 +180,9 @@ type AssetStore interface {
 	// when the brand has no such asset — the planner reports that as a skip, not
 	// a failure.
 	Read(ctx context.Context, brandID, kind string) (content AssetContent, found bool, err error)
+	// ReadByID returns an asset's content by asset id (how a picked mark is
+	// fetched). found=false when the asset does not exist.
+	ReadByID(ctx context.Context, assetID string) (content AssetContent, found bool, err error)
 }
 
 // AssignmentRecorder records the brand↔scenario link after a real apply.

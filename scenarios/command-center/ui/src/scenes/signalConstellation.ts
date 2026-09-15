@@ -16,8 +16,11 @@ export function signalConstellation(): Scene {
     draw(frame) {
       const { ctx, w, h, t, dt, palette, quiet, data } = frame;
       const focal = focalPoint(frame);
-      const visitors = Math.max(1, read(data, "visitors", 2840));
-      const stages = [1, read(data, "conversions", 61) / visitors, read(data, "cta_clicks", 412) / visitors];
+      const visitors = read(data, "visitors");
+      const conversions = read(data, "conversions");
+      const ctaClicks = read(data, "cta_clicks");
+      if (visitors === null || conversions === null || ctaClicks === null || visitors <= 0) return;
+      const stages = [1, conversions / visitors, ctaClicks / visitors];
       const stageRadius = Math.max(w, h) * 0.9;
       clipOutsideQuiet(frame);
       ctx.lineWidth = 1.2;

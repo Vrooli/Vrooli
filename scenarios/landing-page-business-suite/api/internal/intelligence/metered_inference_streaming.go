@@ -70,7 +70,7 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 	}
 	actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
 
-	if err := s.usageService.FinalizeReservation(ctx, reservationID, actualCost); err != nil {
+	if err := finalizeUsage(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model); err != nil {
 		s.log("finalize_reservation_failed", map[string]interface{}{
 			"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": err.Error(),
 		})

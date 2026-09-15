@@ -1,6 +1,7 @@
 import type { PanelRow, Reading } from "../lib/api";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
 import { AutoScroll } from "./AutoScroll";
+import { qualify, resolveReading, figureValue } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 
 type Props = { reading: Reading; maxRows?: number };
 
@@ -9,19 +10,18 @@ const MAX_ROWS = 24;
 
 /** Compact ranked figure for panel readings. Material, not hue, carries row provenance. */
 export function PanelReadout({ reading, maxRows = MAX_ROWS }: Props) {
-  // A panel can have measured rows or an explicitly authored sample. The API
-  // keeps those separate so provenance remains honest, but the display should
-  // still show the sample's actual table instead of falling through to an
-  // empty placeholder.
-  const sampled = !reading.rows?.length && Boolean(reading.sample?.rows?.length);
-  const rows = (reading.rows?.length ? reading.rows : reading.sample?.rows ?? [])
+  const resolution = resolveReading(reading);
+  const qualifier = qualify(reading, resolution);
+  const sampled = resolution.figure === "sample";
+  const sourceRows: PanelRow[] = resolution.figure === "measured" ? reading.rows ?? [] : sampled ? reading.sample?.rows ?? [] : [];
+  const rows = sourceRows
     .slice(0, maxRows)
-    .map((row) => sampled ? { ...row, ink: row.ink ?? "dotted" as const } : row);
+    .map((row): PanelRow => sampled ? { ...row, ink: row.ink ?? "dotted" } : row);
   return (
-    <section className="cc-panel-readout" aria-label={reading.label} data-kind="panel">
+    <section className="cc-panel-readout" aria-label={reading.label} data-kind={reading.kind ?? "panel"} data-reading data-coverage={reading.coverage} data-trust={reading.trust} data-ink={resolution.ink} data-provenance={resolution.figure} data-qualifier={qualifier.text}>
       <div className="cc-panel-readout__heading">{reading.label}</div>
       {rows.length === 0 ? (
-        <div className="cc-panel-readout__empty" aria-label="No observations">No rows available</div>
+        <div className="cc-panel-readout__empty" aria-label="No observations">{figureValue(reading, resolution) === null ? qualifier.text : "No rows available"}</div>
       ) : (
         <AutoScroll className="cc-panel-readout__rows" rowSelector=".cc-panel-readout__row" label={`${reading.label} rows`}>
           {rows.map((row: PanelRow) => (

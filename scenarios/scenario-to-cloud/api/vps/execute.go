@@ -344,6 +344,14 @@ func (e *executor) run(ctx context.Context) *ExecutionError {
 				if errors.Is(err, ErrReplayAction) && attempt == 0 {
 					continue
 				}
+				if errors.Is(err, ErrReplayAction) && attempt > 0 {
+					// Preserve the transport or target error that caused both
+					// attempts to remain unknown. Returning the replay sentinel
+					// alone hides the action and makes recovery needlessly blind.
+					if runErr != nil {
+						err = fmt.Errorf("%w after replay: %v", runErr, ErrReplayAction)
+					}
+				}
 				if err == nil && runErr != nil {
 					result.Status = "succeeded"
 					result.Error = ""
