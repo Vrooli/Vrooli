@@ -67,10 +67,31 @@ func (c *Commands) waitPrimitive() cliapp.PrimitiveHandler {
 		}
 		response, err := c.rpc.Wait(context.Background(), connect.NewRequest(&pipelinev1.PipelineWaitRequest{PipelineId: strings.TrimSpace(ctx.Positional("pipeline-id")), TimeoutSeconds: seconds}))
 		if err != nil {
+			// Some older Connect servers close the unary response after persisting
+			// the terminal state. Recover the durable state once so the operator
+			// loop remains usable across a lifecycle restart.
+			if latest, recovered := c.recoverTerminalWait(strings.TrimSpace(ctx.Positional("pipeline-id")), err); recovered {
+				return latest, nil
+			}
 			return nil, cliapp.WrapAPIError("wait for pipeline", err, nil)
 		}
 		return response.Msg, nil
 	}, pipelineStatusReport)
+}
+
+func (c *Commands) recoverTerminalWait(id string, waitErr error) (*pipelinev1.PipelineStatus, bool) {
+	if !strings.Contains(waitErr.Error(), "unexpected EOF") {
+		return nil, false
+	}
+	latest, getErr := c.rpc.Get(context.Background(), connect.NewRequest(&pipelinev1.PipelineGetRequest{PipelineId: id}))
+	if getErr != nil || latest == nil || latest.Msg == nil {
+		return nil, false
+	}
+	status := latest.Msg.GetStatus()
+	if status == sharedv1.StageStatus_STAGE_STATUS_RUNNING || status == sharedv1.StageStatus_STAGE_STATUS_UNSPECIFIED {
+		return nil, false
+	}
+	return latest.Msg, true
 }
 
 func (c *Commands) gatePrimitive() cliapp.PrimitiveHandler {

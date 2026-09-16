@@ -118,14 +118,20 @@ func runSetup(client *Client, args []string) error {
 }
 
 func runSetupPlan(client *Client, args []string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("usage: scenario-to-cloud vps setup plan <manifest.json> <bundle.tar.gz>")
+	fs := flag.NewFlagSet("vps setup plan", flag.ContinueOnError)
+	deploymentID := fs.String("deployment-id", "", "Existing deployment identity for governed setup")
+	requestKey := fs.String("request-key", "", "Stable idempotency key")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	manifest, err := internalmanifest.ReadJSONFile(args[0])
+	if fs.NArg() != 2 {
+		return fmt.Errorf("usage: scenario-to-cloud vps setup plan <manifest.json> <bundle.tar.gz> [--deployment-id <id>] [--request-key <key>]")
+	}
+	manifest, err := internalmanifest.ReadJSONFile(fs.Arg(0))
 	if err != nil {
 		return err
 	}
-	body, _, err := client.SetupPlan(manifest, args[1])
+	body, _, err := client.SetupPlan(manifest, fs.Arg(1), *deploymentID, *requestKey)
 	if err != nil {
 		return err
 	}
@@ -135,14 +141,21 @@ func runSetupPlan(client *Client, args []string) error {
 
 func runSetupApply(client *Client, args []string) error {
 	planDigest, positional := extractPlanDigest(args)
+	fs := flag.NewFlagSet("vps setup apply", flag.ContinueOnError)
+	deploymentID := fs.String("deployment-id", "", "Existing deployment identity for governed setup")
+	requestKey := fs.String("request-key", "", "Stable idempotency key")
+	if err := fs.Parse(positional); err != nil {
+		return err
+	}
+	positional = fs.Args()
 	if len(positional) != 2 {
-		return fmt.Errorf("usage: scenario-to-cloud vps setup apply <manifest.json> <bundle.tar.gz> [--plan-digest <digest>]")
+		return fmt.Errorf("usage: scenario-to-cloud vps setup apply <manifest.json> <bundle.tar.gz> [--plan-digest <digest>] [--deployment-id <id>] [--request-key <key>]")
 	}
 	manifest, err := internalmanifest.ReadJSONFile(positional[0])
 	if err != nil {
 		return err
 	}
-	body, _, err := client.SetupApply(manifest, positional[1], planDigest)
+	body, _, err := client.SetupApply(manifest, positional[1], planDigest, *deploymentID, *requestKey)
 	if err != nil {
 		return err
 	}

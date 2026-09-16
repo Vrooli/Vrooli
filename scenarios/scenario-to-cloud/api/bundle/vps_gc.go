@@ -98,7 +98,7 @@ func PlanVPSBundleGC(
 
 // GCTargetReleases prunes retired releases on the target according to the
 // retention policy: the owner's listing is read, the plan is computed with
-// lease protection, and the owner is asked to prune the named digests
+// caller-supplied protection, and the owner is asked to prune the named digests
 // (unless DryRun). The owner keeps the final say over active and previous.
 func GCTargetReleases(
 	ctx context.Context,
@@ -119,16 +119,12 @@ func GCTargetReleases(
 	}
 	before, beforeTotal := InventoryFromListing(listing, scenarioID)
 
-	// Releases the cloud side still owns (active, rollback predecessor) hold
-	// artifact leases; their bundles are protected regardless of age. A lease
-	// read failure is a refusal, never a silent "nothing protected".
-	leased, err := releaseProtectionFn(time.Now().UTC())
-	if err != nil {
-		return domain.VPSBundleGCResponse{OK: false, DryRun: req.DryRun, Error: fmt.Sprintf("read release leases: %v", err), Timestamp: now}
-	}
-	protect := append(append([]string(nil), req.ProtectSHA256...), leased...)
-
-	kept, toDelete, deletedBytes := PlanVPSBundleGC(before, req.ScenarioID, req.KeepLatest, protect)
+	// The target owner is authoritative for target release ownership: it always
+	// refuses active, previous, interrupted and in-flight releases. Local
+	// artifact leases protect cloud-local build artifacts, not historical target
+	// releases; applying them here caused every staged target release to become
+	// undeletable and prevented the owner's unreferenced-cache sweep.
+	kept, toDelete, deletedBytes := PlanVPSBundleGC(before, req.ScenarioID, req.KeepLatest, req.ProtectSHA256)
 
 	resp := domain.VPSBundleGCResponse{
 		OK:               true,

@@ -96,15 +96,16 @@ func TestListCaptures_WithData(t *testing.T) {
 	assert.Len(t, caps, 2)
 }
 
-func TestSaveCapture_DeduplicatesBytesButKeepsCaptureIDs(t *testing.T) {
+func TestSaveCaptureKeepsRunScopedFilenamesAndCaptureIDs(t *testing.T) {
 	svc, _ := newTestService(t)
 	first := seedCapture(t, svc, "my-app", "session-1")
+	time.Sleep(2 * time.Millisecond) // ensure distinct timestamped filenames
 	second := seedCapture(t, svc, "my-app", "session-2")
 	assert.NotEqual(t, first.ID, second.ID)
-	assert.Equal(t, first.Filename, second.Filename)
+	assert.NotEqual(t, first.Filename, second.Filename)
 	entries, err := os.ReadDir(svc.filesDir)
 	require.NoError(t, err)
-	assert.Len(t, entries, 1)
+	assert.Len(t, entries, 2)
 	require.NoError(t, svc.DeleteCapture("my-app", first.ID))
 	_, err = os.Stat(filepath.Join(svc.filesDir, second.Filename))
 	require.NoError(t, err)

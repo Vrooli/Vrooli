@@ -86,32 +86,31 @@ func TestReleaseProtectedBundleSHA256sHonoursUnexpiredLeases(t *testing.T) {
 // TestGCTargetReleasesKeepsLeasedReleasesBeyondRetention [REQ:STC-P0-026]
 // proves GC never asks the owner to prune a leased release's bundle, even
 // past keep_latest.
-func TestGCTargetReleasesKeepsLeasedReleasesBeyondRetention(t *testing.T) {
+func TestGCTargetReleasesDoesNotApplyLocalLeasesToTargetRetention(t *testing.T) {
 	owner := ownerWith(4)
-	leasedSHA := owner.releases[digestN(1)].BundleSHA256
 	original := releaseProtectionFn
 	defer func() { releaseProtectionFn = original }()
-	releaseProtectionFn = func(time.Time) ([]string, error) { return []string{leasedSHA}, nil }
+	releaseProtectionFn = func(time.Time) ([]string, error) { return []string{"unrelated-local-lease"}, nil }
 
 	resp := GCTargetReleases(context.Background(), owner, gcTarget(), "dep", "app", domain.VPSBundleGCRequest{ScenarioID: "app", KeepLatest: 2})
 	if !resp.OK {
 		t.Fatalf("gc failed: %s", resp.Error)
 	}
-	if resp.DeletedCount != 1 || resp.Deleted[0].Filename != digestN(0) {
-		t.Fatalf("deleted = %+v, want only the unleased oldest release", resp.Deleted)
+	if resp.DeletedCount != 2 {
+		t.Fatalf("deleted = %+v, want both releases beyond retention", resp.Deleted)
 	}
-	if _, ok := owner.releases[digestN(1)]; !ok {
-		t.Fatal("leased release was pruned")
+	if _, ok := owner.releases[digestN(1)]; ok {
+		t.Fatal("historical target release was retained by an unrelated local lease")
 	}
 }
 
-func TestGCTargetReleasesRefusesWhenLeasesUnreadable(t *testing.T) {
+func TestGCTargetReleasesDoesNotReadLocalLeases(t *testing.T) {
 	owner := ownerWith(1)
 	original := releaseProtectionFn
 	defer func() { releaseProtectionFn = original }()
 	releaseProtectionFn = func(time.Time) ([]string, error) { return nil, os.ErrPermission }
 	resp := GCTargetReleases(context.Background(), owner, gcTarget(), "dep", "app", domain.VPSBundleGCRequest{})
-	if resp.OK || !strings.Contains(resp.Error, "release leases") || owner.prunes != 0 {
-		t.Fatalf("expected refusal on unreadable leases with no prune, got %+v prunes=%d", resp, owner.prunes)
+	if !resp.OK || owner.prunes != 0 {
+		t.Fatalf("expected target GC to ignore local lease read errors, got %+v prunes=%d", resp, owner.prunes)
 	}
 }

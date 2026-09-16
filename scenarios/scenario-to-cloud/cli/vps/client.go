@@ -35,10 +35,23 @@ func NewClient(api *cliutil.APIClient) *Client {
 }
 
 // SetupPlan generates a VPS setup plan.
-func (c *Client) SetupPlan(manifest map[string]interface{}, bundlePath string) ([]byte, SetupPlanResponse, error) {
+func (c *Client) SetupPlan(manifest map[string]interface{}, bundlePath string, identity ...string) ([]byte, SetupPlanResponse, error) {
+	var deploymentID, requestKey string
+	if len(identity) > 0 {
+		deploymentID = identity[0]
+	}
+	if len(identity) > 1 {
+		requestKey = identity[1]
+	}
 	req := map[string]interface{}{
 		"manifest":    manifest,
 		"bundle_path": bundlePath,
+	}
+	if deploymentID != "" {
+		req["deployment_id"] = deploymentID
+	}
+	if requestKey != "" {
+		req["request_key"] = requestKey
 	}
 	body, err := c.api.Request("POST", "/api/v1/vps/setup/plan", nil, req)
 	if err != nil {
@@ -55,9 +68,16 @@ func (c *Client) SetupPlan(manifest map[string]interface{}, bundlePath string) (
 // plan endpoint; when empty the plan is compiled first and its digest is
 // submitted, so apply is a thin alias for "plan, then apply what was shown".
 // A stale digest is refused by the API with plan_digest_mismatch.
-func (c *Client) SetupApply(manifest map[string]interface{}, bundlePath, planDigest string) ([]byte, SetupApplyResponse, error) {
+func (c *Client) SetupApply(manifest map[string]interface{}, bundlePath, planDigest string, identity ...string) ([]byte, SetupApplyResponse, error) {
+	var deploymentID, requestKey string
+	if len(identity) > 0 {
+		deploymentID = identity[0]
+	}
+	if len(identity) > 1 {
+		requestKey = identity[1]
+	}
 	if planDigest == "" {
-		_, plan, err := c.SetupPlan(manifest, bundlePath)
+		_, plan, err := c.SetupPlan(manifest, bundlePath, deploymentID, requestKey)
 		if err != nil {
 			return nil, SetupApplyResponse{}, err
 		}
@@ -70,6 +90,12 @@ func (c *Client) SetupApply(manifest map[string]interface{}, bundlePath, planDig
 		"manifest":    manifest,
 		"bundle_path": bundlePath,
 		"plan_digest": planDigest,
+	}
+	if deploymentID != "" {
+		req["deployment_id"] = deploymentID
+	}
+	if requestKey != "" {
+		req["request_key"] = requestKey
 	}
 	body, err := c.api.Request("POST", "/api/v1/vps/setup/apply", nil, req)
 	if err != nil {

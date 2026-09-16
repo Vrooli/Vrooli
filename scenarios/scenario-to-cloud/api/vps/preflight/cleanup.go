@@ -17,8 +17,8 @@ type DiskCleanupResult struct {
 }
 
 // CleanupDiskPressure runs the safe storage repairs appropriate for a failed
-// disk-free check. Active Docker images remain protected by the target owner;
-// release GC is separate so its active/previous/recovery protections apply.
+// disk-free check. Docker selects only volumes not referenced by any
+// container; release GC is separate so its active/previous protections apply.
 func CleanupDiskPressure(ctx context.Context, rr reach.Reach, target identity.TargetRef, availableKB, requiredKB int64) DiskCleanupResult {
 	result := DiskCleanupResult{}
 	if availableKB >= requiredKB {
@@ -30,6 +30,7 @@ func CleanupDiskPressure(ctx context.Context, rr reach.Reach, target identity.Ta
 	}{
 		{name: "journald.vacuum", subject: map[string]any{"journal": map[string]any{"max_use_bytes": int64(16 * 1024 * 1024)}}},
 		{name: "docker.prune.unused-images", subject: map[string]any{"docker": map[string]any{}}},
+		{name: "docker.prune.unused-volumes", subject: map[string]any{"docker": map[string]any{}}},
 	}
 	for _, action := range actions {
 		result.Attempted = append(result.Attempted, action.name)

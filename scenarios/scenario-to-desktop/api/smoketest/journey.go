@@ -713,6 +713,9 @@ func genericJourneyAction(action string) JourneyAction {
 		switch action {
 		case "window_activate":
 			err = driver.ActivateWindow(ctx, input.Display)
+			if err == nil {
+				geometry, err = driver.WindowGeometry(ctx, input.Display)
+			}
 		case "window_maximize":
 			err = driver.MaximizeWindow(ctx, input.Display, input.DisplayWidth, input.DisplayHeight)
 			if err == nil {

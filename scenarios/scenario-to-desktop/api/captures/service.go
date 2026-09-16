@@ -55,7 +55,7 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 
 	id := uuid.New().String()
 	ext := filepath.Ext(srcPath)
-	filename := fmt.Sprintf("%s-%d%s", captureType, time.Now().UnixMilli(), ext)
+	filename := fmt.Sprintf("%s-%d-%s%s", captureType, time.Now().UnixMilli(), id[:8], ext)
 	destPath := filepath.Join(dir, filename)
 
 	// Read source and write atomically to destination
@@ -64,19 +64,6 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 		return nil, fmt.Errorf("reading source file: %w", err)
 	}
 	digest := checksum(data)
-	if existing, ok := s.store.(interface {
-		List(string) ([]Capture, error)
-	}); ok {
-		if captures, listErr := existing.List(scenarioName); listErr == nil {
-			for _, prior := range captures {
-				if prior.Checksum == digest {
-					filename = prior.Filename
-					destPath = filepath.Join(dir, filename)
-					break
-				}
-			}
-		}
-	}
 	if _, statErr := os.Stat(destPath); os.IsNotExist(statErr) {
 		if err := storage.WriteFileAtomic(destPath, data, 0); err != nil {
 			return nil, fmt.Errorf("writing capture file: %w", err)

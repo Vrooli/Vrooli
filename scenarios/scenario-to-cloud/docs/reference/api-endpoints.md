@@ -1310,7 +1310,8 @@ VPS-level management actions through the target owner's typed verbs.
 `stop_vrooli` runs scoped stops for the scenario and its dependent
 scenarios plus `resource stop` (kept while another deployment demands the
 resource) and records `desired_state: stopped`; `cleanup` level 3 runs the
-privilege broker's `docker.prune.unused-images` / `docker.prune.unused-volumes`;
+privilege broker's `docker.prune.unused-images` / `docker.prune.unused-volumes`
+(Docker selects only volumes not referenced by any container);
 `reboot` and cleanup levels 1, 2, 4, 5 are refused with `unsupported_capability`
 naming the missing owner (`privilegebroker host.reboot`, the retirement
 plan at `/deployments/{id}/retire/plan`).

@@ -110,15 +110,22 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 			if actErr != nil {
 				break
 			}
-			// Image pruning is globally scoped but safe: the broker retains every
-			// image referenced by a running container. Volume pruning requires an
-			// explicit inventory of named volumes, so do not guess at that list.
+			// Docker itself selects only volumes not referenced by any container;
+			// the broker refuses arbitrary names and builds the fixed prune argv.
 			out, err := managementRepair(ctx, rt, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
 			outputs = append(outputs, "docker.prune.unused-images: "+out)
 			if err != nil {
 				actErr = err
 			}
-			response.Message = "Unused Docker images pruned through the privilege broker; volumes were not guessed or deleted"
+			if actErr != nil {
+				break
+			}
+			out, err = managementRepair(ctx, rt, "docker.prune.unused-volumes", map[string]any{"docker": map[string]any{}})
+			outputs = append(outputs, "docker.prune.unused-volumes: "+out)
+			if err != nil {
+				actErr = err
+			}
+			response.Message = "Unused Docker images and unreferenced volumes pruned through the privilege broker"
 		default:
 			actErr = apierrors.Newf(apierrors.CodeUnsupportedCapability, "Cleanup level %d deletes owned files in place; retire the deployment through its retirement plan instead", req.CleanupLevel).
 				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "retire", Reference: "/api/v1/deployments/" + id + "/retire/plan", Label: "Preview the retirement plan (retained vs deleted objects) and apply it"})

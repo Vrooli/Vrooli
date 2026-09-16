@@ -375,6 +375,22 @@ func (helloDesktopFixture) Actions() map[string]JourneyAction {
 			message, err := api.Greet(ctx, name)
 			return JourneyObservation{Observed: message, SurfaceObserved: err == nil}, err
 		},
+		"key_press": func(ctx context.Context, driver DesktopDriver, _ JourneyAPIProbe, input JourneyInput) (JourneyObservation, error) {
+			for _, key := range []string{"Tab", "ctrl+a"} {
+				if err := driver.KeyPress(ctx, input.Display, key); err != nil {
+					return JourneyObservation{}, err
+				}
+			}
+			if err := driver.Type(ctx, input.Display, "Keyboard"); err != nil {
+				return JourneyObservation{}, err
+			}
+			for _, key := range []string{"Tab", "Return"} {
+				if err := driver.KeyPress(ctx, input.Display, key); err != nil {
+					return JourneyObservation{}, err
+				}
+			}
+			return JourneyObservation{Observed: "keyboard greeting submitted"}, nil
+		},
 	}
 }
 

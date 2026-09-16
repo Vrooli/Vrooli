@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,11 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
 
-type fakePipelineRPC struct{ runConfig *pipelinev1.PipelineConfig }
+type fakePipelineRPC struct {
+	runConfig *pipelinev1.PipelineConfig
+	waitErr   error
+	getStatus *pipelinev1.PipelineStatus
+}
 
 func pipelineStatusFixture() *pipelinev1.PipelineStatus {
 	stage := sharedv1.StageName_STAGE_NAME_BUILD
@@ -30,11 +35,17 @@ func (*fakePipelineRPC) StartActive(context.Context, *connect.Request[pipelinev1
 	return connect.NewResponse(&pipelinev1.StartActivePipelineResponse{Pipeline: pipelineStatusFixture()}), nil
 }
 
-func (*fakePipelineRPC) Get(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+func (f *fakePipelineRPC) Get(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+	if f.getStatus != nil {
+		return connect.NewResponse(f.getStatus), nil
+	}
 	return connect.NewResponse(pipelineStatusFixture()), nil
 }
 
-func (*fakePipelineRPC) Wait(context.Context, *connect.Request[pipelinev1.PipelineWaitRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+func (f *fakePipelineRPC) Wait(context.Context, *connect.Request[pipelinev1.PipelineWaitRequest]) (*connect.Response[pipelinev1.PipelineStatus], error) {
+	if f.waitErr != nil {
+		return nil, f.waitErr
+	}
 	return connect.NewResponse(pipelineStatusFixture()), nil
 }
 
@@ -216,6 +227,17 @@ func TestPipelinePrimitivesUseTypedConnectContract(t *testing.T) {
 	}
 	if rpc.runConfig.GetScenarioName() != "calculator" || rpc.runConfig.GetPlatforms()[0] != sharedv1.Platform_PLATFORM_LINUX || rpc.runConfig.GetStages()[0] != sharedv1.StageName_STAGE_NAME_BUILD {
 		t.Fatalf("run config = %#v", rpc.runConfig)
+	}
+}
+
+func TestPipelineWaitRecoversTerminalStateAfterUnexpectedEOF(t *testing.T) {
+	terminal := pipelineStatusFixture()
+	terminal.Status = sharedv1.StageStatus_STAGE_STATUS_COMPLETED
+	rpc := &fakePipelineRPC{waitErr: errors.New("unavailable: unexpected EOF"), getStatus: terminal}
+	commands := &Commands{rpc: rpc}
+	got, recovered := commands.recoverTerminalWait("pipe-1", rpc.waitErr)
+	if !recovered || got.GetStatus() != sharedv1.StageStatus_STAGE_STATUS_COMPLETED {
+		t.Fatalf("recovered = %v, status = %v", recovered, got.GetStatus())
 	}
 }
 

@@ -336,8 +336,13 @@ func visualLaunchSignal(input smoketest.EvidenceManifestInput) string {
 	if input.Journey == nil || len(input.Journey.Steps) == 0 {
 		return "unavailable"
 	}
-	first := input.Journey.Steps[0]
-	usableWindow := first.Disposition == deliveryramp.StepPassed && first.Geometry != nil && first.Geometry.Width > 0 && first.Geometry.Height > 0
+	usableWindow := false
+	for _, step := range input.Journey.Steps {
+		if step.Disposition == deliveryramp.StepPassed && step.Geometry != nil && step.Geometry.Width > 0 && step.Geometry.Height > 0 {
+			usableWindow = true
+			break
+		}
+	}
 	trace, err := readValidatedLaunchTrace(input.DemoTracePath, smoketest.LaunchRunDemo)
 	if err != nil {
 		return "unavailable"
