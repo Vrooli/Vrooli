@@ -532,6 +532,14 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 	}
 	out := make([]*offerspb.BoardEntry, 0, len(nodes))
 	response := &offerspb.BoardResponse{Entries: out, Evaluation: &offerspb.EvaluationCondition{LastResult: offerspb.EvaluationResult_EVALUATION_NOT_RUN, Degraded: true, Reason: "evaluation has not run"}}
+	// Resolve the declared dependency per request so starting Money Ledger
+	// after Offer Desk does not require restarting this scenario.
+	if base, err := discovery.ResolveScenarioURLDefault(ctx, "money-ledger"); err == nil && base != "" {
+		hc := &http.Client{Timeout: 700 * time.Millisecond}
+		s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
+		s.position = ledgerconnect.NewPositionServiceClient(hc, base)
+		s.books = ledgerconnect.NewBooksServiceClient(hc, base)
+	}
 	if s.position == nil {
 		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})
 	} else {
@@ -569,20 +577,24 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 						response.PostureAgeSeconds = input.AgeSeconds
 					}
 				}
-				if position.Msg.RevenueMinor == 0 && position.Msg.BurnMinor == 0 {
+				buffer, bufferAvailable := 0.0, false
+				goals, goalErr := s.position.ListGoals(deadline, connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: s.bookID}))
+				if goalErr != nil {
+					response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger.goals", Reason: goalErr.Error()})
+				} else {
+					response.Goals = goals.Msg.Goals
+					buffer, bufferAvailable = declaredDefaultAliveBuffer(goals.Msg.Goals)
+				}
+				if !bufferAvailable {
+					response.DefaultAliveGap = "unavailable: declared default-alive goal buffer is unavailable"
+				} else if position.Msg.RevenueMinor == 0 && position.Msg.BurnMinor == 0 {
 					response.DefaultAliveGap = "unavailable: revenue and burn observations are incomplete"
 				} else {
-					gap := float64(position.Msg.BurnMinor)*1.25 - float64(position.Msg.RevenueMinor)
+					gap := float64(position.Msg.BurnMinor)*buffer - float64(position.Msg.RevenueMinor)
 					if gap <= 0 {
-						response.DefaultAliveGap = "default-alive threshold met with 1.25 buffer"
+						response.DefaultAliveGap = fmt.Sprintf("default-alive threshold met with %.2g buffer", buffer)
 					} else {
 						response.DefaultAliveGap = fmt.Sprintf("%d minor units below default-alive buffer", int64(gap))
-					}
-				}
-				if s.position != nil {
-					goals, goalErr := s.position.ListGoals(deadline, connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: s.bookID}))
-					if goalErr == nil {
-						response.Goals = goals.Msg.Goals
 					}
 				}
 			}
@@ -643,6 +655,15 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+func declaredDefaultAliveBuffer(goals []*ledgerpb.GoalVerdict) (float64, bool) {
+	for _, goal := range goals {
+		if goal.GetGoal().GetName() == "default-alive" && goal.GetGoal().GetBufferMultiple() > 0 {
+			return goal.GetGoal().GetBufferMultiple(), true
+		}
+	}
+	return 0, false
 }
 
 func (s *Service) recordEvaluation(ctx context.Context, result string, nodes int, reason string) {

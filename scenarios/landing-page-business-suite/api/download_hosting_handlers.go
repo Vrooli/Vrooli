@@ -13,10 +13,12 @@ import (
 func downloadAdminDependencies(hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.AdminDependencies {
 	return downloadhttp.AdminDependencies{
 		BundleKey: plans.BundleKey, SettingsSnapshot: hosting.SettingsSnapshot, SaveSettings: hosting.SaveSettings,
-		TestConnection: hosting.TestConnection, ListArtifacts: hosting.ListArtifacts, ListArtifactsByApp: hosting.ListArtifactsByApp,
+		TestConnection: hosting.TestConnection, ValidateStorage: hosting.ValidateStorage,
+		ListArtifacts: hosting.ListArtifacts, ListArtifactsByApp: hosting.ListArtifactsByApp,
 		PresignUpload: hosting.PresignUpload, CommitArtifact: hosting.CommitArtifact, GetArtifact: hosting.GetArtifact,
 		PresignGetArtifact: hosting.PresignGetArtifact, DecodeJSON: decodeJSONBody, PathInt64: getPathParamInt64,
 		WriteSuccessData: writeJSONSuccessData, WriteSuccessSimple: writeJSONSuccessSimple, WriteError: writeJSONError,
+		WriteValidation: writeJSONStatus,
 	}
 }
 

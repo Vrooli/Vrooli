@@ -112,7 +112,7 @@ func TestSteps_TypedPlan(t *testing.T) {
 	require.Equal(t, [][]string{
 		{"git", "fetch", "--no-tags", "origin", "a1b2c3d"},
 		{"git", "checkout", "--force", "--detach", "FETCH_HEAD"},
-		{"git", "clean", "-fd"},
+		{"git", "clean", "-fd", "-e", ".vrooli/", "-e", "data/", "-e", "node_modules/", "-e", "dist/", "-e", ".env"},
 		{"vrooli", "setup"},
 	}, steps)
 }
@@ -146,7 +146,7 @@ func TestProvision_Success(t *testing.T) {
 	require.Equal(t, [][]string{
 		{"git", "fetch", "--no-tags", "origin", "rev-B"},
 		{"git", "checkout", "--force", "--detach", "FETCH_HEAD"},
-		{"git", "clean", "-fd"},
+		{"git", "clean", "-fd", "-e", ".vrooli/", "-e", "data/", "-e", "node_modules/", "-e", "dist/", "-e", ".env"},
 		{"vrooli", "setup"},
 	}, ran, "the helper runs a typed argv plan, never a shell string")
 

@@ -123,6 +123,8 @@
 - [ ] OT-P2-012 | CRM integration | Push leads to HubSpot, Salesforce, or custom CRMs
 - [ ] OT-P2-013 | Email marketing integration | Sync subscribers to Mailchimp, ConvertKit, etc.
 - [ ] OT-P2-014 | Webhook notifications | Custom webhooks for landing page events (form submit, conversion, etc.)
+- [x] OT-P2-015 | Provider cost capture | Persist provider-reported inference cost and token metadata beside metered credits, and expose the cost through finance-owned projections without storing derived margin.
+- [x] OT-P2-016 | Revenue by checkout line | Report paid subscription, credit top-up, and other checkout revenue as separate measured lines with transaction counts while preserving the aggregate total.
 
 ## 🧱 Tech Direction Snapshot
 

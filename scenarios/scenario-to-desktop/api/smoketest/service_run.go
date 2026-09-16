@@ -68,8 +68,24 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 				})
 				return
 			}
+			if target.Isolation != nil {
+				if err := validateIsolationObservations([]deliveryramp.IsolationObservation{*target.Isolation}); err != nil {
+					completed := time.Now().UTC()
+					s.store.Update(request.SmokeTestID, func(status *Status) {
+						status.Status = "failed"
+						status.Error = err.Error()
+						status.CompletedAt = &completed
+						status.Logs = append(status.Logs, err.Error())
+					})
+					return
+				}
+			}
 			s.store.Update(request.SmokeTestID, func(status *Status) {
 				status.ScreenContentSource = target.Source
+				if target.Isolation != nil {
+					status.IsolationObservations = []deliveryramp.IsolationObservation{*target.Isolation}
+					status.ScreenContentSource = deriveScreenContentSource(status.IsolationObservations)
+				}
 			})
 		}
 	}
@@ -79,7 +95,7 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 			status.ProxyURL = request.ProxyURL
 			status.PipelineID = request.PipelineID
 			if request.DeploymentMode == "bundled" {
-				status.ScreenContentSource = "bundled_private"
+				status.ScreenContentSource = "unknown"
 			} else if request.DeploymentMode == "proxy" {
 				status.ScreenContentSource = "isolated_instance"
 			}
@@ -773,7 +789,8 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		ProfileMode:             configuredProfileMode(),
 		ProtocolPassed:          status.ProtocolPassed, VisualReadiness: visualReadiness,
 		JourneyCaptureID: journeyCaptureID, RecordingCaptureID: recordingCaptureID,
-		ScreenContentSource: status.ScreenContentSource,
+		ScreenContentSource:   status.ScreenContentSource,
+		IsolationObservations: status.IsolationObservations,
 	})
 	if err != nil {
 		s.store.Update(smokeTestID, func(status *Status) {

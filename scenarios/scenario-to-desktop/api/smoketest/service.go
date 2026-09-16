@@ -284,6 +284,7 @@ type EvidenceManifestInput struct {
 	JourneyCaptureID        string
 	RecordingCaptureID      string
 	ScreenContentSource     string
+	IsolationObservations   []deliveryramp.IsolationObservation
 }
 
 // PerformanceArtifact is a producer-owned file with an immutable checksum.
@@ -329,6 +330,17 @@ func (s *DefaultService) WithEvidenceManifestWriter(writer EvidenceManifestWrite
 // CurrentPlatform returns the current platform identifier.
 func (s *DefaultService) CurrentPlatform() string {
 	return s.platformResolver.CurrentPlatform()
+}
+
+func (s *DefaultService) recordTargetObservation(smokeTestID string, target JourneyTarget) {
+	if s.store == nil || target.Isolation == nil {
+		return
+	}
+	observations := []deliveryramp.IsolationObservation{*target.Isolation}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.IsolationObservations = observations
+		status.ScreenContentSource = deriveScreenContentSource(observations)
+	})
 }
 
 func (s *DefaultService) recordTypedFailure(smokeTestID string, err *Error) {

@@ -112,10 +112,12 @@
       },
       "composition": "ledger-river",
       "theme": "vault",
-      "metricIds": ["credits_burned_30d", "usage_operations_30d"],
+      "metricIds": ["revenue_mrr", "revenue_rollup", "subscriber_counts", "new_paid_subscriptions_30d", "churn", "credit_balances", "credit_burn_by_app", "credit_burn_by_model", "credits_purchased_30d", "credits_burned_30d", "usage_operations_30d", "offer_posture", "ai_cost_30d", "credit_margin_30d", "revenue_by_line"],
       "beats": [
-		{"hero": "credits_burned_30d", "dwellSeconds": 12},
-		{"hero": "usage_operations_30d", "dwellSeconds": 12}
+		{"hero": "revenue_mrr", "readingIds": ["revenue_mrr", "revenue_rollup", "subscriber_counts", "new_paid_subscriptions_30d", "churn"], "dwellSeconds": 12},
+		{"hero": "credit_burn_by_app", "readingIds": ["credit_burn_by_app", "credit_burn_by_model", "credits_purchased_30d", "credits_burned_30d", "credit_balances", "usage_operations_30d"], "dwellSeconds": 12}
+		,{"hero": "credit_margin_30d", "readingIds": ["credit_margin_30d", "ai_cost_30d", "revenue_by_line", "credit_burn_by_app", "credit_burn_by_model"], "dwellSeconds": 12},
+		{"hero": "offer_posture", "readingIds": ["offer_posture", "revenue_mrr", "revenue_rollup", "ai_cost_30d", "credit_margin_30d"], "dwellSeconds": 14}
       ]
     },
     {
@@ -128,14 +130,13 @@
       },
       "composition": "signal-constellation",
       "theme": "signal-tower",
-      "metricIds": ["funnel_30d", "visitors", "cta_clicks", "conversions", "traffic_referrers", "traffic_campaigns", "traffic_landing_paths", "traffic_devices", "traffic_variants", "experiment_leaderboard", "app_downloads", "app_update_checks", "credit_burn_by_app", "credit_burn_by_model", "credits_burned_30d", "credits_purchased_30d", "signups_30d", "waitlist_joins_30d", "new_paid_subscriptions_30d", "traffic_countries", "social_reach", "seo_rankings", "campaign_metrics"],
+      "metricIds": ["funnel_30d", "visitors", "cta_clicks", "conversions", "traffic_referrers", "traffic_campaigns", "traffic_landing_paths", "traffic_devices", "traffic_variants", "experiment_leaderboard", "app_downloads", "app_update_checks", "signups_30d", "waitlist_joins_30d", "new_paid_subscriptions_30d", "traffic_countries", "social_reach", "seo_rankings", "campaign_metrics"],
 	      "beats": [
 		{"hero": "funnel_30d", "readingIds": ["funnel_30d", "visitors", "cta_clicks", "conversions"], "composition": "conversion-funnel", "dwellSeconds": 12},
 		{"hero": "traffic_referrers", "readingIds": ["traffic_referrers", "traffic_campaigns", "traffic_landing_paths", "traffic_devices", "traffic_variants"], "dwellSeconds": 14},
 		{"hero": "traffic_campaigns", "readingIds": ["traffic_campaigns", "traffic_referrers", "traffic_landing_paths", "traffic_devices", "traffic_variants"], "dwellSeconds": 14},
 		{"hero": "experiment_leaderboard", "readingIds": ["experiment_leaderboard", "traffic_variants", "visitors", "cta_clicks", "conversions"], "dwellSeconds": 14},
 		{"hero": "app_downloads", "readingIds": ["app_downloads", "app_update_checks"], "dwellSeconds": 12},
-		{"hero": "credit_burn_by_app", "readingIds": ["credit_burn_by_app", "credit_burn_by_model", "credits_burned_30d", "credits_purchased_30d"], "dwellSeconds": 12},
 		{"hero": "signups_30d", "readingIds": ["signups_30d", "waitlist_joins_30d", "new_paid_subscriptions_30d"], "dwellSeconds": 10},
 		{"hero": "traffic_countries", "readingIds": ["traffic_countries", "social_reach", "seo_rankings", "campaign_metrics"], "composition": "meridian-arc", "dwellSeconds": 12}
 	      ]
@@ -668,6 +669,110 @@
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
+    },
+    {
+      "id": "offer_posture",
+      "label": "Default-alive posture",
+      "description": "Money Ledger cash, burn, revenue, runway, goal verdicts and default-alive gap surfaced through Offer Desk.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "kind": "posture",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:offer-desk",
+        "read": "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger",
+        "select": "offer_posture",
+        "ttlSeconds": 300,
+        "integrationId": "offer-desk",
+        "origin": "local",
+        "featureId": "offer_posture",
+        "contractVersion": "offer-board.v1",
+        "selector": "offer_posture",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Offer Desk board response with a live Money Ledger position and producer observation time.",
+      "sample": {"value": 0, "series": [0], "basis": "authored posture placeholder; live Money Ledger reading required"}
+    },
+    {
+      "id": "ai_cost_30d",
+      "label": "AI cost · 30 days",
+      "description": "Provider-reported inference cost for the trailing thirty days.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "kind": "scalar",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/revenue",
+        "select": "ai_cost_30d",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "origin": "production",
+        "featureId": "ai_cost_30d",
+        "contractVersion": "revenue-summary.v1",
+        "selector": "ai_cost_30d",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Production revenue-summary promotion evidence for provider-reported AI cost.",
+      "sample": {"value": 42.75, "series": [18.2, 24.9, 31.4, 36.8, 40.1, 42.75], "basis": "hand-authored scenario for provider cost in micro-USD, reviewed 2026-09-16"}
+    },
+    {
+      "id": "credit_margin_30d",
+      "label": "Credit margin · 30 days",
+      "description": "Credit top-up revenue less provider-reported inference cost, calculated at read time.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "kind": "scalar",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/revenue",
+        "select": "credit_margin_30d",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "origin": "production",
+        "featureId": "credit_margin_30d",
+        "contractVersion": "revenue-summary.v1",
+        "selector": "credit_margin_30d",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Production revenue-summary promotion evidence for credit revenue and provider cost.",
+      "sample": {"value": 957.25, "series": [640, 710, 780, 840, 900, 957.25], "basis": "read-time credit top-up revenue minus provider cost, reviewed 2026-09-16"}
+    },
+    {
+      "id": "revenue_by_line",
+      "label": "Revenue by line",
+      "description": "Successful checkout revenue split by subscription, credit top-up and other session types.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "kind": "panel",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/revenue",
+        "select": "revenue_by_line",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "origin": "production",
+        "featureId": "revenue_by_line",
+        "contractVersion": "revenue-summary.v1",
+        "selector": "revenue_by_line",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Production revenue-summary promotion evidence for revenue line items.",
+      "sample": {"value": 0, "series": [0], "basis": "authored zero baseline; production validation pending"}
     },
     {
       "id": "churn",

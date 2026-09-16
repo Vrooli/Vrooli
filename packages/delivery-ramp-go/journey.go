@@ -346,6 +346,7 @@ type JourneyResult struct {
 	WorkflowRequired             bool                        `json:"workflow_required,omitempty"`
 	WorkflowReference            *WorkflowExecutionReference `json:"workflow_reference,omitempty"`
 	ProviderObservation          *ProviderObservation        `json:"provider_observation,omitempty"`
+	IsolationObservations        []IsolationObservation      `json:"isolation_observations,omitempty"`
 	Disposition                  Disposition                 `json:"disposition"`
 	DegradedReason               string                      `json:"degraded_reason,omitempty"`
 	Events                       []JourneyEvent              `json:"events,omitempty"`

@@ -22,13 +22,18 @@ import { roomReadingSeconds } from "../lib/readingTime";
 import type { Reading } from "../lib/api";
 import { FunnelReadout } from "../components/FunnelReadout";
 import { LeaderboardReadout } from "../components/LeaderboardReadout";
+import { PostureReadout } from "../components/PostureReadout";
 import { TileQualifier } from "../components/TileQualifier";
 import { readingsForBeat } from "../lib/beat";
 
 /** A supporting reading takes the tile its shape calls for: a list reading has no single figure to show. */
 function SupportingTile({ reading, showTrend, showOrigin }: { reading: Reading; showTrend: boolean; showOrigin: boolean }) {
-  if (reading.kind === "ladder") return <LadderTile reading={reading} showOrigin={showOrigin} />;
-  if (reading.kind === "panel") return <PanelTile reading={reading} showOrigin={showOrigin} />;
+	if (reading.kind === "ladder") return <LadderTile reading={reading} showOrigin={showOrigin} />;
+	if (reading.kind === "panel") return <PanelTile reading={reading} showOrigin={showOrigin} />;
+	if (reading.kind === "posture") {
+		const posture = reading.value && typeof reading.value === "object" ? reading.value as { runwayMonths?: number; gap?: string } : {};
+		return <li className="cc-reading cc-structured-tile" data-testid="posture-tile"><span className="cc-reading-label">{reading.label}</span><strong>{posture.runwayMonths ?? "—"} mo</strong><span className="cc-qualifier">{posture.gap ?? "posture unavailable"}</span></li>;
+	}
   if (reading.kind === "funnel") return <li className="cc-reading cc-structured-tile"><span className="cc-reading-label">{reading.label}</span><strong>{reading.rows?.find((row) => row.key === "paid")?.value.toLocaleString() ?? "––"}</strong><TileQualifier qualifier={{ text: "paid step", tone: "live" }} reading={reading} showOrigin={showOrigin} /></li>;
   if (reading.kind === "leaderboard") { const leader = reading.rows?.find((row) => row.verdict === "LEADING" || row.verdict === "EXPERIMENT_VERDICT_LEADING"); return <li className="cc-reading cc-structured-tile"><span className="cc-reading-label">{reading.label}</span><strong>{leader?.label ?? "No leader"}</strong><TileQualifier qualifier={{ text: leader ? "leading arm" : "no measured verdict", tone: leader ? "live" : "quiet" }} reading={reading} showOrigin={showOrigin} /></li>; }
   return <ReadingTile reading={reading} showTrend={showTrend} showOrigin={showOrigin} />;
@@ -131,7 +136,7 @@ export default function RoomPage() {
           {error ? <p className="cc-degraded" role="status" data-testid="error-banner">The room could not be read. Showing nothing rather than a stale composition.</p> : null}
           {allIllustrative ? <p className="cc-room-stamp" data-testid="room-all-illustrative">Entire room illustrative · nothing here has been measured</p> : null}
           <ExperienceSurface surfaceId="hero" as="section" data-testid="room-hero" className="cc-hero-region" state={heroState} statusMessage={error ? "Unable to read this room." : undefined} data-provenance={hero ? resolveReading(hero).figure : constellations ? "measured" : "none"}>
-            {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : constellations ? <SkyReadout ref={heroRef} constellations={constellations} /> : hero?.kind === "ladder" ? (layout === "wide" ? <ReachMapReadout ref={heroRef} reading={hero} /> : <NextRungReadout ref={heroRef} reading={hero} />) : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : hero?.kind === "funnel" ? <FunnelReadout reading={hero} /> : hero?.kind === "leaderboard" ? <LeaderboardReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={board.samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
+            {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : constellations ? <SkyReadout ref={heroRef} constellations={constellations} /> : hero?.kind === "ladder" ? (layout === "wide" ? <ReachMapReadout ref={heroRef} reading={hero} /> : <NextRungReadout ref={heroRef} reading={hero} />) : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : hero?.kind === "funnel" ? <FunnelReadout reading={hero} /> : hero?.kind === "leaderboard" ? <LeaderboardReadout reading={hero} /> : hero?.kind === "posture" ? <PostureReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={board.samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
             {constellations ? null : <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>}
           </ExperienceSurface>
           <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings" data-omitted={stripless || undefined}>

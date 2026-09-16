@@ -110,7 +110,7 @@ describe('download API transport', () => {
   it('returns validated download, storage, and artifact records from successful responses', async () => {
     const asset = { bundle_key: 'bundle', app_key: 'desktop', platform: 'windows', artifact_url: 'https://cdn.example.test/app.exe', release_version: '1.0.0', requires_entitlement: true };
     const app = { bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop', platforms: [asset] };
-    const settings = { provider: 's3', force_path_style: false, signed_url_ttl_seconds: 900, access_key_id_set: true, secret_access_key_set: true, session_token_set: false, credentials_from_env: true, settings_row_available: true };
+    const settings = { provider: 's3', force_path_style: false, signed_url_ttl_seconds: 900, access_key_id_set: true, secret_access_key_set: true, session_token_set: false, credentials_from_authority: true, settings_row_available: true };
     const artifact = { id: 1, bundle_key: 'bundle', provider: 's3', bucket: 'releases', object_key: 'desktop/app.exe', metadata: {}, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' };
     downloadClient.authorizeDownload.mockResolvedValueOnce({ asset: generatedAsset(asset) });
     downloadClient.listDownloadApps.mockResolvedValueOnce({ apps: [generatedApp({ ...app, platforms: [generatedAsset(asset)] })] });
@@ -135,7 +135,7 @@ describe('download API transport', () => {
   it('preserves valid app, storage, and applied-artifact responses for operator workflows', async () => {
     const asset = { bundle_key: 'bundle', app_key: 'desktop', platform: 'windows', artifact_url: 'https://cdn.example.test/app.exe', release_version: '1.0.0', requires_entitlement: false };
     const app = { bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop', platforms: [asset] };
-    const settings = { provider: 's3', force_path_style: true, signed_url_ttl_seconds: 600, access_key_id_set: false, secret_access_key_set: false, session_token_set: false, credentials_from_env: false, settings_row_available: true };
+    const settings = { provider: 's3', force_path_style: true, signed_url_ttl_seconds: 600, access_key_id_set: false, secret_access_key_set: false, session_token_set: false, credentials_from_authority: false, settings_row_available: true };
     downloadClient.saveDownloadApp.mockResolvedValueOnce({ app: generatedApp({ ...app, platforms: [generatedAsset(asset)] }) });
     mockApiCall
       .mockResolvedValueOnce({ settings })

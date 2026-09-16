@@ -224,7 +224,7 @@ describe('DesktopTemplateGenerator update configuration', () => {
         const template = await fs.readFile(path.resolve(__dirname, '../vanilla/main.ts'), 'utf8');
         expect(template).toContain('if (!isBundledMode)');
         expect(template).toContain('defeat the bundle allocator\'s role bands');
-        expect(template).toContain('WC_SESSION_STATE_ROOT');
-        expect(template).toContain('web-console-sessions');
+        expect(template).not.toContain('WC_SESSION_STATE_ROOT');
+        expect(template).not.toContain('web-console-sessions');
     });
 });

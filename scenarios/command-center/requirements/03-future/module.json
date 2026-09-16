@@ -10,7 +10,7 @@
     {
       "id": "CC-P2-001",
       "title": "Metrics show their live prediction",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "A metric named by an unscored prediction block renders its target, direction and remaining horizon beside the value. A prediction whose horizon has passed and whose metric is not measurable resolves to unmeasurable and names the missing sensor, matching prediction-ledger rule 4.",
@@ -44,17 +44,17 @@
     {
       "id": "CC-P2-003",
       "title": "Consume the monetization revenue surface",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
-      "description": "Read revenue and subscription readings from the monetization instrument once it exposes them, retiring the Ledger room's authored samples. Until then the room reports IN-REACH with the named missing surface rather than an error.",
+      "description": "Read revenue, subscription, provider-cost, credit-margin, revenue-line, and Offer Desk posture readings from the monetization instrument. Authored samples remain explicitly IN-REACH until production promotion evidence exists.",
       "validation": [
         {
           "type": "manual",
           "ref": "docs/concepts/SOURCE-MAP.md",
           "phase": "review",
-          "status": "not_implemented",
-          "notes": "Blocked on an upstream surface; tracked as a source binding, not as scenario work [REQ:CC-P2-003]."
+          "status": "implemented",
+          "notes": "Registry, typed LPBS/Offer Desk bindings, posture kind, and measured-vs-sample behavior are covered by registry, upstream, and UI tests; production promotion remains externally gated [REQ:CC-P2-003]."
         }
       ]
     },

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
+	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -125,6 +126,18 @@ func TestBoardReportsLedgerUnavailableWithoutInventingActuals(t *testing.T) { //
 	require.Contains(t, response.Msg.Availability[0].Reason, "actuals unavailable")
 	require.Contains(t, response.Msg.Entries[0].RankReason, "earnings unknown")
 	require.NotContains(t, response.Msg.Entries[0].RankReason, "earning nothing")
+}
+
+func TestDeclaredDefaultAliveBufferNeverFallsBackToLocalThreshold(t *testing.T) { // [REQ:INT-005]
+	buffer, available := declaredDefaultAliveBuffer(nil)
+	require.Zero(t, buffer)
+	require.False(t, available)
+
+	buffer, available = declaredDefaultAliveBuffer([]*ledgerpb.GoalVerdict{
+		{Goal: &ledgerpb.Goal{Name: "default-alive", BufferMultiple: 1.4}},
+	})
+	require.True(t, available)
+	require.Equal(t, 1.4, buffer)
 }
 
 func TestEveryStatusHasAnExplicitRankReason(t *testing.T) {

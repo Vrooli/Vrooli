@@ -86,10 +86,154 @@ reason to mint replacement generated keys.
 
 ## Download Distribution Storage and Credentials
 
-Released desktop artifacts live in an S3-compatible bucket owned by the
-deployment that serves downloads. A local LPBS instance publishes to a remote
-deployment through a stored remote profile; the local host never writes that
-bucket directly.
+Released desktop artifacts live in a **private** S3-compatible bucket owned by
+the deployment that serves downloads. A local LPBS instance publishes to a
+remote deployment through a stored remote profile; the local host never writes
+that bucket directly. Free and paid downloads both work through short-lived
+presigned URLs, so a free download never requires a public object or AWS
+credentials on the client.
+
+### Bucket configuration
+
+Use one bucket, for example `vrooli-bucket` in `us-east-1`, and keep it private:
+
+| Setting | Value |
+|---|---|
+| Block all public access | Enabled |
+| Object Ownership | Bucket owner enforced |
+| ACLs | Disabled |
+| Default encryption | SSE-S3 |
+| Versioning | Enabled (preferred) |
+| Static website hosting | Disabled |
+
+Bucket encryption, ownership, and region are also validated by the deployment
+storage test. A public bucket is never required for downloads; "free to
+download" does not mean "publicly readable from S3".
+
+### Credential fields
+
+The bucket client resolves three credentials from the authority:
+
+| Field | Required | Purpose |
+|---|---|---|
+| `delivery-s3-access-key-id` | Yes | IAM access key ID for the delivery bucket |
+| `delivery-s3-secret-access-key` | Yes | Secret access key paired with the ID |
+| `delivery-s3-session-token` | No | Temporary AWS STS session token only |
+
+The access key ID and secret access key are the two halves of **one** AWS IAM
+credential pair; they are not two independent S3 keys. The session token is
+part of temporary STS credentials only and must be left unset for ordinary
+long-lived IAM-user credentials.
+
+### IAM identities
+
+Use separate IAM users for local and production so credentials can be audited,
+revoked, and rotated independently:
+
+```text
+vrooli-lpbs-local
+vrooli-lpbs-prod
+```
+
+Do not attach `AdministratorAccess` or `AmazonS3FullAccess`. Attach only the
+narrow policy below. Never create or use an access key for the AWS root user.
+
+### Required IAM policy
+
+Policy name: `VrooliDeliveryBucketAccess`. Both ARNs must name the configured
+bucket (`vrooli-bucket` here). LPBS stores release objects beneath an internal
+`<default_prefix>/<bundle_key>/<app_key>/<platform>/<release_version>/` layout;
+do not narrow the object ARN to a prefix unless the application's object-key
+behavior has been verified for that deployment.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectVrooliDeliveryBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::vrooli-bucket"
+    },
+    {
+      "Sid": "ManageVrooliDeliveryObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::vrooli-bucket/*"
+    }
+  ]
+}
+```
+
+### Obtain the credentials in the AWS Console
+
+1. Sign in to AWS. Personal account owners generally select **Root user** and
+   enter the account email. An email address is not normally an AWS account ID
+   or IAM alias. Root access may administer IAM, but never create a root access
+   key.
+2. Open **IAM → Policies** and create `VrooliDeliveryBucketAccess` with the
+   policy document above.
+3. Open **IAM → Users → Create user**.
+4. Create `vrooli-lpbs-local` (or `vrooli-lpbs-prod` on production).
+5. Do not enable AWS Console access for these workload identities.
+6. Attach `VrooliDeliveryBucketAccess`.
+7. Open the user's **Security credentials** tab.
+8. Under **Access keys**, select **Create access key**.
+9. Select the workload/application-running-outside-AWS use case.
+10. Enter the matching description: `Vrooli LPBS local deployment credential`
+    or `Vrooli LPBS production deployment credential`.
+11. Create the key and save the access key ID and secret access key securely.
+
+The admin **Downloads → Hosting** wizard shows this same guidance, the
+configured bucket and region, live presence per field, and copyable provision
+commands. Its **Test storage access** action returns a structured diagnostic
+when the bucket, region, credentials, or IAM permissions are wrong.
+
+> The secret access key is displayed only once. Never paste either credential
+> into chat, logs, screenshots, or issue reports. Never commit credentials to
+> Git or place them in `service.json`, application configuration, source files,
+> or shell history. AWS allows at most two access keys per IAM user.
+
+### Provision in Vrooli
+
+On the local host, provision the `vrooli-lpbs-local` pair. Run the same commands
+on the production host with the `vrooli-lpbs-prod` pair:
+
+```bash
+vrooli credentials provision \
+  --identity vrooli/landing-page-business-suite \
+  --field delivery-s3-access-key-id
+
+vrooli credentials provision \
+  --identity vrooli/landing-page-business-suite \
+  --field delivery-s3-secret-access-key
+```
+
+Credential input uses a secure prompt or stdin. Never pass a value as an
+ordinary command-line argument: process listings and shell history can expose
+it. Do not configure `delivery-s3-session-token` unless temporary STS
+credentials are deliberately in use.
+
+After provisioning, confirm presence without printing values:
+
+```bash
+vrooli credentials doctor --format json
+```
+
+Both `delivery-s3-access-key-id` and `delivery-s3-secret-access-key` must report
+`configured`. The API and UI use the same canonical field vocabulary and never
+return a secret value.
 
 ### How a release reaches the bucket
 
@@ -102,29 +246,11 @@ bucket directly.
    promoted to the new immutable revision.
 
 The remote host is the authority for the bucket credentials; the local host
-only holds the encrypted remote session.
-
-### Credentials
-
-The bucket client resolves three optional credentials from the authority:
-
-| Field | Purpose |
-|---|---|
-| `delivery-s3-access-key-id` | Access key ID for the artifact bucket |
-| `delivery-s3-secret-access-key` | Secret access key |
-| `delivery-s3-session-token` | Optional STS session token |
-
-When both key fields are absent, the client falls back to the host AWS default
-credential chain (an instance role, for example). Provision explicit keys only
-when the deployment has no role:
-
-```bash
-vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-access-key-id
-vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-secret-access-key
-```
-
-Inline keys are rejected by the storage settings API; the value always travels
-through the authority.
+only holds the encrypted remote session. Provision a **distinct** pair for each
+host. The local credentials satisfy the local storage/readiness gate; the
+production credentials generate the actual presigned upload URLs. A later
+hardening change could remove the local credential requirement if local LPBS
+never needs to sign objects.
 
 ### Object layout
 
@@ -141,13 +267,15 @@ revisions record which artifact set is visible for each `variant_key`
 
 ### Permission validation
 
-Readiness proves the bucket accepts object **write, read, and delete** with a
-bounded readiness object that is always deleted. A bucket that is merely
-discoverable (`HeadBucket`) is not sufficient, because a role can discover a
-bucket while lacking object permissions. Run:
+Test storage access proves the bucket accepts object **list, write, read, and
+delete** with a uniquely named canary object under the internal
+`.vrooli/healthchecks/<uuid>` prefix that is always deleted. A bucket that is
+merely discoverable (`HeadBucket`) is not sufficient, because a role can
+discover a bucket while lacking object permissions. The test also verifies that
+the bucket's region agrees with the configured region. Run:
 
 ```bash
-# Local bucket
+# Local bucket (structured result on failure)
 landing-page-business-suite admin-download-storage-test
 
 # Remote bucket through the stored profile
@@ -157,11 +285,61 @@ landing-page-business-suite remote-profiles-proxy --profile-tag prod --method PO
 landing-page-business-suite deploy-readiness --profile-tag prod --app-key web-console --domain <domain>
 ```
 
-The `/api/v1/deploy-readiness` endpoint that Deployment Manager calls runs the
-same remote checks, so a release cannot be approved for a target whose bucket,
-session, or app registration is not proven.
+If cleanup fails after a successful write, the diagnostic reports
+`cleanup_failed` and retains the non-sensitive canary key so it can be removed
+later. The `/api/v1/deploy-readiness` endpoint that Deployment Manager calls
+runs the same remote checks, so a release cannot be approved for a target whose
+bucket, session, or app registration is not proven.
+
+### Diagnostic codes
+
+`Test storage access` returns a stable machine-readable `code` with an
+actionable summary, the failed operation, the configured bucket and region, a
+safe remediation, and whether retrying can help. Credentials, authorization
+headers, signatures, session tokens, and complete presigned URLs are never
+included. Common codes include `bucket_name_missing`, `bucket_not_found`,
+`bucket_wrong_region`, `authentication_rejected`, `access_key_inactive`,
+`session_token_invalid`, `list_bucket_denied`, `get_object_denied`,
+`put_object_denied`, `delete_object_denied`, `encryption_permission_denied`,
+`request_timeout`, `network_failure`, `authority_unavailable`,
+`write_succeeded_read_failed`, and `cleanup_failed`.
+
+### Key rotation
+
+Rotate local and production separately:
+
+1. Create a second access key for the IAM user.
+2. Provision the new pair into Vrooli (`vrooli credentials provision`).
+3. Restart or reload the affected service if necessary.
+4. Run presence and operational validation (`vrooli credentials doctor` and
+   Test storage access).
+5. Complete a real presign/upload/download check.
+6. Deactivate the old access key.
+7. Verify deployment still works.
+8. Delete the old key after a short observation period.
+
+Record which host and identity were rotated; never record credential values.
+Store only booleans for presence, the identity suffix if safely derived, the
+bucket, the region, the operation, the AWS request ID, the error category, and
+validation latency.
+
+### Download behavior
+
+1. A user requests a download from LPBS.
+2. LPBS applies application/channel/platform checks.
+3. For a free release, no payment entitlement is required.
+4. LPBS issues or redirects to a short-lived presigned S3 URL.
+5. S3 serves the private object.
+
+Paid downloads use the same flow but require an entitlement before the URL is
+issued. Treat presigned URLs as temporary bearer credentials: do not log them in
+full or expose them unnecessarily. Presigned URLs control access only; they do
+not prove an artifact is genuine. Production releases also require platform code
+signing, signed or authenticated update metadata, cryptographic hashes, and
+protection against downgrade and manifest substitution.
 
 ---
+
 
 ## Local Development
 

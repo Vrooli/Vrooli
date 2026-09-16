@@ -120,12 +120,12 @@
         "description": "Protects the resolved Money Ledger data directory through scheduled snapshots and recovery drills; it is not part of request handling.",
         "degraded_behavior": "Money Ledger runs normally when the backup manager is unavailable; protection is a scheduled operational concern and is never substituted with synthetic financial values."
       },
-      "landing-page-business-suite": {
-        "type": "scenario",
-        "enabled": false,
+    "landing-page-business-suite": {
+      "type": "scenario",
+      "enabled": true,
         "required": false,
         "startup_policy": "ignore",
-        "description": "Planned P1 source for the commerce adapter (OT-P1-005): subscription and charge events, entering through the ordinary money-event contract rather than as a privileged integration. Disabled until that adapter is built.",
+      "description": "Optional P1 source for the commerce adapter (OT-P1-005): subscription and charge events, entering through the ordinary money-event contract rather than as a privileged integration.",
         "degraded_behavior": "The commerce adapter reports unavailable with its last-success age and does not advance its sync cursor, so the next run re-reads rather than skips. No zero-valued event is ever written, and position marks itself partial while the adapter is down."
       }
     }

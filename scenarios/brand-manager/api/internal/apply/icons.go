@@ -134,14 +134,37 @@ func (s *service) renderTarget(ctx context.Context, style render.Style, mark, sm
 // relative-src site.webmanifest for the web-public-v1 profile.
 func (s *service) writeWebPublicWiring(ctx context.Context, scenario, brandSlug string, brand BrandView, written []profiles.Target) error {
 	// site.webmanifest with relative srcs and correct purposes.
+	//
+	// Every key the manifest-completeness rule requires is written here
+	// (name, short_name, description, theme_color, background_color, display,
+	// start_url, id, icons). Writing only the first five left every branded
+	// scenario failing that rule identically — the gap was in this writer, not
+	// in the scenarios.
+	//
+	// Icon srcs stay relative (they sit beside this file), but start_url, scope
+	// and id are the app root "/" and NOT "." — this manifest is served from
+	// /public/site.webmanifest, so a relative "." would scope the installed app
+	// to the asset folder instead of the app. docs/concepts/PUBLIC_ASSETS.md
+	// §"Adopter requirements" states this explicitly.
+	name := firstNonEmpty(brand.DisplayName, brandSlug)
 	manifest := map[string]any{
-		"name":             firstNonEmpty(brand.DisplayName, brandSlug),
-		"short_name":       firstNonEmpty(brand.DisplayName, brandSlug),
+		"name":        name,
+		"short_name":  name,
+		"description": firstNonEmpty(brand.Tagline, name),
 		// theme_color tints the status bar and launch screen, so it is the brand
 		// background (the page's <meta theme-color>), not the accent-like primary.
-		"theme_color": firstNonEmpty(firstNonEmpty(brand.Colors.Background, brand.Colors.Primary), "#0f172a"),
+		"theme_color":      firstNonEmpty(firstNonEmpty(brand.Colors.Background, brand.Colors.Primary), "#0f172a"),
 		"background_color": firstNonEmpty(brand.Colors.Background, "#0f172a"),
+		"display":          "standalone",
+		"id":               "/",
+		"start_url":        "/",
+		"scope":            "/",
 		"icons":            manifestIcons(written),
+		// _brand makes an icons-only apply self-declaring: brand-markers-applied
+		// is otherwise satisfied only by CSS markers, which the icons element
+		// never writes, so a correctly branded scenario still reported "no brand
+		// applied".
+		"_brand": map[string]any{"slug": brandSlug, "version": brand.Version},
 	}
 	out, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {

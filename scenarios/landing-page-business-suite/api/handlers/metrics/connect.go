@@ -175,7 +175,10 @@ func (h *ConnectHandler) GetRevenueSummary(_ context.Context, _ *connect.Request
 		TrialsWithoutPaymentMethod: summary.TrialsWithoutPaymentMethod,
 		MrrUnit:                    summary.MRRUnit, RevenueTodayUnit: summary.RevenueTodayUnit,
 		RevenueWindowUnit: summary.RevenueWindowUnit, CreditUnit: summary.CreditUnit,
-		CurrencyExcludedCount: summary.CurrencyExcludedCount,
+		CurrencyExcludedCount: summary.CurrencyExcludedCount, CostMicros: summary.CostMicros, CostUnit: summary.CostUnit,
+	}
+	for _, line := range summary.RevenueByLine {
+		result.RevenueByLine = append(result.RevenueByLine, &lpbsv1.RevenueLine{Key: line.Key, Label: line.Label, AmountMinor: line.AmountMinor, Transactions: line.Transactions})
 	}
 	if summary.ObservedAt != nil {
 		result.ObservedAt = timestamppb.New(*summary.ObservedAt)

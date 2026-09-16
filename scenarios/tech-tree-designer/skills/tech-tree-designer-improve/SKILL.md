@@ -26,6 +26,10 @@ Read `path:scenarios/tech-tree-designer/docs/START-HERE.md` and
 `path:docs/agent-system/SCENARIO_DEVELOPMENT.md`. Use
 `prompt-manager skill read scenario-improvement-campaign` for execution under an
 approved mandate. Observation-only callers report the next repair without acting.
+A mandate caller is an implementer: missing TTD-owned sensors, acceptance
+resolvers, bindings, programs, tests, and evidence joins are successive
+in-scope repairs, not blockers. Continue until the selected outcome is
+evidenced or a genuinely external authority boundary prevents the next effect.
 
 ### 2. Setpoint
 
@@ -77,7 +81,7 @@ in-scope repairs under the same mandate. Do not create per-repair approval items
 | Applicable directive conflicts with the PRD | `scenario-work-ladder` W0 | Resolved contract applicability before dependent work |
 | Requirement mapping is wrong | `scenario-work-ladder` W1 | Obligation links match the governing target |
 | Existing completion claim lacks evidence | `requirements-traceability-steer` W2 | Located or freshly executed qualifying evidence; unsupported claims remain unresolved |
-| Selected outcome has `pending_telemetry` | `measures-adoption`, then owning domain implementation | Owner-defined executable measurement with validity and cohort checks |
+| Selected outcome has `pending_telemetry` | `measures-adoption`, then owning domain implementation | Build the resolver and owner-defined executable measurement when the owner is TTD or inside the mandate; continue after the board turns readable |
 | Existing sensor lacks a governed binding | Binding owner through `scenario-work-ladder` | Executable governed read; no private HTTP substitute |
 | A diagnostic read failed | Owning scenario; `scientific-debugging` if cause unknown | Reproducible failure and restored comparable reading |
 | Valid outcome evidence is out of band | Owning graph/planning/ontology domain; choose W3 via `scenario-work-ladder` | Behavior and its protected regression pass, then remeasure |
@@ -107,9 +111,11 @@ Checkpoints go through Plan Manager.
 
 ### 8. Stop rules
 
-**Stop a repair** when its evidence disproves the hypothesis, the fix needs an
-ungranted owner, or remeasurement shows no change. Journal the result and choose
-the next route. This does not stop the mandate.
+**Stop a repair** when its evidence disproves the hypothesis, the fix genuinely
+needs an ungranted owner, or remeasurement shows no change. Journal the result
+and choose the next route. A missing sensor, resolver, binding, or program is not
+an ungranted owner when it belongs to TTD or the active mandate. This does not
+stop the mandate.
 
 **Stop the mandate** only in these cases:
 
@@ -129,7 +135,7 @@ material amendment. No universal number of improvement cycles proves completion.
 
 | Symptom | Response |
 | --- | --- |
-| All outcome rows unknown | Expected until owner sensors ship; take the selected telemetry route, not a success exit. |
+| All outcome rows unknown | Expected until owner sensors ship; implement the selected telemetry route when it is in scope, not a success exit or a blocker handoff. |
 | Setup fixture passes but product test fails | Keep the product failure; setup evidence covers only the reader. |
 | Swarm development launch is not qualified | Finish authorized setup and retain its evidence; do not launch or substitute an ungoverned loop. |
 | Scale floor unmeasured | The OT-P0-008 floors are approved in PERFORMANCE.md; build the named cohorts and measure, never band current readings. |

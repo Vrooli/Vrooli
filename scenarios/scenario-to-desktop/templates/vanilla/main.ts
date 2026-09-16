@@ -1256,8 +1256,16 @@ async function startBundledRuntime(): Promise<string> {
     RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
 
     const args = ["--manifest", stagedManifestPath, "--bundle-root", bundleRoot, "--app-data", appData, "--dry-run=false"];
-    const runtimeEnv: Record<string, string | undefined> = {
-        ...process.env,
+    const bundledEnvironmentAllowlist = [
+        "HOME", "USER", "LANG", "LC_ALL", "TZ", "TMPDIR", "DISPLAY",
+        "XAUTHORITY", "PATH", "SSL_CERT_FILE", "SSL_CERT_DIR",
+    ];
+    const runtimeEnv: Record<string, string | undefined> = Object.fromEntries(
+        bundledEnvironmentAllowlist
+            .filter(name => process.env[name] !== undefined)
+            .map(name => [name, process.env[name]])
+    );
+    Object.assign(runtimeEnv, {
         VROOLI_API_SKIP_STALE_CHECK: "true",
         VROOLI_LIFECYCLE_MANAGED: "true",
         VROOLI_DESKTOP_MODE: "true",
@@ -1265,11 +1273,7 @@ async function startBundledRuntime(): Promise<string> {
         VROOLI_DATA: appData,
         // Canonical root for api-core/storage class directories.
         VROOLI_STORAGE_ROOT: path.join(appData, "storage"),
-        // Keep bundled web-console sessions and its dedicated tmux socket
-        // inside this desktop instance. A bundled app must never inherit the
-        // operator's session state or default tmux server.
-        WC_SESSION_STATE_ROOT: path.join(appData, "web-console-sessions"),
-    };
+    });
     // Bundled runtime ports are allocated from the manifest at launch. Fixed
     // Tier 1 values in PORTS are only valid for thin-client/local-server mode;
     // injecting them here would defeat the bundle allocator's role bands.
@@ -1389,6 +1393,13 @@ async function startBundledRuntime(): Promise<string> {
         await fs.promises.writeFile(BUNDLED_TARGET_PATH, JSON.stringify({
             renderer_url: `http://127.0.0.1:${port}/`,
             api_url: `http://127.0.0.1:${apiPort}`,
+            isolation: {
+                state_root: appData,
+                socket_path: path.join(appData, "runtime", "control.sock"),
+                database_path: path.join(appData, "storage"),
+                adopted_session_count: 0,
+                source: "bundled_runtime",
+            },
         }), "utf-8");
     }
     await launchTrace.emit("port_discovered", "bundled-runtime", "bundled_runtime", { service: serviceId, port_name: portName });

@@ -110,7 +110,7 @@
     {
       "id": "POS-005",
       "title": "The commerce adapter proves the contract",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "adapter",
       "criticality": "P1",
@@ -122,8 +122,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Against a faked upstream, events land with authoritative basis and correct external ids."
+          "status": "implemented",
+          "notes": "COMMERCE adapter reads LPBS revenue lines, posts non-zero observed events with authoritative basis and stable external ids, leaves the cursor unchanged on failure, and reports unavailable without synthetic zero events."
         }
       ]
     },

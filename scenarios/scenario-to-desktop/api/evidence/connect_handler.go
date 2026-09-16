@@ -178,6 +178,7 @@ func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Re
 		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "list evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	response := &domainv1.ListEvidenceCapturesResponse{}
+	checksums := make(map[string]struct{})
 	for _, item := range items {
 		if req.Msg.GetPipelineId() != "" && item.PipelineID != req.Msg.GetPipelineId() {
 			continue
@@ -189,6 +190,11 @@ func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Re
 			continue
 		}
 		response.Captures = append(response.Captures, captureToProto(item))
+		response.StoredBytes += item.FileSizeBytes
+		if _, seen := checksums[item.Checksum]; !seen {
+			response.DistinctBytes += item.FileSizeBytes
+			checksums[item.Checksum] = struct{}{}
+		}
 	}
 	return connect.NewResponse(response), nil
 }

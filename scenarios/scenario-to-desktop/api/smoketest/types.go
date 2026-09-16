@@ -112,6 +112,7 @@ type Status struct {
 	ProxyURL             string     `json:"proxy_url,omitempty"`
 	PipelineID           string     `json:"pipeline_id,omitempty"`
 	ScreenContentSource  string     `json:"screen_content_source,omitempty"`
+	IsolationObservations []deliveryramp.IsolationObservation `json:"isolation_observations,omitempty"`
 	ProtocolPassed       bool       `json:"protocol_passed,omitempty"`
 	Status               string     `json:"status"` // running, passed, failed
 	ArtifactPath         string     `json:"artifact_path,omitempty"`

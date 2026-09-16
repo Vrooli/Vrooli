@@ -389,12 +389,16 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusStarted, "applying the committed onboarding selection")
 		remote, applyErr := onboarding.ApplyAndReadiness(ctx, runner, onboarding.Target{Host: conn.Host, Port: conn.Port, User: conn.User, Key: conn.KeyPath}, selection)
 		s.recordConfigurationDispositions(ctx, opID, remote.Dispositions)
-		if applyErr == nil && remote.ExitCode == onboarding.ExitConfigurationIncomplete {
-			// The node is updated and its selection applied; what remains is
-			// operator input (credentials) or checks still settling. Recording
-			// that as a failed onboarding made every re-ship of minimouse read
-			// "failed" while the node ran the new tree (2026-09-15).
-			blockers := onboarding.IncompleteBlockers(remote.Stderr + "\n" + remote.Stdout)
+		blockers := onboarding.IncompleteBlockers(remote.Stderr + "\n" + remote.Stdout)
+		// The node is updated and its selection applied; what remains is
+		// operator input (credentials) or checks still settling. Recording that
+		// as a failed onboarding made every re-ship of minimouse read "failed"
+		// while the node ran the new tree (2026-09-15). The verdict keys on the
+		// named blockers rather than on the exit code alone: vrooli-onboarding
+		// exits 2 normally, but when it rebuilds itself from the shipped
+		// sources and re-executes, the same condition surfaced as 255. A real
+		// failure names no blockers and still fails the op.
+		if applyErr == nil && remote.ExitCode != 0 && (remote.ExitCode == onboarding.ExitConfigurationIncomplete || len(blockers) > 0) {
 			detail := "selection applied; configuration is incomplete"
 			if len(blockers) > 0 {
 				detail += fmt.Sprintf(": %d item(s) need operator input or are still being checked: %s", len(blockers), strings.Join(blockers, "; "))

@@ -130,7 +130,7 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Source for the release ladder panel"
+    "description": "Read-only source for the Offer Desk release ladder and monetization posture board; unavailable posture is surfaced without blocking the rest of Command Center."
       },
       "deployment-manager": {
         "enabled": true,

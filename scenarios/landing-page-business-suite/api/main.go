@@ -249,7 +249,17 @@ func NewServer() (*Server, error) {
 			return "", err
 		}
 		return authority.Require(identity, field)
-	}})
+	}}).WithCredentialIO(delivery.CredentialIO{
+		Read: func(_ context.Context, field string) (string, error) {
+			return administration.ResolveAuthorityCredential(field)
+		},
+		Write: func(_ context.Context, field, value string) error {
+			return administration.PutAuthorityCredential(field, value)
+		},
+		Delete: func(_ context.Context, field string) error {
+			return administration.DeleteAuthorityCredential(field)
+		},
+	})
 	limitsService := commerce.NewLimitsService(routedDB, "postgres", logx.Info)
 	accountService := newAccountService(routedDB, planService, limitsService)
 	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())

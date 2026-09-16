@@ -27,5 +27,4 @@ CREATE TABLE IF NOT EXISTS experiment_exposures (
   first_seen_at TIMESTAMP DEFAULT NOW(),
   UNIQUE (visitor_id, variant_slug, weight_fingerprint)
 );
-ALTER TABLE metrics_events ADD COLUMN IF NOT EXISTS traffic_class VARCHAR(16) NOT NULL DEFAULT 'human';
 CREATE INDEX IF NOT EXISTS idx_metrics_events_created_traffic_type ON metrics_events (created_at, traffic_class, event_type);

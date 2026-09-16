@@ -459,6 +459,35 @@ func TestPickVectorizesWithTheBrandsAccent(t *testing.T) {
 	}
 }
 
+// image-tools' vectorize defaults (4 colours, min-area 40, tolerance 0.8) traced
+// Rigel's star field as 68 contours, 57 of them specks under 20px, and dropped
+// the thin constellation lines. A picked mark must trace with the settings that
+// keep it clean, or every product in a line gets a different quality of mark.
+func TestPickVectorizesWithTraceSafeDefaults(t *testing.T) {
+	backend := &fakeBackend{}
+	svc, store, assetStore := newTestService(backend, testBrands())
+	assetStore.put("raster", "image/png", pngBytes)
+	cand, _ := store.Create(context.Background(), Candidate{BrandID: "b-vega", AssetID: "raster", MediaType: "image/png", Status: StatusProposed})
+
+	if _, _, _, err := svc.Pick(context.Background(), cand.ID); err != nil {
+		t.Fatal(err)
+	}
+	got := backend.vectorized[0]
+	if got.Colors != 3 {
+		t.Fatalf("colours = %d, want 3", got.Colors)
+	}
+	if got.MinAreaPx != 60 {
+		t.Fatalf("min area = %v px, want 60", got.MinAreaPx)
+	}
+	if got.TolerancePx != 0.25 {
+		t.Fatalf("tolerance = %v px, want 0.25", got.TolerancePx)
+	}
+	if !got.DropBackgroundLayers || !got.ClipToLargestRoundedRegion || !got.Smoothing {
+		t.Fatalf("drop=%t clip=%t smoothing=%t, want all true",
+			got.DropBackgroundLayers, got.ClipToLargestRoundedRegion, got.Smoothing)
+	}
+}
+
 func TestRefineInstructionUsesTheCloudEditRole(t *testing.T) {
 	backend := &fakeBackend{}
 	svc, store, assetStore := newTestService(backend, testBrands())

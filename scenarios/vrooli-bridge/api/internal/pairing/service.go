@@ -8,7 +8,9 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -123,8 +125,16 @@ func (s *Service) Redeem(ctx context.Context, code, nodePublicKeyB64 string, fac
 		return "", err
 	}
 
-	stored, err := s.repo.GetCodeByHash(ctx, hashCode(code))
+	presented := hashCode(code)
+	stored, err := s.repo.GetCodeByHash(ctx, presented)
 	if err != nil {
+		if errors.Is(err, ErrCodeNotFound) {
+			// The presented code matched no row. Log a short prefix of its
+			// hash (never the code) so an operator can compare it with the
+			// row this control plane stored for the op; the alternative is a
+			// bare "not found" with nothing to compare (2026-09-15).
+			log.Printf("pairing: redeem presented an unknown code (hash prefix %s, length %d)", presented[:12], len(strings.TrimSpace(code)))
+		}
 		return "", err // ErrCodeNotFound
 	}
 	if stored.Redeemed() {

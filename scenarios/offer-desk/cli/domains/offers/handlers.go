@@ -366,7 +366,23 @@ func boardReport(_ cliapp.OperationContext, m *offerspb.BoardResponse) cliapp.Li
 	for i, e := range m.Entries {
 		r[i] = fmt.Sprintf("%s — %s [%s]", e.Title, e.RankReason, e.Status.String())
 	}
-	return cliapp.ListReport{Summary: []string{"Offer Desk board"}, ResultsHeading: "Priority", Results: r}
+	summary := []string{"Offer Desk board"}
+	if m.Position != nil {
+		summary = append(summary, fmt.Sprintf("Posture: revenue=%d burn=%d cash=%d %s runway=%.2f months", m.Position.RevenueMinor, m.Position.BurnMinor, m.Position.CashMinor, m.Position.Currency, m.Position.RunwayMonths))
+	}
+	if m.DefaultAliveGap != "" {
+		summary = append(summary, "Default-alive gap: "+m.DefaultAliveGap)
+	}
+	if m.PostureSource != "" || m.PostureAgeSeconds > 0 {
+		summary = append(summary, fmt.Sprintf("Posture source: %s (age=%ds)", m.PostureSource, m.PostureAgeSeconds))
+	}
+	for _, verdict := range m.Goals {
+		if verdict == nil || verdict.Goal == nil {
+			continue
+		}
+		summary = append(summary, fmt.Sprintf("Goal %s: met=%t sustained=%d/%d", verdict.Goal.Name, verdict.Met, verdict.SustainedPeriods, verdict.RequiredPeriods))
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Priority", Results: r}
 }
 
 func ladderReport(_ cliapp.OperationContext, m *offerspb.ReleaseLadderResponse) cliapp.ListReport {

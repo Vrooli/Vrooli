@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -240,5 +241,81 @@ func TestChannelRecoveryBindsPredecessorAndRefusesUnsafeRollback(t *testing.T) {
 	}
 	if _, err := catalog.RecoverChannel(context.Background(), delivery.ChannelRecoveryRequest{BundleKey: bundle, AppKey: app, VariantKey: variant, ExpectedRevision: recovery.Revision, Action: "forward_repair", DataCompatibility: "compatible", ArtifactIDs: map[string]int64{"windows": repair}, Reason: "forward migration repair"}); err != nil {
 		t.Fatalf("forward repair: %v", err)
+	}
+}
+
+func TestChannelPromotionNormalizesArchitectureQualifiedTargets(t *testing.T) {
+	db := setupTestDB(t)
+	const bundle, app, variant = "channel_platform_projection_bundle", "desktop", "stable"
+	if _, err := db.Exec(`INSERT INTO download_apps (bundle_key, app_key, name) VALUES ($1,$2,'Desktop')`, bundle, app); err != nil {
+		t.Fatal(err)
+	}
+	var artifactID int64
+	if err := db.QueryRow(`
+		INSERT INTO download_artifacts
+			(bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version, metadata)
+		VALUES ($1,$2,'s3','bucket','releases/1.0.0/web-console-x64','digest','linux','1.0.0',$3::jsonb)
+		RETURNING id
+	`, bundle, app, `{"platform":"linux","architecture":"amd64","target_id":"linux-x64"}`).Scan(&artifactID); err != nil {
+		t.Fatal(err)
+	}
+	catalog := delivery.NewCatalogService(db)
+	if _, err := catalog.PromoteChannel(context.Background(), delivery.ChannelPromotionRequest{
+		BundleKey: bundle, AppKey: app, VariantKey: variant, ExpectedRevision: 0,
+		ArtifactIDs: map[string]int64{"linux-x64": artifactID},
+	}); err != nil {
+		t.Fatalf("promote architecture-qualified target: %v", err)
+	}
+
+	// The catalog is operating-system scoped: the stored platform must be the
+	// canonical OS key, and an OS-addressed lookup must resolve it.
+	asset, err := catalog.GetAssetByVariant(bundle, app, "linux", variant)
+	if err != nil {
+		t.Fatalf("lookup by canonical platform: %v", err)
+	}
+	if asset.Platform != "linux" {
+		t.Fatalf("stored platform = %q, want linux", asset.Platform)
+	}
+	if asset.ArtifactID == nil || *asset.ArtifactID != artifactID {
+		t.Fatalf("asset artifact_id = %v, want %d", asset.ArtifactID, artifactID)
+	}
+	// A lookup using the producer's target id must also resolve, because the
+	// owner normalizes at the boundary.
+	if _, err := catalog.GetAssetByVariant(bundle, app, "linux-x64", variant); err != nil {
+		t.Fatalf("lookup by producer target id: %v", err)
+	}
+	if asset.Metadata["architecture"] != "amd64" {
+		t.Fatalf("asset metadata architecture = %v, want amd64", asset.Metadata["architecture"])
+	}
+	if asset.Metadata["target_id"] != "linux-x64" {
+		t.Fatalf("asset metadata target_id = %v, want linux-x64", asset.Metadata["target_id"])
+	}
+
+	var headSet []byte
+	if err := db.QueryRow(`SELECT artifact_set FROM download_channel_heads WHERE bundle_key = $1`, bundle).Scan(&headSet); err != nil {
+		t.Fatalf("read head: %v", err)
+	}
+	var ids map[string]int64
+	if err := json.Unmarshal(headSet, &ids); err != nil {
+		t.Fatalf("decode head: %v", err)
+	}
+	if _, ok := ids["linux"]; !ok {
+		t.Fatalf("channel head keys = %v, want canonical linux", ids)
+	}
+}
+
+func TestChannelPromotionRefusesTwoTargetsOnOnePlatform(t *testing.T) {
+	db := setupTestDB(t)
+	const bundle, app, variant = "channel_platform_collision_bundle", "desktop", "stable"
+	if _, err := db.Exec(`INSERT INTO download_apps (bundle_key, app_key, name) VALUES ($1,$2,'Desktop')`, bundle, app); err != nil {
+		t.Fatal(err)
+	}
+	catalog := delivery.NewCatalogService(db)
+	_, err := catalog.PromoteChannel(context.Background(), delivery.ChannelPromotionRequest{
+		BundleKey: bundle, AppKey: app, VariantKey: variant, ExpectedRevision: 0,
+		ArtifactIDs: map[string]int64{"darwin-x64": 1, "darwin-arm64": 2},
+	})
+	if err == nil || !strings.Contains(err.Error(), "one architecture per platform") {
+		t.Fatalf("expected one-architecture-per-platform refusal, got %v", err)
 	}
 }

@@ -31,11 +31,9 @@ type credentialKeyringStatus struct {
 }
 
 func normalizeKeyringOptions(opts KeyringOptions) (string, string, error) {
-	path, format := strings.TrimSpace(opts.Path), strings.TrimSpace(opts.Format)
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	path := strings.TrimSpace(opts.Path)
+	format, ok := normalizeOutputFormat(opts.Format)
+	if !ok {
 		return "", "", fmt.Errorf("keyring format must be text or json")
 	}
 	return path, format, nil

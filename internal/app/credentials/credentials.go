@@ -48,12 +48,26 @@ type credentialRecoveryExportReport struct {
 	Skipped []string `json:"skipped"`
 }
 
-func (app *Service) List(ctx context.Context, root string, out io.Writer, opts ListOptions) error {
-	format := strings.TrimSpace(opts.Format)
-	if format == "" {
+// normalizeOutputFormat maps the CLI's declared default onto cliout's human
+// format and reports whether the result is one these commands render.
+//
+// The CLI declares `--format text` as the default for every credentials verb
+// (cli/manifest.json) while cliout names its human form "human", so a
+// validator that compares against cliout alone refuses its own default:
+// `vrooli credentials store status` failed with "store format must be text or
+// json" on minimouse and on this host (2026-09-15). Doctor was repaired in
+// place; this carries the same rule to the verbs that still reimplemented it.
+func normalizeOutputFormat(format string) (string, bool) {
+	format = strings.TrimSpace(format)
+	if format == "" || format == "text" {
 		format = string(cliout.FormatHuman)
 	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	return format, format == string(cliout.FormatHuman) || format == string(cliout.FormatJSON)
+}
+
+func (app *Service) List(ctx context.Context, root string, out io.Writer, opts ListOptions) error {
+	format, ok := normalizeOutputFormat(opts.Format)
+	if !ok {
 		return fmt.Errorf("credentials list accepts only --format text|json")
 	}
 	entries, err := collectCredentialEntries(root)
@@ -253,11 +267,8 @@ func (app *Service) Status(ctx context.Context, out io.Writer, opts CredentialSe
 	if field == "" {
 		field = credentialDefaultField
 	}
-	format := strings.TrimSpace(opts.Format)
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, ok := normalizeOutputFormat(opts.Format)
+	if !ok {
 		return fmt.Errorf("credentials status format must be text or json")
 	}
 	authority, err := credentialAuthority()

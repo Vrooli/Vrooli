@@ -18,6 +18,8 @@ type AdminDependencies struct {
 	SettingsSnapshot   func(context.Context, string) (*delivery.StorageSettingsSnapshot, error)
 	SaveSettings       func(context.Context, string, delivery.StorageSettingsUpdate) (*delivery.StorageSettingsSnapshot, error)
 	TestConnection     func(context.Context, string) error
+	ValidateStorage    func(context.Context, string) (*delivery.StorageValidationResult, error)
+	WriteValidation    func(http.ResponseWriter, int, any)
 	ListArtifacts      func(context.Context, string, string, string, string, int, int) (*delivery.ListArtifactsResult, error)
 	ListArtifactsByApp func(context.Context, string, string, string, int, int) (*delivery.ListArtifactsResult, error)
 	PresignUpload      func(context.Context, string, delivery.PresignUploadRequest) (*delivery.PresignUploadResponse, error)
@@ -80,7 +82,8 @@ func GetStorage(deps AdminDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load download storage settings: %v", err), "server_error")
 			return
 		}
-		deps.WriteSuccessData(w, map[string]any{"settings": snapshot})
+		guide := delivery.BuildProvisioningGuide(snapshot.Bucket, snapshot.Region)
+		deps.WriteSuccessData(w, map[string]any{"settings": snapshot, "credentials_guide": guide})
 	}
 }
 
@@ -101,13 +104,54 @@ func UpdateStorage(deps AdminDependencies) http.HandlerFunc {
 
 func TestStorage(deps AdminDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if deps.ValidateStorage != nil {
+			result, err := deps.ValidateStorage(r.Context(), deps.BundleKey())
+			if result == nil {
+				status, kind := storageError(err)
+				writeTestStorageError(deps, w, status, kind, err)
+				return
+			}
+			if result.Ready {
+				if deps.WriteValidation != nil {
+					deps.WriteValidation(w, http.StatusOK, map[string]any{"success": true, "validation": result})
+					return
+				}
+				deps.WriteSuccessSimple(w)
+				return
+			}
+			status, kind := storageError(err)
+			if deps.WriteValidation != nil {
+				message := "delivery storage is not ready"
+				if err != nil {
+					message = err.Error()
+				}
+				deps.WriteValidation(w, status, map[string]any{"error": message, "error_type": kind, "validation": result})
+				return
+			}
+			writeTestStorageError(deps, w, status, kind, err)
+			return
+		}
 		if err := deps.TestConnection(r.Context(), deps.BundleKey()); err != nil {
 			status, kind := storageError(err)
-			deps.WriteError(w, status, err.Error(), kind)
+			writeTestStorageError(deps, w, status, kind, err)
 			return
 		}
 		deps.WriteSuccessSimple(w)
 	}
+}
+
+// writeTestStorageError emits the legacy error envelope, annotated with the
+// structured diagnostic when one is present and no richer writer is installed.
+func writeTestStorageError(deps AdminDependencies, w http.ResponseWriter, status int, kind string, err error) {
+	message := "delivery storage is not ready"
+	if err != nil {
+		message = err.Error()
+	}
+	if diagnostic, ok := delivery.FromDiagnostic(err); ok && deps.WriteValidation != nil {
+		deps.WriteValidation(w, status, map[string]any{"error": message, "error_type": kind, "diagnostic": diagnostic})
+		return
+	}
+	deps.WriteError(w, status, message, kind)
 }
 
 func ListArtifacts(deps AdminDependencies) http.HandlerFunc {
@@ -455,6 +499,9 @@ func RecoverChannel(deps AdminDependencies) http.HandlerFunc {
 }
 
 func storageError(err error) (int, string) {
+	if diagnostic, ok := delivery.FromDiagnostic(err); ok {
+		return statusForDiagnostic(diagnostic.Code), string(diagnostic.Code)
+	}
 	if errors.Is(err, delivery.ErrStorageNotConfigured) {
 		return http.StatusConflict, "server_error"
 	}
@@ -462,6 +509,30 @@ func storageError(err error) (int, string) {
 		return http.StatusConflict, "conflict"
 	}
 	return http.StatusBadRequest, "validation"
+}
+
+// statusForDiagnostic maps a stable diagnostic code to the HTTP status an
+// operator or automated caller should expect.
+func statusForDiagnostic(code delivery.DiagnosticCode) int {
+	switch code {
+	case delivery.CodeAuthorityUnavailable:
+		return http.StatusServiceUnavailable
+	case delivery.CodeBucketNameMissing, delivery.CodeRegionMissing,
+		delivery.CodeAccessKeyIDMissing, delivery.CodeSecretAccessKeyMissing,
+		delivery.CodeSessionTokenMissing, delivery.CodeBucketNotFound,
+		delivery.CodeBucketWrongRegion, delivery.CodeCredentialConfigInvalid,
+		delivery.CodeSessionTokenInvalid:
+		return http.StatusConflict
+	case delivery.CodeAuthenticationRejected, delivery.CodeAccessKeyInactive,
+		delivery.CodeListBucketDenied, delivery.CodeGetObjectDenied,
+		delivery.CodePutObjectDenied, delivery.CodeDeleteObjectDenied,
+		delivery.CodeEncryptionPermission:
+		return http.StatusForbidden
+	case delivery.CodeCleanupFailed, delivery.CodeWriteSucceededReadFailed:
+		return http.StatusInternalServerError
+	default:
+		return http.StatusBadRequest
+	}
 }
 
 func pagination(r *http.Request) (int, int) {

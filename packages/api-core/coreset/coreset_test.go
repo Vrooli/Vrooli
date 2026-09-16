@@ -157,6 +157,40 @@ func TestNormalizeOperationalAuthorityAddsRecoveryPlane(t *testing.T) {
 	}
 }
 
+func TestLoadMissingCoreUsesOperationalDefaults(t *testing.T) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	statePath := filepath.Join(paths.StateDir, "operator-state.json")
+	original, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.WriteFile(statePath, original, 0o600); err != nil {
+			t.Errorf("restore operator state: %v", err)
+		}
+	})
+	if err := os.WriteFile(statePath, []byte(`{"scenarios":{"legacy":{"enabled":true}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	authority, err := Load("")
+	if err != nil {
+		t.Fatalf("Load() error = %v, want legacy state to remain bootable", err)
+	}
+	for _, required := range RequiredOperationalScenarios {
+		if !contains(authority.Seed, required) || !contains(authority.TrustedBase, required) {
+			t.Fatalf("required recovery scenario %q missing from normalized authority: %+v", required, authority)
+		}
+	}
+}
+
 func containsStringTest(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {

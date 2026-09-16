@@ -2,8 +2,10 @@ package generation
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -462,11 +464,51 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 		})
 		return
 	}
-	templateGeneratorPath := filepath.Join(s.templateDir, "build-tools", "dist", "template-generator.js")
+	snapshotDir := filepath.Join(filepath.Dir(configPath), "template-snapshot")
+	originalHash, err := templateTreeHash(s.templateDir)
+	if err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, err.Error())
+			status.CompletedAt = ptrTime(time.Now())
+		})
+		return
+	}
+	if err := os.RemoveAll(snapshotDir); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("clear template snapshot failed: %v", err))
+			status.CompletedAt = ptrTime(time.Now())
+		})
+		return
+	}
+	if err := copyTemplateTree(s.templateDir, snapshotDir); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("template snapshot failed: %v", err))
+			status.CompletedAt = ptrTime(time.Now())
+		})
+		return
+	}
+	snapshotHash, err := templateTreeHash(snapshotDir)
+	if err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, err.Error())
+			status.CompletedAt = ptrTime(time.Now())
+		})
+		return
+	}
+	templateGeneratorPath := filepath.Join(snapshotDir, "build-tools", "dist", "template-generator.js")
 	cmd := exec.Command("node", templateGeneratorPath, configPath)
 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
+	if currentHash, hashErr := templateTreeHash(s.templateDir); hashErr != nil {
+		err = hashErr
+	} else if currentHash != originalHash {
+		err = fmt.Errorf("template tree changed during generation (snapshot %s; current %s)", snapshotHash, currentHash)
+	}
 
 	s.updateBuildStatus(buildID, func(status *BuildStatus) {
 		status.BuildLog = append(status.BuildLog, outputStr)
@@ -479,12 +521,73 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 			status.Status = "ready"
 			status.Artifacts["config_path"] = configPath
 			status.Artifacts["output_path"] = config.OutputPath
+			status.Artifacts["template_snapshot_hash"] = snapshotHash
 			s.postGenerateSteps(config, status)
 		}
 
 		now := time.Now()
 		status.CompletedAt = &now
 	})
+}
+
+func ptrTime(value time.Time) *time.Time { return &value }
+
+func copyTemplateTree(source, destination string) error {
+	return fs.WalkDir(os.DirFS(source), ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && entry.Name() == "node_modules" {
+			return fs.SkipDir
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		target := filepath.Join(destination, filepath.FromSlash(path))
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(path)))
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+}
+
+func templateTreeHash(root string) (string, error) {
+	h := sha256.New()
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && entry.Name() == "node_modules" {
+			return fs.SkipDir
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		_, _ = h.Write([]byte(filepath.ToSlash(rel)))
+		_, _ = h.Write([]byte{0})
+		_, _ = h.Write(data)
+		_, _ = h.Write([]byte{0})
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("hash template snapshot: %w", err)
+	}
+	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
 }
 
 // postGenerateSteps runs icon sync and bundle packaging after successful generation.

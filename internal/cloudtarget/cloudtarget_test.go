@@ -594,7 +594,7 @@ func TestScenarioActivatorUsesLifecycleArgv(t *testing.T) {
 	}
 	want := [][]string{
 		{"/opt/vrooli/bin/vrooli", "scenario", "stop", "landing-app", "--json"},
-		{"/opt/vrooli/bin/vrooli", "scenario", "start", "landing-app", "--path", "/home/deploy/.vrooli/cloud/deployments/d/releases/abc/scenarios/landing-app", "--json"},
+		{"/opt/vrooli/bin/vrooli", "scenario", "start", "landing-app", "--path", "/home/deploy/.vrooli/cloud/deployments/d/releases/abc/scenarios/landing-app", "--clean-stale", "--json"},
 	}
 	if mustJSON(t, runner.calls) != mustJSON(t, want) {
 		t.Fatalf("calls = %q", runner.calls)

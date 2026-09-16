@@ -209,8 +209,20 @@ class AdminRevenue(_message.Message):
     observed_at: _timestamp_pb2.Timestamp
     def __init__(self, mrr: _Optional[float] = ..., mrr_unit: _Optional[str] = ..., today: _Optional[float] = ..., today_unit: _Optional[str] = ..., currency: _Optional[str] = ..., sample_size: _Optional[int] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class RevenueLine(_message.Message):
+    __slots__ = ("key", "label", "amount_minor", "transactions")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_MINOR_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTIONS_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    label: str
+    amount_minor: int
+    transactions: int
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., amount_minor: _Optional[int] = ..., transactions: _Optional[int] = ...) -> None: ...
+
 class RevenueSummary(_message.Message):
-    __slots__ = ("observed_at", "currency", "mrr_minor", "revenue_today_minor", "revenue_window_minor", "active_subscriptions", "subscriptions_churned_window", "churn_rate_percent", "credit_balance_total", "credit_burned_window", "usage_records_window", "sample_size", "trials_without_payment_method", "mrr_unit", "revenue_today_unit", "revenue_window_unit", "credit_unit", "currency_excluded_count")
+    __slots__ = ("observed_at", "currency", "mrr_minor", "revenue_today_minor", "revenue_window_minor", "active_subscriptions", "subscriptions_churned_window", "churn_rate_percent", "credit_balance_total", "credit_burned_window", "usage_records_window", "sample_size", "trials_without_payment_method", "mrr_unit", "revenue_today_unit", "revenue_window_unit", "credit_unit", "currency_excluded_count", "cost_micros", "cost_unit", "revenue_by_line")
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     MRR_MINOR_FIELD_NUMBER: _ClassVar[int]
@@ -229,6 +241,9 @@ class RevenueSummary(_message.Message):
     REVENUE_WINDOW_UNIT_FIELD_NUMBER: _ClassVar[int]
     CREDIT_UNIT_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_EXCLUDED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    COST_MICROS_FIELD_NUMBER: _ClassVar[int]
+    COST_UNIT_FIELD_NUMBER: _ClassVar[int]
+    REVENUE_BY_LINE_FIELD_NUMBER: _ClassVar[int]
     observed_at: _timestamp_pb2.Timestamp
     currency: str
     mrr_minor: int
@@ -247,7 +262,10 @@ class RevenueSummary(_message.Message):
     revenue_window_unit: str
     credit_unit: str
     currency_excluded_count: int
-    def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., currency: _Optional[str] = ..., mrr_minor: _Optional[int] = ..., revenue_today_minor: _Optional[int] = ..., revenue_window_minor: _Optional[int] = ..., active_subscriptions: _Optional[int] = ..., subscriptions_churned_window: _Optional[int] = ..., churn_rate_percent: _Optional[float] = ..., credit_balance_total: _Optional[int] = ..., credit_burned_window: _Optional[int] = ..., usage_records_window: _Optional[int] = ..., sample_size: _Optional[int] = ..., trials_without_payment_method: _Optional[int] = ..., mrr_unit: _Optional[str] = ..., revenue_today_unit: _Optional[str] = ..., revenue_window_unit: _Optional[str] = ..., credit_unit: _Optional[str] = ..., currency_excluded_count: _Optional[int] = ...) -> None: ...
+    cost_micros: int
+    cost_unit: str
+    revenue_by_line: _containers.RepeatedCompositeFieldContainer[RevenueLine]
+    def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., currency: _Optional[str] = ..., mrr_minor: _Optional[int] = ..., revenue_today_minor: _Optional[int] = ..., revenue_window_minor: _Optional[int] = ..., active_subscriptions: _Optional[int] = ..., subscriptions_churned_window: _Optional[int] = ..., churn_rate_percent: _Optional[float] = ..., credit_balance_total: _Optional[int] = ..., credit_burned_window: _Optional[int] = ..., usage_records_window: _Optional[int] = ..., sample_size: _Optional[int] = ..., trials_without_payment_method: _Optional[int] = ..., mrr_unit: _Optional[str] = ..., revenue_today_unit: _Optional[str] = ..., revenue_window_unit: _Optional[str] = ..., credit_unit: _Optional[str] = ..., currency_excluded_count: _Optional[int] = ..., cost_micros: _Optional[int] = ..., cost_unit: _Optional[str] = ..., revenue_by_line: _Optional[_Iterable[_Union[RevenueLine, _Mapping]]] = ...) -> None: ...
 
 class GetAnalyticsSummaryRequest(_message.Message):
     __slots__ = ("start_date", "end_date", "window_days")

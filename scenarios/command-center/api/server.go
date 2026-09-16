@@ -60,7 +60,7 @@ func NewServerWithTrendStore(reg *Registry, trendStore trends.Store) *Server {
 		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
 		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
 		lpbs:   upstream.NewLPBSTypedResolved(resolveLPBSBaseURL(reg), resolveLPBSReaderToken(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
-		offer:  upstream.NewJSONConnectResolved("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", declaredFeatureSet(reg, "offer-desk", "")),
+		offer:  upstream.NewJSONConnectResolvedPaths("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), []string{"/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger"}, declaredFeatureSet(reg, "offer-desk", "")),
 		deploy: upstream.NewRESTResolved("deployment-manager", resolveScenarioBaseURL("deployment-manager", "DEPLOYMENT_MANAGER_BASE_URL", "DEPLOYMENT_MANAGER_API_PORT"), ""),
 	}
 	s.providers = map[UpstreamSource]upstreamProvider{
@@ -173,11 +173,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func resolveControlPlaneBaseURL() string {
-	if v := os.Getenv("VROOLI_API_BASE_URL"); v != "" {
-		return v
+	if v := strings.TrimSpace(os.Getenv("VROOLI_API_BASE_URL")); v != "" {
+		return strings.TrimRight(v, "/")
 	}
-	if v := os.Getenv("VROOLI_API_PORT"); v != "" {
+	if v := strings.TrimSpace(os.Getenv("VROOLI_API_PORT")); v != "" {
 		return "http://127.0.0.1:" + v
 	}
-	return "http://127.0.0.1:8092"
+	// The control plane is a project-owned service, not a Command Center
+	// dependency with a stable scenario port. Lifecycle supplies its resolved
+	// endpoint through the standard VROOLI_API_* contract. If that contract is
+	// absent, leave the producer unconfigured instead of probing a guessed port.
+	return ""
 }

@@ -616,6 +616,142 @@ Deletes an asset.
 
 ---
 
+## Download Storage
+
+Download bucket credentials are owned by the host credential authority. The
+settings row stores only non-secret configuration; the API projects credential
+values back as presence flags and never serializes them.
+
+### GET /admin/download-storage
+
+Returns the current storage settings. Non-secret fields fall back to deployment
+defaults when unset (bucket `<bundle-key>-downloads`, region `us-east-1`,
+prefix `artifacts`, signed URL TTL `900`), so the admin portal always opens with
+a usable starting point that the operator may override.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "settings": {
+    "provider": "s3",
+    "bucket": "business-suite-downloads",
+    "region": "us-east-1",
+    "endpoint": "",
+    "force_path_style": false,
+    "default_prefix": "artifacts",
+    "signed_url_ttl_seconds": 900,
+    "public_base_url": "",
+    "access_key_id_set": true,
+    "secret_access_key_set": true,
+    "session_token_set": false,
+    "credentials_from_authority": true,
+    "settings_row_available": true,
+    "access_key_id_state": "configured",
+    "secret_access_key_state": "configured",
+    "session_token_state": "missing",
+    "credentials_source": "authority",
+    "session_token_optional": true
+  },
+  "credentials_guide": {
+    "identity": "vrooli/landing-page-business-suite",
+    "bucket": "business-suite-downloads",
+    "region": "us-east-1",
+    "policy_name": "VrooliDeliveryBucketAccess",
+    "policy_document": "{ ... }",
+    "iam_users": { "local": "vrooli-lpbs-local", "production": "vrooli-lpbs-prod" },
+    "steps": [ { "number": 1, "title": "Sign in to AWS", "detail": "..." } ],
+    "warnings": [ "..." ],
+    "local_commands": [ "vrooli credentials provision ..." ],
+    "production_commands": [ "..." ],
+    "rotation_steps": [ "..." ],
+    "session_token_note": "...",
+    "private_bucket_note": "..."
+  }
+}
+```
+
+The per-field `*_state` values are the canonical presence vocabulary:
+`configured`, `missing`, `unavailable`, or `authority_error`. `unavailable` and
+`authority_error` mean the authority could not answer; they must never be
+treated as an absent credential. `credentials_guide` always carries the complete
+AWS and Vrooli provisioning instructions for the configured bucket.
+
+### PUT /admin/download-storage
+
+Updates storage settings. Non-secret fields are persisted to
+`download_storage_settings`.
+
+**Authentication:** Admin session required
+
+**Request:**
+```json
+{
+  "provider": "s3",
+  "bucket": "business-suite-downloads",
+  "region": "us-east-1",
+  "default_prefix": "artifacts",
+  "signed_url_ttl_seconds": 900,
+  "access_key_id": "AKIA...",
+  "secret_access_key": "…"
+}
+```
+
+`access_key_id`, `secret_access_key`, and `session_token` are **written through
+to the host credential authority** (`vrooli/landing-page-business-suite`
+`delivery-s3-*` fields); they are never stored in the settings row. An empty
+string clears the stored value. Supplying a credential without an available
+credential authority is rejected.
+
+### POST /admin/download-storage/test
+
+Runs the two-level delivery validation and returns a structured result. The
+required access key ID and secret access key must be present, then the bucket is
+proven to accept object **list, write, read, and delete** with a uniquely named
+canary under the internal `.vrooli/healthchecks/<uuid>` prefix that is always
+deleted. The bucket's region must agree with the configured region. A
+discoverable bucket alone is not sufficient.
+
+**Authentication:** Admin session required
+
+**Success response (200):**
+```json
+{ "success": true, "validation": { "ready": true, "bucket": "vrooli-bucket", "region": "us-east-1", "latency_ms": 42 } }
+```
+
+**Failure response (non-2xx):** returns `error`, `error_type` (the stable
+diagnostic code), and the full `validation` object, including
+`validation.diagnostic`:
+
+```json
+{
+  "error": "write readiness object: PutObject denied on bucket \"vrooli-bucket\"",
+  "error_type": "put_object_denied",
+  "validation": {
+    "ready": false,
+    "bucket": "vrooli-bucket",
+    "region": "us-east-1",
+    "diagnostic": {
+      "code": "put_object_denied",
+      "summary": "write readiness object: PutObject denied on bucket \"vrooli-bucket\"",
+      "operation": "PutObject",
+      "bucket": "vrooli-bucket",
+      "region": "us-east-1",
+      "remediation": "Add s3:PutObject for the bucket object ARN to the VrooliDeliveryBucketAccess policy.",
+      "retryable": false
+    }
+  }
+}
+```
+
+Diagnostics never include credentials, authorization headers, signatures,
+session tokens, or complete presigned URLs. If cleanup fails after a successful
+write, the code is `cleanup_failed` and the non-sensitive `canary_key` is
+retained for later removal.
+
+---
+
 ## Download App Management
 
 ### GET /admin/download-apps

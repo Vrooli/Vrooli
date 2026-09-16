@@ -19,7 +19,8 @@ function ladderGaps(hero: Reading): number {
 
 /** What the hero shows beyond its headline, in seconds. */
 function heroSeconds(hero: Reading, layout: BeatLayout): number {
-  const { line, token } = READING_SECONDS;
+	const { line, token } = READING_SECONDS;
+	if (hero.kind === "posture") return 4 * line;
   if (hero.kind === "panel") return Math.min(PANEL_MAX_ROWS, (hero.rows?.length ? hero.rows : hero.sample?.rows ?? []).length) * line;
   if (hero.kind !== "ladder") return 0;
   const ladder = ladderOf(hero)?.ladder;

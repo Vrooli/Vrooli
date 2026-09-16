@@ -21,7 +21,15 @@ deployment-manager is one of four planes. See [Deployment Hub](../../docs/deploy
 | Approval gates and release records | Running the artifact on its targets |
 | Release channels and promotion | Producing evidence from those runs |
 
-**Direction of control**: a ramp calls deployment-manager. deployment-manager does not drive a ramp's pipeline. `scenario-to-desktop` calls three endpoints — create an approval, read the release gate, and generate a bundle manifest — and publishes only when the gate allows it.
+**Direction of control**: the direction depends on the path. For the generic
+path, a ramp calls deployment-manager to create an approval, read the release
+gate, and generate a bundle manifest, and publishes only when the gate allows
+it. For a governed commercial release, the direction inverts: deployment-manager
+allocates the release identity, gates on cloud health and the destination's
+upload readiness, drives the ramp's publish pipeline (for desktop,
+`scenario-to-desktop`), and verifies the published artifact identity. In both
+paths the ramp still owns build, package, sign, and target-specific execution;
+deployment-manager owns release state, approval, and the decision to publish.
 
 The generic deploy endpoints (`POST /api/v1/deploy/{profile_id}` and
 `GET /api/v1/deployments/{deployment_id}`) remain compatibility and local

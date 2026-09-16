@@ -24,6 +24,12 @@ governance and release approval.
 | Inspect the API or CLI | [API contract](reference/api-contract.md) or [CLI reference](reference/cli-commands.md) |
 | Understand release evidence | [Smoke-test pipeline](reference/smoke-test-pipeline.md) and the [canonical evidence contract](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md) |
 
+The canonical contract also defines the four rules that govern trustworthy
+bundled applications: [runtime request routing](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md#runtime-request-routing),
+[child process environment](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md#child-process-environment),
+[isolation observation](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md#isolation-observation),
+and [journey assertions](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md#journey-assertions).
+
 ## Agent usage and improvement
 
 Read `prompt-manager skill read scenario-to-desktop` for usage. Read

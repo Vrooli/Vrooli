@@ -65,3 +65,25 @@ func TestNodePairingCallsSkipOperatorEnrollment(t *testing.T) {
 		t.Fatal("issuing a code is an owner operation and must stay enrolled")
 	}
 }
+
+// Domains build their Connect clients before --api-base is parsed, so the
+// transport re-points each request at the base resolved for this invocation.
+func TestRetargetURLPrefersTheResolvedBase(t *testing.T) {
+	u, err := url.Parse("http://localhost:18767/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !retargetURL(u, "http://swarminator.local:18767") {
+		t.Fatal("an explicit base must retarget a localhost-bound request")
+	}
+	if u.String() != "http://swarminator.local:18767/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode" {
+		t.Fatalf("url = %s", u)
+	}
+	if retargetURL(u, "http://swarminator.local:18767") {
+		t.Fatal("an unchanged base must report no change")
+	}
+	before := u.String()
+	if retargetURL(u, "") || retargetURL(u, "::not a url") || u.String() != before {
+		t.Fatalf("an empty or malformed base must leave the url alone: %s", u)
+	}
+}

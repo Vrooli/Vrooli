@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	cryptorand "crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"path"
 	"strings"
 	"time"
 
@@ -22,6 +20,7 @@ import (
 type s3Storage struct {
 	client    *s3.Client
 	presigner *s3.PresignClient
+	region    string
 }
 
 // S3StorageProvider is the AWS S3-compatible storage implementation for the
@@ -74,7 +73,7 @@ func newS3Storage(ctx context.Context, settings StorageSettings, resolve Credent
 		return nil, err
 	}
 	client := s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = settings.ForcePathStyle })
-	return &s3Storage{client: client, presigner: s3.NewPresignClient(client)}, nil
+	return &s3Storage{client: client, presigner: s3.NewPresignClient(client), region: region}, nil
 }
 
 func resolveOptionalS3Credential(ctx context.Context, resolve CredentialResolver, field string) (string, error) {
@@ -100,23 +99,60 @@ func firstCredentialError(errs ...error) error {
 func (s *s3Storage) TestConnection(ctx context.Context, bucket string) error {
 	bucket = strings.TrimSpace(bucket)
 	if bucket == "" {
-		return fmt.Errorf("bucket is required")
+		return newDiagnosticError(CodeBucketNameMissing, "bucket is required", "HeadBucket", "", s.region, "Set the delivery bucket name in storage settings.", false)
 	}
 	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
-	return err
+	if err != nil {
+		return ClassifyS3Error(err, "HeadBucket", bucket, s.region)
+	}
+	return nil
 }
 
-// VerifyOperations proves the bounded distribution contract with an object
-// that is unique to this readiness attempt and is always deleted. HeadBucket
-// alone is insufficient: a role can discover a bucket while lacking object
-// write, read, or cleanup permissions.
-func (s *s3Storage) VerifyOperations(ctx context.Context, bucket, prefix string) (err error) {
-	if err := s.TestConnection(ctx, bucket); err != nil {
-		return err
+// healthcheckObjectPrefix is the internal, bucket-level prefix LPBS owns for
+// bounded readiness canaries. It is deliberately separate from the artifact
+// prefix so validation never collides with a release object.
+const healthcheckObjectPrefix = ".vrooli/healthchecks"
+
+// VerifyOperations proves the bounded distribution contract with operations
+// that are unique to this readiness attempt and are always cleaned up.
+// HeadBucket alone is insufficient: a role can discover a bucket while lacking
+// list, object write, read, or cleanup permissions. Each failure is classified
+// so an operator can identify the exact missing permission.
+func (s *s3Storage) VerifyOperations(ctx context.Context, bucket, _ string) error {
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return newDiagnosticError(CodeBucketNameMissing, "bucket is required", "HeadBucket", "", s.region, "Set the delivery bucket name in storage settings.", false)
 	}
-	key, err := readinessObjectKey(prefix)
+
+	head, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {
-		return err
+		return ClassifyS3Error(err, "HeadBucket", bucket, s.region)
+	}
+	if head != nil && head.BucketRegion != nil {
+		actual := strings.TrimSpace(*head.BucketRegion)
+		if actual != "" && strings.TrimSpace(s.region) != "" && !strings.EqualFold(actual, s.region) {
+			return newDiagnosticError(
+				CodeBucketWrongRegion,
+				fmt.Sprintf("bucket %q is in region %q but the configured region is %q", bucket, actual, s.region),
+				"HeadBucket", bucket, s.region,
+				fmt.Sprintf("Set the storage region to %q and retry.", actual), false,
+			)
+		}
+	}
+
+	if _, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket:  aws.String(bucket),
+		Prefix:  aws.String(healthcheckObjectPrefix + "/"),
+		MaxKeys: aws.Int32(1),
+	}); err != nil {
+		diagnostic := ClassifyS3Error(err, "ListBucket", bucket, s.region)
+		diagnostic.Summary = "list readiness prefix: " + diagnostic.Summary
+		return diagnostic
+	}
+
+	key, err := healthcheckObjectKey()
+	if err != nil {
+		return newDiagnosticError(CodeOperationFailed, fmt.Sprintf("generate readiness object identity: %v", err), "PutObject", bucket, s.region, "Retry; if the failure persists, inspect host randomness.", true)
 	}
 	payload := []byte("vrooli-s3-readiness-v1")
 	if _, err := s.client.PutObject(ctx, &s3.PutObjectInput{
@@ -125,47 +161,68 @@ func (s *s3Storage) VerifyOperations(ctx context.Context, bucket, prefix string)
 		Body:        bytes.NewReader(payload),
 		ContentType: aws.String("application/octet-stream"),
 	}); err != nil {
-		return fmt.Errorf("write readiness object: %w", err)
+		diagnostic := ClassifyS3Error(err, "PutObject", bucket, s.region)
+		diagnostic.Summary = "write readiness object: " + diagnostic.Summary
+		return diagnostic
 	}
-	defer func() {
-		if cleanupErr := s.deleteReadinessObject(ctx, bucket, key); err == nil && cleanupErr != nil {
-			err = fmt.Errorf("delete readiness object: %w", cleanupErr)
-		}
-	}()
 
 	response, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	if err != nil {
-		return fmt.Errorf("read readiness object: %w", err)
+		diagnostic := ClassifyS3Error(err, "GetObject", bucket, s.region)
+		diagnostic.Summary = "read readiness object: " + diagnostic.Summary
+		if diagnostic.Code == CodeOperationFailed {
+			diagnostic.Code = CodeWriteSucceededReadFailed
+		}
+		return s.cleanupAfterFailure(ctx, bucket, key, diagnostic)
 	}
 	read, readErr := io.ReadAll(response.Body)
 	closeErr := response.Body.Close()
 	if readErr != nil {
-		return fmt.Errorf("read readiness object body: %w", readErr)
+		diagnostic := newDiagnosticError(CodeWriteSucceededReadFailed, fmt.Sprintf("read readiness object body: %v", readErr), "GetObject", bucket, s.region, "Retry the storage test; the canary object is recreated each run.", true)
+		return s.cleanupAfterFailure(ctx, bucket, key, diagnostic)
 	}
 	if closeErr != nil {
-		return fmt.Errorf("close readiness object body: %w", closeErr)
+		diagnostic := newDiagnosticError(CodeWriteSucceededReadFailed, fmt.Sprintf("close readiness object body: %v", closeErr), "GetObject", bucket, s.region, "Retry the storage test; the canary object is recreated each run.", true)
+		return s.cleanupAfterFailure(ctx, bucket, key, diagnostic)
 	}
 	if !bytes.Equal(read, payload) {
-		return fmt.Errorf("readiness object content did not round-trip")
+		diagnostic := newDiagnosticError(CodeWriteSucceededReadFailed, "readiness object content did not round-trip", "GetObject", bucket, s.region, "The bucket may be transforming objects. Retry, then inspect bucket settings.", true)
+		return s.cleanupAfterFailure(ctx, bucket, key, diagnostic)
+	}
+
+	if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)}); err != nil {
+		diagnostic := ClassifyS3Error(err, "DeleteObject", bucket, s.region)
+		if diagnostic.Code != CodeDeleteObjectDenied {
+			diagnostic.Code = CodeCleanupFailed
+		}
+		diagnostic.Summary = "write and read succeeded but cleanup failed: delete readiness object: " + diagnostic.Summary
+		diagnostic.WithCanary(key)
+		return diagnostic
 	}
 	return nil
 }
 
-func (s *s3Storage) deleteReadinessObject(ctx context.Context, bucket, key string) error {
-	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
-	return err
+// cleanupAfterFailure best-effort deletes a canary whose read failed. A cleanup
+// failure retains the non-sensitive key so an operator can remove it later.
+func (s *s3Storage) cleanupAfterFailure(ctx context.Context, bucket, key string, diagnostic *DiagnosticError) *DiagnosticError {
+	if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)}); err != nil {
+		diagnostic.WithCanary(key)
+	}
+	return diagnostic
 }
 
-func readinessObjectKey(prefix string) (string, error) {
-	cleanPrefix := path.Clean(strings.Trim(strings.TrimSpace(prefix), "/"))
-	if cleanPrefix == "." || cleanPrefix == ".." || strings.HasPrefix(cleanPrefix, "../") {
-		cleanPrefix = ".vrooli/readiness"
-	}
-	var token [12]byte
+// healthcheckObjectKey builds a collision-resistant RFC 4122 v4 identifier
+// under the internal readiness prefix. Concurrent validations never share a key
+// and never overwrite a fixed health-check object.
+func healthcheckObjectKey() (string, error) {
+	var token [16]byte
 	if _, err := cryptorand.Read(token[:]); err != nil {
 		return "", fmt.Errorf("generate readiness object identity: %w", err)
 	}
-	return cleanPrefix + "/.vrooli-readiness-" + hex.EncodeToString(token[:]), nil
+	token[6] = (token[6] & 0x0f) | 0x40
+	token[8] = (token[8] & 0x3f) | 0x80
+	id := fmt.Sprintf("%x-%x-%x-%x-%x", token[0:4], token[4:6], token[6:8], token[8:10], token[10:16])
+	return healthcheckObjectPrefix + "/" + id, nil
 }
 
 func (s *s3Storage) PresignGet(ctx context.Context, bucket, key string, ttl time.Duration) (string, error) {

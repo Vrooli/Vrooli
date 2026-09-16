@@ -14,11 +14,8 @@ import (
 // for the Secrets Manager native host.
 func (app *Service) Extensions(ctx context.Context, out io.Writer, opts ExtensionOptions) error {
 	_ = ctx
-	format := strings.TrimSpace(opts.Format)
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, ok := normalizeOutputFormat(opts.Format)
+	if !ok {
 		return fmt.Errorf("credentials extensions accepts only --format text|json")
 	}
 	registration := credentialextension.Options{

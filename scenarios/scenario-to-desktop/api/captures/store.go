@@ -19,6 +19,13 @@ type Store interface {
 	Summary(scenarioName string) (CapturesSummary, error)
 }
 
+// FilenameReferences is implemented by stores that can answer whether a
+// content object is still referenced by metadata. It keeps deduplicated files
+// alive until their final metadata record is removed.
+type FilenameReferences interface {
+	FilenameReferences(filename string) (int, error)
+}
+
 type PipelineAnnotator interface {
 	UpdatePipelineID(scenarioName, captureID, pipelineID string) error
 }
@@ -155,4 +162,42 @@ func (s *FileStore) Summary(scenarioName string) (CapturesSummary, error) {
 		Count:      len(caps),
 		TotalBytes: total,
 	}, nil
+}
+
+func (s *FileStore) FilenameReferences(filename string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	count := 0
+	for _, captures := range s.data {
+		for _, capture := range captures {
+			if capture.Filename == filename {
+				count++
+			}
+		}
+	}
+	return count, nil
+}
+
+// OrphanFiles returns regular files in the capture directory that are not
+// referenced by any durable metadata record.
+func (s *FileStore) OrphanFiles(filesDir string) ([]string, error) {
+	entries, err := os.ReadDir(filesDir)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	referenced := make(map[string]bool)
+	for _, captures := range s.data {
+		for _, capture := range captures {
+			referenced[capture.Filename] = true
+		}
+	}
+	orphans := make([]string, 0)
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && !referenced[entry.Name()] {
+			orphans = append(orphans, entry.Name())
+		}
+	}
+	return orphans, nil
 }

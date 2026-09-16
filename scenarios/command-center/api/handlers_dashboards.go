@@ -150,7 +150,8 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		pick, known := selectors[selectorID]
 		panelPick, panelKnown := panelSelectors[selectorID]
 		ladderPick, ladderKnown := ladderSelectors[selectorID]
-		if !known && !panelKnown && !ladderKnown {
+		posturePick, postureKnown := postureSelectors[selectorID]
+		if !known && !panelKnown && !ladderKnown && !postureKnown {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "no selector named " + selectorID
 			continue
@@ -186,6 +187,22 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			m.Ladder = ladder
 			m.Rows = ladderRows(ladder)
 			m.Value = float64(len(ladder.Rungs))
+			m.trustFromProducerTime(env, err)
+			continue
+		}
+		if strings.EqualFold(m.Kind, "posture") {
+			if !postureKnown {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "no posture selector named " + selectorID
+				continue
+			}
+			posture, found := posturePick(payload)
+			if !found {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "posture selector " + selectorID + " found no position in the source payload"
+				continue
+			}
+			m.Value = posture
 			m.trustFromProducerTime(env, err)
 			continue
 		}

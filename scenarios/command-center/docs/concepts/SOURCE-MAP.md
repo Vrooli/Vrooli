@@ -30,7 +30,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | Mission Control | Vrooli control plane, `swarm-manager` | Mostly `NOW`. The best-instrumented room, because scenario health and swarm throughput are both live. |
 | The Hive | Vrooli control plane, `meta-optimization-manager` | Mostly `NOW`. Usage frequency is `MISSING` — nothing anywhere collects invocation counts. |
 | The Forge | `swarm-manager` | Fully `NOW`-capable. The only room whose sources are all live today. |
-| Ledger | `offer-desk`, `money-ledger`, `landing-page-business-suite` | The monetization instrument is `live` but exposes no revenue surface, so readings are `IN-REACH`, not `MISSING`. A pipeline, not a control loop, is what is absent. |
+| Ledger | `offer-desk`, `money-ledger`, `landing-page-business-suite` | LPBS supplies measured revenue, credit usage, provider cost, and revenue lines; Offer Desk supplies read-time Money Ledger posture. Local bindings are implemented, while production readings remain `IN-REACH` until origin health and promotion evidence are available. |
 | Broadcast | `landing-page-business-suite` | Broadcast reads LPBS production through scoped `metrics:read` procedures; unimplemented social and SEO capabilities remain explicit gaps. |
 | Panorama | Composed from every other room in the registry | Inherits the worst state of its inputs, per input. Cannot be more honest than what feeds it. Counts each signal once, however many rooms show it. |
 

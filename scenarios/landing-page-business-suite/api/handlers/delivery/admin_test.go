@@ -74,6 +74,39 @@ func TestTestStorageMapsProviderFailureToValidationError(t *testing.T) {
 	}
 }
 
+func TestTestStorageReportsStructuredDiagnostic(t *testing.T) {
+	deps := adminTestDependencies()
+	deps.WriteValidation = func(w http.ResponseWriter, status int, payload any) {
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(payload)
+	}
+	deps.ValidateStorage = func(context.Context, string) (*delivery.StorageValidationResult, error) {
+		diagnostic := &delivery.Diagnostic{
+			Code:        delivery.CodePutObjectDenied,
+			Summary:     "write readiness object: PutObject denied on bucket \"downloads\"",
+			Operation:   "PutObject",
+			Bucket:      "downloads",
+			Region:      "us-east-1",
+			Remediation: "Add s3:PutObject for the bucket object ARN to the VrooliDeliveryBucketAccess policy.",
+		}
+		result := &delivery.StorageValidationResult{Bucket: "downloads", Region: "us-east-1", Diagnostic: diagnostic}
+		return result, &delivery.DiagnosticError{Diagnostic: *diagnostic}
+	}
+
+	response := httptest.NewRecorder()
+	TestStorage(deps)(response, httptest.NewRequest(http.MethodPost, "/api/v1/admin/download-storage/test", nil))
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{"put_object_denied", "write readiness object", "s3:PutObject"} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("body missing %q: %s", fragment, body)
+		}
+	}
+}
+
 func TestSetChannelHaltDryRunDoesNotMutateOwner(t *testing.T) {
 	deps := adminTestDependencies()
 	called := false

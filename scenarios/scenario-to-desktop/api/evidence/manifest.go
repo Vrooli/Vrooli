@@ -112,7 +112,7 @@ func populateTimeline(manifest *deliveryramp.Manifest, input smoketest.EvidenceM
 	if journey.Disposition == deliveryramp.DispositionPass && strings.TrimSpace(input.ScreenContentSource) != "" && input.ScreenContentSource != "unknown" {
 		redactionStatus = "verified"
 	}
-	manifest.Timeline = deliveryramp.TimelineSummary{Version: journey.EvidenceVersion, Capability: journey.Capability, EventCount: len(journey.Events), Ordered: true, RedactionStatus: redactionStatus, ScreenContentSource: strings.TrimSpace(input.ScreenContentSource), WorkflowRequired: journey.WorkflowRequired}
+	manifest.Timeline = deliveryramp.TimelineSummary{Version: journey.EvidenceVersion, Capability: journey.Capability, EventCount: len(journey.Events), Ordered: true, RedactionStatus: redactionStatus, ScreenContentSource: strings.TrimSpace(input.ScreenContentSource), WorkflowRequired: journey.WorkflowRequired, IsolationObservations: input.IsolationObservations}
 	workflowReference := input.WorkflowReference
 	if workflowReference == nil {
 		workflowReference = journey.WorkflowReference

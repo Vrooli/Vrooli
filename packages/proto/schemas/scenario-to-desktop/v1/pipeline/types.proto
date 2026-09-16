@@ -472,6 +472,9 @@ message PipelineCancelRequest {
 
 message PipelineListRequest {
   optional string scenario_name = 1;
+  optional string status = 2;
+  optional google.protobuf.Timestamp since = 3;
+  optional int32 limit = 4;
 }
 
 // PipelineCancelResponse is returned when a pipeline is cancelled.

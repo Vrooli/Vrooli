@@ -27,9 +27,10 @@ type Store interface {
 // Service owns storage configuration, artifact metadata, and provider-backed
 // upload and download operations for the delivery domain.
 type Service struct {
-	db        Store
-	resolver  RequestStoreResolver
-	providers map[string]StorageProvider
+	db          Store
+	resolver    RequestStoreResolver
+	providers   map[string]StorageProvider
+	credentials CredentialIO
 }
 
 func (s *Service) bindRequest(ctx context.Context) (*Service, error) {
@@ -84,6 +85,89 @@ func newService(db Store, resolver RequestStoreResolver, providers ...StoragePro
 var ErrStorageNotConfigured = errors.New("download storage not configured")
 
 var ErrImmutableArtifactConflict = errors.New("immutable artifact conflict")
+
+// CredentialField* name the credential-authority fields that own download
+// bucket secrets. The settings row keeps only non-secret configuration; these
+// values are written through to the authority and never persisted beside it.
+const (
+	CredentialFieldAccessKeyID     = "delivery-s3-access-key-id"
+	CredentialFieldSecretAccessKey = "delivery-s3-secret-access-key"
+	CredentialFieldSessionToken    = "delivery-s3-session-token"
+)
+
+// Download storage defaults keep a fresh deployment usable without hand-typed
+// bucket settings. Every value remains visible and editable in the admin portal
+// and is only applied when the operator has not supplied their own.
+const (
+	DefaultRegion              = "us-east-1"
+	DefaultSignedURLTTLSeconds = 900
+	DefaultObjectPrefix        = "artifacts"
+)
+
+// CredentialIO is the authority-backed secret boundary for download storage.
+// Read reports a stored value; Write replaces it; Delete clears it. The values
+// never touch download_storage_settings.
+type CredentialIO struct {
+	Read   func(ctx context.Context, field string) (string, error)
+	Write  func(ctx context.Context, field, value string) error
+	Delete func(ctx context.Context, field string) error
+}
+
+// WithCredentialIO installs the authority-backed credential boundary. When it
+// is absent, an attempt to store credentials is refused rather than silently
+// dropped.
+func (s *Service) WithCredentialIO(io CredentialIO) *Service {
+	s.credentials = io
+	return s
+}
+
+// DefaultBucketFor derives a stable, S3-safe bucket name from a bundle key so
+// the portal can present a sensible default the operator can override before
+// saving.
+func DefaultBucketFor(bundleKey string) string {
+	slug := strings.ToLower(strings.TrimSpace(bundleKey))
+	var builder strings.Builder
+	pendingDash := false
+	for _, r := range slug {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			if pendingDash && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			pendingDash = false
+			builder.WriteRune(r)
+		default:
+			pendingDash = true
+		}
+	}
+	result := strings.Trim(builder.String(), "-")
+	if result == "" {
+		result = "vrooli"
+	}
+	return result + "-downloads"
+}
+
+// storageSettingsWithDefaults fills empty non-secret settings with the
+// deployment defaults. It is used for operator display and for persisting a
+// save, never to mask a missing settings row at runtime.
+func storageSettingsWithDefaults(settings StorageSettings, bundleKey string) StorageSettings {
+	if strings.TrimSpace(settings.Provider) == "" {
+		settings.Provider = "s3"
+	}
+	if strings.TrimSpace(settings.Bucket) == "" {
+		settings.Bucket = DefaultBucketFor(bundleKey)
+	}
+	if strings.TrimSpace(settings.Region) == "" {
+		settings.Region = DefaultRegion
+	}
+	if strings.TrimSpace(settings.DefaultPrefix) == "" {
+		settings.DefaultPrefix = DefaultObjectPrefix
+	}
+	if settings.SignedURLTTLSeconds <= 0 {
+		settings.SignedURLTTLSeconds = DefaultSignedURLTTLSeconds
+	}
+	return settings
+}
 
 func normalizeOptionalString(value *string) *string {
 	if value == nil {
@@ -171,27 +255,54 @@ func (s *Service) SettingsSnapshot(ctx context.Context, bundleKey string) (*Stor
 		return nil, err
 	}
 
-	if settings == nil {
-		return &StorageSettingsSnapshot{
-			Provider:                 "s3",
-			SignedURLTTLSeconds:      900,
-			CredentialsFromAuthority: true,
-			SettingsRowAvailable:     false,
-		}, nil
+	presence := s.CredentialPresence(ctx)
+	snapshot := &StorageSettingsSnapshot{
+		Provider:                 "s3",
+		Region:                   DefaultRegion,
+		DefaultPrefix:            DefaultObjectPrefix,
+		SignedURLTTLSeconds:      DefaultSignedURLTTLSeconds,
+		CredentialsFromAuthority: presence.source() == CredentialSourceAuthority,
+		AccessKeyIDSet:           presence.AccessKeyIDSet,
+		SecretAccessKeySet:       presence.SecretAccessKeySet,
+		SessionTokenSet:          presence.SessionTokenSet,
+		AccessKeyIDState:         string(presence.AccessKeyID),
+		SecretAccessKeyState:     string(presence.SecretAccessKey),
+		SessionTokenState:        string(presence.SessionToken),
+		CredentialsSource:        presence.CredentialsSource,
+		CredentialDetail:         presence.Detail,
+		SessionTokenOptional:     true,
+		SettingsRowAvailable:     settings != nil,
 	}
 
-	return &StorageSettingsSnapshot{
-		Provider:                 settings.Provider,
-		Bucket:                   settings.Bucket,
-		Region:                   settings.Region,
-		Endpoint:                 settings.Endpoint,
-		ForcePathStyle:           settings.ForcePathStyle,
-		DefaultPrefix:            settings.DefaultPrefix,
-		SignedURLTTLSeconds:      settings.SignedURLTTLSeconds,
-		PublicBaseURL:            settings.PublicBaseURL,
-		CredentialsFromAuthority: true,
-		SettingsRowAvailable:     true,
-	}, nil
+	if settings != nil {
+		resolved := storageSettingsWithDefaults(*settings, bundleKey)
+		snapshot.Provider = resolved.Provider
+		snapshot.Bucket = resolved.Bucket
+		snapshot.Region = resolved.Region
+		snapshot.Endpoint = settings.Endpoint
+		snapshot.ForcePathStyle = settings.ForcePathStyle
+		snapshot.DefaultPrefix = resolved.DefaultPrefix
+		snapshot.SignedURLTTLSeconds = resolved.SignedURLTTLSeconds
+		snapshot.PublicBaseURL = settings.PublicBaseURL
+	} else {
+		snapshot.Bucket = DefaultBucketFor(bundleKey)
+	}
+
+	return snapshot, nil
+}
+
+// credentialPresent reports whether the authority holds a value for field. A
+// provider that cannot be reached is treated as absent for display purposes;
+// the readiness gate is the surface that proves a value actually works.
+func (s *Service) credentialPresent(ctx context.Context, field string) bool {
+	if s.credentials.Read == nil {
+		return false
+	}
+	value, err := s.credentials.Read(ctx, field)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(value) != ""
 }
 
 func (s *Service) ValidateStorageSettings(settings StorageSettings) error {
@@ -218,8 +329,10 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 	if bundleKey == "" {
 		return nil, fmt.Errorf("bundle_key is required")
 	}
-	if update.AccessKeyID != nil || update.SecretAccessKey != nil || update.SessionToken != nil {
-		return nil, fmt.Errorf("download credentials must be provisioned through the credential authority")
+	// Credential values are authority-owned. Write them through before touching
+	// the settings row so a rejected provider write cannot leave a half-save.
+	if err := s.applyCredentialUpdates(ctx, update); err != nil {
+		return nil, err
 	}
 
 	existing, err := s.GetSettings(ctx, bundleKey)
@@ -241,6 +354,11 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 	if err := s.ValidateStorageSettings(settings); err != nil {
 		return nil, err
 	}
+
+	// Persist defaults for any non-secret field the operator left blank so a
+	// fresh install works without hand-typed bucket settings. Applied after
+	// validation so an explicit zero TTL is still rejected.
+	settings = storageSettingsWithDefaults(settings, bundleKey)
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO download_storage_settings (
@@ -273,6 +391,39 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 	return s.SettingsSnapshot(ctx, bundleKey)
 }
 
+// applyCredentialUpdates writes operator-supplied bucket credentials through to
+// the authority. An empty value clears the stored credential. When no authority
+// boundary is installed the update is refused, matching the previous contract.
+func (s *Service) applyCredentialUpdates(ctx context.Context, update StorageSettingsUpdate) error {
+	fields := []struct {
+		name  string
+		value *string
+	}{
+		{CredentialFieldAccessKeyID, update.AccessKeyID},
+		{CredentialFieldSecretAccessKey, update.SecretAccessKey},
+		{CredentialFieldSessionToken, update.SessionToken},
+	}
+	for _, field := range fields {
+		if field.value == nil {
+			continue
+		}
+		if s.credentials.Write == nil || s.credentials.Delete == nil {
+			return fmt.Errorf("download credentials must be provisioned through the credential authority")
+		}
+		value := strings.TrimSpace(*field.value)
+		if value == "" {
+			if err := s.credentials.Delete(ctx, field.name); err != nil {
+				return fmt.Errorf("clear credential %s: %w", field.name, err)
+			}
+			continue
+		}
+		if err := s.credentials.Write(ctx, field.name, value); err != nil {
+			return fmt.Errorf("store credential %s: %w", field.name, err)
+		}
+	}
+	return nil
+}
+
 func (s *Service) resolveStorage(ctx context.Context, settings StorageSettings) (Storage, error) {
 	providerKey := strings.TrimSpace(settings.Provider)
 	if providerKey == "" {
@@ -297,7 +448,7 @@ func (s *Service) requireConfiguredSettings(ctx context.Context, bundleKey strin
 		return nil, ErrStorageNotConfigured
 	}
 	if settings.SignedURLTTLSeconds <= 0 {
-		settings.SignedURLTTLSeconds = 900
+		settings.SignedURLTTLSeconds = DefaultSignedURLTTLSeconds
 	}
 	return settings, nil
 }
@@ -324,6 +475,116 @@ func (s *Service) TestConnection(ctx context.Context, bundleKey string) error {
 	return storage.TestConnection(ctx, settings.Bucket)
 }
 
+// ValidateStorage runs the two-level delivery validation:
+//
+//  1. Presence — each required credential field is checked without retrieving
+//     its value.
+//  2. Operational — only after presence succeeds, the configured bucket is
+//     proven writable, readable, and cleanable.
+//
+// A failure returns Ready=false with a structured Diagnostic and the AWS/Vrooli
+// provisioning guide so an operator can act. The returned error mirrors the
+// diagnostic for callers that branch on error rather than on the result.
+func (s *Service) ValidateStorage(ctx context.Context, bundleKey string) (*StorageValidationResult, error) {
+	bound, err := s.bindRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if bound != s {
+		return bound.ValidateStorage(ctx, bundleKey)
+	}
+	started := time.Now()
+	presence := s.CredentialPresence(ctx)
+	result := &StorageValidationResult{
+		CheckedAt: started.UTC(),
+		Presence:  presence,
+	}
+
+	settings, settingsErr := s.GetSettings(ctx, bundleKey)
+	if settingsErr != nil {
+		return finishValidation(result, started, newDiagnosticError(
+			CodeOperationFailed,
+			fmt.Sprintf("read delivery storage settings: %v", settingsErr),
+			"ReadSettings", "", "", "Confirm the delivery database is reachable, then retry.", true,
+		))
+	}
+	if settings == nil || strings.TrimSpace(settings.Bucket) == "" {
+		guide := BuildProvisioningGuide(DefaultBucketFor(bundleKey), DefaultRegion)
+		diagnostic := newDiagnosticError(
+			CodeBucketNameMissing,
+			"delivery storage bucket name is not configured",
+			"ReadSettings", "", "",
+			"Set the bucket and region in the delivery storage settings, or provision the delivery credentials and save the storage wizard.", false,
+		)
+		result.Bucket = guide.Bucket
+		result.Region = guide.Region
+		result.Guide = &guide
+		return finishValidation(result, started, diagnostic)
+	}
+
+	resolved := storageSettingsWithDefaults(*settings, bundleKey)
+	result.Bucket = resolved.Bucket
+	result.Region = resolved.Region
+
+	if s.credentials.Read == nil {
+		// No credential-authority boundary is installed on this host. Presence
+		// cannot be assessed, so fall through to the operational proof rather
+		// than report a misleading "missing credential". Production always
+		// installs the boundary.
+	} else if hasAuthorityFault(presence.AccessKeyID, presence.SecretAccessKey, presence.SessionToken) {
+		guide := BuildProvisioningGuide(result.Bucket, result.Region)
+		result.Guide = &guide
+		return finishValidation(result, started, newDiagnosticError(
+			CodeAuthorityUnavailable,
+			"the credential authority is unavailable, so delivery credential presence cannot be confirmed",
+			"ResolveCredentials", result.Bucket, result.Region,
+			"Restore this host's credential authority (for example, unlock the keyring) and retest. Do not treat an authority outage as an absent credential.", true,
+		))
+	} else if !presence.RequiredConfigured() {
+		guide := BuildProvisioningGuide(result.Bucket, result.Region)
+		result.Guide = &guide
+		return finishValidation(result, started, MissingCredentialsDiagnostic(presence, result.Bucket, result.Region))
+	}
+
+	storage, err := s.resolveStorage(ctx, resolved)
+	if err != nil {
+		guide := BuildProvisioningGuide(result.Bucket, result.Region)
+		result.Guide = &guide
+		return finishValidation(result, started, newDiagnosticError(
+			CodeCredentialConfigInvalid,
+			fmt.Sprintf("build the delivery storage client: %v", err),
+			"BuildClient", result.Bucket, result.Region,
+			"Confirm the provider, endpoint, and region settings are valid, then retest.", false,
+		))
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	if verifier, ok := storage.(OperationVerifier); ok {
+		err = verifier.VerifyOperations(probeCtx, resolved.Bucket, resolved.DefaultPrefix)
+	} else {
+		err = storage.TestConnection(probeCtx, resolved.Bucket)
+	}
+	if err != nil {
+		if diagnostic, ok := FromDiagnostic(err); ok {
+			return finishValidation(result, started, &DiagnosticError{Diagnostic: *diagnostic})
+		}
+		return finishValidation(result, started, ClassifyS3Error(err, "HeadBucket", resolved.Bucket, resolved.Region))
+	}
+	result.Ready = true
+	return finishValidation(result, started, nil)
+}
+
+func finishValidation(result *StorageValidationResult, started time.Time, diagnostic *DiagnosticError) (*StorageValidationResult, error) {
+	result.LatencyMS = time.Since(started).Milliseconds()
+	if diagnostic != nil {
+		result.Ready = false
+		result.Diagnostic = &diagnostic.Diagnostic
+		return result, diagnostic
+	}
+	return result, nil
+}
+
 func (s *Service) PresignUpload(ctx context.Context, bundleKey string, req PresignUploadRequest) (*PresignUploadResponse, error) {
 	bound, err := s.bindRequest(ctx)
 	if err != nil {
@@ -343,6 +604,13 @@ func (s *Service) PresignUpload(ctx context.Context, bundleKey string, req Presi
 
 	if strings.TrimSpace(req.Filename) == "" {
 		return nil, fmt.Errorf("filename is required")
+	}
+	if strings.TrimSpace(req.Platform) != "" {
+		osPlatform, _, err := NormalizeCatalogPlatform(req.Platform)
+		if err != nil {
+			return nil, err
+		}
+		req.Platform = osPlatform
 	}
 
 	objectKey, err := BuildObjectKey(*settings, bundleKey, req)
@@ -392,6 +660,14 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 	}
 	if strings.TrimSpace(req.ReleaseID) != "" && strings.TrimSpace(req.SHA512) == "" {
 		return nil, fmt.Errorf("sha512 is required for release-bound artifact commits")
+	}
+	if targetID := strings.TrimSpace(req.Platform); targetID != "" {
+		osPlatform, architecture, err := NormalizeCatalogPlatform(targetID)
+		if err != nil {
+			return nil, err
+		}
+		req.Platform = osPlatform
+		req.Metadata = catalogArtifactMetadata(req.Metadata, targetID, osPlatform, architecture)
 	}
 
 	etag, size, headContentType, err := storage.HeadObject(ctx, bucket, req.ObjectKey)

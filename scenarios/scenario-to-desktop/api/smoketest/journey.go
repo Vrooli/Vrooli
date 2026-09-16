@@ -88,7 +88,18 @@ func (c captureJourneySink) Capture(ctx context.Context, smokeTestID, scenarioNa
 	if err != nil {
 		return deliveryramp.EvidenceReference{}, err
 	}
-	return deliveryramp.EvidenceReference{ID: id, Kind: string(captures.CaptureScreenshot)}, nil
+	ref := deliveryramp.EvidenceReference{ID: id, Kind: string(captures.CaptureScreenshot)}
+	if c.service != nil && c.service.captures != nil {
+		if items, listErr := c.service.captures.Store().List(scenarioName); listErr == nil {
+			for _, item := range items {
+				if item.ID == id {
+					ref.Checksum = item.Checksum
+					break
+				}
+			}
+		}
+	}
+	return ref, nil
 }
 
 type defaultJourneyWaiter struct{ clock Clock }
@@ -181,10 +192,15 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 	if err != nil || !isLoopbackHTTP(parsed) {
 		return JourneyOperationResult{}, fmt.Errorf("monetization journey URL must target loopback HTTP")
 	}
-	parsed.Path = "/api/v1/internal/monetization/journey"
-	query := parsed.Query()
-	query.Set("operation", operation)
-	parsed.RawQuery = query.Encode()
+	if operation == "terminal_fixture" {
+		parsed.Path = "/api/v1/internal/desktop-journey/terminal"
+		parsed.RawQuery = ""
+	} else {
+		parsed.Path = "/api/v1/internal/monetization/journey"
+		query := parsed.Query()
+		query.Set("operation", operation)
+		parsed.RawQuery = query.Encode()
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil) // #nosec G704 -- URL is restricted to loopback above.
 	if err != nil {
 		return JourneyOperationResult{}, err
@@ -264,10 +280,15 @@ func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (Jour
 	if err != nil || !isLoopbackHTTP(parsed) {
 		return JourneyOperationResult{}, fmt.Errorf("communication journey URL must target loopback HTTP")
 	}
-	parsed.Path = "/api/v1/internal/monetization/journey"
 	query := parsed.Query()
-	query.Set("operation", operation)
-	parsed.RawQuery = query.Encode()
+	if operation == "terminal_fixture" {
+		parsed.Path = "/api/v1/internal/desktop-journey/terminal"
+		parsed.RawQuery = ""
+	} else {
+		parsed.Path = "/api/v1/internal/monetization/journey"
+		query.Set("operation", operation)
+		parsed.RawQuery = query.Encode()
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil) // #nosec G704 -- URL is restricted to loopback above.
 	if err != nil {
 		return JourneyOperationResult{}, err
@@ -283,6 +304,9 @@ func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (Jour
 	var result JourneyOperationResult
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return JourneyOperationResult{}, fmt.Errorf("decode communication journey result: %w", err)
+	}
+	if operation == "terminal_fixture" {
+		return result, nil
 	}
 	if strings.TrimSpace(result.AppKey) == "" {
 		return JourneyOperationResult{}, fmt.Errorf("probe_app_unidentified")
@@ -307,6 +331,7 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 			if s.targetResolver != nil && (status.DeploymentMode == "proxy" || status.DeploymentMode == "bundled") {
 				if target, err := s.targetResolver(ctx, status); err == nil {
 					selectionInput.Target = target
+					s.recordTargetObservation(smokeTestID, target)
 				}
 			}
 		}
@@ -314,6 +339,9 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 	selection := selectJourneyCapability(selectionInput)
 	result := s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, selection.Capability)
 	result.CapabilitySelection = &deliveryramp.CapabilitySelection{Capability: selection.Capability, Reason: selection.Reason, Skipped: selection.Skipped}
+	if selectionInput.Target.Isolation != nil {
+		result.IsolationObservations = []deliveryramp.IsolationObservation{*selectionInput.Target.Isolation}
+	}
 	return result
 }
 
@@ -352,6 +380,7 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 			if s.targetResolver != nil && (status.DeploymentMode == "proxy" || status.DeploymentMode == "bundled") {
 				if target, err := s.targetResolver(ctx, status); err == nil {
 					input.Target = target
+					s.recordTargetObservation(smokeTestID, target)
 				}
 			}
 		}
@@ -536,9 +565,28 @@ func (s *DefaultService) runJourneyStep(ctx context.Context, base *deliveryramp.
 			step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, captureErr.Error(), deliveryramp.DispositionFailed
 		}
 	}
+	if step.Disposition == deliveryramp.StepDisposition(journeyStepPass) && spec.Assertion == nil && requiresSurfaceChange(spec.Action) && identicalCapturePair(step) {
+		step.Disposition, step.Error, step.DegradedReason = deliveryramp.StepFailed, "surface_unchanged", "surface_unchanged"
+		base.Disposition = deliveryramp.DispositionFailed
+	}
 	step = s.finishJourneyStep(step, rec.recordingStartedAt, setup)
 	s.recordJourneyEvent(base, setup.clock, setup.started, "step_completed", step.ID, "", step.ObservedState, step.Error)
 	return step, step.Disposition != deliveryramp.StepDisposition(journeyStepPass)
+}
+
+func requiresSurfaceChange(action string) bool {
+	switch strings.TrimSpace(action) {
+	case "", "window_activate", "quit_app", "window_maximize", "window_resize", "window_move":
+		return false
+	default:
+		return true
+	}
+}
+
+func identicalCapturePair(step deliveryramp.JourneyStep) bool {
+	return step.BeforeCaptureID != "" && step.AfterCaptureID != "" && len(step.Evidence) >= 2 &&
+		step.Evidence[len(step.Evidence)-2].Checksum != "" &&
+		step.Evidence[len(step.Evidence)-2].Checksum == step.Evidence[len(step.Evidence)-1].Checksum
 }
 
 func (s *DefaultService) waitForJourneyReadiness(ctx context.Context, setup journeySetup, spec deliveryramp.JourneyStepSpec) (WaitResult, error) {
@@ -598,6 +646,12 @@ func applyJourneyObservation(base *deliveryramp.JourneyResult, step *deliveryram
 		return
 	}
 	step.ObservedState, step.Geometry, step.Route = observation.Observed, observation.Geometry, observation.Route
+	if surfaceError := surfaceErrorObservation(observation.Observed); surfaceError != "" {
+		step.ObservedState = "surface_error: " + surfaceError
+		step.Disposition, step.Error, step.DegradedReason = deliveryramp.StepFailed, surfaceError, "surface_error"
+		base.Disposition = deliveryramp.DispositionFailed
+		return
+	}
 	if observation.Provider != nil {
 		base.ProviderObservation = observation.Provider
 	}
@@ -609,6 +663,17 @@ func applyJourneyObservation(base *deliveryramp.JourneyResult, step *deliveryram
 	if step.AssertionStatus != journeyStepPass {
 		step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "assertion did not match observed result", deliveryramp.DispositionFailed
 	}
+}
+
+func surfaceErrorObservation(observed string) string {
+	lower := strings.ToLower(strings.TrimSpace(observed))
+	if lower == "" {
+		return ""
+	}
+	if strings.Contains(lower, "content-type") || strings.Contains(lower, "failed to fetch") || strings.Contains(lower, "network error") {
+		return observed
+	}
+	return ""
 }
 
 func (s *DefaultService) finishJourneyStep(step deliveryramp.JourneyStep, recordingStartedAt time.Time, setup journeySetup) deliveryramp.JourneyStep {

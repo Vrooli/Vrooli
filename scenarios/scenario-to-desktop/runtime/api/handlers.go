@@ -101,6 +101,21 @@ type Runtime interface {
 	RuntimeInfo() RuntimeInfo
 }
 
+// IsolationObservationSource exposes safe, runtime-measured child resolution
+// facts without exposing environment values or credentials.
+type IsolationObservationSource interface {
+	IsolationObservations() []IsolationObservation
+}
+
+type IsolationObservation struct {
+	ServiceID           string `json:"service_id"`
+	StateRoot           string `json:"state_root,omitempty"`
+	SocketPath          string `json:"socket_path,omitempty"`
+	DatabasePath        string `json:"database_path,omitempty"`
+	AdoptedSessionCount int    `json:"adopted_session_count"`
+	Source              string `json:"source,omitempty"`
+}
+
 // ProviderObservationSource is optional so older/test runtimes can keep the
 // core control API while the bundled supervisor exposes safe provider facts.
 type ProviderObservationSource interface {
@@ -247,6 +262,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"bundle_root":   info.BundleRoot,
 		"dry_run":       info.DryRun,
 		"manifest_hash": info.ManifestHash,
+		"isolation_observations": func() interface{} {
+			if source, ok := s.runtime.(IsolationObservationSource); ok {
+				return source.IsolationObservations()
+			}
+			return []IsolationObservation{}
+		}(),
 		"authentication": func() interface{} {
 			if manifest == nil {
 				return nil

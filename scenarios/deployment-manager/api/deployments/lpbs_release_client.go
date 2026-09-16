@@ -15,7 +15,39 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
+
+// LPBSScenarioSlug is the discovery name for the landing-page-business-suite
+// destination that owns the download catalog, bucket, and channels.
+const LPBSScenarioSlug = "landing-page-business-suite"
+
+// lpbsServiceSecretField names the credential authority field LPBS uses to
+// validate a server-to-server bearer token.
+const lpbsServiceSecretField = "service-secret"
+
+// lpbsServiceSecretIdentity is the credential authority identity that owns the
+// shared service secret.
+const lpbsServiceSecretIdentity credentialauthority.Identity = "vrooli/landing-page-business-suite"
+
+// defaultLPBSScenarioURL resolves the local LPBS API base through scenario
+// discovery so deployment-manager can reach the destination without a
+// hand-set LPBS_BASE_URL.
+func defaultLPBSScenarioURL(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, LPBSScenarioSlug)
+}
+
+// defaultLPBSServiceSecret resolves the shared LPBS service credential from the
+// credential authority, the same value LPBS compares against the bearer token.
+func defaultLPBSServiceSecret() (string, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", err
+	}
+	return authority.Require(lpbsServiceSecretIdentity, lpbsServiceSecretField)
+}
 
 // LPBSReleaseClient talks to landing-page-business-suite for release-time
 // control-plane checks: upload readiness and post-publish verification.
@@ -155,36 +187,66 @@ type HTTPLPBSReleaseClient struct {
 	log           func(string, map[string]interface{})
 }
 
-// LPBSClientConfig options for constructing the LPBS client. If BaseURL is
-// empty, LPBS_BASE_URL env var is used. If ServiceSecret is empty,
-// LPBS_SERVICE_SECRET env var is used.
+// LPBSClientConfig options for constructing the LPBS client. Base URL and
+// service secret resolve in order: explicit config, environment, then the
+// scenario discovery / credential authority owners. ResolveBaseURL and
+// ResolveServiceSecret override the owner lookups for tests.
 type LPBSClientConfig struct {
-	BaseURL       string
-	ServiceSecret string
-	Log           func(string, map[string]interface{})
+	BaseURL              string
+	ServiceSecret        string
+	Log                  func(string, map[string]interface{})
+	ResolveBaseURL       func(ctx context.Context) (string, error)
+	ResolveServiceSecret func() (string, error)
 }
 
 // NewHTTPLPBSReleaseClient creates a new HTTP LPBS release client.
-// Logs a warning if LPBS_SERVICE_SECRET is missing so misconfig is visible.
+// It resolves the LPBS URL through scenario discovery and the shared service
+// secret through the credential authority, and logs a warning if the service
+// credential is still missing so misconfig is visible.
 func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, error) {
-	base := cfg.BaseURL
-	if strings.TrimSpace(base) == "" {
+	base := strings.TrimSpace(cfg.BaseURL)
+	if base == "" {
 		base = strings.TrimSpace(os.Getenv("LPBS_BASE_URL"))
 	}
 	if base == "" {
-		return nil, fmt.Errorf("LPBS base URL not configured (set LPBS_BASE_URL or pass BaseURL)")
+		resolve := cfg.ResolveBaseURL
+		if resolve == nil {
+			resolve = defaultLPBSScenarioURL
+		}
+		resolved, err := resolve(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("LPBS base URL is not configured and %s could not be discovered: %w", LPBSScenarioSlug, err)
+		}
+		base = strings.TrimSpace(resolved)
 	}
-	secret := cfg.ServiceSecret
-	if strings.TrimSpace(secret) == "" {
-		secret = strings.TrimSpace(os.Getenv("LPBS_SERVICE_SECRET"))
+	if base == "" {
+		return nil, fmt.Errorf("LPBS base URL not configured (set LPBS_BASE_URL, pass BaseURL, or make %s discoverable)", LPBSScenarioSlug)
 	}
 	log := cfg.Log
 	if log == nil {
 		log = func(string, map[string]interface{}) {}
 	}
+	secret := strings.TrimSpace(cfg.ServiceSecret)
+	if secret == "" {
+		secret = strings.TrimSpace(os.Getenv("LPBS_SERVICE_SECRET"))
+	}
+	if secret == "" {
+		resolve := cfg.ResolveServiceSecret
+		if resolve == nil {
+			resolve = defaultLPBSServiceSecret
+		}
+		resolved, err := resolve()
+		if err != nil {
+			log("warn", map[string]interface{}{
+				"msg":   "LPBS service credential could not be resolved from the credential authority",
+				"error": err.Error(),
+			})
+		}
+		secret = strings.TrimSpace(resolved)
+	}
 	if secret == "" {
 		log("warn", map[string]interface{}{
-			"msg": "LPBS_SERVICE_SECRET is not set; deploy-readiness checks will fail until the secret is configured",
+			"msg": "LPBS service credential is not set; deploy-readiness checks will fail until it is configured",
 		})
 	}
 	return &HTTPLPBSReleaseClient{

@@ -1175,7 +1175,16 @@ step_pair_redeem() {
     # service's typed Unauthenticated rejection. Do not inspect wording here:
     # DNS/TCP/TLS/timeouts can contain "redeem" and must remain transport errors.
     if [ "$rc" -eq 4 ]; then
-      fail 4 "pairing code rejected (invalid/expired/already used) — issue a fresh code and re-run: nothing was spent on this node"
+      # Report a short hash prefix of the code this run was handed (never the
+      # code) so it can be compared with the row the control plane stored. The
+      # code is already dead at this point.
+      local code_fp=""
+      if have shasum; then
+        code_fp="$(printf '%s' "$BRIDGE_PAIRING_CODE" | shasum -a 256 | cut -c1-12)"
+      elif have sha256sum; then
+        code_fp="$(printf '%s' "$BRIDGE_PAIRING_CODE" | sha256sum | cut -c1-12)"
+      fi
+      fail 4 "pairing code rejected (invalid/expired/already used; code hash prefix ${code_fp:-unavailable}, length ${#BRIDGE_PAIRING_CODE}) — issue a fresh code and re-run: nothing was spent on this node"
     fi
     fail 1 "redeem failed (exit ${rc}) — see error above"
   fi

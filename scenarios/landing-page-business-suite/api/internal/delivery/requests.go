@@ -26,6 +26,29 @@ type StorageSettingsSnapshot struct {
 	SessionTokenSet          bool   `json:"session_token_set"`
 	CredentialsFromAuthority bool   `json:"credentials_from_authority"`
 	SettingsRowAvailable     bool   `json:"settings_row_available"`
+	// Canonical presence vocabulary. The booleans above are retained for
+	// compatibility; these states distinguish missing from unavailable from an
+	// authority fault. Secret contents are never included.
+	AccessKeyIDState     string `json:"access_key_id_state"`
+	SecretAccessKeyState string `json:"secret_access_key_state"`
+	SessionTokenState    string `json:"session_token_state"`
+	CredentialsSource    string `json:"credentials_source"`
+	CredentialDetail     string `json:"credential_detail,omitempty"`
+	SessionTokenOptional bool   `json:"session_token_optional"`
+}
+
+// StorageValidationResult is the structured outcome of an operational storage
+// validation. Ready is true only after the bucket was proven writable,
+// readable, and cleanable; presence alone never sets it.
+type StorageValidationResult struct {
+	Ready      bool               `json:"ready"`
+	Bucket     string             `json:"bucket"`
+	Region     string             `json:"region"`
+	Presence   CredentialPresence `json:"presence"`
+	Diagnostic *Diagnostic        `json:"diagnostic,omitempty"`
+	Guide      *ProvisioningGuide `json:"guide,omitempty"`
+	CheckedAt  time.Time          `json:"checked_at"`
+	LatencyMS  int64              `json:"latency_ms"`
 }
 
 type StorageSettingsUpdate struct {

@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS user_sessions (id UUID PRIMARY KEY DEFAULT gen_random
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id); CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash); CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
 CREATE TABLE IF NOT EXISTS refresh_token_history (refresh_token_hash VARCHAR(255) PRIMARY KEY, session_id UUID NOT NULL REFERENCES user_sessions(id) ON DELETE CASCADE, family_id UUID NOT NULL, retired_at TIMESTAMP NOT NULL DEFAULT NOW());
 
-CREATE TABLE IF NOT EXISTS usage_events (id BIGSERIAL PRIMARY KEY, operation_id TEXT UNIQUE, user_identity VARCHAR(255) NOT NULL, app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed', model VARCHAR(255) NOT NULL DEFAULT 'unknown', credits BIGINT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS usage_events (id BIGSERIAL PRIMARY KEY, operation_id TEXT UNIQUE, user_identity VARCHAR(255) NOT NULL, app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed', model VARCHAR(255) NOT NULL DEFAULT 'unknown', credits BIGINT NOT NULL, cost_micros BIGINT NOT NULL DEFAULT 0, prompt_tokens BIGINT NOT NULL DEFAULT 0, completion_tokens BIGINT NOT NULL DEFAULT 0, provider VARCHAR(100) NOT NULL DEFAULT 'local', created_at TIMESTAMP NOT NULL DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_usage_events_created ON usage_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_events_app_model ON usage_events(app_bundle_key, model, created_at);

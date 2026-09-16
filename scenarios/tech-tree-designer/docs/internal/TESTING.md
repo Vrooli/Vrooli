@@ -55,7 +55,9 @@ Record each sensor's owner, discoverable invocation, input cohort, freshness/app
 Inventory revision: `ecosystem-design-v1`, 2026-09-09; the selection and bands
 were approved by the operator on 2026-09-13 (see DECISIONS.md). Row IDs in the
 setpoint program are the PRD IDs below. Every product reading is still `null` with
-`pending_telemetry`, and no outcome has an implemented acceptance resolver. Targets
+`pending_telemetry`, and no outcome has an implemented acceptance resolver. During
+an approved TTD mandate, the absence of these resolvers is an implementation
+target for the agent, not a reason to stop. Targets
 remain in the PRD and are not derived from current counts. The only numeric band
 is OT-P0-008, taken from PERFORMANCE.md's approved profile v1.
 

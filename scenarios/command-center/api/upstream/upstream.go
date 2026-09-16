@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -51,12 +52,25 @@ type jsonConnectClient struct {
 	name     string
 	resolve  func() string
 	path     string
+	paths    map[string]bool
 	http     *http.Client
 	features map[string]string
 }
 
 func NewJSONConnectResolved(name string, resolve func() string, path string, features ...map[string]string) Client {
-	return &jsonConnectClient{name: name, resolve: resolve, path: path, http: &http.Client{Timeout: 5 * time.Second}, features: optionalFeatureSet(features)}
+	return NewJSONConnectResolvedPaths(name, resolve, []string{path}, features...)
+}
+
+func NewJSONConnectResolvedPaths(name string, resolve func() string, paths []string, features ...map[string]string) Client {
+	allowed := make(map[string]bool, len(paths))
+	for _, path := range paths {
+		allowed[path] = true
+	}
+	primary := ""
+	if len(paths) > 0 {
+		primary = paths[0]
+	}
+	return &jsonConnectClient{name: name, resolve: resolve, path: primary, paths: allowed, http: &http.Client{Timeout: 5 * time.Second}, features: optionalFeatureSet(features)}
 }
 
 func (c *jsonConnectClient) Name() string { return c.name }
@@ -65,18 +79,26 @@ func (c *jsonConnectClient) Fetch(ctx context.Context, path string) (json.RawMes
 	if path == "/health" {
 		return newResolved(c.name, c.resolve).Fetch(ctx, path)
 	}
-	if path != c.path {
+	if !c.paths[path] {
 		return nil, fmt.Errorf("%s JSON Connect client does not expose path %q", c.name, path)
 	}
 	base := c.resolve()
 	if base == "" {
 		return nil, ErrNotAvailable
 	}
-	body, err := json.Marshal(map[string]any{})
+	requestPath, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, base+path, bytes.NewReader(body))
+	requestBody := map[string]any{}
+	if projection := requestPath.Query().Get("projection"); projection != "" {
+		requestBody["projection"] = projection
+	}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, base+requestPath.Path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +635,11 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 		}
 		payload := map[string]any{
 			"observed_at": observedAt, "contract_version": "revenue-summary.v1",
-			"units": map[string]string{"revenue_mrr": "currency", "revenue_today": "currency", "revenue_rollup": "currency", "composite_revenue": "currency"},
+			"units": map[string]string{
+				"revenue_mrr": "currency", "revenue_today": "currency", "revenue_rollup": "currency", "composite_revenue": "currency",
+				"subscriber_counts": "count", "churn": "count", "credit_balances": "count", "usage_operations_30d": "count",
+				"ai_cost_30d": "currency", "credit_margin_30d": "currency", "revenue_by_line": "currency",
+			},
 			"revenue": map[string]any{
 				"mrr":   float64(response.Msg.GetMrrMinor()) / 100,
 				"today": float64(response.Msg.GetRevenueTodayMinor()) / 100,
@@ -625,8 +651,12 @@ func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessag
 			"credits": map[string]any{
 				"balance_total": response.Msg.GetCreditBalanceTotal(), "burned_window": response.Msg.GetCreditBurnedWindow(),
 			},
-			"usage":       map[string]any{"records": response.Msg.GetUsageRecordsWindow()},
-			"sample_size": response.Msg.GetSampleSize(), "currency": response.Msg.GetCurrency(),
+			"cost": map[string]any{
+				"micros": response.Msg.GetCostMicros(), "usd": float64(response.Msg.GetCostMicros()) / 1_000_000,
+			},
+			"revenue_by_line": response.Msg.GetRevenueByLine(),
+			"usage":           map[string]any{"records": response.Msg.GetUsageRecordsWindow()},
+			"sample_size":     response.Msg.GetSampleSize(), "currency": response.Msg.GetCurrency(),
 		}
 		encoded, err := json.Marshal(payload)
 		if err != nil {
@@ -706,7 +736,17 @@ func fetchTrafficBreakdown(ctx context.Context, c *typedClient, path string) (js
 	if err != nil {
 		return nil, fmt.Errorf("lpbs typed traffic breakdown: %w", err)
 	}
-	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	raw, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	if err != nil {
+		return nil, err
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, fmt.Errorf("decode traffic projection: %w", err)
+	}
+	payload["contract_version"] = "analytics-traffic.v1"
+	payload["unit"] = "count"
+	return json.Marshal(payload)
 }
 
 func fetchBusinessDigest(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
@@ -733,7 +773,21 @@ func fetchBusinessDigest(ctx context.Context, c *typedClient, path string) (json
 	if err != nil {
 		return nil, fmt.Errorf("lpbs typed business digest: %w", err)
 	}
-	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	raw, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	if err != nil {
+		return nil, err
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, fmt.Errorf("decode business digest projection: %w", err)
+	}
+	payload["units"] = map[string]string{
+		"digest_paid_subs": "count", "digest_signups": "count", "digest_waitlist": "count",
+		"digest_credits": "count", "digest_purchased": "count", "digest_operations": "count",
+		"digest_credit_app": "count", "digest_credit_model": "count", "digest_apps": "count",
+		"digest_app_updates": "count", "digest_experiment": "count", "digest_funnel": "count",
+	}
+	return json.Marshal(payload)
 }
 
 func fetchAnalyticsSummary(ctx context.Context, c *typedClient) (json.RawMessage, error) {

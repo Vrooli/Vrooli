@@ -12,4 +12,9 @@ func TestOperationsSchemaOwnsCommerceRuntimeTables(t *testing.T) {
 			t.Errorf("missing %s", table)
 		}
 	}
+	for _, column := range []string{"cost_micros", "prompt_tokens", "completion_tokens", "provider"} {
+		if !strings.Contains(sql, column) {
+			t.Errorf("usage_events schema missing provider cost column %s", column)
+		}
+	}
 }

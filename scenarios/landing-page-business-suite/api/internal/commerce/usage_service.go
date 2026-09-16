@@ -190,6 +190,21 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
 	}
+	eventAppKey := firstNonEmpty(appBundleKey, defaultUsageEventAppKey)
+	model := defaultUsageEventModel
+	if req.Metadata != nil {
+		model = firstNonEmpty(req.Metadata["model"], model)
+	}
+	costMicros, promptTokens, completionTokens, provider := usageEventMetadata(req.Metadata)
+	var eventQuery string
+	if s.dialect == "sqlite" {
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
+	} else {
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (operation_id) DO NOTHING`
+	}
+	if _, err = s.db.ExecContext(ctx, eventQuery, opID, userIdentity, eventAppKey, model, amount, costMicros, promptTokens, completionTokens, provider); err != nil {
+		return fmt.Errorf("record usage event: %w", err)
+	}
 
 	s.log("usage_recorded", map[string]interface{}{
 		"level":          "debug",

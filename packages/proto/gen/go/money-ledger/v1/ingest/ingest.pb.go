@@ -31,6 +31,7 @@ const (
 	AdapterKind_ADAPTER_KIND_MANUAL      AdapterKind = 1
 	AdapterKind_ADAPTER_KIND_FILE        AdapterKind = 2
 	AdapterKind_ADAPTER_KIND_AGGREGATOR  AdapterKind = 3
+	AdapterKind_ADAPTER_KIND_COMMERCE    AdapterKind = 4
 )
 
 // Enum value maps for AdapterKind.
@@ -40,12 +41,14 @@ var (
 		1: "ADAPTER_KIND_MANUAL",
 		2: "ADAPTER_KIND_FILE",
 		3: "ADAPTER_KIND_AGGREGATOR",
+		4: "ADAPTER_KIND_COMMERCE",
 	}
 	AdapterKind_value = map[string]int32{
 		"ADAPTER_KIND_UNSPECIFIED": 0,
 		"ADAPTER_KIND_MANUAL":      1,
 		"ADAPTER_KIND_FILE":        2,
 		"ADAPTER_KIND_AGGREGATOR":  3,
+		"ADAPTER_KIND_COMMERCE":    4,
 	}
 )
 
@@ -133,6 +136,7 @@ type Adapter struct {
 	Enabled            bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	LastSuccessAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
 	AvailabilityReason string                 `protobuf:"bytes,6,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	Cursor             string                 `protobuf:"bytes,7,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -205,6 +209,13 @@ func (x *Adapter) GetLastSuccessAt() *timestamppb.Timestamp {
 func (x *Adapter) GetAvailabilityReason() string {
 	if x != nil {
 		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *Adapter) GetCursor() string {
+	if x != nil {
+		return x.Cursor
 	}
 	return ""
 }
@@ -1246,7 +1257,7 @@ var File_money_ledger_v1_ingest_ingest_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\n" +
-	"#money-ledger/v1/ingest/ingest.proto\x12\x1dvrooli.money_ledger.v1.ingest\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)money-ledger/v1/shared/ledger_types.proto\"\x9a\x02\n" +
+	"#money-ledger/v1/ingest/ingest.proto\x12\x1dvrooli.money_ledger.v1.ingest\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)money-ledger/v1/shared/ledger_types.proto\"\xb2\x02\n" +
 	"\aAdapter\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12J\n" +
@@ -1254,7 +1265,8 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12\x18\n" +
 	"\aenabled\x18\x04 \x01(\bR\aenabled\x12B\n" +
 	"\x0flast_success_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12/\n" +
-	"\x13availability_reason\x18\x06 \x01(\tR\x12availabilityReason\"\xda\x02\n" +
+	"\x13availability_reason\x18\x06 \x01(\tR\x12availabilityReason\x12\x16\n" +
+	"\x06cursor\x18\a \x01(\tR\x06cursor\"\xda\x02\n" +
 	"\aReceipt\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1336,12 +1348,13 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\x1aOperatorInputStatusRequest\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\"h\n" +
 	"\x1bOperatorInputStatusResponse\x12I\n" +
-	"\x06fields\x18\x01 \x03(\v21.vrooli.money_ledger.v1.ingest.OperatorInputFieldR\x06fields*x\n" +
+	"\x06fields\x18\x01 \x03(\v21.vrooli.money_ledger.v1.ingest.OperatorInputFieldR\x06fields*\x93\x01\n" +
 	"\vAdapterKind\x12\x1c\n" +
 	"\x18ADAPTER_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ADAPTER_KIND_MANUAL\x10\x01\x12\x15\n" +
 	"\x11ADAPTER_KIND_FILE\x10\x02\x12\x1b\n" +
-	"\x17ADAPTER_KIND_AGGREGATOR\x10\x03*e\n" +
+	"\x17ADAPTER_KIND_AGGREGATOR\x10\x03\x12\x19\n" +
+	"\x15ADAPTER_KIND_COMMERCE\x10\x04*e\n" +
 	"\n" +
 	"SourceMode\x12\x1b\n" +
 	"\x17SOURCE_MODE_UNSPECIFIED\x10\x00\x12\x17\n" +

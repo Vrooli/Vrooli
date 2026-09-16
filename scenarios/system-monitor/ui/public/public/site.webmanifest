@@ -1,5 +1,11 @@
 {
+  "_brand": {
+    "slug": "vega",
+    "version": 6
+  },
   "background_color": "#0b0e0f",
+  "description": "Live, durable system observability for Vrooli operators.",
+  "display": "standalone",
   "icons": [
     {
       "purpose": "any",
@@ -26,7 +32,10 @@
       "type": "image/png"
     }
   ],
+  "id": "/",
   "name": "Vega",
+  "scope": "/",
   "short_name": "Vega",
+  "start_url": "/",
   "theme_color": "#0b0e0f"
 }

@@ -1,4 +1,4 @@
-# Git Control Tower workspace design
+# Rigel workspace design
 
 Git Control Tower is a diff-first repository workspace. Advisory results are
 secondary interpretations of one explicitly identified subject; they never

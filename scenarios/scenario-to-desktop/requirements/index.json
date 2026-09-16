@@ -8,7 +8,8 @@
     "02-scenario-integration/module.json",
     "03-e2e-and-platforms/module.json",
     "90-uncovered-targets/module.json",
-    "04-native-companion/module.json"
+    "04-native-companion/module.json",
+    "05-trustworthy-bundled-runtime/module.json"
   ],
   "meta": {
     "scenario": "scenario-to-desktop",

@@ -11,6 +11,7 @@ import (
 // resolves to UNAVAILABLE with that reason, never to a guessed key.
 type selector func(payload any) (float64, bool)
 type panelSelector func(payload any) ([]PanelRow, bool)
+type postureSelector func(payload any) (map[string]any, bool)
 
 type PanelRow struct {
 	Key         string  `json:"key"`
@@ -60,6 +61,8 @@ var selectors = map[string]selector{
 	"revenue_mrr":           number("revenue", "mrr"),
 	"revenue_today":         number("revenue", "today"),
 	"revenue_rollup":        number("revenue", "month"),
+	"ai_cost_30d":           number("cost", "usd"),
+	"credit_margin_30d":     creditMargin,
 	"subscriber_counts":     number("subscriptions", "active"),
 	"churn":                 number("subscriptions", "churned_30d"),
 	"credit_balances":       number("credits", "balance_total"),
@@ -86,6 +89,10 @@ var selectors = map[string]selector{
 	"usage_operations_30d":  digestNumber("usage", "records"),
 }
 
+var postureSelectors = map[string]postureSelector{
+	"offer_posture": offerPosture,
+}
+
 var panelSelectors = map[string]panelSelector{
 	"traffic_countries":     trafficPanel,
 	"traffic_referrers":     trafficPanel,
@@ -97,10 +104,109 @@ var panelSelectors = map[string]panelSelector{
 	"digest_app_updates":    digestAppUpdatesPanel,
 	"digest_credit_app":     digestCreditRows("by_app"),
 	"digest_credit_model":   digestCreditRows("by_model"),
+	"revenue_by_line":       revenueLinePanel,
 	"digest_experiment":     digestExperimentPanel,
 	"digest_funnel":         digestFunnelPanel,
 	"goal_progress":         goalProgressPanel,
 	"deployment_readiness":  readinessPanel,
+}
+
+func creditMargin(payload any) (float64, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+	lines, ok := root["revenue_by_line"].([]any)
+	if !ok {
+		return 0, false
+	}
+	var creditRevenue float64
+	for _, raw := range lines {
+		line, ok := raw.(map[string]any)
+		if !ok {
+			return 0, false
+		}
+		key, _ := line["key"].(string)
+		if key == "credit_top_up" {
+			value, ok := asFloat(line["amount_minor"])
+			if !ok {
+				return 0, false
+			}
+			creditRevenue = value / 100
+		}
+	}
+	cost, ok := walk(root, "cost", "usd")
+	if !ok {
+		return 0, false
+	}
+	costUSD, ok := asFloat(cost)
+	return creditRevenue - costUSD, ok
+}
+
+func revenueLinePanel(payload any) ([]PanelRow, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	items, ok := root["revenue_by_line"].([]any)
+	if !ok {
+		return []PanelRow{}, true
+	}
+	rows := make([]PanelRow, 0, len(items))
+	for _, raw := range items {
+		line, ok := raw.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		key, keyOK := line["key"].(string)
+		label, labelOK := line["label"].(string)
+		amount, amountOK := asFloat(line["amount_minor"])
+		if !keyOK || !labelOK || !amountOK || key == "" {
+			return nil, false
+		}
+		detail := ""
+		if transactions, present := asFloat(line["transactions"]); present {
+			detail = fmt.Sprintf("%d transactions", int64(transactions))
+		}
+		rows = append(rows, PanelRow{Key: key, Label: label, Value: amount / 100, Detail: detail})
+	}
+	return rows, true
+}
+
+func offerPosture(payload any) (map[string]any, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	position, ok := root["position"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	field := func(m map[string]any, snake, camel string) (any, bool) {
+		if value, exists := m[camel]; exists {
+			return value, true
+		}
+		value, exists := m[snake]
+		return value, exists
+	}
+	for _, keys := range [][2]string{{"cash_minor", "cashMinor"}, {"burn_minor", "burnMinor"}, {"revenue_minor", "revenueMinor"}, {"runway_months", "runwayMonths"}, {"runway_available", "runwayAvailable"}} {
+		if _, exists := field(position, keys[0], keys[1]); !exists {
+			return nil, false
+		}
+	}
+	cash, _ := field(position, "cash_minor", "cashMinor")
+	burn, _ := field(position, "burn_minor", "burnMinor")
+	revenue, _ := field(position, "revenue_minor", "revenueMinor")
+	runway, _ := field(position, "runway_months", "runwayMonths")
+	available, _ := field(position, "runway_available", "runwayAvailable")
+	gap, _ := field(root, "default_alive_gap", "defaultAliveGap")
+	source, _ := field(root, "posture_source", "postureSource")
+	age, _ := field(root, "posture_age_seconds", "postureAgeSeconds")
+	return map[string]any{
+		"cashMinor": cash, "burnMinor": burn, "revenueMinor": revenue,
+		"runwayMonths": runway, "runwayAvailable": available,
+		"gap": gap, "source": source, "ageSeconds": age, "goals": root["goals"],
+	}, true
 }
 
 func digestAppsPanel(payload any) ([]PanelRow, bool) {

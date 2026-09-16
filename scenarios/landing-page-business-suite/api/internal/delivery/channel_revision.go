@@ -291,12 +291,21 @@ func (s *CatalogService) PromoteChannel(ctx context.Context, req ChannelPromotio
 	}
 
 	artifactSet := make(map[string]int64, len(req.ArtifactIDs))
-	for platform, id := range req.ArtifactIDs {
-		platform = strings.TrimSpace(platform)
-		if platform == "" || id <= 0 {
+	resolvedTargets := make(map[string]string, len(req.ArtifactIDs))
+	for targetID, id := range req.ArtifactIDs {
+		targetID = strings.TrimSpace(targetID)
+		if targetID == "" || id <= 0 {
 			return nil, fmt.Errorf("artifact_ids must contain positive IDs keyed by platform")
 		}
-		artifactSet[platform] = id
+		osPlatform, _, err := NormalizeCatalogPlatform(targetID)
+		if err != nil {
+			return nil, fmt.Errorf("artifact_ids target %q: %w", targetID, err)
+		}
+		if prior, exists := resolvedTargets[osPlatform]; exists && prior != targetID {
+			return nil, fmt.Errorf("channel promotion maps targets %q and %q to platform %q; one architecture per platform is supported", prior, targetID, osPlatform)
+		}
+		resolvedTargets[osPlatform] = targetID
+		artifactSet[osPlatform] = id
 	}
 	encoded, err := json.Marshal(artifactSet)
 	if err != nil {

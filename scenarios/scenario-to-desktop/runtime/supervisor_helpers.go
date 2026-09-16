@@ -395,12 +395,12 @@ func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (ma
 }
 
 // renderArgs expands template variables in command arguments.
-func (s *Supervisor) renderArgs(args []string) []string {
+func (s *Supervisor) renderArgs(args []string) ([]string, error) {
 	return s.envRenderer.RenderArgs(args)
 }
 
 // renderValue expands template variables in a string.
-func (s *Supervisor) renderValue(input string) string {
+func (s *Supervisor) renderValue(input string) (string, error) {
 	return s.envRenderer.RenderValue(input)
 }
 
@@ -412,6 +412,28 @@ func (s *Supervisor) GPUStatus() GPUStatus {
 // PortMap returns allocated ports for all services.
 func (s *Supervisor) PortMap() map[string]map[string]int {
 	return s.portAllocator.Map()
+}
+
+func (s *Supervisor) recordIsolationObservation(serviceID string, env map[string]string) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	observation := api.IsolationObservation{ServiceID: serviceID, StateRoot: env["APP_DATA_DIR"], DatabasePath: env["VROOLI_STORAGE_ROOT"], AdoptedSessionCount: 0, Source: "bundled_runtime"}
+	if observation.StateRoot != "" {
+		observation.SocketPath = filepath.Join(observation.StateRoot, "runtime", "control.sock")
+	}
+	for i := range s.isolation {
+		if s.isolation[i].ServiceID == serviceID {
+			s.isolation[i] = observation
+			return
+		}
+	}
+	s.isolation = append(s.isolation, observation)
+}
+
+func (s *Supervisor) IsolationObservations() []api.IsolationObservation {
+	s.stateMu.RLock()
+	defer s.stateMu.RUnlock()
+	return append([]api.IsolationObservation(nil), s.isolation...)
 }
 
 // RuntimeInfo returns metadata about the running supervisor instance.

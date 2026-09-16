@@ -68,6 +68,13 @@ li[data-readable="true"] .cc-source-dot { background: var(--color-primary); bord
 .cc-hero .cc-hero-label { margin-top: 0.4rem; font: 600 var(--text-body-size) var(--font-sans); letter-spacing: 0.24em; text-transform: uppercase; color: var(--color-foreground); }
 .cc-hero .cc-qualifier { margin-top: 0.5rem; max-width: 34rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cc-hero-count { margin-top: var(--space-4); font: 500 var(--text-micro) var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted-foreground); }
+.cc-posture { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; max-width: 100%; padding: var(--space-4) var(--space-6) var(--space-4) 0; }
+.cc-posture-magnitudes { display: flex; gap: clamp(1rem, 4vw, 3rem); flex-wrap: wrap; }
+.cc-posture-magnitudes div { display: flex; flex-direction: column; gap: .25rem; }
+.cc-posture-magnitudes span { font: 500 var(--text-micro) var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--color-muted-foreground); }
+.cc-posture-magnitudes strong { font: 600 clamp(1.4rem, 4vw, 3rem) var(--font-mono); color: var(--color-foreground); }
+.cc-posture .cc-hero-label { margin-top: .8rem; font: 600 var(--text-body-size) var(--font-sans); letter-spacing: .24em; text-transform: uppercase; }
+.cc-posture-gap { margin-top: .6rem; font: 500 var(--text-body-size) var(--font-mono); color: var(--color-accent); }
 /* Panorama: the hero counts the whole board; the tally gives every unmeasured signal its reason, in its material. */
 .cc-sky-tally { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); margin: var(--space-4) 0 0; padding: 0; list-style: none; font: 500 var(--text-label-size) var(--font-mono); letter-spacing: 0.04em; color: var(--color-muted-foreground); }
 .cc-sky-tally li { display: inline-flex; align-items: center; gap: 0.55em; white-space: nowrap; }

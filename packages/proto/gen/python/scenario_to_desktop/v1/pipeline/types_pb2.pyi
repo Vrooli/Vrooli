@@ -516,10 +516,16 @@ class PipelineCancelRequest(_message.Message):
     def __init__(self, pipeline_id: _Optional[str] = ...) -> None: ...
 
 class PipelineListRequest(_message.Message):
-    __slots__ = ("scenario_name",)
+    __slots__ = ("scenario_name", "status", "since", "limit")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
-    def __init__(self, scenario_name: _Optional[str] = ...) -> None: ...
+    status: str
+    since: _timestamp_pb2.Timestamp
+    limit: int
+    def __init__(self, scenario_name: _Optional[str] = ..., status: _Optional[str] = ..., since: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class PipelineCancelResponse(_message.Message):
     __slots__ = ("status", "message")

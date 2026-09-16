@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -15,6 +16,7 @@ import (
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (c *Commands) runPrimitive() cliapp.PrimitiveHandler {
@@ -94,7 +96,7 @@ func pipelineStatusReport(_ cliapp.OperationContext, response *pipelinev1.Pipeli
 		}
 	}
 	slices.Sort(results[2:])
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: results}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: results, ListShaped: true, ResultCount: len(results)}
 }
 
 func (c *Commands) resumePrimitive() cliapp.PrimitiveHandler {
@@ -122,15 +124,49 @@ func (c *Commands) cancelPrimitive() cliapp.PrimitiveHandler {
 }
 
 func (c *Commands) listPrimitive() cliapp.PrimitiveHandler {
-	return cliapp.ProtoList(func(_ cliapp.OperationContext) (*pipelinev1.PipelineListResponse, error) {
-		response, err := c.rpc.List(context.Background(), connect.NewRequest(&pipelinev1.PipelineListRequest{}))
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*pipelinev1.PipelineListResponse, error) {
+		var scenario *string
+		if ctx.FlagProvided("scenario") {
+			scenario = optionalScenario(ctx.Flag("scenario"))
+		}
+		request := &pipelinev1.PipelineListRequest{ScenarioName: scenario}
+		if ctx.FlagProvided("status") {
+			request.Status = optionalScenario(ctx.Flag("status"))
+		}
+		if ctx.FlagProvided("since") {
+			parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(ctx.Flag("since")))
+			if err != nil {
+				return nil, fmt.Errorf("--since must be RFC3339: %w", err)
+			}
+			request.Since = timestamppb.New(parsed)
+		}
+		if ctx.FlagProvided("limit") {
+			limit, err := positiveInt32(ctx.Flag("limit"), "limit")
+			if err != nil {
+				return nil, err
+			}
+			request.Limit = &limit
+		}
+		response, err := c.rpc.List(context.Background(), connect.NewRequest(request))
 		if err != nil {
 			return nil, cliapp.WrapAPIError("list pipelines", err, nil)
 		}
 		return response.Msg, nil
 	}, func(_ cliapp.OperationContext, response *pipelinev1.PipelineListResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d pipeline(s)", len(response.GetPipelines()))}}
+		results := make([]string, 0, len(response.GetPipelines()))
+		for _, item := range response.GetPipelines() {
+			results = append(results, fmt.Sprintf("%s  %s  %s  %d%%", item.GetPipelineId(), item.GetScenarioName(), item.GetStatus().String(), item.GetProgressPercent()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d pipeline(s)", len(results))}, ResultsHeading: "Pipelines", Results: results, ListShaped: true, ResultCount: len(results)}
 	})
+}
+
+func optionalScenario(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (c *Commands) activePrimitive() cliapp.PrimitiveHandler {
@@ -141,7 +177,7 @@ func (c *Commands) activePrimitive() cliapp.PrimitiveHandler {
 		}
 		return response.Msg, nil
 	}, func(_ cliapp.OperationContext, response *pipelinev1.ActivePipelineResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{"Active pipeline: " + response.GetPipeline().GetPipelineId()}}
+		return cliapp.ListReport{Summary: []string{"Active pipeline: " + response.GetPipeline().GetPipelineId()}, Results: []string{response.GetPipeline().GetPipelineId()}, ListShaped: true, ResultCount: 1}
 	})
 }
 
@@ -181,7 +217,11 @@ func (c *Commands) historyPrimitive() cliapp.PrimitiveHandler {
 		}
 		return response.Msg, nil
 	}, func(_ cliapp.OperationContext, response *pipelinev1.PipelineHistoryResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d historical pipeline(s)", response.GetTotal())}}
+		results := make([]string, 0, len(response.GetPipelines()))
+		for _, item := range response.GetPipelines() {
+			results = append(results, fmt.Sprintf("%s  %s  %s  %d%%", item.GetPipelineId(), item.GetScenarioName(), item.GetStatus().String(), item.GetProgressPercent()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d historical pipeline(s)", response.GetTotal())}, ResultsHeading: "Pipelines", Results: results, ResultCount: int(response.GetTotal()), ListShaped: true}
 	})
 }
 

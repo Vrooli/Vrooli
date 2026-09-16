@@ -52,7 +52,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "evidence", Description: "Inspect durable desktop validation evidence", NeedsAPI: true, Subcommands: []cliapp.Command{
 		(cliapp.Command{Name: "list", Description: "List persisted evidence captures", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "session"}, {Name: "kind"}}}}).WithPrimitive(c.listPrimitive()),
 		(cliapp.Command{Name: "show", Description: "Export or inspect one evidence capture", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "output"}}}}).WithPrimitive(c.showPrimitive()),
-		(cliapp.Command{Name: "journey", Description: "Print the latest desktop journey steps and dispositions", Args: scenarioArgs}).WithPrimitive(c.journeyPrimitive()),
+		(cliapp.Command{Name: "export", Description: "Export all evidence captures with checksums", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "output", Required: true}}}}).WithPrimitive(c.exportPrimitive()),
+		(cliapp.Command{Name: "journey", Description: "Print the latest desktop journey steps and dispositions", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}}}}).WithPrimitive(c.journeyPrimitive()),
 		(cliapp.Command{Name: "summary", Description: "Summarize persisted evidence captures", Args: scenarioArgs}).WithPrimitive(c.summaryPrimitive()),
 		(cliapp.Command{Name: "void", Description: "Void evidence without deleting its capture file", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "reason", Required: true}, {Name: "superseded-by"}}}}).WithPrimitive(c.voidPrimitive()),
 		(cliapp.Command{Name: "publish-offer-fact", Description: "Publish a producer-owned release fact to Offer Desk: publish-offer-fact <trigger-id> --scenario <name> [--observed-at RFC3339]", Args: publishFactArgs()}).WithPrimitive(c.publishOfferFactPrimitive()),
@@ -170,9 +171,16 @@ func (c *Commands) publishOfferFactPrimitive() cliapp.PrimitiveHandler {
 }
 
 type journeyReport struct {
-	Disposition    string `json:"disposition"`
-	DegradedReason string `json:"degraded_reason"`
-	Selection      *struct {
+	Disposition           string `json:"disposition"`
+	DegradedReason        string `json:"degraded_reason"`
+	IsolationObservations []struct {
+		StateRoot           string `json:"state_root"`
+		SocketPath          string `json:"socket_path"`
+		DatabasePath        string `json:"database_path"`
+		AdoptedSessionCount int    `json:"adopted_session_count"`
+		Source              string `json:"source"`
+	} `json:"isolation_observations"`
+	Selection *struct {
 		Capability string   `json:"capability"`
 		Reason     string   `json:"reason"`
 		Skipped    []string `json:"skipped"`
@@ -193,7 +201,8 @@ type journeyReport struct {
 func (c *Commands) journeyPrimitive() cliapp.PrimitiveHandler {
 	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*domainv1.GetEvidenceCaptureResponse, error) {
 		scenario := strings.TrimSpace(ctx.Positional("scenario"))
-		list, err := c.rpc.ListEvidenceCaptures(context.Background(), connect.NewRequest(&domainv1.ListEvidenceCapturesRequest{ScenarioName: scenario}))
+		pipelineID := strings.TrimSpace(ctx.Flag("pipeline"))
+		list, err := c.rpc.ListEvidenceCaptures(context.Background(), connect.NewRequest(&domainv1.ListEvidenceCapturesRequest{ScenarioName: scenario, PipelineId: optionalString(pipelineID)}))
 		if err != nil {
 			return nil, cliapp.WrapAPIError("list journey captures", err, nil)
 		}
@@ -226,6 +235,9 @@ func (c *Commands) journeyPrimitive() cliapp.PrimitiveHandler {
 				results = append(results, "Skipped capabilities: "+strings.Join(report.Selection.Skipped, ", "))
 			}
 		}
+		for _, observation := range report.IsolationObservations {
+			results = append(results, fmt.Sprintf("Isolation observation: source=%s adopted_sessions=%d state_root=%s socket_path=%s database_path=%s", observation.Source, observation.AdoptedSessionCount, observation.StateRoot, observation.SocketPath, observation.DatabasePath))
+		}
 		for _, step := range report.Steps {
 			line := fmt.Sprintf("%s [%s] %s", step.Name, step.Action, step.Disposition)
 			if step.BeforeCaptureID != "" && step.AfterCaptureID != "" {
@@ -240,6 +252,50 @@ func (c *Commands) journeyPrimitive() cliapp.PrimitiveHandler {
 			results = append(results, line)
 		}
 		return cliapp.ListReport{Summary: []string{"Desktop journey retrieved"}, ResultsHeading: "Steps", Results: results}
+	})
+}
+
+func (c *Commands) exportPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*domainv1.ListEvidenceCapturesResponse, error) {
+		scenario := strings.TrimSpace(ctx.Positional("scenario"))
+		output := strings.TrimSpace(ctx.Flag("output"))
+		if output == "" {
+			return nil, fmt.Errorf("--output is required")
+		}
+		if err := os.MkdirAll(output, 0o700); err != nil {
+			return nil, fmt.Errorf("create export directory: %w", err)
+		}
+		list, err := c.rpc.ListEvidenceCaptures(context.Background(), connect.NewRequest(&domainv1.ListEvidenceCapturesRequest{ScenarioName: scenario, PipelineId: optionalString(strings.TrimSpace(ctx.Flag("pipeline")))}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("list evidence captures", err, nil)
+		}
+		lines := make([]string, 0, len(list.Msg.GetCaptures()))
+		index := []string{"# Scenario-to-desktop evidence", "", "| Capture ID | Kind | File | Checksum |", "|---|---|---|---|"}
+		for _, item := range list.Msg.GetCaptures() {
+			response, err := c.rpc.GetEvidenceCapture(context.Background(), connect.NewRequest(&domainv1.GetEvidenceCaptureRequest{ScenarioName: scenario, CaptureId: item.GetCaptureId()}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("read evidence capture", err, nil)
+			}
+			name := item.GetCaptureId() + "-" + filepath.Base(item.GetFilename())
+			if name == "." || name == "" {
+				name = item.GetCaptureId()
+			}
+			if err := os.WriteFile(filepath.Join(output, name), response.Msg.GetContent(), 0o600); err != nil {
+				return nil, fmt.Errorf("write capture %s: %w", item.GetCaptureId(), err)
+			}
+			lines = append(lines, fmt.Sprintf("%s  %s", item.GetChecksum(), name))
+			index = append(index, fmt.Sprintf("| `%s` | %s | `%s` | `%s` |", item.GetCaptureId(), item.GetKind(), name, item.GetChecksum()))
+		}
+		index = append(index, "", "SHA256SUMS records producer checksums.")
+		if err := os.WriteFile(filepath.Join(output, "README.md"), []byte(strings.Join(index, "\n")+"\n"), 0o600); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(filepath.Join(output, "SHA256SUMS"), []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+			return nil, err
+		}
+		return list.Msg, nil
+	}, func(ctx cliapp.OperationContext, response *domainv1.ListEvidenceCapturesResponse) cliapp.ListReport {
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Evidence exported: %d capture(s) to %s", len(response.GetCaptures()), ctx.Flag("output"))}, ResultCount: len(response.GetCaptures()), ListShaped: true}
 	})
 }
 

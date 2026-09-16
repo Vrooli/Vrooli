@@ -1,5 +1,11 @@
 {
+  "_brand": {
+    "slug": "rigel",
+    "version": 6
+  },
   "background_color": "#0f172a",
+  "description": "Immutable regression baselines, change review, and governed git operations.",
+  "display": "standalone",
   "icons": [
     {
       "purpose": "any",
@@ -26,7 +32,10 @@
       "type": "image/png"
     }
   ],
+  "id": "/",
   "name": "Rigel",
+  "scope": "/",
   "short_name": "Rigel",
+  "start_url": "/",
   "theme_color": "#0f172a"
 }

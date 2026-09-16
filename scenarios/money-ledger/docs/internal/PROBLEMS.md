@@ -145,8 +145,8 @@ Test Genie `ui-health` provider still fails without a findings payload.
 ### 2026-08-14 — final validation boundary and intentional deferrals
 
 The requirement registry is now evidence-backed: `vrooli scenario requirements
-validate money-ledger --json` passes at L3, with 16 requirements complete and 10
-explicitly planned (including the future commerce adapter and tax-category work).
+validate money-ledger --json` passes at L3, with the remaining planned work
+limited to future tax, reconciliation, valuation, and adoption concerns.
 The fresh comprehensive run `20260814-034428-59a384b3` passed 20/21 phases. The
 remaining failure is not a Money Ledger finding: the shared Test Genie
 `ui-health` execution provider times out without returning a findings payload.
@@ -161,8 +161,8 @@ match the final audit. The operator-input rehearsal is intentionally against a
 copy: the source is non-regenerable and the adoption/cutover decision is outside
 this plan. The current live source has no populated values; the populated and
 stale synthetic copies prove classification and freshness without changing the
-protected source. Future commerce-adapter, tax-category, reconciliation, and
-currency requirements remain planned by design.
+protected source. Future tax-category, reconciliation, valuation, and currency
+requirements remain planned by design.
 
 The shared Test Genie `ui-health` provider boundary remains an external
 validation concern if it recurs; direct scenario UI suites and the newly
@@ -179,8 +179,8 @@ passes; this is not evidence to promote the page claims without a working
 capture provider.
 
 The following requirements remain intentionally planned because this plan stops
-before adoption and upstream commerce integration: `POS-005` (commerce adapter),
-`POS-006` (deductibility categories), `REC-001` (reconciliation), `VAL-001`
+before tax and adoption work: `POS-006` (deductibility categories), `REC-001`
+(reconciliation), `VAL-001`
 (valuation accounts), `ADP-001` (adapter extraction trigger), `LOT-001`
 (acquisition lots), `RCR-001` (projected basis), `CAT-001` (category rules),
 `ATT-001` (evidence attachments), and `CUR-001` (separate currencies). Their

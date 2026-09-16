@@ -45,6 +45,14 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 	if err != nil {
 		return nil, fmt.Errorf("lifecycle provider for %q is not authoritative", item.Slug)
 	}
+	// A stopped scenario has no provider process to fence. Restart still uses
+	// the normal start pipeline, which will perform any required owner
+	// maintenance and start a fresh instance. Keep rejecting a present but
+	// non-authoritative instance below: that state may represent a live or
+	// otherwise unsafe runtime whose ownership cannot be established.
+	if !view.Present {
+		return nil, nil
+	}
 	// Agent Manager owns the authoritative maintenance admission used by the
 	// lifecycle gate. When its registry view is stale or lacks an API port,
 	// defer to that owner read instead of failing here before the owner

@@ -233,11 +233,7 @@ func (s *Service) Pick(ctx context.Context, candidateID string) (Candidate, stri
 		if derr != nil {
 			return Candidate{}, "", false, derr
 		}
-		svg, verr := s.backend.Vectorize(ctx, content.Bytes, imagetools.VectorizeOptions{
-			KeepColors:                 s.markColors(ctx, cand.BrandID),
-			ClipToLargestRoundedRegion: true,
-			TolerancePx:                0.8,
-		})
+		svg, verr := s.backend.Vectorize(ctx, content.Bytes, markVectorizeOptions(s.markColors(ctx, cand.BrandID)))
 		if verr != nil {
 			return Candidate{}, "", false, verr
 		}
@@ -459,16 +455,22 @@ func conceptPrompt(info BrandInfo, brief, concept string, withReference bool) st
 	if withReference {
 		return fmt.Sprintf("Create a new app icon for %s that belongs to the same product family as the reference icon.%s "+
 			"Keep everything about the reference's style: the same rounded-square tile and dark gradient, the same framing and margins, "+
-			"the same luminous line weight and soft glow, the same glowing %s star points, the same level of polish and detail. "+
-			"Change only the subject, which is: %s. The result must look like a sibling of the reference, not a copy of it. "+
+			"the same luminous line weight, the same %s accent colour, the same level of polish. "+
+			"Change only the subject, which is: %s. The subject must be a different thing from the reference's subject, not a variation of it. "+
+			"Draw it as clean flat line art: solid crisp shapes, uniform stroke weight, and solid star shapes with no glow halo, no blur and no scattered sparkle. "+
+			"The tile is a flat dark gradient filling the whole image edge to edge, with no bevel, no 3D button effect, no rim highlight, no inner border and no drop shadow. "+
+			"Centre the subject and let it fill the tile with even margins on all four sides. "+
 			"No text, no letters, no watermark, no mouse pointer.", name, about, accent, subject)
 	}
 	top := firstNonEmpty(info.Style.BackgroundTop, "#15243c")
 	bottom := firstNonEmpty(info.Style.BackgroundBottom, "#0b1728")
 	return fmt.Sprintf("A finished, premium app icon for %s.%s Subject: %s. "+
-		"Render it with depth and polish, like a flagship product icon: the subject centred on a rounded-square tile with a smooth dark gradient from %s to %s, "+
-		"drawn in luminous white with %s highlights and a soft, refined glow, crisp and balanced with generous margins so it reads at small sizes. "+
-		"Not flat clip art, not a sketch. No text, no letters, no watermark, no mouse pointer, nothing outside the tile.", name, about, subject, top, bottom, accent)
+		"Render the subject centred on a rounded-square tile with a smooth dark gradient from %s to %s, "+
+		"drawn in luminous white with %s accents: clean flat line art with solid crisp shapes, uniform stroke weight, "+
+		"and solid star shapes with no glow halo, no blur and no scattered sparkle. "+
+		"The tile fills the whole image edge to edge, with no bevel, no 3D button effect, no rim highlight, no inner border and no drop shadow. "+
+		"Balance it with even margins on all four sides so it reads at small sizes. "+
+		"No text, no letters, no watermark, no mouse pointer, nothing outside the tile.", name, about, subject, top, bottom, accent)
 }
 
 // brandInfo resolves a brand's prompt and style context, best effort: an
@@ -482,6 +484,25 @@ func (s *Service) brandInfo(ctx context.Context, brandID string) BrandInfo {
 		return BrandInfo{ID: brandID}
 	}
 	return info
+}
+
+// markVectorizeOptions are the trace settings a picked mark is vectorized with.
+// image-tools' own defaults (4 colours, min-area 40, tolerance 0.8) shattered a
+// glowing star field into specks and dropped the thin constellation lines:
+// measured on Rigel, the accent layer traced as 68 contours of which 57 were
+// fragments under 20px. Three colours with white and the accent pinned, a 60px
+// minimum area and a 0.25px tolerance trace the same mark as 11 clean contours
+// with no fragments, and the thin lines survive.
+func markVectorizeOptions(keep []string) imagetools.VectorizeOptions {
+	return imagetools.VectorizeOptions{
+		Colors:                     3,
+		KeepColors:                 keep,
+		DropBackgroundLayers:       true,
+		ClipToLargestRoundedRegion: true,
+		TolerancePx:                0.25,
+		Smoothing:                  true,
+		MinAreaPx:                  60,
+	}
 }
 
 // markColors are the colours a raster pick's vectorize keeps: white line art and

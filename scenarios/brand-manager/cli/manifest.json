@@ -819,7 +819,7 @@
             },
             {
               "name": "elements",
-              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+              "description": "Comma-separated elements: colors,typography,identity,icons (default: all)"
             }
           ],
           "binding": {
@@ -854,7 +854,7 @@
             },
             {
               "name": "elements",
-              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+              "description": "Comma-separated elements: colors,typography,identity,icons (default: all)"
             }
           ],
           "binding": {

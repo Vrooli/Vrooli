@@ -16,6 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // These tests require MinIO running. Use: go test -tags=integration ./...
@@ -379,6 +381,36 @@ func TestS3Integration_EndToEnd_UploadDownload(t *testing.T) {
 }
 
 // Helper functions for integration tests
+
+func TestS3Integration_VerifyOperations_WriteReadDeleteCanary(t *testing.T) {
+	endpoint, accessKey, secretKey := setupMinIOContainer(t)
+
+	ctx := context.Background()
+	bucket := "verify-operations-bucket"
+	createTestBucket(t, ctx, endpoint, accessKey, secretKey, bucket)
+
+	provider := integrationS3Provider(accessKey, secretKey)
+	settings := DownloadStorageSettings{
+		Provider:       "s3",
+		Bucket:         bucket,
+		Region:         "us-east-1",
+		Endpoint:       endpoint,
+		ForcePathStyle: true,
+		DefaultPrefix:  "artifacts",
+	}
+
+	storage, err := provider.New(ctx, settings)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	verifier, ok := storage.(delivery.OperationVerifier)
+	if !ok {
+		t.Fatal("S3 storage does not implement OperationVerifier")
+	}
+	if err := verifier.VerifyOperations(ctx, bucket, "artifacts"); err != nil {
+		t.Fatalf("VerifyOperations failed against isolated bucket: %v", err)
+	}
+}
 
 func createTestBucket(t *testing.T, ctx context.Context, endpoint, accessKey, secretKey, bucket string) {
 	t.Helper()

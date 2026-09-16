@@ -46,6 +46,13 @@ The bundled mode creates a private desktop application. It can support offline
 operation only when every required dependency has a verified local artifact and
 the journey evidence proves the resource-native operation.
 
+The bundled UI serves bundle assets and the health path locally, and routes every
+other request to the bundled API. This rule is structural: it does not list
+scenario names, protocol-specific paths, or a path-prefix allowlist. Every
+bundled child receives only the runtime environment allowlist and variables
+declared by the bundle manifest. The runtime records resolved paths and adopted
+host-session count before it makes a screen-content claim.
+
 ```bash
 # Create deployment profile
 deployment-manager profile create my-profile my-scenario --tier 2

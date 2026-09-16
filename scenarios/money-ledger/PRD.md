@@ -27,7 +27,7 @@
 - [x] OT-P1-002 | Goals with thresholds | Financial goals are declared as thresholds with a sustain window and evaluated against position; "default-alive" is one instance rather than the only rule
 - [x] OT-P1-003 | Statements | Income-versus-expense over a period and assets-minus-liabilities at a date, as queries over the same journal
 - [x] OT-P1-004 | Adapter health is honest | An adapter that cannot run is reported unavailable with a reason and an age; it is never reported as zero
-- [ ] OT-P1-005 | Commerce adapter | The Landing Page Business Suite adapter lands subscription and charge events, proving the contract against a real upstream
+- [x] OT-P1-005 | Commerce adapter | The Landing Page Business Suite adapter lands subscription and charge events, proving the contract against a real upstream
 - [ ] OT-P1-006 | Tax categorisation | Events carry deductibility category tags, so an accountant gets a clean export
 
 ### 🟢 P2 – Future / expansion

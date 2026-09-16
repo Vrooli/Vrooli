@@ -11,7 +11,7 @@ vi.mock('../../../shared/api', async () => ({
 const settings = {
   provider: 's3' as const, bucket: 'releases', region: 'us-east-1', endpoint: '', force_path_style: false, default_prefix: 'apps/',
   signed_url_ttl_seconds: 900, public_base_url: '', access_key_id_set: true, secret_access_key_set: true,
-  session_token_set: false, credentials_from_env: false, settings_row_available: true,
+  session_token_set: false, credentials_from_authority: false, settings_row_available: true,
 };
 
 describe('useStorageWizard', () => {

@@ -57,6 +57,7 @@ func NewOpenRouterClient(opts OpenRouterClientOptions) OpenRouterClient {
 // Chat implements OpenRouterClient.
 func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
 	req.Stream = false
+	req.Usage = &OpenRouterUsageRequest{Include: true}
 
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -97,9 +98,13 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
-			TotalTokens      int `json:"total_tokens"`
+			PromptTokens     int     `json:"prompt_tokens"`
+			CompletionTokens int     `json:"completion_tokens"`
+			TotalTokens      int     `json:"total_tokens"`
+			Cost             float64 `json:"cost"`
+			CostDetails      struct {
+				UpstreamInferenceCost float64 `json:"upstream_inference_cost"`
+			} `json:"cost_details"`
 		} `json:"usage"`
 	}
 
@@ -124,6 +129,7 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 			PromptTokens:     rawResp.Usage.PromptTokens,
 			CompletionTokens: rawResp.Usage.CompletionTokens,
 			TotalTokens:      rawResp.Usage.TotalTokens,
+			CostMicros:       dollarsToMicros(rawResp.Usage.Cost, rawResp.Usage.CostDetails.UpstreamInferenceCost),
 		},
 	}, nil
 }
@@ -131,6 +137,7 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 // ChatStream implements OpenRouterClient.
 func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error) {
 	req.Stream = true
+	req.Usage = &OpenRouterUsageRequest{Include: true}
 
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -193,9 +200,13 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
 			Usage *struct {
-				PromptTokens     int `json:"prompt_tokens"`
-				CompletionTokens int `json:"completion_tokens"`
-				TotalTokens      int `json:"total_tokens"`
+				PromptTokens     int     `json:"prompt_tokens"`
+				CompletionTokens int     `json:"completion_tokens"`
+				TotalTokens      int     `json:"total_tokens"`
+				Cost             float64 `json:"cost"`
+				CostDetails      struct {
+					UpstreamInferenceCost float64 `json:"upstream_inference_cost"`
+				} `json:"cost_details"`
 			} `json:"usage,omitempty"`
 		}
 
@@ -223,6 +234,7 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 				PromptTokens:     chunk.Usage.PromptTokens,
 				CompletionTokens: chunk.Usage.CompletionTokens,
 				TotalTokens:      chunk.Usage.TotalTokens,
+				CostMicros:       dollarsToMicros(chunk.Usage.Cost, chunk.Usage.CostDetails.UpstreamInferenceCost),
 			}
 		}
 	}
@@ -246,6 +258,16 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 
 	return &usage, nil
+}
+
+func dollarsToMicros(cost, upstream float64) int64 {
+	if cost == 0 {
+		cost = upstream
+	}
+	if cost <= 0 {
+		return 0
+	}
+	return int64(cost*1_000_000 + 0.5)
 }
 
 // VerifyAPIKey implements OpenRouterClient.

@@ -80,19 +80,29 @@ type Provenance struct {
 }
 
 type TimelineSummary struct {
-	Version             string                     `json:"version"`
-	JourneyRef          string                     `json:"journey_ref"`
-	Capability          string                     `json:"capability,omitempty"`
-	ProviderTier        string                     `json:"provider_tier,omitempty"`
-	SafeRouteClass      string                     `json:"safe_route_class,omitempty"`
-	FallbackDecision    string                     `json:"fallback_decision,omitempty"`
-	ChapterIDs          []string                   `json:"chapter_ids"`
-	EventCount          int                        `json:"event_count"`
-	Ordered             bool                       `json:"ordered"`
-	RedactionStatus     string                     `json:"redaction_status"`
-	ScreenContentSource string                     `json:"screen_content_source,omitempty"`
-	WorkflowRequired    bool                       `json:"workflow_required,omitempty"`
-	Workflow            *WorkflowManifestReference `json:"workflow,omitempty"`
+	Version               string                     `json:"version"`
+	JourneyRef            string                     `json:"journey_ref"`
+	Capability            string                     `json:"capability,omitempty"`
+	ProviderTier          string                     `json:"provider_tier,omitempty"`
+	SafeRouteClass        string                     `json:"safe_route_class,omitempty"`
+	FallbackDecision      string                     `json:"fallback_decision,omitempty"`
+	ChapterIDs            []string                   `json:"chapter_ids"`
+	EventCount            int                        `json:"event_count"`
+	Ordered               bool                       `json:"ordered"`
+	RedactionStatus       string                     `json:"redaction_status"`
+	ScreenContentSource   string                     `json:"screen_content_source,omitempty"`
+	WorkflowRequired      bool                       `json:"workflow_required,omitempty"`
+	Workflow              *WorkflowManifestReference `json:"workflow,omitempty"`
+	IsolationObservations []IsolationObservation     `json:"isolation_observations,omitempty"`
+}
+
+// IsolationObservation records what a bundled child resolved at readiness.
+type IsolationObservation struct {
+	StateRoot           string `json:"state_root,omitempty"`
+	SocketPath          string `json:"socket_path,omitempty"`
+	DatabasePath        string `json:"database_path,omitempty"`
+	AdoptedSessionCount int    `json:"adopted_session_count"`
+	Source              string `json:"source,omitempty"`
 }
 
 type WorkflowManifestArtifact struct {
@@ -227,7 +237,8 @@ func (m Manifest) Validate() error {
 		if m.Timeline.Version == "" || m.Timeline.JourneyRef == "" || len(m.Timeline.ChapterIDs) == 0 || !m.Timeline.Ordered {
 			return fmt.Errorf("visual profiles require an ordered, verified timeline with chapters")
 		}
-		if m.State == StatePassed && (m.Timeline.RedactionStatus != "verified" || strings.TrimSpace(m.Timeline.ScreenContentSource) == "" || m.Timeline.ScreenContentSource == "unknown") {
+		screenSource := strings.TrimSpace(m.Timeline.ScreenContentSource)
+		if m.State == StatePassed && (m.Timeline.RedactionStatus != "verified" || screenSource == "" || screenSource == "unknown" || strings.HasPrefix(screenSource, "surface_error:")) {
 			return fmt.Errorf("passed visual profiles require verified redaction and known screen content")
 		}
 		if m.Timeline.WorkflowRequired && m.Timeline.Workflow == nil {

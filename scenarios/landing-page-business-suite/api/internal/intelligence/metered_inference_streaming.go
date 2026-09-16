@@ -70,13 +70,19 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 	}
 	actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
 
-	if err := finalizeUsage(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model); err != nil {
+	if err := finalizeUsageWithCost(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, usage.CostMicros, promptTokens, usage.CompletionTokens, "openrouter"); err != nil {
 		s.log("finalize_reservation_failed", map[string]interface{}{
 			"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": err.Error(),
 		})
 		if fallbackErr := s.usageService.RecordUsage(ctx, UsageReport{
 			UserIdentity: userIdentity, LimitKey: "ai_credits", Amount: actualCost,
 			AppBundleKey: req.Metadata.AppBundleKey, Operation: req.Metadata.Operation,
+			Metadata: map[string]string{
+				"model": req.Model, "provider": "openrouter",
+				"cost_micros":       fmt.Sprintf("%d", usage.CostMicros),
+				"prompt_tokens":     fmt.Sprintf("%d", promptTokens),
+				"completion_tokens": fmt.Sprintf("%d", usage.CompletionTokens),
+			},
 		}); fallbackErr != nil {
 			s.log("finalize_fallback_record_failed", map[string]interface{}{
 				"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": fallbackErr.Error(), "security": true,

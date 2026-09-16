@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 )
@@ -110,8 +111,9 @@ func newControlPlaneHTTPClient() *http.Client {
 }
 
 type bundledTargetFile struct {
-	RendererURL string `json:"renderer_url"`
-	APIURL      string `json:"api_url"`
+	RendererURL string                             `json:"renderer_url"`
+	APIURL      string                             `json:"api_url"`
+	Isolation   *deliveryramp.IsolationObservation `json:"isolation,omitempty"`
 }
 
 func bundledTargetPath(smokeTestID string) string {
@@ -128,7 +130,7 @@ func resolveBundledTarget(ctx context.Context, smokeTestID string) (JourneyTarge
 		if err == nil {
 			var target bundledTargetFile
 			if json.Unmarshal(raw, &target) == nil && target.RendererURL != "" && target.APIURL != "" {
-				return JourneyTarget{RendererURL: target.RendererURL, APIURL: target.APIURL, Instance: "bundled-runtime", Source: "bundled_private"}, nil
+				return JourneyTarget{RendererURL: target.RendererURL, APIURL: target.APIURL, Instance: "bundled-runtime", Source: "bundled_private", Isolation: target.Isolation}, nil
 			}
 		}
 		select {

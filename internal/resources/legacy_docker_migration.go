@@ -103,6 +103,16 @@ func migrateLegacyDockerStorage(ctx context.Context, controller *Controller, man
 	}
 	dataDir := filepath.Clean(paths.DataDir)
 	mounts := legacyDockerStorageMounts(manifest, dataDir)
+	legacyRoot := filepath.Join(controller.Root, "resources", manifest.Name)
+	for _, entry := range manifest.StorageEntries() {
+		if entry.Relocation == nil || !strings.EqualFold(strings.TrimSpace(entry.Relocation.Key), "RESOURCE_DATA_DIR") || strings.TrimSpace(entry.Subpath) == "" {
+			continue
+		}
+		legacyPath := filepath.Clean(filepath.Join(legacyRoot, filepath.FromSlash(entry.Subpath)))
+		if legacyPath != dataDir {
+			mounts = append(mounts, legacyStorageMount{path: legacyPath, regenerable: entry.Regenerable})
+		}
+	}
 
 	containerName, container, mountPath, found, err := inspectLegacyDockerContainer(ctx, controller, manifest, mounts)
 	if err != nil || !found {
@@ -120,8 +130,37 @@ func migrateLegacyDockerStorage(ctx context.Context, controller *Controller, man
 			break
 		}
 	}
-	if foreign && !mount.regenerable {
+	legacyRelocation := filepath.Clean(mountPath) != filepath.Clean(dataDir) && !pathWithin(dataDir, mountPath)
+	if foreign && !mount.regenerable && !legacyRelocation {
 		return fmt.Errorf("refuse legacy %s migration for foreign-owned non-regenerable storage %s; perform a controlled maintenance-window copy and ownership transition", manifest.Name, mountPath)
+	}
+	if legacyRelocation {
+		if container.State.Running {
+			if err := dockerCommand(ctx, controller, io.Discard, io.Discard, "stop", containerName); err != nil {
+				return fmt.Errorf("stop legacy %s container %s before storage relocation: %w", manifest.Name, containerName, err)
+			}
+			container.State.Running = false
+		}
+		entries, err := os.ReadDir(dataDir)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("inspect canonical %s storage %s: %w", manifest.Name, dataDir, err)
+		}
+		if len(entries) > 0 {
+			return fmt.Errorf("refuse legacy %s storage relocation into non-empty canonical path %s", manifest.Name, dataDir)
+		}
+		archiveDir := legacyStorageBackupPath(mountPath)
+		if err := os.Rename(mountPath, archiveDir); err != nil {
+			return fmt.Errorf("archive legacy %s storage at %s: %w", manifest.Name, archiveDir, err)
+		}
+		if err := os.MkdirAll(dataDir, tuning.PermPrivateDir); err != nil {
+			_ = os.Rename(archiveDir, mountPath)
+			return fmt.Errorf("create canonical %s storage %s: %w", manifest.Name, dataDir, err)
+		}
+		if err := copyDir(archiveDir, dataDir); err != nil {
+			_ = os.RemoveAll(dataDir)
+			_ = os.Rename(archiveDir, mountPath)
+			return fmt.Errorf("copy archived legacy %s storage into %s: %w", manifest.Name, dataDir, err)
+		}
 	}
 	backupDir := ""
 	if foreign {
@@ -156,6 +195,11 @@ func migrateLegacyDockerStorage(ctx context.Context, controller *Controller, man
 	return nil
 }
 
+func pathWithin(root, candidate string) bool {
+	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(candidate))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && relative != "."
+}
+
 func inspectLegacyDockerContainer(ctx context.Context, controller *Controller, manifest ResourceManifest, mounts []legacyStorageMount) (string, legacyDockerContainer, string, bool, error) {
 	for _, name := range legacyDockerContainerNames(manifest) {
 		output, err := dockerOutput(ctx, controller, "container", "inspect", name)
@@ -178,6 +222,20 @@ func inspectLegacyDockerContainer(ctx context.Context, controller *Controller, m
 		mountPath, ok := legacyDockerMountPath(container, mounts)
 		if !ok {
 			continue
+		}
+		canonicalDataDir := ""
+		if len(mounts) > 0 {
+			canonicalDataDir = mounts[0].path
+		}
+		if _, statErr := os.Stat(mountPath); os.IsNotExist(statErr) && canonicalDataDir != "" {
+			entries, readErr := os.ReadDir(canonicalDataDir)
+			if readErr != nil || len(entries) == 0 {
+				return "", legacyDockerContainer{}, "", false, fmt.Errorf("legacy %s storage source %s is missing and canonical storage %s is empty", manifest.Name, mountPath, canonicalDataDir)
+			}
+			// A prior run may have archived and copied the legacy source before
+			// failing while removing the now-stopped container. Treat that state
+			// as converged so a retry only removes the stale verified container.
+			mountPath = canonicalDataDir
 		}
 		return name, container, mountPath, true, nil
 	}
@@ -218,6 +276,7 @@ func legacyDockerContainerNames(manifest ResourceManifest) []string {
 		strings.TrimSpace(manifest.Runtime.ContainerName),
 		"vrooli-" + strings.TrimSpace(manifest.Name) + "-resource",
 		"vrooli-" + strings.TrimSpace(manifest.Name),
+		"vrooli-" + strings.TrimSpace(manifest.Name) + "-main",
 	} {
 		if name == "" {
 			continue

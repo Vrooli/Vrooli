@@ -123,7 +123,7 @@ type CompileInputs struct {
 
 // HostPreparePackages is the fixed package set host.prepare ensures. It
 // mirrors the privilege broker's apt allowlist.
-var HostPreparePackages = []string{"ca-certificates", "curl", "git", "gnupg", "iproute2", "jq", "lsb-release", "tar", "unzip"}
+var HostPreparePackages = []string{"ca-certificates", "curl", "git", "gnupg", "iproute2", "jq", "lsb-release", "postgresql-client", "tar", "unzip"}
 
 func hostPreparePackages(edgeEnabled bool) []string {
 	packages := append([]string(nil), HostPreparePackages...)

@@ -1,4 +1,4 @@
-# System Monitor
+# Vega (system-monitor scenario)
 
 ## Purpose
 Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a governed, responsive Vrooli Operational Console dashboard.

@@ -240,10 +240,14 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 		return nil, err
 	}
 	var digestRevenue, digestCredits, digestPurchased, digestOperations, digestConsumers int64
+	var digestCostMicros int64
 	if err = s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents),0) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= $1 AND COALESCE(completed_at, created_at) <= $2`, start, end).Scan(&digestRevenue); err != nil {
 		return nil, err
 	}
 	if err = s.db.QueryRow(`SELECT COALESCE(SUM(credits),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCredits); err != nil {
+		return nil, err
+	}
+	if err = s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestCostMicros); err != nil {
 		return nil, err
 	}
 	if err = s.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT user_identity) FROM usage_events WHERE created_at >= $1 AND created_at <= $2`, start, end).Scan(&digestOperations, &digestConsumers); err != nil {
@@ -295,36 +299,36 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 	appRows.Close()
 	byApp := make([]*lpbsv1.CreditUsageRow, 0)
 	byModel := make([]*lpbsv1.CreditUsageRow, 0)
-	usageRows, err := s.db.Query(`SELECT app_bundle_key, COALESCE(SUM(credits),0), COUNT(*) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_bundle_key ORDER BY app_bundle_key`, start, end)
+	usageRows, err := s.db.Query(`SELECT app_bundle_key, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY app_bundle_key ORDER BY app_bundle_key`, start, end)
 	if err != nil {
 		return nil, err
 	}
 	for usageRows.Next() {
 		var key string
-		var credits, operations int64
-		if err := usageRows.Scan(&key, &credits, &operations); err != nil {
+		var credits, operations, costMicros int64
+		if err := usageRows.Scan(&key, &credits, &operations, &costMicros); err != nil {
 			usageRows.Close()
 			return nil, err
 		}
-		byApp = append(byApp, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations})
+		byApp = append(byApp, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations, CostMicros: costMicros})
 	}
 	if err := usageRows.Err(); err != nil {
 		usageRows.Close()
 		return nil, err
 	}
 	usageRows.Close()
-	modelRows, err := s.db.Query(`SELECT model, COALESCE(SUM(credits),0), COUNT(*) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY model ORDER BY model`, start, end)
+	modelRows, err := s.db.Query(`SELECT model, COALESCE(SUM(credits),0), COUNT(*), COALESCE(SUM(cost_micros),0) FROM usage_events WHERE created_at >= $1 AND created_at <= $2 GROUP BY model ORDER BY model`, start, end)
 	if err != nil {
 		return nil, err
 	}
 	for modelRows.Next() {
 		var key string
-		var credits, operations int64
-		if err := modelRows.Scan(&key, &credits, &operations); err != nil {
+		var credits, operations, costMicros int64
+		if err := modelRows.Scan(&key, &credits, &operations, &costMicros); err != nil {
 			modelRows.Close()
 			return nil, err
 		}
-		byModel = append(byModel, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations})
+		byModel = append(byModel, &lpbsv1.CreditUsageRow{Key: key, Label: key, Credits: credits, Operations: operations, CostMicros: costMicros})
 	}
 	if err := modelRows.Err(); err != nil {
 		modelRows.Close()
@@ -374,7 +378,7 @@ func (s *Service) GetBusinessDigest(ctx context.Context, days int32) (*lpbsv1.Bu
 		arms = append(arms, &lpbsv1.ExperimentArm{VariantSlug: stat.VariantSlug, VariantName: stat.VariantName, IsControl: stat.VariantSlug == control, CtaClick: &lpbsv1.ArmMetric{Successes: stat.CTAClicks, Trials: trials, RatePercent: percent(stat.CTAClicks, trials), ProbabilityBeatsControl: prob, Verdict: verdict}, Paid: &lpbsv1.ArmMetric{Successes: stat.Conversions, Trials: trials, RatePercent: percent(stat.Conversions, trials), ProbabilityBeatsControl: prob, Verdict: verdict}})
 	}
 	steps := []*lpbsv1.FunnelStep{{Key: "visitors", Label: "Visitors", Value: summary.TotalVisitors}, {Key: "cta_clickers", Label: "Clicked a CTA", Value: ctaClickers, DenominatorKey: "visitors", Denominator: summary.TotalVisitors}, {Key: "checkouts_started", Label: "Checkouts started", Value: checkouts, DenominatorKey: "cta_clickers", Denominator: ctaClickers}, {Key: "paid", Label: "Paid", Value: paid, DenominatorKey: "checkouts_started", Denominator: checkouts}}
-	return &lpbsv1.BusinessDigest{ContractVersion: "business-digest.v1", ObservedAt: timestamppb.New(end), Window: &lpbsv1.DigestWindow{Start: timestamppb.New(start), End: timestamppb.New(end), Days: days}, Funnel: &lpbsv1.Funnel{Steps: steps, UnattributedCheckoutsStarted: unattributedCheckouts, UnattributedPaid: unattributedPaid, PaidCheckoutsTotal: paidCheckoutTotal, PaidRevenueMinor: digestRevenue, Currency: revenue.Currency}, Apps: apps, Credits: &lpbsv1.CreditEconomy{CreditsBurned: digestCredits, CreditsPurchased: digestPurchased, DistinctConsumers: digestConsumers, Operations: digestOperations, ByApp: byApp, ByModel: byModel}, Growth: &lpbsv1.Growth{Signups: signups, WaitlistJoins: waitlist, NewPaidSubscriptions: paidSubs, TrialsStarted: trials}, Experiment: &lpbsv1.Experiment{Arms: arms, ControlSlug: control, MinimumTrials: 100, MinimumSuccesses: 5}, Retention: &lpbsv1.Retention{CohortStart: timestamppb.New(cohortStart), CohortEnd: timestamppb.New(cohortEnd), CohortSize: cohortSize, StillActive: retained}, Exclusions: &lpbsv1.TrafficExclusions{BotEvents: summary.BotEvents, InternalEvents: summary.InternalEvents}, CtaClicks: cta}, nil
+	return &lpbsv1.BusinessDigest{ContractVersion: "business-digest.v1", ObservedAt: timestamppb.New(end), Window: &lpbsv1.DigestWindow{Start: timestamppb.New(start), End: timestamppb.New(end), Days: days}, Funnel: &lpbsv1.Funnel{Steps: steps, UnattributedCheckoutsStarted: unattributedCheckouts, UnattributedPaid: unattributedPaid, PaidCheckoutsTotal: paidCheckoutTotal, PaidRevenueMinor: digestRevenue, Currency: revenue.Currency}, Apps: apps, Credits: &lpbsv1.CreditEconomy{CreditsBurned: digestCredits, CreditsPurchased: digestPurchased, DistinctConsumers: digestConsumers, Operations: digestOperations, ByApp: byApp, ByModel: byModel, CostMicros: digestCostMicros}, Growth: &lpbsv1.Growth{Signups: signups, WaitlistJoins: waitlist, NewPaidSubscriptions: paidSubs, TrialsStarted: trials}, Experiment: &lpbsv1.Experiment{Arms: arms, ControlSlug: control, MinimumTrials: 100, MinimumSuccesses: 5}, Retention: &lpbsv1.Retention{CohortStart: timestamppb.New(cohortStart), CohortEnd: timestamppb.New(cohortEnd), CohortSize: cohortSize, StillActive: retained}, Exclusions: &lpbsv1.TrafficExclusions{BotEvents: summary.BotEvents, InternalEvents: summary.InternalEvents}, CtaClicks: cta}, nil
 }
 
 func percent(successes, trials int64) float64 {
@@ -444,24 +448,34 @@ type AdminRevenue struct {
 // RevenueSummary is the complete finance-owned aggregate. Money is expressed
 // in minor settlement-currency units; rates are percentages from 0 to 100.
 type RevenueSummary struct {
-	Currency                   string     `json:"currency"`
-	MRRUnit                    string     `json:"mrr_unit"`
-	RevenueTodayUnit           string     `json:"revenue_today_unit"`
-	RevenueWindowUnit          string     `json:"revenue_window_unit"`
-	CreditUnit                 string     `json:"credit_unit"`
-	CurrencyExcludedCount      int64      `json:"currency_excluded_count"`
-	MRRMinor                   int64      `json:"mrr_minor"`
-	RevenueTodayMinor          int64      `json:"revenue_today_minor"`
-	RevenueWindowMinor         int64      `json:"revenue_window_minor"`
-	ActiveSubscriptions        int64      `json:"active_subscriptions"`
-	SubscriptionsChurnedWindow int64      `json:"subscriptions_churned_window"`
-	ChurnRatePercent           float64    `json:"churn_rate_percent"`
-	CreditBalanceTotal         int64      `json:"credit_balance_total"`
-	CreditBurnedWindow         int64      `json:"credit_burned_window"`
-	UsageRecordsWindow         int64      `json:"usage_records_window"`
-	SampleSize                 int64      `json:"sample_size"`
-	TrialsWithoutPaymentMethod int64      `json:"trials_without_payment_method"`
-	ObservedAt                 *time.Time `json:"observed_at"`
+	Currency                   string        `json:"currency"`
+	MRRUnit                    string        `json:"mrr_unit"`
+	RevenueTodayUnit           string        `json:"revenue_today_unit"`
+	RevenueWindowUnit          string        `json:"revenue_window_unit"`
+	CreditUnit                 string        `json:"credit_unit"`
+	CurrencyExcludedCount      int64         `json:"currency_excluded_count"`
+	MRRMinor                   int64         `json:"mrr_minor"`
+	RevenueTodayMinor          int64         `json:"revenue_today_minor"`
+	RevenueWindowMinor         int64         `json:"revenue_window_minor"`
+	ActiveSubscriptions        int64         `json:"active_subscriptions"`
+	SubscriptionsChurnedWindow int64         `json:"subscriptions_churned_window"`
+	ChurnRatePercent           float64       `json:"churn_rate_percent"`
+	CreditBalanceTotal         int64         `json:"credit_balance_total"`
+	CreditBurnedWindow         int64         `json:"credit_burned_window"`
+	UsageRecordsWindow         int64         `json:"usage_records_window"`
+	CostMicros                 int64         `json:"cost_micros"`
+	CostUnit                   string        `json:"cost_unit"`
+	RevenueByLine              []RevenueLine `json:"revenue_by_line"`
+	SampleSize                 int64         `json:"sample_size"`
+	TrialsWithoutPaymentMethod int64         `json:"trials_without_payment_method"`
+	ObservedAt                 *time.Time    `json:"observed_at"`
+}
+
+type RevenueLine struct {
+	Key          string `json:"key"`
+	Label        string `json:"label"`
+	AmountMinor  int64  `json:"amount_minor"`
+	Transactions int64  `json:"transactions"`
 }
 
 // GetRevenueSummary computes the documented tenant-wide rollup in one
@@ -470,7 +484,7 @@ type RevenueSummary struct {
 func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 	var out RevenueSummary
 	var mrr, today, window float64
-	var active, churned, trials, creditBalance, creditBurned, usage, currencies int64
+	var active, churned, trials, creditBalance, creditBurned, usage, currencies, costMicros int64
 	var currency string
 	if err := s.db.QueryRow(`SELECT
 		COALESCE(SUM(CASE WHEN sub.status = 'active' OR (sub.status = 'trialing' AND sub.customer_id IS NOT NULL)
@@ -511,6 +525,37 @@ func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
 		return nil, fmt.Errorf("compute revenue summary usage: %w", err)
 	}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(cost_micros), 0) FROM usage_events WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&costMicros); err != nil {
+		return nil, fmt.Errorf("compute revenue summary cost: %w", err)
+	}
+	lineRows, err := s.db.Query(`SELECT COALESCE(NULLIF(session_type, ''), 'subscription'), COALESCE(SUM(amount_cents), 0), COUNT(*) FROM checkout_sessions WHERE status IN ('paid','complete') AND COALESCE(completed_at, created_at) >= CURRENT_DATE - INTERVAL '30 days' GROUP BY COALESCE(NULLIF(session_type, ''), 'subscription') ORDER BY 1`)
+	if err != nil {
+		return nil, fmt.Errorf("compute revenue summary lines: %w", err)
+	}
+	for lineRows.Next() {
+		var key string
+		var amount, transactions int64
+		if err := lineRows.Scan(&key, &amount, &transactions); err != nil {
+			lineRows.Close()
+			return nil, fmt.Errorf("scan revenue summary line: %w", err)
+		}
+		lineKey := key
+		lineLabel := key
+		switch key {
+		case "credits_topup", "credits-topup", "credits":
+			lineKey, lineLabel = "credit_top_up", "Credit top-ups"
+		case "subscription":
+			lineKey, lineLabel = "subscription", "Subscriptions"
+		default:
+			lineKey, lineLabel = "other", "Other"
+		}
+		out.RevenueByLine = append(out.RevenueByLine, RevenueLine{Key: lineKey, Label: lineLabel, AmountMinor: amount, Transactions: transactions})
+	}
+	if err := lineRows.Err(); err != nil {
+		lineRows.Close()
+		return nil, fmt.Errorf("read revenue summary lines: %w", err)
+	}
+	lineRows.Close()
 	if active+churned > 0 {
 		out.ChurnRatePercent = float64(churned) * 100 / float64(active+churned)
 	}
@@ -521,6 +566,7 @@ func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
 	}
 	out.ActiveSubscriptions, out.SubscriptionsChurnedWindow, out.CreditBalanceTotal = active, churned, creditBalance
 	out.CreditBurnedWindow, out.UsageRecordsWindow, out.SampleSize, out.TrialsWithoutPaymentMethod = creditBurned, usage, active, trials
+	out.CostMicros, out.CostUnit = costMicros, "micro_usd"
 	now := s.clock.Now().UTC()
 	out.ObservedAt = &now
 	return &out, nil

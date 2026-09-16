@@ -203,10 +203,15 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	if err != nil {
 		return err
 	}
+	s.recordIsolationObservation(svc.ID, envMap)
 
 	cmdPath := manifest.ResolvePath(s.opts.BundlePath, bin.Path)
 	cmdCtx, cancel := context.WithCancel(ctx)
-	args := s.renderArgs(bin.Args)
+	args, err := s.renderArgs(bin.Args)
+	if err != nil {
+		cancel()
+		return fmt.Errorf("render arguments for service %s: %w", svc.ID, err)
+	}
 
 	workDir := s.opts.BundlePath
 	if bin.CWD != "" {
@@ -344,6 +349,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	if err := s.prepareServiceDirs(svc); err != nil {
 		return err
 	}
+	s.recordIsolationObservation(svc.ID, map[string]string{"APP_DATA_DIR": s.appData, "VROOLI_STORAGE_ROOT": filepath.Join(s.appData, "storage")})
 
 	port, err := s.resolveUIPort(svc)
 	if err != nil {
@@ -445,22 +451,32 @@ func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http
 			return
 		}
 
-		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
-			apiProxy.ServeHTTP(w, r)
-			return
-		}
-
-		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
+		path := filepath.Join(serveRoot, filepath.Clean("/"+strings.TrimPrefix(r.URL.Path, "/")))
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			fileServer.ServeHTTP(w, r)
 			return
 		}
-		indexPath := filepath.Join(serveRoot, "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			http.ServeFile(w, r, indexPath)
+
+		// The root document is a navigation even when a health/readiness client
+		// omits Accept. Other non-asset paths require an explicit HTML accept
+		// header; protocol and API requests must continue to reach the API.
+		isNavigation := r.URL.Path == "/" || r.URL.Path == "/index.html" ||
+			strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+		if isNavigation {
+			indexPath := filepath.Join(serveRoot, "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				http.ServeFile(w, r, indexPath)
+				return
+			}
+		}
+		if apiProxy != nil {
+			apiProxy.ServeHTTP(w, r)
 			return
 		}
-		http.NotFound(w, r)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"bundled API service is unavailable"}`))
+		return
 	})
 }
 
@@ -478,18 +494,23 @@ func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
 func (s *Supervisor) resolveAPIPort() int {
 	ports := s.portAllocator.Map()
 
-	// Prefer a service with ID containing "-api".
+	portFor := func(entries map[string]int) int {
+		for _, name := range []string{"http", "api", "https"} {
+			if port, ok := entries[name]; ok && port > 0 {
+				return port
+			}
+		}
+		return 0
+	}
 	for svcID, entries := range ports {
 		if strings.Contains(strings.ToLower(svcID), "-api") {
-			if port, ok := entries["api"]; ok {
+			if port := portFor(entries); port > 0 {
 				return port
 			}
 		}
 	}
-
-	// Otherwise, return the first service that exposes "api".
 	for _, entries := range ports {
-		if port, ok := entries["api"]; ok {
+		if port := portFor(entries); port > 0 {
 			return port
 		}
 	}

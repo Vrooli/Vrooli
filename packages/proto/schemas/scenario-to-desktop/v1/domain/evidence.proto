@@ -26,6 +26,16 @@ message EvidenceTarget {
   optional string bridge_job_id = 3;
 }
 
+// IsolationObservation records the paths and host-session adoption resolved by
+// a bundled child at readiness. It contains no credentials.
+message IsolationObservation {
+  string state_root = 1;
+  string socket_path = 2;
+  string database_path = 3;
+  int32 adopted_session_count = 4;
+  string source = 5;
+}
+
 message DesktopSessionRequest {
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
   optional string artifact_path = 2;
@@ -166,6 +176,8 @@ message ListEvidenceCapturesRequest {
 
 message ListEvidenceCapturesResponse {
   repeated EvidenceCapture captures = 1;
+  int64 stored_bytes = 2;
+  int64 distinct_bytes = 3;
 }
 
 message GetEvidenceCaptureRequest {

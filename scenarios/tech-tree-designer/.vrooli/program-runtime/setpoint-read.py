@@ -38,7 +38,10 @@ def step_collect():
     envelope["phase"] = "collect"
     calls = [
         lambda: tech_tree_designer.plan.list(),
-        lambda: tech_tree_designer.ontology.coverage(rows="classifications"),
+        # Select a declared repeated field so the governed projection can
+        # retain aggregate metadata (totals and graphError) alongside it.
+        lambda: tech_tree_designer.ontology.coverage(
+            include_subtree_rollup=False, rows="sectors"),
         lambda: lib.prompt_manager.skill_set_read(scenario="tech-tree-designer"),
     ]
     values = gather(*[program.guarded(call) for call in calls])

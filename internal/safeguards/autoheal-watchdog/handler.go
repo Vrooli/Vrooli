@@ -538,6 +538,10 @@ func setupScenarioThroughLifecycle(root, home string, opts hostreqkit.EnsureOpti
 			"GOMAXPROCS=1",
 			"GOFLAGS=-p=1",
 			"NODE_OPTIONS=--max-old-space-size=384",
+			// The watchdog repair needs the native API and loop only. Building
+			// autoheal's optional dashboard on a small VPS wastes memory and can
+			// kill the repair process before the watchdog is installed.
+			"VROOLI_SETUP_COMPONENTS=api,loop",
 		),
 		Stdout: opts.Stdout,
 		Stderr: opts.Stderr,

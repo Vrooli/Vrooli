@@ -63,6 +63,22 @@ func TestVisualManifestCannotPassWithProtocolOnly(t *testing.T) {
 	}
 }
 
+func TestVisualManifestCannotPassWithUnknownScreenContent(t *testing.T) {
+	manifest := validManifest(deliveryramp.ProfileVisual, deliveryramp.StatePassed)
+	manifest.Timeline.ScreenContentSource = "unknown"
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "known screen content") {
+		t.Fatalf("expected unknown screen content to fail, got %v", err)
+	}
+}
+
+func TestVisualManifestCannotPassWithSurfaceError(t *testing.T) {
+	manifest := validManifest(deliveryramp.ProfileVisual, deliveryramp.StatePassed)
+	manifest.Timeline.ScreenContentSource = "surface_error: Connect response has content-type text/html"
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "known screen content") {
+		t.Fatalf("expected surface error to fail, got %v", err)
+	}
+}
+
 func TestManifestRejectsMalformedAndUnverifiedArtifacts(t *testing.T) {
 	cases := []struct {
 		name string

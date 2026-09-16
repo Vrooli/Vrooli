@@ -245,6 +245,14 @@
         "runtime_only_rationale": "Desktop packaging is queried through the discovered scenario HTTP boundary.",
         "degraded_behavior": "Desktop packaging operations report unavailable while scenario-to-desktop is stopped."
       },
+      "landing-page-business-suite": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "The LPBS destination is reached through service discovery and its HTTP/Connect boundary; the LPBS base URL and shared service credential resolve through scenario discovery and the credential authority.",
+        "purpose": "Commercial desktop publication destination: download catalog, object bucket, and release channels for web-console and other tier-2 apps.",
+        "degraded_behavior": "Deployment Manager remains available for analysis, profiles, and evidence review; a commercial release fails its LPBS upload-readiness gate with an explicit unavailable result until the destination is reachable."
+      },
       "swarm-manager": {
         "required": false,
         "startup_policy": "try_start",
@@ -306,6 +314,20 @@
         "consumer": "legacy managed deployment compatibility adapter",
         "source_ref": "api/secrets/client.go:113",
         "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "kind": "authority",
+        "consumer": "Deployment Manager LPBS release client",
+        "source_ref": "api/deployments/lpbs_release_client.go",
+        "required": false,
+        "reason": "Shared server-to-server token used to call LPBS deploy-readiness and update-verification endpoints during a commercial release. LPBS mints and owns the value through the credential authority.",
+        "tiers": [
+          "tier-2-desktop",
+          "tier-3-mobile",
+          "tier-4-saas"
+        ]
       }
     ]
   },

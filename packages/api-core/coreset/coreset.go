@@ -104,7 +104,7 @@ func (a Authority) Validate() error {
 }
 
 type operatorState struct {
-	Core Authority `json:"core"`
+	Core *Authority `json:"core"`
 }
 
 // Load reads operator-state.json from the contract-routed runtime state
@@ -128,12 +128,24 @@ func Load(_ string) (Authority, error) {
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return Authority{}, err
 	}
-	state.Core.Seed = normalizeSorted(state.Core.Seed)
-	state.Core.TrustedBase = normalizeSorted(state.Core.TrustedBase)
-	if err := state.Core.Validate(); err != nil {
+	var authority Authority
+	if state.Core == nil {
+		// Older operator-state documents predate the explicit core authority. Apply
+		// the mandatory recovery-plane defaults before validating so those
+		// documents remain bootable.
+		authority = NormalizeOperationalAuthority(Authority{})
+	} else {
+		// Explicit authority remains operator-owned: normalize representation only
+		// and preserve the existing trusted-base contract.
+		authority = Authority{
+			Seed:        normalizeSorted(state.Core.Seed),
+			TrustedBase: normalizeSorted(state.Core.TrustedBase),
+		}
+	}
+	if err := authority.Validate(); err != nil {
 		return Authority{}, err
 	}
-	return state.Core, nil
+	return authority, nil
 }
 
 func currentAuthority() Authority {

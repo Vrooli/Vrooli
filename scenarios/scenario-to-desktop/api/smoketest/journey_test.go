@@ -34,6 +34,29 @@ func TestIsLoopbackHTTP(t *testing.T) {
 	}
 }
 
+func TestSurfaceEvidenceFailsClosed(t *testing.T) {
+	step := deliveryramp.JourneyStep{
+		BeforeCaptureID: "before",
+		AfterCaptureID:  "after",
+		Evidence: []deliveryramp.EvidenceReference{
+			{ID: "before", Checksum: "sha256:same"},
+			{ID: "after", Checksum: "sha256:same"},
+		},
+	}
+	if !identicalCapturePair(step) {
+		t.Fatal("identical capture checksums must be detected")
+	}
+	if got := surfaceErrorObservation("Connect response has an unexpected content-type text/html"); got == "" {
+		t.Fatal("surface content-type errors must be retained")
+	}
+	if got := surfaceErrorObservation("window_activate"); got != "" {
+		t.Fatalf("ordinary observations must not be surface errors: %q", got)
+	}
+	if requiresSurfaceChange("quit_app") || requiresSurfaceChange("window_activate") || !requiresSurfaceChange("type_text") {
+		t.Fatal("surface-change gate must apply to input actions, not lifecycle/window actions")
+	}
+}
+
 type journeyTestDriver struct {
 	geometry *procmetrics.WindowGeometry
 }
@@ -67,6 +90,16 @@ func (c *journeyTestCapture) Capture(context.Context, string, string, string, st
 }
 
 type journeyTestAPI struct{}
+
+type brokenSurfaceJourneyAPI struct{}
+
+func (brokenSurfaceJourneyAPI) Probe(context.Context, string) (JourneyOperationResult, error) {
+	return JourneyOperationResult{Observed: "Connect response has content-type text/html", Route: "bundled-private"}, nil
+}
+
+func (brokenSurfaceJourneyAPI) Greet(context.Context, string) (string, error) {
+	return "", errors.New("broken bundle has no greeting")
+}
 
 func (journeyTestAPI) Greet(_ context.Context, name string) (string, error) {
 	return "Hello, " + name + "!", nil
@@ -159,6 +192,20 @@ func TestDesktopJourney_RegisteredFixtureProducesReviewableTimeline(t *testing.T
 	}
 	if waiter.waitCount != len(result.Steps) || waiter.settleCount != len(result.Steps) {
 		t.Fatalf("wait/settle calls = %d/%d, want %d/%d", waiter.waitCount, waiter.settleCount, len(result.Steps), len(result.Steps))
+	}
+}
+
+func TestNegativeControl_BrokenSurfaceFailsWebConsoleJourney(t *testing.T) {
+	service := &DefaultService{
+		journeyDriver: &journeyTestDriver{geometry: &procmetrics.WindowGeometry{Width: 1280, Height: 720}},
+		journeyClock:  RealClock{}, journeyWaiter: &journeyTestWaiter{}, journeyCapture: &journeyTestCapture{}, journeyAPI: brokenSurfaceJourneyAPI{},
+	}
+	result := service.runDesktopJourneyCapability(context.Background(), "negative-control", "web-console", "linux", recordingState{captureID: "recording", displayID: ":99", displayWidth: 1280, displayHeight: 720, windowManager: "openbox", titlebar: true}, "web-console")
+	if result.Disposition == deliveryramp.DispositionPass || len(result.Steps) < 2 {
+		t.Fatalf("broken surface must fail the journey: %+v", result)
+	}
+	if result.Steps[1].ObservedState != "surface_error: Connect response has content-type text/html" {
+		t.Fatalf("negative control did not preserve surface error: %+v", result.Steps[1])
 	}
 }
 

@@ -244,6 +244,40 @@ The Downloads page (`/admin/downloads`) manages:
 
 Downloads are gated by subscription status in the public experience.
 
+The Hosting tab's storage wizard configures the S3-compatible bucket that holds
+installer artifacts. Bucket, region, and prefix open with sensible defaults
+(`<bundle-key>-downloads`, `us-east-1`, `artifacts`) that you can override before
+saving. `delivery-s3-access-key-id` and `delivery-s3-secret-access-key` are
+required; `delivery-s3-session-token` is optional and only for temporary AWS STS
+credentials. Access keys are written through to this host's credential authority
+— never to the settings row — and the wizard shows only per-field presence
+(`configured`, `missing`, `unavailable`, or `authority_error`). Entering a new
+value rotates it; ticking a clear box removes it. The secret is never returned
+to the browser or prefilled.
+
+The wizard also shows the configured bucket and region, the complete AWS IAM
+console flow and the required `VrooliDeliveryBucketAccess` policy (with both
+ARNs naming the configured bucket), copyable provision commands, why the bucket
+stays private even for free downloads, and the rotation procedure. You can
+provision keys out of band instead:
+
+```bash
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-access-key-id
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-secret-access-key
+vrooli credentials doctor --format json
+```
+
+Use separate IAM users and credential pairs for local and production
+(`vrooli-lpbs-local`, `vrooli-lpbs-prod`); they should not be identical. Never
+attach `AdministratorAccess`, `AmazonS3FullAccess`, or a root-user access key.
+
+The **Verify** step runs **Test storage access**, which proves the bucket
+accepts object list, write, read, and delete with a unique canary under the
+internal `.vrooli/healthchecks/<uuid>` prefix, verifies the region, and reports
+a structured diagnostic when something is wrong. A local instance publishes
+through a remote profile, so the deployed suite that signs the upload URL needs
+the same key fields provisioned on its own host.
+
 CLI automation (optional):
 - Upload + apply a managed artifact: `landing-page-business-suite admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version>`
 - Proxy allowlisted remote admin/settings calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...` (or one of the documented Connect settings procedures). Arbitrary remote paths and secret-reveal procedures are refused.

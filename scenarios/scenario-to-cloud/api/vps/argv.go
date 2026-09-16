@@ -268,7 +268,12 @@ func activateArgs(step, releaseID string, in map[string]string, cc CommandContex
 	if in["legacy_root"] != "" {
 		args = append(args, "--legacy-root", in["legacy_root"])
 	}
-	if restart {
+	// Maintenance deployments stop the workload before activation. When the
+	// candidate digest is already active, the target owner otherwise treats the
+	// activation as unchanged and skips starting it again, leaving the edge
+	// route pointed at a stopped workload. Always request a restart for that
+	// strategy so stop/activate retries converge to a serving release.
+	if restart || strings.EqualFold(strings.TrimSpace(strategy), execplan.StrategyMaintenance) {
 		args = append(args, "--restart")
 	}
 	return args

@@ -63,8 +63,24 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 	if err != nil {
 		return nil, fmt.Errorf("reading source file: %w", err)
 	}
-	if err := storage.WriteFileAtomic(destPath, data, 0); err != nil {
-		return nil, fmt.Errorf("writing capture file: %w", err)
+	digest := checksum(data)
+	if existing, ok := s.store.(interface {
+		List(string) ([]Capture, error)
+	}); ok {
+		if captures, listErr := existing.List(scenarioName); listErr == nil {
+			for _, prior := range captures {
+				if prior.Checksum == digest {
+					filename = prior.Filename
+					destPath = filepath.Join(dir, filename)
+					break
+				}
+			}
+		}
+	}
+	if _, statErr := os.Stat(destPath); os.IsNotExist(statErr) {
+		if err := storage.WriteFileAtomic(destPath, data, 0); err != nil {
+			return nil, fmt.Errorf("writing capture file: %w", err)
+		}
 	}
 
 	// Remove original
@@ -84,7 +100,7 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 		Width:         width,
 		Height:        height,
 		DurationMs:    durationMs,
-		Checksum:      checksum(data),
+		Checksum:      digest,
 		SourceSession: sourceSession,
 		CreatedAt:     time.Now(),
 	}
@@ -117,7 +133,9 @@ func (s *Service) DeleteCapture(scenarioName, captureID string) error {
 			if err != nil {
 				return err
 			}
-			_ = os.Remove(path)
+			if refs, ok := s.store.(FilenameReferences); !ok || func() bool { n, e := refs.FilenameReferences(c.Filename); return e != nil || n <= 1 }() {
+				_ = os.Remove(path)
+			}
 			return s.store.Delete(scenarioName, captureID)
 		}
 	}
@@ -143,11 +161,31 @@ func (s *Service) CleanAll(scenarioName string) error {
 		return nil // metadata already cleaned, file cleanup is best-effort
 	}
 	for _, c := range deleted {
-		if path, err := capturePath(dir, c.Filename); err == nil {
-			_ = os.Remove(path)
+		refs := 0
+		if referenceStore, ok := s.store.(FilenameReferences); ok {
+			refs, _ = referenceStore.FilenameReferences(c.Filename)
+		}
+		if refs == 0 {
+			if path, err := capturePath(dir, c.Filename); err == nil {
+				_ = os.Remove(path)
+			}
 		}
 	}
 	return nil
+}
+
+// OrphanFiles reports regular capture files with no durable metadata owner.
+func (s *Service) OrphanFiles() ([]string, error) {
+	dir, err := s.capturesDir()
+	if err != nil {
+		return nil, err
+	}
+	if store, ok := s.store.(interface {
+		OrphanFiles(string) ([]string, error)
+	}); ok {
+		return store.OrphanFiles(dir)
+	}
+	return nil, fmt.Errorf("capture store does not support orphan detection")
 }
 
 // CaptureFilePath resolves the absolute path for serving a capture file.

@@ -13,6 +13,7 @@ enum AdapterKind {
   ADAPTER_KIND_MANUAL = 1;
   ADAPTER_KIND_FILE = 2;
   ADAPTER_KIND_AGGREGATOR = 3;
+  ADAPTER_KIND_COMMERCE = 4;
 }
 
 message Adapter {
@@ -22,6 +23,7 @@ message Adapter {
   bool enabled = 4;
   google.protobuf.Timestamp last_success_at = 5;
   string availability_reason = 6;
+  string cursor = 7;
 }
 
 message Receipt {

@@ -96,6 +96,32 @@ func TestListCaptures_WithData(t *testing.T) {
 	assert.Len(t, caps, 2)
 }
 
+func TestSaveCapture_DeduplicatesBytesButKeepsCaptureIDs(t *testing.T) {
+	svc, _ := newTestService(t)
+	first := seedCapture(t, svc, "my-app", "session-1")
+	second := seedCapture(t, svc, "my-app", "session-2")
+	assert.NotEqual(t, first.ID, second.ID)
+	assert.Equal(t, first.Filename, second.Filename)
+	entries, err := os.ReadDir(svc.filesDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	require.NoError(t, svc.DeleteCapture("my-app", first.ID))
+	_, err = os.Stat(filepath.Join(svc.filesDir, second.Filename))
+	require.NoError(t, err)
+	require.NoError(t, svc.DeleteCapture("my-app", second.ID))
+	_, err = os.Stat(filepath.Join(svc.filesDir, second.Filename))
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestOrphanFiles_ReportsUnreferencedRegularFiles(t *testing.T) {
+	svc, _ := newTestService(t)
+	seedCapture(t, svc, "my-app", "session-1")
+	require.NoError(t, os.WriteFile(filepath.Join(svc.filesDir, "orphan.bin"), []byte("orphan"), 0o600))
+	orphans, err := svc.OrphanFiles()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"orphan.bin"}, orphans)
+}
+
 func TestSummary_ReturnsCountAndSize(t *testing.T) {
 	h, svc := newTestHandler(t)
 	r := newTestRouter(h)

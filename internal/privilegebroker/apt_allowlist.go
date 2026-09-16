@@ -10,7 +10,7 @@ import (
 // AptAllowedPackages is the closed set of Debian packages a cloud target may
 // ask the broker to ensure. It is compiled into the binary on purpose: the
 // list is policy, not configuration, and a target cannot widen it.
-var AptAllowedPackages = []string{"curl", "git", "unzip", "tar", "jq", "ca-certificates", "gnupg", "lsb-release", "caddy"}
+var AptAllowedPackages = []string{"curl", "git", "unzip", "tar", "jq", "ca-certificates", "gnupg", "lsb-release", "iproute2", "postgresql-client", "caddy"}
 
 func aptAllowed(name string) bool {
 	for _, allowed := range AptAllowedPackages {

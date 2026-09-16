@@ -754,6 +754,7 @@ type CreditUsageRow struct {
 	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
 	Credits       int64                  `protobuf:"varint,3,opt,name=credits,proto3" json:"credits,omitempty"`
 	Operations    int64                  `protobuf:"varint,4,opt,name=operations,proto3" json:"operations,omitempty"`
+	CostMicros    int64                  `protobuf:"varint,5,opt,name=cost_micros,json=costMicros,proto3" json:"cost_micros,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -816,6 +817,13 @@ func (x *CreditUsageRow) GetOperations() int64 {
 	return 0
 }
 
+func (x *CreditUsageRow) GetCostMicros() int64 {
+	if x != nil {
+		return x.CostMicros
+	}
+	return 0
+}
+
 type CreditEconomy struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	CreditsBurned     int64                  `protobuf:"varint,1,opt,name=credits_burned,json=creditsBurned,proto3" json:"credits_burned,omitempty"`
@@ -824,6 +832,7 @@ type CreditEconomy struct {
 	DistinctConsumers int64                  `protobuf:"varint,4,opt,name=distinct_consumers,json=distinctConsumers,proto3" json:"distinct_consumers,omitempty"`
 	ByApp             []*CreditUsageRow      `protobuf:"bytes,5,rep,name=by_app,json=byApp,proto3" json:"by_app,omitempty"`
 	ByModel           []*CreditUsageRow      `protobuf:"bytes,6,rep,name=by_model,json=byModel,proto3" json:"by_model,omitempty"`
+	CostMicros        int64                  `protobuf:"varint,7,opt,name=cost_micros,json=costMicros,proto3" json:"cost_micros,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -898,6 +907,13 @@ func (x *CreditEconomy) GetByModel() []*CreditUsageRow {
 		return x.ByModel
 	}
 	return nil
+}
+
+func (x *CreditEconomy) GetCostMicros() int64 {
+	if x != nil {
+		return x.CostMicros
+	}
+	return 0
 }
 
 type Growth struct {
@@ -1158,14 +1174,16 @@ const file_landing_page_business_suite_v1_business_digest_proto_rawDesc = "" +
 	"\x10update_downloads\x18\a \x01(\x03R\x0fupdateDownloads\x1aF\n" +
 	"\x18DownloadsByPlatformEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"r\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x93\x01\n" +
 	"\x0eCreditUsageRow\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x18\n" +
 	"\acredits\x18\x03 \x01(\x03R\acredits\x12\x1e\n" +
 	"\n" +
 	"operations\x18\x04 \x01(\x03R\n" +
-	"operations\"\xc4\x02\n" +
+	"operations\x12\x1f\n" +
+	"\vcost_micros\x18\x05 \x01(\x03R\n" +
+	"costMicros\"\xe5\x02\n" +
 	"\rCreditEconomy\x12%\n" +
 	"\x0ecredits_burned\x18\x01 \x01(\x03R\rcreditsBurned\x12+\n" +
 	"\x11credits_purchased\x18\x02 \x01(\x03R\x10creditsPurchased\x12\x1e\n" +
@@ -1174,7 +1192,9 @@ const file_landing_page_business_suite_v1_business_digest_proto_rawDesc = "" +
 	"operations\x12-\n" +
 	"\x12distinct_consumers\x18\x04 \x01(\x03R\x11distinctConsumers\x12E\n" +
 	"\x06by_app\x18\x05 \x03(\v2..landing_page_business_suite.v1.CreditUsageRowR\x05byApp\x12I\n" +
-	"\bby_model\x18\x06 \x03(\v2..landing_page_business_suite.v1.CreditUsageRowR\abyModel\"\xa6\x01\n" +
+	"\bby_model\x18\x06 \x03(\v2..landing_page_business_suite.v1.CreditUsageRowR\abyModel\x12\x1f\n" +
+	"\vcost_micros\x18\a \x01(\x03R\n" +
+	"costMicros\"\xa6\x01\n" +
 	"\x06Growth\x12\x18\n" +
 	"\asignups\x18\x01 \x01(\x03R\asignups\x12%\n" +
 	"\x0ewaitlist_joins\x18\x02 \x01(\x03R\rwaitlistJoins\x124\n" +

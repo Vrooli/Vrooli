@@ -37,6 +37,9 @@ func TestAptPolicyAcceptsOnlyAllowlistedPackages(t *testing.T) {
 	if !reflect.DeepEqual(update, wantUpdate) || !reflect.DeepEqual(install, wantInstall) {
 		t.Fatalf("argv = %q / %q", update, install)
 	}
+	if _, _, err := AptArgs(Request{Version: ProtocolVersion, RequestID: "apt-iproute2", Action: ActionAptPackagesEnsure, Apt: &AptSubject{Packages: []string{"iproute2"}}}); err != nil {
+		t.Fatalf("AptArgs must allow the host inspection package iproute2: %v", err)
+	}
 	for name, packages := range map[string][]string{
 		"unlisted":         {"curl", "netcat"},
 		"option smuggling": {"-o", "curl"},

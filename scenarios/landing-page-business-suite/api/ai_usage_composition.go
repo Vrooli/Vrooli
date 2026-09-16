@@ -47,6 +47,15 @@ func (s commerceUsageServicer) FinalizeReservationWithMetadata(ctx context.Conte
 	return s.usage.FinalizeReservation(ctx, id, amount)
 }
 
+func (s commerceUsageServicer) FinalizeReservationWithCost(ctx context.Context, id string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	if detailed, ok := s.usage.(interface {
+		FinalizeReservationWithCost(context.Context, string, int64, string, string, int64, int, int, string) error
+	}); ok {
+		return detailed.FinalizeReservationWithCost(ctx, id, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+	}
+	return s.usage.FinalizeReservation(ctx, id, amount)
+}
+
 func (s commerceUsageServicer) ReleaseReservation(ctx context.Context, id string) error {
 	return s.usage.ReleaseReservation(ctx, id)
 }

@@ -220,7 +220,7 @@ func Steps(gitBin, vrooliBin, target string) ([][]string, error) {
 	return [][]string{
 		{gitBin, "fetch", "--no-tags", "origin", target},
 		{gitBin, "checkout", "--force", "--detach", "FETCH_HEAD"},
-		{gitBin, "clean", "-fd"},
+		{gitBin, "clean", "-fd", "-e", ".vrooli/", "-e", "data/", "-e", "node_modules/", "-e", "dist/", "-e", ".env"},
 		{vrooliBin, "setup"},
 	}, nil
 }
@@ -245,6 +245,11 @@ func (h *Helper) Provision(ctx context.Context, cmd *channelv1.ProvisionCommand)
 		_ = emit(statusEvent("rejected: " + err.Error()))
 		return emit(exitEvent(setupFailExitCode))
 	}
+	// Any outcome past this point may have replaced the checkout, so the
+	// control plane's record of the last working-tree ship no longer matches
+	// the node: drop the marker whether the provision succeeds, rolls back, or
+	// fails, so the next ship is a full one.
+	defer h.forgetShipDigest()
 
 	owner, err := checkoutPrincipal(h.workDir, h.clientUID)
 	if err != nil {
@@ -391,7 +396,6 @@ func (h *Helper) forgetShipDigest() {
 // finishSuccess resolves and reports the node's resulting revision, then emits a
 // clean terminal EXIT(0) — the COMPLETED outcome.
 func (h *Helper) finishSuccess(ctx context.Context, emit func(*provisionv1.ProvisionEvent) error) error {
-	h.forgetShipDigest()
 	if rev, err := h.revision.Current(ctx, h.workDir); err == nil && strings.TrimSpace(rev) != "" {
 		_ = emit(versionEvent(strings.TrimSpace(rev)))
 	}
@@ -432,7 +436,6 @@ func (h *Helper) rollback(ctx context.Context, cmd *channelv1.ProvisionCommand, 
 		_ = emit(statusEvent("failed: rollback did not restore the node"))
 		return emit(exitEvent(failCode))
 	}
-	h.forgetShipDigest()
 	if rev, err := h.revision.Current(ctx, h.workDir); err == nil && strings.TrimSpace(rev) != "" {
 		_ = emit(versionEvent(strings.TrimSpace(rev)))
 	} else {

@@ -200,7 +200,7 @@ func TestPipelinePrimitivesUseTypedConnectContract(t *testing.T) {
 		{"gate", commands.gatePrimitive(), pipelineIDArgs(), []string{"pipe-1"}},
 		{"resume", commands.resumePrimitive(), pipelineIDArgs(), []string{"pipe-1"}},
 		{"cancel", commands.cancelPrimitive(), pipelineIDArgs(), []string{"pipe-1"}},
-		{"list", commands.listPrimitive(), cliapp.ArgSchema{}, nil},
+		{"list", commands.listPrimitive(), cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "scenario"}, {Name: "status"}, {Name: "since"}, {Name: "limit", Default: "100"}}}, nil},
 		{"active", commands.activePrimitive(), pipelineScenarioArgs(), []string{"calculator"}},
 		{"create", commands.createPrimitive(), pipelineScenarioArgs(), []string{"calculator"}},
 		{"reset", commands.resetPrimitive(), pipelineScenarioArgs(), []string{"calculator"}},

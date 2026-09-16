@@ -423,14 +423,11 @@ func optionalStorePassphrase(input io.Reader) (string, error) {
 }
 
 func storeFormat(format string) (string, error) {
-	format = strings.TrimSpace(format)
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	normalized, ok := normalizeOutputFormat(format)
+	if !ok {
 		return "", fmt.Errorf("store format must be text or json")
 	}
-	return format, nil
+	return normalized, nil
 }
 
 func (app *Service) StoreStatus(ctx context.Context, out io.Writer, format string) error {

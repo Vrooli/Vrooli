@@ -42,6 +42,28 @@ func TestSwarm_OKResponse(t *testing.T) {
 	}
 }
 
+func TestJSONConnectClientSupportsMultipleProceduresAndProjectionBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/vrooli.offer_desk.v1.offers.BoardService/GetBoard" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["projection"] != "ledger" {
+			t.Fatalf("projection body = %#v", body)
+		}
+		_, _ = w.Write([]byte(`{"observed_at":"2026-09-16T00:00:00Z","position":{"cashMinor":"100"}}`))
+	}))
+	defer srv.Close()
+
+	client := NewJSONConnectResolvedPaths("offer-desk", func() string { return srv.URL }, []string{"/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger"})
+	if _, err := client.Fetch(context.Background(), "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger"); err != nil {
+		t.Fatalf("fetch board: %v", err)
+	}
+}
+
 func TestVrooli_EmptyBaseURLIsNotAvailable(t *testing.T) {
 	c := NewVrooli("")
 	_, err := c.Fetch(context.Background(), "/scenarios")

@@ -186,6 +186,7 @@ type JourneyTarget struct {
 	APIURL      string
 	Instance    string
 	Source      string
+	Isolation   *deliveryramp.IsolationObservation
 }
 
 var journeyRegistry = struct {
@@ -468,6 +469,22 @@ func (unsupportedPeerFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
 }
 func (unsupportedPeerFixture) Actions() map[string]JourneyAction { return nil }
 
+type webConsoleTerminalFixture struct{}
+
+func (webConsoleTerminalFixture) Capability() string { return "web-console" }
+func (webConsoleTerminalFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
+	ready := defaultReadiness("target_window_visible", "wait for the usable application window")
+	settle := defaultSettle("visual_settle", "allow the terminal surface to settle")
+	return deliveryramp.JourneyPlan{SchemaVersion: "2", ID: "web-console.terminal.v1", Capability: "web-console", Purpose: "Create an isolated terminal session and prove command output reaches the bundled application surface.", Profile: "normal-review", Steps: []deliveryramp.JourneyStepSpec{
+		{ID: "activate", Purpose: "Bring the bundled console to the foreground.", Action: "window_activate", Capture: true, Readiness: ready, Settle: settle},
+		{ID: "terminal_fixture", Purpose: "Create a terminal, run a fixed command, and read its output.", Action: "terminal_fixture", Capture: true, Readiness: ready, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "terminal.output", Expected: "terminal_output=desktop-terminal-fixture"}},
+		{ID: "quit", Purpose: "Close the application after terminal validation.", Action: "quit_app", Capture: true, Readiness: ready, Settle: defaultSettle("shutdown_settle", "allow shutdown to settle")},
+	}}
+}
+func (webConsoleTerminalFixture) Actions() map[string]JourneyAction {
+	return map[string]JourneyAction{"terminal_fixture": operationJourneyAction("terminal_fixture")}
+}
+
 func registerCommunicationFixtures() {
 	fixtures := []JourneyFixture{
 		communicationFixture{capability: "bundled.private.v1", mode: "bundled-private", tier: "managed-private", route: "private-bundle", operation: "bundled-private"},
@@ -476,6 +493,7 @@ func registerCommunicationFixtures() {
 		communicationFixture{capability: "bundled.private.fallback.v1", mode: "private-fallback", tier: "managed-private", route: "private-bundle", operation: "private-fallback"},
 		unsupportedPeerFixture{},
 		monetizationBoundaryFixture{},
+		webConsoleTerminalFixture{},
 	}
 	for _, fixture := range fixtures {
 		if err := RegisterJourneyFixture(fixture); err != nil {

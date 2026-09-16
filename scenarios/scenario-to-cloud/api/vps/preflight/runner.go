@@ -52,6 +52,7 @@ func Run(
 	obs := observer{reach: rr, target: target}
 
 	diskRequiredKB := MinDiskFreeKB
+	diskRecommendedKB := MinDiskFreeKB
 	ramRequiredKB := MinRAMKB
 	ramRecommendedKB := RecommendedRAMKB
 	requirementData := map[string]string{
@@ -82,16 +83,21 @@ func Run(
 			if estimate.RAMKB > ramRecommendedKB {
 				ramRecommendedKB = estimate.RAMKB
 			}
-			if estimate.DiskKB > diskRequiredKB {
+			if estimate.DiskKB > diskRecommendedKB {
+				diskRecommendedKB = estimate.DiskKB
+			}
+			if confidence != "low" && estimate.DiskKB > diskRequiredKB {
 				diskRequiredKB = estimate.DiskKB
 			}
 		}
 	}
 	requirementData["effective_required_ram_kb"] = strconv.FormatInt(ramRequiredKB, 10)
 	requirementData["effective_required_disk_kb"] = strconv.FormatInt(diskRequiredKB, 10)
+	requirementData["effective_recommended_disk_kb"] = strconv.FormatInt(diskRecommendedKB, 10)
 	requirementData["effective_recommended_ram_kb"] = strconv.FormatInt(ramRecommendedKB, 10)
 	requirementData["effective_required_ram_human"] = formatBytes(ramRequiredKB)
 	requirementData["effective_required_disk_human"] = formatBytes(diskRequiredKB)
+	requirementData["effective_recommended_disk_human"] = formatBytes(diskRecommendedKB)
 	requirementData["effective_recommended_ram_human"] = formatBytes(ramRecommendedKB)
 
 	checks := make([]domain.PreflightCheck, 0, 16)
@@ -269,6 +275,9 @@ func Run(
 			fail(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Low free disk space: %s", formatBytes(availKB)),
 				fmt.Sprintf("At least %s free space is required for this deployment. Free space with the disk cleanup action (journal vacuum, docker prune) or release garbage collection: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
 					formatBytes(diskRequiredKB), host, manifest.Scenario.ID), detailsData)
+		} else if availKB > 0 && availKB < diskRecommendedKB {
+			warn(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s (below the analyzer's advisory estimate of %s)", formatBytes(availKB), formatBytes(diskRecommendedKB)),
+				"The analyzer estimate has low confidence and is advisory. Deployment may proceed, but clean unused releases and package caches before or after activation if space becomes tight.", detailsData)
 		} else {
 			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(availKB)), detailsData)
 		}

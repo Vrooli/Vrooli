@@ -159,8 +159,16 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 		return nil, err
 	}
 	items := make([]*pipelinev1.PipelineListItem, 0)
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 { limit = 100 }
 	for _, status := range s.handler.orchestrator.ListPipelines() {
 		if scenario := req.Msg.GetScenarioName(); scenario != "" && status.ScenarioName != scenario {
+			continue
+		}
+		if requested := strings.TrimSpace(strings.ToLower(req.Msg.GetStatus())); requested != "" && !strings.Contains(strings.ToLower(status.Status), requested) {
+			continue
+		}
+		if since := req.Msg.GetSince(); since != nil && status.StartedAt < since.AsTime().Unix() {
 			continue
 		}
 		item := &pipelinev1.PipelineListItem{
@@ -179,6 +187,7 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 			item.CompletedAt = unixTimestamp(status.CompletedAt)
 		}
 		items = append(items, item)
+		if len(items) >= limit { break }
 	}
 	total := int32(len(items))
 	return connect.NewResponse(&pipelinev1.PipelineListResponse{Pipelines: items, Total: &total}), nil

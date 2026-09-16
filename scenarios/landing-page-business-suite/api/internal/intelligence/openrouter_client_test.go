@@ -22,13 +22,22 @@ func newMockOpenRouterServer(t *testing.T, handler http.HandlerFunc) (*httptest.
 // Chat Tests
 // ============================================================================
 
-func TestOpenRouterClient_Chat_Success(t *testing.T) {
+func TestOpenRouterClient_Chat_Success(t *testing.T) { // [REQ:FIN-COST-001]
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/chat/completions" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer test-api-key" {
 			t.Errorf("missing or incorrect authorization header")
+		}
+		var request struct {
+			Usage *OpenRouterUsageRequest `json:"usage"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if request.Usage == nil || !request.Usage.Include {
+			t.Fatal("expected provider usage request to be enabled")
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -44,10 +53,11 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 					"finish_reason": "stop",
 				},
 			},
-			"usage": map[string]int{
+			"usage": map[string]interface{}{
 				"prompt_tokens":     10,
 				"completion_tokens": 6,
 				"total_tokens":      16,
+				"cost":              0.000123,
 			},
 		}); err != nil {
 			t.Fatalf("encode response: %v", err)
@@ -68,6 +78,9 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 	}
 	if resp.Usage.TotalTokens != 16 {
 		t.Errorf("expected total tokens 16, got %d", resp.Usage.TotalTokens)
+	}
+	if resp.Usage.CostMicros != 123 {
+		t.Errorf("expected provider cost 123 micros, got %d", resp.Usage.CostMicros)
 	}
 }
 
@@ -187,6 +200,15 @@ func TestOpenRouterClient_Chat_EmptyChoices_ReturnsEmptyContent(t *testing.T) {
 
 func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Usage *OpenRouterUsageRequest `json:"usage"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if request.Usage == nil || !request.Usage.Include {
+			t.Fatal("expected provider usage request to be enabled for streaming")
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -194,7 +216,7 @@ func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 		chunks := []string{
 			`data: {"id":"1","model":"gpt-4","choices":[{"delta":{"content":"Hello"}}]}`,
 			`data: {"id":"1","model":"gpt-4","choices":[{"delta":{"content":" World"}}]}`,
-			`data: {"id":"1","model":"gpt-4","choices":[{"delta":{"content":"!"}}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`,
+			`data: {"id":"1","model":"gpt-4","choices":[{"delta":{"content":"!"}}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7,"cost":0,"cost_details":{"upstream_inference_cost":0.000045}}}`,
 			`data: [DONE]`,
 		}
 
@@ -226,6 +248,9 @@ func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 
 	if usage.TotalTokens != 7 {
 		t.Errorf("expected total tokens 7, got %d", usage.TotalTokens)
+	}
+	if usage.CostMicros != 45 {
+		t.Errorf("expected upstream provider cost 45 micros, got %d", usage.CostMicros)
 	}
 }
 

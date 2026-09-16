@@ -162,7 +162,7 @@
           }
         },
         {
-          "name": "list",
+      "name": "list",
           "description": "List pipelines",
           "binding": {
             "kind": "connect-rpc",
@@ -176,9 +176,15 @@
               "network:internal"
             ]
           },
-          "architecture": {
-            "primitive": "proto_list"
-          }
+      "architecture": {
+        "primitive": "proto_list"
+      },
+      "flags": [
+        {"name": "scenario", "description": "Filter by scenario name"},
+        {"name": "status", "description": "Filter by status"},
+        {"name": "since", "description": "Only pipelines started at or after RFC3339 time"},
+        {"name": "limit", "default": "100", "description": "Maximum rows"}
+      ]
         },
         {
           "name": "active",
@@ -637,7 +643,8 @@
               "default": "cli",
               "description": "Telemetry source"
             }
-          ]
+          ],
+          "flags": [{"name": "pipeline", "description": "Filter by pipeline ID", "bind": {"field": "pipeline_id"}}]
         },
         {
           "name": "summary",
@@ -920,6 +927,91 @@
                 "field": "scenario_name"
               }
             }
+          ],
+          "flags": [
+            {
+              "name": "pipeline",
+              "description": "Filter by pipeline ID",
+              "bind": {
+                "field": "pipeline_id"
+              }
+            }
+          ]
+        },
+        {
+          "name": "export",
+          "description": "Export all evidence captures with checksums",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "pipeline",
+              "description": "Filter by pipeline ID",
+              "bind_waiver": "Producer input selects the durable evidence captures included in the local export."
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output directory"
+            }
+          ]
+        },
+        {
+          "name": "void",
+          "description": "Void evidence without deleting its capture file",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "VoidEvidenceCapture"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true
+            },
+            {
+              "name": "capture-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "bind_waiver": "Operator explanation is sent as the void reason."
+            },
+            {
+              "name": "superseded-by",
+              "bind_waiver": "Optional replacement capture identifier."
+            }
           ]
         },
         {
@@ -982,7 +1074,8 @@
             }
           ]
         }
-      ]
+      ],
+      "flags": [{"name": "pipeline", "description": "Filter by pipeline ID", "bind": {"field": "pipeline_id"}}]
     },
     {
       "name": "docs",
@@ -1020,7 +1113,8 @@
             }
           }
         }
-      ]
+      ],
+      "flags": [{"name": "pipeline", "description": "Filter by pipeline ID", "bind": {"field": "pipeline_id"}}]
     },
     {
       "name": "state",

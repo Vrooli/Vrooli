@@ -266,6 +266,20 @@ func TestBrandMarkersMissingFires(t *testing.T) {
 	}
 }
 
+// apply writes the web profile's manifest to ui/public/public/site.webmanifest.
+// The rule previously read only ui/manifest.json, ui/public/manifest.json and
+// manifest.json, so every correctly branded scenario still reported "no brand
+// applied" — and in a library-shell scenario ui/manifest.json is the
+// scenario-UI contract, which will never carry _brand.
+func TestBrandMarkersSatisfiedByAppliedWebManifest(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	writeFile(t, root, "ui/src/app.css", ".a{color:red}")
+	writeFile(t, root, "ui/manifest.json", `{"contract":{"kind":"scenario-ui"}}`)
+	writeFile(t, root, "ui/public/public/site.webmanifest",
+		`{"name":"Mizar","short_name":"Mizar","description":"d","theme_color":"#0f172a","background_color":"#0f172a","display":"standalone","id":"/","start_url":"/","scope":"/","icons":[],"_brand":{"slug":"mizar","version":1}}`)
+	mustNotFire(t, root, "brand-markers-applied")
+}
+
 // --- dark mode + color-scheme ----------------------------------------------
 
 func TestDarkModeContrastFires(t *testing.T) {

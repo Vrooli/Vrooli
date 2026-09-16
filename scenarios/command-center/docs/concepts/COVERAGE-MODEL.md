@@ -91,11 +91,20 @@ Coverage and trust compose into the four renderings the board uses. **Empirical 
 
 ### Promotion
 
-A business reading is promoted from `IN-REACH` to `NOW` only after a stored
-production capture proves that the Command Center value is `VALID` and equals
-the direct LPBS reader-token response for the same window. The capture records
-the reading, direct producer response, origin, observed time, contract, and
-comparison verdict under the plan artifact promotion evidence directory.
+A business reading is promoted from `IN-REACH` to `NOW` only after the governed
+promotion command proves that the Command Center value is `VALID` and equals
+the direct LPBS reader-token response for the same window:
+
+```bash
+COMMAND_CENTER_LPBS_READER_TOKEN="$TOKEN" \
+  command-center promote credits_burned_30d --window 30d
+```
+
+The command records the reading, direct producer response, origin, observed
+time, contract, and comparison verdict under the plan artifact promotion
+evidence directory. It exits non-zero and records a `mismatch` verdict when
+value, unit, contract version, observation time, or trust does not match;
+operators must not promote an unproven reading.
 
 Where the board reports a count against a total — "4 of 12 outcome categories measurable" — the denominator is authored by the objective set, not by this scenario, and the reading carries a **denominator-confidence** with a rationale:
 

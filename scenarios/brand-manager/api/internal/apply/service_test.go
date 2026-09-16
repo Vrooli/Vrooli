@@ -2,6 +2,7 @@ package apply_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -120,6 +121,23 @@ func TestApply_ProfilesIconSetAndMarkerBlock(t *testing.T) {
 	manifest := string(ws.Written("web-console", "ui/public/public/site.webmanifest"))
 	require.Contains(t, manifest, `"src": "icon-192.png"`, "manifest srcs are relative")
 	require.Contains(t, manifest, `"purpose": "maskable"`)
+
+	// Every key validation's manifest-completeness rule requires. Writing only
+	// name/short_name/theme_color/background_color/icons left every branded
+	// scenario failing that rule identically.
+	var manifestObj map[string]any
+	require.NoError(t, json.Unmarshal([]byte(manifest), &manifestObj))
+	for _, key := range []string{
+		"name", "short_name", "description",
+		"theme_color", "background_color",
+		"display", "start_url", "id", "icons",
+	} {
+		require.Contains(t, manifestObj, key, "manifest-completeness requires %q", key)
+		require.NotEmpty(t, manifestObj[key], "manifest key %q must not be empty", key)
+	}
+	// An icons-only apply must still declare the brand: brand-markers-applied is
+	// otherwise satisfied only by CSS markers, which this element never writes.
+	require.Contains(t, manifestObj, "_brand")
 
 	html := string(ws.Written("web-console", "ui/index.html"))
 	require.Contains(t, html, "brand-manager:icons:start")

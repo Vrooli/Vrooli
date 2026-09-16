@@ -119,7 +119,7 @@
   "service": {
     "category": "general",
     "description": "Agent-friendly git repository control plane (REST API + CLI + UI)",
-    "displayName": "Git Control Tower",
+    "displayName": "Rigel",
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "license": "MIT",

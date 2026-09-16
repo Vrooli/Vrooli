@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -146,8 +147,12 @@ func TestHTTPLPBSReleaseClientAcceptsEquivalentDigestEncodings(t *testing.T) {
 }
 
 func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
-	if _, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{}); err == nil {
-		t.Fatal("missing base URL returned nil error")
+	t.Setenv("LPBS_BASE_URL", "")
+	t.Setenv("LPBS_SERVICE_SECRET", "")
+	if _, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		ResolveBaseURL: func(context.Context) (string, error) { return "", errors.New("discovery unavailable") },
+	}); err == nil {
+		t.Fatal("undiscoverable base URL returned nil error")
 	}
 	client := &HTTPLPBSReleaseClient{baseURL: "http://127.0.0.1:1", httpClient: http.DefaultClient}
 	if _, err := client.Verify(context.Background(), &LPBSVerifyRequest{}); err == nil || !strings.Contains(err.Error(), "app_key") {
@@ -184,5 +189,95 @@ func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
 	client.baseURL = badJSON.URL
 	if _, err := client.Verify(context.Background(), &LPBSVerifyRequest{AppKey: "demo"}); err == nil {
 		t.Fatal("invalid verify JSON returned nil error")
+	}
+}
+
+func TestNewHTTPLPBSReleaseClientResolvesBaseURLThroughDiscovery(t *testing.T) {
+	t.Setenv("LPBS_BASE_URL", "")
+	discovered := false
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		ResolveBaseURL: func(context.Context) (string, error) {
+			discovered = true
+			return "http://lpbs.test:9999/", nil
+		},
+		ResolveServiceSecret: func() (string, error) { return "authority-secret", nil },
+	})
+	if err != nil {
+		t.Fatalf("constructor error: %v", err)
+	}
+	if !discovered {
+		t.Fatal("discovery resolver was not used")
+	}
+	if client.baseURL != "http://lpbs.test:9999" {
+		t.Fatalf("baseURL = %q, want trimmed discovered URL", client.baseURL)
+	}
+	if client.serviceSecret != "authority-secret" {
+		t.Fatalf("serviceSecret = %q, want authority value", client.serviceSecret)
+	}
+}
+
+func TestNewHTTPLPBSReleaseClientResolvesServiceSecretThroughAuthority(t *testing.T) {
+	t.Setenv("LPBS_BASE_URL", "")
+	t.Setenv("LPBS_SERVICE_SECRET", "")
+	resolved := false
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		BaseURL: "http://lpbs.test",
+		ResolveServiceSecret: func() (string, error) {
+			resolved = true
+			return "authority-secret", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("constructor error: %v", err)
+	}
+	if !resolved || client.serviceSecret != "authority-secret" {
+		t.Fatalf("authority secret not resolved: resolved=%v secret=%q", resolved, client.serviceSecret)
+	}
+}
+
+func TestNewHTTPLPBSReleaseClientPrefersExplicitConfigOverOwners(t *testing.T) {
+	t.Setenv("LPBS_BASE_URL", "")
+	t.Setenv("LPBS_SERVICE_SECRET", "")
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		BaseURL:       "http://explicit.test",
+		ServiceSecret: "explicit-secret",
+		ResolveBaseURL: func(context.Context) (string, error) {
+			t.Fatal("discovery resolver must not run when BaseURL is explicit")
+			return "", nil
+		},
+		ResolveServiceSecret: func() (string, error) {
+			t.Fatal("authority resolver must not run when ServiceSecret is explicit")
+			return "", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("constructor error: %v", err)
+	}
+	if client.baseURL != "http://explicit.test" || client.serviceSecret != "explicit-secret" {
+		t.Fatalf("explicit config not preferred: base=%q secret=%q", client.baseURL, client.serviceSecret)
+	}
+}
+
+func TestNewHTTPLPBSReleaseClientWarnsWhenAuthoritySecretUnavailable(t *testing.T) {
+	t.Setenv("LPBS_BASE_URL", "")
+	t.Setenv("LPBS_SERVICE_SECRET", "")
+	var warnings []map[string]interface{}
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		BaseURL: "http://lpbs.test",
+		Log: func(level string, fields map[string]interface{}) {
+			if level == "warn" {
+				warnings = append(warnings, fields)
+			}
+		},
+		ResolveServiceSecret: func() (string, error) { return "", errors.New("authority unavailable") },
+	})
+	if err != nil {
+		t.Fatalf("constructor error: %v", err)
+	}
+	if client.serviceSecret != "" {
+		t.Fatalf("serviceSecret = %q, want empty", client.serviceSecret)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("missing warning for unavailable credential authority")
 	}
 }

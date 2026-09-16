@@ -58,6 +58,20 @@ class EvidenceTarget(_message.Message):
     bridge_job_id: str
     def __init__(self, kind: _Optional[_Union[EvidenceTarget.Kind, str]] = ..., bridge_node_id: _Optional[str] = ..., bridge_job_id: _Optional[str] = ...) -> None: ...
 
+class IsolationObservation(_message.Message):
+    __slots__ = ("state_root", "socket_path", "database_path", "adopted_session_count", "source")
+    STATE_ROOT_FIELD_NUMBER: _ClassVar[int]
+    SOCKET_PATH_FIELD_NUMBER: _ClassVar[int]
+    DATABASE_PATH_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_SESSION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    state_root: str
+    socket_path: str
+    database_path: str
+    adopted_session_count: int
+    source: str
+    def __init__(self, state_root: _Optional[str] = ..., socket_path: _Optional[str] = ..., database_path: _Optional[str] = ..., adopted_session_count: _Optional[int] = ..., source: _Optional[str] = ...) -> None: ...
+
 class DesktopSessionRequest(_message.Message):
     __slots__ = ("scenario_name", "artifact_path", "platform", "width", "height", "target")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -273,10 +287,14 @@ class ListEvidenceCapturesRequest(_message.Message):
     def __init__(self, scenario_name: _Optional[str] = ..., pipeline_id: _Optional[str] = ..., source_session_id: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class ListEvidenceCapturesResponse(_message.Message):
-    __slots__ = ("captures",)
+    __slots__ = ("captures", "stored_bytes", "distinct_bytes")
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
+    STORED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    DISTINCT_BYTES_FIELD_NUMBER: _ClassVar[int]
     captures: _containers.RepeatedCompositeFieldContainer[EvidenceCapture]
-    def __init__(self, captures: _Optional[_Iterable[_Union[EvidenceCapture, _Mapping]]] = ...) -> None: ...
+    stored_bytes: int
+    distinct_bytes: int
+    def __init__(self, captures: _Optional[_Iterable[_Union[EvidenceCapture, _Mapping]]] = ..., stored_bytes: _Optional[int] = ..., distinct_bytes: _Optional[int] = ...) -> None: ...
 
 class GetEvidenceCaptureRequest(_message.Message):
     __slots__ = ("scenario_name", "capture_id")

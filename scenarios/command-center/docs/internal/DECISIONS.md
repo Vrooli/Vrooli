@@ -4,6 +4,23 @@ Durable decisions for this scenario, newest first. A decision recorded here is b
 
 ---
 
+## 2026-09-16 — Ledger is a measured monetization instrument
+
+**Decision.** Ledger owns the revenue and credit-economy story: LPBS remains
+the producer for provider-reported AI cost, revenue-by-line totals, and credit
+usage; Command Center reads those contracts and computes credit margin only at
+read time. Offer Desk contributes the live Money Ledger posture, including the
+declared default-alive buffer, without storing or correcting financial values.
+
+**Why.** Authored samples cannot answer whether the business is working. The
+room must distinguish measured producer data from in-reach projections while
+remaining useful when production or an optional upstream is unavailable.
+
+**Consequence.** Credit readings stay out of Broadcast, production promotion is
+evidence-gated, and missing operator inputs remain absent rather than zero.
+
+---
+
 ## 2026-09-15 — Panorama is a star atlas of the whole board
 
 **Decision.** Panorama answers its charter question, "what is the state of the whole, and what is unmeasurable?", instead of repeating one room's headline. The hero counts signals measured across every other room, with the total and a reason for each unmeasured signal (sensor failing, in reach, no substrate). The scene is a star atlas: each room is a constellation, each of its signals a star in the provenance material of where it stands, and a constellation line is solid only between two measured stars. The room's own readings, the five room headlines, all become supporting tiles. `GET /api/v1/rooms/{id}` carries `constellations` for a room of category `panorama`, built from the registry's room list.

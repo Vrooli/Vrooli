@@ -159,6 +159,7 @@ type Supervisor struct {
 	gpuStatus       GPUStatus
 	servicesStarted bool
 	started         bool
+	isolation       []api.IsolationObservation
 
 	// HTTP server.
 	server *http.Server

@@ -1,4 +1,4 @@
-# Git Control Tower
+# Rigel (git-control-tower scenario)
 
 Agents use `prompt-manager skill read git-control-tower` for immutable capture,
 collection, diff, and wait decisions. Reliability regulation uses

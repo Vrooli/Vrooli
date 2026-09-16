@@ -78,6 +78,16 @@ func TestMigrateLegacyDockerStoragePreservesForeignDataAndRemovesVerifiedContain
 	}
 }
 
+func TestLegacyDockerContainerNamesIncludeMainInstance(t *testing.T) {
+	names := legacyDockerContainerNames(ResourceManifest{Name: "postgres"})
+	for _, name := range names {
+		if name == "vrooli-postgres-main" {
+			return
+		}
+	}
+	t.Fatalf("legacy container names = %v, want vrooli-postgres-main", names)
+}
+
 func TestMigrateLegacyDockerStorageFailsClosedOnUnexpectedMount(t *testing.T) {
 	testenv.RuntimeHome(t)
 	paths, err := resourceStoragePaths("redis")

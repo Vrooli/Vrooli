@@ -17,9 +17,14 @@ type OpenRouterClient interface {
 }
 
 type OpenRouterChatRequest struct {
-	Model    string              `json:"model"`
-	Messages []OpenRouterMessage `json:"messages"`
-	Stream   bool                `json:"stream,omitempty"`
+	Model    string                  `json:"model"`
+	Messages []OpenRouterMessage     `json:"messages"`
+	Stream   bool                    `json:"stream,omitempty"`
+	Usage    *OpenRouterUsageRequest `json:"usage,omitempty"`
+}
+
+type OpenRouterUsageRequest struct {
+	Include bool `json:"include"`
 }
 
 type OpenRouterMessage struct {
@@ -36,9 +41,10 @@ type OpenRouterChatResponse struct {
 }
 
 type OpenRouterUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens     int   `json:"prompt_tokens"`
+	CompletionTokens int   `json:"completion_tokens"`
+	TotalTokens      int   `json:"total_tokens"`
+	CostMicros       int64 `json:"cost_micros"`
 }
 
 // OpenRouterClientOptions configures the provider HTTP implementation.

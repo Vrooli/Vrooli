@@ -313,6 +313,11 @@ func (s *CatalogService) UpsertApp(app App) (*App, error) {
 			if platform == "" {
 				return nil, fmt.Errorf("platform is required for all assets")
 			}
+			osPlatform, _, normalizeErr := NormalizeCatalogPlatform(platform)
+			if normalizeErr != nil {
+				return nil, normalizeErr
+			}
+			platform = osPlatform
 			assetSource := strings.TrimSpace(asset.ArtifactSource)
 			if assetSource == "" {
 				assetSource = "direct"
@@ -399,6 +404,10 @@ func (s *CatalogService) DeleteApp(bundleKey, appKey string) error {
 
 // GetAsset fetches a download artifact by platform.
 func (s *CatalogService) GetAsset(bundleKey, appKey, platform string) (*Asset, error) {
+	platform, err := lookupCatalogPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
@@ -424,6 +433,10 @@ func (s *CatalogService) GetAsset(bundleKey, appKey, platform string) (*Asset, e
 // selected for the request. It preserves the old wire contract while keeping
 // request-scoped test leases fail-closed.
 func (s *CatalogService) GetAssetContext(ctx context.Context, bundleKey, appKey, platform string) (*Asset, error) {
+	platform, err := lookupCatalogPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
@@ -454,6 +467,10 @@ func (s *CatalogService) GetAssetContext(ctx context.Context, bundleKey, appKey,
 // request-routed database pool. The catalog asset ID is distinct from the
 // managed artifact ID carried by the selected row.
 func (s *CatalogService) GetAssetByIDContext(ctx context.Context, bundleKey, appKey, platform string, assetID int64) (*Asset, error) {
+	platform, err := lookupCatalogPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
@@ -482,6 +499,10 @@ func (s *CatalogService) GetAssetByIDContext(ctx context.Context, bundleKey, app
 
 // GetAssetByVariant fetches a download asset by platform and variant_key.
 func (s *CatalogService) GetAssetByVariant(bundleKey, appKey, platform, variantKey string) (*Asset, error) {
+	platform, err := lookupCatalogPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
@@ -534,6 +555,11 @@ func (s *CatalogService) UpsertAsset(ctx context.Context, asset Asset) (*Asset, 
 	if asset.BundleKey == "" || asset.AppKey == "" || asset.Platform == "" {
 		return nil, fmt.Errorf("bundle_key, app_key, and platform are required")
 	}
+	osPlatform, _, err := NormalizeCatalogPlatform(asset.Platform)
+	if err != nil {
+		return nil, err
+	}
+	asset.Platform = osPlatform
 	if asset.ReleaseVersion == "" {
 		return nil, fmt.Errorf("release_version is required")
 	}

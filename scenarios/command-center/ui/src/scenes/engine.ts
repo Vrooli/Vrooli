@@ -25,6 +25,7 @@ export interface Palette {
 export interface SceneReading {
 	value: number | null;
 	ink: Ink;
+	meta?: Record<string, unknown>;
 	/** Panel and ladder rows; ladder rows carry the rung name and its status as detail. */
 	rows?: Array<{ key: string; share: number; value: number; label?: string; detail?: string }>;
 }
@@ -80,7 +81,7 @@ export const sceneData = (readings: Reading[], focus?: string, constellations?: 
   readings: Object.fromEntries(
     readings.map((reading) => {
       const resolution = resolveReading(reading);
-		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: (resolution.figure === "measured" ? reading.rows : resolution.figure === "sample" ? reading.sample?.rows : undefined)?.map((row) => ({ key: row.key, share: row.share, value: row.value, label: row.label, detail: row.detail })) }];
+		return [reading.id, { value: reading.kind === "posture" ? null : figureValue(reading, resolution), ink: resolution.ink, meta: reading.kind === "posture" && reading.value && typeof reading.value === "object" ? reading.value as Record<string, unknown> : undefined, rows: (resolution.figure === "measured" ? reading.rows : resolution.figure === "sample" ? reading.sample?.rows : undefined)?.map((row) => ({ key: row.key, share: row.share, value: row.value, label: row.label, detail: row.detail })) }];
     }),
   ),
   order: readings.map((reading) => reading.id),

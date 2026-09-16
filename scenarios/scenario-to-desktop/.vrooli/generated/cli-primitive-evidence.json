@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "fc912703ba9b826e0ced01505827f90335c642eaaf0b76d0b311a0e66b2aff3d",
+  "manifest_hash": "9782a352af7c4932337ce843a2cdfab312fb323bfbd3cf801e8bf7b164005e7c",
   "commands": [
     {
       "path": "build get",
@@ -119,6 +119,13 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "evidence export",
+      "group": "evidence",
+      "command": "export",
+      "binding": ".",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "evidence journey",
       "group": "evidence",
       "command": "journey",
@@ -157,6 +164,7 @@
       "path": "evidence void",
       "group": "evidence",
       "command": "void",
+      "binding": "EvidenceService.VoidEvidenceCapture",
       "observed_primitive": "proto_mutation"
     },
     {

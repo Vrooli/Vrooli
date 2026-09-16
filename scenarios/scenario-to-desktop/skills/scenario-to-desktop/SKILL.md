@@ -67,7 +67,7 @@ Use command help for inputs; do not copy flags from historical work records.
 | Need a build with an agreed mode and target platforms | Run `scenario-to-desktop pipeline run` for the selected scenario with explicit `--platforms` and `--deployment-mode`. Preserve the returned pipeline ID. **[S1]** |
 | Need to diagnose or inspect a pipeline | Run `scenario-to-desktop.pipeline-inspect`. Supply the exact pipeline ID when continuing work; omit it only when the task is to inspect the newest pipeline. **[S3]** |
 | Need to locate retained desktop evidence | Run `scenario-to-desktop.evidence-inventory`. **[S3]** |
-| Need the latest journey's assertions after locating its evidence | Run `scenario-to-desktop evidence journey <scenario>`. This command selects the latest journey; it cannot establish the identity of an arbitrary candidate release. **[S1]** |
+| Need journey assertions for a candidate pipeline | Run `scenario-to-desktop evidence journey <scenario> --pipeline <pipeline-id>`. Without `--pipeline`, the command selects the latest journey. **[S1]** |
 | Need a validation matrix, target inventory, or profile capability check | Use the scenario's validation UI and `path:scenarios/scenario-to-desktop/docs/guides/interactive-desktop.md`. Governed matrix CLI bindings are not yet available; do not invent program calls. **[S0]** |
 | Need signing-tool availability | Run `scenario-to-desktop signing prerequisites`. **[S1]** |
 | Need to validate an existing signing configuration | Run `scenario-to-desktop signing validate <scenario>`. **[S1]** |
@@ -150,10 +150,10 @@ superseded advice.
 | A program needs matrix orchestration or a server-owned pipeline wait | Existing binding work in `docs/internal/PROGRESS.md` | Reuse the obligation; add the typed owner operation before authoring orchestration |
 
 The operator loop is: `scenario-to-desktop pipeline run`, `pipeline wait`,
-`pipeline status`, `evidence list <scenario> --pipeline <id>`, and
-`evidence show <scenario> <capture-id> [--output file]`. Use
-`evidence journey <scenario>` for the latest journey and `evidence void` to
-retain a capture while removing it from active consideration.
+`pipeline status`, `evidence list <scenario> --pipeline <id>`,
+`evidence journey <scenario> --pipeline <id>`, and
+`evidence export <scenario> --pipeline <id> --output <dir>`. Use
+`evidence void` to retain a capture while removing it from active consideration.
 
 Promote repeated compatibility, recovery, or evidence-policy workarounds to the
 owning scenario. Then remove the superseded program logic and skill prose.

@@ -86,6 +86,7 @@ func (f *fakeCloudDeploymentClient) DeployCloud(_ context.Context, _ *CloudDeplo
 type fakeLPBSClient struct {
 	readiness        *LPBSReadinessResult
 	readinessErr     error
+	readinessRequest *LPBSReadinessRequest
 	verifyOutcomes   map[string]*LPBSVerifyResult
 	verifyErr        error
 	readinessCalls   int
@@ -139,8 +140,9 @@ func (f *fakeLPBSClient) RecoverChannel(_ context.Context, req *LPBSRecoveryRequ
 	return f.recoveryReceipt, nil
 }
 
-func (f *fakeLPBSClient) CheckDeployReadiness(_ context.Context, _ *LPBSReadinessRequest) (*LPBSReadinessResult, error) {
+func (f *fakeLPBSClient) CheckDeployReadiness(_ context.Context, req *LPBSReadinessRequest) (*LPBSReadinessResult, error) {
 	f.readinessCalls++
+	f.readinessRequest = req
 	if f.readinessErr != nil {
 		return nil, f.readinessErr
 	}
@@ -686,8 +688,12 @@ func TestPublishToLPBSPersistenceFailureAfterOwnerStartIsAmbiguous(t *testing.T)
 }
 
 func TestDeployCheckLPBSReadiness_NotReadyFails(t *testing.T) {
-	lpbs := &fakeLPBSClient{readiness: &LPBSReadinessResult{Ready: false, Error: "missing storage"}}
-	cfgRepo := &fakeLPBSConfigRepo{cfg: &profiles.LPBSReleaseConfig{ProfileID: "p1", LPBSAppKey: "k", DefaultChannel: "stable"}}
+	lpbs := &fakeLPBSClient{readiness: &LPBSReadinessResult{
+		Ready: false,
+		Gates: []ReadinessGate{{Name: "remote_download_storage", Message: "put object denied"}},
+		Error: "remote_download_storage: put object denied",
+	}}
+	cfgRepo := &fakeLPBSConfigRepo{cfg: &profiles.LPBSReleaseConfig{ProfileID: "p1", LPBSAppKey: "k", LPBSRemoteProfile: "prod", DefaultChannel: "stable"}}
 	relRepo := newFakeReleasesRepo()
 	o := newOrch(nil, lpbs, cfgRepo, relRepo)
 	ds := newDeployState("p1", "rel-1", "stable", "1", []string{"linux-x64"})
@@ -699,6 +705,12 @@ func TestDeployCheckLPBSReadiness_NotReadyFails(t *testing.T) {
 	}
 	if ds.response.Steps[0].Status != "failed" {
 		t.Errorf("expected failed step; got %q", ds.response.Steps[0].Status)
+	}
+	// The remote-aware readiness gates can only run when DM forwards the exact
+	// remote profile and app key, so a missing coordinate would silently fall
+	// back to the local-only probe that missed this failure.
+	if lpbs.readinessRequest == nil || lpbs.readinessRequest.RemoteProfile != "prod" || lpbs.readinessRequest.AppKey != "k" {
+		t.Fatalf("readiness request = %+v, want remote profile prod and app key k", lpbs.readinessRequest)
 	}
 }
 

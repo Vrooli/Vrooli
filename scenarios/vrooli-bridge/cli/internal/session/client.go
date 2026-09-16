@@ -75,7 +75,40 @@ func EnrollLocalWithToken(ctx context.Context, app *cliapp.ScenarioApp, access s
 	return nil
 }
 
+// retargetURL points u at base (scheme + host), reporting whether it changed.
+// An empty or unparsable base leaves u untouched.
+func retargetURL(u *url.URL, base string) bool {
+	base = strings.TrimSpace(base)
+	if u == nil || base == "" {
+		return false
+	}
+	target, err := url.Parse(base)
+	if err != nil || target.Scheme == "" || target.Host == "" {
+		return false
+	}
+	if u.Scheme == target.Scheme && u.Host == target.Host {
+		return false
+	}
+	u.Scheme, u.Host = target.Scheme, target.Host
+	return true
+}
+
+// retarget re-resolves the API base for this invocation and points the request
+// at it. Every domain builds its Connect client inside Register(), which runs
+// before the global --api-base flag is parsed, so the baked-in base comes from
+// the local port detector. On a node that runs the vrooli-bridge scenario
+// itself that is http://localhost:18767, and a bootstrap `pair redeem` went to
+// the node's own Bridge instead of the control plane that issued the code
+// (2026-09-15, minimouse: three ships failed with "pairing code not found").
+func (c *client) retarget(req *http.Request) {
+	if c == nil || c.app == nil || req == nil {
+		return
+	}
+	retargetURL(req.URL, c.app.APIRootBase())
+}
+
 func (c *client) Do(req *http.Request) (*http.Response, error) {
+	c.retarget(req)
 	if token, err := BreakGlassTokenFile(); err != nil {
 		return nil, err
 	} else if strings.TrimSpace(token) != "" {

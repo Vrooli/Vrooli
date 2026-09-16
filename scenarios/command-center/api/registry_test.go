@@ -12,7 +12,7 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(reg.Metrics) != 52 {
+	if len(reg.Metrics) != 56 {
 		t.Fatalf("metrics = %d, want current authored set", len(reg.Metrics))
 	}
 	for _, metric := range reg.Metrics {
@@ -55,6 +55,9 @@ func TestOutcomeRegistrySelectorsAreDeclared(t *testing.T) {
 			continue
 		}
 		if _, ok := selectors[metric.Source.Selector]; !ok {
+			if _, postureOK := postureSelectors[metric.Source.Selector]; postureOK {
+				continue
+			}
 			if _, panelOK := panelSelectors[metric.Source.Selector]; panelOK {
 				continue
 			}
@@ -147,7 +150,7 @@ func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 52 {
+	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 56 {
 		t.Fatalf("schema=%s metrics=%d", reg.SchemaVersion, len(reg.Metrics))
 	}
 	for _, m := range reg.Metrics {
@@ -220,6 +223,43 @@ func TestBroadcastRegistryUsesProductionLPBSAndTombstonesRetiredIDs(t *testing.T
 	for _, id := range broadcast.MetricIDs {
 		if !seen[id] {
 			t.Errorf("broadcast metric %q is not assigned to any beat", id)
+		}
+	}
+}
+
+func TestLedgerAndBroadcastOwnCreditAndRevenueStories(t *testing.T) {
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rooms := map[string]Room{}
+	for _, room := range reg.Rooms {
+		rooms[room.ID] = room
+	}
+	ledger := rooms["ledger"]
+	broadcast := rooms["broadcast"]
+	if len(ledger.MetricIDs) != 15 {
+		t.Fatalf("ledger metrics = %d, want 15", len(ledger.MetricIDs))
+	}
+	if len(ledger.Beats) != 4 {
+		t.Fatalf("ledger beats = %d, want 4", len(ledger.Beats))
+	}
+	for _, id := range []string{"revenue_mrr", "revenue_rollup", "subscriber_counts", "new_paid_subscriptions_30d", "churn", "credit_balances", "credit_burn_by_app", "credit_burn_by_model", "credits_purchased_30d", "credits_burned_30d", "usage_operations_30d", "offer_posture", "ai_cost_30d", "credit_margin_30d", "revenue_by_line"} {
+		if !contains(ledger.MetricIDs, id) {
+			t.Errorf("ledger missing metric %q", id)
+		}
+	}
+	if len(broadcast.MetricIDs) != 19 {
+		t.Fatalf("broadcast metrics = %d, want 19 after credit economy move", len(broadcast.MetricIDs))
+	}
+	for _, id := range []string{"credit_burn_by_app", "credit_burn_by_model", "credits_purchased_30d", "credits_burned_30d"} {
+		if contains(broadcast.MetricIDs, id) {
+			t.Errorf("broadcast still owns credit metric %q", id)
+		}
+	}
+	for _, beat := range ledger.Beats {
+		if len(beat.ReadingIDs) == 0 {
+			t.Errorf("ledger beat %q has no readingIds", beat.Hero)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -202,17 +203,18 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 			model = value
 		}
 	}
+	eventCost, eventPrompt, eventCompletion, eventProvider := usageEventMetadata(metadata.Metadata)
 	var operationID interface{}
 	if metadata.OperationID != nil {
 		operationID = strings.TrimSpace(*metadata.OperationID)
 	}
 	var eventQuery string
 	if s.dialect == "sqlite" {
-		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES (?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
 	} else {
-		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (operation_id) DO NOTHING`
+		eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (operation_id) DO NOTHING`
 	}
-	if _, err = tx.ExecContext(ctx, eventQuery, operationID, userIdentity, eventAppKey, model, amount); err != nil {
+	if _, err = tx.ExecContext(ctx, eventQuery, operationID, userIdentity, eventAppKey, model, amount, eventCost, eventPrompt, eventCompletion, eventProvider); err != nil {
 		return fmt.Errorf("record usage event: %w", err)
 	}
 
@@ -232,6 +234,18 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	})
 
 	return nil
+}
+
+func usageEventMetadata(metadata map[string]string) (int64, int, int, string) {
+	var cost int64
+	var prompt, completion int
+	if metadata != nil {
+		cost, _ = strconv.ParseInt(strings.TrimSpace(metadata["cost_micros"]), 10, 64)
+		prompt, _ = strconv.Atoi(strings.TrimSpace(metadata["prompt_tokens"]))
+		completion, _ = strconv.Atoi(strings.TrimSpace(metadata["completion_tokens"]))
+	}
+	provider := firstNonEmpty(metadata["provider"], "local")
+	return cost, prompt, completion, provider
 }
 
 // ReserveCredits atomically checks if the user has enough credits and creates a reservation.
@@ -398,8 +412,12 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 }
 
 type finalizedUsageMetadata struct {
-	appBundleKey string
-	model        string
+	appBundleKey     string
+	model            string
+	costMicros       int64
+	promptTokens     int
+	completionTokens int
+	provider         string
 }
 
 func (s *ReservationService) finalizeReservation(ctx context.Context, reservationID string, actualAmount int64, metadata *finalizedUsageMetadata) error {
@@ -508,11 +526,11 @@ func (s *ReservationService) finalizeReservation(ctx context.Context, reservatio
 		var eventQuery string
 		var eventArgs []any
 		if s.dialect == "sqlite" {
-			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES (?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
-			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount}
+			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT (operation_id) DO NOTHING`
+			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount, metadata.costMicros, metadata.promptTokens, metadata.completionTokens, firstNonEmpty(metadata.provider, "local")}
 		} else {
-			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (operation_id) DO NOTHING`
-			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount}
+			eventQuery = `INSERT INTO usage_events (operation_id,user_identity,app_bundle_key,model,credits,cost_micros,prompt_tokens,completion_tokens,provider) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (operation_id) DO NOTHING`
+			eventArgs = []any{reservationID, userIdentity, appBundleKey, model, actualAmount, metadata.costMicros, metadata.promptTokens, metadata.completionTokens, firstNonEmpty(metadata.provider, "local")}
 		}
 		if _, err := tx.ExecContext(ctx, eventQuery, eventArgs...); err != nil {
 			return fmt.Errorf("record finalized usage event: %w", err)
@@ -540,6 +558,19 @@ func (s *ReservationService) finalizeReservation(ctx context.Context, reservatio
 // retry cannot create a second ledger row.
 func (s *ReservationService) FinalizeReservationWithMetadata(ctx context.Context, reservationID string, actualAmount int64, appBundleKey, model string) error {
 	return s.finalizeReservation(ctx, reservationID, actualAmount, &finalizedUsageMetadata{appBundleKey: appBundleKey, model: model})
+}
+
+func (s *ReservationService) FinalizeReservationWithCost(ctx context.Context, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	return s.finalizeReservation(ctx, reservationID, actualAmount, &finalizedUsageMetadata{appBundleKey: appBundleKey, model: model, costMicros: costMicros, promptTokens: promptTokens, completionTokens: completionTokens, provider: provider})
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 // FinalizeReservationForUser binds settlement to the authenticated identity

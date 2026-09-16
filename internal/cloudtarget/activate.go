@@ -145,7 +145,17 @@ func (a ScenarioRestartActivator) run(ctx context.Context, env []string, executa
 func (a ScenarioRestartActivator) Activate(ctx context.Context, activation Activation) error {
 	executable := a.Executable
 	if executable == "" {
-		executable = "vrooli"
+		// The release is a self-contained mini-Vrooli. Use its control-plane
+		// binary when present so activation and port reconciliation run the same
+		// version that was delivered with the workload. Falling back to PATH
+		// preserves compatibility with prepared hosts and test runners that do
+		// not materialize a release binary.
+		releaseExecutable := filepath.Join(activation.ReleaseDir, ".vrooli", "bin", "vrooli")
+		if info, err := os.Stat(releaseExecutable); err == nil && !info.IsDir() {
+			executable = releaseExecutable
+		} else {
+			executable = "vrooli"
+		}
 	}
 	env := activation.Env()
 	if activation.Strategy == StrategyMaintenance {
@@ -157,7 +167,11 @@ func (a ScenarioRestartActivator) Activate(ctx context.Context, activation Activ
 	}
 	for _, scenario := range activation.Scenarios {
 		scenarioDir := filepath.Join(activation.ReleaseDir, "scenarios", scenario)
-		if out, err := a.run(ctx, env, executable, "scenario", "start", scenario, "--path", scenarioDir, "--json"); err != nil {
+		// A deployment owns the lifecycle of the release it is activating. A
+		// previous interrupted activation may have left dead port reservations
+		// behind; ask the lifecycle owner to reconcile those reservations before
+		// allocating ports so retries do not exhaust an otherwise idle host.
+		if out, err := a.run(ctx, env, executable, "scenario", "start", scenario, "--path", scenarioDir, "--clean-stale", "--json"); err != nil {
 			return fmt.Errorf("start %s from %s: %v: %s", scenario, scenarioDir, err, strings.TrimSpace(string(out)))
 		}
 	}

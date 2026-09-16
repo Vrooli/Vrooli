@@ -168,8 +168,14 @@ export interface DownloadStorageSettingsSnapshot {
   access_key_id_set: boolean;
   secret_access_key_set: boolean;
   session_token_set: boolean;
-  credentials_from_env: boolean;
+  credentials_from_authority: boolean;
   settings_row_available: boolean;
+  access_key_id_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  secret_access_key_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  session_token_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  credentials_source?: string;
+  credential_detail?: string;
+  session_token_optional?: boolean;
 }
 
 export interface DownloadArtifact {

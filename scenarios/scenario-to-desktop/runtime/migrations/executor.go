@@ -23,8 +23,8 @@ type ExecutorConfig struct {
 
 // EnvRenderer provides template expansion for environment variables and arguments.
 type EnvRenderer interface {
-	RenderValue(input string) string
-	RenderArgs(args []string) []string
+	RenderValue(input string) (string, error)
+	RenderArgs(args []string) ([]string, error)
 }
 
 // LogProvider provides log writers for services.
@@ -119,7 +119,11 @@ func (e *Executor) maybeRunMigration(
 
 	env := strutil.CopyStringMap(envBase)
 	for k, v := range m.Env {
-		env[k] = e.envRenderer.RenderValue(v)
+		value, err := e.envRenderer.RenderValue(v)
+		if err != nil {
+			return err
+		}
+		env[k] = value
 	}
 
 	if err := e.executeMigration(ctx, svc, m, bin, env); err != nil {
@@ -144,7 +148,10 @@ func (e *Executor) maybeRunMigration(
 
 // executeMigration runs a single migration command.
 func (e *Executor) executeMigration(ctx context.Context, svc manifest.Service, m manifest.Migration, bin manifest.Binary, env map[string]string) error {
-	cmdArgs := e.envRenderer.RenderArgs(m.Command)
+	cmdArgs, err := e.envRenderer.RenderArgs(m.Command)
+	if err != nil {
+		return err
+	}
 	cmdPath := manifest.ResolvePath(e.cfg.BundlePath, cmdArgs[0])
 	args := cmdArgs[1:]
 

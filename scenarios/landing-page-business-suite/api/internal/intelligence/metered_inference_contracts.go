@@ -25,11 +25,22 @@ type UsageMetadataFinalizer interface {
 	FinalizeReservationWithMetadata(context.Context, string, int64, string, string) error
 }
 
+type UsageCostFinalizer interface {
+	FinalizeReservationWithCost(context.Context, string, int64, string, string, int64, int, int, string) error
+}
+
 func finalizeUsage(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
 	if detailed, ok := s.(UsageMetadataFinalizer); ok {
 		return detailed.FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
 	}
 	return s.FinalizeReservation(ctx, reservationID, amount)
+}
+
+func finalizeUsageWithCost(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	if detailed, ok := s.(UsageCostFinalizer); ok {
+		return detailed.FinalizeReservationWithCost(ctx, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+	}
+	return finalizeUsage(s, ctx, reservationID, amount, appBundleKey, model)
 }
 
 // UsageReport is the minimum credit-accounting data emitted by the gateway.

@@ -25,7 +25,7 @@ func revenueQueryMatcher(expected, actual string) error {
 	return sqlmock.QueryMatcherRegexp.Match(expected, actual)
 }
 
-func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float64, active, trials, currencies, churned, creditBalance, creditBurned, usage int64, currency string) {
+func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float64, active, trials, currencies, churned, creditBalance, creditBurned, usage int64, currency string, lines ...[]RevenueLine) {
 	mock.ExpectQuery("revenue-subscriptions").WillReturnRows(
 		sqlmock.NewRows([]string{"mrr", "active", "trials", "currency", "currencies"}).AddRow(mrr, active, trials, currency, currencies),
 	)
@@ -50,6 +50,42 @@ func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float6
 	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\) FROM usage_events").WillReturnRows(
 		sqlmock.NewRows([]string{"count"}).AddRow(usage),
 	)
+	mock.ExpectQuery("(?s)SELECT COALESCE\\(SUM\\(cost_micros\\)").WillReturnRows(
+		sqlmock.NewRows([]string{"sum"}).AddRow(0),
+	)
+	lineResult := sqlmock.NewRows([]string{"session_type", "amount", "transactions"})
+	for _, lineSet := range lines {
+		for _, line := range lineSet {
+			lineResult.AddRow(line.Key, line.AmountMinor, line.Transactions)
+		}
+	}
+	mock.ExpectQuery("(?s)SELECT COALESCE\\(NULLIF\\(session_type").WillReturnRows(lineResult)
+}
+
+func TestRevenueSummarySplitsRevenueByCheckoutLine(t *testing.T) { // [REQ:FIN-REVENUE-001]
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(revenueQueryMatcher)))
+	if err != nil {
+		t.Fatalf("sqlmock.New() error = %v", err)
+	}
+	defer db.Close()
+
+	expectRevenueSummaryQueries(mock, 0, 1200, 1200, 0, 0, 1, 0, 0, 10, 1, "usd", []RevenueLine{
+		{Key: "credits_topup", AmountMinor: 700, Transactions: 1},
+		{Key: "subscription", AmountMinor: 500, Transactions: 1},
+	})
+	summary, err := NewServiceWithClock(db, scheduletest.New(time.Date(2026, 9, 3, 20, 0, 0, 0, time.UTC))).GetRevenueSummary()
+	if err != nil {
+		t.Fatalf("GetRevenueSummary() error = %v", err)
+	}
+	if len(summary.RevenueByLine) != 2 || summary.RevenueByLine[0].AmountMinor+summary.RevenueByLine[1].AmountMinor != summary.RevenueWindowMinor {
+		t.Fatalf("revenue lines = %+v, total = %d", summary.RevenueByLine, summary.RevenueWindowMinor)
+	}
+	if summary.RevenueByLine[0].Key != "credit_top_up" || summary.RevenueByLine[1].Key != "subscription" {
+		t.Fatalf("revenue line keys = %+v", summary.RevenueByLine)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("SQL expectations: %v", err)
+	}
 }
 
 func TestRevenueSummaryAppliesDocumentedRollupSemantics(t *testing.T) {

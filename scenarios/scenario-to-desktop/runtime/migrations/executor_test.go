@@ -16,12 +16,12 @@ import (
 // mockEnvRenderer implements EnvRenderer for testing.
 type mockEnvRenderer struct{}
 
-func (m *mockEnvRenderer) RenderValue(input string) string {
-	return input
+func (m *mockEnvRenderer) RenderValue(input string) (string, error) {
+	return input, nil
 }
 
-func (m *mockEnvRenderer) RenderArgs(args []string) []string {
-	return args
+func (m *mockEnvRenderer) RenderArgs(args []string) ([]string, error) {
+	return args, nil
 }
 
 // mockLogProvider implements LogProvider for testing.

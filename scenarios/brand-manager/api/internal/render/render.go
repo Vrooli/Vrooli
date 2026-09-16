@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -75,16 +76,19 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 		clipRadius = 0
 	}
 
-	// Fit the mark into the tile: MarkScale is the mark's longer side as a
-	// fraction of the tile edge, so the scale is normalized by the mark's own
-	// viewBox. (Using MarkScale directly drew a 2048-unit traced mark at 1761 px
-	// on a 180 px icon, so every PNG showed a zoomed-in fragment.) A social card
-	// sizes the mark to 0.8 of the card height.
+	// Fit the mark into the tile by its ink, not by its viewBox: MarkScale is the
+	// ink's longer side as a fraction of the tile edge. A traced mark keeps
+	// whatever padding its source raster had — Aquila's ink filled 60% of its
+	// 2048-unit viewBox, Vega's 88%, Rigel's 66% — so framing by the viewBox drew
+	// each product's mark at a visibly different size and left an off-centre trace
+	// off-centre on the tile. A social card sizes the mark to 0.8 of the card
+	// height.
 	markFraction := style.MarkScale
 	if markFraction <= 0 {
 		markFraction = 0.86
 	}
-	longest := math.Max(float64(vbW), float64(vbH))
+	inkX, inkY, inkW, inkH := markExtent(inner, float64(vbW), float64(vbH))
+	longest := math.Max(inkW, inkH)
 	if longest <= 0 {
 		return nil, fmt.Errorf("render: mark has an empty viewBox")
 	}
@@ -99,7 +103,7 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 		}
 		// The mark's circumscribed circle must fit radius s*edge: scale so the
 		// mark's diagonal fits 2*s*edge.
-		diag := math.Hypot(float64(vbW), float64(vbH))
+		diag := math.Hypot(inkW, inkH)
 		if diag > 0 {
 			scale = (2 * s * float64(edge)) / diag
 		}
@@ -120,10 +124,10 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 
 	// Place the mark centred. For social_card the mark is centred at 0.8 of the
 	// height (the plan's "centred at 0.8 of height").
-	markW := float64(vbW) * scale
-	markH := float64(vbH) * scale
-	tx := (float64(width) - markW) / 2
-	ty := (float64(height) - markH) / 2
+	markW := inkW * scale
+	markH := inkH * scale
+	tx := (float64(width)-markW)/2 - inkX*scale
+	ty := (float64(height)-markH)/2 - inkY*scale
 
 	// Place the mark with one matrix() rather than a transform list: image-tools'
 	// pure-Go rasterizer silently drops a group whose transform is
@@ -195,6 +199,168 @@ func svgInner(mark []byte) (string, int, int, error) {
 		}
 	}
 	return inner, w, h, nil
+}
+
+var (
+	// dAttrPattern matches a path's geometry whatever its attribute order.
+	dAttrPattern = regexp.MustCompile(`(?is)<path\b[^>]*?\bd\s*=\s*"([^"]+)"`)
+	// pathTokenPattern splits path data into commands and numbers.
+	pathTokenPattern = regexp.MustCompile(`(?i)([achlmqstvz])|(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)`)
+)
+
+// markExtent returns the mark's ink box (x, y, w, h) in the mark's own user
+// units, falling back to the whole viewBox when no path geometry can be read.
+func markExtent(inner string, vbW, vbH float64) (x, y, w, h float64) {
+	minX, minY, maxX, maxY, ok := inkBounds(inner)
+	if !ok {
+		return 0, 0, vbW, vbH
+	}
+	w, h = maxX-minX, maxY-minY
+	if w <= 0 || h <= 0 {
+		return 0, 0, vbW, vbH
+	}
+	return minX, minY, w, h
+}
+
+// inkBounds is the bounding box of every path's drawn geometry.
+func inkBounds(inner string) (minX, minY, maxX, maxY float64, ok bool) {
+	minX, minY = math.Inf(1), math.Inf(1)
+	maxX, maxY = math.Inf(-1), math.Inf(-1)
+	for _, m := range dAttrPattern.FindAllStringSubmatch(inner, -1) {
+		if pathBounds(m[1], &minX, &minY, &maxX, &maxY) {
+			ok = true
+		}
+	}
+	if !ok {
+		return 0, 0, 0, 0, false
+	}
+	return minX, minY, maxX, maxY, true
+}
+
+// pathBounds walks one path's data and widens the bounds to cover it. Curve
+// control points are included, which bounds the curve's convex hull: never
+// tighter than the true outline, so a mark is framed no larger than it should be.
+func pathBounds(d string, minX, minY, maxX, maxY *float64) bool {
+	var (
+		cmd            byte
+		args           []float64
+		cx, cy         float64
+		startX, startY float64
+		seen           bool
+	)
+	add := func(x, y float64) {
+		if x < *minX {
+			*minX = x
+		}
+		if y < *minY {
+			*minY = y
+		}
+		if x > *maxX {
+			*maxX = x
+		}
+		if y > *maxY {
+			*maxY = y
+		}
+		seen = true
+	}
+	arity := func(c byte) int {
+		switch c {
+		case 'M', 'm', 'L', 'l', 'T', 't':
+			return 2
+		case 'H', 'h', 'V', 'v':
+			return 1
+		case 'C', 'c':
+			return 6
+		case 'S', 's', 'Q', 'q':
+			return 4
+		case 'A', 'a':
+			return 7
+		}
+		return 0
+	}
+	flush := func() {
+		rel := cmd >= 'a'
+		switch cmd {
+		case 'M', 'm':
+			x, y := args[0], args[1]
+			if rel {
+				x, y = cx+x, cy+y
+			}
+			cx, cy = x, y
+			startX, startY = x, y
+			add(cx, cy)
+			// Further coordinate pairs after a moveto are implicit linetos.
+			if cmd == 'M' {
+				cmd = 'L'
+			} else {
+				cmd = 'l'
+			}
+		case 'L', 'l', 'T', 't':
+			x, y := args[0], args[1]
+			if rel {
+				x, y = cx+x, cy+y
+			}
+			cx, cy = x, y
+			add(cx, cy)
+		case 'H', 'h':
+			x := args[0]
+			if rel {
+				x = cx + x
+			}
+			cx = x
+			add(cx, cy)
+		case 'V', 'v':
+			y := args[0]
+			if rel {
+				y = cy + y
+			}
+			cy = y
+			add(cx, cy)
+		case 'C', 'c', 'S', 's', 'Q', 'q':
+			for i := 0; i+1 < len(args); i += 2 {
+				x, y := args[i], args[i+1]
+				if rel {
+					x, y = cx+x, cy+y
+				}
+				add(x, y)
+				if i+2 >= len(args) {
+					cx, cy = x, y
+				}
+			}
+		case 'A', 'a':
+			x, y := args[5], args[6]
+			if rel {
+				x, y = cx+x, cy+y
+			}
+			cx, cy = x, y
+			add(cx, cy)
+		}
+	}
+	for _, m := range pathTokenPattern.FindAllStringSubmatch(d, -1) {
+		if m[1] != "" {
+			c := m[1][0]
+			if c == 'Z' || c == 'z' {
+				cx, cy = startX, startY
+				cmd, args = 0, args[:0]
+				continue
+			}
+			cmd, args = c, args[:0]
+			continue
+		}
+		if cmd == 0 {
+			continue
+		}
+		v, err := strconv.ParseFloat(m[2], 64)
+		if err != nil {
+			continue
+		}
+		args = append(args, v)
+		if n := arity(cmd); n > 0 && len(args) == n {
+			flush()
+			args = args[:0]
+		}
+	}
+	return seen
 }
 
 // accentPaths returns the d attributes of paths whose fill matches the accent

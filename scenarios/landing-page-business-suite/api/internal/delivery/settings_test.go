@@ -43,19 +43,22 @@ func TestResolveOptionalS3CredentialPreservesProviderFailure(t *testing.T) {
 	}
 }
 
-func TestReadinessObjectKeyKeepsProbeInsideSafePrefix(t *testing.T) {
-	key, err := readinessObjectKey("releases/desktop")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(key, "releases/desktop/.vrooli-readiness-") {
-		t.Fatalf("readiness object key = %q, want bounded prefix", key)
-	}
-	unsafe, err := readinessObjectKey("../../outside")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.HasPrefix(unsafe, "../") || strings.Contains(unsafe, "/../") {
-		t.Fatalf("unsafe readiness object key = %q", unsafe)
+func TestHealthcheckObjectKeyStaysUnderInternalPrefixAndIsUnique(t *testing.T) {
+	seen := make(map[string]struct{}, 64)
+	for i := 0; i < 64; i++ {
+		key, err := healthcheckObjectKey()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(key, ".vrooli/healthchecks/") {
+			t.Fatalf("healthcheck object key = %q, want .vrooli/healthchecks/ prefix", key)
+		}
+		if strings.Contains(key, "..") {
+			t.Fatalf("healthcheck object key = %q contains traversal", key)
+		}
+		if _, duplicate := seen[key]; duplicate {
+			t.Fatalf("healthcheck object key %q repeated; keys must be unique", key)
+		}
+		seen[key] = struct{}{}
 	}
 }

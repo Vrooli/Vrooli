@@ -326,10 +326,26 @@ func TestScenarioAddressResolutionHonorsExplicitRuntimeOverrides(t *testing.T) {
 	}
 }
 
-func TestControlPlaneAddressUsesCanonicalFallback(t *testing.T) {
+func TestControlPlaneAddressUsesExplicitEndpoint(t *testing.T) {
+	t.Setenv("VROOLI_API_BASE_URL", " http://control-plane.example/ ")
+	t.Setenv("VROOLI_API_PORT", "19321")
+	if got := resolveControlPlaneBaseURL(); got != "http://control-plane.example" {
+		t.Fatalf("explicit control-plane URL = %q", got)
+	}
+}
+
+func TestControlPlaneAddressUsesLifecyclePort(t *testing.T) {
+	t.Setenv("VROOLI_API_BASE_URL", "")
+	t.Setenv("VROOLI_API_PORT", "19321")
+	if got := resolveControlPlaneBaseURL(); got != "http://127.0.0.1:19321" {
+		t.Fatalf("lifecycle control-plane URL = %q", got)
+	}
+}
+
+func TestControlPlaneAddressDoesNotGuessWhenUnconfigured(t *testing.T) {
 	t.Setenv("VROOLI_API_BASE_URL", "")
 	t.Setenv("VROOLI_API_PORT", "")
-	if got := resolveControlPlaneBaseURL(); got != "http://127.0.0.1:8092" {
-		t.Fatalf("default control-plane URL = %q, want canonical default", got)
+	if got := resolveControlPlaneBaseURL(); got != "" {
+		t.Fatalf("unconfigured control-plane URL = %q, want empty", got)
 	}
 }

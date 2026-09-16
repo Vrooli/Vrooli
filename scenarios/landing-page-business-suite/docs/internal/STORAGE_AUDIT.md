@@ -12,6 +12,13 @@ registry. This scenario remains pre-launch; declarative, idempotent schemas are
 the appropriate migration strategy until persisted production customer data
 exists.
 
+The commerce operations schema uses the same declarative-with-additive-reconcile
+tier. `api-core/database.EnsureSchemas` applies the embedded
+`operations_schema.sql` and reconciles additive columns on an existing table,
+so a new column is applied at boot without manual SQL or row movement. One-shot
+operator scripts remain the place for data transformations; versioned
+migrations are reserved for earned production schema evolution.
+
 ## Measures Persistence Seam
 
 Measures are read-only aggregates over authoritative domain tables. The HTTP

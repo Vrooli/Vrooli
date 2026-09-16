@@ -848,3 +848,54 @@ func TestStart_IncompleteConfigurationFinishesSucceededAndNamesBlockers(t *testi
 	require.Contains(t, detail, "credential vrooli/openrouter:api-key")
 	require.Contains(t, detail, "readiness credential_store")
 }
+
+// vrooli-onboarding rebuilds itself from the shipped sources and re-executes;
+// the same incomplete-configuration result then surfaces with a different exit
+// code. The verdict follows the named blockers, not the number.
+func TestStart_IncompleteConfigurationIsRecognisedOnAnyExitCodeThatNamesBlockers(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	blocked := "Error: configuration is not complete: 1 blocking item(s) remain; blockers: credential vrooli/postgres:password — the credential is declared and not configured."
+	driver := &onboardingRunnerDriver{
+		FakeSSHDriver: &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)},
+		results: []onboarding.Result{
+			{ExitCode: 255, Stderr: blocked},
+			{ExitCode: 255, Stderr: blocked},
+		},
+	}
+	handoff := &recordingHandoff{selection: onboarding.Selection{Scenarios: []string{"system-monitor"}, Apply: true}}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithOnboardingHandoff(handoff),
+	)
+	in := validInput()
+	in.MachineID = "machine-1"
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Empty(t, op.FailureReason)
+}
+
+// A remote failure that names no blockers still fails the op.
+func TestStart_RemoteFailureWithoutBlockersStillFails(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &onboardingRunnerDriver{
+		FakeSSHDriver: &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)},
+		results: []onboarding.Result{
+			{ExitCode: 70, Stderr: "Error: the node ran out of disk"},
+			{ExitCode: 70, Stderr: "Error: the node ran out of disk"},
+		},
+	}
+	handoff := &recordingHandoff{selection: onboarding.Selection{Scenarios: []string{"system-monitor"}, Apply: true}}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithOnboardingHandoff(handoff),
+	)
+	in := validInput()
+	in.MachineID = "machine-1"
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureOnboarding, op.FailureReason)
+}

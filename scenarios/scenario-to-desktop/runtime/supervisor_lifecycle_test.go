@@ -353,7 +353,10 @@ func TestAccessors(t *testing.T) {
 	t.Run("renderValue", func(t *testing.T) {
 		// renderValue just delegates to envRenderer
 		// Uses ${data} for app data dir and ${bundle} for bundle path
-		result := s.renderValue("test-${data}-value")
+		result, err := s.renderValue("test-${data}-value")
+		if err != nil {
+			t.Fatalf("renderValue() error = %v", err)
+		}
 		// Should expand ${data} to the actual path
 		if !strings.Contains(result, tmp) || strings.Contains(result, "${data}") {
 			t.Errorf("renderValue() = %q, expected ${data} to be expanded to %q", result, tmp)

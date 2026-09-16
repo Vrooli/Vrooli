@@ -162,7 +162,7 @@ type Beat struct {
 }
 
 func validKind(kind string) bool {
-	return kind == "" || kind == "scalar" || kind == "panel" || kind == "ladder" || kind == "funnel" || kind == "leaderboard"
+	return kind == "" || kind == "scalar" || kind == "panel" || kind == "ladder" || kind == "funnel" || kind == "leaderboard" || kind == "posture"
 }
 
 func validLayout(layout string) bool {

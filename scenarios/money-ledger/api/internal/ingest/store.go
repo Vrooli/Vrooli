@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -45,26 +48,26 @@ func (s *Store) RegisterAdapter(ctx context.Context, a *ingestpb.Adapter) (*inge
 		// registered adapters should be usable by default.
 		a.Enabled = true
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO adapters(id,name,kind,enabled,last_success_at,availability_reason,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,kind=excluded.kind,enabled=excluded.enabled`, a.Id, a.Name, int32(a.Kind), a.Enabled, nil, a.AvailabilityReason, s.now().UTC().Format(time.RFC3339Nano))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO adapters(id,name,kind,enabled,last_success_at,availability_reason,cursor,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,kind=excluded.kind,enabled=excluded.enabled`, a.Id, a.Name, int32(a.Kind), a.Enabled, nil, a.AvailabilityReason, a.Cursor, s.now().UTC().Format(time.RFC3339Nano))
 	return a, err
 }
 
 func (s *Store) ListAdapters(ctx context.Context) ([]*ingestpb.Adapter, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,kind,enabled,last_success_at,availability_reason FROM adapters ORDER BY name,id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,kind,enabled,last_success_at,availability_reason,cursor FROM adapters ORDER BY name,id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []*ingestpb.Adapter
 	for rows.Next() {
-		var id, name, reason string
+		var id, name, reason, cursor string
 		var last sql.NullString
 		var kind int32
 		var enabled bool
-		if err := rows.Scan(&id, &name, &kind, &enabled, &last, &reason); err != nil {
+		if err := rows.Scan(&id, &name, &kind, &enabled, &last, &reason, &cursor); err != nil {
 			return nil, err
 		}
-		a := &ingestpb.Adapter{Id: id, Name: name, Kind: ingestpb.AdapterKind(kind), Enabled: enabled, AvailabilityReason: reason}
+		a := &ingestpb.Adapter{Id: id, Name: name, Kind: ingestpb.AdapterKind(kind), Enabled: enabled, AvailabilityReason: reason, Cursor: cursor}
 		if last.Valid && last.String != "" {
 			if t, parseErr := time.Parse(time.RFC3339Nano, last.String); parseErr == nil {
 				a.LastSuccessAt = timestamppb.New(t)
@@ -81,7 +84,7 @@ func (s *Store) adapter(ctx context.Context, id string) (*ingestpb.Adapter, erro
 	var enabled bool
 	var last sql.NullString
 	var reason string
-	if err := s.db.QueryRowContext(ctx, `SELECT id,name,kind,enabled,last_success_at,availability_reason FROM adapters WHERE id=?`, id).Scan(&a.Id, &a.Name, &kind, &enabled, &last, &reason); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id,name,kind,enabled,last_success_at,availability_reason,cursor FROM adapters WHERE id=?`, id).Scan(&a.Id, &a.Name, &kind, &enabled, &last, &reason, &a.Cursor); err != nil {
 		return nil, fmt.Errorf("adapter %q not found: %w", id, err)
 	}
 	a.Kind, a.Enabled, a.AvailabilityReason = ingestpb.AdapterKind(kind), enabled, reason
@@ -185,6 +188,9 @@ func (s *Store) RunAdapter(ctx context.Context, adapterID string, from, to *time
 	if err != nil {
 		return nil, nil, err
 	}
+	if a.Kind == ingestpb.AdapterKind_ADAPTER_KIND_COMMERCE {
+		return s.runCommerceAdapter(ctx, a, from, to)
+	}
 	reason := "adapter has no configured upstream; supply an explicit file or manual event"
 	if a.AvailabilityReason != "" {
 		reason = a.AvailabilityReason
@@ -192,6 +198,79 @@ func (s *Store) RunAdapter(ctx context.Context, adapterID string, from, to *time
 	r, receiptErr := s.failedReceipt(ctx, adapterID, from, to, 0, errors.New(reason))
 	_, _ = s.db.ExecContext(ctx, `UPDATE adapters SET availability_reason=? WHERE id=?`, reason, adapterID)
 	return r, []*ingestpb.Availability{{AdapterId: adapterID, Reason: reason, LastSuccessAt: a.LastSuccessAt}}, receiptErr
+}
+
+// runCommerceAdapter consumes LPBS's producer-owned revenue line projection.
+// Account and book ids are operator configuration; missing configuration is
+// unavailable and never becomes a synthetic zero posting.
+func (s *Store) runCommerceAdapter(ctx context.Context, adapter *ingestpb.Adapter, from, to *timestamppb.Timestamp) (*ingestpb.Receipt, []*ingestpb.Availability, error) {
+	base := strings.TrimRight(os.Getenv("MONEY_LEDGER_LPBS_URL"), "/")
+	bookID, accountID := os.Getenv("MONEY_LEDGER_COMMERCE_BOOK_ID"), os.Getenv("MONEY_LEDGER_COMMERCE_ACCOUNT_ID")
+	if base == "" || bookID == "" || accountID == "" {
+		reason := "commerce adapter requires MONEY_LEDGER_LPBS_URL, MONEY_LEDGER_COMMERCE_BOOK_ID, and MONEY_LEDGER_COMMERCE_ACCOUNT_ID"
+		r, err := s.failedReceipt(ctx, adapter.Id, from, to, 0, errors.New(reason))
+		return r, []*ingestpb.Availability{{AdapterId: adapter.Id, Reason: reason, LastSuccessAt: adapter.LastSuccessAt}}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/admin/dashboard/revenue/summary", nil)
+	if err != nil {
+		return s.commerceUnavailable(ctx, adapter, from, to, err)
+	}
+	if token := os.Getenv("MONEY_LEDGER_LPBS_READER_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return s.commerceUnavailable(ctx, adapter, from, to, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return s.commerceUnavailable(ctx, adapter, from, to, fmt.Errorf("LPBS returned %s", resp.Status))
+	}
+	var projection struct {
+		ObservedAt    string `json:"observed_at"`
+		Currency      string `json:"currency"`
+		RevenueByLine []struct {
+			Key         string `json:"key"`
+			AmountMinor int64  `json:"amount_minor"`
+		} `json:"revenue_by_line"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&projection); err != nil {
+		return s.commerceUnavailable(ctx, adapter, from, to, err)
+	}
+	if projection.ObservedAt == "" {
+		return s.commerceUnavailable(ctx, adapter, from, to, errors.New("LPBS revenue projection has no observed_at"))
+	}
+	events := make([]*sharedpb.MoneyEvent, 0, len(projection.RevenueByLine))
+	for _, line := range projection.RevenueByLine {
+		if line.AmountMinor == 0 {
+			continue
+		}
+		events = append(events, &sharedpb.MoneyEvent{ExternalId: "lpbs:" + projection.ObservedAt + ":" + line.Key, AdapterId: adapter.Id, AccountId: accountID, BookId: bookID, AmountMinor: line.AmountMinor, Currency: strings.ToUpper(projection.Currency), OccurredAt: timestamppb.New(s.now().UTC()), FetchedAt: timestamppb.New(s.now().UTC()), Basis: sharedpb.Basis_BASIS_AUTHORITATIVE, Description: "LPBS revenue line: " + line.Key, Category: line.Key})
+	}
+	r := s.newReceipt(adapter.Id, from, to, len(events), 0, 0, "succeeded", nil)
+	for _, event := range events {
+		_, duplicate, ingestErr := s.journal.Ingest(ctx, event, "adapter")
+		if ingestErr != nil {
+			return s.commerceUnavailable(ctx, adapter, from, to, ingestErr)
+		}
+		if duplicate {
+			r.SkippedDuplicates++
+		} else {
+			r.Written++
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE adapters SET cursor=?,last_success_at=?,availability_reason='' WHERE id=?`, projection.ObservedAt, s.now().UTC().Format(time.RFC3339Nano), adapter.Id); err != nil {
+		return r, nil, err
+	}
+	_, err = s.insertReceipt(ctx, r)
+	return r, nil, err
+}
+
+func (s *Store) commerceUnavailable(ctx context.Context, adapter *ingestpb.Adapter, from, to *timestamppb.Timestamp, cause error) (*ingestpb.Receipt, []*ingestpb.Availability, error) {
+	reason := "commerce adapter unavailable: " + cause.Error()
+	r, err := s.failedReceipt(ctx, adapter.Id, from, to, 0, errors.New(reason))
+	_, _ = s.db.ExecContext(ctx, `UPDATE adapters SET availability_reason=? WHERE id=?`, reason, adapter.Id)
+	return r, []*ingestpb.Availability{{AdapterId: adapter.Id, Reason: reason, LastSuccessAt: adapter.LastSuccessAt}}, err
 }
 
 func (s *Store) newReceipt(adapterID string, from, to *timestamppb.Timestamp, read, written, skipped int, status string, err error) *ingestpb.Receipt {

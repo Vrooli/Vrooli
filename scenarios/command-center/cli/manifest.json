@@ -224,6 +224,38 @@
           "semantics": {
             "kind": "mutate"
           }
+        },
+        {
+          "name": "promote",
+          "description": "Compare a Command Center reading with its producer and store promotion evidence.",
+          "positionals": [
+            {
+              "name": "metric-id",
+              "description": "Metric id in the Ledger room.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "window",
+              "description": "Producer comparison window, for example 30d.",
+              "default": "30d"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "promote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "mutate"
+          }
         }
       ]
     },

@@ -54,7 +54,7 @@ export interface Reading {
   trustReason?: string;
   empirical: Empirical;
   value: number | null;
-  kind?: "scalar" | "panel" | "ladder" | "funnel" | "leaderboard";
+  kind?: "scalar" | "panel" | "ladder" | "funnel" | "leaderboard" | "posture";
   rows?: PanelRow[];
   ladder?: LadderReading;
   observedAt: string | null;

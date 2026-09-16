@@ -1040,6 +1040,74 @@ func (x *AdminRevenue) GetObservedAt() *timestamppb.Timestamp {
 
 // RevenueSummary is the complete finance-owned aggregate used by admin
 // consumers. Monetary values are minor units in currency; rates are percent.
+type RevenueLine struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	AmountMinor   int64                  `protobuf:"varint,3,opt,name=amount_minor,json=amountMinor,proto3" json:"amount_minor,omitempty"`
+	Transactions  int64                  `protobuf:"varint,4,opt,name=transactions,proto3" json:"transactions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevenueLine) Reset() {
+	*x = RevenueLine{}
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevenueLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevenueLine) ProtoMessage() {}
+
+func (x *RevenueLine) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevenueLine.ProtoReflect.Descriptor instead.
+func (*RevenueLine) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RevenueLine) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *RevenueLine) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *RevenueLine) GetAmountMinor() int64 {
+	if x != nil {
+		return x.AmountMinor
+	}
+	return 0
+}
+
+func (x *RevenueLine) GetTransactions() int64 {
+	if x != nil {
+		return x.Transactions
+	}
+	return 0
+}
+
 type RevenueSummary struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Producer completion timestamp for this aggregate.
@@ -1078,13 +1146,19 @@ type RevenueSummary struct {
 	CreditUnit string `protobuf:"bytes,17,opt,name=credit_unit,json=creditUnit,proto3" json:"credit_unit,omitempty"`
 	// Number of additional currencies excluded from the dominant-currency rollup.
 	CurrencyExcludedCount int64 `protobuf:"varint,18,opt,name=currency_excluded_count,json=currencyExcludedCount,proto3" json:"currency_excluded_count,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Provider-reported inference cost in micro-USD for the trailing window.
+	CostMicros int64 `protobuf:"varint,19,opt,name=cost_micros,json=costMicros,proto3" json:"cost_micros,omitempty"`
+	// Unit label for cost_micros; currently micro_usd.
+	CostUnit string `protobuf:"bytes,20,opt,name=cost_unit,json=costUnit,proto3" json:"cost_unit,omitempty"`
+	// Paid revenue split by the producer's checkout session type.
+	RevenueByLine []*RevenueLine `protobuf:"bytes,21,rep,name=revenue_by_line,json=revenueByLine,proto3" json:"revenue_by_line,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RevenueSummary) Reset() {
 	*x = RevenueSummary{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[11]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1170,7 @@ func (x *RevenueSummary) String() string {
 func (*RevenueSummary) ProtoMessage() {}
 
 func (x *RevenueSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[11]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1183,7 @@ func (x *RevenueSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevenueSummary.ProtoReflect.Descriptor instead.
 func (*RevenueSummary) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{11}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RevenueSummary) GetObservedAt() *timestamppb.Timestamp {
@@ -1238,6 +1312,27 @@ func (x *RevenueSummary) GetCurrencyExcludedCount() int64 {
 	return 0
 }
 
+func (x *RevenueSummary) GetCostMicros() int64 {
+	if x != nil {
+		return x.CostMicros
+	}
+	return 0
+}
+
+func (x *RevenueSummary) GetCostUnit() string {
+	if x != nil {
+		return x.CostUnit
+	}
+	return ""
+}
+
+func (x *RevenueSummary) GetRevenueByLine() []*RevenueLine {
+	if x != nil {
+		return x.RevenueByLine
+	}
+	return nil
+}
+
 // GetAnalyticsSummaryRequest requests the aggregate summary for a date window.
 // Dates are YYYY-MM-DD; default window is the last 7 days.
 type GetAnalyticsSummaryRequest struct {
@@ -1251,7 +1346,7 @@ type GetAnalyticsSummaryRequest struct {
 
 func (x *GetAnalyticsSummaryRequest) Reset() {
 	*x = GetAnalyticsSummaryRequest{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[12]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1358,7 @@ func (x *GetAnalyticsSummaryRequest) String() string {
 func (*GetAnalyticsSummaryRequest) ProtoMessage() {}
 
 func (x *GetAnalyticsSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[12]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1371,7 @@ func (x *GetAnalyticsSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAnalyticsSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetAnalyticsSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{12}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetAnalyticsSummaryRequest) GetStartDate() string {
@@ -1315,7 +1410,7 @@ type GetVariantStatsRequest struct {
 
 func (x *GetVariantStatsRequest) Reset() {
 	*x = GetVariantStatsRequest{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[13]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1327,7 +1422,7 @@ func (x *GetVariantStatsRequest) String() string {
 func (*GetVariantStatsRequest) ProtoMessage() {}
 
 func (x *GetVariantStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[13]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1340,7 +1435,7 @@ func (x *GetVariantStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVariantStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetVariantStatsRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{13}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetVariantStatsRequest) GetStartDate() string {
@@ -1383,7 +1478,7 @@ type GetVariantStatsResponse struct {
 
 func (x *GetVariantStatsResponse) Reset() {
 	*x = GetVariantStatsResponse{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[14]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1395,7 +1490,7 @@ func (x *GetVariantStatsResponse) String() string {
 func (*GetVariantStatsResponse) ProtoMessage() {}
 
 func (x *GetVariantStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[14]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1408,7 +1503,7 @@ func (x *GetVariantStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVariantStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetVariantStatsResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{14}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetVariantStatsResponse) GetStartDate() string {
@@ -1440,7 +1535,7 @@ type GetAdminRevenueRequest struct {
 
 func (x *GetAdminRevenueRequest) Reset() {
 	*x = GetAdminRevenueRequest{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[15]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1452,7 +1547,7 @@ func (x *GetAdminRevenueRequest) String() string {
 func (*GetAdminRevenueRequest) ProtoMessage() {}
 
 func (x *GetAdminRevenueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[15]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1465,7 +1560,7 @@ func (x *GetAdminRevenueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAdminRevenueRequest.ProtoReflect.Descriptor instead.
 func (*GetAdminRevenueRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{15}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{16}
 }
 
 type GetRevenueSummaryRequest struct {
@@ -1476,7 +1571,7 @@ type GetRevenueSummaryRequest struct {
 
 func (x *GetRevenueSummaryRequest) Reset() {
 	*x = GetRevenueSummaryRequest{}
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[16]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1488,7 +1583,7 @@ func (x *GetRevenueSummaryRequest) String() string {
 func (*GetRevenueSummaryRequest) ProtoMessage() {}
 
 func (x *GetRevenueSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[16]
+	mi := &file_landing_page_business_suite_v1_metrics_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1501,7 +1596,7 @@ func (x *GetRevenueSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRevenueSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetRevenueSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{16}
+	return file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP(), []int{17}
 }
 
 var File_landing_page_business_suite_v1_metrics_proto protoreflect.FileDescriptor
@@ -1614,7 +1709,12 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\vsample_size\x18\x06 \x01(\x03R\n" +
 	"sampleSize\x12;\n" +
 	"\vobserved_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\"\xd7\x06\n" +
+	"observedAt\"|\n" +
+	"\vRevenueLine\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12!\n" +
+	"\famount_minor\x18\x03 \x01(\x03R\vamountMinor\x12\"\n" +
+	"\ftransactions\x18\x04 \x01(\x03R\ftransactions\"\xea\a\n" +
 	"\x0eRevenueSummary\x12;\n" +
 	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12\x1a\n" +
@@ -1637,7 +1737,11 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\x13revenue_window_unit\x18\x10 \x01(\tR\x11revenueWindowUnit\x12\x1f\n" +
 	"\vcredit_unit\x18\x11 \x01(\tR\n" +
 	"creditUnit\x126\n" +
-	"\x17currency_excluded_count\x18\x12 \x01(\x03R\x15currencyExcludedCount\"w\n" +
+	"\x17currency_excluded_count\x18\x12 \x01(\x03R\x15currencyExcludedCount\x12\x1f\n" +
+	"\vcost_micros\x18\x13 \x01(\x03R\n" +
+	"costMicros\x12\x1b\n" +
+	"\tcost_unit\x18\x14 \x01(\tR\bcostUnit\x12S\n" +
+	"\x0frevenue_by_line\x18\x15 \x03(\v2+.landing_page_business_suite.v1.RevenueLineR\rrevenueByLine\"w\n" +
 	"\x1aGetAnalyticsSummaryRequest\x12\x1d\n" +
 	"\n" +
 	"start_date\x18\x01 \x01(\tR\tstartDate\x12\x19\n" +
@@ -1695,7 +1799,7 @@ func file_landing_page_business_suite_v1_metrics_proto_rawDescGZIP() []byte {
 }
 
 var file_landing_page_business_suite_v1_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_landing_page_business_suite_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_landing_page_business_suite_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_landing_page_business_suite_v1_metrics_proto_goTypes = []any{
 	(TrafficDimension)(0),               // 0: landing_page_business_suite.v1.TrafficDimension
 	(*TrackEventRequest)(nil),           // 1: landing_page_business_suite.v1.TrackEventRequest
@@ -1709,48 +1813,50 @@ var file_landing_page_business_suite_v1_metrics_proto_goTypes = []any{
 	(*VariantStats)(nil),                // 9: landing_page_business_suite.v1.VariantStats
 	(*AnalyticsSummary)(nil),            // 10: landing_page_business_suite.v1.AnalyticsSummary
 	(*AdminRevenue)(nil),                // 11: landing_page_business_suite.v1.AdminRevenue
-	(*RevenueSummary)(nil),              // 12: landing_page_business_suite.v1.RevenueSummary
-	(*GetAnalyticsSummaryRequest)(nil),  // 13: landing_page_business_suite.v1.GetAnalyticsSummaryRequest
-	(*GetVariantStatsRequest)(nil),      // 14: landing_page_business_suite.v1.GetVariantStatsRequest
-	(*GetVariantStatsResponse)(nil),     // 15: landing_page_business_suite.v1.GetVariantStatsResponse
-	(*GetAdminRevenueRequest)(nil),      // 16: landing_page_business_suite.v1.GetAdminRevenueRequest
-	(*GetRevenueSummaryRequest)(nil),    // 17: landing_page_business_suite.v1.GetRevenueSummaryRequest
-	(*structpb.Struct)(nil),             // 18: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),       // 19: google.protobuf.Timestamp
-	(*TrafficExclusions)(nil),           // 20: landing_page_business_suite.v1.TrafficExclusions
+	(*RevenueLine)(nil),                 // 12: landing_page_business_suite.v1.RevenueLine
+	(*RevenueSummary)(nil),              // 13: landing_page_business_suite.v1.RevenueSummary
+	(*GetAnalyticsSummaryRequest)(nil),  // 14: landing_page_business_suite.v1.GetAnalyticsSummaryRequest
+	(*GetVariantStatsRequest)(nil),      // 15: landing_page_business_suite.v1.GetVariantStatsRequest
+	(*GetVariantStatsResponse)(nil),     // 16: landing_page_business_suite.v1.GetVariantStatsResponse
+	(*GetAdminRevenueRequest)(nil),      // 17: landing_page_business_suite.v1.GetAdminRevenueRequest
+	(*GetRevenueSummaryRequest)(nil),    // 18: landing_page_business_suite.v1.GetRevenueSummaryRequest
+	(*structpb.Struct)(nil),             // 19: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),       // 20: google.protobuf.Timestamp
+	(*TrafficExclusions)(nil),           // 21: landing_page_business_suite.v1.TrafficExclusions
 }
 var file_landing_page_business_suite_v1_metrics_proto_depIdxs = []int32{
-	18, // 0: landing_page_business_suite.v1.TrackEventRequest.event_data:type_name -> google.protobuf.Struct
+	19, // 0: landing_page_business_suite.v1.TrackEventRequest.event_data:type_name -> google.protobuf.Struct
 	0,  // 1: landing_page_business_suite.v1.GetTrafficBreakdownRequest.dimension:type_name -> landing_page_business_suite.v1.TrafficDimension
 	2,  // 2: landing_page_business_suite.v1.GetTrafficBreakdownResponse.rows:type_name -> landing_page_business_suite.v1.TrafficBreakdownRow
-	19, // 3: landing_page_business_suite.v1.GetTrafficBreakdownResponse.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 3: landing_page_business_suite.v1.GetTrafficBreakdownResponse.observed_at:type_name -> google.protobuf.Timestamp
 	5,  // 4: landing_page_business_suite.v1.GetTrafficSeriesResponse.points:type_name -> landing_page_business_suite.v1.TrafficSeriesPoint
-	19, // 5: landing_page_business_suite.v1.GetTrafficSeriesResponse.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 5: landing_page_business_suite.v1.GetTrafficSeriesResponse.observed_at:type_name -> google.protobuf.Timestamp
 	9,  // 6: landing_page_business_suite.v1.AnalyticsSummary.variant_stats:type_name -> landing_page_business_suite.v1.VariantStats
-	19, // 7: landing_page_business_suite.v1.AnalyticsSummary.observed_at:type_name -> google.protobuf.Timestamp
-	20, // 8: landing_page_business_suite.v1.AnalyticsSummary.exclusions:type_name -> landing_page_business_suite.v1.TrafficExclusions
-	19, // 9: landing_page_business_suite.v1.AdminRevenue.observed_at:type_name -> google.protobuf.Timestamp
-	19, // 10: landing_page_business_suite.v1.RevenueSummary.observed_at:type_name -> google.protobuf.Timestamp
-	9,  // 11: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
-	1,  // 12: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
-	13, // 13: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
-	14, // 14: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
-	3,  // 15: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:input_type -> landing_page_business_suite.v1.GetTrafficBreakdownRequest
-	6,  // 16: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:input_type -> landing_page_business_suite.v1.GetTrafficSeriesRequest
-	16, // 17: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:input_type -> landing_page_business_suite.v1.GetAdminRevenueRequest
-	17, // 18: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:input_type -> landing_page_business_suite.v1.GetRevenueSummaryRequest
-	8,  // 19: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
-	10, // 20: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
-	15, // 21: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
-	4,  // 22: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:output_type -> landing_page_business_suite.v1.GetTrafficBreakdownResponse
-	7,  // 23: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:output_type -> landing_page_business_suite.v1.GetTrafficSeriesResponse
-	11, // 24: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:output_type -> landing_page_business_suite.v1.AdminRevenue
-	12, // 25: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:output_type -> landing_page_business_suite.v1.RevenueSummary
-	19, // [19:26] is the sub-list for method output_type
-	12, // [12:19] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	20, // 7: landing_page_business_suite.v1.AnalyticsSummary.observed_at:type_name -> google.protobuf.Timestamp
+	21, // 8: landing_page_business_suite.v1.AnalyticsSummary.exclusions:type_name -> landing_page_business_suite.v1.TrafficExclusions
+	20, // 9: landing_page_business_suite.v1.AdminRevenue.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 10: landing_page_business_suite.v1.RevenueSummary.observed_at:type_name -> google.protobuf.Timestamp
+	12, // 11: landing_page_business_suite.v1.RevenueSummary.revenue_by_line:type_name -> landing_page_business_suite.v1.RevenueLine
+	9,  // 12: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
+	1,  // 13: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
+	14, // 14: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
+	15, // 15: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
+	3,  // 16: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:input_type -> landing_page_business_suite.v1.GetTrafficBreakdownRequest
+	6,  // 17: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:input_type -> landing_page_business_suite.v1.GetTrafficSeriesRequest
+	17, // 18: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:input_type -> landing_page_business_suite.v1.GetAdminRevenueRequest
+	18, // 19: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:input_type -> landing_page_business_suite.v1.GetRevenueSummaryRequest
+	8,  // 20: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
+	10, // 21: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
+	16, // 22: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
+	4,  // 23: landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown:output_type -> landing_page_business_suite.v1.GetTrafficBreakdownResponse
+	7,  // 24: landing_page_business_suite.v1.MetricsService.GetTrafficSeries:output_type -> landing_page_business_suite.v1.GetTrafficSeriesResponse
+	11, // 25: landing_page_business_suite.v1.AdminRevenueService.GetRevenue:output_type -> landing_page_business_suite.v1.AdminRevenue
+	13, // 26: landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary:output_type -> landing_page_business_suite.v1.RevenueSummary
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_metrics_proto_init() }
@@ -1766,7 +1872,7 @@ func file_landing_page_business_suite_v1_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_metrics_proto_rawDesc), len(file_landing_page_business_suite_v1_metrics_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

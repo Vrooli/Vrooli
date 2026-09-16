@@ -18,6 +18,7 @@ class AdapterKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ADAPTER_KIND_MANUAL: _ClassVar[AdapterKind]
     ADAPTER_KIND_FILE: _ClassVar[AdapterKind]
     ADAPTER_KIND_AGGREGATOR: _ClassVar[AdapterKind]
+    ADAPTER_KIND_COMMERCE: _ClassVar[AdapterKind]
 
 class SourceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -28,25 +29,28 @@ ADAPTER_KIND_UNSPECIFIED: AdapterKind
 ADAPTER_KIND_MANUAL: AdapterKind
 ADAPTER_KIND_FILE: AdapterKind
 ADAPTER_KIND_AGGREGATOR: AdapterKind
+ADAPTER_KIND_COMMERCE: AdapterKind
 SOURCE_MODE_UNSPECIFIED: SourceMode
 SOURCE_MODE_FIXTURE: SourceMode
 SOURCE_MODE_OPERATOR_SUPPLIED: SourceMode
 
 class Adapter(_message.Message):
-    __slots__ = ("id", "name", "kind", "enabled", "last_success_at", "availability_reason")
+    __slots__ = ("id", "name", "kind", "enabled", "last_success_at", "availability_reason", "cursor")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     kind: AdapterKind
     enabled: bool
     last_success_at: _timestamp_pb2.Timestamp
     availability_reason: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[_Union[AdapterKind, str]] = ..., enabled: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., availability_reason: _Optional[str] = ...) -> None: ...
+    cursor: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[_Union[AdapterKind, str]] = ..., enabled: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., availability_reason: _Optional[str] = ..., cursor: _Optional[str] = ...) -> None: ...
 
 class Receipt(_message.Message):
     __slots__ = ("id", "adapter_id", "to", "read", "written", "skipped_duplicates", "status", "error", "created_at")

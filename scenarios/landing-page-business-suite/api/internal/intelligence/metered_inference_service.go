@@ -262,7 +262,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 			}
 		}
 	*/
-	if err := finalizeUsage(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model); err != nil {
+	if err := finalizeUsageWithCost(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, orResp.Usage.CostMicros, orResp.Usage.PromptTokens, orResp.Usage.CompletionTokens, "openrouter"); err != nil {
 		return nil, fmt.Errorf("finalize credit reservation: %w", err)
 	}
 

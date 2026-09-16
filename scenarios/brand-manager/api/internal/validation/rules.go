@@ -374,10 +374,14 @@ func ruleBrandMarkersApplied(c *scanContext) (Finding, bool) {
 	if hasMarker(filepath.Join(c.root, "ui", "src")) {
 		return Finding{}, false
 	}
-	for _, rel := range []string{"ui/manifest.json", "ui/public/manifest.json", "manifest.json"} {
-		if manifest, ok := c.read(rel); ok && strings.Contains(manifest, "_brand") {
-			return Finding{}, false
-		}
+	// Read the scenario's ACTIVE manifest, not a hand-written path list. apply
+	// writes the web profile's manifest to ui/public/public/site.webmanifest
+	// (profiles.WebPublicV1.Root), which the old list never named — so a
+	// correctly applied brand still reported "no brand applied". The old list
+	// also matched ui/manifest.json, which in a library-shell scenario is the
+	// scenario-UI contract, not a web manifest, and will never carry _brand.
+	if _, _, raw, present := c.manifest(); present && strings.Contains(raw, "_brand") {
+		return Finding{}, false
 	}
 	return Finding{
 		Severity:               SeverityInfo,

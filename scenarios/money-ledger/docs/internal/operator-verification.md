@@ -4,6 +4,20 @@ This document is addressed to the monetization operator. It is a rehearsal,
 not an adoption decision. Run it against copies of the source documents. Never
 write to the live monetization team tree or its operator-inputs file.
 
+## Canonical operator input contract
+
+The canonical source path is
+`scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json`.
+It contains these thirteen operator-supplied paths: `cash`,
+`monthlyBurn.aiApi`, `monthlyBurn.infrastructure`, `monthlyBurn.saas`,
+`monthlyBurn.tooling`, `timeAllocation.product`, `timeAllocation.services`,
+`timeAllocation.ops`, `servicesRevenue.leadGen`, `servicesRevenue.doneForYou`,
+`servicesRevenue.consulting`, `servicesTime.hoursThisWindow`, and
+`subscriptions.mrr`. Every value carries status and provenance; a pending or
+missing value is absent from the position rather than interpreted as zero.
+The production book import remains an operator action because no financial
+values may be invented by the adapter.
+
 ## Safety and scratch setup
 
 ```bash

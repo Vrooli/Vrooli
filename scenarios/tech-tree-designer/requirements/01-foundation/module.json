@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements for the regenerated scenario-centric graph and contract-first planning surface.",
-    "last_validated_at": "2026-06-14T15:52:25-04:00",
+    "last_validated_at": "2026-09-14T14:35:32-04:00",
     "module": "foundation",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -53,7 +53,7 @@
     {
       "id": "TTD-ONTOLOGY-001",
       "title": "Capability ontology coverage layer",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "ontology",
       "criticality": "P1",
@@ -107,7 +107,7 @@
     {
       "id": "TTD-SDA-001",
       "title": "scenario-dependency-analyzer source",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "integration",
       "criticality": "P2",

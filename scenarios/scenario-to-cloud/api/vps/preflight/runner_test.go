@@ -223,6 +223,22 @@ func TestRun_LowConfidenceAnalyzerRAMIsAdvisory(t *testing.T) {
 	}
 }
 
+func TestRun_LowConfidenceAnalyzerDiskIsAdvisory(t *testing.T) {
+	t.Parallel()
+	host := healthyHost("2097152", false, "")
+	host.Answers["df -Pk /"] = reachtest.Answer{Result: reach.Result{Stdout: "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/vda1 40000000 34000000 6000000 85% /"}}
+	resp := runPreflight(t, host, testOptions(func(context.Context, string) (*ScenarioRequirements, error) {
+		return &ScenarioRequirements{DiskKB: 8 * 1024 * 1024, CPUCores: 2, Tier: "tier-4-saas", Source: "scenario-dependency-analyzer", Confidence: "low"}, nil
+	}))
+	if !resp.OK {
+		t.Fatalf("expected low-confidence graph disk estimate to remain advisory, got: %+v", resp.Checks)
+	}
+	c, found := checkByID(resp, domain.PreflightDiskFreeID)
+	if !found || c.Status != domain.PreflightWarn || c.Data["required_by_graph_disk_kb"] != "8388608" {
+		t.Fatalf("disk check = %+v, want warning with graph estimate retained", c)
+	}
+}
+
 // An unreachable target is one failing reachability check with the typed
 // reach refusal in its details; the remaining host probes are not attempted.
 func TestRun_UnreachableTargetStopsAfterReachability(t *testing.T) {

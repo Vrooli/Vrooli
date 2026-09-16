@@ -130,3 +130,16 @@ func writeJSONSuccessSimple(w http.ResponseWriter) {
 		})
 	}
 }
+
+// writeJSONStatus writes a JSON payload with an explicit HTTP status. It is the
+// structured-response writer for operations that must report both a failure
+// status and an actionable body, such as a delivery storage diagnostic.
+func writeJSONStatus(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		logx.Error("write_json_status_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+}

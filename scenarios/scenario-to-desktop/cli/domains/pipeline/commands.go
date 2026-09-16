@@ -29,7 +29,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			(cliapp.Command{Name: "wait", Description: "Wait for pipeline completion: wait <id>", Args: pipelineIDArgs(cliapp.Flag{Name: "timeout", Default: "3600", Description: "Maximum wait in seconds"})}).WithPrimitive(cmds.waitPrimitive()),
 			(cliapp.Command{Name: "resume", Description: "Resume a stopped pipeline: resume <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.resumePrimitive()),
 			(cliapp.Command{Name: "cancel", Description: "Cancel a running pipeline: cancel <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.cancelPrimitive()),
-			(cliapp.Command{Name: "list", Description: "List all pipelines"}).WithPrimitive(cmds.listPrimitive()),
+			(cliapp.Command{Name: "list", Description: "List pipelines [--scenario <name>]", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "scenario", Description: "Filter by scenario name"}, {Name: "status", Description: "Filter by status"}, {Name: "since", Description: "Only pipelines started at or after RFC3339 time"}, {Name: "limit", Default: "100", Description: "Maximum rows"}}}}).WithPrimitive(cmds.listPrimitive()),
 			(cliapp.Command{Name: "active", Description: "Get active pipeline for scenario: active <scenario>", Args: pipelineScenarioArgs()}).WithPrimitive(cmds.activePrimitive()),
 			(cliapp.Command{Name: "create", Description: "Create new pipeline for scenario: create <scenario>", Args: pipelineScenarioArgs()}).WithPrimitive(cmds.createPrimitive()),
 			(cliapp.Command{Name: "reset", Description: "Reset active pipeline for scenario: reset <scenario>", Args: pipelineScenarioArgs()}).WithPrimitive(cmds.resetPrimitive()),

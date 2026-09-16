@@ -3,7 +3,10 @@ package ingest
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"money-ledger/internal/ledger"
 
@@ -201,6 +204,69 @@ func TestFailedAdapterIsVisibleAndNeverWritesZero(t *testing.T) { // [REQ:POS-00
 	require.True(t, position.Partial)
 	require.EqualValues(t, 0, position.CashMinor)
 	require.Len(t, position.Availability, 1)
+}
+
+func TestCommerceAdapterIngestsRevenueLinesIdempotently(t *testing.T) { // [REQ:POS-005]
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Revenue", ledgerpb.AccountKind_REVENUE)
+	require.NoError(t, err)
+
+	observed := time.Date(2026, 9, 16, 1, 0, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/admin/dashboard/revenue/summary", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"observed_at":"` + observed.Format(time.RFC3339) + `","currency":"usd","revenue_by_line":[{"key":"subscription","amount_minor":1200},{"key":"credit_top_up","amount_minor":300}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("MONEY_LEDGER_LPBS_URL", server.URL)
+	t.Setenv("MONEY_LEDGER_COMMERCE_BOOK_ID", book.Id)
+	t.Setenv("MONEY_LEDGER_COMMERCE_ACCOUNT_ID", account.Id)
+
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "commerce", Name: "LPBS commerce", Kind: ingestpb.AdapterKind_ADAPTER_KIND_COMMERCE, Enabled: true})
+	require.NoError(t, err)
+
+	first, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, availability)
+	require.EqualValues(t, 2, first.Written)
+	require.Zero(t, first.SkippedDuplicates)
+
+	second, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, availability)
+	require.Zero(t, second.Written)
+	require.EqualValues(t, 2, second.SkippedDuplicates)
+
+	var postings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
+	require.Equal(t, 2, postings)
+	var cursor string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT cursor FROM adapters WHERE id='commerce'`).Scan(&cursor))
+	require.Equal(t, observed.Format(time.RFC3339), cursor)
+}
+
+func TestCommerceAdapterUnavailableDoesNotWriteZero(t *testing.T) { // [REQ:POS-005]
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Revenue", ledgerpb.AccountKind_REVENUE)
+	require.NoError(t, err)
+	t.Setenv("MONEY_LEDGER_LPBS_URL", "")
+	t.Setenv("MONEY_LEDGER_COMMERCE_BOOK_ID", book.Id)
+	t.Setenv("MONEY_LEDGER_COMMERCE_ACCOUNT_ID", account.Id)
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "commerce", Name: "LPBS commerce", Kind: ingestpb.AdapterKind_ADAPTER_KIND_COMMERCE, Enabled: true})
+	require.NoError(t, err)
+
+	receipt, availability, err := s.RunAdapter(ctx, "commerce", nil, nil)
+	require.Error(t, err)
+	require.Equal(t, "failed", receipt.Status)
+	require.Len(t, availability, 1)
+	require.Contains(t, availability[0].Reason, "MONEY_LEDGER_LPBS_URL")
+	var postings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
+	require.Zero(t, postings)
 }
 
 // operatorBookWithStandardAccounts builds the four-account shape the production

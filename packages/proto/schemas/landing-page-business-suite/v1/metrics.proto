@@ -159,6 +159,13 @@ message AdminRevenue {
 
 // RevenueSummary is the complete finance-owned aggregate used by admin
 // consumers. Monetary values are minor units in currency; rates are percent.
+message RevenueLine {
+  string key = 1;
+  string label = 2;
+  int64 amount_minor = 3;
+  int64 transactions = 4;
+}
+
 message RevenueSummary {
   // Producer completion timestamp for this aggregate.
   google.protobuf.Timestamp observed_at = 1;
@@ -196,6 +203,12 @@ message RevenueSummary {
   string credit_unit = 17;
   // Number of additional currencies excluded from the dominant-currency rollup.
   int64 currency_excluded_count = 18;
+  // Provider-reported inference cost in micro-USD for the trailing window.
+  int64 cost_micros = 19;
+  // Unit label for cost_micros; currently micro_usd.
+  string cost_unit = 20;
+  // Paid revenue split by the producer's checkout session type.
+  repeated RevenueLine revenue_by_line = 21;
 }
 
 // GetAnalyticsSummaryRequest requests the aggregate summary for a date window.

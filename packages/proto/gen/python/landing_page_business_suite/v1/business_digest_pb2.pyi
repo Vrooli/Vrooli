@@ -156,32 +156,36 @@ class AppActivity(_message.Message):
     def __init__(self, bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., app_name: _Optional[str] = ..., downloads: _Optional[int] = ..., downloads_by_platform: _Optional[_Mapping[str, int]] = ..., update_checks: _Optional[int] = ..., update_downloads: _Optional[int] = ...) -> None: ...
 
 class CreditUsageRow(_message.Message):
-    __slots__ = ("key", "label", "credits", "operations")
+    __slots__ = ("key", "label", "credits", "operations", "cost_micros")
     KEY_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     CREDITS_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    COST_MICROS_FIELD_NUMBER: _ClassVar[int]
     key: str
     label: str
     credits: int
     operations: int
-    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., credits: _Optional[int] = ..., operations: _Optional[int] = ...) -> None: ...
+    cost_micros: int
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., credits: _Optional[int] = ..., operations: _Optional[int] = ..., cost_micros: _Optional[int] = ...) -> None: ...
 
 class CreditEconomy(_message.Message):
-    __slots__ = ("credits_burned", "credits_purchased", "operations", "distinct_consumers", "by_app", "by_model")
+    __slots__ = ("credits_burned", "credits_purchased", "operations", "distinct_consumers", "by_app", "by_model", "cost_micros")
     CREDITS_BURNED_FIELD_NUMBER: _ClassVar[int]
     CREDITS_PURCHASED_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
     DISTINCT_CONSUMERS_FIELD_NUMBER: _ClassVar[int]
     BY_APP_FIELD_NUMBER: _ClassVar[int]
     BY_MODEL_FIELD_NUMBER: _ClassVar[int]
+    COST_MICROS_FIELD_NUMBER: _ClassVar[int]
     credits_burned: int
     credits_purchased: int
     operations: int
     distinct_consumers: int
     by_app: _containers.RepeatedCompositeFieldContainer[CreditUsageRow]
     by_model: _containers.RepeatedCompositeFieldContainer[CreditUsageRow]
-    def __init__(self, credits_burned: _Optional[int] = ..., credits_purchased: _Optional[int] = ..., operations: _Optional[int] = ..., distinct_consumers: _Optional[int] = ..., by_app: _Optional[_Iterable[_Union[CreditUsageRow, _Mapping]]] = ..., by_model: _Optional[_Iterable[_Union[CreditUsageRow, _Mapping]]] = ...) -> None: ...
+    cost_micros: int
+    def __init__(self, credits_burned: _Optional[int] = ..., credits_purchased: _Optional[int] = ..., operations: _Optional[int] = ..., distinct_consumers: _Optional[int] = ..., by_app: _Optional[_Iterable[_Union[CreditUsageRow, _Mapping]]] = ..., by_model: _Optional[_Iterable[_Union[CreditUsageRow, _Mapping]]] = ..., cost_micros: _Optional[int] = ...) -> None: ...
 
 class Growth(_message.Message):
     __slots__ = ("signups", "waitlist_joins", "new_paid_subscriptions", "trials_started")
