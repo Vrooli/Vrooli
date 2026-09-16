@@ -83,7 +83,8 @@ func (c *Commands) gatePrimitive() cliapp.PrimitiveHandler {
 		if c.http == nil {
 			return &structpb.Struct{Fields: map[string]*structpb.Value{"gates": structpb.NewListValue(&structpb.ListValue{})}}, nil
 		}
-		raw, err := c.http.DoWithContext(context.Background(), "GET", "/captures/"+url.PathEscape(status.Msg.GetScenarioName())+"/manifest", url.Values{"pipeline": []string{id}}, nil)
+		path := strings.TrimRight(c.apiPrefix, "/") + "/captures/" + url.PathEscape(status.Msg.GetScenarioName()) + "/manifest"
+		raw, err := c.http.DoWithContext(context.Background(), "GET", path, url.Values{"pipeline": []string{id}}, nil)
 		if err != nil {
 			return nil, cliapp.WrapAPIError("retrieve release-gate manifest", err, nil)
 		}

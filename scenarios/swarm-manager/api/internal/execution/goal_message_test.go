@@ -131,6 +131,21 @@ func TestComposeGoalMessageMandateCarriesBoardProofAndImproveSkill(t *testing.T)
 	}
 }
 
+func TestComposeGoalMessageCarriesExternalRepairAuthority(t *testing.T) {
+	message, err := ComposeGoalMessage(GoalMessageInput{
+		PlanShape: "mandate", ScenarioName: "audio-tools", ProgramName: "audio-tools-improve",
+		BlockerRepairPolicy: BlockerRepairAndContinue,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"External blocker policy: repair_and_continue", "root-cause, safely repair", "Do not stop merely to report a repairable blocker"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("message missing %q: %q", want, message)
+		}
+	}
+}
+
 func TestComposeGoalMessageAllowsPromptLongerThanUntil(t *testing.T) {
 	message, err := ComposeGoalMessage(GoalMessageInput{
 		PlanShape:    "mandate",

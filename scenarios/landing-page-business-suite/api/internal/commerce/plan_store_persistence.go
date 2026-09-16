@@ -20,7 +20,9 @@ import (
 func (ps *PlanStore) LoadAll() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	return ps.loadFromPath(ps.plansPath, true)
+	err := ps.loadFromPath(ps.plansPath, true)
+	ps.loadErr = err
+	return err
 }
 
 // loadFromPath loads one immutable catalog snapshot into ps. missingOK is

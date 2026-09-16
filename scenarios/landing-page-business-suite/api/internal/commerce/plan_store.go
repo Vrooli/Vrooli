@@ -61,6 +61,7 @@ type PlanStore struct {
 	displayEnv     string
 	bundleKey      string
 	updatedAt      time.Time
+	loadErr        error
 	log            func(event string, fields map[string]interface{})
 }
 
@@ -372,6 +373,9 @@ func (ps *PlanStore) RemoveCouponFromPlan(priceID string) error {
 func (ps *PlanStore) GetPricingOverview() (*PricingOverview, error) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
+	if ps.bundle == nil && ps.loadErr != nil {
+		return nil, fmt.Errorf("load pricing catalog: %w", ps.loadErr)
+	}
 	return BuildPricingOverview(ps.bundle, ps.plans)
 }
 
@@ -672,6 +676,16 @@ func ConvertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]inte
 // ResolvePlansPath finds the plans.json file.
 func ResolvePlansPath() string {
 	if configured := strings.TrimSpace(envx.Get("STRIPE_PLANS_PATH")); configured != "" {
+		if filepath.IsAbs(configured) {
+			return configured
+		}
+		// Lifecycle components may start from the repository root, the scenario
+		// root, or the component directory. Resolve the declared repository-
+		// relative path from each of those stable ancestors so deployment and
+		// local lifecycle runs use the same catalog contract.
+		if resolved := resolveRelativeConfigPath(configured); resolved != "" {
+			return resolved
+		}
 		return configured
 	}
 	candidates := []string{
@@ -684,4 +698,22 @@ func ResolvePlansPath() string {
 		}
 	}
 	return filepath.Join("..", ".vrooli", "plans.json")
+}
+
+func resolveRelativeConfigPath(path string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for dir := filepath.Clean(cwd); ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, path)
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	return ""
 }

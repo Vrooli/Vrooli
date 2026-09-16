@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
+	_ "image/jpeg"
 	"math"
 	"sort"
 	"strconv"
@@ -289,7 +289,7 @@ func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*
 	if err != nil || snap.Chrome.empty() {
 		return nil
 	}
-	img, err := png.Decode(bytes.NewReader(pngBytes))
+	img, _, err := image.Decode(bytes.NewReader(pngBytes))
 	if err != nil {
 		return nil
 	}

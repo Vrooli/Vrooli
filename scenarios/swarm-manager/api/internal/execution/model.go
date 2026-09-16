@@ -2,6 +2,8 @@ package execution
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"swarm-manager/internal/identity"
@@ -129,7 +131,8 @@ type Record struct {
 	// through the start call because the transition runner rebuilds the input
 	// snapshot at apply time to detect mid-run edits; a note that lived only in
 	// the originating request could never be reproduced by that rebuild.
-	OperatorNote string `json:"operator_note,omitempty"`
+	OperatorNote        string `json:"operator_note,omitempty"`
+	BlockerRepairPolicy string `json:"blocker_repair_policy,omitempty"`
 	// FollowUpSourceProposalID and FollowUpSourceReviewRef preserve the
 	// proposal/review relationship for a routed correction. Together with the
 	// parent execution they are the durable deduplication key for automatic or
@@ -342,8 +345,31 @@ type CreateRequest struct {
 	Force                bool                  `json:"force,omitempty"`
 	ExecutionMode        string                `json:"execution_mode,omitempty"`
 	OperatorNote         string                `json:"operator_note,omitempty"`
+	BlockerRepairPolicy  string                `json:"blocker_repair_policy,omitempty"`
 	MaxSlices            int                   `json:"max_slices,omitempty"`
 	ExecutionPreferences *ExecutionPreferences `json:"execution_preferences,omitempty"`
+}
+
+// Blocker repair policy is separate from scope_policy: scope_policy governs
+// the filesystem boundary, while this records operator authority to diagnose
+// and repair an external dependency or infrastructure producer.
+const (
+	BlockerRepairInScopeOnly = "in_scope_only"
+	BlockerRepairInvestigate = "investigate"
+	BlockerRepairAndContinue = "repair_and_continue"
+)
+
+func normalizeBlockerRepairPolicy(raw string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return BlockerRepairInScopeOnly, nil
+	}
+	switch value {
+	case BlockerRepairInScopeOnly, BlockerRepairInvestigate, BlockerRepairAndContinue:
+		return value, nil
+	default:
+		return "", fmt.Errorf("blocker_repair_policy must be %q, %q, or %q", BlockerRepairInScopeOnly, BlockerRepairInvestigate, BlockerRepairAndContinue)
+	}
 }
 
 // Policy controls default execution behavior when callers do not provide mode/delay.

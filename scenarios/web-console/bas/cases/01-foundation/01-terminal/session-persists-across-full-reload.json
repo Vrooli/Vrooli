@@ -65,6 +65,18 @@
         }
       },
       {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure a session exists before strict workspace validation"
+          }
+        }
+      },
+      {
         "id": "reset-sessions",
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
@@ -392,6 +404,12 @@
       {
         "id": "e1",
         "source": "navigate-workspace-root",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-ensure-session",
+        "source": "ensure-session",
         "target": "open-workspace",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },

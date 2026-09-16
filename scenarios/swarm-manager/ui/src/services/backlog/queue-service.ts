@@ -37,6 +37,7 @@ export function createQueueMethods(apiClient: IApiClient) {
         preferredRunner?: string;
         model?: string;
         effort?: string;
+        blockerRepairPolicy?: "in_scope_only" | "investigate" | "repair_and_continue";
       }
     ): Promise<QueueResponse> {
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
@@ -52,6 +53,7 @@ export function createQueueMethods(apiClient: IApiClient) {
           model: options.model ?? "",
           effort: options.effort ?? "",
         } } : {}),
+        ...(options?.blockerRepairPolicy ? { blockerRepairPolicy: options.blockerRepairPolicy } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogQueue(kind, name),

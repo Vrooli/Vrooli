@@ -52,6 +52,10 @@ func service(subject string, scopes ...string) identity.Principal {
 	return identity.Principal{Kind: identity.ActorService, Subject: subject, Verified: true, Source: identity.SourceScenarioAuthenticator, Scopes: scopes}
 }
 
+func agent(subject string, scopes ...string) identity.Principal {
+	return identity.Principal{Kind: identity.ActorAgent, Subject: subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: scopes}
+}
+
 type harness struct {
 	provider *fakeProvider
 	enforcer *Enforcer
@@ -231,6 +235,46 @@ func TestMissingWriteScopeProvidesHumanHandoff(t *testing.T) {
 	}
 	if typed.Details["actor_kind"] != string(identity.ActorHuman) || typed.Details["required_scope"] != ScopeWrite || typed.Details["agent_eligible"] != false {
 		t.Fatalf("missing scope details: %+v", typed.Details)
+	}
+}
+
+func TestAgentDelegationWindowAllowsDeploymentMutationButNotSecrets(t *testing.T) {
+	now := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"agent-1": {Environments: []string{"*"}}}}), func(cfg *Config) {
+		cfg.Now = func() time.Time { return now }
+		cfg.AgentDelegationUntil = now.Add(24 * time.Hour)
+		cfg.AgentDelegationReason = "LPBS deployment validation"
+	})
+	h.provider.set(agent("agent-1", ScopeRead), nil)
+	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", nil); rec.Code != http.StatusOK {
+		t.Fatalf("delegated agent mutation: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := h.do("GET", "/api/v1/deployments/dep-prod/secrets", nil); rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenScope {
+		t.Fatalf("delegated agent secret access: %d %s", rec.Code, rec.Body.String())
+	}
+	h.mu.Lock()
+	deployed := false
+	for _, fields := range h.logs {
+		if fields["msg"] == "authz.admit" && fields["agent_delegation_reason"] == "LPBS deployment validation" {
+			deployed = true
+		}
+	}
+	h.mu.Unlock()
+	if !deployed {
+		t.Fatal("delegated mutation was not recorded with its reason")
+	}
+}
+
+func TestAgentDelegationWindowExpires(t *testing.T) {
+	now := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"agent-1": {Environments: []string{"*"}}}}), func(cfg *Config) {
+		cfg.Now = func() time.Time { return now.Add(24 * time.Hour) }
+		cfg.AgentDelegationUntil = now.Add(24 * time.Hour)
+		cfg.AgentDelegationReason = "expired validation window"
+	})
+	h.provider.set(agent("agent-1", ScopeRead), nil)
+	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", nil); rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenScope {
+		t.Fatalf("expired delegation: %d %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -551,6 +595,29 @@ func TestFromEnvironmentNeverAnonymous(t *testing.T) {
 	}
 	if _, err := New(Config{Authn: authn.Config{}, BindLoopback: true}, TargetResolverFunc(func(context.Context, string) (Target, bool, error) { return Target{}, false, nil })); err == nil {
 		t.Fatalf("New must refuse an empty provider chain")
+	}
+}
+
+func TestFromEnvironmentParsesBoundedAgentDelegation(t *testing.T) {
+	until := "2026-09-17T12:00:00Z"
+	lookup := func(values map[string]string) func(string) string {
+		return func(key string) string { return values[key] }
+	}
+	cfg, err := FromEnvironment(lookup(map[string]string{
+		EnvAgentDelegationUntil:  until,
+		EnvAgentDelegationReason: "validation window",
+	}))
+	if err != nil {
+		t.Fatalf("FromEnvironment: %v", err)
+	}
+	if got := cfg.AgentDelegationUntil.UTC().Format(time.RFC3339); got != until {
+		t.Fatalf("delegation expiry = %q, want %q", got, until)
+	}
+	if cfg.AgentDelegationReason != "validation window" {
+		t.Fatalf("delegation reason = %q", cfg.AgentDelegationReason)
+	}
+	if _, err := FromEnvironment(lookup(map[string]string{EnvAgentDelegationUntil: until})); err == nil {
+		t.Fatal("missing delegation reason was accepted")
 	}
 }
 

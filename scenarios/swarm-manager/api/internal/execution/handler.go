@@ -113,6 +113,9 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	if r.Operation != "" {
 		pb.Operation = &r.Operation
 	}
+	if r.BlockerRepairPolicy != "" {
+		pb.BlockerRepairPolicy = &r.BlockerRepairPolicy
+	}
 	if r.ExecutionPreferences != nil {
 		pb.ExecutionPreferences = &domainpb.ExecutionPreferences{
 			PreferredRunner: r.ExecutionPreferences.PreferredRunner,

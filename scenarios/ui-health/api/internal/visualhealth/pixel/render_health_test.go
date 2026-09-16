@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"testing"
 )
@@ -17,6 +18,22 @@ func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
 		}
 	}
 	return encode(t, img)
+}
+
+func TestRenderHealthAcceptsJPEG(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 80, 60))
+	for y := 0; y < 60; y++ {
+		for x := 0; x < 80; x++ {
+			img.Set(x, y, color.RGBA{R: uint8(x * 255 / 80), G: uint8(y * 255 / 60), B: 90, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+		t.Fatalf("encode jpeg: %v", err)
+	}
+	if _, err := RenderHealth(buf.Bytes(), DefaultThresholds()); err != nil {
+		t.Fatalf("RenderHealth rejected JPEG: %v", err)
+	}
 }
 
 func gradientPNG(t *testing.T, w, h int) []byte {

@@ -9,7 +9,7 @@
       "routed_isolation": "true"
     },
     "version": "2",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

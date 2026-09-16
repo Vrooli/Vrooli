@@ -1,6 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "branding": {
+    "brand": "mizar",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
   "authentication": {
     "version": 1,
     "profile": "local_read_only",
@@ -22,7 +28,7 @@
   "service": {
     "parent": "vrooli",
     "name": "agent-manager",
-    "displayName": "Agent Manager",
+    "displayName": "Mizar",
     "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
     "platform_capabilities": {
       "agent-orchestration": {

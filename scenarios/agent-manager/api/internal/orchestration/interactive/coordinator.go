@@ -36,8 +36,10 @@ const (
 	// defaultSessionReattachWindow is how long a missing session is tolerated
 	// (with re-resolution) before the run is declared session_lost. A
 	// web-console restart can briefly hide a session that the persistent backend
-	// then recovers.
-	defaultSessionReattachWindow = 3 * time.Minute
+	// then recovers. This must cover the full managed restart/recovery path, not
+	// merely the normal API restart latency; declaring loss inside this window
+	// can leave a live PTY orphaned from its Agent Manager run.
+	defaultSessionReattachWindow = 15 * time.Minute
 	// defaultCoordinatorHeartbeat is how often the live path refreshes
 	// Run.LastHeartbeat so the reconciler does not treat a live interactive run
 	// as stale.
@@ -135,7 +137,7 @@ type CoordinatorDeps struct {
 	// SessionPoll overrides the mid-tail session-liveness cadence (0 default).
 	SessionPoll time.Duration
 	// SessionReattachWindow overrides how long a missing session is tolerated
-	// before failing the run (0 uses the default 3 minutes).
+	// before failing the run (0 uses the production default of 15 minutes).
 	SessionReattachWindow time.Duration
 	// InterruptionRecoveryDelay controls the delayed retry after a resumable
 	// provider interruption. Zero uses the 30-minute production default.

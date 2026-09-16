@@ -174,8 +174,19 @@ func (s *Service) WriteOffCancellation(ctx context.Context, executionID, actor, 
 		return Record{}, err
 	}
 	record := records[idx]
-	if record.Cancellation == nil || record.Cancellation.SettledAt != "" || record.Status != StatusCancelling {
+	// An interrupted owner can leave a reservation without ever entering the
+	// normal cancelling state (for example, a session-loss classification). It
+	// is safe to expose the same explicit operator write-off once Agent Manager
+	// confirms that owner is terminal; otherwise the reservation is stranded
+	// forever and no retry can be admitted.
+	if record.Cancellation != nil && record.Cancellation.SettledAt != "" {
 		return Record{}, apierr.Conflict("execution %s is not an unsettled cancellation", executionID)
+	}
+	if record.Status != StatusCancelling && record.Status != StatusInterrupted {
+		return Record{}, apierr.Conflict("execution %s is not an unsettled cancellation or interrupted reservation", executionID)
+	}
+	if record.Cancellation == nil {
+		record.Cancellation = &CancellationStanding{RequestID: "writeoff-" + record.ExecutionID, RequestedAt: nowRFC3339()}
 	}
 	grant := record.WorkflowGrant
 	if grant == nil {

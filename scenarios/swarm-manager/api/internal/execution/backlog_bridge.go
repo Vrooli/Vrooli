@@ -34,6 +34,7 @@ type backlogItem struct {
 	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
 	Continuation              string                    `json:"continuation,omitempty"`
 	OperatorNote              string                    `json:"operator_note,omitempty"`
+	BlockerRepairPolicy       string                    `json:"blocker_repair_policy,omitempty"`
 	ScopePolicy               string                    `json:"scope_policy,omitempty"`
 	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
 	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`

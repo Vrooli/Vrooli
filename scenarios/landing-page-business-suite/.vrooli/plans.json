@@ -2,11 +2,11 @@
   "bundle": {
     "bundle_key": "business_suite",
     "name": "Silent Founder OS",
-    "stripe_product_id": "prod_TW3iAYT7KTKwHs",
+    "stripe_product_id": "prod_VGmKQycfAJGNJP",
     "credits_per_usd": 1000000,
     "display_credits_multiplier": 0.001,
     "display_credits_label": "credits",
-    "environment": "production",
+    "environment": "test",
     "metadata": {
       "credit_policy": "subscriptions grant entitlements; credits are separate, non-expiring, one-time purchases",
       "credit_topup_amounts_cents": [1000, 5000, 10000],
@@ -16,7 +16,7 @@
   },
   "plans": [
     {
-      "stripe_price_id": "price_1SZ2GWJq1sLW02CVpG4fXgtZ",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVHi3meCO1",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "business",
       "billing_interval": "year",
@@ -33,7 +33,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ2FiJq1sLW02CVxHgjd94R",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVuCPj0ioB",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "studio",
       "billing_interval": "year",
@@ -50,7 +50,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ2EZJq1sLW02CVejSkpeI7",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVXWz0IHKP",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "pro",
       "billing_interval": "year",
@@ -67,7 +67,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ2ChJq1sLW02CVXfPXaFPA",
+      "stripe_price_id": "price_1UGElZJq1sLW02CVSpEpIr8D",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "solo",
       "billing_interval": "year",
@@ -84,7 +84,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ1bTJq1sLW02CVNeexXAl4",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVhS3vyDQp",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "pro",
       "billing_interval": "month",
@@ -101,7 +101,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ1bSJq1sLW02CVC6vMqpTG",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVwIwxJoZO",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "business",
       "billing_interval": "month",
@@ -118,7 +118,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ1bSJq1sLW02CV62XC4pUH",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVuQhSGL3F",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "solo",
       "billing_interval": "month",
@@ -135,7 +135,7 @@
       "is_variable_amount": false
     },
     {
-      "stripe_price_id": "price_1SZ1bSJq1sLW02CVTVes0Z7O",
+      "stripe_price_id": "price_1UGElYJq1sLW02CVBG1HEXGo",
       "plan_name": "Vrooli Business Suite",
       "plan_tier": "studio",
       "billing_interval": "month",
@@ -150,11 +150,59 @@
       "kind": "subscription",
       "intro_enabled": false,
       "is_variable_amount": false
+    },
+    {
+      "stripe_price_id": "price_1UGElZJq1sLW02CVtNvussYj",
+      "plan_name": "$10 credits",
+      "plan_tier": "credits",
+      "billing_interval": "one_time",
+      "amount_cents": 1000,
+      "currency": "usd",
+      "display_weight": 20,
+      "display_enabled": true,
+      "monthly_included_credits": 0,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 5,
+      "bonus_type": "",
+      "kind": "credits_topup",
+      "intro_enabled": false,
+      "is_variable_amount": false
+    },
+    {
+      "stripe_price_id": "price_1UGElaJq1sLW02CVdouUXDqF",
+      "plan_name": "$50 credits",
+      "plan_tier": "credits",
+      "billing_interval": "one_time",
+      "amount_cents": 5000,
+      "currency": "usd",
+      "display_weight": 21,
+      "display_enabled": true,
+      "monthly_included_credits": 0,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 5,
+      "bonus_type": "",
+      "kind": "credits_topup",
+      "intro_enabled": false,
+      "is_variable_amount": false
+    },
+    {
+      "stripe_price_id": "price_1UGElaJq1sLW02CV7hgWmmVw",
+      "plan_name": "$100 credits",
+      "plan_tier": "credits",
+      "billing_interval": "one_time",
+      "amount_cents": 10000,
+      "currency": "usd",
+      "display_weight": 22,
+      "display_enabled": true,
+      "monthly_included_credits": 0,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 5,
+      "bonus_type": "",
+      "kind": "credits_topup",
+      "intro_enabled": false,
+      "is_variable_amount": false
     }
   ],
-  "coupon_mappings": {
-    "price_1SZ1bSJq1sLW02CV62XC4pUH": "0r5MX140",
-    "price_1SZ1bTJq1sLW02CVNeexXAl4": "qJTSWk9F"
-  },
+  "coupon_mappings": {},
   "updated_at": "2026-01-29T20:25:12Z"
 }

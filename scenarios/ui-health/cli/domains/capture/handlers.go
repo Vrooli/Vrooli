@@ -36,6 +36,12 @@ type handlers struct {
 	http     connect.HTTPClient
 }
 
+// Story-sheet surfaces can mount several asynchronous preview iframes before
+// their first meaningful paint. The previous 800ms fixed delay captured the
+// shell before those frames rendered, producing false visual_pixel_blank
+// findings even though the page later became visible.
+const captureSettleTimeoutMs = 15_000
+
 // CommandGroup exposes capture as the top-level `ui-health capture` command.
 // The other ui-health domains are hierarchical Connect groups, but capture is
 // intentionally a one-verb operator entry point.
@@ -376,7 +382,7 @@ func (h *handlers) captureOne(ctx context.Context, client captureconnect.Capture
 		Url:                url,
 		Captures:           []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE},
 		Dimensions:         dimensions,
-		WaitFor:            &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: 800}},
+		WaitFor:            &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: captureSettleTimeoutMs}},
 		Label:              fmt.Sprintf("ui-health:%s:%s:%s", resolved.SurfaceID, viewport, theme),
 		InlineDom:          true,
 		InlineDomTree:      true,

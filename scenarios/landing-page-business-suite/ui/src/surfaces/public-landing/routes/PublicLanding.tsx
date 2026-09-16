@@ -4,7 +4,7 @@ import { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import { updateMetaTags, updateThemeColor } from '../../../shared/lib/seo';
 import { PresentationPage, type PresentationPageProps } from '../presentation';
-import { canonicalPresentationHref, resolvePublicPresentation } from '../presentation/publicIntegration';
+import { canonicalPresentationHref, publicHref, resolvePublicPresentation } from '../presentation/publicIntegration';
 import { PublicPresentationState } from '../presentation/PublicPresentationState';
 import { resolvePricing } from '../presentation/commerce';
 import { usePresentationExposure } from '../presentation/usePresentationExposure';
@@ -46,7 +46,7 @@ export function PublicLanding() {
   if (notFound) return <PublicPresentationState state="not-found" />;
   const diagnostics = config?.presentation.diagnostics;
   if (!resolved || !diagnostics) return <PublicPresentationState state="unavailable" retry={refreshable === false ? undefined : () => { void refresh(); }} />;
-  return <ReadyPresentation key={`${location.pathname}:${diagnostics.resolvedVariant}:${diagnostics.resolvedRevision}:${diagnostics.locale}`} {...resolved} resolvedPricing={resolvePricing(resolved.presentation, config.pricing)} diagnostics={diagnostics} canonicalBaseUrl={canonicalBaseUrl} />;
+  return <ReadyPresentation key={`${location.pathname}:${diagnostics.resolvedVariant}:${diagnostics.resolvedRevision}:${diagnostics.locale}`} {...resolved} authHref={publicHref('/auth/login', base)} resolvedPricing={resolvePricing(resolved.presentation, config.pricing)} diagnostics={diagnostics} canonicalBaseUrl={canonicalBaseUrl} />;
 }
 
 function ReadyPresentation({ diagnostics: d, canonicalBaseUrl, ...props }: PresentationPageProps & { diagnostics: PresentationDiagnostics; canonicalBaseUrl?: string }) {

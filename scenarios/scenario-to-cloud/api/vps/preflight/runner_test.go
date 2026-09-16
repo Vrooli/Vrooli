@@ -80,6 +80,39 @@ func testOptions(requirements ScenarioRequirementsFetcher) RunOptions {
 	}
 }
 
+func TestRequiredDiskFreeKBUsesReleaseTransactionSize(t *testing.T) {
+	t.Parallel()
+	if got, want := RequiredDiskFreeKB(0), MinDiskFreeKB; got != want {
+		t.Fatalf("zero-size bundle budget = %d KB, want %d KB", got, want)
+	}
+	// A 150 MiB archive needs three archive-sized units plus the bounded
+	// staging cushion, not the analyzer's generic 8 GiB persistent estimate.
+	if got, want := RequiredDiskFreeKB(150*1024*1024), int64(706*1024); got != want {
+		t.Fatalf("150 MiB bundle budget = %d KB, want %d KB", got, want)
+	}
+}
+
+func TestRun_LowConfidenceGraphDiskDoesNotBecomeHardFreeSpaceGate(t *testing.T) {
+	t.Parallel()
+	host := healthyHost("2097152", false, "")
+	host.Answers["df -Pk /"] = reachtest.Answer{Result: reach.Result{Stdout: "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/vda1 40000000 35500000 4500000 89% /"}}
+	resp := runPreflight(t, host, RunOptions{
+		BundleSizeBytes: 150 * 1024 * 1024,
+		Requirements: func(context.Context, string) (*ScenarioRequirements, error) {
+			return &ScenarioRequirements{DiskKB: 8 * 1024 * 1024, Source: "scenario-dependency-analyzer", Confidence: "low"}, nil
+		},
+		PortProbe:    func(context.Context, string, int, time.Duration) error { return nil },
+		TLSALPNProbe: func(context.Context, string, string, int, time.Duration) (string, error) { return "acme-tls/1", nil },
+	})
+	if !resp.OK {
+		t.Fatalf("expected viable host to pass despite advisory graph disk estimate: %+v", resp.Checks)
+	}
+	c, found := checkByID(resp, domain.PreflightDiskFreeID)
+	if !found || c.Status != domain.PreflightWarn || c.Data["required_min_kb"] != "722944" {
+		t.Fatalf("disk check = %+v, want advisory warning with transaction budget", c)
+	}
+}
+
 func TestObserverDecodesTargetObservationEnvelope(t *testing.T) {
 	t.Parallel()
 	host := &reachtest.Scripted{Strict: true, Answers: map[string]reachtest.Answer{

@@ -9,7 +9,7 @@
     "description": "Restore the display mode recorded by set-display-mode-tabs through the product settings control.",
     "execution_mode": "mutating",
     "reset": "none",
-    "labels": { "reset": "none", "requires_confirmation": "true" }
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
   },
   "tags": ["reset:none", "display-mode"],
   "version": 1,

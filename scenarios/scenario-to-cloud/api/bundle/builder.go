@@ -234,6 +234,18 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		}
 		extra[scenarioServicePath] = scenarioServiceJSON
 	}
+	// Plans are scenario-owned configuration, but the API starts from a
+	// component working directory on some targets. Carry the catalog at its
+	// canonical scenario path explicitly so the runtime path contract remains
+	// true even when a profile or archive implementation changes hidden-file
+	// traversal behavior.
+	plansPath := filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "plans.json")
+	if plansJSON, readErr := os.ReadFile(plansPath); readErr == nil {
+		extra[filepath.ToSlash(filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "plans.json"))] = plansJSON
+		extra[".vrooli/plans.json"] = plansJSON
+	} else if !os.IsNotExist(readErr) {
+		return MiniBundleSpec{}, fmt.Errorf("read scenario plans.json: %w", readErr)
+	}
 	// Dependency UIs are opt-in. Keep their runtime manifests aligned with
 	// the source filter so lifecycle setup cannot start a UI whose sources were
 	// intentionally omitted from the bundle.

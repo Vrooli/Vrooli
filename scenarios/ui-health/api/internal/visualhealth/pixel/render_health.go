@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	_ "image/jpeg"
 	_ "image/png"
 	"math"
 	"os"
@@ -146,13 +147,13 @@ func Compare(base, cur []byte, t Thresholds) (Delta, error) {
 	return Delta{ChangedFraction: frac, Identical: frac <= t.ChangedTolerance}, nil
 }
 
-func luminanceGrid(png []byte, gridSize int) ([]float64, error) {
+func luminanceGrid(encoded []byte, gridSize int) ([]float64, error) {
 	if gridSize <= 0 {
 		gridSize = DefaultThresholds().GridSize
 	}
-	img, _, err := image.Decode(bytes.NewReader(png))
+	img, _, err := image.Decode(bytes.NewReader(encoded))
 	if err != nil {
-		return nil, fmt.Errorf("decode png: %w", err)
+		return nil, fmt.Errorf("decode image: %w", err)
 	}
 	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()

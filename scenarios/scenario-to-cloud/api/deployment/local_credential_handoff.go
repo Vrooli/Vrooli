@@ -28,14 +28,14 @@ type localRemoteProfileList struct {
 // transport and never persists or logs the credential value.
 func (o *Orchestrator) localCredentialHandoff(ctx context.Context, manifest domain.CloudManifest, deploymentID string, values map[string]string) error {
 	for _, handoff := range manifest.LocalCredentialHandoffs {
-		if err := reconcileLocalRemoteProfile(ctx, manifest, handoff, values); err != nil {
+		if err := reconcileLocalRemoteProfile(ctx, deploymentID, manifest, handoff, values); err != nil {
 			return fmt.Errorf("consumer %q: %w", handoff.ConsumerScenario, err)
 		}
 	}
 	return nil
 }
 
-func reconcileLocalRemoteProfile(ctx context.Context, manifest domain.CloudManifest, handoff domain.LocalCredentialHandoff, values map[string]string) error {
+func reconcileLocalRemoteProfile(ctx context.Context, deploymentID string, manifest domain.CloudManifest, handoff domain.LocalCredentialHandoff, values map[string]string) error {
 	if err := validateHandoff(handoff); err != nil {
 		return err
 	}
@@ -68,6 +68,7 @@ func reconcileLocalRemoteProfile(ctx context.Context, manifest domain.CloudManif
 		return fmt.Errorf("build profile lookup request: %w", err)
 	}
 	listReq.Header.Set("Authorization", "Bearer "+serviceToken)
+	listReq.Header.Set("X-Vrooli-Deployment-ID", deploymentID)
 	listResp, err := http.DefaultClient.Do(listReq)
 	if err != nil {
 		return fmt.Errorf("lookup local remote profile: %w", err)
@@ -106,6 +107,7 @@ func reconcileLocalRemoteProfile(ctx context.Context, manifest domain.CloudManif
 		return fmt.Errorf("build local profile reconcile request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+serviceToken)
+	req.Header.Set("X-Vrooli-Deployment-ID", deploymentID)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -140,7 +142,7 @@ func resolveHandoffSecret(manifest domain.CloudManifest, secretID string, values
 }
 
 func validateHandoff(handoff domain.LocalCredentialHandoff) error {
-	if !strings.HasPrefix(handoff.ConsumerPath, "/api/v1/admin/remote-profiles") || strings.Contains(handoff.ConsumerPath, "..") {
+	if (handoff.ConsumerPath != "/api/v1/admin/remote-profiles" && !strings.HasPrefix(handoff.ConsumerPath, "/api/v1/admin/remote-profiles/")) || strings.Contains(handoff.ConsumerPath, "..") {
 		return fmt.Errorf("consumer path is not an approved local profile endpoint")
 	}
 	parsed, err := url.Parse(handoff.APIBase)

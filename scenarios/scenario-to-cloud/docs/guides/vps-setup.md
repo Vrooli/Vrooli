@@ -125,7 +125,9 @@ Before deploying, verify:
 - [ ] Domain resolves to VPS IP
 - [ ] Ports 80 and 443 are open
 - [ ] Root or sudo access available
-- [ ] At least 10GB free disk space
+- [ ] Free disk space meets the deployment's measured transaction budget
+      (the preflight report shows the exact required amount; 512 MiB is the
+      fallback when no release artifact has been built)
 
 ## Cloud Provider Guides
 

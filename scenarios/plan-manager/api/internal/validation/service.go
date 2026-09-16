@@ -301,7 +301,11 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 	if strings.TrimSpace(request.ExecutionID) != "" && s.inventories != nil {
 		if inventory, ok, inventoryErr := s.inventories.LatestBaselineInventory(ctx, p.ID); inventoryErr != nil {
 			return ValidationOperation{}, false, fmt.Errorf("load execution baseline inventory: %w", inventoryErr)
-		} else if ok && inventory.Complete && strings.TrimSpace(inventory.Name) != "" && len(inventory.ScenarioTargets) > 0 {
+		} else if ok && strings.TrimSpace(inventory.Name) != "" && len(inventory.ScenarioTargets) > 0 {
+			// The execution checkpoint is authoritative even when its capture is
+			// degraded. Keeping the recorded collection identity lets the producer
+			// report the real member-level failure; falling back to the authored
+			// ticket can turn a partial baseline into a misleading "not found".
 			p.BaselineSet.Name = inventory.Name
 			p.BaselineSet.ScenarioTargets = uniqueSortedStrings(inventory.ScenarioTargets)
 		}

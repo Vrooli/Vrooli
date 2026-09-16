@@ -9,7 +9,7 @@
     "description": "Activate the seeded session that exposes the Messages view without duplicating tab probing in individual cases.",
     "execution_mode": "mutating",
     "reset": "none",
-    "labels": { "reset": "none", "requires_confirmation": "true" }
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
   },
   "tags": ["reset:none", "messages"],
   "version": 1,

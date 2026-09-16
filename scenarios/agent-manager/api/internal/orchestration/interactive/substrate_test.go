@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 // fakeSessions is an in-memory SessionController for unit tests. It records the
 // order of lifecycle calls and lets each be configured to fail.
 type fakeSessions struct {
+	mu           sync.Mutex
 	createID     string
 	createErr    error
 	interruptErr error
@@ -53,6 +55,8 @@ func (f *fakeSessions) CreateSession(_ context.Context, _ webconsole.CreateSessi
 }
 
 func (f *fakeSessions) GetSession(_ context.Context, id string) (webconsole.SessionInfo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.deleted[id] {
 		return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 	}
@@ -60,6 +64,8 @@ func (f *fakeSessions) GetSession(_ context.Context, id string) (webconsole.Sess
 }
 
 func (f *fakeSessions) DeleteSession(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls = append(f.calls, "delete")
 	if f.deleteErr != nil {
 		return f.deleteErr

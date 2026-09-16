@@ -37,12 +37,12 @@ func TestEffortResolutionSourcesReopenStoppedObservationWithoutGrant(t *testing.
 		t.Run(map[bool]string{true: "declared", false: "legacy"}[manifest], func(t *testing.T) {
 			s, _, _ := effortFixture(t)
 			dir := filepath.Join(s.config.Root, "arbitrary-effort")
-			if err := os.MkdirAll(filepath.Join(dir, "handoffs"), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Join(dir, "handoffs"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			write := func(path, value string) {
 				t.Helper()
-				if err := os.WriteFile(filepath.Join(dir, path), []byte(value), 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, path), []byte(value), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -94,17 +94,17 @@ func TestEffortResolutionSourcesRejectUnsafeAndUnavailableEvidence(t *testing.T)
 		t.Run(source, func(t *testing.T) {
 			s, _, _ := effortFixture(t)
 			dir := filepath.Join(s.config.Root, "arbitrary")
-			if err := os.MkdirAll(filepath.Join(dir, "handoffs"), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Join(dir, "handoffs"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			manifest := `{"schema_version":1,"slug":"arbitrary","repository":"repo","observation_sources":["` + source + `"]}`
-			if err := os.WriteFile(filepath.Join(dir, "effort.json"), []byte(manifest), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "effort.json"), []byte(manifest), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.Symlink("missing.md", filepath.Join(dir, "handoffs/link.md")); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(filepath.Join(dir, "handoffs/oversize.md"), []byte(strings.Repeat("x", 2048)), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "handoffs/oversize.md"), []byte(strings.Repeat("x", 2048)), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			root, err := openSafeRoot(s.config.Root)
@@ -117,6 +117,30 @@ func TestEffortResolutionSourcesRejectUnsafeAndUnavailableEvidence(t *testing.T)
 				t.Fatal("unsafe/missing resolution was treated as fresh")
 			}
 		})
+	}
+}
+
+func TestDeclaredCheckpointRejectsUnboundedContinuity(t *testing.T) {
+	s, _, _ := effortFixture(t)
+	dir := filepath.Join(s.config.Root, "bounded-effort")
+	if err := os.MkdirAll(filepath.Join(dir, "handoffs"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"schema_version":1,"slug":"bounded","repository":"repo","checkpoint":"handoffs/checkpoint.json"}`
+	if err := os.WriteFile(filepath.Join(dir, "effort.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint := `{"next_action":"` + strings.Repeat("x", 4097) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, "handoffs", "checkpoint.json"), []byte(checkpoint), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := openSafeRoot(s.config.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if _, err := readWorkspace(root, "bounded-effort", 128*1024, s.now()); err == nil || !strings.Contains(err.Error(), "bounded continuity") {
+		t.Fatalf("unbounded checkpoint was accepted: %v", err)
 	}
 }
 

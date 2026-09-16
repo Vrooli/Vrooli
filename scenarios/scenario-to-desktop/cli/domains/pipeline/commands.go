@@ -7,19 +7,29 @@ import (
 	"scenario-to-desktop/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Commands provides pipeline CLI commands.
 type Commands struct {
-	rpc  pipelineRPC
-	http interface {
+	rpc       pipelineRPC
+	apiPrefix string
+	http      interface {
 		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
 	}
 }
 
 // New creates a new pipeline Commands instance.
 func New(deps support.Dependencies) *Commands {
-	return &Commands{rpc: newPipelineRPC(deps.ScenarioApp()), http: deps.ScenarioApp().HTTPClient}
+	app := deps.ScenarioApp()
+	return &Commands{
+		rpc:       newPipelineRPC(app),
+		apiPrefix: app.APIPrefix(),
+		http: cliutil.NewHTTPClient(cliutil.HTTPClientOptions{
+			BaseOptions: app.APIBaseOptions(),
+			Timeout:     app.HTTPClient.Timeout(),
+		}),
+	}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {

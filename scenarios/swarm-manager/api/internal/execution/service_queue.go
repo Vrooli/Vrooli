@@ -79,6 +79,11 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err := s.normalizeExecutionSelection(&req); err != nil {
 		return Record{}, err
 	}
+	policy, err := normalizeBlockerRepairPolicy(req.BlockerRepairPolicy)
+	if err != nil {
+		return Record{}, apierr.BadRequest("%s", err)
+	}
+	req.BlockerRepairPolicy = policy
 
 	mode, item, preflight, err := s.validateAndLoadQueueRequest(ctx, req)
 	if err != nil {
@@ -203,6 +208,7 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		Force:                req.Force,
 		ExecutionMode:        req.ExecutionMode,
 		OperatorNote:         firstNonEmpty(strings.TrimSpace(req.OperatorNote), strings.TrimSpace(item.OperatorNote)),
+		BlockerRepairPolicy:  firstNonEmpty(strings.TrimSpace(req.BlockerRepairPolicy), BlockerRepairInScopeOnly),
 		MaxSlices:            req.MaxSlices,
 		ExecutionLimits:      item.ExecutionLimits.Clone(),
 		ExecutionPreferences: cloneExecutionPreferences(req.ExecutionPreferences),

@@ -20,6 +20,11 @@ const (
 	EnvBindAddress    = "API_BIND_ADDRESS"
 	EnvPolicyPath     = "SCENARIO_TO_CLOUD_AUTHZ_POLICY"
 	EnvMaxBodyBytes   = "SCENARIO_TO_CLOUD_MAX_BODY_BYTES"
+	// EnvAgentDelegationUntil enables a bounded local validation window for
+	// agent principals. It is intentionally an absolute timestamp so a
+	// restarted process cannot silently extend the window.
+	EnvAgentDelegationUntil  = "SCENARIO_TO_CLOUD_AGENT_DELEGATION_UNTIL"
+	EnvAgentDelegationReason = "SCENARIO_TO_CLOUD_AGENT_DELEGATION_REASON"
 )
 
 // Modes.
@@ -58,6 +63,12 @@ type Config struct {
 	// EffectConcurrency bounds per-principal in-flight effectful requests;
 	// <= 0 uses DefaultEffectConcurrency.
 	EffectConcurrency int
+	// AgentDelegationUntil bounds the optional local validation delegation.
+	// Secret and interactive routes never use this delegation.
+	AgentDelegationUntil time.Time
+	// AgentDelegationReason is retained in audit records when the delegation
+	// admits an agent mutation.
+	AgentDelegationReason string
 	// Logger receives structured audit lines. Nil discards them.
 	Logger func(msg string, fields map[string]any)
 	// Now is injectable for expiry tests.
@@ -108,6 +119,18 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("invalid %s %q", EnvMaxBodyBytes, raw)
 		}
 		cfg.MaxBodyBytes = limit
+	}
+	if raw := strings.TrimSpace(getenv(EnvAgentDelegationUntil)); raw != "" {
+		until, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid %s %q: %w", EnvAgentDelegationUntil, raw, err)
+		}
+		reason := strings.TrimSpace(getenv(EnvAgentDelegationReason))
+		if reason == "" {
+			return Config{}, fmt.Errorf("%s requires %s", EnvAgentDelegationUntil, EnvAgentDelegationReason)
+		}
+		cfg.AgentDelegationUntil = until
+		cfg.AgentDelegationReason = reason
 	}
 	bind := strings.TrimSpace(getenv(EnvBindAddress))
 	cfg.BindLoopback = bind == "" || isLoopbackHost(bind)

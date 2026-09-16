@@ -1,5 +1,22 @@
 # Progress Log
 
+## 2026-09-16 — Evidence requirements and bounded certification claim
+
+Added traceable EARS requirements for provider-owned desktop journeys,
+journey-kind provenance, same-run capture ownership, observed isolation counts,
+probe app identity, independent manifest gates, and private bundled runtime
+targeting. Added Web Console requirements for BAS session preconditions,
+display-mode restoration, and explicit instance-relative seeding. Both
+requirements registries validate successfully.
+
+The canonical evidence contract now keeps the capability matrix pending until
+phase-16 certification supplies run IDs and defines the bounded claim of a
+passing desktop BAS cell. The delivered CLI path is now the documented
+operator path for pipeline wait, evidence manifest lookup, and validation
+matrix create/start/wait/show; manual UI/CLI retention is no longer required
+as a workaround. Historical provider and native runtime limitations remain
+open and are not represented as passing evidence.
+
 ## 2026-09-15 — Pipeline wait and evidence operator surfaces
 
 Added the server-owned `PipelineService.Wait` RPC and CLI

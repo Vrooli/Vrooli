@@ -58,6 +58,7 @@ func openSafeRoot(path string) (*os.Root, error) {
 	}
 	return root, nil
 }
+
 func safeChildRoot(root *os.Root, name string) (*os.Root, error) {
 	info, err := root.Lstat(name)
 	if err != nil {
@@ -77,6 +78,7 @@ func safeChildRoot(root *os.Root, name string) (*os.Root, error) {
 	}
 	return child, nil
 }
+
 func safeRead(root *os.Root, name string, limit int64) ([]byte, error) {
 	if !filepath.IsLocal(name) || strings.Contains(name, "\\") {
 		return nil, errors.New("source path escapes workspace")
@@ -387,7 +389,7 @@ func readWorkspace(root *os.Root, name string, limit int64, now time.Time) (*dis
 		}
 		b, readErr := safeRead(folder, m.Checkpoint, limit)
 		if readErr != nil {
-			return nil, fmt.Errorf("checkpoint: %w", readErr)
+			return nil, fmt.Errorf("checkpoint %q: %w", m.Checkpoint, readErr)
 		}
 		var cut struct {
 			Effort     json.RawMessage `json:"effort"`
@@ -398,6 +400,14 @@ func readWorkspace(root *os.Root, name string, limit int64, now time.Time) (*dis
 		}
 		if err = json.Unmarshal(b, &cut); err != nil {
 			return nil, err
+		}
+		if len(cut.NextAction) > 4096 || len(cut.Rationale) > 4096 || len(cut.Pending) > 32 || len(cut.Blockers) > 32 {
+			return nil, errors.New("checkpoint exceeds bounded continuity fields")
+		}
+		for _, item := range append(append([]string{}, cut.Pending...), cut.Blockers...) {
+			if len(item) > 1024 {
+				return nil, errors.New("checkpoint continuity item exceeds 1024 bytes")
+			}
 		}
 		o.NextAction = cut.NextAction
 		o.Rationale = cut.Rationale
@@ -428,7 +438,7 @@ func readWorkspace(root *os.Root, name string, limit int64, now time.Time) (*dis
 		o.Limitations = append(o.Limitations, "no typed current owner run references declared")
 	}
 	if err = observeResolutionSources(folder, e, o, m.ObservationSources, limit); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("observation sources: %w", err)
 	}
 	if b, readErr := safeRead(folder, "requirements.json", limit); readErr == nil {
 		var rows []struct {
@@ -467,6 +477,7 @@ func (s *EffortService) ReconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 	defer s.mu.Unlock()
 	return s.reconcileDiscovery(ctx)
 }
+
 func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDiscovery, error) {
 	now := s.now().UTC()
 	previous, err := s.repo.GetEffortDiscovery(ctx)
@@ -582,6 +593,24 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 				found[ref] = item
 			}
 		}
+	}
+	// A complete root index is authoritative for workspace presence. Findings
+	// retained from a prior rotating scan must not keep a removed workspace in
+	// the current readiness cut forever. Control-plane findings remain durable;
+	// only findings whose source is a no-longer-present workspace are retired.
+	if completeIndex {
+		retained := d.Findings[:0]
+		for _, f := range d.Findings {
+			switch f.GetSource() {
+			case "workspace-root", "enrollments", "agent-manager:runs":
+				retained = append(retained, f)
+			default:
+				if paths[f.GetSource()] {
+					retained = append(retained, f)
+				}
+			}
+		}
+		d.Findings = retained
 	}
 	refs := make([]string, 0, len(found))
 	for ref := range found {

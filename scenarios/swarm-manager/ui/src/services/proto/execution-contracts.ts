@@ -75,6 +75,7 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     ...(((proto as ProtoExecutionRecord & { scopeExtensions?: ExecutionScopeExtension[] }).scopeExtensions?.length)
       ? { scopeExtensions: (proto as ProtoExecutionRecord & { scopeExtensions?: ExecutionScopeExtension[] }).scopeExtensions }
       : {}),
+    ...(proto.blockerRepairPolicy ? { blockerRepairPolicy: proto.blockerRepairPolicy } : {}),
   };
   if (proto.finalization) {
     record.finalization = mapProtoFinalization(proto.finalization);

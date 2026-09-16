@@ -1,39 +1,37 @@
 package secrets
 
 import (
-	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/vrooli/api-core/discovery"
+	"scenario-to-cloud/domain"
 )
 
-func TestFetchBundleSecretsSendsScopedServiceToken(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer deployment-token" {
-			t.Fatalf("authorization = %q", got)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"scenario":"demo","tier":"tier-4-saas","secrets":[]}`))
-	}))
-	defer server.Close()
+func TestTransformSecretsPreservesGeneratedCredentialIdentity(t *testing.T) {
+	plans := transformSecrets([]ManagerSecret{{
+		ID:               "postgres-password",
+		SecretKey:        "POSTGRES_PASSWORD",
+		SecretType:       "password",
+		Classification:   "infrastructure",
+		HandlingStrategy: "generate",
+		LogicalID:        "vrooli/postgres",
+		Field:            "password",
+		Required:         true,
+	}}, "tier-4-saas")
 
-	client := &Client{
-		httpClient:   &http.Client{},
-		serviceToken: "deployment-token",
-		resolver:     discovery.NewStaticResolver(server.URL),
+	if len(plans) != 1 {
+		t.Fatalf("got %d plans, want 1", len(plans))
 	}
-	if _, err := client.FetchBundleSecrets(context.Background(), "demo", "tier-4-saas", nil); err != nil {
-		t.Fatalf("FetchBundleSecrets() error = %v", err)
+	plan := plans[0]
+	if plan.Class != domain.SecretClassPerInstallGenerated {
+		t.Fatalf("class = %q, want %q", plan.Class, domain.SecretClassPerInstallGenerated)
 	}
-}
-
-func TestNewClientDoesNotReadLegacyDeploymentTokenEnvironment(t *testing.T) {
-	t.Setenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN", "legacy-token")
-
-	client := NewClient()
-	if client.serviceToken != "" {
-		t.Fatalf("NewClient() read the legacy deployment token environment variable")
+	if plan.Descriptor == nil {
+		t.Fatal("generated plan lost its credential descriptor")
+	}
+	if plan.Descriptor.LogicalID != "vrooli/postgres" || plan.Descriptor.Field != "password" {
+		t.Fatalf("descriptor = %+v, want logical_id=vrooli/postgres field=password", plan.Descriptor)
+	}
+	if got, want := plan.Target.Name, "POSTGRES_PASSWORD"; got != want {
+		t.Fatalf("target = %q, want %q", got, want)
 	}
 }

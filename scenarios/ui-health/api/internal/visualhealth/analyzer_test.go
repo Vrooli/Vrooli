@@ -223,6 +223,30 @@ func TestAnalyzeReportsClippedText(t *testing.T) {
 	assertFindingCodes(t, resp, "visual_text_clipped")
 }
 
+func TestAnalyzeIgnoresScreenReaderOnlyClippedText(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "layout",
+		LayoutJson: `{"elements":[{"selector":"#preview-label","text":"Preview frame","clientWidth":1,"scrollWidth":80,"clientHeight":1,"scrollHeight":16,"overflowX":"hidden","overflowY":"hidden","whiteSpace":"nowrap","position":"absolute","rect":{"x":30,"y":21,"width":1,"height":1}}]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_text_clipped" {
+			t.Fatalf("screen-reader-only text must not be reported as visible clipping: %+v", resp.GetFindings())
+		}
+	}
+}
+
+func TestAnalyzeReadsComputedStylesForScreenReaderOnlyText(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "layout",
+		LayoutJson: `{"elements":[{"selector":"#preview-label","text":"Preview frame","clientWidth":1,"scrollWidth":80,"clientHeight":1,"scrollHeight":16,"computed":{"overflow":"hidden","position":"absolute","whiteSpace":"nowrap"},"rect":{"x":30,"y":21,"width":1,"height":1}}]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_text_clipped" {
+			t.Fatalf("computed screen-reader-only text must not be reported as visible clipping: %+v", resp.GetFindings())
+		}
+	}
+}
+
 func TestAnalyzeReportsFocusZoomRisk(t *testing.T) {
 	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
 		StepId: "layout",

@@ -22,15 +22,16 @@ const GoalPromptMaxChars = 16384
 
 // GoalMessageInput carries the values the harness-goal-authoring slots need.
 type GoalMessageInput struct {
-	PlanShape       string // phased | mandate
-	PlanSlug        string
-	PlanExecutionID string
-	ScenarioName    string
-	ProgramName     string
-	AcceptanceAllow []string
-	ScopePolicy     string
-	Budget          string
-	OperatorNote    string
+	PlanShape           string // phased | mandate
+	PlanSlug            string
+	PlanExecutionID     string
+	ScenarioName        string
+	ProgramName         string
+	AcceptanceAllow     []string
+	ScopePolicy         string
+	Budget              string
+	OperatorNote        string
+	BlockerRepairPolicy string
 }
 
 // GoalMessageTooLongError names the overflow so preflight can block with a count
@@ -62,13 +63,14 @@ func goalMessageInputForItem(item backlogItem, executionID string) GoalMessageIn
 		program = strings.TrimSpace(item.Name)
 	}
 	return GoalMessageInput{
-		PlanShape:       "phased",
-		PlanSlug:        slug,
-		PlanExecutionID: executionID,
-		ProgramName:     program,
-		AcceptanceAllow: item.AcceptanceAllow,
-		ScopePolicy:     item.ScopePolicy,
-		OperatorNote:    item.OperatorNote,
+		PlanShape:           "phased",
+		PlanSlug:            slug,
+		PlanExecutionID:     executionID,
+		ProgramName:         program,
+		AcceptanceAllow:     item.AcceptanceAllow,
+		ScopePolicy:         item.ScopePolicy,
+		OperatorNote:        item.OperatorNote,
+		BlockerRepairPolicy: BlockerRepairInScopeOnly,
 	}
 }
 
@@ -131,6 +133,10 @@ func ComposeGoalMessage(in GoalMessageInput) (string, error) {
 	if scope == "" {
 		scope = "fixed"
 	}
+	blockerPolicy := strings.TrimSpace(in.BlockerRepairPolicy)
+	if blockerPolicy == "" {
+		blockerPolicy = BlockerRepairInScopeOnly
+	}
 	budget := strings.TrimSpace(in.Budget)
 	if budget == "" {
 		budget = "the item's remaining charge allowance"
@@ -158,7 +164,9 @@ func ComposeGoalMessage(in GoalMessageInput) (string, error) {
 	}
 
 	fmt.Fprintf(&b, "Boundary: %s. Scope policy: %s. Under extend-with-record run plan-manager exec boundary-extend %s before any out-of-scope edit.\n", boundary, scope, in.PlanExecutionID)
+	fmt.Fprintf(&b, "External blocker policy: %s. %s\n", blockerPolicy, blockerRepairInstruction(blockerPolicy))
 	if shape == "mandate" {
+		b.WriteString("Isolation rule: when an authorized measurement requests a fresh or otherwise isolated execution context, unrelated active sessions and foreign leases are not blockers; use the owner's capacity/readiness signal and proceed while capacity exists. Do not wait for a zero-session state or modify a live foreign session merely to serialize work.\n")
 		b.WriteString("Other-scenario defects: file; repair only if the grant covers the owner.\n")
 		b.WriteString("Mandate lane: use local/simulated paths; excluded private data, devices, live keys, and paid access are not blockers. Build board receipts.\n")
 	} else {
@@ -180,6 +188,17 @@ func ComposeGoalMessage(in GoalMessageInput) (string, error) {
 		return "", &GoalMessageTooLongError{Length: len([]rune(message)), Limit: GoalPromptMaxChars}
 	}
 	return message, nil
+}
+
+func blockerRepairInstruction(policy string) string {
+	switch policy {
+	case BlockerRepairInvestigate:
+		return "Investigate external blockers and preserve a falsifiable diagnosis; do not modify outside the accepted boundary without a recorded extension or operator decision."
+	case BlockerRepairAndContinue:
+		return "You are authorized and expected to investigate, root-cause, safely repair, and validate an external dependency or infrastructure blocker when necessary for the target. Treat missing or broken producers as work, use the owning path and record a boundary extension before edits, then continue the goal. Do not stop merely to report a repairable blocker. Stop only for missing authority, credentials, approval, unsafe, destructive, paid, private, or unresolved ambiguous actions."
+	default:
+		return "Stay within the accepted boundary; diagnose external blockers and report the exact evidence and repair decision needed."
+	}
 }
 
 // RenderFinishLine returns the finish line (the `until` text) that Agent Manager

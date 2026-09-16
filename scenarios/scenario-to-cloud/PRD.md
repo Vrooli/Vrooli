@@ -17,22 +17,22 @@
 Operational targets are tracked via `requirements/` modules and auto-updated by the test suite.
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
-- [ ] OT-P0-002 | Mini-Vrooli Bundle Build | Build an immutable bundle containing the required Vrooli core, declaration-derived scenario/resource/tool/safeguard/credential closure, target control-plane artifacts, and no unrelated packages.
-- [ ] OT-P0-003 | VPS Preflight | Validate SSH/DNS/ports/OS/network and fail fast with actionable errors before copying artifacts.
+- [x] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
+- [x] OT-P0-002 | Mini-Vrooli Bundle Build | Build an immutable bundle containing the required Vrooli core, declaration-derived scenario/resource/tool/safeguard/credential closure, target control-plane artifacts, and no unrelated packages.
+- [x] OT-P0-003 | VPS Preflight | Validate SSH/DNS/ports/OS/network and fail fast with actionable errors before copying artifacts.
 - [ ] OT-P0-004 | VPS Install + Setup | Copy bundle to the VPS, run Vrooli setup, and write minimal config needed for this deployment mode.
-- [ ] OT-P0-005 | Deploy + Start | Start required resources, allocate target-owned ports from the reviewed deployment contract, start the scenario, and verify health through the configured endpoint and observed target identity.
-- [ ] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
-- [ ] OT-P0-007 | Authenticated Management Authority | Every management API, CLI, WebSocket and relay entry point authenticates the actor and authorizes deployment, target, environment and effect under the shared policy before any target effect.
-- [ ] OT-P0-008 | Typed Identities + One Executable Plan | Machine, deployment, release and operation identities are explicit and noninterchangeable; preview, policy and apply consume one typed plan digest.
-- [ ] OT-P0-009 | Durable Fenced Operations | Deployment operations persist intent before effects, survive client and owner restarts, refuse stale fences and reconcile unknown remote results.
-- [ ] OT-P0-010 | Declaration-Derived Closure + Shared Configuration | Dependency, tool, safeguard and credential closure derives from component declarations and the analyzer; machine configuration flows through setup/v1 selection and onboarding.
-- [ ] OT-P0-011 | Shared Reach + Target-Local Effects | Enrolled machines are reached through Bridge/nodereach with typed target-local control-plane actions; cloud keeps no private SSH inventory or host-repair scripts.
-- [ ] OT-P0-012 | Verified Immutable Release + Safe Activation | One release identity binds bundle, native CLI, closure and configuration; releases are verified, staged and activated with rollback eligibility and protected data.
-- [ ] OT-P0-013 | Backup, Schema Transition + New-Host Restore | Declared data bindings have consistent encrypted recovery points; restore onto a fresh host is proven with measured RTO/RPO, separately from code rollback.
-- [ ] OT-P0-014 | Credential Lifecycle | Credentials are distributed, rotated, revoked and recovered through the credential authority with versioned consumer acknowledgement and zero value leakage.
-- [ ] OT-P0-015 | Truthful Health + Governance Binding | Health observations carry target, release, configuration and freshness; Deployment Manager binds approval and publication to the exact candidate and target receipts.
-- [ ] OT-P0-016 | Professional Operator Surfaces | API, CLI and UI expose the same typed state, actions and recovery next-steps with keyboard, narrow-viewport and interruption-resume support.
+- [x] OT-P0-005 | Deploy + Start | Start required resources, allocate target-owned ports from the reviewed deployment contract, start the scenario, and verify health through the configured endpoint and observed target identity.
+- [x] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
+- [x] OT-P0-007 | Authenticated Management Authority | Every management API, CLI, WebSocket and relay entry point authenticates the actor and authorizes deployment, target, environment and effect under the shared policy before any target effect.
+- [x] OT-P0-008 | Typed Identities + One Executable Plan | Machine, deployment, release and operation identities are explicit and noninterchangeable; preview, policy and apply consume one typed plan digest.
+- [x] OT-P0-009 | Durable Fenced Operations | Deployment operations persist intent before effects, survive client and owner restarts, refuse stale fences and reconcile unknown remote results.
+- [x] OT-P0-010 | Declaration-Derived Closure + Shared Configuration | Dependency, tool, safeguard and credential closure derives from component declarations and the analyzer; machine configuration flows through setup/v1 selection and onboarding.
+- [x] OT-P0-011 | Shared Reach + Target-Local Effects | Enrolled machines are reached through Bridge/nodereach with typed target-local control-plane actions; cloud keeps no private SSH inventory or host-repair scripts.
+- [x] OT-P0-012 | Verified Immutable Release + Safe Activation | One release identity binds bundle, native CLI, closure and configuration; releases are verified, staged and activated with rollback eligibility and protected data.
+- [x] OT-P0-013 | Backup, Schema Transition + New-Host Restore | Declared data bindings have consistent encrypted recovery points; restore onto a fresh host is proven with measured RTO/RPO, separately from code rollback.
+- [x] OT-P0-014 | Credential Lifecycle | Credentials are distributed, rotated, revoked and recovered through the credential authority with versioned consumer acknowledgement and zero value leakage.
+- [x] OT-P0-015 | Truthful Health + Governance Binding | Health observations carry target, release, configuration and freshness; Deployment Manager binds approval and publication to the exact candidate and target receipts.
+- [x] OT-P0-016 | Professional Operator Surfaces | API, CLI and UI expose the same typed state, actions and recovery next-steps with keyboard, narrow-viewport and interruption-resume support.
 - [ ] OT-P0-017 | Certified Support Matrix | Ubuntu 24.04 on Linux amd64 and arm64 is certified for the minimal fixture through QEMU and authorized real-VPS lanes; other combinations are classified compatibility-only or unsupported with reasons.
 
 ### 🟠 P1 – Should have post-launch

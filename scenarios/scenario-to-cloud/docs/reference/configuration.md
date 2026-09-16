@@ -176,6 +176,8 @@ Every management route passes through one boundary. There is no anonymous mode: 
 | `VROOLI_ALLOWED_ORIGINS` | none | Extra browser origins (`scheme://host[:port]`) allowed to change state. Same-origin requests and, on a loopback bind, loopback origins (the scenario UI dev server) are always allowed. |
 | `SCENARIO_TO_CLOUD_AUTHZ_POLICY` | `~/.vrooli/scenario-to-cloud/authz-policy.json` | Operator policy file binding principals to targets (below). |
 | `SCENARIO_TO_CLOUD_MAX_BODY_BYTES` | `2097152` | Request body ceiling; larger bodies are `request_too_large`. |
+| `SCENARIO_TO_CLOUD_AGENT_DELEGATION_UNTIL` | empty | Optional absolute RFC3339 expiry for a local validation delegation. While active, authenticated agent principals may perform non-secret, non-interactive deployment mutations. The window is disabled when empty or expired. |
+| `SCENARIO_TO_CLOUD_AGENT_DELEGATION_REASON` | empty | Required audit reason when `SCENARIO_TO_CLOUD_AGENT_DELEGATION_UNTIL` is set. The reason is recorded without credentials or request bodies. |
 
 ### Scopes
 
@@ -226,3 +228,17 @@ The agent should provide the exact manifest path and deployment id in its handof
 ### CLI
 
 The CLI sends `SCENARIO_TO_CLOUD_API_TOKEN` (or `VROOLI_API_TOKEN`, or the configured `token`) as a bearer credential. For a loopback API with no explicit token, the CLI automatically exchanges the current process identity through the local `scenario-authenticator` socket and holds the short-lived bearer token in memory for that invocation. It does not write the token to shell state, config, logs, or deployment payloads. If the exchange is unavailable, start `scenario-authenticator` through the lifecycle and retry. Remote/shared API bases still require an explicit configured bearer token or Bridge login. A typed `unauthenticated` or `forbidden_*` refusal exits 2 and prints the server's `next_action`.
+
+### Temporary agent validation window
+
+For a bounded deployment-validation session, an operator may set both
+`SCENARIO_TO_CLOUD_AGENT_DELEGATION_UNTIL` and
+`SCENARIO_TO_CLOUD_AGENT_DELEGATION_REASON` before starting the local API. The
+expiry must be an absolute RFC3339 timestamp; it is evaluated on every request,
+so it closes automatically without a restart. The delegation applies only to
+verified agent principals and non-secret, non-interactive routes requiring the
+`scenario-to-cloud:write` or `scenario-to-cloud:destructive` scope. Target
+grants, origin checks, concurrency limits, and effect rechecks remain active.
+Credential reads/writes, terminal sessions, and other secret-bearing controls
+remain human-only. The API audit stream records the expiry and reason for each
+admitted agent mutation.

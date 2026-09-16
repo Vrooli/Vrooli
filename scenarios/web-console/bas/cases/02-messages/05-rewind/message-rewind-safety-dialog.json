@@ -12,10 +12,11 @@
     "labels": {
       "reset": "none",
       "requires_confirmation": "true",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-015f\"]"
     }
   },
-  "tags": ["reset:none", "messages", "rewind", "desktop"],
+  "tags": ["reset:none", "messages", "rewind", "desktop", "requirements_json:[\"REQ-P0-015f\"]"],
   "version": 1,
   "flow_definition": {
     "settings": {"viewport_width": 1440, "viewport_height": 900},

@@ -347,7 +347,7 @@ func (s *DefaultService) runDesktopJourneyWithCapability(ctx context.Context, sm
 	selection := selectJourneyCapability(selectionInput)
 	platformCapability := selection.Capability
 	if isProviderJourneyCapability(capability) {
-		platformCapability = "desktop.launch.baseline"
+		platformCapability = "desktop.launch.provider-baseline"
 		selection = JourneySelection{Capability: capability, Reason: "explicit_provider_journey"}
 	}
 	result := s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, platformCapability)

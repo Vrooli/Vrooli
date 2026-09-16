@@ -9,9 +9,9 @@ metadata:
   tags: ["desktop", "electron", "packaging", "deployment", "evidence"]
   icon: "monitor"
   status: "active"
-  revision: 53
+  revision: 54
   createdAt: "2026-01-31T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-16T00:00:00Z"
   requires:
     scenarios: ["scenario-to-desktop", "deployment-manager", "program-runtime", "vrooli-memory"]
     commands: ["scenario-to-desktop", "program-runtime library run", "vrooli scenario", "vrooli-memory"]

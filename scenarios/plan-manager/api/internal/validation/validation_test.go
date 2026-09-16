@@ -834,6 +834,22 @@ func TestExecutionBoundValidationProjectsAdoptedInventoryIntoReceipt(t *testing.
 	require.Equal(t, "foo", receipts.intent.GetTargets()[0].GetId())
 }
 
+func TestExecutionBoundValidationKeepsDegradedInventoryIdentity(t *testing.T) {
+	store := newFakeDurableStore()
+	receipts := &fakeReceiptClient{}
+	plan := durableValidationPlan()
+	plan.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "Degraded inventory identity"}
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "authored-before", ScenarioTargets: []string{"foo"}}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan}, Operations: store, Results: store, Receipts: receipts,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "degraded-before", ScenarioTargets: []string{"foo"}, Complete: false}, ok: true},
+	})
+
+	_, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", ExecutionID: "e1", IdempotencyKey: "degraded-inventory"})
+	require.NoError(t, err)
+	require.Equal(t, "degraded-before", receipts.intent.GetBehavioralPrior(), "certification must address the execution collection even when it is incomplete")
+}
+
 func TestValidationTicketHasNoPlanManagerProducerBudgetOrCommands(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newFakeDurableStore()
 	receipts := &fakeReceiptClient{}

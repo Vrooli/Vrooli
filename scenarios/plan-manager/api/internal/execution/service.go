@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1081,12 +1082,54 @@ func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.Val
 	case validationv1.ReceiptState_RECEIPT_STATE_FAILED, validationv1.ReceiptState_RECEIPT_STATE_CANCELLED, validationv1.ReceiptState_RECEIPT_STATE_SUPERSEDED:
 		e.BaselineSet.Status = BaselineSetStatusPartial
 		e.BaselineSet.Required = len(e.BaselineSet.ScenarioTargets)
-		e.BaselineSet.Failed = e.BaselineSet.Required
+		if required, ready, pending, failed, skipped, stale, ok := parseBaselineCoverage(receipt.GetDetail()); ok {
+			e.BaselineSet.Required, e.BaselineSet.Ready = required, ready
+			e.BaselineSet.Pending, e.BaselineSet.Failed = pending, failed
+			e.BaselineSet.Skipped, e.BaselineSet.Stale = skipped, stale
+		} else {
+			// A failed receipt proves an aggregate failure, not that every
+			// required member failed. Preserve the conservative lower bound so
+			// guidance remains actionable without overstating member coverage.
+			e.BaselineSet.Failed = 1
+		}
 	case validationv1.ReceiptState_RECEIPT_STATE_DEGRADED:
 		e.BaselineSet.Status = BaselineSetStatusDegraded
 	default:
 		e.BaselineSet.Status = BaselineSetStatusRequired
 	}
+}
+
+// parseBaselineCoverage recovers structured GCT coverage from the canonical
+// receipt detail. Test Genie intentionally keeps GCT-owned member state behind
+// its evidence reference, but the stable aggregate detail still lets the
+// execution checkpoint report accurate counts instead of treating every
+// required member as failed.
+func parseBaselineCoverage(detail string) (required, ready, pending, failed, skipped, stale int, ok bool) {
+	for _, field := range strings.Fields(detail) {
+		parts := strings.SplitN(field, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		value, err := strconv.Atoi(parts[1])
+		if err != nil || value < 0 {
+			continue
+		}
+		switch parts[0] {
+		case "required":
+			required, ok = value, true
+		case "ready":
+			ready = value
+		case "pending":
+			pending = value
+		case "failed":
+			failed = value
+		case "skipped":
+			skipped = value
+		case "stale":
+			stale = value
+		}
+	}
+	return
 }
 
 // AmendScope appends an execution-local scope decision. It only accepts members

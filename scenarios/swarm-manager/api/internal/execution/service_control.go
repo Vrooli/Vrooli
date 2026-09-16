@@ -236,6 +236,7 @@ func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, 
 		return Record{}, apierr.Unavailable("goal run creator is not configured")
 	}
 	input := s.goalMessageInput(ctx, item, record.PlanManagerExecutionID)
+	input.BlockerRepairPolicy = firstNonEmpty(record.BlockerRepairPolicy, BlockerRepairInScopeOnly)
 	if note := strings.TrimSpace(record.OperatorNote); note != "" {
 		input.OperatorNote = note
 	}

@@ -102,15 +102,23 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 	case "cleanup":
 		switch req.CleanupLevel {
 		case 3:
-			for _, action := range []string{"docker.prune.unused-images", "docker.prune.unused-volumes"} {
-				out, err := managementRepair(ctx, rt, action, map[string]any{})
-				outputs = append(outputs, action+": "+out)
-				if err != nil {
-					actErr = err
-					break
-				}
+			journalOut, journalErr := managementRepair(ctx, rt, "journald.vacuum", map[string]any{"journal": map[string]any{"max_use_bytes": 16 * 1024 * 1024}})
+			outputs = append(outputs, "journald.vacuum: "+journalOut)
+			if journalErr != nil {
+				actErr = journalErr
 			}
-			response.Message = "Docker prune actions ran through the privilege broker (named volumes and in-use images are kept)"
+			if actErr != nil {
+				break
+			}
+			// Image pruning is globally scoped but safe: the broker retains every
+			// image referenced by a running container. Volume pruning requires an
+			// explicit inventory of named volumes, so do not guess at that list.
+			out, err := managementRepair(ctx, rt, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
+			outputs = append(outputs, "docker.prune.unused-images: "+out)
+			if err != nil {
+				actErr = err
+			}
+			response.Message = "Unused Docker images pruned through the privilege broker; volumes were not guessed or deleted"
 		default:
 			actErr = apierrors.Newf(apierrors.CodeUnsupportedCapability, "Cleanup level %d deletes owned files in place; retire the deployment through its retirement plan instead", req.CleanupLevel).
 				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "retire", Reference: "/api/v1/deployments/" + id + "/retire/plan", Label: "Preview the retirement plan (retained vs deleted objects) and apply it"})

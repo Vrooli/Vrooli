@@ -116,4 +116,5 @@ export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" 
   finalization?: Finalization;
   continuationChildIds?: string[];
   scopeExtensions?: ExecutionScopeExtension[];
+  blockerRepairPolicy?: string;
 };

@@ -290,7 +290,7 @@
     "descriptors": [
       {
         "logical_id": "vrooli/scenario-to-cloud",
-        "field": "lpbs-vps-ssh-key",
+        "field": "ssh-key",
         "label": "LPBS VPS SSH key",
         "description": "Operator-provided SSH private key used to reconcile the deployed Landing Page Business Suite VPS. Keep the value in the credential authority; never place it in a process environment.",
         "required": false,
@@ -313,7 +313,7 @@
     "consumers": [
       {
         "logical_id": "vrooli/scenario-to-cloud",
-        "field": "lpbs-vps-ssh-key",
+        "field": "ssh-key",
         "kind": "dynamic",
         "consumer": "deployment-specific VPS SSH identity resolver",
         "source_ref": "api/vps/deploy.go:195",

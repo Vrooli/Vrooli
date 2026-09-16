@@ -975,6 +975,12 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
     },
   });
   const current = render.data?.signature === signature ? render.data : undefined;
+  const autoRenderSignature = useRef("");
+  useEffect(() => {
+    if (!configured || readOnly || current || render.isPending || autoRenderSignature.current === signature) return;
+    autoRenderSignature.current = signature;
+    render.mutate();
+  }, [candidate, configured, current, readOnly, render, signature]);
   const frame = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);

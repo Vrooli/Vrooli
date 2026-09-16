@@ -21,6 +21,14 @@
 
 ## Resolved in current execution
 
+- **False disk-capacity refusal (2026-09-16)**: preflight previously treated a
+  fixed 5 GiB floor and the analyzer's low-confidence PostgreSQL 8 GiB
+  persistent-footprint estimate as the free space needed for every release.
+  It now calculates a transaction budget from the built archive (three archive
+  copies plus 256 MiB staging headroom), keeps analyzer disk data advisory,
+  and re-runs after typed cleanup. Focused preflight/deployment regressions
+  pass, and LPBS redeployed successfully with approximately 4.3 GiB free.
+
 - **Health call cost (2026-09-11)**: the health path now compares the declared
   scenario version and defers the full local bundle fingerprint to the explicit
   release-freshness workflow; the version-only regression proves it does not

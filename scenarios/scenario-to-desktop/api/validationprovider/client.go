@@ -88,6 +88,7 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 	}
 	client := scenariovalidationconnect.NewDurableValidationRunServiceClient(c.http, strings.TrimRight(baseURL, "/"))
 	key := fmt.Sprintf("scenario-to-desktop:%s:%s", request.MatrixRunID, request.CellID)
+	workflowPath := catalogWorkflowPath(request.ScenarioPath, request.WorkflowPath)
 	start, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{
 		Scenario:       request.ScenarioName,
 		Path:           request.ScenarioPath,
@@ -104,8 +105,12 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 			ContextId:      request.ContextID,
 			ProfileId:      request.ProfileID,
 			CdpTransport:   request.Target.GetCdpTransport(),
-			WorkflowPath:   request.WorkflowPath,
-			WorkflowId:     request.WorkflowID,
+			WorkflowPath:   workflowPath,
+			// Workflow Health resolves the selected catalog asset's UUID from
+			// the path. The desktop journey identifier is a path-based
+			// capability, not the asset UUID, so forwarding it would make the
+			// provider reject its own selected asset as an identity mismatch.
+			WorkflowId: "",
 		},
 	}))
 	if err != nil {
@@ -130,6 +135,13 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 		return Result{ProviderRunID: providerRunID, Reason: "validation provider returned no terminal run"}
 	}
 	run := wait.Msg.GetRun()
+	// WaitValidationRun may return the terminal state before the durable
+	// artifact/assessment projection has finished committing. Read the
+	// persisted record once after the wait so the desktop manifest uses the
+	// provider's authoritative terminal result, not a transient response.
+	if latest, getErr := client.GetValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.GetValidationRunRequest{RunId: providerRunID})); getErr == nil && latest != nil && latest.Msg != nil && latest.Msg.GetRun() != nil {
+		run = latest.Msg.GetRun()
+	}
 	evidence, evidenceErr := artifactEvidence(run, request.ScenarioPath, request)
 	result := Result{ProviderRunID: providerRunID, Passed: run.GetState() == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_SUCCEEDED && run.GetTerminalResult().GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Evidence: evidence}
 	if run.GetError() != nil && strings.TrimSpace(run.GetError().GetMessage()) != "" {
@@ -146,6 +158,19 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 		result.Reason = isolationErr.Error()
 	}
 	return result
+}
+
+func catalogWorkflowPath(scenarioPath, workflowPath string) string {
+	pathValue := filepath.Clean(strings.TrimSpace(workflowPath))
+	root := filepath.Clean(strings.TrimSpace(scenarioPath))
+	if pathValue == "." || root == "." || filepath.IsAbs(pathValue) == false {
+		return filepath.ToSlash(pathValue)
+	}
+	relative, err := filepath.Rel(root, pathValue)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return filepath.ToSlash(pathValue)
+	}
+	return filepath.ToSlash(relative)
 }
 
 func validateIsolationEvidence(native *anypb.Any) error {

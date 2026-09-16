@@ -239,8 +239,8 @@ export function App() {
   return (
     <QueryProvider>
       <AppShell
-        brand="Agent Manager"
-        brandMark={<Activity aria-hidden="true" />}
+        brand="Mizar"
+        brandMark={<img src="/public/logo.svg" alt="" aria-hidden="true" className="h-5 w-5" />}
         items={shellItems}
         density="sidebar"
         mobileNav="tabs"
@@ -250,7 +250,7 @@ export function App() {
         header={
           <div className="flex min-h-12 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 py-2 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="truncate text-sm font-semibold sm:text-base">Agent Manager</span>
+              <span className="truncate text-sm font-semibold sm:text-base">Mizar</span>
               <Badge
                 variant={!health.data || health.data.status !== HealthStatus.HEALTHY || ws.status === "error" || ws.status === "disconnected" ? "destructive" : ws.status === "connecting" ? "secondary" : "success"}
                 className="cursor-pointer gap-1 text-xs"

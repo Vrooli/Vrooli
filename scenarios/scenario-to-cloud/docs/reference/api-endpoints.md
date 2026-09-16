@@ -440,7 +440,7 @@ Return canonical VPS requirements used by runtime preflight checks.
       "compatible_versions": ["22.04", "20.04"]
     },
     "resources": {
-      "min_disk_free_kb": 5242880,
+      "min_disk_free_kb": 524288,
       "min_ram_kb": 524288,
       "recommended_ram_kb": 2097152
     },
@@ -453,6 +453,13 @@ Return canonical VPS requirements used by runtime preflight checks.
     }
   }
 }
+
+`min_disk_free_kb` is the fallback operational cushion (512 MiB) when no
+release artifact has been built. During an actual deployment, preflight uses
+the built archive size and calculates the transaction budget as three archive
+copies plus 256 MiB staging headroom. Analyzer disk estimates are reported as
+advisory persistent-footprint information and do not replace that measured
+transaction budget.
 ```
 
 ### POST /preflight

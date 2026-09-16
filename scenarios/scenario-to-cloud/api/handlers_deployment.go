@@ -238,6 +238,9 @@ func (s *Server) ensureOperatorSSHKeyBinding(ctx context.Context, deploymentID s
 	}
 	keyPath, err := authority.Resolve(identity, credentials.SSHKeyDescriptor.Field)
 	if err != nil {
+		// An unconfigured key remains valid for ambient SSH identities. Other
+		// authority failures are reported and must not create a misleading
+		// deployment binding.
 		if !errors.Is(err, credentialauthority.ErrUnconfigured) {
 			s.log("operator SSH key resolve failed", map[string]interface{}{"error": err.Error()})
 		}

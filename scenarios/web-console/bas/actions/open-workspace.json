@@ -68,6 +68,19 @@
         }
       },
       {
+        "id": "assert-workspace-region",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid=\"workspace-top-edge\"]",
+            "failure_message": "Expected the hydrated workspace shell"
+          },
+          "metadata": {
+            "label": "Verify the authored workspace-shell region"
+          }
+        }
+      },
+      {
         "id": "assert-workspace-shell",
         "action": {
           "type": "ACTION_TYPE_ASSERT",
@@ -103,17 +116,23 @@
       {
         "id": "e2",
         "source": "recover-health-gate",
-        "target": "wait-launch-control",
+        "target": "assert-workspace-region",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e3",
+        "source": "assert-workspace-region",
+        "target": "wait-launch-control",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
         "source": "wait-launch-control",
         "target": "assert-workspace-shell",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e4",
+        "id": "e5",
         "source": "assert-workspace-shell",
         "target": "install-ws-tracker",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"

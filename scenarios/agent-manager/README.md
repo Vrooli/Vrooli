@@ -1,4 +1,4 @@
-# agent-manager
+# Mizar (agent-manager scenario)
 
 Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way.
 

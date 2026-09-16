@@ -50,7 +50,6 @@ func TestWriteOffCancellationRefusesWithoutProof(t *testing.T) {
 		"live run":       {reader: stubGoalRunReader{terminal: false}, actor: "operator", reason: "unpriced model"},
 		"unreadable run": {reader: stubGoalRunReader{usageErr: errors.New("agent-manager unavailable")}, actor: "operator", reason: "unpriced model"},
 		"no reservation": {reader: stubGoalRunReader{terminal: true}, mutate: func(r *Record) { r.WorkflowGrant = nil }, actor: "operator", reason: "unpriced model"},
-		"not cancelling": {reader: stubGoalRunReader{terminal: true}, mutate: func(r *Record) { r.Status = StatusInterrupted; r.Cancellation = nil }, actor: "operator", reason: "unpriced model"},
 		"blank actor":    {reader: stubGoalRunReader{terminal: true}, actor: " ", reason: "unpriced model"},
 		"blank reason":   {reader: stubGoalRunReader{terminal: true}, actor: "operator", reason: ""},
 	}
@@ -72,6 +71,22 @@ func TestWriteOffCancellationRefusesWithoutProof(t *testing.T) {
 				t.Fatalf("refused write-off changed the record: %+v", after)
 			}
 		})
+	}
+}
+
+func TestWriteOffCancellationRecoversInterruptedReservation(t *testing.T) {
+	service, _, prior, _ := writeOffFixture(t)
+	prior.Status = StatusInterrupted
+	prior.Cancellation = nil
+	if err := service.store.Save([]Record{prior}); err != nil {
+		t.Fatal(err)
+	}
+	service.goalRunReader = stubGoalRunReader{terminal: true}
+	if _, err := service.WriteOffCancellation(t.Context(), prior.ExecutionID, "operator", "owner terminated without terminal accounting"); err != nil {
+		t.Fatalf("interrupted reservation should be recoverable: %v", err)
+	}
+	if got := storedRecord(t, service, prior.ExecutionID); got.Status != StatusCanceled || got.SettledUsage == nil {
+		t.Fatalf("interrupted reservation was not written off: %+v", got)
 	}
 }
 

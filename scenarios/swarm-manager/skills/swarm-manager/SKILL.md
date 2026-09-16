@@ -105,6 +105,15 @@ interruptions only. `scope_policy` is `fixed` or `extend-with-record`.
 `acceptance_allow` and `acceptance_deny` are globs; `acceptance_deny` refuses
 even after a boundary extension.
 
+The run dialog also accepts `blocker_repair_policy`: `in_scope_only` stops at
+the reviewed boundary; `investigate` permits diagnosis but requires authority
+before an external edit; and `repair_and_continue` explicitly authorizes
+root-cause analysis, safe repair, validation, and continuation through an
+external dependency or infrastructure failure. This is not blanket access:
+explicit denies, credentials, approvals, destructive/paid/private actions, and
+ambiguous changes remain blockers. External edits must use Plan Manager's
+recorded boundary-extension mechanism.
+
 ### Development continuity
 
 The retained approval binds the exact target revision, proposal and artifact

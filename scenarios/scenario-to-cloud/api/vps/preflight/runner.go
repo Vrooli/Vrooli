@@ -19,6 +19,9 @@ import (
 // RunOptions configures optional behavior for VPS preflight.
 type RunOptions struct {
 	ProvidedSecrets map[string]string
+	// BundleSizeBytes is the compressed release artifact that will be staged
+	// on the target. A zero value uses the bounded default cushion.
+	BundleSizeBytes int64
 	PortProbe       tlsinfo.PortProbeFunc
 	TLSALPNProbe    tlsinfo.ALPNProbeFunc
 	Requirements    ScenarioRequirementsFetcher
@@ -51,7 +54,7 @@ func Run(
 	host := target.Locator.Host
 	obs := observer{reach: rr, target: target}
 
-	diskRequiredKB := MinDiskFreeKB
+	diskRequiredKB := RequiredDiskFreeKB(opts.BundleSizeBytes)
 	diskRecommendedKB := MinDiskFreeKB
 	ramRequiredKB := MinRAMKB
 	ramRecommendedKB := RecommendedRAMKB
@@ -72,10 +75,11 @@ func Run(
 			requirementData["required_by_graph_ram_kb"] = strconv.FormatInt(estimate.RAMKB, 10)
 			requirementData["required_by_graph_disk_kb"] = strconv.FormatInt(estimate.DiskKB, 10)
 			requirementData["required_by_graph_cpu_cores"] = strconv.FormatFloat(estimate.CPUCores, 'f', -1, 64)
-			// Analyzer estimates are measured guidance. Only medium/high
-			// confidence estimates may raise the hard preflight floor; a low
-			// confidence estimate must remain advisory so a small VPS can be
-			// exercised instead of being refused solely by an extrapolation.
+			// Analyzer RAM estimates are measured guidance. Only medium/high
+			// confidence estimates may raise the hard RAM floor; low-confidence
+			// estimates remain advisory. Disk estimates are always handled
+			// separately below because they describe persistent footprint rather
+			// than this release's staging transaction.
 			confidence := strings.ToLower(strings.TrimSpace(estimate.Confidence))
 			if confidence != "low" && estimate.RAMKB > ramRequiredKB {
 				ramRequiredKB = estimate.RAMKB
@@ -86,9 +90,10 @@ func Run(
 			if estimate.DiskKB > diskRecommendedKB {
 				diskRecommendedKB = estimate.DiskKB
 			}
-			if confidence != "low" && estimate.DiskKB > diskRequiredKB {
-				diskRequiredKB = estimate.DiskKB
-			}
+			// DiskKB describes a possible long-lived dependency footprint. It is
+			// recorded and surfaced as advisory below; it is not the free-space
+			// needed to transact this release. The latter comes from the actual
+			// bundle size above.
 		}
 	}
 	requirementData["effective_required_ram_kb"] = strconv.FormatInt(ramRequiredKB, 10)

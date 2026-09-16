@@ -31,10 +31,18 @@ type Manager interface {
 
 // FileManager manages seed scripts from the filesystem.
 type FileManager struct {
-	scenarioDir string
-	appRoot     string
-	testDir     string
-	logWriter   io.Writer
+	scenarioDir   string
+	appRoot       string
+	testDir       string
+	logWriter     io.Writer
+	targetAPIBase string
+}
+
+// WithTargetAPIBase binds the seed to the API of the instance under test.
+// Seeds must never discover a control-plane port implicitly.
+func (m *FileManager) WithTargetAPIBase(baseURL string) *FileManager {
+	m.targetAPIBase = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	return m
 }
 
 // NewManager creates a new seed manager.
@@ -85,6 +93,7 @@ func (m *FileManager) runScript(ctx context.Context, command string, args ...str
 		fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", m.scenarioDir),
 		fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", m.appRoot),
 		fmt.Sprintf("VROOLI_ROOT=%s", m.appRoot),
+		fmt.Sprintf("TEST_GENIE_TARGET_API_BASE=%s", m.targetAPIBase),
 		"TEST_GENIE_SEEDS=1",
 	})
 	cmd.Stdout = m.logWriter

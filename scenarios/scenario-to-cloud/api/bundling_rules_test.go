@@ -33,6 +33,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	writeFile(t, repoRoot, "packages/pkg-a/README.md", "pkg-a\n")
 
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
+	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/plans.json", `{"bundle":{"bundle_key":"app-a"},"plans":[]}`)
 	writeFile(t, repoRoot, "scenarios/app-b/README.md", "app-b\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
 
@@ -465,6 +466,12 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	}
 	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected embedded bundle metadata, entries=%v", entries)
+	}
+	if !manifest.Contains(entries, "scenarios/app-a/.vrooli/plans.json") {
+		t.Fatalf("expected scenario pricing catalog, entries=%v", entries)
+	}
+	if !manifest.Contains(entries, ".vrooli/plans.json") {
+		t.Fatalf("expected root deployment pricing catalog, entries=%v", entries)
 	}
 	for _, name := range entries {
 		if strings.HasPrefix(name, "cli/") {

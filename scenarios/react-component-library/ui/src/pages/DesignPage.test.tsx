@@ -288,7 +288,6 @@ it("renders the exact revision and hides stale appearance evidence", async () =>
   api.getSketch.mockResolvedValue({ sketch: { ...sketch, render: { templateExport: "Page" } }, contentHash: "current-hash" });
   api.renderSketch.mockResolvedValue({ html: "<html><head></head><body>Fixture</body></html>", renderHash: "render-hash", bundle: { gaps: [] } });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.canvasRender") }));
   const frame = await screen.findByTitle(i18n.t("design.canvas"));
   expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-forms");
   expect(frame).toHaveAttribute("data-render-hash", "render-hash");
@@ -353,8 +352,6 @@ it("previews an immutable candidate without selecting the current draft", async 
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.proposePreview") }));
   await waitFor(() => expect(api.saveCandidate).toHaveBeenCalled());
-  const renderButtons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
-  fireEvent.click(renderButtons.find((button) => !(button as HTMLButtonElement).disabled)!);
   await screen.findByTitle(i18n.t("design.canvas"));
   expect(api.renderCandidate).toHaveBeenCalledWith(expect.objectContaining({ candidate }));
   expect(api.putSketch).not.toHaveBeenCalled();
@@ -523,8 +520,8 @@ it("renders and captures the selected declared preview state", async () => {
   expect(api.renderCandidate).toHaveBeenCalledWith(expect.objectContaining({ candidate, previewState: "detail" }));
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasState") }));
   fireEvent.click(await screen.findByRole("option", { name: "list" }));
-  expect(await screen.findByText(i18n.t("design.canvasStale"))).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: i18n.t("design.captureStart") })).not.toBeInTheDocument();
+  await waitFor(() => expect(api.renderCandidate).toHaveBeenLastCalledWith(expect.objectContaining({ candidate, previewState: "list" })));
+  expect(await screen.findByRole("button", { name: i18n.t("design.captureStart") })).toBeInTheDocument();
 });
 
 it("locks and separately unlocks a region against the current revision", async () => {

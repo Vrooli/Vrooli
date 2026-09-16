@@ -2035,6 +2035,18 @@ per coordinator and naturally aborts when the persistent session is gone.
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start
 - [requirements/README.md](../../requirements/README.md) - Detailed requirements by module
+### Persistent interactive-session reconciliation
+
+An interactive run is not session-lost merely because one Web Console `Get`
+request returns `NotFound`. Persistent sessions may remain alive in tmux while
+Web Console is restarting, staging, or re-resolving its session catalog. The
+coordinator tolerates that transient absence for 15 minutes, continues to
+reattach when the session reappears, and only then emits the typed
+`session_lost` interruption. A live PTY or advancing transcript is therefore
+never replaced by a Swarm continuation solely because the Web Console API was
+temporarily unavailable. The reattach window is an operational safety bound,
+not evidence that the self-improvement goal is complete or blocked.
+
 ### Protected-run provider incarnation correlation
 
 Protected launches capture the workspace-sandbox process `incarnationId`

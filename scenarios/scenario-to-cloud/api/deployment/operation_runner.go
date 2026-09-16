@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -83,15 +84,19 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		}
 	}
 	bundlePath := ""
+	bundleSizeBytes := int64(0)
 	if plan.Scope == execplan.ScopeFull || plan.Scope == execplan.ScopeInstall {
 		path, err := o.ensureBundleBuilt(ctx, manifest, dep.BundlePath, ec.Options.ForceBundleBuild, dep.ID, emitError)
 		if err != nil {
 			return err
 		}
 		bundlePath = path
+		if info, statErr := os.Stat(bundlePath); statErr == nil {
+			bundleSizeBytes = info.Size()
+		}
 	}
 	if ec.Options.RunPreflight && !ec.Resumed {
-		if err := o.runPreflightStage(ctx, dep.ID, manifest, ec.Options.ProvidedSecrets, &progress, emitError); err != nil {
+		if err := o.runPreflightStage(ctx, dep.ID, manifest, ec.Options.ProvidedSecrets, bundleSizeBytes, &progress, emitError); err != nil {
 			return err
 		}
 	}
@@ -207,15 +212,47 @@ func OutcomeUnknown(err error) bool {
 	return false
 }
 
-func (o *Orchestrator) runPreflightStage(ctx context.Context, id string, manifest domain.CloudManifest, providedSecrets map[string]string, progress *float64, emitError func(step, stepTitle, errMsg string)) error {
+func (o *Orchestrator) runPreflightStage(ctx context.Context, id string, manifest domain.CloudManifest, providedSecrets map[string]string, bundleSizeBytes int64, progress *float64, emitError func(step, stepTitle, errMsg string)) error {
 	preflightStart := time.Now()
 	preflightTarget := o.targetFor(ctx, id, manifest)
 	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{Type: domain.EventPreflightStarted, Timestamp: preflightStart.UTC(), Message: "Preflight checks started"})
 	o.progressHub.Broadcast(id, Event{Type: "step_started", Step: "preflight", StepTitle: "Running preflight checks", Progress: *progress, Timestamp: time.Now().UTC().Format(time.RFC3339)})
-	resp := preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflight.RunOptions{ProvidedSecrets: providedSecrets})
+	preflightOptions := preflight.RunOptions{ProvidedSecrets: providedSecrets, BundleSizeBytes: bundleSizeBytes}
+	resp := preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflightOptions)
 	if !resp.OK && hasFailingPreflightCheck(resp, domain.PreflightDiskFreeID) {
-		if o.tryAutoVPSBundleGC(ctx, id, manifest) {
-			resp = preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflight.RunOptions{ProvidedSecrets: providedSecrets})
+		cleanupAttempted := false
+		cleanupSucceeded := false
+		if disk := preflightDiskFacts(resp); disk.availableKB >= 0 {
+			cleanup := preflight.CleanupDiskPressure(ctx, o.reach, preflightTarget, disk.availableKB, disk.requiredKB)
+			cleanupAttempted = len(cleanup.Attempted) > 0
+			cleanupSucceeded = len(cleanup.Succeeded) > 0
+			if cleanupAttempted {
+				o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+					Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
+					Message: "Adaptive VPS disk cleanup attempted before release GC",
+					Details: fmt.Sprintf("attempted=%v succeeded=%v errors=%v", cleanup.Attempted, cleanup.Succeeded, cleanup.Errors),
+					Success: boolPtr(len(cleanup.Succeeded) > 0), StepName: "preflight",
+				})
+			}
+		}
+		gcApplied := o.tryAutoVPSBundleGC(ctx, id, manifest)
+		if gcApplied || cleanupAttempted {
+			resp = preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflightOptions)
+		}
+		if cleanupSucceeded && diskDeficitWithinTolerance(resp, 256*1024) {
+			for i := range resp.Checks {
+				if resp.Checks[i].ID == domain.PreflightDiskFreeID && resp.Checks[i].Status == domain.PreflightFail {
+					resp.Checks[i].Status = domain.PreflightWarn
+					resp.Checks[i].Details += "; continuing after bounded cleanup because the remaining deficit is within 256 MB"
+				}
+			}
+			resp.OK = true
+			o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+				Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
+				Message: "Deployment continued after bounded disk cleanup",
+				Details: "remaining disk deficit was within 256 MB and no other preflight check failed",
+				Success: boolPtr(true), StepName: "preflight",
+			})
 		}
 	}
 	preflightJSON, _ := json.Marshal(resp)

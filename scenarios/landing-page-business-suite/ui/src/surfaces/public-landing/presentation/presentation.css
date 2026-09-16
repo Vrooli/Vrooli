@@ -89,7 +89,6 @@
 .presentation-page .site-header .unavailable-action small { max-width: 160px; font-size: 9px; }
 .presentation-page .hero-copy, .presentation-page .intro-row > * { min-width: 0; }
 .presentation-page .plan-flow > div { position: relative; }
-.presentation-page .plan-flow > div + div::before { content: '→'; position: absolute; left: -12px; color: #607795; }
 .presentation-page .artifact-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .presentation-page .product-demo, .presentation-page .pricing, .presentation-page .faq { padding-block: 80px; }
 .presentation-page .product-demo figure { margin-top: 40px; }
@@ -135,7 +134,6 @@
   .presentation-page .hero-product-key > a { min-width: 0; }
   .presentation-page .closing-content { width: 100%; background: #0b1728; }
   .presentation-page .closing-art { display: none; }
-  .presentation-page .plan-flow > div + div::before { content: none; }
   .presentation-page .evidence-image { grid-template-columns: 1fr; }
   .presentation-page .evidence-image > img { grid-column: 1; grid-row: 2; height: 150px; }
   .presentation-page .html-composition { padding-right: 21px; padding-bottom: 170px; }
@@ -562,3 +560,187 @@
   box-shadow:0 0 0 1px rgb(34 211 238 / .65), 0 10px 34px rgb(34 211 238 / .32)}
 .presentation-page .button-nav{box-shadow:0 0 0 1px rgb(34 211 238 / .4), 0 4px 18px rgb(34 211 238 / .18)}
 .presentation-page h1 .accent-line{text-shadow:0 0 34px rgb(34 211 238 / .30)}
+
+
+/* ============================================================================
+   Star line, second pass: the plan diagram, the closing artwork, the header.
+   ========================================================================== */
+
+/* ---- The plan exhibit renders a diagram, because it claims one -----------
+   The document is light paper; the diagram inside it is a midnight canvas, so
+   the flow reads as its own figure — nodes as stars, edges as the lines between
+   them — instead of three flat chips. */
+.presentation-page .plan-diagram{
+  --flow-edge:rgb(125 196 224 / .5);
+  margin:28px 0 24px;padding:28px 26px 26px;border-radius:12px;isolation:isolate;
+  background:
+    radial-gradient(rgb(148 197 224 / .07) 1px, transparent 1px) 0 0 / 17px 17px,
+    linear-gradient(168deg,#16263f,#0b1728 78%);
+  box-shadow:inset 0 0 0 1px rgb(125 180 214 / .17), 0 22px 45px -34px rgb(3 9 18 / .85);
+}
+.presentation-page .plan-diagram .plan-flow{
+  display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
+  gap:0 34px;align-items:start;margin:0;padding:0;list-style:none;
+}
+.presentation-page .plan-diagram .plan-flow > li{
+  display:grid;justify-items:stretch;gap:0;min-width:0;
+}
+/* Node: a rounded process box with the step's index carried by a lit point. */
+.presentation-page .plan-diagram .flow-node{
+  position:relative;display:flex;flex-direction:column;gap:9px;
+  min-height:78px;padding:14px 15px;border-radius:9px;
+  background:rgb(255 255 255 / .05);
+  box-shadow:inset 0 0 0 1px rgb(140 197 224 / .28);
+  color:#eaf2fb;font:13px/1.45 var(--sans);
+}
+.presentation-page .plan-diagram .flow-node > span{
+  display:inline-flex;align-items:center;gap:8px;
+  font:9px var(--mono);letter-spacing:1.1px;color:#95bdd2;
+}
+.presentation-page .plan-diagram .flow-node > span::before{
+  content:'';width:5px;height:5px;border-radius:50%;flex:0 0 auto;background:var(--accent);
+  box-shadow:0 0 0 2px rgb(34 211 238 / .3), 0 0 9px rgb(34 211 238 / .65);
+}
+.presentation-page .plan-diagram .flow-node > b{font-weight:600}
+/* Edge: a real line into a real arrowhead, anchored to the node it enters. */
+.presentation-page .plan-diagram .plan-flow > li + li .flow-node::before{
+  content:'';position:absolute;right:calc(100% + 6px);top:50%;
+  width:20px;height:1.5px;background:var(--flow-edge);transform:translateY(-50%);
+}
+.presentation-page .plan-diagram .plan-flow > li + li .flow-node::after{
+  content:'';position:absolute;right:calc(100% - 1px);top:50%;transform:translateY(-50%);
+  border-style:solid;border-color:transparent;border-color:transparent transparent transparent var(--flow-edge);
+  border-width:5px 0 5px 7px;
+}
+/* The acceptance check hangs off the step it belongs to, on a dashed edge. */
+.presentation-page .plan-diagram .flow-drop{
+  position:relative;justify-self:center;width:1.5px;height:26px;
+  background:repeating-linear-gradient(180deg,var(--flow-edge) 0 4px,transparent 4px 8px);
+}
+.presentation-page .plan-diagram .flow-drop::after{
+  content:'';position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);
+  border-style:solid;border-color:transparent;border-color:var(--flow-edge) transparent transparent transparent;
+  border-width:7px 5px 0 5px;
+}
+.presentation-page .plan-diagram .flow-check{
+  display:flex;align-items:flex-start;gap:9px;margin:0;padding:11px 13px;
+  border:1px dashed rgb(140 197 224 / .34);border-radius:9px;
+  background:rgb(34 211 238 / .055);color:#bed3e4;font:11px/1.55 var(--sans);
+}
+.presentation-page .flow-tick{
+  width:12px;height:12px;flex:0 0 auto;margin-top:2px;fill:none;
+  stroke:var(--accent);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+}
+.presentation-page .plan-paper ul .flow-tick{margin-top:3px;margin-right:9px;stroke:#3f7f96}
+.presentation-page .plan-paper ul li{display:flex;align-items:flex-start}
+
+@media (max-width:760px){
+  .presentation-page .plan-diagram{padding:22px 18px}
+  .presentation-page .plan-diagram .plan-flow{grid-auto-flow:row;grid-auto-columns:auto;gap:22px 0}
+  .presentation-page .plan-diagram .plan-flow > li + li .flow-node::before{
+    right:auto;left:50%;top:auto;bottom:calc(100% + 7px);
+    width:1.5px;height:15px;transform:translateX(-50%);
+  }
+  .presentation-page .plan-diagram .plan-flow > li + li .flow-node::after{
+    right:auto;left:50%;top:auto;bottom:calc(100% - 1px);transform:translateX(-50%);
+    border-color:var(--flow-edge) transparent transparent transparent;
+    border-width:7px 5px 0 5px;
+  }
+}
+
+/* ---- Closing artwork: a halftone print seen by starlight -----------------
+   The asset is a dark-green two-tone print with a warm ring, released with a
+   `contain` crop policy that must be honoured. On the old white page its own
+   darks supplied the contrast; on the night page they read as a murky letterbox.
+   Screening it over the sky drops those darks into the background entirely and
+   keeps only the luminous halftone, hue-shifted onto the line's own cyan. The
+   image, its framing and its crop policy are unchanged — only how it is lit. */
+/* The frame hugs the asset's own 2:1 proportion, so `contain` letterboxes
+   nothing and the vignette below fades the picture's real edges. */
+.presentation-page .closing-art{
+  width:54%;height:auto;aspect-ratio:2/1;top:50%;bottom:auto;opacity:1;
+  transform:translateY(-50%);
+}
+.presentation-page .closing-art::after{display:none}
+.presentation-page .closing-art img{
+  mix-blend-mode:screen;opacity:.76;
+  filter:grayscale(1) contrast(1.05) brightness(.82) sepia(1) hue-rotate(162deg) saturate(2);
+  -webkit-mask-image:radial-gradient(ellipse at 60% 50%, #000 20%, transparent 68%);
+  mask-image:radial-gradient(ellipse at 60% 50%, #000 20%, transparent 68%);
+}
+@keyframes presentation-closing-drift{
+  from{transform:translateY(-50%) scale(1)}
+  to{transform:translateY(-52%) scale(1.045)}
+}
+@media (prefers-reduced-motion: no-preference){
+  .presentation-page .closing-art{
+    animation:presentation-closing-drift 34s ease-in-out infinite alternate;
+  }
+}
+@media (max-width:600px){
+  .presentation-page .closing-art{display:none}
+}
+
+/* ---- Header: transparent over the opening, docked once you are reading ---- */
+.presentation-page > .site-header{position:sticky;top:0;z-index:10;border-bottom-color:transparent}
+.presentation-page .site-header nav > a:not(.button){position:relative}
+.presentation-page .site-header nav > a:not(.button)::after{
+  content:'';position:absolute;left:0;right:0;bottom:6px;height:1px;
+  background:var(--accent);transform:scaleX(0);transform-origin:0 50%;
+  transition:transform var(--motion-base) var(--ease-out);
+}
+.presentation-page .site-header nav > a:not(.button):hover::after{transform:scaleX(1)}
+/* Matches the nav-link rule's own specificity, which is higher than a bare class. */
+.presentation-page .site-header nav > a.nav-signin:not(.button){font-weight:600;color:var(--ink)}
+/* The header keeps its one primary action; the availability note it carries is
+   for the reader of the action, not for the masthead, and stays in the page and
+   on the download surface where it belongs. */
+.presentation-page .site-header .unavailable-action small{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
+}
+.presentation-page .site-header .unavailable-action{gap:0}
+
+/* The masthead scrim is a fixed, full-bleed layer rather than a background on
+   the header itself: the header is inside the page's centred column, and a
+   docked bar has to reach both edges of the viewport. Fixed with left/right 0
+   also keeps it clear of the scrollbar, so it adds no horizontal overflow. */
+.presentation-page::after{
+  content:'';position:fixed;z-index:9;left:0;right:0;top:0;height:96px;pointer-events:none;
+  border-bottom:1px solid transparent;
+}
+.presentation-page.download-page::after{display:none}
+@media (max-width:1150px){.presentation-page::after{height:80px}}
+@media (max-width:600px){.presentation-page::after{height:75px}}
+
+@keyframes presentation-header-dock{
+  from{background-color:rgb(9 20 36 / 0);border-bottom-color:rgb(255 255 255 / 0);
+       -webkit-backdrop-filter:blur(0px);backdrop-filter:blur(0px);
+       box-shadow:0 0 0 rgb(3 9 18 / 0)}
+  to{background-color:rgb(9 20 36 / .78);border-bottom-color:rgb(255 255 255 / .1);
+     -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+     box-shadow:0 20px 40px -34px rgb(3 9 18 / .95)}
+}
+@supports (animation-timeline: scroll()){
+  @media (prefers-reduced-motion: no-preference){
+    .presentation-page::after{
+      animation:presentation-header-dock linear both;
+      animation-timeline:scroll(root);
+      animation-range:0 140px;
+    }
+  }
+}
+/* Without a scroll timeline the masthead simply stays docked: legible at every
+   scroll position, which is the property that actually matters. */
+@supports not (animation-timeline: scroll()){
+  .presentation-page::after{
+    background-color:rgb(9 20 36 / .78);border-bottom-color:rgb(255 255 255 / .1);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  .presentation-page::after{
+    background-color:rgb(9 20 36 / .78);border-bottom-color:rgb(255 255 255 / .1);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  }
+}

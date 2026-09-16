@@ -215,10 +215,11 @@ func (e *Enforcer) unauthenticated(cause error) *apierrors.Error {
 }
 
 func (e *Enforcer) admit(r *http.Request, route Route, principal identity.Principal) *apierrors.Error {
-	if principal.Kind != identity.ActorHuman && !route.ServiceAllowed {
+	delegatedAgent := e.agentDelegationAllows(principal, route)
+	if principal.Kind != identity.ActorHuman && !route.ServiceAllowed && !delegatedAgent {
 		return apierrors.New(apierrors.CodeForbiddenScope, "This operation requires a human operator session").WithDetail("actor_kind", string(principal.Kind)).WithDetail("required_scope", route.Scope).WithDetail("agent_eligible", false).WithNextAction(apierrors.NextAction{Owner: "operator", Kind: "approval", Reference: "docs/reference/configuration.md#authentication", Label: "Run this deployment change from an authenticated human operator session"})
 	}
-	if !scopecatalog.Resolve(principal.Scopes, route.Scope) {
+	if !scopecatalog.Resolve(principal.Scopes, route.Scope) && !delegatedAgent {
 		message := "This human operator session lacks the required capability"
 		label := "Rerun this deployment command from your local Vrooli terminal; operator access is automatic"
 		kind := "grant_scope"
@@ -245,6 +246,27 @@ func (e *Enforcer) admit(r *http.Request, route Route, principal identity.Princi
 		}
 	}
 	return nil
+}
+
+// agentDelegationAllows is an explicit, operator-configured validation
+// window. It is deliberately narrower than ordinary human authorization:
+// only agent principals may use it, only deployment write/destructive scopes
+// are eligible, and credentials and interactive terminals remain human-only.
+// Target binding and RequireEffect still run after this admission check.
+func (e *Enforcer) agentDelegationAllows(principal identity.Principal, route Route) bool {
+	if principal.Kind != identity.ActorAgent || e == nil {
+		return false
+	}
+	if e.cfg.AgentDelegationUntil.IsZero() || !e.cfg.now().Before(e.cfg.AgentDelegationUntil) {
+		return false
+	}
+	if strings.TrimSpace(e.cfg.AgentDelegationReason) == "" {
+		return false
+	}
+	if route.Effect == EffectSecret || route.Effect == EffectInteractive {
+		return false
+	}
+	return route.Scope == ScopeWrite || route.Scope == ScopeDestructive
 }
 
 // bindTarget resolves the deployment named by {id} and checks the
@@ -486,6 +508,10 @@ func (e *Enforcer) audit(msg string, route Route, principal identity.Principal, 
 		"effect":  string(route.Effect),
 		"route":   route.Key(),
 		"outcome": outcome,
+	}
+	if principal.Kind == identity.ActorAgent && e.agentDelegationAllows(principal, route) {
+		fields["agent_delegation_until"] = e.cfg.AgentDelegationUntil.UTC().Format(time.RFC3339)
+		fields["agent_delegation_reason"] = e.cfg.AgentDelegationReason
 	}
 	if code != "" {
 		fields["code"] = code

@@ -166,12 +166,13 @@ func TestManagerEnvironmentVariables(t *testing.T) {
 echo "SCENARIO_DIR=$TEST_GENIE_SCENARIO_DIR" > "` + envMarker + `"
 echo "REPO_ROOT=$TEST_GENIE_REPO_ROOT" >> "` + envMarker + `"
 echo "VROOLI_ROOT=$VROOLI_ROOT" >> "` + envMarker + `"
+echo "TARGET_API_BASE=$TEST_GENIE_TARGET_API_BASE" >> "` + envMarker + `"
 `
 	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
 		t.Fatalf("failed to create seed script: %v", err)
 	}
 
-	manager := NewManager(scenarioDir, appRoot, testDir, nil)
+	manager := NewManager(scenarioDir, appRoot, testDir, nil).WithTargetAPIBase("http://127.0.0.1:23154")
 
 	cleanup, err := manager.Apply(context.Background())
 	if err != nil {
@@ -196,6 +197,9 @@ echo "VROOLI_ROOT=$VROOLI_ROOT" >> "` + envMarker + `"
 	}
 	if !strings.Contains(envStr, "VROOLI_ROOT="+appRoot) {
 		t.Errorf("expected VROOLI_ROOT=%s in output, got: %s", appRoot, envStr)
+	}
+	if !strings.Contains(envStr, "TARGET_API_BASE=http://127.0.0.1:23154") {
+		t.Errorf("expected TARGET_API_BASE in output, got: %s", envStr)
 	}
 }
 

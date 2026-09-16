@@ -619,14 +619,25 @@ func (s *DefaultService) attachProviderJourney(ctx context.Context, journey *del
 		hash := sha256.Sum256(data)
 		digest = "sha256:" + hex.EncodeToString(hash[:])
 	}
+	profileID := strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE"))
+	if profileID == "" && journey != nil {
+		profileID = strings.TrimSpace(journey.Profile)
+	}
+	if profileID == "" {
+		profileID = "normal-review"
+	}
+	validationTargetID := "local-" + platform
+	validationCellID := "cell-" + smokeTestID
+	journey.TargetID = validationTargetID
+	journey.CellID = validationCellID
 	provider := s.providerJourney.Execute(ctx, validationdesktop.Request{
-		RunID: smokeTestID, CellID: "cell-" + smokeTestID, ScenarioName: scenarioName,
+		RunID: smokeTestID, CellID: validationCellID, ScenarioName: scenarioName,
 		ScenarioRoot: s.providerScenarioRoot, ArtifactPath: artifactPath, ArtifactDigest: digest,
-		JourneyID: journeyID, WorkflowPath: workflowPath, TargetID: "local-" + platform,
-		ProfileID: strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE")), TargetAvailable: true,
+		JourneyID: journeyID, WorkflowPath: workflowPath, TargetID: validationTargetID,
+		ProfileID: profileID, TargetAvailable: true,
 	})
 	journey.WorkflowRequired = true
-	ref := workflowReferenceFromProvider(provider, smokeTestID, "local-"+platform, "cell-"+smokeTestID, journeyID, digest)
+	ref := workflowReferenceFromProvider(provider, smokeTestID, validationTargetID, validationCellID, journeyID, digest)
 	journey.WorkflowReference = &ref
 	appendWorkflowChapter(journey, &ref, provider.Reason)
 	if provider.Disposition != "pass" {

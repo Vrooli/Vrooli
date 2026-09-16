@@ -31,7 +31,8 @@
   "environment": {
     "PUBLIC_BASE_URL": "https://vrooli.com",
     "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify",
-    "STRIPE_MODE": "test"
+    "STRIPE_MODE": "test",
+    "STRIPE_PLANS_PATH": ".vrooli/plans.json"
   },
   "generation": {
     "template": {

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 	planmodel "plan-manager/internal/planmodel"
 )
 
@@ -193,6 +194,20 @@ func TestTerminalFailedBaselineReceiptDoesNotRecommendAnotherWait(t *testing.T) 
 	wantArgv := []string{"exec", "baseline-adopt", "exec-1", "--mode", "recapture", "--name", "<new-collection-name>", "--members", "alpha,beta", "--paths", "packages/shared/**", "--reason", "<why the current source state is a trustworthy new anchor>"}
 	if !sameStrings(step.NextActions[0].Argv, wantArgv) {
 		t.Fatalf("recapture argv = %v, want %v", step.NextActions[0].Argv, wantArgv)
+	}
+}
+
+func TestFailedBaselineReceiptPreservesAggregateCoverage(t *testing.T) {
+	execution := Execution{BaselineSet: BaselineSetState{ScenarioTargets: []string{"alpha", "beta", "gamma", "delta"}}}
+	receipt := &validationv1.ValidationReceipt{
+		State:  validationv1.ReceiptState_RECEIPT_STATE_FAILED,
+		Detail: "GCT collection before coverage required=4 ready=3 pending=0 failed=1 skipped=0 stale=0",
+	}
+
+	(&service{}).projectBaselineReceipt(&execution, receipt)
+
+	if execution.BaselineSet.Required != 4 || execution.BaselineSet.Ready != 3 || execution.BaselineSet.Failed != 1 {
+		t.Fatalf("coverage = required=%d ready=%d failed=%d, want 4/3/1", execution.BaselineSet.Required, execution.BaselineSet.Ready, execution.BaselineSet.Failed)
 	}
 }
 

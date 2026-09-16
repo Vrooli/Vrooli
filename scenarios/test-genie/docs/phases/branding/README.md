@@ -115,6 +115,7 @@ positives. The branding maturity ladder (L0–L6) evaluates, per scenario:
 | `twitter-card` | ui | `twitter:card/title/description` present | info | yes (derive from identity) |
 | `cli-branding` | cli | the CLI manifest surfaces the display name | info | no (human-facing copy) |
 | `api-branding` | any | `service.description` (the API/OpenAPI title) is real, not template residue | info | no (human-authored copy) |
+| `declared-icon-targets` | any (only when `.vrooli/service.json` declares a `branding` block) | every declared `web-public-v1`/`electron-v1` target exists, has the right format magic, exact dimensions and opacity, its maskable entries keep content inside the 0.40 safe zone, the `ui/index.html` marker block is present exactly once, `site.webmanifest` icon `src`s are relative, and no target carries known placeholder bytes | warning | no (rendering needs image-tools through `brand-manager apply run`; guidance-only) |
 
 **Deferred (intentional coverage gaps, not silent):** design-system depth
 (spacing/radius token completeness, color-format consistency), pixel/device-accurate
@@ -145,3 +146,9 @@ fix it cannot perform. Most fixers are **self-contained** (they derive the
 correct value from the scenario's own `service.json` + existing assets), so
 test-genie's brandless `ApplyFix` can remediate PWA/manifest/social/consistency
 branding for any scenario without first assigning a brand.
+
+`declared-icon-targets` is intentionally **guidance-only** (no fixer). Producing
+its PNG/ICO/ICNS targets requires rasterizing the composed SVG through
+image-tools, and validation fixers are filesystem-deterministic by contract, so
+the honest one-command remediation is `brand-manager apply run --brand-id <brand>
+--scenario <scenario> --elements icons` (the addressing carried in the finding).

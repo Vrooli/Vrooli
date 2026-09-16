@@ -165,7 +165,7 @@ type SecretPromptMetadata struct {
 }
 
 // LocalCredentialHandoff binds one deployment credential to a local consumer
-// such as an LPBS remote-profile store. The consumer scenario is resolved via
+// such as a hosted scenario's remote-profile store. The consumer scenario is resolved via
 // service discovery; the path is a fixed local API path, not a remote host
 // address. AuthDescriptor names the local credential used to authorize the
 // handoff request.

@@ -45,13 +45,13 @@ describe("RunSheet", () => {
     expect(screen.getByText("Ready to start")).toBeVisible();
     expect(screen.getByText("Choose how the work runs")).toBeVisible();
     expect(screen.getByText(/Starting smaller is a safe way/)).toBeVisible();
-    expect(screen.queryByRole("region", { name: "Unattended operation" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Unattended operation" })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: /Start run/ }));
 
     await waitFor(() => expect(mockQueue).toHaveBeenLastCalledWith("execute", "item-a", {
       mode: "yolo", startedBy: "swarm-manager-ui", confirm: true, force: false,
-      strategy: "sliced", maxSlices: 6,
+      strategy: "sliced", maxSlices: 6, blockerRepairPolicy: "in_scope_only",
     }));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -71,6 +71,17 @@ describe("RunSheet", () => {
     expect(screen.getByRole("link", { name: /Edit on the item/ })).toHaveAttribute("href", "/backlog/execute/develop-audio");
     fireEvent.click(screen.getByRole("button", { name: /Start run/ }));
     await waitFor(() => expect(mockQueue).toHaveBeenLastCalledWith("execute", "develop-audio", expect.objectContaining({ confirm: true, strategy: "sliced" })));
+  });
+
+  it("sends explicit external repair authority with the run", async () => {
+    mockGet.mockResolvedValue({ items: [{ id: "sliced", display_name: "Adaptive improvement", cost_estimate: 3.25 }] });
+    mockQueue.mockResolvedValue({ ...readyPreview, item: { executionMode: "sliced", continuation: "until-allowance", scopePolicy: "extend-with-record" } });
+
+    renderWithProviders(<RunSheet isOpen onClose={vi.fn()} target={{ kind: "execute", name: "develop-audio" }} />, { queryClient: createTestQueryClient() });
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Authorize repair and continue/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("radio", { name: /Authorize repair and continue/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Start run/ }));
+    await waitFor(() => expect(mockQueue).toHaveBeenLastCalledWith("execute", "develop-audio", expect.objectContaining({ blockerRepairPolicy: "repair_and_continue" })));
   });
 
   it("replaces the previous item's selection with the newly reviewed item's strategy", async () => {

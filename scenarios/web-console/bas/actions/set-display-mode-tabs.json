@@ -9,7 +9,7 @@
     "description": "Pin tabs display mode through the Workspace settings control and remember the prior mode for restoration.",
     "execution_mode": "mutating",
     "reset": "none",
-    "labels": { "reset": "none", "requires_confirmation": "true" }
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
   },
   "tags": ["reset:none", "display-mode"],
   "version": 1,

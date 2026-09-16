@@ -342,6 +342,14 @@ func parseLayoutElement(m map[string]any) layoutElement {
 	if rect == nil {
 		rect = m
 	}
+	computed := firstMap(m, "computed", "styles", "style")
+	styleString := func(keys ...string) string {
+		value := firstString(m, keys...)
+		if value == "" && computed != nil {
+			value = firstString(computed, keys...)
+		}
+		return value
+	}
 	return layoutElement{
 		Selector:          firstString(m, "selector", "id", "path"),
 		ParentSelector:    firstString(m, "parentSelector", "parent_selector", "parent"),
@@ -362,14 +370,14 @@ func parseLayoutElement(m map[string]any) layoutElement {
 		Color:             firstString(m, "color", "foregroundColor", "textColor"),
 		BackgroundColor:   firstString(m, "backgroundColor", "background_color"),
 		FontFamily:        firstString(m, "fontFamily", "font_family"),
-		Position:          strings.ToLower(firstString(m, "position")),
-		OverflowX:         strings.ToLower(firstString(m, "overflowX", "overflow")),
-		OverflowY:         strings.ToLower(firstString(m, "overflowY", "overflow")),
-		PointerEvents:     strings.ToLower(firstString(m, "pointerEvents")),
-		Visibility:        strings.ToLower(firstString(m, "visibility")),
-		Display:           strings.ToLower(firstString(m, "display")),
-		TextOverflow:      strings.ToLower(firstString(m, "textOverflow", "text_overflow")),
-		WhiteSpace:        strings.ToLower(firstString(m, "whiteSpace", "white_space")),
+		Position:          strings.ToLower(styleString("position")),
+		OverflowX:         strings.ToLower(styleString("overflowX", "overflow_x", "overflow")),
+		OverflowY:         strings.ToLower(styleString("overflowY", "overflow_y", "overflow")),
+		PointerEvents:     strings.ToLower(styleString("pointerEvents", "pointer_events")),
+		Visibility:        strings.ToLower(styleString("visibility")),
+		Display:           strings.ToLower(styleString("display")),
+		TextOverflow:      strings.ToLower(styleString("textOverflow", "text_overflow")),
+		WhiteSpace:        strings.ToLower(styleString("whiteSpace", "white_space")),
 		InlineIntent:      boolValue(m, "inlineIntent", "inline_intent"),
 		Opacity:           numberDefault(m, 1, "opacity"),
 		AriaModal:         boolValue(m, "ariaModal", "aria-modal"),
@@ -424,6 +432,12 @@ func (e layoutElement) offscreen(s layoutSnapshot) bool {
 
 func (e layoutElement) hasClippedText() bool {
 	if strings.TrimSpace(e.Text) == "" {
+		return false
+	}
+	// Screen-reader-only labels intentionally clip their text into a 1px box.
+	// They are still meaningful accessibility content, but are not visible text
+	// and must not produce a visual clipping finding.
+	if e.Width <= 1 && e.Height <= 1 {
 		return false
 	}
 	xClipped := e.ScrollWidth > 0 && e.ClientWidth > 0 && e.ScrollWidth > e.ClientWidth+1 && clips(e.OverflowX)

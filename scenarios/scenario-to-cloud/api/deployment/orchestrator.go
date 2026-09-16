@@ -467,6 +467,48 @@ func hasFailingPreflightCheck(resp domain.PreflightResponse, checkID string) boo
 	return false
 }
 
+type diskPreflightFacts struct {
+	availableKB int64
+	requiredKB  int64
+}
+
+func preflightDiskFacts(resp domain.PreflightResponse) diskPreflightFacts {
+	for _, check := range resp.Checks {
+		if check.ID != domain.PreflightDiskFreeID {
+			continue
+		}
+		available, availErr := strconv.ParseInt(check.Data["free_kb"], 10, 64)
+		required, requiredErr := strconv.ParseInt(check.Data["required_min_kb"], 10, 64)
+		if availErr != nil || requiredErr != nil {
+			return diskPreflightFacts{availableKB: -1, requiredKB: -1}
+		}
+		return diskPreflightFacts{availableKB: available, requiredKB: required}
+	}
+	return diskPreflightFacts{availableKB: -1, requiredKB: -1}
+}
+
+// diskDeficitWithinTolerance permits a deployment to continue only after the
+// adaptive cleanup ran successfully, when the remaining shortfall is small
+// enough to be explained by filesystem accounting/rounding. Any non-disk
+// failure or a larger deficit remains a hard refusal.
+func diskDeficitWithinTolerance(resp domain.PreflightResponse, toleranceKB int64) bool {
+	var disk *domain.PreflightCheck
+	for i := range resp.Checks {
+		check := &resp.Checks[i]
+		if check.Status == domain.PreflightFail && check.ID != domain.PreflightDiskFreeID {
+			return false
+		}
+		if check.ID == domain.PreflightDiskFreeID {
+			disk = check
+		}
+	}
+	if disk == nil || disk.Status != domain.PreflightFail {
+		return false
+	}
+	facts := preflightDiskFacts(resp)
+	return facts.requiredKB > facts.availableKB && facts.requiredKB-facts.availableKB <= toleranceKB
+}
+
 // tryAutoVPSBundleGC attempts to garbage-collect old bundles on the VPS to relieve disk pressure.
 // Returns true if a GC pass was applied (and preflight should be re-run).
 func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID string, manifest domain.CloudManifest) bool {

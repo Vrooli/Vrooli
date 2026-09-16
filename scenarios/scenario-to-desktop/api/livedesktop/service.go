@@ -342,7 +342,11 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	if strings.TrimSpace(opts.ScenarioName) == "" {
 		return nil, fmt.Errorf("Electron validation scenario name is required")
 	}
-	if renderer.URLPrefix == "http://127.0.0.1:" {
+	// A bare loopback prefix is the provider-owned identity matcher. Only the
+	// explicit port-zero sentinel asks this service to resolve a scenario's
+	// live UI port; bundled validation must attach to the private runtime port
+	// discovered by the generated Electron process.
+	if renderer.URLPrefix == "http://127.0.0.1:0" {
 		if s.rendererURLResolver == nil {
 			return nil, fmt.Errorf("Electron validation renderer URL resolver is unavailable")
 		}

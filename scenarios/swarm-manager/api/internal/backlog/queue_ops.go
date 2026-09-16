@@ -104,6 +104,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		Force:                force,
 		ExecutionMode:        params.strategy,
 		OperatorNote:         params.operatorNote,
+		BlockerRepairPolicy:  params.blockerRepairPolicy,
 		MaxSlices:            params.maxSlices,
 		ExecutionPreferences: params.preferences,
 	})
@@ -142,15 +143,16 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 // queueRequestParams holds the normalized inputs parsed from a queue request.
 type queueRequestParams struct {
-	operation    string
-	confirm      bool
-	force        bool
-	mode         execution.Mode
-	startedBy    string
-	strategy     string
-	operatorNote string
-	maxSlices    int
-	preferences  *execution.ExecutionPreferences
+	operation           string
+	confirm             bool
+	force               bool
+	mode                execution.Mode
+	startedBy           string
+	strategy            string
+	operatorNote        string
+	blockerRepairPolicy string
+	maxSlices           int
+	preferences         *execution.ExecutionPreferences
 }
 
 // parseQueueRequest decodes and normalizes the queue request body, applying
@@ -172,14 +174,15 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 	}
 
 	params := queueRequestParams{
-		operation:    "generator",
-		confirm:      pbReq.GetConfirm(),
-		force:        pbReq.GetForce(),
-		mode:         execution.ModeYOLO,
-		startedBy:    strings.TrimSpace(pbReq.GetStartedBy()),
-		strategy:     strings.TrimSpace(pbReq.GetExecutionMode()),
-		operatorNote: strings.TrimSpace(pbReq.GetOperatorNote()),
-		maxSlices:    int(pbReq.GetMaxSlices()),
+		operation:           "generator",
+		confirm:             pbReq.GetConfirm(),
+		force:               pbReq.GetForce(),
+		mode:                execution.ModeYOLO,
+		startedBy:           strings.TrimSpace(pbReq.GetStartedBy()),
+		strategy:            strings.TrimSpace(pbReq.GetExecutionMode()),
+		operatorNote:        strings.TrimSpace(pbReq.GetOperatorNote()),
+		blockerRepairPolicy: strings.TrimSpace(pbReq.GetBlockerRepairPolicy()),
+		maxSlices:           int(pbReq.GetMaxSlices()),
 	}
 	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
 		params.preferences = &execution.ExecutionPreferences{
@@ -200,6 +203,9 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 	}
 	if params.startedBy == "" {
 		params.startedBy = "swarm-manager"
+	}
+	if params.blockerRepairPolicy == "" {
+		params.blockerRepairPolicy = execution.BlockerRepairInScopeOnly
 	}
 	return params, true
 }

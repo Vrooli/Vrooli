@@ -386,6 +386,9 @@ func init() {
 	if err := RegisterJourneyFixture(baselineFixture{}); err != nil {
 		panic(err)
 	}
+	if err := RegisterJourneyFixture(providerBaselineFixture{}); err != nil {
+		panic(err)
+	}
 	registerCommunicationFixtures()
 }
 
@@ -413,6 +416,30 @@ func (baselineFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
 	}
 }
 func (baselineFixture) Actions() map[string]JourneyAction { return nil }
+
+// providerBaselineFixture keeps explicit provider certification focused on
+// window/runtime evidence. The provider-owned workflow supplies the
+// application-specific pointer and keyboard assertions; a generic click at
+// the display center cannot reliably imply a repaint for every app.
+type providerBaselineFixture struct{}
+
+func (providerBaselineFixture) Capability() string { return "desktop.launch.provider-baseline" }
+func (providerBaselineFixture) Plan(input JourneyInput) deliveryramp.JourneyPlan {
+	plan := baselineFixture{}.Plan(input)
+	filtered := make([]deliveryramp.JourneyStepSpec, 0, len(plan.Steps)-2)
+	for _, step := range plan.Steps {
+		if step.Action == "pointer_click" || step.Action == "key_press" {
+			continue
+		}
+		filtered = append(filtered, step)
+	}
+	plan.ID = "desktop.launch.provider-baseline.v1"
+	plan.Capability = "desktop.launch.provider-baseline"
+	plan.Purpose = "Prove the packaged application window and runtime remain usable while the provider-owned workflow proves application behavior."
+	plan.Steps = filtered
+	return plan
+}
+func (providerBaselineFixture) Actions() map[string]JourneyAction { return nil }
 
 type communicationFixture struct {
 	capability string

@@ -88,6 +88,7 @@ run narrow its slice allowance. Bulk launch keeps each item's own settings.
 | `scope_policy` | `fixed` \| `extend-with-record` | See Scope policy. |
 | `acceptance_allow`, `acceptance_deny` | Path globs | Narrow to the target scenario, its packages, protos and docs. Use `extend-with-record` for the rest. |
 | `operator_note` | Free text | Reaches the agent verbatim in the goal message and in the slice prompt: intent, reminders, authority to fix shared packages with a record. A run may add its own note. |
+| `blocker_repair_policy` | `in_scope_only` \| `investigate` \| `repair_and_continue` | Per-run authority for diagnosing and safely repairing external dependency/infrastructure blockers. The strongest level still requires a recorded boundary extension and never overrides explicit denies or safety gates. |
 | `execution_preferences` | `preferred_runner`, `model`, `effort` | Carried on the queue request and the execution record, not stored on the item. The runner is a preference, not a pin. It reorders role candidates; the fallthrough reason is visible. |
 
 An item without explicit limits keeps the bounded ordinary defaults. A larger

@@ -3856,7 +3856,7 @@
         {
           "name": "preview",
           "description": "Evaluate trigger eligibility from a bounded observation",
-          "flags": [{"name": "file", "description": "JSON observation file", "required": true}],
+          "flags": [{"name": "file", "description": "JSON observation file", "required": true, "bind": {"field": "observation_json"}}],
           "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "PreviewTrigger"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         },
@@ -3892,7 +3892,7 @@
         {
           "name": "incident",
           "description": "Read one durable investigation trigger incident",
-          "flags": [{"name": "fingerprint", "description": "Incident fingerprint", "required": true}],
+          "flags": [{"name": "fingerprint", "description": "Incident fingerprint", "required": true, "bind": {"field": "incident_fingerprint"}}],
           "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "GetIncident"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         },

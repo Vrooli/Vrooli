@@ -293,6 +293,36 @@ func TestCoordinatorSessionGoneMidTailFails(t *testing.T) {
 	}
 }
 
+// TestCoordinatorSessionGoneWindowAllowsPersistentRecovery documents the
+// failure mode found in production: a persistent PTY can remain alive while
+// Web Console temporarily has no session row during a managed restart. The
+// watcher must not declare loss during that re-resolution window.
+func TestCoordinatorSessionGoneWindowAllowsPersistentRecovery(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	run.WebConsoleSessionID = "sess-recovering"
+	sess := newFakeSessions("sess-recovering")
+	sess.deleted["sess-recovering"] = true
+
+	coord := NewCoordinator(CoordinatorDeps{
+		Sessions:              sess,
+		SessionPoll:           5 * time.Millisecond,
+		Heartbeat:             -1,
+		SessionReattachWindow: 40 * time.Millisecond,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	gone := coord.watchSession(ctx, cancel, run)
+	time.Sleep(15 * time.Millisecond)
+	sess.mu.Lock()
+	sess.deleted["sess-recovering"] = false
+	sess.mu.Unlock()
+	time.Sleep(35 * time.Millisecond)
+	if gone() {
+		t.Fatal("session was declared gone after it reappeared within the reattach window")
+	}
+}
+
 // TestCoordinatorFinalizeSemantics covers the finalize decision table directly:
 // success/failure terminals, session-gone with and without a prior terminal, and
 // graceful shutdown (which must leave the run Running for restart recovery).

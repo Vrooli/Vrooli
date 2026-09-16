@@ -88,7 +88,7 @@ func NewClient() *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		resolver:     discovery.DefaultResolver(),
+		resolver: discovery.DefaultResolver(),
 	}
 }
 
@@ -252,7 +252,10 @@ func transformSecrets(secrets []ManagerSecret, tier string) []domain.BundleSecre
 				Name: s.SecretKey,
 			},
 		}
-		if class != "per_install_generated" && strings.TrimSpace(s.LogicalID) != "" && strings.TrimSpace(s.Field) != "" {
+		// Generated credentials still need their declaration-backed identity.
+		// The class controls how the value is produced; it must not erase the
+		// logical_id/field needed by the credential authority to materialise it.
+		if strings.TrimSpace(s.LogicalID) != "" && strings.TrimSpace(s.Field) != "" {
 			plan.Descriptor = &domain.DescriptorAddress{LogicalID: strings.TrimSpace(s.LogicalID), Field: strings.TrimSpace(s.Field)}
 		}
 

@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
@@ -36,20 +37,26 @@ type gatesRPC interface {
 }
 
 type Commands struct {
-	rpc   evidenceRPC
-	gates gatesRPC
-	http  interface {
+	rpc       evidenceRPC
+	gates     gatesRPC
+	apiPrefix string
+	http      interface {
 		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
 	}
 }
 
 func New(deps support.Dependencies) *Commands {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	app := deps.ScenarioApp()
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(app)
+	restClient := cliutil.NewHTTPClient(cliutil.HTTPClientOptions{
+		BaseOptions: app.APIBaseOptions(),
+		Timeout:     app.HTTPClient.Timeout(),
+	})
 	var gates gatesRPC
 	if offerDeskURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/"); offerDeskURL != "" {
 		gates = offersconnect.NewGatesServiceClient(httpClient, offerDeskURL)
 	}
-	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, http: deps.ScenarioApp().HTTPClient}
+	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, apiPrefix: app.APIPrefix(), http: restClient}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -79,7 +86,8 @@ func (c *Commands) manifestPrimitive() cliapp.PrimitiveHandler {
 		if identity == "" {
 			return nil, fmt.Errorf("--pipeline or --run is required")
 		}
-		value, err := c.http.DoWithContext(context.Background(), "GET", "/captures/"+url.PathEscape(ctx.Positional("scenario"))+"/manifest", url.Values{"pipeline": []string{identity}}, nil)
+		path := strings.TrimRight(c.apiPrefix, "/") + "/captures/" + url.PathEscape(ctx.Positional("scenario")) + "/manifest"
+		value, err := c.http.DoWithContext(context.Background(), "GET", path, url.Values{"pipeline": []string{identity}}, nil)
 		if err != nil {
 			return nil, cliapp.WrapAPIError("retrieve evidence manifest", err, nil)
 		}

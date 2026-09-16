@@ -6,6 +6,28 @@ the time they were written; they are not release-readiness claims. For the
 current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
 [desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
 
+## Requirements and evidence closure — 2026-09-16
+
+The desktop evidence plan closed the P1–P7 obligation set with executable
+requirements and bounded claims. P1 provider-owned desktop execution is linked
+to `api/smoketest/provider_journey_test.go`; P2 journey-kind provenance to
+`api/smoketest/journey_contract_test.go` and evidence contract tests; P3 capture
+ownership to `TestRejectCrossRunReferencesNamesOriginalRun`; P4 counted
+isolation to `TestValidateRecoveryCountRejectsFalseZero`; P5 probe identity to
+the loopback identity tests; P6 independent gates to
+`api/evidence/manifest_test.go`; and P7 private runtime isolation to the smoke
+target and isolation tests. Web Console session preconditions, display-mode
+restoration, and target-relative seeding are linked to their BAS cases and
+seeder contract.
+
+Requirements validation passed for both scenarios on 2026-09-16. The
+scenario-to-desktop registry still has historical warning-level unvalidated
+placeholders and stale sync evidence; this phase does not convert those into
+passing claims. The capability matrix remains explicitly pending phase-16
+certifying run IDs. The canonical contract now states that a passing desktop
+BAS cell proves only the selected provider journey and same-run identity
+bindings, not an untested tier or release readiness.
+
 ## Work ladder
 
 - Rung: W0 (desktop monetization readiness review).

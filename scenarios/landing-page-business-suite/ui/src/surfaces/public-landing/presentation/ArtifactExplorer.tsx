@@ -5,12 +5,47 @@ import { AssetImage, Intro, ProductMark } from './primitives';
 
 function Preview({ fixture: x, resources }: { fixture: ArtifactExample; resources: PresentationResources }) {
   switch (x.kind) {
-    case 'plan': return <div className="plan-paper"><p className="exhibit-kicker">{x.type}</p><h3>{x.title}</h3><p>{x.body}</p><div className="plan-flow">{x.steps?.map((step, index) => <div key={index}><span>{String(index + 1).padStart(2, '0')}</span>{step}</div>)}</div><ul>{x.checks?.map((check, index) => <li key={index}><span aria-hidden="true">✓</span>{check}</li>)}</ul></div>;
+    case 'plan': return <div className="plan-paper"><p className="exhibit-kicker">{x.type}</p><h3>{x.title}</h3><p>{x.body}</p><PlanDiagram steps={x.steps} checks={x.checks} /></div>;
     case 'image': return <div className="evidence-image">{x.asset_ref && <AssetImage assetRef={x.asset_ref} resources={resources} />}<div><p className="exhibit-kicker">{x.type}</p><h3>{x.title}</h3><p>{x.body}</p></div></div>;
     case 'html-preview': return <div className="html-exhibit"><div className="exhibit-browser"><i aria-hidden="true">● ● ●</i><span>{x.type}</span></div><div className="html-composition"><p className="exhibit-kicker">{x.brand}</p><h3>{x.title}<em>{x.accent}</em></h3><p>{x.body}</p>{x.asset_ref && <div className="html-art"><AssetImage assetRef={x.asset_ref} resources={resources} /></div>}</div></div>;
     case 'video': return <div className="video-exhibit"><p className="exhibit-kicker">{x.type}</p><h3>{x.title}</h3><p>{x.body}</p><div className="video-filmstrip">{x.frames?.map((frame, index) => <figure key={index}><AssetImage assetRef={frame.asset_ref} resources={resources} /><figcaption><span>{frame.time}</span>{frame.label}</figcaption></figure>)}</div></div>;
     case 'audio': case 'code': case 'pdf': return <div className="plan-paper"><p className="exhibit-kicker">{x.type}</p><h3>{x.title}</h3><p>{x.body}</p><pre className="artifact-text">{x.source.text_excerpt}</pre></div>;
   }
+}
+
+/**
+ * The plan exhibit claims a rendered Markdown document with Mermaid diagrams, so
+ * the flow is drawn as a flowchart rather than listed as chips: process nodes on
+ * a diagram canvas, real edges with arrowheads, and each acceptance check hanging
+ * off the step it belongs to. Every string is page-owned; only the shape is ours.
+ */
+function CheckGlyph() {
+  // Drawn, not a character: none of the presentation faces carries U+2713.
+  return <svg className="flow-tick" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M1.6 6.2 4.4 9 10.4 3" /></svg>;
+}
+
+function PlanDiagram({ steps, checks }: { steps?: string[]; checks?: string[] }) {
+  if (!steps?.length) return checks?.length ? <PlanChecks checks={checks} /> : null;
+  // Checks pair with steps only when the document supplies one for each.
+  const paired = checks?.length === steps.length ? checks : undefined;
+  return <>
+    <div className="plan-diagram">
+      <ol className="plan-flow">
+        {steps.map((step, index) => <li key={index}>
+          <div className="flow-node"><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b></div>
+          {paired && <>
+            <span className="flow-drop" aria-hidden="true" />
+            <p className="flow-check"><CheckGlyph />{paired[index]}</p>
+          </>}
+        </li>)}
+      </ol>
+    </div>
+    {!paired && checks?.length ? <PlanChecks checks={checks} /> : null}
+  </>;
+}
+
+function PlanChecks({ checks }: { checks: string[] }) {
+  return <ul>{checks.map((check, index) => <li key={index}><CheckGlyph />{check}</li>)}</ul>;
 }
 
 export function ArtifactExplorer({ block, resources }: { block: Block<'artifact-explorer'>; resources: PresentationResources }) {

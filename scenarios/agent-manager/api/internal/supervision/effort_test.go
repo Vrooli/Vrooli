@@ -599,6 +599,32 @@ func TestEffortDiscoveryMissingAndMalformedNeverCompletes(t *testing.T) {
 	}
 }
 
+func TestEffortDiscoveryRetiresFindingsForRemovedWorkspaces(t *testing.T) {
+	s, r, _ := effortFixture(t)
+	ctx := context.Background()
+	workspaceFixture(t, s.config.Root, "present", "effort:present", nil)
+	if _, err := s.ReconcileDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	d, err := r.GetEffortDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Findings = append(d.Findings, &pb.EffortDiscoveryFinding{Source: "removed-workspace", Code: "invalid_manifest", Reason: "stale"})
+	if err := r.SaveEffortDiscovery(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := s.ReconcileDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range refreshed.Findings {
+		if finding.Source == "removed-workspace" {
+			t.Fatalf("stale removed-workspace finding retained: %v", finding)
+		}
+	}
+}
+
 func TestEffortBoardReadOnlyUnknownUsageAndDistinctOutcome(t *testing.T) {
 	s, r, c := effortFixture(t)
 	ctx := context.Background()
