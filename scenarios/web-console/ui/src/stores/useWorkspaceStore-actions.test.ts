@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useWorkspaceStore } from "./useWorkspaceStore";
 import { useEffectiveFontSize } from "./useWorkspaceStore";
@@ -82,6 +82,29 @@ describe("useWorkspaceStore action surface", () => {
     expect(result.deviceFontSize.a).toBe(20);
     expect(result.viewerCounts.a).toBe(2);
     expect(result.modifiers).toEqual({ ctrl: false, alt: false, shift: false });
+  });
+
+  // Every terminal output frame reports the session's viewer count. An
+  // unchanged count must cost nothing: no subscriber re-render and no
+  // persisted-state write.
+  it("ignores a viewer count that has not changed", () => {
+    const s = useWorkspaceStore.getState();
+    s.setViewerCount("a", 2);
+    let notifications = 0;
+    const unsubscribe = useWorkspaceStore.subscribe(() => { notifications += 1; });
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      s.setViewerCount("a", 2);
+      s.setViewerCount("a", 2);
+      expect(notifications).toBe(0);
+      expect(setItem).not.toHaveBeenCalled();
+      s.setViewerCount("a", 3);
+      expect(notifications).toBe(1);
+      expect(useWorkspaceStore.getState().viewerCounts.a).toBe(3);
+    } finally {
+      setItem.mockRestore();
+      unsubscribe();
+    }
   });
 
   it("keeps terminal input buffers and device-local scroll/font preferences bounded", () => {

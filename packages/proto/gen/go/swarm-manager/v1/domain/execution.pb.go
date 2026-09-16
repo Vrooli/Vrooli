@@ -63,6 +63,8 @@ type ExecutionRecord struct {
 	// Operator note carried from the item/queue request into the worker prompt or
 	// goal message.
 	OperatorNote *string `protobuf:"bytes,32,opt,name=operator_note,json=operatorNote,proto3,oneof" json:"operator_note,omitempty"`
+	// Operator-selected authority for external blocker investigation/repair.
+	BlockerRepairPolicy *string `protobuf:"bytes,38,opt,name=blocker_repair_policy,json=blockerRepairPolicy,proto3,oneof" json:"blocker_repair_policy,omitempty"`
 	// Goal delivery mechanism reported by Agent Manager for a goal execution.
 	GoalDelivery *string `protobuf:"bytes,33,opt,name=goal_delivery,json=goalDelivery,proto3,oneof" json:"goal_delivery,omitempty"`
 	// Typed Agent Manager terminal pair projected onto the execution record.
@@ -290,6 +292,13 @@ func (x *ExecutionRecord) GetExecutionMode() string {
 func (x *ExecutionRecord) GetOperatorNote() string {
 	if x != nil && x.OperatorNote != nil {
 		return *x.OperatorNote
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetBlockerRepairPolicy() string {
+	if x != nil && x.BlockerRepairPolicy != nil {
+		return *x.BlockerRepairPolicy
 	}
 	return ""
 }
@@ -1678,7 +1687,7 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xcf\x10\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xa2\x11\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
@@ -1715,13 +1724,14 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x16continuation_child_ids\x18\x1d \x03(\tR\x14continuationChildIds\x12Y\n" +
 	"\x10scope_extensions\x18\x1e \x03(\v2..vrooli.swarm_manager.v1.domain.ScopeExtensionR\x0fscopeExtensions\x12*\n" +
 	"\x0eexecution_mode\x18\x1f \x01(\tH\x0fR\rexecutionMode\x88\x01\x01\x12(\n" +
-	"\roperator_note\x18  \x01(\tH\x10R\foperatorNote\x88\x01\x01\x12(\n" +
-	"\rgoal_delivery\x18! \x01(\tH\x11R\fgoalDelivery\x88\x01\x01\x12*\n" +
-	"\x0eterminal_class\x18\" \x01(\tH\x12R\rterminalClass\x88\x01\x01\x12$\n" +
-	"\vstop_reason\x18# \x01(\tH\x13R\n" +
+	"\roperator_note\x18  \x01(\tH\x10R\foperatorNote\x88\x01\x01\x127\n" +
+	"\x15blocker_repair_policy\x18& \x01(\tH\x11R\x13blockerRepairPolicy\x88\x01\x01\x12(\n" +
+	"\rgoal_delivery\x18! \x01(\tH\x12R\fgoalDelivery\x88\x01\x01\x12*\n" +
+	"\x0eterminal_class\x18\" \x01(\tH\x13R\rterminalClass\x88\x01\x01\x12$\n" +
+	"\vstop_reason\x18# \x01(\tH\x14R\n" +
 	"stopReason\x88\x01\x01\x12*\n" +
-	"\x0eresume_ordinal\x18$ \x01(\x05H\x14R\rresumeOrdinal\x88\x01\x01\x12(\n" +
-	"\rresume_reason\x18% \x01(\tH\x15R\fresumeReason\x88\x01\x01B\n" +
+	"\x0eresume_ordinal\x18$ \x01(\x05H\x15R\rresumeOrdinal\x88\x01\x01\x12(\n" +
+	"\rresume_reason\x18% \x01(\tH\x16R\fresumeReason\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\r\n" +
@@ -1740,7 +1750,8 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x11_selection_reasonB\x12\n" +
 	"\x10_continuation_ofB\x11\n" +
 	"\x0f_execution_modeB\x10\n" +
-	"\x0e_operator_noteB\x10\n" +
+	"\x0e_operator_noteB\x18\n" +
+	"\x16_blocker_repair_policyB\x10\n" +
 	"\x0e_goal_deliveryB\x11\n" +
 	"\x0f_terminal_classB\x0e\n" +
 	"\f_stop_reasonB\x11\n" +

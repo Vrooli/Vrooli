@@ -1020,3 +1020,24 @@ an authorized refresh or redeployment supplies the missing procedure.
   decision (`vrooli credentials store copy configure --sink …`). Windows node
   escrow is unimplemented and unvalidated (no Windows node).
 - Measured: 2026-09-15
+
+## Work ladder
+
+- Rung: W3 (implementation defects; contract and obligations unchanged)
+- Evidence (2026-09-15, minimouse review):
+  - Working-tree ships swapped `~/vrooli` for the snapshot and `rm -rf`'d the old tree. Every gitignored `scenarios/*/data` directory went with it: 13 scenarios reported `unable to open database file (14)`, and 54 processes ran from deleted `.vrooli.bridge-old-*` trees, including a 37-day-old control-plane API answering 503. The ship is now an in-place, manifest-based delta (`internal/onboard/tree_delta.go`); first live ship wrote 61,335 files and removed 0.
+  - An Aug 25 root provisioning helper ran `~/.local/bin/vrooli-bridge-agent`, a runner-writable file (root escalation), yet the agent had no socket to it. Bootstrap now installs the helper as root from `/usr/local/libexec/vrooli-bridge/vrooli-bridge-agent`; the helper runs git/setup/restart steps as the checkout owner and returns `~/.vrooli/identity` to the runner after break-glass commands (that tree was root-owned and stopped the node's Bridge API).
+  - `vrooli/openrouter` was refused on every reconnect: the durable push arrived before the node's store passphrase. SyncNode now delivers node-store grants first and the agent replays pushes a locked store refused.
+  - 119 of 189 minimouse onboardings read FAILED only because vrooli-onboarding exited 2 (configuration incomplete). That now finishes SUCCEEDED with `configuration_incomplete` and the named blockers. 108 failed records older than 2026-09-08 were pruned with `onboard remove-failed` (ids in the session scratchpad `failed-ops-pruned.txt`).
+  - 130 onboarding artifact directories (6.8 GB) accumulated on the node; bootstrap now keeps only the current one and forgets the rest in the install record.
+  - The node dialed `http://192.168.1.173:18767`; the endpoint is now `http://swarminator.local:18767` (configured) and the derived default prefers the mDNS name when it reaches the route address.
+  - `readiness` (and the new `follow`) CLI verbs answered 401 to an enrolled operator: cli-core's REST client sends only the cleared legacy bearer. They now use the session transport (`cli/internal/session/rest.go`).
+  - Branch following added (`internal/follow`, `vrooli-bridge follow`); provisioning no longer refuses a working-tree node whose agent reports a ready helper and git base.
+  - `credentials store add-passphrase|verify-passphrase` were added without the `--format` flag Bridge passes, so the credential-store step reported degraded; the root CLI manifest now declares it.
+  - `vrooli develop` could not replace an unhealthy project API that still held its port; it now stops that `vrooli-api` first (`internal/setup/develop.go`).
+  - Second live pass: a ship failed at `pair-redeem` because bootstrap's new `restart-stale` step ran for ~40 minutes before pairing, past the single-use code's 15-minute TTL, and the CLI's session transport reported the redeem's 401 as "local principal is not linked". Slow optional steps (`project-binaries`, `restart-stale`, `prune-artifacts`) now run after `verify-online`; `restart-stale` has a budget (`BRIDGE_RESTART_STALE_BUDGET`, 900 s) and names what it left; node pairing RPCs skip operator enrollment (`skipEnrollment`).
+  - The agent's durable credential sink scanned `credentials store status --format json` for "unlock" and matched its own `"unlocked"` key, so every durable push was refused as "store locked" even with the store open (`storeStatusRefusal` now parses the JSON).
+  - Node-side blockers found while restarting scenarios on minimouse and fixed outside Bridge: `binaryfetch` refused zip symlinks (Ollama.app's versioned dylibs → search-hub could not start ollama), and `resource-postgres content` found no `psql` when a scenario step runs it without `RESOURCE_ARTIFACT_DIR` (secrets-manager `create-database`). A checkout with no `.vrooli/build` made `develop` launch the API with `go run`; bootstrap now runs `vrooli build`.
+  - Test Genie unit (vrooli-bridge run 20260915-221417-83f10927) is L2 with blocking architecture findings: module-wide missing seams (older debt) and `fakeGrants` flagged as reimplementing `databasetest.SliceRepo`, a name-shape false positive (its methods take `CreateInput`/`nodeID`, not `T`/`limit`).
+- Blocker: none in code; minimouse's live validation continues in the session record.
+- Measured: 2026-09-15

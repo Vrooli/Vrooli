@@ -142,23 +142,14 @@ export default function SettingsModal({
     setSettingsModalOpen(false);
   };
 
-  // On a small viewport the drawer already names the active section in its
-  // header and the section repeats its own description in the body, so the
-  // eyebrow and the description would be the third and fourth copies of the
-  // same words — on the surface with the least room for them.
-  const title = isMobile ? (
+  // The drawer names the surface once. The desktop eyebrow (and the header
+  // description beside it) were extra copies of context the tab strip and the
+  // section body already carry, and the section body drops its own intro on
+  // mobile so the drawer title is the only copy there.
+  const title = (
     <span className="text-base font-semibold">
       {activeDefinition?.label ?? t(strings.settings.title)}
     </span>
-  ) : (
-    <>
-      <span className="me-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
-        {t(strings.settings.eyebrow)}
-      </span>
-      <span className="text-base font-semibold">
-        {activeDefinition?.label ?? t(strings.settings.title)}
-      </span>
-    </>
   );
 
   return (
@@ -168,11 +159,6 @@ export default function SettingsModal({
       onClose={close}
       closeLabel={t(strings.settings.closeAriaLabel)}
       title={title}
-      headerExtra={
-        isMobile ? undefined : (
-          <p className="mt-1 text-sm text-wc-text-faint">{activeDefinition?.description}</p>
-        )
-      }
       // The tab strip belongs above the scroll region and outside the content
       // gutter: a band that scrolls away with the content is not navigation,
       // and a full-bleed strip is what lets seven tabs use the whole width.
@@ -194,7 +180,7 @@ export default function SettingsModal({
       testId="settings-modal"
     >
       {isMobile ? (
-        <div className="px-3 py-4">
+        <div className="px-3 py-3">
           <Section
             sessions={sessions}
             onDeleteSession={onDeleteSession}

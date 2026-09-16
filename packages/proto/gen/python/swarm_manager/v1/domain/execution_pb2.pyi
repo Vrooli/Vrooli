@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionRecord(_message.Message):
-    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization", "execution_preferences", "actual_runner", "actual_model", "selection_reason", "continuation_of", "continuation_child_ids", "scope_extensions", "execution_mode", "operator_note", "goal_delivery", "terminal_class", "stop_reason", "resume_ordinal", "resume_reason")
+    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization", "execution_preferences", "actual_runner", "actual_model", "selection_reason", "continuation_of", "continuation_child_ids", "scope_extensions", "execution_mode", "operator_note", "blocker_repair_policy", "goal_delivery", "terminal_class", "stop_reason", "resume_ordinal", "resume_reason")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_KIND_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +37,7 @@ class ExecutionRecord(_message.Message):
     SCOPE_EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKER_REPAIR_POLICY_FIELD_NUMBER: _ClassVar[int]
     GOAL_DELIVERY_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_CLASS_FIELD_NUMBER: _ClassVar[int]
     STOP_REASON_FIELD_NUMBER: _ClassVar[int]
@@ -69,12 +70,13 @@ class ExecutionRecord(_message.Message):
     scope_extensions: _containers.RepeatedCompositeFieldContainer[ScopeExtension]
     execution_mode: str
     operator_note: str
+    blocker_repair_policy: str
     goal_delivery: str
     terminal_class: str
     stop_reason: str
     resume_ordinal: int
     resume_reason: str
-    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., actual_runner: _Optional[str] = ..., actual_model: _Optional[str] = ..., selection_reason: _Optional[str] = ..., continuation_of: _Optional[str] = ..., continuation_child_ids: _Optional[_Iterable[str]] = ..., scope_extensions: _Optional[_Iterable[_Union[ScopeExtension, _Mapping]]] = ..., execution_mode: _Optional[str] = ..., operator_note: _Optional[str] = ..., goal_delivery: _Optional[str] = ..., terminal_class: _Optional[str] = ..., stop_reason: _Optional[str] = ..., resume_ordinal: _Optional[int] = ..., resume_reason: _Optional[str] = ...) -> None: ...
+    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., actual_runner: _Optional[str] = ..., actual_model: _Optional[str] = ..., selection_reason: _Optional[str] = ..., continuation_of: _Optional[str] = ..., continuation_child_ids: _Optional[_Iterable[str]] = ..., scope_extensions: _Optional[_Iterable[_Union[ScopeExtension, _Mapping]]] = ..., execution_mode: _Optional[str] = ..., operator_note: _Optional[str] = ..., blocker_repair_policy: _Optional[str] = ..., goal_delivery: _Optional[str] = ..., terminal_class: _Optional[str] = ..., stop_reason: _Optional[str] = ..., resume_ordinal: _Optional[int] = ..., resume_reason: _Optional[str] = ...) -> None: ...
 
 class ScopeExtension(_message.Message):
     __slots__ = ("paths", "reason", "recorded_at", "author")

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"vrooli-bridge/cli/internal/session"
 )
 
 // Register returns the `vrooli-bridge follow` group.
@@ -56,7 +58,7 @@ func nodePath(ctx cliapp.RunContext, suffix string) string {
 }
 
 func list(ctx cliapp.RunContext) error {
-	data, err := ctx.Core().Get("/follow", url.Values{})
+	data, err := session.RESTRequest(ctx.Core(), http.MethodGet, "/follow", url.Values{}, nil)
 	if err != nil {
 		return fmt.Errorf("list branch-follow policies: %w", err)
 	}
@@ -75,7 +77,7 @@ func list(ctx cliapp.RunContext) error {
 
 func set(ctx cliapp.RunContext) error {
 	payload := map[string]any{"branch": ctx.Flag("branch"), "repo_url": ctx.Flag("repo-url"), "update_now": ctx.BoolFlag("now")}
-	data, err := ctx.Core().Request(http.MethodPut, nodePath(ctx, ""), nil, payload)
+	data, err := session.RESTRequest(ctx.Core(), http.MethodPut, nodePath(ctx, ""), nil, payload)
 	if err != nil {
 		return fmt.Errorf("set node to follow %s: %w", ctx.Flag("branch"), err)
 	}
@@ -87,14 +89,14 @@ func set(ctx cliapp.RunContext) error {
 }
 
 func unset(ctx cliapp.RunContext) error {
-	if _, err := ctx.Core().Request(http.MethodDelete, nodePath(ctx, ""), nil, nil); err != nil {
+	if _, err := session.RESTRequest(ctx.Core(), http.MethodDelete, nodePath(ctx, ""), nil, nil); err != nil {
 		return fmt.Errorf("stop following: %w", err)
 	}
 	return ctx.RenderMutation(cliapp.MutationReport{Result: []string{"Node no longer follows a branch; it keeps its current revision."}})
 }
 
 func check(ctx cliapp.RunContext) error {
-	data, err := ctx.Core().Request(http.MethodPost, nodePath(ctx, "/check"), nil, map[string]any{})
+	data, err := session.RESTRequest(ctx.Core(), http.MethodPost, nodePath(ctx, "/check"), nil, map[string]any{})
 	if err != nil {
 		return fmt.Errorf("check followed node: %w", err)
 	}

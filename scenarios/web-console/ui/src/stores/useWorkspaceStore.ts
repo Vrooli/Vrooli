@@ -639,7 +639,15 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 			delete next[sessionId];
 			return { deviceFontSize: next };
 		}),
-		setViewerCount: (sessionId, count) => set((state) => ({ viewerCounts: { ...state.viewerCounts, [sessionId]: count } })),
+		// Every terminal output frame reports the session's viewer count, so an
+		// unchanged count is the common case. It must not call `set` at all:
+		// `persist` re-serializes the whole store to localStorage on every set,
+		// even one that returns the state unchanged, and every subscriber of
+		// this store re-renders.
+		setViewerCount: (sessionId, count) => {
+			if (get().viewerCounts[sessionId] === count) return;
+			set((state) => ({ viewerCounts: { ...state.viewerCounts, [sessionId]: count } }));
+		},
 		setKeyboardOpen: (open) => set((state) => (state.keyboardOpen === open ? state : { keyboardOpen: open })),
 		setPaneStatus: (sessionId, status) => set((state) => {
 			const paneStatuses = { ...state.paneStatuses };

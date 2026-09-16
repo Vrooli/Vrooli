@@ -300,5 +300,12 @@ func skipEnrollment(path string) bool {
 	return strings.HasSuffix(path, "IdentityService/Login") ||
 		strings.HasSuffix(path, "IdentityService/Register") ||
 		strings.HasSuffix(path, "IdentityService/Refresh") ||
-		strings.HasSuffix(path, "IdentityService/EnrollOperatorSession")
+		strings.HasSuffix(path, "IdentityService/EnrollOperatorSession") ||
+		// A node pairing itself has no operator session: the single-use code
+		// and its own key authenticate it. Routing these through enrollment
+		// turned an expired code's rejection into "local principal is not
+		// linked" (2026-09-15, minimouse).
+		strings.HasSuffix(path, "PairingService/RedeemPairingCode") ||
+		strings.HasSuffix(path, "PairingService/RequestPairing") ||
+		strings.HasSuffix(path, "PairingService/GetPairingRequest")
 }

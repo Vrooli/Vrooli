@@ -7,6 +7,14 @@ vi.mock("../../stores/useConversationStore", () => ({
   useConversationStore: (selector: (state: unknown) => unknown) => selector({
     sessions: { s1: { events: [], cursor: { lastSeenSequence: 0 } } },
   }),
+  getSessionUnreadCount: (
+    state: { sessions: Record<string, { events: Array<{ role: string; sequence: number }>; cursor: { lastSeenSequence: number }; unreadCount?: number } | undefined> },
+    sessionId: string,
+  ) => {
+    const session = state.sessions[sessionId];
+    if (!session) return 0;
+    return session.unreadCount ?? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+  },
 }));
 vi.mock("../TerminalPane", () => ({
   default: forwardRef<HTMLDivElement, { sessionId: string; viewMode: string }>(

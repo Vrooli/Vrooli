@@ -1,4 +1,10 @@
-import { createHighlighter, type BundledLanguage, type Highlighter } from "shiki";
+// shiki is imported for TYPES only at module scope. The engine itself is
+// pulled in dynamically by getCodeHighlighter() below, so it lands in its own
+// chunk instead of the always-loaded Workspace chunk: this module sits on the
+// chain MessagesPane -> MessagesFileViewer -> file-preview/renderers ->
+// TextRenderers, which every workspace loads whether or not anything is ever
+// highlighted.
+import type { BundledLanguage, Highlighter } from "shiki";
 
 const extensionToLanguage: Record<string, BundledLanguage> = {
   js: "javascript",
@@ -96,13 +102,15 @@ export function getLanguageFromPath(path: string): BundledLanguage | null {
 export async function getCodeHighlighter(): Promise<Highlighter> {
   if (highlighterInstance) return highlighterInstance;
   if (highlighterPromise) return highlighterPromise;
-  highlighterPromise = createHighlighter({
-    themes: ["github-dark"],
-    langs: bundledLanguages,
-  }).then((instance) => {
-    highlighterInstance = instance;
-    return instance;
-  });
+  highlighterPromise = import("shiki")
+    .then(({ createHighlighter }) => createHighlighter({
+      themes: ["github-dark"],
+      langs: bundledLanguages,
+    }))
+    .then((instance) => {
+      highlighterInstance = instance;
+      return instance;
+    });
   return highlighterPromise;
 }
 

@@ -268,10 +268,21 @@ func remoteCatalogState(targets []targetConnection) (targetsv1.CatalogState, str
 // became an "agent" card with an Install button that could never work.
 const NodeCapabilityPrefix = "node_capability:"
 
+// NodeHealthPrefix marks a machine-health reading (disk, memory, swap,
+// onboarding leftovers, logs). The Bridge agent reports these through its
+// capability inventory under ids prefixed "node-health."; the browser shows
+// them as a Health section, not as features that are missing.
+const NodeHealthPrefix = "node_health:"
+
+const agentHealthIDPrefix = "node-health."
+
 func browserFactKey(identity string) string {
 	id, ok := strings.CutPrefix(identity, targetmodel.ReadinessCapabilityPrefix)
 	if !ok || isCodingAgent(id) {
 		return identity
+	}
+	if reading, isHealth := strings.CutPrefix(id, agentHealthIDPrefix); isHealth {
+		return NodeHealthPrefix + reading
 	}
 	return NodeCapabilityPrefix + id
 }

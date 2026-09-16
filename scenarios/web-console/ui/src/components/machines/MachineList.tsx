@@ -74,12 +74,17 @@ export function statusBadge(machine: Machine, t: Translate): { label: string; to
  * such as the Bridge provisioning helper) that are missing but cannot be
  * installed from a browser; they are listed so the gap is visible, with the
  * machine's own explanation instead of an action that could never work.
+ * `healthWarnings` are machine-health readings ("node_health:", such as low
+ * disk or swap pressure) the machine reports as needing attention. They count
+ * toward the card's total but are shown in the Health section, not as drift.
  */
 export function machineIssues(machine: Machine): {
   count: number;
+  configurationCount: number;
   drift: NonNullable<Machine["drift"]>;
   missingCapabilities: NonNullable<Machine["target"]["readiness"]>;
   unavailableNodeFeatures: NonNullable<Machine["target"]["readiness"]>;
+  healthWarnings: NonNullable<Machine["target"]["readiness"]>;
 } {
   const drift = machine.drift ?? [];
   const readiness = machine.target.readiness ?? [];
@@ -87,12 +92,26 @@ export function machineIssues(machine: Machine): {
   const unavailableNodeFeatures = readiness.filter(
     (fact) => fact.key.startsWith("node_capability:") && fact.state === "missing",
   );
+  const healthWarnings = machineHealth(machine).filter((fact) => fact.state === "missing");
+  const configurationCount = drift.length + missingCapabilities.length + unavailableNodeFeatures.length;
   return {
-    count: drift.length + missingCapabilities.length + unavailableNodeFeatures.length,
+    count: configurationCount + healthWarnings.length,
+    configurationCount,
     drift,
     missingCapabilities,
     unavailableNodeFeatures,
+    healthWarnings,
   };
+}
+
+/** Health readings in the order an operator scans them: problems first, then the rest as reported. */
+export function machineHealth(machine: Machine): NonNullable<Machine["target"]["readiness"]> {
+  const readings = (machine.target.readiness ?? []).filter((fact) => fact.key.startsWith("node_health:"));
+  const rank = (state?: string) => (state === "missing" ? 0 : state === "unknown" ? 1 : 2);
+  return readings
+    .map((fact, index) => ({ fact, index }))
+    .sort((a, b) => rank(a.fact.state) - rank(b.fact.state) || a.index - b.index)
+    .map(({ fact }) => fact);
 }
 
 export function statusPill(machine: Machine, t: Translate) {

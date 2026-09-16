@@ -4,9 +4,11 @@ import { screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionManagementSection from "../components/settings/SessionManagementSection";
 import { strings } from "../consts/strings";
 import type { SessionInfo } from "../api/sessions";
+import { setDesktopViewport, setMobileViewport } from "../test-utils/viewport";
 
 let mockUpdateSessionPolicy: ReturnType<typeof vi.fn>;
 let mockGetArchiveRetention: ReturnType<typeof vi.fn>;
+let mockPruneArchive: ReturnType<typeof vi.fn>;
 const { mockGetSessionDefaults, mockUpdateSessionDefaults, mockFetchCapabilities } = vi.hoisted(() => ({
   mockGetSessionDefaults: vi.fn(),
   mockUpdateSessionDefaults: vi.fn(),
@@ -19,6 +21,7 @@ vi.mock("../api/sessions", async () => {
     ...actual,
     updateSessionPolicy: vi.fn(),
     getArchiveRetention: vi.fn(),
+    pruneArchive: vi.fn(),
   };
 });
 
@@ -54,6 +57,7 @@ const mockStoreState = {
   setPaneColor: vi.fn(),
   renamePaneById: vi.fn(),
   resetLayout: vi.fn(),
+  setSidebarView: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -80,10 +84,13 @@ describe("SessionManagementSection", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    setDesktopViewport();
     mockStoreState.panes = [];
     const api = await import("../api/sessions");
     mockUpdateSessionPolicy = api.updateSessionPolicy as ReturnType<typeof vi.fn>;
     mockGetArchiveRetention = api.getArchiveRetention as ReturnType<typeof vi.fn>;
+    mockPruneArchive = api.pruneArchive as ReturnType<typeof vi.fn>;
+    mockPruneArchive.mockResolvedValue({ dry_run: true, actions: [], reclaimed_bytes: 0 });
     mockGetArchiveRetention.mockResolvedValue({
       policy: { message_less_age_days: 0, agent_home_age_days: 0, max_bytes: 0 },
       stats: { entry_count: 0, message_count: 0, transcript_bytes: 0, agent_home_bytes: 0, total_bytes: 0 },
@@ -177,7 +184,7 @@ describe("SessionManagementSection", () => {
   it("loads and saves session defaults", async () => {
     render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
 
-    await waitFor(() => expect(screen.getByTestId("session-defaults-backend")).toBeTruthy());
+    await waitFor(() => { expect(screen.getByTestId("session-defaults-backend")).toBeTruthy(); });
     fireEvent.change(screen.getByTestId("session-defaults-backend"), { target: { value: "persistent" } });
     fireEvent.change(screen.getByTestId("session-defaults-policy"), { target: { value: "preset:1h" } });
 
@@ -219,5 +226,94 @@ describe("SessionManagementSection", () => {
     input = screen.getByDisplayValue("bash");
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.getByRole("button", { name: "bash" })).toBeTruthy();
+  });
+
+  it("collapses pane actions into a sheet on mobile", () => {
+    setMobileViewport();
+    mockStoreState.panes = [{ sessionId: "s1", name: "bash", headerColor: "transparent" }];
+    const sessions = [{ session: makeSession("s1") }];
+    render(<SessionManagementSection sessions={sessions} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    // The inline action cluster and the per-row policy select are what overflow
+    // a phone's width; mobile carries them in the sheet instead.
+    expect(screen.queryByTestId("sessions-pane-up-s1")).toBeNull();
+    expect(screen.queryByTestId("sessions-policy-select-s1")).toBeNull();
+    expect(screen.getByTestId("sessions-pane-menu-s1")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("sessions-pane-menu-s1"));
+    expect(screen.getByTestId("sessions-pane-sheet-s1")).toBeTruthy();
+    expect(screen.getByTestId("sessions-pane-sheet-policy-s1")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("sessions-pane-sheet-focus-s1"));
+    expect(mockStoreState.setActivePane).toHaveBeenCalledWith("s1");
+    expect(onRequestClose).toHaveBeenCalled();
+  });
+
+  it("drops its own intro on mobile so the sheet title is the only copy", () => {
+    setMobileViewport();
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+    expect(screen.queryByText(strings.settings.sessionsSection.description)).toBeNull();
+  });
+
+  it("plans an archive prune before confirming it", async () => {
+    mockGetArchiveRetention.mockResolvedValueOnce({
+      policy: { message_less_age_days: 7, agent_home_age_days: 30, max_bytes: 0 },
+      stats: { entry_count: 4, message_count: 40, transcript_bytes: 2048, agent_home_bytes: 2048, total_bytes: 4096 },
+    });
+    mockPruneArchive
+      .mockResolvedValueOnce({
+        dry_run: true,
+        actions: [{ session_id: "a", kind: "transcript", bytes: 2048, applied: false }],
+        reclaimed_bytes: 2048,
+      })
+      .mockResolvedValueOnce({
+        dry_run: false,
+        actions: [{ session_id: "a", kind: "transcript", bytes: 2048, applied: true }],
+        reclaimed_bytes: 2048,
+      });
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-prune")).toBeTruthy(); });
+    fireEvent.click(screen.getByTestId("archive-storage-prune"));
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-prune-confirm")).toBeTruthy(); });
+    expect(mockPruneArchive).toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByTestId("archive-storage-prune-confirm"));
+    await waitFor(() => { expect(mockPruneArchive).toHaveBeenCalledWith(true); });
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-prune-result")).toBeTruthy(); });
+  });
+
+  it("opens the archive view from the storage row", async () => {
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-manage")).toBeTruthy(); });
+    fireEvent.click(screen.getByTestId("archive-storage-manage"));
+    expect(mockStoreState.setSidebarView).toHaveBeenCalledWith("archive");
+    expect(onRequestClose).toHaveBeenCalled();
+  });
+
+  it("reports when there is nothing to reclaim", async () => {
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-prune")).toBeTruthy(); });
+    fireEvent.click(screen.getByTestId("archive-storage-prune"));
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-prune-result")).toBeTruthy(); });
+    expect(screen.queryByTestId("archive-storage-prune-confirm")).toBeNull();
+  });
+
+  it("retries the archive measurement after a failure", async () => {
+    mockGetArchiveRetention.mockRejectedValueOnce(new Error("offline"));
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    await waitFor(() => { expect(screen.getByTestId("archive-storage-retry")).toBeTruthy(); });
+
+    mockGetArchiveRetention.mockResolvedValueOnce({
+      policy: { message_less_age_days: 7, agent_home_age_days: 30, max_bytes: 0 },
+      stats: { entry_count: 5, message_count: 10, transcript_bytes: 1024, agent_home_bytes: 1024, total_bytes: 2048 },
+    });
+    fireEvent.click(screen.getByTestId("archive-storage-retry"));
+    await waitFor(() => {
+      expect(screen.getByTestId("archive-storage-summary").getAttribute("data-entry-count")).toBe("5");
+    });
   });
 });

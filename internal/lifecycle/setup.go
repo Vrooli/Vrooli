@@ -5,10 +5,42 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+// setupComponentSelection returns an explicit component subset for bounded
+// repair flows. Empty means the complete declared component set. This is used
+// by host safeguards that need one sidecar or native binary and must not build
+// an unrelated, memory-heavy UI on a constrained host.
+func setupComponentSelection(item scenario.Scenario, env map[string]string) (scenario.Scenario, error) {
+	raw := strings.TrimSpace(env["VROOLI_SETUP_COMPONENTS"])
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("VROOLI_SETUP_COMPONENTS"))
+	}
+	if raw == "" {
+		return item, nil
+	}
+	selected := make(map[string]scenario.Component)
+	for _, name := range strings.Split(raw, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		component, ok := item.Manifest.Components[name]
+		if !ok {
+			return scenario.Scenario{}, fmt.Errorf("VROOLI_SETUP_COMPONENTS names undeclared component %q", name)
+		}
+		selected[name] = component
+	}
+	if len(selected) == 0 {
+		return scenario.Scenario{}, fmt.Errorf("VROOLI_SETUP_COMPONENTS did not select a component")
+	}
+	item.Manifest.Components = selected
+	return item, nil
+}
 
 type setupVerdicts struct {
 	Stale       bool

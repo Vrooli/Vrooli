@@ -353,25 +353,35 @@ func (s cliCredentialSink) storeRefusal() (credentialpush.StoreRefusal, bool) {
 	cmd := exec.Command(s.binary, "credentials", "store", "status", "--format", "json")
 	cmd.Dir = s.workDir
 	output, err := cmd.CombinedOutput()
-	if refusal, ok := credentialStoreRefusal(string(output)); ok {
+	return storeStatusRefusal(output, err)
+}
+
+// storeStatusRefusal reads `credentials store status --format json`. The JSON
+// is authoritative; the text heuristics apply only when the command printed
+// no status document. Scanning the JSON for "unlock" matched its own
+// "unlocked" key, so every durable push was refused as "store locked" even
+// with the store open (2026-09-15, vrooli/openrouter on minimouse).
+func storeStatusRefusal(output []byte, runErr error) (credentialpush.StoreRefusal, bool) {
+	text := string(output)
+	var status struct {
+		Initialized *bool `json:"initialized"`
+		Unlocked    *bool `json:"unlocked"`
+	}
+	if start, end := strings.Index(text, "{"), strings.LastIndex(text, "}"); start >= 0 && end > start {
+		if json.Unmarshal([]byte(text[start:end+1]), &status) == nil && status.Initialized != nil && status.Unlocked != nil {
+			switch {
+			case !*status.Initialized:
+				return credentialpush.StoreRefusal{State: "uninitialized", Recovery: "run `vrooli credentials store init` on the node and retry"}, true
+			case !*status.Unlocked:
+				return credentialpush.StoreRefusal{State: "locked", Recovery: "run `vrooli credentials store unlock` on the node and retry"}, true
+			}
+			return credentialpush.StoreRefusal{}, false
+		}
+	}
+	if refusal, ok := credentialStoreRefusal(text); ok {
 		return refusal, true
 	}
-	if err != nil {
-		return credentialpush.StoreRefusal{}, false
-	}
-	var status struct {
-		Initialized bool `json:"initialized"`
-		Unlocked    bool `json:"unlocked"`
-	}
-	if err := json.Unmarshal(output, &status); err != nil {
-		return credentialpush.StoreRefusal{}, false
-	}
-	if !status.Initialized {
-		return credentialpush.StoreRefusal{State: "uninitialized", Recovery: "run `vrooli credentials store init` on the node and retry"}, true
-	}
-	if !status.Unlocked {
-		return credentialpush.StoreRefusal{State: "locked", Recovery: "run `vrooli credentials store unlock` on the node and retry"}, true
-	}
+	_ = runErr
 	return credentialpush.StoreRefusal{}, false
 }
 

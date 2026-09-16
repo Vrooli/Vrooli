@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { useConversationStore } from "../stores/useConversationStore";
+import { memo, Profiler, useCallback, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useConversationStore, getSessionUnreadCount } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -8,6 +8,7 @@ import type { ConversationEvent } from "../api/conversation";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ENTER_KEY } from "../consts/toolbar-keys";
 import { getScreenText } from "../api/terminalScreen";
+import { onProfilerRender } from "../lib/profiler";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
 import TerminalHeader from "./TerminalHeader";
@@ -115,15 +116,14 @@ function WorkspacePaneShell({
       [sessionId, supportsMessagesView],
     ),
   );
+  // This selector re-runs on every conversation-store write, for every mounted
+  // pane. The store already maintains the count, so read that instead of
+  // filtering the whole event list each time.
   const unreadCount = useConversationStore(
-    useCallback((state) => {
-      if (!supportsMessagesView) return 0;
-      const session = state.sessions[sessionId];
-      if (!session) return 0;
-      return session.events.filter(
-        (event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence,
-      ).length;
-    }, [sessionId, supportsMessagesView]),
+    useCallback(
+      (state) => (supportsMessagesView ? getSessionUnreadCount(state, sessionId) : 0),
+      [sessionId, supportsMessagesView],
+    ),
   );
 
   useEffect(() => {
@@ -206,6 +206,7 @@ function WorkspacePaneShell({
       )}
       <div className="relative flex-1 min-h-0 overflow-hidden">
         <ErrorBoundary region="terminal">
+          <Profiler id="TerminalPane" onRender={onProfilerRender}>
           <TerminalPane
             sessionId={sessionId}
             onExit={onTerminalExit}
@@ -222,9 +223,11 @@ function WorkspacePaneShell({
               onTerminalRef(sessionId, handle);
             }}
           />
+          </Profiler>
         </ErrorBoundary>
         {supportsMessagesView && isVisible && viewMode === "messages" && (
           <div className="absolute inset-0">
+            <Profiler id="MessagesPane" onRender={onProfilerRender}>
             <MessagesPane
               sessionId={sessionId}
               onHandoff={onHandoff}
@@ -247,6 +250,7 @@ function WorkspacePaneShell({
               getTerminalText={getTerminalText}
               onPressEnter={pressEnter}
             />
+            </Profiler>
           </div>
         )}
       </div>

@@ -348,7 +348,7 @@ export default function MessagesPane({
     return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
   }, [events]);
   const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
-  const { registerItem, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex, anchorItem, listScrollTop } = useVirtualList({
+  const { itemRef, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex, anchorItem, listScrollTop } = useVirtualList({
     count: events.length,
     estimateSize: estimateMessageHeight,
     getItemKey: getMessageKey,
@@ -776,6 +776,42 @@ export default function MessagesPane({
     focusAndScroll(nextId);
   }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator, readerShown]);
 
+  // MessageRow's memo comparator compares the action context entry by entry,
+  // so any closure rebuilt per render defeats it and re-renders every mounted
+  // row on every scroll event. These two were the only always-changing
+  // entries; both are stable now.
+  const handleRewindRequest = useCallback((eventId: string) => {
+    setRewindError(null);
+    setRewindNotice(null);
+    setRewindPreserveDraft(true);
+    void preflightConversationControl(sessionId, eventId).then((preflight) => {
+      setRewindOperation(preflight.operation || preflight.capability.options?.find((option) => option.default)?.id || "restore_conversation");
+      setRewindPreflight(preflight);
+    }).catch((error: unknown) => {
+      setRewindError(error instanceof Error ? error.message : t(strings.messagesPane.rewindSafetyCheckFailed));
+    });
+  }, [sessionId, t]);
+
+  // One stable handler per event id. The label needs the event's sequence, so
+  // the closure is per-event; caching it keeps its identity stable across
+  // renders of the same event.
+  const snippetHandlersRef = useRef(new Map<string, (text: string) => void>());
+  useEffect(() => {
+    snippetHandlersRef.current.clear();
+  }, [sessionId, t]);
+  const saveAsSnippetHandlerFor = useCallback((event: ConversationEvent) => {
+    const existing = snippetHandlersRef.current.get(event.id);
+    if (existing) return existing;
+    const handler = (text: string) => {
+      setSnippetSaveSource({
+        body: text,
+        sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
+      });
+    };
+    snippetHandlersRef.current.set(event.id, handler);
+    return handler;
+  }, [sessionId, t]);
+
   // One action context per message, shared by its row and the reader.
   const actionContextFor = (event: ConversationEvent): MessageActionContext => ({
     event,
@@ -798,23 +834,8 @@ export default function MessagesPane({
     onOpenReader: openReader,
     onToggleRenderMode: toggleRenderMode,
     onSendToComposer,
-    onRewind: readOnly ? undefined : (eventId) => {
-      setRewindError(null);
-      setRewindNotice(null);
-      setRewindPreserveDraft(true);
-      void preflightConversationControl(sessionId, eventId).then((preflight) => {
-        setRewindOperation(preflight.operation || preflight.capability.options?.find((option) => option.default)?.id || "restore_conversation");
-        setRewindPreflight(preflight);
-      }).catch((error: unknown) => {
-        setRewindError(error instanceof Error ? error.message : t(strings.messagesPane.rewindSafetyCheckFailed));
-      });
-    },
-    onSaveAsSnippet: (text) => {
-      setSnippetSaveSource({
-        body: text,
-        sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
-      });
-    },
+    onRewind: readOnly ? undefined : handleRewindRequest,
+    onSaveAsSnippet: saveAsSnippetHandlerFor(event),
     onHandoff: readOnly ? undefined : onHandoff,
   });
 
@@ -915,7 +936,7 @@ export default function MessagesPane({
                 // next row overlap this one.
                 <div
                   key={event.id}
-                  ref={(node) => { registerItem(index, node); }}
+                  ref={itemRef(index)}
                   data-event-id={event.id}
                   data-sequence={event.sequence}
                   className="absolute left-0 right-0"

@@ -750,7 +750,12 @@ func resolveSQLiteDSN() string {
 		log.Fatalf("resolve db path: %v", err)
 	}
 
-	legacymigrate.MigrateDatabase(dbPath)
+	// Legacy migration is a live-instance compatibility operation. Copying the
+	// live database into a shadow/variant would defeat the namespace boundary
+	// and expose operator sessions to isolated validation.
+	if scenarioNamespace == "web-console" {
+		legacymigrate.MigrateDatabase(dbPath)
+	}
 
 	log.Printf("SQLite database: %s", dbPath)
 	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})

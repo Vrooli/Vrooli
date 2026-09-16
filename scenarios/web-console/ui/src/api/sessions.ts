@@ -437,6 +437,34 @@ export async function getArchiveRetention(): Promise<ArchiveRetentionSnapshot> {
 	};
 }
 
+export interface ArchivePrunePlan {
+  dry_run: boolean;
+  actions: Array<{ session_id: string; kind: string; bytes: number; applied: boolean }>;
+  reclaimed_bytes: number;
+}
+
+/**
+ * Plans (apply=false) or performs (apply=true) retention pruning of archived
+ * transcripts and agent-home data. A plan is the safe default; the caller must
+ * confirm before requesting the applied form.
+ */
+export async function pruneArchive(apply: boolean): Promise<ArchivePrunePlan> {
+  const response = await sessionsClient.pruneArchive({ apply });
+  if (apply) {
+    window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
+  }
+  return {
+    dry_run: response.dryRun,
+    actions: response.actions.map((action) => ({
+      session_id: action.sessionId,
+      kind: action.kind,
+      bytes: Number(action.bytes),
+      applied: action.applied,
+    })),
+    reclaimed_bytes: Number(response.reclaimedBytes),
+  };
+}
+
 export async function listRecoverableSessions(): Promise<RecoverableSession[]> {
   const resp = await sessionsClient.listRecoverable({});
   return resp.sessions.map(decodeRecoverable);

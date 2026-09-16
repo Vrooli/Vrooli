@@ -78,6 +78,17 @@ export function useVirtualList({
   const userScrollingRef = useRef(false);
   const touchActiveRef = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Held in refs so `registerItem` below can keep a stable identity. A row's
+  // ref callback is only as stable as `registerItem`, and an unstable row ref
+  // makes React detach and re-attach every row on every commit — which tears
+  // down and rebuilds that row's ResizeObserver and forces two layout reads,
+  // per row, per scroll event.
+  const estimateSizeRef = useRef(estimateSize);
+  estimateSizeRef.current = estimateSize;
+  const getItemKeyRef = useRef(getItemKey);
+  getItemKeyRef.current = getItemKey;
+  const anchorOnResizeRef = useRef(anchorOnResize);
+  anchorOnResizeRef.current = anchorOnResize;
 
   const updateViewport = useCallback(() => {
     const el = scrollElementRef.current;
@@ -132,9 +143,21 @@ export function useVirtualList({
       clearIdle();
       idleTimerRef.current = setTimeout(endScroll, SCROLL_IDLE_MS);
     };
+    // A fling delivers scroll events faster than the display refreshes.
+    // Coalescing the state update to one per frame keeps the virtualizer in
+    // step with paint instead of running a full render pass per event.
+    let scrollFrame: number | null = null;
     const onScroll = () => {
-      setScrollTop(el.scrollTop);
       if (userScrollingRef.current) armIdle();
+      if (scrollFrame != null) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        setScrollTop(el.scrollTop);
+      });
+    };
+    const cancelScrollFrame = () => {
+      if (scrollFrame != null) cancelAnimationFrame(scrollFrame);
+      scrollFrame = null;
     };
     // A finger on the list has already stopped any fling, so a carried offset
     // moves into scrollTop before this gesture starts a fling of its own.
@@ -171,6 +194,7 @@ export function useVirtualList({
 
     return () => {
       clearIdle();
+      cancelScrollFrame();
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchend", onTouchEnd);
@@ -237,11 +261,11 @@ export function useVirtualList({
     itemNodesRef.current.set(index, node);
 
     const measure = () => {
-      const key = getItemKey?.(index) ?? index;
-      const rawHeight = node.getBoundingClientRect().height || estimateSize(index);
+      const key = getItemKeyRef.current?.(index) ?? index;
+      const rawHeight = node.getBoundingClientRect().height || estimateSizeRef.current(index);
       const height = Math.ceil(rawHeight / SIZE_QUANTUM) * SIZE_QUANTUM;
       const geometry = geometryRef.current;
-      const previous = measuredSizesRef.current.get(key) ?? geometry.sizes[index] ?? estimateSize(index);
+      const previous = measuredSizesRef.current.get(key) ?? geometry.sizes[index] ?? estimateSizeRef.current(index);
       measuredSizesRef.current.set(key, height);
       if (previous === height) return;
       dirtyFromRef.current = dirtyFromRef.current == null ? index : Math.min(dirtyFromRef.current, index);
@@ -249,7 +273,7 @@ export function useVirtualList({
       // Compensate only rows entirely above the viewport. The row straddling
       // the top edge keeps its top where it is (the reader is looking at it);
       // compensating it would slide the viewport by its whole size correction.
-      if (anchorOnResize && element && (geometry.starts[index] ?? 0) + previous <= element.scrollTop + shiftRef.current) {
+      if (anchorOnResizeRef.current && element && (geometry.starts[index] ?? 0) + previous <= element.scrollTop + shiftRef.current) {
         pendingAboveDeltaRef.current += height - previous;
       }
       if (frameRef.current != null) return;
@@ -266,7 +290,19 @@ export function useVirtualList({
       observer.observe(node);
       itemObserversRef.current.set(index, observer);
     }
-  }, [anchorOnResize, estimateSize, getItemKey, scrollElementRef]);
+  }, [scrollElementRef]);
+
+  // Stable per-index ref callbacks. `registerItem` itself never changes
+  // identity now, so each row keeps the same callback for the life of the
+  // list and React stops re-attaching refs on every commit.
+  const itemRefCallbacksRef = useRef(new Map<number, (node: HTMLElement | null) => void>());
+  const itemRef = useCallback((index: number) => {
+    const cached = itemRefCallbacksRef.current.get(index);
+    if (cached) return cached;
+    const callback = (node: HTMLElement | null) => { registerItem(index, node); };
+    itemRefCallbacksRef.current.set(index, callback);
+    return callback;
+  }, [registerItem]);
 
   // Rows above the viewport that measured taller push the visible rows down.
   // Compensate in the same commit that moves them, before paint: adjusting
@@ -363,6 +399,7 @@ export function useVirtualList({
 
   return {
     registerItem,
+    itemRef,
     itemStart,
     isMeasured,
     scrollTop,

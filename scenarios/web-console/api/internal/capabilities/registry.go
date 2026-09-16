@@ -78,7 +78,11 @@ func KnownForPlatform(goos string) []Def {
 	}
 	defs, err := capabilityregistry.ProjectManifest(path, overlays)
 	if err != nil {
-		panic("web-console capability manifest invalid: " + err.Error())
+		// Desktop bundles intentionally contain the API binary, not the
+		// repository's .vrooli/service.json. Keep capability discovery honest
+		// and bundle-safe by falling back to the stable capabilities declared by
+		// this service when the development manifest is unavailable.
+		defs = bundledCatalogue(overlays)
 	}
 	defs = append(defs, cloneDefs(virtualCatalogue)...)
 	if goos != "windows" {
@@ -88,6 +92,25 @@ func KnownForPlatform(goos string) []Def {
 		switch defs[i].ID {
 		case "session-backend-persistent":
 			defs[i].Platform = capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformUnsupported, Reason: "tmux is not available on this platform"}
+		}
+	}
+	return defs
+}
+
+func bundledCatalogue(overlays map[string]capabilityregistry.Overlay) []Def {
+	defs := []Def{
+		{ID: "terminal-local", Name: "Local Terminal", Description: "Local PTY-backed terminal sessions", DependencyKind: DependencyResource, DependencySlug: "session-backend-standard", Features: []string{"terminal_local"}, Enabled: true},
+		{ID: "terminal-persistent", Name: "Persistent Terminal", Description: "tmux-backed terminal sessions that survive API restarts", DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent", Features: []string{"terminal_persistent"}, Enabled: true},
+		{ID: "terminal-remote", Name: "Remote Terminal", Description: "Bridge-backed remote terminal sessions", DependencyKind: DependencyScenario, DependencySlug: "vrooli-bridge", Features: []string{"terminal_remote"}, Enabled: true},
+	}
+	for i := range defs {
+		if overlay, ok := overlays[defs[i].ID]; ok {
+			if overlay.Name != "" {
+				defs[i].Name = overlay.Name
+			}
+			if overlay.Features != nil {
+				defs[i].Features = append([]string(nil), overlay.Features...)
+			}
 		}
 	}
 	return defs

@@ -59,6 +59,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -249,11 +250,29 @@ func (w *statusWriter) Write(data []byte) (int, error) {
 	return w.ResponseWriter.Write(data)
 }
 
+// healthProbePath is the lifecycle health endpoint every standard server
+// exposes. The runtime supervisor and readiness checks poll it continuously.
+const healthProbePath = "/health"
+
+// accessLog writes one line per request. Health probes are the exception: they
+// arrive every few seconds for the life of the process, so logging each one
+// made them the largest part of every long-running scenario log (a month-old
+// process on minimouse had written 75 MB, almost all identical probe lines).
+// A probe is logged only when its status differs from the previous probe, so
+// the log still records every health transition.
 func accessLog(logf func(string, ...interface{}), next http.Handler) http.Handler {
+	var lastHealthStatus atomic.Int32
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tracked := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		started := time.Now()
 		next.ServeHTTP(tracked, r)
+		if r.URL.Path == healthProbePath {
+			if previous := lastHealthStatus.Swap(int32(tracked.status)); previous == int32(tracked.status) {
+				return
+			}
+			logf("HTTP access method=%s path=%s status=%d duration=%s (health status changed; repeated probes with this status are not logged)", r.Method, r.URL.Path, tracked.status, time.Since(started).Round(time.Millisecond))
+			return
+		}
 		logf("HTTP access method=%s path=%s status=%d duration=%s", r.Method, r.URL.Path, tracked.status, time.Since(started).Round(time.Millisecond))
 	})
 }

@@ -82,7 +82,13 @@ export function PlaybackModeControl({
   const menuRef = useRef<HTMLDivElement>(null);
   const effectiveAnchorRef = anchorRef ?? buttonRef;
   const anchoredStyle = useAnchoredPopoverPosition(open, effectiveAnchorRef, menuRef, MENU_PLACEMENTS);
-  const menuMinWidth = Math.max(180, effectiveAnchorRef.current?.getBoundingClientRect().width ?? 0);
+  // Only the open menu uses this. Reading the anchor's rect in the render body
+  // forces a synchronous layout, and this control renders once per assistant
+  // row in the virtualized message list — so an ungated read cost a layout
+  // flush per row on every scroll event.
+  const menuMinWidth = open
+    ? Math.max(180, effectiveAnchorRef.current?.getBoundingClientRect().width ?? 0)
+    : 180;
 
   // No control when there's neither a summary nor a way to get one.
   if (!hasOriginalVersion && !canSummarize) return null;

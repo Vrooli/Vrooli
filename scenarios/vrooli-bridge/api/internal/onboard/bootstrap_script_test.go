@@ -85,8 +85,9 @@ func TestBootstrapGivesAShippedTreeAGitBase(t *testing.T) {
 			home := t.TempDir()
 			tree := filepath.Join(home, "vrooli")
 			writeShipFile(t, filepath.Join(tree, "a.txt"), "shipped edit", 0o644)
-			out := runBootstrapFunctions(t, home, `ensure_git_base "$HOME/vrooli"; printf 'NOTE=%s\n' "$GIT_BASE_NOTE"`,
-				"REPO_URL=file://"+origin, "REVISION="+tc.revision, "GIT_BASE_BRANCH=main")
+			// The script assigns these from its own defaults when sourced, so
+			// set them after sourcing, as its flag parser would.
+			out := runBootstrapFunctions(t, home, `REPO_URL="file://`+origin+`"; REVISION="`+tc.revision+`"; GIT_BASE_BRANCH=main; ensure_git_base "$HOME/vrooli"; printf 'NOTE=%s\n' "$GIT_BASE_NOTE"`)
 			if got := git(t, tree, "rev-parse", "HEAD"); got != sha {
 				t.Fatalf("HEAD = %s, want %s (%s)", got, sha, out)
 			}

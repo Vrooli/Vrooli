@@ -11,7 +11,7 @@ import { VerdictSummary } from "@vrooli/react-component-library/VerdictSummary/1
 import { toGeneratedFields, type OperatorInput } from "@vrooli/react-component-library/ValidationAdapter/1";
 import { Button } from "../ui/button";
 import { strings } from "../../consts/strings";
-import { machineIssues } from "../machines/MachineList";
+import { machineHealth, machineIssues } from "../machines/MachineList";
 import {
   answerSecret,
   createCredentialGrant,
@@ -207,6 +207,7 @@ export function ConfigurationTab({
   }, []);
 
   const issues = machineIssues(machine);
+  const health = machineHealth(machine);
   // A missing procedure on a reachable machine is version skew: the machine
   // runs an older Vrooli than this console. Re-apply runs the same old build,
   // so it is withheld; the API supplies the one update command that can work.
@@ -453,13 +454,59 @@ export function ConfigurationTab({
         </section>
       )}
 
-      {issues.count > 0 && (
+      {machine.target.kind !== "local" && (
+        <section className="rounded-xl border border-wc-default p-3" data-testid="machine-health">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wc-text-faint">
+              {t(strings.machines.healthHeading)}
+            </h3>
+            {issues.healthWarnings.length > 0 && <StatusBadge tone="warning">{issues.healthWarnings.length}</StatusBadge>}
+          </div>
+          {health.length === 0 ? (
+            <p className="mt-1 text-[11px] text-wc-text-faint" data-testid="machine-health-not-reported">
+              {t(strings.machines.healthNotReported)}
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-[11px] text-wc-text-faint">{t(strings.machines.healthBody)}</p>
+              <ul className="mt-2 divide-y divide-wc-default">
+                {health.map((fact) => {
+                  const id = fact.key.slice("node_health:".length);
+                  const tone = fact.state === "missing" ? "warning" : fact.state === "ready" ? "success" : "neutral";
+                  return (
+                    <li key={fact.key} data-testid={`machine-health-${id}`} className="flex items-start gap-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs text-wc-text-primary">{fact.label || id}</span>
+                        <span
+                          data-testid={`machine-health-${id}-detail`}
+                          className={`block break-words text-[11px] ${fact.state === "missing" ? "text-amber-200" : "text-wc-text-faint"}`}
+                        >
+                          {nodeFeatureDetail(fact.detail)}
+                        </span>
+                      </span>
+                      <StatusBadge tone={tone}>
+                        {fact.state === "missing"
+                          ? t(strings.machines.healthWarning)
+                          : fact.state === "ready"
+                            ? t(strings.machines.healthOk)
+                            : t(strings.machines.healthUnknown)}
+                      </StatusBadge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      {issues.configurationCount > 0 && (
         <section className="rounded-xl border border-wc-default p-3" data-testid="machine-configuration-drift">
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wc-text-faint">
               {t(strings.machines.driftHeading)}
             </h3>
-            <StatusBadge tone="warning">{issues.count}</StatusBadge>
+            <StatusBadge tone="warning">{issues.configurationCount}</StatusBadge>
           </div>
           <ul className="mt-2 divide-y divide-wc-default">
             {/* Each row carries the action that can clear it, or says plainly

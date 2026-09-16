@@ -729,7 +729,26 @@ func walkZip(files []*zip.File, destDir string, opts ExtractOptions, write bool)
 		if err != nil {
 			return b.summary, err
 		}
-		if zf.Mode()&os.ModeSymlink != 0 || zf.Mode()&os.ModeType&^os.ModeDir != 0 {
+		if zf.Mode()&os.ModeSymlink != 0 {
+			// A zip symlink stores its target as the entry's content. macOS
+			// application bundles (Ollama.app) rely on them for versioned
+			// dylibs, so they get the same containment check as tar symlinks.
+			linkname, err := readZipSymlink(zf)
+			if err != nil {
+				return b.summary, err
+			}
+			b.summary.Symlinks++
+			if _, err := resolveSafeSymlink(destDir, zf.Name, linkname); err != nil {
+				return b.summary, err
+			}
+			if write {
+				if err := createSafeSymlink(destDir, zf.Name, linkname, target); err != nil {
+					return b.summary, err
+				}
+			}
+			continue
+		}
+		if zf.Mode()&os.ModeType&^os.ModeDir != 0 {
 			return b.summary, &ArchiveError{Violation: ViolationUnsupportedEntry, Entry: zf.Name, Detail: "unsupported zip entry type"}
 		}
 		if zf.FileInfo().IsDir() {
@@ -772,4 +791,27 @@ func walkZip(files []*zip.File, destDir string, opts ExtractOptions, write bool)
 		}
 	}
 	return b.summary, nil
+}
+
+// maxZipSymlinkTarget bounds a zip symlink's stored target; a real path is far
+// shorter, and anything larger is treated as a malformed entry.
+const maxZipSymlinkTarget = 4096
+
+func readZipSymlink(zf *zip.File) (string, error) {
+	if zf.UncompressedSize64 > maxZipSymlinkTarget {
+		return "", &ArchiveError{Violation: ViolationUnsupportedEntry, Entry: zf.Name, Detail: "zip symlink target is too long"}
+	}
+	rc, err := zf.Open()
+	if err != nil {
+		return "", fmt.Errorf("binaryfetch: open zip symlink %q: %w", zf.Name, err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(io.LimitReader(rc, maxZipSymlinkTarget+1))
+	if err != nil {
+		return "", fmt.Errorf("binaryfetch: read zip symlink %q: %w", zf.Name, err)
+	}
+	if len(data) == 0 || len(data) > maxZipSymlinkTarget {
+		return "", &ArchiveError{Violation: ViolationUnsupportedEntry, Entry: zf.Name, Detail: "zip symlink has no usable target"}
+	}
+	return string(data), nil
 }

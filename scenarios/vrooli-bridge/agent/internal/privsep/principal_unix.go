@@ -60,13 +60,36 @@ func lookupPrincipal(uid int) (*principal, error) {
 	}
 	p := &principal{uid: uint32(uid), gid: uint32(gid), name: u.Username, home: u.HomeDir}
 	if ids, err := u.GroupIds(); err == nil {
+		var groups []uint32
 		for _, id := range ids {
 			if value, err := strconv.ParseUint(id, 10, 32); err == nil {
-				p.groups = append(p.groups, uint32(value))
+				groups = append(groups, uint32(value))
 			}
 		}
+		p.groups = capGroups(groups, uint32(gid), maxSupplementaryGroups)
 	}
 	return p, nil
+}
+
+// capGroups bounds a supplementary group list, keeping the primary group.
+// macOS refuses an exec whose credential carries more than NGROUPS_MAX (16)
+// groups with EINVAL: the helper's first `git` exec failed with
+// "fork/exec /usr/bin/git: invalid argument" for an account in 16 groups
+// (2026-09-15, minimouse). A limit of 0 keeps every group.
+func capGroups(groups []uint32, primary uint32, limit int) []uint32 {
+	if limit <= 0 || len(groups) <= limit {
+		return groups
+	}
+	capped := []uint32{primary}
+	for _, group := range groups {
+		if len(capped) == limit {
+			break
+		}
+		if group != primary {
+			capped = append(capped, group)
+		}
+	}
+	return capped
 }
 
 // apply makes cmd run as the principal with the principal's environment.

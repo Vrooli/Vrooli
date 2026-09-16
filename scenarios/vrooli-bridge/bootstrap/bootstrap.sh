@@ -647,11 +647,33 @@ ensure_git_base() {
 repair_identity_ownership() {
   local dir="$HOME/.vrooli/identity"
   [ -e "$dir" ] || return 0
-  [ -n "$(find "$dir" ! -user "$(id -u)" -print 2>/dev/null | head -n 1)" ] || return 0
+  # Test the directory itself first: BSD find cannot evaluate a directory it
+  # cannot read, so a root-owned 0700 tree prints nothing on macOS.
+  if [ -O "$dir" ] && [ -z "$(find "$dir" ! -user "$(id -u)" -print 2>/dev/null | head -n 1)" ]; then
+    return 0
+  fi
   if have_passwordless_sudo; then
     as_root chown -R "$(id -u)" "$dir" && log "    returned ${dir} to $(id -un)"
   else
     log "    warning: ${dir} holds entries not owned by $(id -un) and no passwordless sudo is available to repair them"
+  fi
+}
+
+# step_build_project_binaries — build the fingerprinted project binaries
+# (.vrooli/build/vrooli-api and friends). Without them the control plane
+# launches its API with `go run`, recompiling into a temp directory on every
+# start (minimouse's checkout had no .vrooli/build after its first in-place
+# ship). A failure is reported, not fatal: the API still starts from source.
+step_build_project_binaries() {
+  step_start project-binaries "build the project-level Vrooli binaries"
+  if [ -z "$RUNTIME_VROOLI_BIN" ] || [ ! -x "$RUNTIME_VROOLI_BIN" ]; then
+    step_skip "no runtime vrooli CLI to build with"
+    return
+  fi
+  if ( cd "$CHECKOUT_DIR" && VROOLI_SOURCE_ROOT="$CHECKOUT_DIR" "$RUNTIME_VROOLI_BIN" build ) >&2; then
+    step_ok "project binaries built into ${CHECKOUT_DIR}/.vrooli/build"
+  else
+    step_ok "project binary build failed; the control-plane API will start from source (see output above)"
   fi
 }
 
@@ -664,12 +686,29 @@ step_restart_stale() {
     return
   fi
   local listing names name restarted=0 failed=""
+  # Listing goes through the control plane's own API. When that API is itself
+  # the stale process (minimouse ran one for 37 days from a deleted tree and
+  # answered 503), restart it first and list again.
   if ! listing="$("$RUNTIME_VROOLI_BIN" scenario list --json 2>/dev/null)"; then
-    step_skip "could not list running scenarios"
-    return
+    # `develop --scenarios none` replaces an unhealthy control-plane API and
+    # starts nothing else.
+    if "$RUNTIME_VROOLI_BIN" develop --scenarios none --onboarding none --sudo-mode skip >&2 && listing="$("$RUNTIME_VROOLI_BIN" scenario list --json 2>/dev/null)"; then
+      restarted=1
+    else
+      step_skip "could not list running scenarios, even after restarting the control-plane API"
+      return
+    fi
   fi
   names="$(printf '%s' "$listing" | jq -r '.scenarios[]? | select(.status == "running") | .name' 2>/dev/null || true)"
+  # A change to a shared package makes nearly every scenario stale, and each
+  # restart rebuilds; on a small node that ran past half an hour. Past the
+  # budget, the rest are named instead of restarted.
+  local budget="${BRIDGE_RESTART_STALE_BUDGET:-900}" started="$SECONDS" deferred=""
   for name in $names; do
+    if [ $((SECONDS - started)) -ge "$budget" ]; then
+      deferred="${deferred} ${name}"
+      continue
+    fi
     if "$RUNTIME_VROOLI_BIN" scenario freshness "$name" --json 2>/dev/null | jq -e '.stale == true' >/dev/null 2>&1; then
       if "$RUNTIME_VROOLI_BIN" scenario restart "$name" >&2; then
         restarted=$((restarted + 1))
@@ -678,11 +717,10 @@ step_restart_stale() {
       fi
     fi
   done
-  if [ -n "$failed" ]; then
-    step_ok "restarted ${restarted} stale scenario(s); did not restart cleanly:${failed}"
-  else
-    step_ok "restarted ${restarted} stale scenario(s)"
-  fi
+  local detail="restarted ${restarted} stale scenario(s)"
+  [ -n "$failed" ] && detail="${detail}; did not restart cleanly:${failed}"
+  [ -n "$deferred" ] && detail="${detail}; not checked within the ${budget}s budget (restart them if stale):${deferred}"
+  step_ok "$detail"
 }
 
 # forget_install_prefix <dir> — drop install-record entries under dir.
@@ -1396,7 +1434,6 @@ main() {
   step_toolchain_guard
   step_build_native_vrooli
   step_finalize_setup
-  step_restart_stale
   step_build_agent
   step_install_stable_agent
   step_build_cli
@@ -1409,6 +1446,11 @@ main() {
   step_autostart
   step_record_install
   step_verify_online
+  # Slow, optional work runs after the node is paired and its agent is live:
+  # the single-use pairing code lives 15 minutes, and restarting every stale
+  # scenario once took 40 (2026-09-15, minimouse: redeem failed).
+  step_build_project_binaries
+  step_restart_stale
   step_prune_artifacts
   marker run-ok "" "node ${NODE_ID} paired and online"
   log "bootstrap complete: node ${NODE_ID} is paired, online, and set to auto-start."

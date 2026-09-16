@@ -257,6 +257,37 @@ func TestAccessLogRecordsStatusAndDuration(t *testing.T) {
 	}
 }
 
+// Health probes run for the whole life of a process. Logging each one filled
+// scenario logs with identical lines, so only status transitions are logged.
+func TestAccessLogRecordsHealthProbesOnlyWhenTheStatusChanges(t *testing.T) {
+	var logs []string
+	status := http.StatusOK
+	handler := accessLog(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+	}))
+	probe := func(code int) {
+		status = code
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/health", nil))
+	}
+	probe(http.StatusOK)
+	probe(http.StatusOK)
+	probe(http.StatusOK)
+	probe(http.StatusServiceUnavailable)
+	probe(http.StatusServiceUnavailable)
+	probe(http.StatusOK)
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/items", nil))
+
+	want := []string{"path=/health status=200", "path=/health status=503", "path=/health status=200", "path=/api/v1/items status=200"}
+	if len(logs) != len(want) {
+		t.Fatalf("access log = %#v, want %d lines", logs, len(want))
+	}
+	for i, fragment := range want {
+		if !strings.Contains(logs[i], fragment) {
+			t.Fatalf("line %d = %q, want it to contain %q", i, logs[i], fragment)
+		}
+	}
+}
+
 // A handler must still see an http.Flusher through the access-log wrapper.
 // Embedding http.ResponseWriter does not promote http.Flusher, so without an
 // explicit passthrough every SSE handler behind the standard server fails its

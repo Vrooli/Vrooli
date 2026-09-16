@@ -46,6 +46,10 @@ service ConfigService {
   // onto current live, never dropping unmanaged/ignored entries. Removal
   // happens only when prune is set (a batch prune removes orphaned entries).
   rpc Sync(SyncRequest) returns (SyncResponse);
+  // EnsureDNSRecord reconciles one explicitly owned DNS record. It is
+  // provider-neutral on the wire; the configured provider adapter performs
+  // the mutation and refuses conflicts with records owned elsewhere.
+  rpc EnsureDNSRecord(EnsureDNSRecordRequest) returns (EnsureDNSRecordResponse);
   // SwitchMode migrates between "remote" and "local" management modes. It is
   // PURE: it persists the mode and performs zero ingress writes.
   rpc SwitchMode(SwitchModeRequest) returns (SwitchModeResponse);
@@ -340,6 +344,31 @@ message SyncResponse {
   repeated string orphaned = 9;
   // Hostnames actually removed this sync (empty unless prune was set).
   repeated string pruned = 10;
+}
+
+message EnsureDNSRecordRequest {
+  // Explicit configured provider profile. This is never inferred from the
+  // local tunnel hostname or TunnelConfig.
+  string provider_profile = 1;
+  string hostname = 2;
+  string type = 3;
+  string content = 4;
+  int32 ttl = 5;
+  bool proxied = 6;
+  string owner = 7;
+  bool dry_run = 8;
+}
+
+message EnsureDNSRecordResponse {
+  string provider_profile = 1;
+  string hostname = 2;
+  string type = 3;
+  string record_id = 4;
+  bool created = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+  string owner = 8;
+  string message = 9;
 }
 
 message SwitchModeRequest {

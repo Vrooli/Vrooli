@@ -322,14 +322,18 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		defer setupLockRelease()
 	}
 	if phaseName == phasesSetup {
+		buildItem, selectionErr := setupComponentSelection(item, env)
+		if selectionErr != nil {
+			return result, selectionErr
+		}
 		if err := r.provisionSharedPackages(ctx, item, env, logWriter, childWriter); err != nil {
 			return PhaseResult{}, err
 		}
-		verdicts, err := r.evaluateSetupVerdictsContext(ctx, item, forceSetup)
+		verdicts, err := r.evaluateSetupVerdictsContext(ctx, buildItem, forceSetup)
 		if err != nil {
 			return result, err
 		}
-		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter, forceSetup, verdicts.ByComponent)
+		built, err := r.buildDeclaredComponents(ctx, buildItem, env, childWriter, forceSetup, verdicts.ByComponent)
 		if err != nil {
 			return result, err
 		}

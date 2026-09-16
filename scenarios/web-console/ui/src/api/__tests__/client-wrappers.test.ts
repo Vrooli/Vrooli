@@ -127,6 +127,7 @@ describe("Connect client wrappers", () => {
     vi.spyOn(sessions.sessionsClient, "unarchive").mockResolvedValue({} as never);
     vi.spyOn(sessions.sessionsClient, "listArchived").mockResolvedValue({ sessions: [{ id: "a", archivedAt: "a", createdAt: "c", agentType: "codex", agentSessionId: "as", cwd: "/tmp", paneName: "", headerColor: "", groupName: "", messageCount: 2n, restoreState: ArchiveRestoreState.REOPENABLE, restoreStateReason: "", awaitingRecovery: true }], total: 1 } as never);
     vi.spyOn(sessions.sessionsClient, "getArchiveRetention").mockResolvedValue({ policy: { messageLessAgeDays: 3, agentHomeAgeDays: 4, maxBytes: 5n }, stats: { entryCount: 1n, messageCount: 2n, transcriptBytes: 3n, agentHomeBytes: 4n, totalBytes: 7n } } as never);
+    vi.spyOn(sessions.sessionsClient, "pruneArchive").mockResolvedValue({ dryRun: true, actions: [{ sessionId: "a", kind: "transcript", bytes: 2048n, applied: false }], reclaimedBytes: 2048n } as never);
     vi.spyOn(sessions.sessionsClient, "listRecoverable").mockResolvedValue({ sessions: [{ id: "r", backend: "persistent", shell: "/bin/sh", cols: 80, rows: 24, createdAt: "c", orphanedAt: "o", lastActivityAt: "l", agentType: "codex", agentSessionId: "a", launchCommand: "run", cwd: "/tmp", lastRolloutPath: "p", recoverable: true, notRecoverableReason: "", paneName: "p", headerColor: "red", groupName: "g" }] } as never);
     vi.spyOn(sessions.sessionsClient, "recover").mockResolvedValue({ oldSessionId: "r", newSessionId: "s2", agentType: "codex", commandSent: "run", codexHomeCopied: true } as never);
     vi.spyOn(sessions.sessionsClient, "reopen").mockResolvedValue({ oldSessionId: "a", newSessionId: "s3", agentType: "codex", commandSent: "run", codexHomeCopied: false } as never);
@@ -145,6 +146,7 @@ describe("Connect client wrappers", () => {
     await sessions.unarchiveSession("remote:r");
     await expect(sessions.listArchivedSessions()).resolves.toMatchObject({ sessions: [{ pane_name: "a", restore_state: "reopenable" }] });
     await expect(sessions.getArchiveRetention()).resolves.toMatchObject({ policy: { max_bytes: 5 }, stats: { total_bytes: 7 } });
+    await expect(sessions.pruneArchive(false)).resolves.toMatchObject({ dry_run: true, reclaimed_bytes: 2048, actions: [{ session_id: "a", kind: "transcript" }] });
     await expect(sessions.listRecoverableSessions()).resolves.toMatchObject([{ id: "r", recoverable: true }]);
     await expect(sessions.recoverSession("r", "k")).resolves.toEqual({ old_session_id: "r", new_session_id: "s2", agent_type: "codex", command_sent: "run", codex_home_copied: true });
     await expect(sessions.reopenSession("a", "k")).resolves.toMatchObject({ new_session_id: "s3" });

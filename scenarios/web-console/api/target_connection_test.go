@@ -39,7 +39,10 @@ func TestNodeCapabilitiesAreNotPresentedAsAgents(t *testing.T) {
 		"capability:opencode":           "capability:opencode",
 		"capability:claude":             "capability:claude",
 		"capability:bridge-provisioner": NodeCapabilityPrefix + "bridge-provisioner",
-		"heartbeat":                     "heartbeat",
+		// Machine health readings are their own group, never "missing features".
+		"capability:node-health.disk":                NodeHealthPrefix + "disk",
+		"capability:node-health.bootstrap-artifacts": NodeHealthPrefix + "bootstrap-artifacts",
+		"heartbeat": "heartbeat",
 	} {
 		if got := browserFactKey(identity); got != want {
 			t.Errorf("browserFactKey(%q) = %q, want %q", identity, got, want)

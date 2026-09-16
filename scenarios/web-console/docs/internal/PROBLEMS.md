@@ -884,3 +884,27 @@ server was cleared so new sessions inherit color-capable defaults.
   remote session Create on minimouse succeeded; Bridge logged 0 LocalSession
   rejections after restart; minimouse drift is empty.
 - Measured: 2026-09-15
+
+## Work ladder
+
+- Rung: W3 (scoped repair) — remote machine health had no surface
+- Evidence: the Machines view showed drift and missing agents but nothing about
+  disk, memory, swap or leftover onboarding folders, so minimouse's 6.8 GiB of
+  stale artifacts and swap use were found only by SSH.
+- Repair: `browserFactKey` maps agent observations `node-health.<reading>` to
+  `node_health:<reading>` (never `node_capability:`, which would read as a
+  missing feature). `machineHealth` orders readings problems-first;
+  `machineIssues.healthWarnings` counts toward the card's "needs attention"
+  total while `configurationCount` keeps the Drift section to configuration
+  items. ConfigurationTab has a Health section (measurement + remedy, code
+  stripped, OK / Needs attention / Not measured) and says plainly when the
+  machine's agent is too old to report health. New keys `machines.health*` in
+  en/ar/ja.
+- Evidence of repair: `go test -run TestNodeCapabilitiesAreNotPresentedAsAgents .`;
+  vitest `ConfigurationTab.health.test.tsx` plus the existing ConfigurationTab
+  and fleet tests (51 passing); `tsc --noEmit` clean; web-console restarted.
+- Pre-existing, not fixed here: `src/i18n/locales/locales.test.ts` fails —
+  ar.json and ja.json lack 87 keys that en.json has (93 before this change
+  added its keys to all three), including every machine key added earlier on
+  2026-09-15.
+- Measured: 2026-09-15

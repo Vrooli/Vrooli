@@ -57,12 +57,19 @@ export function flushFrames(limit = 50): void {
   }
 }
 
-/** A user gesture: an input event first (as every real scroll gesture has), then the scroll. */
+/**
+ * A user gesture: an input event first (as every real scroll gesture has),
+ * then the scroll, then the frame the browser paints right after it. The
+ * virtualizer coalesces its scroll state to one update per frame, so a
+ * gesture that never yields a frame leaves the list showing the window for
+ * the previous scroll position — which no real scroll ever does.
+ */
 export function userScrollTo(top: number): void {
   const el = container();
   fireEvent.wheel(el, { deltaY: top < geo.scrollTop ? -100 : 100 });
   geo.scrollTop = Math.max(0, Math.min(top, maxScrollTop(el)));
   fireEvent.scroll(el);
+  act(() => { flushFrames(); });
 }
 
 /** Reports that the message row for `eventId` now measures `height` px. */

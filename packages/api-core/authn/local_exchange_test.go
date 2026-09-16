@@ -167,3 +167,31 @@ func TestExchangeLocalMachinePrincipalNeverUsesTCP(t *testing.T) {
 		t.Fatal("socket override must never select TCP")
 	}
 }
+
+// A socket path that overflows sun_path cannot be bound. The canonical path
+// under macOS's /var/folders/<id>/T/ is 106 bytes, so the authenticator
+// exited with "bind: invalid argument" on every Mac.
+func TestLocalAuthenticatorSocketFitsThePlatformLimit(t *testing.T) {
+	const macTemp = "/var/folders/_m/f86gss0s08q_s04915vwk3lc0000gn/T"
+	canonical := filepath.Join(macTemp, "vrooli-scenario-authenticator-scenario-authenticator.sock")
+
+	got := localAuthenticatorSocketIn(macTemp, "scenario-authenticator", "darwin")
+	if got == canonical || len(got) > 103 || filepath.Dir(got) != macTemp {
+		t.Fatalf("darwin path = %q (%d bytes), want a short name in %s", got, len(got), macTemp)
+	}
+	if again := localAuthenticatorSocketIn(macTemp, "scenario-authenticator", "darwin"); again != got {
+		t.Fatalf("path must be deterministic: %q then %q", got, again)
+	}
+	if other := localAuthenticatorSocketIn(macTemp, "other-namespace", "darwin"); other == got {
+		t.Fatal("distinct namespaces must not share a socket")
+	}
+	if linux := localAuthenticatorSocketIn(macTemp, "scenario-authenticator", "linux"); linux != canonical {
+		t.Fatalf("a path within the Linux limit must stay canonical, got %q", linux)
+	}
+	if short := localAuthenticatorSocketIn("/tmp", "scenario-authenticator", "darwin"); short != "/tmp/vrooli-scenario-authenticator-scenario-authenticator.sock" {
+		t.Fatalf("a path that fits must stay canonical, got %q", short)
+	}
+	if name := filepath.Base(localAuthenticatorSocketIn("/tmp", "a/b c", "linux")); name != "vrooli-scenario-authenticator-a-b-c.sock" {
+		t.Fatalf("namespace must be sanitized like the authenticator always did, got %q", name)
+	}
+}

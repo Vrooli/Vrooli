@@ -89,6 +89,9 @@ message ExecutionRecord {
   // goal message.
   optional string operator_note = 32;
 
+  // Operator-selected authority for external blocker investigation/repair.
+  optional string blocker_repair_policy = 38;
+
   // Goal delivery mechanism reported by Agent Manager for a goal execution.
   optional string goal_delivery = 33;
 

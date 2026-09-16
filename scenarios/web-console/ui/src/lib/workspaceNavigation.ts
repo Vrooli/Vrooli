@@ -7,6 +7,8 @@ import type { PaneMetadata, RoleMeta, SidebarOriginTab, SidebarSortMode, TabGrou
 type ConversationSessionSnapshot = {
   events: ConversationEvent[];
   cursor: ConversationCursor;
+  /** Maintained by the conversation store; counting events is the fallback. */
+  unreadCount?: number;
 };
 
 export type WorkspaceNavigationItem =
@@ -203,9 +205,13 @@ export function sortPanesForView(
   return result;
 }
 
+// Called once per pane by every navigation builder, on every render of the
+// workspace root. The store keeps this count current, so scanning the event
+// list is only the fallback for a snapshot that has not got one yet.
 function countUnreadMessages(pane: PaneMetadata, session: ConversationSessionSnapshot | undefined): number {
   if (!pane.supportsMessagesView || !session) return 0;
-  return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+  return session.unreadCount
+    ?? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
 }
 
 export function countWorkspaceUnreadMessages(

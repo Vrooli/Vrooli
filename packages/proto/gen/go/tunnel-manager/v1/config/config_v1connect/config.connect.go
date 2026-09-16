@@ -52,6 +52,9 @@ const (
 	ConfigServiceClearCloudflareCredentialsProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials"
 	// ConfigServiceSyncProcedure is the fully-qualified name of the ConfigService's Sync RPC.
 	ConfigServiceSyncProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/Sync"
+	// ConfigServiceEnsureDNSRecordProcedure is the fully-qualified name of the ConfigService's
+	// EnsureDNSRecord RPC.
+	ConfigServiceEnsureDNSRecordProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/EnsureDNSRecord"
 	// ConfigServiceSwitchModeProcedure is the fully-qualified name of the ConfigService's SwitchMode
 	// RPC.
 	ConfigServiceSwitchModeProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode"
@@ -103,6 +106,10 @@ type ConfigServiceClient interface {
 	// onto current live, never dropping unmanaged/ignored entries. Removal
 	// happens only when prune is set (a batch prune removes orphaned entries).
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
+	// EnsureDNSRecord reconciles one explicitly owned DNS record. It is
+	// provider-neutral on the wire; the configured provider adapter performs
+	// the mutation and refuses conflicts with records owned elsewhere.
+	EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error)
 	// SwitchMode migrates between "remote" and "local" management modes. It is
 	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
@@ -189,6 +196,12 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("Sync")),
 			connect.WithClientOptions(opts...),
 		),
+		ensureDNSRecord: connect.NewClient[config.EnsureDNSRecordRequest, config.EnsureDNSRecordResponse](
+			httpClient,
+			baseURL+ConfigServiceEnsureDNSRecordProcedure,
+			connect.WithSchema(configServiceMethods.ByName("EnsureDNSRecord")),
+			connect.WithClientOptions(opts...),
+		),
 		switchMode: connect.NewClient[config.SwitchModeRequest, config.SwitchModeResponse](
 			httpClient,
 			baseURL+ConfigServiceSwitchModeProcedure,
@@ -249,6 +262,7 @@ type configServiceClient struct {
 	setCloudflareCredentials   *connect.Client[config.SetCloudflareCredentialsRequest, config.SetCloudflareCredentialsResponse]
 	clearCloudflareCredentials *connect.Client[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse]
 	sync                       *connect.Client[config.SyncRequest, config.SyncResponse]
+	ensureDNSRecord            *connect.Client[config.EnsureDNSRecordRequest, config.EnsureDNSRecordResponse]
 	switchMode                 *connect.Client[config.SwitchModeRequest, config.SwitchModeResponse]
 	getDrift                   *connect.Client[config.GetDriftRequest, config.GetDriftResponse]
 	adoptIngress               *connect.Client[config.AdoptIngressRequest, config.AdoptIngressResponse]
@@ -294,6 +308,11 @@ func (c *configServiceClient) ClearCloudflareCredentials(ctx context.Context, re
 // Sync calls vrooli.tunnel_manager.v1.config.ConfigService.Sync.
 func (c *configServiceClient) Sync(ctx context.Context, req *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error) {
 	return c.sync.CallUnary(ctx, req)
+}
+
+// EnsureDNSRecord calls vrooli.tunnel_manager.v1.config.ConfigService.EnsureDNSRecord.
+func (c *configServiceClient) EnsureDNSRecord(ctx context.Context, req *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error) {
+	return c.ensureDNSRecord.CallUnary(ctx, req)
 }
 
 // SwitchMode calls vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode.
@@ -364,6 +383,10 @@ type ConfigServiceHandler interface {
 	// onto current live, never dropping unmanaged/ignored entries. Removal
 	// happens only when prune is set (a batch prune removes orphaned entries).
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
+	// EnsureDNSRecord reconciles one explicitly owned DNS record. It is
+	// provider-neutral on the wire; the configured provider adapter performs
+	// the mutation and refuses conflicts with records owned elsewhere.
+	EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error)
 	// SwitchMode migrates between "remote" and "local" management modes. It is
 	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
@@ -446,6 +469,12 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("Sync")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceEnsureDNSRecordHandler := connect.NewUnaryHandler(
+		ConfigServiceEnsureDNSRecordProcedure,
+		svc.EnsureDNSRecord,
+		connect.WithSchema(configServiceMethods.ByName("EnsureDNSRecord")),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceSwitchModeHandler := connect.NewUnaryHandler(
 		ConfigServiceSwitchModeProcedure,
 		svc.SwitchMode,
@@ -510,6 +539,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceClearCloudflareCredentialsHandler.ServeHTTP(w, r)
 		case ConfigServiceSyncProcedure:
 			configServiceSyncHandler.ServeHTTP(w, r)
+		case ConfigServiceEnsureDNSRecordProcedure:
+			configServiceEnsureDNSRecordHandler.ServeHTTP(w, r)
 		case ConfigServiceSwitchModeProcedure:
 			configServiceSwitchModeHandler.ServeHTTP(w, r)
 		case ConfigServiceGetDriftProcedure:
@@ -561,6 +592,10 @@ func (UnimplementedConfigServiceHandler) ClearCloudflareCredentials(context.Cont
 
 func (UnimplementedConfigServiceHandler) Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.Sync is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) EnsureDNSRecord(context.Context, *connect.Request[config.EnsureDNSRecordRequest]) (*connect.Response[config.EnsureDNSRecordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.EnsureDNSRecord is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error) {

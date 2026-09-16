@@ -294,11 +294,45 @@ starts without Go can therefore reach ONLINE. Watch output includes the
 `prebuilt-artifacts` step and `received prebuilt binaries` detail.
 
 A working-tree node records **dirty provenance** — its revision renders
-`"<base>+dirty"` in `nodes list`, node detail, and the fleet UI, so it is
-visibly not a pinned node. Because it is pinned to no fetchable commit, **fleet
-rolls exclude it** with a `needs-reprovision` disposition; re-onboard it without
-`--source working-tree` (pinned mode) to make it rollable again. Keep fleet-wide
-rolls on pinned nodes; working-tree is a single-host development affordance.
+`"<base>+dirty"` in `nodes list`, node detail, and the fleet UI.
+
+**A ship updates the node's checkout in place.** It writes only the files that
+changed since the previous ship and removes only files an earlier ship
+delivered that the tree no longer has. Everything the node owns is left alone:
+gitignored scenario data (`scenarios/*/data`), build output, `node_modules`,
+and `.git`. The first ship to a node sends every file; later ships are
+incremental (the `sync-tree` step says `full ship` or `incremental ship`).
+After setup, running scenarios whose build is stale are restarted
+(`restart-stale` step), and earlier onboarding artifact directories are pruned
+(`prune-artifacts`).
+
+### Updating a node: two paths
+
+A node can be updated either way, and can use both:
+
+- **Ship the working tree** — re-run `vrooli-bridge onboard connect --host <host>
+  --user <user> --source working-tree` to push your current uncommitted work.
+  Nothing needs to be committed.
+- **Follow a branch** — `vrooli-bridge follow set --node <id> --branch agi` keeps
+  the node on the branch's newest commit. Bridge checks the branch every five
+  minutes (`BRIDGE_FOLLOW_INTERVAL`) and, when it moves, runs `provision sync`
+  to the new commit (audited as `bridge:follow:<branch>`). `--now` also sends
+  the current head immediately. `follow list`, `follow check --node <id>`, and
+  `follow unset --node <id>` inspect, force, and stop it.
+
+Following starts with the branch's *next* commit, so a node carrying a
+working-tree ship keeps it until the branch actually moves. A provision then
+replaces the shipped overlay with the commit (ignored files survive). A head
+that was sent is never re-sent, even if its provision failed; a refused send
+(node offline, helper missing) is retried on the next check.
+
+Provisioning needs the node's privileged helper and a git checkout. Onboarding
+installs both: with passwordless sudo the helper runs as root from
+`/usr/local/libexec/vrooli-bridge/vrooli-bridge-agent` (never a file the
+runner can replace) and does its git, setup, and restart steps as the checkout
+owner; a working-tree checkout gets a shallow git base from `--repo-url`.
+`nodes list` shows `update=provision` once both are in place. Pass
+`--no-provision-helper` to skip the helper.
 
 If an op FAILS, it records a machine-branchable reason
 (`ssh_setup_failed`, `pairing_failed`, `bootstrap_failed`,

@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"vrooli-bridge/cli/internal/session"
 )
 
 // Register returns the `vrooli-bridge readiness status|configure` group.
@@ -51,7 +53,7 @@ type readinessResponse struct {
 }
 
 func status(ctx cliapp.RunContext) error {
-	data, err := ctx.Core().Get("/readiness", url.Values{})
+	data, err := session.RESTRequest(ctx.Core(), http.MethodGet, "/readiness", url.Values{}, nil)
 	if err != nil {
 		return fmt.Errorf("get Bridge readiness: %w", err)
 	}
@@ -85,7 +87,7 @@ func firewallAction(action string, mutation bool) func(cliapp.RunContext) error 
 		if mutation {
 			payload["confirm"] = ctx.Flag("confirm") == "true"
 		}
-		data, err := ctx.Core().Request(http.MethodPost, "/readiness/firewall", nil, payload)
+		data, err := session.RESTRequest(ctx.Core(), http.MethodPost, "/readiness/firewall", nil, payload)
 		if err != nil {
 			return fmt.Errorf("%s Bridge firewall admission: %w", action, err)
 		}
@@ -106,7 +108,7 @@ func firewallAction(action string, mutation bool) func(cliapp.RunContext) error 
 
 func configure(ctx cliapp.RunContext) error {
 	payload := map[string]string{"endpoint": ctx.Flag("endpoint"), "reachability_mode": ctx.Flag("reachability-mode")}
-	if _, err := ctx.Core().Request(http.MethodPut, "/readiness/endpoint", nil, payload); err != nil {
+	if _, err := session.RESTRequest(ctx.Core(), http.MethodPut, "/readiness/endpoint", nil, payload); err != nil {
 		return fmt.Errorf("configure Bridge endpoint: %w", err)
 	}
 	return ctx.RenderMutation(cliapp.MutationReport{Result: []string{"Bridge advertised endpoint configured."}, Changes: []string{"endpoint: " + ctx.Flag("endpoint"), "reachability mode: " + ctx.Flag("reachability-mode")}, NextCommand: []string{"`readiness status` — verify the persisted endpoint and candidate evidence"}})

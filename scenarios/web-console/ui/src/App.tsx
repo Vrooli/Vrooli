@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
-import { lazy, Suspense, useState } from "react";
+import { lazy, Profiler, Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
@@ -14,6 +14,7 @@ import {
 } from "./components/banners/descriptors";
 import type { MaybeBanner } from "./components/banners/types";
 import { useCapabilities } from "./hooks/useCapabilities";
+import { onProfilerRender } from "./lib/profiler";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
@@ -100,7 +101,9 @@ export default function App() {
         {isLoading && !error ? (
           <PageFallback />
         ) : (
-          <Workspace appBanners={appBanners} />
+          <Profiler id="Workspace" onRender={onProfilerRender}>
+            <Workspace appBanners={appBanners} />
+          </Profiler>
         )}
       </Suspense>
     </ErrorBoundary>

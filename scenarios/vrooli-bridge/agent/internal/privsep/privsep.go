@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	osuser "os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -305,12 +306,27 @@ func (h *Helper) runOne(ctx context.Context, argv []string, onLog func(string)) 
 // already succeeded, and a scenario that fails to restart is reported, not
 // rolled back.
 func (h *Helper) restartStaleScenarios(ctx context.Context, emit func(*provisionv1.ProvisionEvent) error) {
-	var listing strings.Builder
-	if code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "list", "--json"}, func(chunk string) { listing.WriteString(chunk) }); err != nil || code != 0 {
+	list := func() (string, bool) {
+		var listing strings.Builder
+		code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "list", "--json"}, func(chunk string) { listing.WriteString(chunk) })
+		return listing.String(), err == nil && code == 0
+	}
+	listing, ok := list()
+	if !ok {
+		// Listing goes through the control plane's own API; when that API is
+		// the stale process, restart it and list again.
+		_ = emit(statusEvent("restarting the control-plane API to list running scenarios"))
+		// `develop --scenarios none` replaces an unhealthy control-plane API
+		// and starts nothing else.
+		if code, err := h.runOne(ctx, []string{h.vrooliBin, "develop", "--scenarios", "none", "--onboarding", "none", "--sudo-mode", "skip"}, func(chunk string) { _ = emit(logEvent(chunk)) }); err == nil && code == 0 {
+			listing, ok = list()
+		}
+	}
+	if !ok {
 		_ = emit(statusEvent("warning: could not list running scenarios to restart stale ones"))
 		return
 	}
-	for _, name := range runningScenarios(listing.String()) {
+	for _, name := range runningScenarios(listing) {
 		var freshness strings.Builder
 		if code, err := h.runOne(ctx, []string{h.vrooliBin, "scenario", "freshness", name, "--json"}, func(chunk string) { freshness.WriteString(chunk) }); err != nil || code != 0 || !scenarioStale(freshness.String()) {
 			continue
@@ -359,9 +375,23 @@ func jsonObject(output string) string {
 	return output[start : end+1]
 }
 
+// forgetShipDigest drops the marker recording the last working-tree ship into
+// this checkout. A provision replaces the tree out of band, so leaving the
+// marker would let the control plane believe the node still holds the shipped
+// files and send nothing on the next ship (tree_delta.go).
+func (h *Helper) forgetShipDigest() {
+	dir := strings.TrimSpace(h.workDir)
+	if dir == "" {
+		return
+	}
+	dir = filepath.Clean(dir)
+	_ = os.Remove(filepath.Join(filepath.Dir(dir), "."+filepath.Base(dir)+".bridge-ship-digest"))
+}
+
 // finishSuccess resolves and reports the node's resulting revision, then emits a
 // clean terminal EXIT(0) — the COMPLETED outcome.
 func (h *Helper) finishSuccess(ctx context.Context, emit func(*provisionv1.ProvisionEvent) error) error {
+	h.forgetShipDigest()
 	if rev, err := h.revision.Current(ctx, h.workDir); err == nil && strings.TrimSpace(rev) != "" {
 		_ = emit(versionEvent(strings.TrimSpace(rev)))
 	}
@@ -402,6 +432,7 @@ func (h *Helper) rollback(ctx context.Context, cmd *channelv1.ProvisionCommand, 
 		_ = emit(statusEvent("failed: rollback did not restore the node"))
 		return emit(exitEvent(failCode))
 	}
+	h.forgetShipDigest()
 	if rev, err := h.revision.Current(ctx, h.workDir); err == nil && strings.TrimSpace(rev) != "" {
 		_ = emit(versionEvent(strings.TrimSpace(rev)))
 	} else {

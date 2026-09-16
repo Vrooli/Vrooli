@@ -323,8 +323,35 @@ func (g GitHeads) Head(ctx context.Context, repoURL, branch string) (string, err
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	ref := "refs/heads/" + branch
+	// Read the branch anonymously first, with the operator's git configuration
+	// neutralized: a global `url.…insteadOf` rewrite turned this public HTTPS
+	// read into an SSH one and failed on a server with no agent (2026-09-15).
+	// A repository that needs the operator's credentials still works through
+	// the ambient retry.
+	out, err := g.lsRemote(ctx, repoURL, ref, true)
+	if err != nil {
+		out, err = g.lsRemote(ctx, repoURL, ref, false)
+	}
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[1] == ref && shaPattern.MatchString(fields[0]) {
+			return fields[0], nil
+		}
+	}
+	return "", fmt.Errorf("branch %s does not exist in %s", branch, repoURL)
+}
+
+// lsRemote runs one `git ls-remote`; isolated drops the operator's global and
+// system git configuration (URL rewrites, credential helpers).
+func (g GitHeads) lsRemote(ctx context.Context, repoURL, ref string, isolated bool) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "ls-remote", "--", repoURL, ref) // #nosec G204 -- validated URL and ref, no shell.
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false")
+	if isolated {
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull)
+	}
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -334,11 +361,5 @@ func (g GitHeads) Head(ctx context.Context, repoURL, branch string) (string, err
 		}
 		return "", fmt.Errorf("git ls-remote: %w", err)
 	}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 2 && fields[1] == ref && shaPattern.MatchString(fields[0]) {
-			return fields[0], nil
-		}
-	}
-	return "", fmt.Errorf("branch %s does not exist in %s", branch, repoURL)
+	return string(out), nil
 }

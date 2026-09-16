@@ -4,6 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,4 +123,35 @@ func TestFollowRefusesUnsafeInput(t *testing.T) {
 		require.ErrorAs(t, err, &invalid, "repo %q", repo)
 	}
 	require.ErrorIs(t, svc.Unfollow(context.Background(), "node-1"), ErrNotFollowing)
+}
+
+// The branch head is read with the operator's global git configuration
+// neutralized: an `insteadOf` rewrite to SSH broke this read on a server with
+// no agent (2026-09-15, reading refs/heads/agi from the public repository).
+func TestLsRemoteIgnoresTheOperatorsURLRewrite(t *testing.T) {
+	origin := t.TempDir()
+	run := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", origin}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com")
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return strings.TrimSpace(string(out))
+	}
+	run("init", "-q", "-b", "agi")
+	require.NoError(t, os.WriteFile(filepath.Join(origin, "a.txt"), []byte("x"), 0o644))
+	run("add", ".")
+	run("commit", "-q", "-m", "base")
+	want := run("rev-parse", "HEAD")
+
+	url := "file://" + origin
+	gitconfig := filepath.Join(t.TempDir(), ".gitconfig")
+	require.NoError(t, os.WriteFile(gitconfig, []byte("[url \"git@example.invalid:\"]\n\tinsteadOf = "+url+"\n"), 0o644))
+	t.Setenv("GIT_CONFIG_GLOBAL", gitconfig)
+
+	isolated, err := GitHeads{}.lsRemote(context.Background(), url, "refs/heads/agi", true)
+	require.NoError(t, err)
+	require.Contains(t, isolated, want)
+
+	_, err = GitHeads{}.lsRemote(context.Background(), url, "refs/heads/agi", false)
+	require.Error(t, err, "the rewritten URL must fail, which is what the isolated read avoids")
 }

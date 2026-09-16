@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
+import { Profiler, useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { CircleUserRound, Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { strings } from "../consts/strings";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX, TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
 import { chromeTheme } from "../lib/chromeTheme";
+import { onProfilerRender } from "../lib/profiler";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
 import { useConversationHydration } from "../hooks/useConversationHydration";
@@ -2031,6 +2032,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
         {/* Tab bar (only in tabs mode) */}
         {workspace.displayMode === "tabs" && (
+          <Profiler id="TabBar" onRender={onProfilerRender}>
           <TabBar
             panes={orderedPanes}
             activePane={workspace.activePane}
@@ -2081,6 +2083,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               </>
             ) : undefined}
           />
+          </Profiler>
         )}
 
         {workspace.displayMode === "sidebar" && (
@@ -2190,6 +2193,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
         >
           {workspace.displayMode === "sidebar" && (
+            <Profiler id="SessionSidebar" onRender={onProfilerRender}>
             <SessionSidebar
               buckets={sidebarOriginBuckets}
               containerRef={sidebarLayoutRef}
@@ -2214,6 +2218,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 setArchiveDrawerOpen(true);
               }}
             />
+            </Profiler>
           )}
           {/* Tab-like modes: stacked panes with hidden inactive panes */}
           <div className="relative flex-1 min-h-0 overflow-hidden">

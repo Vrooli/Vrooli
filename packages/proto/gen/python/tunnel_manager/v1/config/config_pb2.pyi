@@ -313,6 +313,48 @@ class SyncResponse(_message.Message):
     pruned: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., added: _Optional[_Iterable[str]] = ..., removed: _Optional[_Iterable[str]] = ..., no_changes: _Optional[bool] = ..., setup_required: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., drift_unmanaged: _Optional[_Iterable[str]] = ..., orphaned: _Optional[_Iterable[str]] = ..., pruned: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class EnsureDNSRecordRequest(_message.Message):
+    __slots__ = ("provider_profile", "hostname", "type", "content", "ttl", "proxied", "owner", "dry_run")
+    PROVIDER_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    TTL_FIELD_NUMBER: _ClassVar[int]
+    PROXIED_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    provider_profile: str
+    hostname: str
+    type: str
+    content: str
+    ttl: int
+    proxied: bool
+    owner: str
+    dry_run: bool
+    def __init__(self, provider_profile: _Optional[str] = ..., hostname: _Optional[str] = ..., type: _Optional[str] = ..., content: _Optional[str] = ..., ttl: _Optional[int] = ..., proxied: _Optional[bool] = ..., owner: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class EnsureDNSRecordResponse(_message.Message):
+    __slots__ = ("provider_profile", "hostname", "type", "record_id", "created", "changed", "dry_run", "owner", "message")
+    PROVIDER_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    RECORD_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    provider_profile: str
+    hostname: str
+    type: str
+    record_id: str
+    created: bool
+    changed: bool
+    dry_run: bool
+    owner: str
+    message: str
+    def __init__(self, provider_profile: _Optional[str] = ..., hostname: _Optional[str] = ..., type: _Optional[str] = ..., record_id: _Optional[str] = ..., created: _Optional[bool] = ..., changed: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., owner: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
 class SwitchModeRequest(_message.Message):
     __slots__ = ("target_mode",)
     TARGET_MODE_FIELD_NUMBER: _ClassVar[int]
