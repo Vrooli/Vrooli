@@ -100,6 +100,7 @@ func (s *Server) setupRoutes() {
 			},
 		},
 	}}.Handler()).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/internal/desktop-journey/terminal", s.desktopTerminalFixture).Methods(http.MethodGet)
 	sessionAdapter := &sessionsH.Adapter{
 		Manager:             s.sessions,
 		ManagedCodex:        s.managedCodex,

@@ -1086,30 +1086,20 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // one-shot/buffered turn when the durable streaming path is unavailable.
     const isPersistent = persistentModeRef.current;
 
-    // A user can press the control before the mount probe's promise resolves.
-    // Resolve that probe on the explicit long-form start path so the initial
-    // `false` ref value is never mistaken for a real streaming outage.
-    if (!capCheckResolvedRef.current) {
-      try {
-        const probe = await capabilityCheckRef.current();
-        streamingAvailableRef.current = probe.whisperHealthy && (probe.streamingAvailable ?? true);
-        capCheckResolvedRef.current = true;
-        if (!probe.whisperHealthy) {
-          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable", capabilityReason: probe.capabilityReason, operatorCommand: probe.operatorCommand }));
-        }
-      } catch {
-        capCheckResolvedRef.current = true;
-        streamingAvailableRef.current = false;
-      }
-    }
-
     if (!controller.isCurrentStart(startToken)) {
       controller.shutdown("hidden");
       setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
       return;
     }
 
-    const persistentDecision = decidePersistentMode(isPersistent, backendRef.current, streamingAvailableRef.current);
+    // The mount probe is deliberately best-effort and may be slow while a
+    // provider/resource manager wakes up. It must never sit between the
+    // user's press and microphone acquisition: the hook already exposes an
+    // optimistic durable voice capability and the stream itself is the
+    // authoritative readiness check. If the probe has not resolved yet,
+    // choose the streaming path and let a real startup error fail visibly.
+    const streamingReady = capCheckResolvedRef.current ? streamingAvailableRef.current : true;
+    const persistentDecision = decidePersistentMode(isPersistent, backendRef.current, streamingReady);
     if (!persistentDecision.allowed) {
       const reason = persistentDecision.reason ?? PERSISTENT_STREAMING_UNAVAILABLE_MESSAGE;
       console.warn("[voice] %s", reason);
@@ -1150,10 +1140,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // through the controller so a failed provider can never be orphaned.
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
-          controller.set(streamingAvailableRef.current
+          controller.set(streamingReady
             ? new services.PcmVoiceStreamProvider()
             : new services.WhisperProvider());
-          console.info("[voice] Provider:", streamingAvailableRef.current ? "PCMVoiceStreamV2" : "WhisperHTTP");
+          console.info("[voice] Provider:", streamingReady ? "PCMVoiceStreamV2" : "WhisperHTTP");
         } else {
           const reason = "Voice input is unavailable because audio-tools cannot be reached.";
           setState((s) => ({ ...s, supported: false, voiceState: "idle", backend: "none", error: reason }));

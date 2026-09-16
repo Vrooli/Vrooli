@@ -92,13 +92,12 @@ function TabBar({
   const roles = useWorkspaceStore((s) => s.roles);
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
-  const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
   const setCloseGroupTarget = useWorkspaceStore((s) => s.setCloseGroupTarget);
   // Where the anchored assign picker should sit, and for which session.
   const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
   const { syncPaneMove, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
-  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup } = useGroupActions();
+  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup, toggleGroupCollapsed } = useGroupActions();
   const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
 
   /** Flip a pane's manual unread flag and persist it. */

@@ -161,6 +161,24 @@ export class PcmVoiceStreamProvider {
     publishStreamDiagnostic(diagnostic);
     this.onDiagnostic?.(diagnostic);
   }
+
+  private downgradePersistentJournal(): TurnJournal | null {
+    const current = this.journal;
+    const snapshot = current?.read();
+    if (!snapshot || snapshot.durability !== "persistent") return null;
+    const reduced = new TurnJournal(
+      new MemoryTurnJournalStore(),
+      snapshot.sessionId,
+      snapshot.generation,
+      16 * 1024 * 1024,
+      "reduced",
+    );
+    reduced.seed(snapshot);
+    this.journal = reduced;
+    this.diagnostic.durability("reduced");
+    this.status("durability_reduced", "Persistent recovery storage became unavailable; the active turn remains recoverable in bounded memory.");
+    return reduced;
+  }
   private status(code: string, message: string): void { this.diagnostic.status(code); this.publishDiagnostic(); this.onStatus?.({ code, message }); }
   private cleanServerError(message: string): string {
     return /dial tcp|connect(?:ion)? refused|wss?:\/\//i.test(message)
@@ -180,6 +198,20 @@ export class PcmVoiceStreamProvider {
     const cause = typed.cause as { name?: unknown } | null | undefined;
     if (typeof cause?.name === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(cause.name)) {
       this.diagnostic.error(`${typed.code}:${cause.name}`);
+    }
+    const message = typed.cause instanceof Error ? typed.cause.message : String(typed.cause ?? "");
+    const sequenceDetail = message.match(/expected sequence (\d+) at sample (\d+), got sequence (\d+) at sample (\d+)/i);
+    const reason = /contiguous sequence identities/i.test(message)
+      ? "sequence_mismatch"
+      : /quota exhausted|quota exceeded/i.test(message)
+        ? "quota_exhausted"
+        : /indexeddb|transaction|abort/i.test(`${cause?.name ?? ""} ${message}`)
+          ? "storage_transaction"
+          : "storage_write";
+    this.diagnostic.error(`${typed.code}:${reason}`);
+    if (sequenceDetail) {
+      this.diagnostic.error(`${typed.code}:cursor_${sequenceDetail[1]}_got_${sequenceDetail[3]}`);
+      this.diagnostic.error(`${typed.code}:sample_${sequenceDetail[2]}_got_${sequenceDetail[4]}`);
     }
     this.diagnostic.terminal("failed", typed.code);
     this.publishDiagnostic();
@@ -376,9 +408,11 @@ export class PcmVoiceStreamProvider {
     bytes.set(new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength));
     this.pendingWriteCount += 1;
     this.writes = this.writes.then(async () => {
+      let sha256: ArrayBuffer | null = null;
+      let frame: ArrayBuffer | null = null;
       try {
-        const sha256 = await digestAudio(bytes.buffer);
-        const frame = encodeAudioFrame({ sequence, startSample, endSample, audio, sha256: new Uint8Array(sha256) });
+        sha256 = await digestAudio(bytes.buffer);
+        frame = encodeAudioFrame({ sequence, startSample, endSample, audio, sha256: new Uint8Array(sha256) });
         await this.journal?.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
         this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
         if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
@@ -387,7 +421,47 @@ export class PcmVoiceStreamProvider {
           this.publishDiagnostic();
         } else this.pending.push(frame);
       } catch (error: unknown) {
-        this.handleWriteFailure(error);
+        const reducedJournal = sha256 !== null && frame !== null ? this.downgradePersistentJournal() : null;
+        if (reducedJournal && sha256 !== null && frame !== null) {
+          try {
+            const snapshot = reducedJournal.read();
+            if (snapshot.nextSequence === sequence) {
+              await reducedJournal.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
+            }
+            this.diagnostic.retained(reducedJournal.read().retainedBytes);
+            if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
+              this.ws.send(frame);
+              this.diagnostic.sent(sequence);
+              this.publishDiagnostic();
+            } else {
+              this.pending.push(frame);
+            }
+          } catch (recoveryError: unknown) {
+            const recoveryMessage = recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
+            const cursorRepair = recoveryMessage.match(/expected sequence (\d+) at sample \d+, got sequence (\d+) at sample \d+/i);
+            if (cursorRepair && cursorRepair[1] === sequence.toString() && cursorRepair[2] === sequence.toString()) {
+              try {
+                reducedJournal.rebaseNextSample(startSample);
+                await reducedJournal.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
+                this.diagnostic.retained(reducedJournal.read().retainedBytes);
+                if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
+                  this.ws.send(frame);
+                  this.diagnostic.sent(sequence);
+                  this.publishDiagnostic();
+                } else {
+                  this.pending.push(frame);
+                }
+                this.status("durability_reduced", "Recovery journal cursor was repaired in bounded memory; the active turn remains recoverable.");
+              } catch (repairError: unknown) {
+                this.handleWriteFailure(repairError);
+              }
+            } else {
+              this.handleWriteFailure(recoveryError);
+            }
+          }
+        } else {
+          this.handleWriteFailure(error);
+        }
       } finally {
         this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
       }

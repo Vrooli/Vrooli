@@ -23,7 +23,24 @@ export function useGroupActions() {
   const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
   const addRole = useWorkspaceStore((s) => s.addRole);
   const setClosedGroupUndo = useWorkspaceStore((s) => s.setClosedGroupUndo);
-  const { syncCreateGroup, syncDeleteGroup, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
+  const toggleCollapsedInStore = useWorkspaceStore((s) => s.toggleGroupCollapsed);
+  const { syncCreateGroup, syncDeleteGroup, syncUpdateGroup, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
+
+  /**
+   * Flip a group's collapsed state and persist it.
+   *
+   * Collapse is server-hydrated on reload (useSessionManager reads
+   * group.is_collapsed), so a toggle that only touched the store looked like
+   * it had not persisted at all: every group sprang back open on refresh.
+   * Reads the group back from the store rather than negating a prop, because
+   * the caller has just mutated it and any value it holds is a render behind.
+   */
+  const toggleGroupCollapsed = useCallback((groupId: string) => {
+    toggleCollapsedInStore(groupId);
+    const group = useWorkspaceStore.getState().groups.find((g) => g.id === groupId);
+    if (!group) return;
+    syncUpdateGroup(groupId, { is_collapsed: group.isCollapsed });
+  }, [toggleCollapsedInStore, syncUpdateGroup]);
 
   /**
    * Assign a pane to a group. The store repositions it into the group's block
@@ -214,6 +231,7 @@ export function useGroupActions() {
     dismissClosedGroupUndo,
     createGroup,
     createNamedGroup,
+    toggleGroupCollapsed,
   };
 }
 

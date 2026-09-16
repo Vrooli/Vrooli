@@ -1608,6 +1608,84 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Compute layout
   const orderedPanes = workspacePanes;
 
+  // NOTE ON PLACEMENT: everything from here to `sidebarUnreadCount` must stay
+  // ABOVE this component's early returns (`!isHydrated`, no panes). These are
+  // hooks; below those returns they would run only on some renders and break
+  // React's hook order.
+  //
+  // The navigation builders scan every event of every pane (latest event per
+  // session, unread counts). They ran on EVERY render of this component, and
+  // live conversation traffic renders it many times a second. Their inputs are
+  // really just the panes, each session's latest sequence and unread count,
+  // and the view/sort settings — so this O(panes) signature decides when the
+  // scan has to run again. Both values it reads are maintained by the
+  // conversation store, so neither costs an event walk.
+  const conversationSignature = orderedPanes
+    .map((pane) => {
+      const session = conversationSessions[pane.sessionId];
+      return `${pane.sessionId}:${String(session?.maxSequence ?? 0)}:${String(session?.unreadCount ?? 0)}:${String(pane.manuallyUnread)}`;
+    })
+    .join("|");
+  // Activity labels are relative ("2m ago"). They used to refresh as a side
+  // effect of the constant re-rendering; now that the builders are memoized
+  // they need a tick of their own, which costs one render a minute.
+  const [activityMinute, setActivityMinute] = useState(() => Math.floor(Date.now() / 60_000));
+  useEffect(() => {
+    const timer = setInterval(() => { setActivityMinute(Math.floor(Date.now() / 60_000)); }, 60_000);
+    return () => { clearInterval(timer); };
+  }, []);
+
+  const navigationItems = useMemo(() => buildWorkspaceNavigationItems({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    roles: workspace.roles,
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
+  }),
+  // `conversationSessions` is deliberately absent: `conversationSignature` is
+  // its load-bearing summary here, and depending on the map itself would
+  // rebuild on every store write — the exact cost this memo removes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [activityMinute, conversationSignature, conversationViewModes, lastVisitedBySession, orderedPanes, workspace.activePane, workspace.groups, workspace.roles, workspace.sidebarSortMode]);
+
+  // Provenance per session for the origin-bucketed sidebar. Origin lives on the
+  // session (not the workspace pane metadata), so it comes from the session
+  // manager's pane list rather than the store.
+  const originBySession = useMemo(() => {
+    const provenance: Record<string, SessionOriginName> = {};
+    for (const sp of sessionPanes) provenance[sp.session.id] = sp.session.origin;
+    return provenance;
+  }, [sessionPanes]);
+
+  const sidebarOriginBuckets = useMemo(() => buildOriginBucketedNavigation({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    roles: workspace.roles,
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
+    originBySession,
+  }),
+  // Same contract as navigationItems above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [activityMinute, conversationSignature, conversationViewModes, lastVisitedBySession, orderedPanes, originBySession, workspace.activePane, workspace.groups, workspace.roles, workspace.sidebarSortMode]);
+
+  const activeNavigationItem = navigationItems.find(
+    (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
+  );
+  const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
+  const sidebarUnreadCount = useMemo(
+    () => countWorkspaceUnreadMessages(orderedPanes, conversationSessions),
+    // Same contract as navigationItems above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversationSignature, orderedPanes],
+  );
+
   // Single SSE subscription for the whole app: conversation events + unread
   // updates for ALL sessions flow here, decoupled from any terminal WS. Auto-
   // summarize failures surface through the active pane's banner handler.
@@ -1952,37 +2030,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     );
   });
 
-  const navigationItems = buildWorkspaceNavigationItems({
-    panes: orderedPanes,
-    groups: workspace.groups ?? [],
-    roles: workspace.roles,
-    activePane: workspace.activePane,
-    conversationSessions,
-    viewModes: conversationViewModes,
-    lastVisitedBySession,
-    sortMode: workspace.sidebarSortMode,
-  });
-  // Provenance per session for the origin-bucketed sidebar. Origin lives on the
-  // session (not the workspace pane metadata), so it comes from the session
-  // manager's pane list rather than the store.
-  const originBySession: Record<string, SessionOriginName> = {};
-  for (const sp of sessionPanes) originBySession[sp.session.id] = sp.session.origin;
-  const sidebarOriginBuckets = buildOriginBucketedNavigation({
-    panes: orderedPanes,
-    groups: workspace.groups ?? [],
-    roles: workspace.roles,
-    activePane: workspace.activePane,
-    conversationSessions,
-    viewModes: conversationViewModes,
-    lastVisitedBySession,
-    sortMode: workspace.sidebarSortMode,
-    originBySession,
-  });
-  const activeNavigationItem = navigationItems.find(
-    (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
-  );
-  const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
-  const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
   // With the mobile sidebar closed, this button is the only signal there is —
   // so a manually flagged session has to reach it too, as a dot (it has no
   // count of its own, and a real unread count outranks it).

@@ -110,7 +110,6 @@ export default function SessionSidebar({
   }, []);
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
-  const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
   const setCloseGroupTarget = useWorkspaceStore((s) => s.setCloseGroupTarget);
   // Which session the group overlay is open for, if any.
@@ -125,7 +124,7 @@ export default function SessionSidebar({
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
 	const viewerCounts = useWorkspaceStore((s) => s.viewerCounts);
   const { syncPaneUpdate, syncPaneMove } = useWorkspaceSync();
-  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup } = useGroupActions();
+  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup, toggleGroupCollapsed } = useGroupActions();
   const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
 
   /** Flip a pane's manual unread flag and persist it. */
@@ -342,6 +341,9 @@ export default function SessionSidebar({
   const sidebarContent = (
     <>
       <div className="flex h-11 select-none items-center gap-2 border-b border-wc-default px-3">
+        {/* Aquila's applied mark. Sourced from the brand-manager-written
+            /public/logo.svg so it follows any future brand change. */}
+        <img src="/public/logo.svg" alt="" aria-hidden className="h-5 w-5 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-wc-text-primary">
             {t(strings.sessionSidebar.title)}

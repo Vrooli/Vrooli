@@ -23,6 +23,8 @@ vi.mock("../../hooks/useGroupActions", () => ({
     ungroupAllMembers: vi.fn(),
     deleteGroup: vi.fn(),
     createGroup: vi.fn(),
+    createNamedGroup: vi.fn(),
+    toggleGroupCollapsed: vi.fn(),
   }),
 }));
 

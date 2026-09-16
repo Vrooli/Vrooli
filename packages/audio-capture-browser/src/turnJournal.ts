@@ -97,7 +97,9 @@ export class TurnJournal {
       throw new Error("journal chunk must contain a non-empty non-negative sample range");
     }
     if (chunk.sequence !== this.snapshot.nextSequence || chunk.startSample !== this.snapshot.nextSample) {
-      throw new Error("journal chunks must have contiguous sequence identities");
+      throw new Error(
+        `journal chunks must have contiguous sequence identities (expected sequence ${this.snapshot.nextSequence.toString()} at sample ${this.snapshot.nextSample.toString()}, got sequence ${chunk.sequence.toString()} at sample ${chunk.startSample.toString()})`,
+      );
     }
     if (this.snapshot.retainedBytes + chunk.audio.byteLength > this.maxBytes) {
       throw new Error("journal quota exhausted before capture; audio was not discarded");
@@ -126,6 +128,33 @@ export class TurnJournal {
       ...this.snapshot,
       chunks: this.snapshot.chunks.map((chunk) => ({ ...chunk, audio: chunk.audio.slice(0), sha256: chunk.sha256.slice(0) })),
     };
+  }
+
+  /** Seed a replacement journal after a storage adapter loses availability. */
+  seed(snapshot: JournalSnapshot): void {
+    this.snapshot = {
+      ...snapshot,
+      chunks: snapshot.chunks.map((chunk) => ({
+        ...chunk,
+        audio: chunk.audio.slice(0),
+        sha256: chunk.sha256.slice(0),
+      })),
+    };
+    this.pendingRecords = 0;
+    this.persistenceQueue = Promise.resolve();
+  }
+
+  /**
+   * Repair a stale persisted sample cursor at the next sequence boundary.
+   * This is only valid after storage recovery has already reduced durability:
+   * no retained chunk may be at or beyond the cursor, so the next frame is
+   * the authoritative sample boundary for the active capture.
+   */
+  rebaseNextSample(nextSample: bigint): void {
+    if (this.snapshot.chunks.some((chunk) => chunk.sequence >= this.snapshot.nextSequence)) {
+      throw new Error("journal cursor cannot be rebased with a future retained chunk");
+    }
+    this.snapshot.nextSample = nextSample;
   }
 
   async discard(): Promise<void> {

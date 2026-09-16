@@ -420,6 +420,19 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* ── File-preview markdown: skip off-screen blocks ──
+ * A markdown file arrives as one string (up to 1 MiB) and renders as one tall
+ * DOM tree with no virtualization, so every block is laid out and painted even
+ * though only a screenful is visible. `content-visibility: auto` lets the
+ * browser skip layout and paint for blocks outside the viewport, and the
+ * intrinsic size keeps the scrollbar stable for the ones it skipped. Scoped to
+ * the file preview: the message list has its own virtualizer, and applying
+ * this to a row it is measuring would fight that measurement. */
+[data-testid="file-preview-markdown"] .markdown-content > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
 /* ── Reduced motion ──
  * Users who request reduced motion (often for vestibular sensitivity) should
  * not receive non-essential animation/transition. We neutralize durations

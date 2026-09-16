@@ -183,6 +183,10 @@ export class StreamDiagnosticRecorder {
     this.snapshot.retainedBytes = Math.max(0, bytes);
   }
 
+  durability(level: DurabilityLevel): void {
+    this.snapshot.durability = level;
+  }
+
   partial(): void {
     if (this.snapshot.firstPartialLatencyMs !== null) return;
     this.snapshot.firstPartialLatencyMs = this.firstCaptureAtMs > 0

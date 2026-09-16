@@ -65,6 +65,9 @@ const extensionToLanguage: Record<string, BundledLanguage> = {
   env: "dotenv",
 };
 
+// One list for the whole app. Markdown fences and the file viewer used to
+// build two separate highlighter instances with different language sets,
+// which loaded two copies of the grammars and the engine.
 const bundledLanguages: BundledLanguage[] = [
   "javascript",
   "typescript",
@@ -83,6 +86,13 @@ const bundledLanguages: BundledLanguage[] = [
   "dockerfile",
   "diff",
   "proto",
+  "java",
+  "c",
+  "cpp",
+  "ruby",
+  "php",
+  "swift",
+  "kotlin",
 ];
 
 let highlighterInstance: Highlighter | null = null;

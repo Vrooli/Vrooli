@@ -56,6 +56,36 @@ function services(provider: StartFailProvider): VoiceCoreServices {
 }
 
 describe("useVoiceCore provider startup", () => {
+  it("starts capture before a slow capability probe resolves", async () => {
+    const provider = new StartFailProvider();
+    let resolveProbe!: (value: { whisperHealthy: boolean; streamingAvailable: boolean }) => void;
+    const probe = new Promise<{ whisperHealthy: boolean; streamingAvailable: boolean }>((resolve) => {
+      resolveProbe = resolve;
+    });
+    const { result } = renderHook(() => useVoiceCore({
+      services: services(provider),
+      capabilityCheck: () => probe,
+      voiceEnabled: true,
+      voiceLanguage: "en",
+      vadSilenceTimeoutMs: 900,
+      persistentMode: false,
+      wakeWordEnabled: false,
+      segmentSilenceMs: 900,
+      onTranscript: vi.fn(),
+    }));
+
+    await waitFor(() => expect(result.current.supported).toBe(true));
+    let start: Promise<void> | undefined;
+    await act(async () => {
+      start = result.current.startRecording();
+      await Promise.resolve();
+    });
+    expect(provider.start).toHaveBeenCalledOnce();
+    resolveProbe({ whisperHealthy: true, streamingAvailable: true });
+    await act(async () => { await start; });
+    await waitFor(() => expect(result.current.voiceState).toBe("idle"));
+  });
+
   it("returns to idle with an explicit error when capture startup rejects", async () => {
     const provider = new StartFailProvider();
     const { result } = renderHook(() => useVoiceCore({

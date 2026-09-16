@@ -145,6 +145,46 @@ describe("ported capture-path behavior", () => {
     expect(onError).toHaveBeenCalledOnce();
   });
 
+  it("continues a turn with bounded memory when persistent journal storage is lost", async () => {
+    provider.dispose();
+    const onError = vi.fn();
+    const onStatus = vi.fn();
+    const store = new FailOnceJournalStore();
+    provider = new PcmVoiceStreamProvider({
+      getUserMedia,
+      transport: { buildStreamUrl: () => "ws://voice.test/stream", transcribeRetained },
+      captureFactory: async (_stream, onFrame) => {
+        captureOnFrame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new TurnJournal(store, "persistent-poisoned", 0n, 16 * 1024 * 1024, "persistent"),
+    });
+    provider.onError = onError;
+    provider.onStatus = onStatus;
+    await start();
+    const socket = FakeWebSocket.instances.at(-1)!;
+    pushFrame(1_600);
+    await settle();
+
+    expect(provider.getDiagnostic()).toMatchObject({ durability: "reduced" });
+    expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({ code: "durability_reduced" }));
+    expect(onError).not.toHaveBeenCalled();
+
+    pushFrame(1_600);
+    await vi.waitFor(() => {
+      expect(socket.send.mock.calls.filter(([payload]) => payload instanceof ArrayBuffer).length).toBe(2);
+    });
+  });
+
+  it("rebases only a stale next-sample cursor after storage recovery", async () => {
+    const journal = new TurnJournal(new MemoryTurnJournalStore(), "rebase", 0n, 16 * 1024 * 1024, "reduced");
+    await journal.append({ sequence: 0n, startSample: 0n, endSample: 1_600n, audio: new ArrayBuffer(3_200), sha256: new ArrayBuffer(32) });
+    await journal.acknowledgeProcessed(0n);
+    journal.rebaseNextSample(1_700n);
+    await journal.append({ sequence: 1n, startSample: 1_700n, endSample: 3_300n, audio: new ArrayBuffer(3_200), sha256: new ArrayBuffer(32) });
+    expect(journal.read()).toMatchObject({ nextSequence: 2n, nextSample: 3_300n });
+  });
+
   it("scales fallback time with captured duration and write backlog", () => {
     expect(fallbackDelayMs(0n, 0)).toBe(10_000);
     expect(fallbackDelayMs(16_000n * 60n, 3)).toBe(60_300);

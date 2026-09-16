@@ -233,7 +233,11 @@ export class PassiveListener {
     if (!this.analyser || !this.vad || !this.timeDomainData || !this.ringBuffer) return;
 
     // Compute RMS
-    this.analyser.getFloatTimeDomainData(this.timeDomainData);
+    // lib.dom's analyser declaration still narrows the backing buffer to
+    // ArrayBuffer, while Float32Array is correctly generic over
+    // ArrayBufferLike in the capture pipeline. The browser API writes samples
+    // into the existing view and does not depend on the buffer brand.
+    this.analyser.getFloatTimeDomainData(this.timeDomainData as unknown as Float32Array);
     let sum = 0;
     for (let i = 0; i < this.timeDomainData.length; i++) {
       const v = this.timeDomainData[i] ?? 0;

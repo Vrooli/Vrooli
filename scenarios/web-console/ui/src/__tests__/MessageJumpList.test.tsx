@@ -113,7 +113,7 @@ describe("MessageJumpList navigator", () => {
     expect(scroller.closest(".min-h-0.flex-col")).not.toBeNull();
   });
 
-  it("[REQ:P0-017g] a long list renders a window, and reaching its last row renders that row", () => {
+  it("[REQ:P0-017g] a long list renders a window, and reaching its last row renders that row", async () => {
     const events = Array.from({ length: 300 }, (_, index) => makeEvent({
       id: `e${String(index + 1)}`,
       sequence: index + 1,
@@ -122,14 +122,16 @@ describe("MessageJumpList navigator", () => {
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
     // The first commit renders a window of rows, not all 300.
     expect(screen.getAllByTestId(/^msg-jump-item-/).length).toBeLessThan(100);
-    // Scrolled to its end, the list renders its last row.
+    // Scrolled to its end, the list renders its last row. The virtualizer
+    // coalesces scroll state to one update per frame, so the new window
+    // lands on the frame after the event rather than inside it.
     const scroller = screen.getByTestId("msg-jump-scroll");
     scroller.scrollTop = 1_000_000;
     fireEvent.scroll(scroller);
-    expect(screen.getByTestId("msg-jump-item-e300")).toBeInTheDocument();
+    expect(await screen.findByTestId("msg-jump-item-e300")).toBeInTheDocument();
   });
 
-  it("[REQ:P0-017g] a list that arrives after an empty state still follows scrolling", () => {
+  it("[REQ:P0-017g] a list that arrives after an empty state still follows scrolling", async () => {
     // A search opens empty and fills when results land; the list must track
     // scrolling from then on, not only when it was there from the start.
     const { rerender } = render(<MessageJumpList events={[]} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
@@ -138,7 +140,7 @@ describe("MessageJumpList navigator", () => {
     const scroller = screen.getByTestId("msg-jump-scroll");
     scroller.scrollTop = 1_000_000;
     fireEvent.scroll(scroller);
-    expect(screen.getByTestId("msg-jump-item-e300")).toBeInTheDocument();
+    expect(await screen.findByTestId("msg-jump-item-e300")).toBeInTheDocument();
   });
 
   it("[REQ:P0-017g] rows read as speaker · time, like the message rows", () => {
