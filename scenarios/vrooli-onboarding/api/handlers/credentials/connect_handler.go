@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/vrooli/internal/credentialspec"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
 	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
@@ -62,6 +65,55 @@ func (h *connectHandler) DiagnoseCredentials(ctx context.Context, _ *connect.Req
 		CredentialCount: int32(diagnosis.CredentialCount), DeclarationSiteCount: int32(diagnosis.DeclarationSiteCount),
 		InventoryBasis: diagnosis.InventoryBasis, ManagedInstancesIncluded: diagnosis.ManagedInstancesIncluded,
 		Recovery: recoveryToProto(diagnosis.Recovery),
+	}), nil
+}
+
+// RevealCredential returns exactly one credential value. It is the only
+// handler in this service that may return a value. Admission requires the
+// onboarding write capability and a verified human (enforced by the authz
+// interceptor); this handler additionally requires an explicit confirmation
+// and writes a value-free audit record on every call.
+func (h *connectHandler) RevealCredential(ctx context.Context, req *connect.Request[credentialsv1.RevealCredentialRequest]) (*connect.Response[credentialsv1.RevealCredentialResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("reveal request is required"))
+	}
+	logicalID := strings.TrimSpace(req.Msg.GetLogicalId())
+	field := strings.TrimSpace(req.Msg.GetField())
+	if field == "" {
+		field = "value"
+	}
+	if logicalID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("logical_id is required"))
+	}
+	if !req.Msg.GetConfirmReveal() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirm_reveal is required to display a credential value"))
+	}
+
+	value, err := h.service.Reveal(ctx, logicalID, field)
+	if err != nil {
+		switch {
+		case errors.Is(err, credentialauthority.ErrUnconfigured), errors.Is(err, credentialauthority.ErrNotFound):
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("credential is not configured"))
+		case errors.Is(err, credentialauthority.ErrProviderUnavailable), errors.Is(err, credentialauthority.ErrProviderAbsent):
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential authority is unavailable"))
+		default:
+			return nil, connect.NewError(connect.CodeInternal, errors.New("credential reveal failed"))
+		}
+	}
+
+	// Audit the reveal without the value so the action is attributable. The
+	// value must never enter logs.
+	operator := ""
+	if principal, ok := identity.PrincipalFromContext(ctx); ok {
+		operator = principal.Subject
+	}
+	slog.Default().Info("onboarding_credential_revealed",
+		"logical_id", logicalID, "field", field, "operator", operator)
+
+	return connect.NewResponse(&credentialsv1.RevealCredentialResponse{
+		LogicalId: logicalID,
+		Field:     field,
+		Value:     value,
 	}), nil
 }
 

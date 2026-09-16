@@ -781,7 +781,7 @@
         },
         {
           "name": "admin-login",
-          "description": "Legacy local command: admin-login.",
+          "description": "Admin login (stores session; resolves the seeded admin password from the credential authority).",
           "binding": {
             "kind": "local"
           },
@@ -1762,7 +1762,7 @@
         },
         {
           "name": "remote-profiles-login",
-          "description": "Legacy local command: remote-profiles-login.",
+          "description": "Log in a remote profile (resolves the admin password from the credential authority when omitted).",
           "binding": {
             "kind": "local"
           },

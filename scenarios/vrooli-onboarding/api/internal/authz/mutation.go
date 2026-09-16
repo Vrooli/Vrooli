@@ -33,6 +33,10 @@ const (
 	OperationEffectUnknown OperationEffect = iota
 	OperationEffectRead
 	OperationEffectMutation
+	// OperationEffectReveal is a sensitive read that returns a credential
+	// value. It is admitted only under the same verified-human plus write
+	// capability requirement as a mutation, never as a plain read.
+	OperationEffectReveal
 )
 
 var operationEffects = map[string]OperationEffect{
@@ -49,6 +53,7 @@ var operationEffects = map[string]OperationEffect{
 	credentialconnect.CredentialsServiceListCredentialsProcedure:              OperationEffectRead,
 	credentialconnect.CredentialsServiceProvisionCredentialProcedure:          OperationEffectMutation,
 	credentialconnect.CredentialsServiceDiagnoseCredentialsProcedure:          OperationEffectRead,
+	credentialconnect.CredentialsServiceRevealCredentialProcedure:             OperationEffectReveal,
 	hostconnect.HostServiceListHostRequirementsProcedure:                      OperationEffectRead,
 	hostconnect.HostServiceGetHostFactsProcedure:                              OperationEffectRead,
 	hostconnect.HostServiceListTargetsProcedure:                               OperationEffectRead,
@@ -103,7 +108,9 @@ func MutationInterceptor() connect.Interceptor {
 			if !classified {
 				return nil, connect.NewError(connect.CodeInternal, errors.New("onboarding operation has no authorization classification"))
 			}
-			if effect != OperationEffectMutation {
+			// A reveal is a sensitive read of a credential value, so it takes
+			// the same verified-human plus write-capability gate as a mutation.
+			if effect != OperationEffectMutation && effect != OperationEffectReveal {
 				return next(ctx, req)
 			}
 			if err := RequireMutation(ctx); err != nil {

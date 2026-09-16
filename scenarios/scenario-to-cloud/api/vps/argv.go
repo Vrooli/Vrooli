@@ -360,6 +360,25 @@ func engineBinding(id, kind, locator, owner, migrationOwner, workdir string) (ma
 // action inputs and the manifest: one route per public listener the
 // manifest exposes through the domain, ACME options from the manifest.
 func EdgeSpecFor(cc CommandContext, in map[string]string) (domain.EdgeSpec, error) {
+	if encoded := strings.TrimSpace(in["edge_spec"]); encoded != "" {
+		raw, err := DecodeJSONArg(JSONArgPrefix + encoded)
+		if err != nil {
+			return domain.EdgeSpec{}, apierrors.Newf(apierrors.CodeInvalidRequest, "edge.route.apply edge_spec is invalid: %v", err)
+		}
+		var spec domain.EdgeSpec
+		if err := json.Unmarshal(raw, &spec); err != nil {
+			return domain.EdgeSpec{}, apierrors.Newf(apierrors.CodeInvalidRequest, "edge.route.apply edge_spec is invalid: %v", err)
+		}
+		if spec.DeploymentID != cc.DeploymentID || spec.ScenarioID != cc.ScenarioID || len(spec.Routes) == 0 {
+			return domain.EdgeSpec{}, apierrors.New(apierrors.CodeInvalidRequest, "edge.route.apply edge_spec identity or routes are invalid")
+		}
+		digest, err := edge.Digest(spec)
+		if err != nil {
+			return domain.EdgeSpec{}, err
+		}
+		spec.Digest = digest
+		return spec, nil
+	}
 	domainName := strings.TrimSpace(in["domain"])
 	if domainName == "" {
 		return domain.EdgeSpec{}, apierrors.New(apierrors.CodeInvalidRequest, "edge.route.apply requires a domain")

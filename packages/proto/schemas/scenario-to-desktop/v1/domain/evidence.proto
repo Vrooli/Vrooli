@@ -34,6 +34,7 @@ message IsolationObservation {
   string database_path = 3;
   int32 adopted_session_count = 4;
   string source = 5;
+  repeated string resolved_paths = 6;
 }
 
 message DesktopSessionRequest {

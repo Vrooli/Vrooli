@@ -3,9 +3,12 @@ package presentation
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+var resolvedAssetHashPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 // Resolve selects one immutable document view and deterministically projects
 // it into a public-safe result. It never reads external state; commerce and
@@ -589,7 +592,15 @@ func resolvedAssets(assets []Asset, page ResolvedPage, fixtures []Fixture) []Res
 			}
 			alternatives := make([]AssetVariant, len(asset.ResponsiveAlternatives))
 			copy(alternatives, asset.ResponsiveAlternatives)
-			result = append(result, ResolvedAsset{ID: asset.ID, ReleaseRef: asset.ReleaseRef, ContentHash: asset.ContentHash, Width: asset.Width, Height: asset.Height, MIME: asset.MIME, Surface: asset.Surface, ResponsiveAlternatives: alternatives, FocalPoint: asset.FocalPoint, CropPolicy: asset.CropPolicy, Provenance: ResolvedAssetProvenance{Provider: asset.Provenance.Provider}, OverlayRegions: regions, PublicURL: asset.PublicURL})
+			publicURL := asset.PublicURL
+			// The recommended LPBS presentation ships these immutable PNG bytes
+			// with the UI bundle. Older persisted revisions predate the URL field;
+			// retain their verified identity while restoring the same-origin path
+			// that the browser renderer requires.
+			if publicURL == "" && asset.ID != "" && resolvedAssetHashPattern.MatchString(asset.ContentHash) {
+				publicURL = "/presentation/" + asset.ID + ".png"
+			}
+			result = append(result, ResolvedAsset{ID: asset.ID, ReleaseRef: asset.ReleaseRef, ContentHash: asset.ContentHash, Width: asset.Width, Height: asset.Height, MIME: asset.MIME, Surface: asset.Surface, ResponsiveAlternatives: alternatives, FocalPoint: asset.FocalPoint, CropPolicy: asset.CropPolicy, Provenance: ResolvedAssetProvenance{Provider: asset.Provenance.Provider}, OverlayRegions: regions, PublicURL: publicURL})
 		}
 	}
 	return result

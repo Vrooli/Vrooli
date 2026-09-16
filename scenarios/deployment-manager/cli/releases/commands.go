@@ -49,7 +49,7 @@ func NewWithOperationClient(api *cliutil.APIClient, client releasesconnect.Relea
 // Run dispatches release subcommands.
 func (c *Commands) Run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("subcommand required: list, get, operation, dossier, health, start, verify, reconcile, recover")
+		return errors.New("subcommand required: list, get, operation, dossier, health, start, verify, reconcile, recover, register-candidate, register-destination")
 	}
 	sub := args[0]
 	rest := args[1:]
@@ -72,6 +72,10 @@ func (c *Commands) Run(args []string) error {
 		return c.reconcile(rest)
 	case "recover":
 		return c.recover(rest)
+	case "register-candidate":
+		return c.registerCandidate(rest)
+	case "register-destination":
+		return c.registerDestination(rest)
 	default:
 		return fmt.Errorf("unknown releases subcommand: %s", sub)
 	}
@@ -243,6 +247,102 @@ func (c *Commands) recover(args []string) error {
 	}
 	receipt := response.Msg.GetReceipt()
 	fmt.Printf("Recovery: %s\nAction: %s\nOutcome: %s\nReceipt: %s\n", remaining[0], receipt.GetAction(), receipt.GetOutcome(), receipt.GetExternalReceipt())
+	return nil
+}
+
+// registerCandidate registers one immutable release candidate from a protojson
+// document. Candidate identity is computed by the server from the canonical
+// bytes, so the returned candidate id and artifact-manifest digest are the
+// values that review preparation and `releases start` must bind.
+func (c *Commands) registerCandidate(args []string) error {
+	fs := flag.NewFlagSet("releases register-candidate", flag.ContinueOnError)
+	file := fs.String("file", "", "Path to a protojson Candidate document (required)")
+	format := fs.String("format", "", "Output format (json)")
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: releases register-candidate --file <candidate.json>\n\n")
+		fs.PrintDefaults()
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*file) == "" {
+		return errors.New("--file is required")
+	}
+	if c.operationClient == nil {
+		return errors.New("typed ReleasesService client is required")
+	}
+	data, err := os.ReadFile(strings.TrimSpace(*file))
+	if err != nil {
+		return fmt.Errorf("read candidate file: %w", err)
+	}
+	candidate := &releasesv1.Candidate{}
+	if err := protojson.Unmarshal(data, candidate); err != nil {
+		return fmt.Errorf("decode candidate: %w", err)
+	}
+	response, err := c.operationClient.RegisterCandidate(context.Background(), connect.NewRequest(&releasesv1.RegisterCandidateRequest{Candidate: candidate}))
+	if err != nil {
+		return err
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetCandidate() == nil {
+		return errors.New("typed candidate registration response was empty")
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) == "json" {
+		body, err := protojson.Marshal(response.Msg)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stdout, string(body))
+		return nil
+	}
+	record := response.Msg.GetCandidate()
+	fmt.Printf("Candidate: %s\nArtifact manifest digest: %s\n", record.GetCandidateId(), record.GetArtifactManifestDigest())
+	return nil
+}
+
+// registerDestination registers one immutable destination revision from a
+// protojson document. The returned revision id is the exact non-secret
+// publication coordinate that release start and readiness review must bind.
+func (c *Commands) registerDestination(args []string) error {
+	fs := flag.NewFlagSet("releases register-destination", flag.ContinueOnError)
+	file := fs.String("file", "", "Path to a protojson DestinationRevision document (required)")
+	format := fs.String("format", "", "Output format (json)")
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: releases register-destination --file <destination.json>\n\n")
+		fs.PrintDefaults()
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*file) == "" {
+		return errors.New("--file is required")
+	}
+	if c.operationClient == nil {
+		return errors.New("typed ReleasesService client is required")
+	}
+	data, err := os.ReadFile(strings.TrimSpace(*file))
+	if err != nil {
+		return fmt.Errorf("read destination file: %w", err)
+	}
+	revision := &releasesv1.DestinationRevision{}
+	if err := protojson.Unmarshal(data, revision); err != nil {
+		return fmt.Errorf("decode destination: %w", err)
+	}
+	response, err := c.operationClient.RegisterDestinationRevision(context.Background(), connect.NewRequest(&releasesv1.RegisterDestinationRevisionRequest{Revision: revision}))
+	if err != nil {
+		return err
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetDestination() == nil {
+		return errors.New("typed destination registration response was empty")
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) == "json" {
+		body, err := protojson.Marshal(response.Msg)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stdout, string(body))
+		return nil
+	}
+	fmt.Printf("Destination revision: %s\n", response.Msg.GetDestination().GetDestinationRevisionId())
 	return nil
 }
 

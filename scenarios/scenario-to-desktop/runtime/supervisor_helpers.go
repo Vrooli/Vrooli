@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -417,9 +418,19 @@ func (s *Supervisor) PortMap() map[string]map[string]int {
 func (s *Supervisor) recordIsolationObservation(serviceID string, env map[string]string) {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
-	observation := api.IsolationObservation{ServiceID: serviceID, StateRoot: env["APP_DATA_DIR"], DatabasePath: env["VROOLI_STORAGE_ROOT"], AdoptedSessionCount: 0, Source: "bundled_runtime"}
+	observation := api.IsolationObservation{ServiceID: serviceID, StateRoot: env["APP_DATA_DIR"], DatabasePath: env["VROOLI_STORAGE_ROOT"], Source: "bundled_runtime"}
 	if observation.StateRoot != "" {
 		observation.SocketPath = filepath.Join(observation.StateRoot, "runtime", "control.sock")
+		observation.ResolvedPaths = []string{observation.StateRoot, observation.SocketPath, observation.DatabasePath}
+		sessionRoot := filepath.Join(observation.StateRoot, "web-console-sessions")
+		if entries, err := os.ReadDir(sessionRoot); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					observation.AdoptedSessionCount++
+				}
+				observation.ResolvedPaths = append(observation.ResolvedPaths, filepath.Join(sessionRoot, entry.Name()))
+			}
+		}
 	}
 	for i := range s.isolation {
 		if s.isolation[i].ServiceID == serviceID {

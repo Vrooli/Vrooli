@@ -5,9 +5,11 @@ package capabilityprobe
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,6 +64,70 @@ func Probe(ctx context.Context, definitions []Definition) []Observation {
 	return ProbeWith(ctx, definitions, ManagedLookPath, runVersion, time.Now)
 }
 
+// ManagedPathEntries are the tool directories a long-lived node service must
+// search, most specific first. It mirrors platform-go's DefaultPathEntries;
+// this package deliberately carries no dependencies (see the package doc) so
+// the Bridge agent can cross-compile it, which is why the list is duplicated
+// rather than imported. Keep the two in step.
+//
+// ManagedLookPath resolves the TOOL against these. The child environment below
+// needs them too, for a different reason: an interpreted tool such as a
+// `#!/usr/bin/env node` trampoline resolves its INTERPRETER against the PATH
+// the process inherits. A launchd daemon inherits `/usr/bin:/bin:/usr/sbin:/sbin`,
+// which holds no Homebrew or nvm node, so probing `codex --version` there died
+// with exit 127 while the identical command worked in a login shell.
+func ManagedPathEntries(home string) []string {
+	entries := []string{"/opt/homebrew/bin", "/usr/local/go/bin", "/usr/local/bin"}
+	if home = strings.TrimSpace(home); home != "" {
+		entries = append(entries,
+			filepath.Join(home, ".cargo", "bin"),
+			filepath.Join(home, "go", "bin"),
+			filepath.Join(home, ".local", "bin"),
+			filepath.Join(home, "bin"),
+			filepath.Join(home, ".vrooli", "bin"),
+		)
+	}
+	return entries
+}
+
+// managedEnviron returns the parent environment with the managed tool
+// directories appended to PATH. Existing entries keep priority: this widens
+// what a probe can resolve and never shadows an operator's own choice.
+func managedEnviron() []string {
+	env := os.Environ()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+	existing := os.Getenv("PATH")
+	seen := make(map[string]struct{})
+	merged := make([]string, 0, 12)
+	add := func(dir string) {
+		if dir == "" {
+			return
+		}
+		if _, dup := seen[dir]; dup {
+			return
+		}
+		seen[dir] = struct{}{}
+		merged = append(merged, dir)
+	}
+	for _, dir := range strings.Split(existing, string(os.PathListSeparator)) {
+		add(dir)
+	}
+	for _, dir := range ManagedPathEntries(home) {
+		add(dir)
+	}
+	value := "PATH=" + strings.Join(merged, string(os.PathListSeparator))
+	for i, item := range env {
+		if strings.HasPrefix(item, "PATH=") {
+			env[i] = value
+			return env
+		}
+	}
+	return append(env, value)
+}
+
 // ManagedLookPath mirrors the runtime PATH contract for long-lived node
 // services. Native service managers commonly omit the interactive user's
 // PATH, while Vrooli-owned CLIs are deliberately installed in these two
@@ -106,7 +172,7 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 			value, err := version(probeCtx, path, definition.VersionArg)
 			if err != nil {
 				item.State = Unknown
-				item.Detail = "command was found but its version could not be read"
+				item.Detail = versionFailureDetail(definition.Command, value, err)
 			} else {
 				item.State = Ready
 				item.Version = strings.TrimSpace(value)
@@ -119,14 +185,73 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 	return result
 }
 
-func runVersion(ctx context.Context, path string, args []string) (string, error) {
-	commandCtx := ctx
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		commandCtx, cancel = context.WithTimeout(ctx, DefaultCommandTimeout)
-		defer cancel()
+// versionFailureDetail says WHY a version could not be read. The previous
+// single string ("command was found but its version could not be read")
+// collapsed three different operator situations into one unactionable line: a
+// tool whose interpreter is missing, a tool that hung, and a tool that simply
+// exited non-zero. Only the first is a host-environment problem, and nothing
+// downstream could tell them apart.
+//
+// output is the command's combined output, which carries the shebang loader's
+// message ("env: node: No such file or directory") that names the real cause.
+func versionFailureDetail(command, output string, err error) string {
+	output = strings.TrimSpace(output)
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return command + " did not answer --version within the probe budget"
 	}
-	return stringOutput(exec.CommandContext(commandCtx, path, args...).CombinedOutput())
+	if interpreter, ok := missingInterpreter(output); ok {
+		return command + " is installed, but its " + interpreter +
+			" runtime is not on this service's PATH (" + firstLine(output) + ")"
+	}
+	detail := command + " exited non-zero for --version"
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		detail = command + " exited " + strconv.Itoa(exitErr.ExitCode()) + " for --version"
+	}
+	if output != "" {
+		detail += " (" + firstLine(output) + ")"
+	}
+	return detail
+}
+
+// missingInterpreter recognises the shebang loader's failure. A script such as
+// `#!/usr/bin/env node` reports the INTERPRETER as not found, which reads as
+// the tool being broken unless the distinction is made explicit.
+func missingInterpreter(output string) (string, bool) {
+	line := firstLine(output)
+	rest, ok := strings.CutPrefix(line, "env: ")
+	if !ok {
+		return "", false
+	}
+	name, found := strings.CutSuffix(rest, ": No such file or directory")
+	if !found {
+		return "", false
+	}
+	if name = strings.TrimSpace(name); name == "" {
+		return "", false
+	}
+	return name, true
+}
+
+func firstLine(value string) string {
+	if index := strings.IndexAny(value, "\r\n"); index >= 0 {
+		value = value[:index]
+	}
+	return strings.TrimSpace(value)
+}
+
+// runVersion bounds EVERY version command at DefaultCommandTimeout, not just
+// the ones whose caller supplied a deadline-free context. ProbeWith always
+// passes a context carrying the whole-probe deadline, so the previous
+// `if !hasDeadline` guard meant the per-command bound never applied on the only
+// path that uses it: one hanging tool could spend the entire probe budget and
+// leave every tool after it unreadable.
+func runVersion(ctx context.Context, path string, args []string) (string, error) {
+	commandCtx, cancel := context.WithTimeout(ctx, DefaultCommandTimeout)
+	defer cancel()
+	command := exec.CommandContext(commandCtx, path, args...)
+	command.Env = managedEnviron()
+	return stringOutput(command.CombinedOutput())
 }
 
 // stringOutput exists to keep the version runner's return shape explicit.

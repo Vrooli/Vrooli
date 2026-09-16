@@ -5,6 +5,7 @@ import {
   type DiagnoseCredentialsResponse,
   type ListCredentialsResponse,
   type ProvisionCredentialResponse,
+  type RevealCredentialResponse,
 } from "@vrooli/proto-types/vrooli-onboarding/v1/credentials/credentials_pb";
 
 const client = createClient(CredentialsService, onboardingTransport());
@@ -60,4 +61,13 @@ export function provisionCredential(input: { logical_id: string; field: string; 
 
 export function diagnoseCredentials(target = "local"): Promise<DiagnoseCredentialsResponse> {
   return client.diagnoseCredentials({ target }) as unknown as Promise<DiagnoseCredentialsResponse>;
+}
+
+// revealCredential returns exactly one credential value. The request always
+// confirms the reveal; the caller must treat the result as sensitive and never
+// persist it.
+export function revealCredential(input: { logical_id: string; field: string }, target = "local"): Promise<string> {
+  return (
+    client.revealCredential({ target, logicalId: input.logical_id, field: input.field, confirmReveal: true }) as unknown as Promise<RevealCredentialResponse>
+  ).then((response) => response.value);
 }

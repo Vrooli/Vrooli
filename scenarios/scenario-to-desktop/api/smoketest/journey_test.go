@@ -59,6 +59,7 @@ func TestSurfaceEvidenceFailsClosed(t *testing.T) {
 
 type journeyTestDriver struct {
 	geometry *procmetrics.WindowGeometry
+	title    string
 }
 
 func (d *journeyTestDriver) IsAvailable(context.Context) bool { return true }
@@ -68,6 +69,12 @@ func (d *journeyTestDriver) LargestVisibleWindow(context.Context, string) (*proc
 
 func (d *journeyTestDriver) WindowGeometry(context.Context, string) (*procmetrics.WindowGeometry, error) {
 	return d.geometry, nil
+}
+func (d *journeyTestDriver) WindowTitle(context.Context, string) (string, error) {
+	if d.title != "" {
+		return d.title, nil
+	}
+	return "web-console — terminal_output=desktop-terminal-fixture", nil
 }
 func (d *journeyTestDriver) ActivateWindow(context.Context, string) error           { return nil }
 func (d *journeyTestDriver) MaximizeWindow(context.Context, string, int, int) error { return nil }
@@ -114,6 +121,14 @@ func (journeyTestAPI) Probe(_ context.Context, operation string) (JourneyOperati
 		}, nil
 	}
 	return JourneyOperationResult{Observed: "operation=bundled-private;mode=bundled-private", Route: "private-bundle"}, nil
+}
+
+func TestTerminalFixtureFailsWhenRenderedSurfaceLacksOutput(t *testing.T) {
+	driver := &journeyTestDriver{title: "web-console"}
+	_, err := terminalFixtureJourneyAction(context.Background(), driver, journeyTestAPI{}, JourneyInput{Display: ":99"})
+	if err == nil || !strings.Contains(err.Error(), "not observed on the rendered application surface") {
+		t.Fatalf("missing rendered terminal output must fail, got %v", err)
+	}
 }
 
 type communicationContractAPI struct {

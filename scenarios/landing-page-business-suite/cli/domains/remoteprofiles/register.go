@@ -187,7 +187,7 @@ func runLogin(deps support.Dependencies, args []string) error {
 		return err
 	}
 	if len(fs.Args()) > 1 {
-		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
+		return fmt.Errorf("usage: remote-profiles-login (<id> | --tag <tag>) [--email <email>] [--password <password|@file>] [--json]")
 	}
 	positionalProfileID := ""
 	if len(fs.Args()) == 1 {
@@ -214,18 +214,16 @@ func runLogin(deps support.Dependencies, args []string) error {
 		profileID = resolvedProfileID
 	}
 	if profileID == "" {
-		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
+		return fmt.Errorf("usage: remote-profiles-login (<id> | --tag <tag>) [--email <email>] [--password <password|@file>] [--json]")
 	}
-	emailValue := strings.TrimSpace(*email)
-	if emailValue == "" {
-		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
-	}
-	passwordValue, err := support.ResolveSecretArg(*password)
+
+	// Remote admin credentials default to the same declared administrator
+	// identity: the email is configuration and the password resolves from the
+	// credential authority. Explicit flags still win for a different account.
+	emailValue := support.ResolveAdminEmail(*email)
+	passwordValue, err := support.ResolveAdminPassword(*password)
 	if err != nil {
-		return fmt.Errorf("read password: %w", err)
-	}
-	if strings.TrimSpace(passwordValue) == "" {
-		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
+		return err
 	}
 
 	body, err := json.Marshal(map[string]string{"email": emailValue, "password": passwordValue})

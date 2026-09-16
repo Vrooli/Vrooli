@@ -3,6 +3,7 @@ package delivery
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	internal "landing-page-business-suite-api/internal/delivery"
 )
@@ -37,6 +38,9 @@ func BuildElectronManifest(artifact *internal.Artifact, releaseNotes string, bin
 	}
 	out := fmt.Sprintf("version: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n", artifact.ReleaseVersion, artifact.OriginalFilename, artifact.SHA512, artifact.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"))
 	out += fmt.Sprintf("vrooli:\n  applicationKey: %s\n  channel: %s\n  platform: %s\n  artifactRef: %s\n", strconv.Quote(appKey), strconv.Quote(channel), strconv.Quote(artifact.Platform), strconv.Quote("sha512:"+artifact.SHA512))
+	if architecture, _ := artifact.Metadata["architecture"].(string); strings.TrimSpace(architecture) != "" {
+		out += fmt.Sprintf("  architecture: %s\n", strconv.Quote(strings.TrimSpace(architecture)))
+	}
 	out += fmt.Sprintf("files:\n  - url: %s\n    sha512: %s\n    size: %d\n", artifact.OriginalFilename, artifact.SHA512, artifact.SizeBytes)
 	if releaseNotes != "" {
 		out += fmt.Sprintf("releaseNotes: %s\n", releaseNotes)

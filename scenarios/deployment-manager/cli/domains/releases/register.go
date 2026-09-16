@@ -13,7 +13,7 @@ func Register(app *cliapp.ScenarioApp) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Releases",
 		Commands: []cliapp.Command{
-			{Name: "releases", NeedsAPI: true, Description: "Governed release lifecycle (list, get, operation, dossier, health, start, verify, reconcile, recover)", Run: commands.Run},
+			{Name: "releases", NeedsAPI: true, Description: "Governed release lifecycle (list, get, operation, dossier, health, start, verify, reconcile, recover, register-candidate, register-destination)", Run: commands.Run},
 		},
 	}
 }

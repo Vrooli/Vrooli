@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -256,6 +257,74 @@ func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, err
 		log:           log,
 	}, nil
 }
+
+// lazyLPBSReleaseClient resolves the LPBS owner on first successful use. The
+// destination may start after deployment-manager, so a discovery failure at
+// process start must not permanently disable the governed release path.
+type lazyLPBSReleaseClient struct {
+	cfg   LPBSClientConfig
+	mu    sync.Mutex
+	inner *HTTPLPBSReleaseClient
+}
+
+// NewLazyLPBSReleaseClient creates a release client that resolves the
+// destination lazily. The first request attempts discovery and credential
+// resolution; a later request retries if the destination was not yet running.
+func NewLazyLPBSReleaseClient(cfg LPBSClientConfig) *lazyLPBSReleaseClient {
+	return &lazyLPBSReleaseClient{cfg: cfg}
+}
+
+func (c *lazyLPBSReleaseClient) resolve() (*HTTPLPBSReleaseClient, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.inner != nil {
+		return c.inner, nil
+	}
+	inner, err := NewHTTPLPBSReleaseClient(c.cfg)
+	if err != nil {
+		return nil, err
+	}
+	c.inner = inner
+	return inner, nil
+}
+
+func (c *lazyLPBSReleaseClient) CheckDeployReadiness(ctx context.Context, req *LPBSReadinessRequest) (*LPBSReadinessResult, error) {
+	inner, err := c.resolve()
+	if err != nil {
+		return nil, err
+	}
+	return inner.CheckDeployReadiness(ctx, req)
+}
+
+func (c *lazyLPBSReleaseClient) Verify(ctx context.Context, req *LPBSVerifyRequest) (*LPBSVerifyResult, error) {
+	inner, err := c.resolve()
+	if err != nil {
+		return nil, err
+	}
+	return inner.Verify(ctx, req)
+}
+
+func (c *lazyLPBSReleaseClient) HaltChannel(ctx context.Context, req *LPBSRecoveryRequest) (*LPBSRecoveryReceipt, error) {
+	inner, err := c.resolve()
+	if err != nil {
+		return nil, err
+	}
+	return inner.HaltChannel(ctx, req)
+}
+
+func (c *lazyLPBSReleaseClient) RecoverChannel(ctx context.Context, req *LPBSRecoveryRequest) (*LPBSRecoveryReceipt, error) {
+	inner, err := c.resolve()
+	if err != nil {
+		return nil, err
+	}
+	return inner.RecoverChannel(ctx, req)
+}
+
+var (
+	_ LPBSReleaseClient         = (*lazyLPBSReleaseClient)(nil)
+	_ LPBSRecoveryClient        = (*lazyLPBSReleaseClient)(nil)
+	_ LPBSChannelRecoveryClient = (*lazyLPBSReleaseClient)(nil)
+)
 
 // CheckDeployReadiness calls POST /api/v1/deploy-readiness with service auth.
 func (c *HTTPLPBSReleaseClient) CheckDeployReadiness(ctx context.Context, req *LPBSReadinessRequest) (*LPBSReadinessResult, error) {

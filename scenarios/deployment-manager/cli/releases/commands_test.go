@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -71,6 +72,14 @@ func (s typedOperationService) Recover(_ context.Context, request *connect.Reque
 	}}), nil
 }
 
+func (typedOperationService) RegisterCandidate(context.Context, *connect.Request[releasesv1.RegisterCandidateRequest]) (*connect.Response[releasesv1.RegisterCandidateResponse], error) {
+	return connect.NewResponse(&releasesv1.RegisterCandidateResponse{Candidate: &releasesv1.CandidateRecord{CandidateId: "candidate-1", ArtifactManifestDigest: "sha256:manifest"}}), nil
+}
+
+func (typedOperationService) RegisterDestinationRevision(context.Context, *connect.Request[releasesv1.RegisterDestinationRevisionRequest]) (*connect.Response[releasesv1.RegisterDestinationRevisionResponse], error) {
+	return connect.NewResponse(&releasesv1.RegisterDestinationRevisionResponse{Destination: &releasesv1.DestinationRevisionRecord{DestinationRevisionId: "destination-1"}}), nil
+}
+
 func (typedOperationService) GetOperation(context.Context, *connect.Request[releasesv1.GetReleaseOperationRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
 	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: &releasesv1.ReleaseOperation{
 		OperationId: "release-op-typed",
@@ -81,6 +90,64 @@ func (typedOperationService) GetOperation(context.Context, *connect.Request[rele
 		CreatedAt:   timestamppb.New(time.Unix(1, 0).UTC()),
 		UpdatedAt:   timestamppb.New(time.Unix(2, 0).UTC()),
 	}}), nil
+}
+
+func TestRegisterCommandsRequireFile(t *testing.T) {
+	cmd := New(nil)
+	if err := cmd.Run([]string{"register-candidate"}); err == nil || !strings.Contains(err.Error(), "--file is required") {
+		t.Fatalf("expected --file required error, got %v", err)
+	}
+	if err := cmd.Run([]string{"register-destination"}); err == nil || !strings.Contains(err.Error(), "--file is required") {
+		t.Fatalf("expected --file required error, got %v", err)
+	}
+}
+
+func TestRegisterCandidateUsesTypedService(t *testing.T) {
+	_, handler := releasesconnect.NewReleasesServiceHandler(typedOperationService{})
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+	client := releasesconnect.NewReleasesServiceClient(srv.Client(), srv.URL)
+
+	path := filepath.Join(t.TempDir(), "candidate.json")
+	document := `{"source_revision":"abc","profile_revision":"p1","dependency_lock_digest":"sha256:lock","policy_digest":"sha256:policy","artifacts":[{"target":{"id":"linux-x64","platform":"linux","os":"linux","architecture":"amd64","format":"appimage"},"immutable_ref":"s3://bucket/artifact","digest":"sha256:artifact","size_bytes":1,"signature_digest":"sig","signer_ref":"vrooli"}]}`
+	if err := os.WriteFile(path, []byte(document), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmdutil.SetGlobalFormat("text")
+	defer cmdutil.SetGlobalFormat("json")
+	out := captureOutput(t, func() {
+		if err := NewWithOperationClient(nil, client).Run([]string{"register-candidate", "--file", path}); err != nil {
+			t.Fatalf("register-candidate: %v", err)
+		}
+	})
+	for _, expected := range []string{"candidate-1", "sha256:manifest"} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected %q in register-candidate output, got: %s", expected, out)
+		}
+	}
+}
+
+func TestRegisterDestinationUsesTypedService(t *testing.T) {
+	_, handler := releasesconnect.NewReleasesServiceHandler(typedOperationService{})
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+	client := releasesconnect.NewReleasesServiceClient(srv.Client(), srv.URL)
+
+	path := filepath.Join(t.TempDir(), "destination.json")
+	document := `{"kind":"lpbs-channel","destination_id":"prod","configuration_digest":"sha256:config","channel":"stable","destination_revision_id":"destination-stable-1"}`
+	if err := os.WriteFile(path, []byte(document), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmdutil.SetGlobalFormat("text")
+	defer cmdutil.SetGlobalFormat("json")
+	out := captureOutput(t, func() {
+		if err := NewWithOperationClient(nil, client).Run([]string{"register-destination", "--file", path}); err != nil {
+			t.Fatalf("register-destination: %v", err)
+		}
+	})
+	if !strings.Contains(out, "destination-1") {
+		t.Fatalf("expected destination id in output, got: %s", out)
+	}
 }
 
 func testAPIClient(base string) *cliutil.APIClient {

@@ -258,6 +258,7 @@ type IsolationObservation struct {
 	DatabasePath        string                 `protobuf:"bytes,3,opt,name=database_path,json=databasePath,proto3" json:"database_path,omitempty"`
 	AdoptedSessionCount int32                  `protobuf:"varint,4,opt,name=adopted_session_count,json=adoptedSessionCount,proto3" json:"adopted_session_count,omitempty"`
 	Source              string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	ResolvedPaths       []string               `protobuf:"bytes,6,rep,name=resolved_paths,json=resolvedPaths,proto3" json:"resolved_paths,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -325,6 +326,13 @@ func (x *IsolationObservation) GetSource() string {
 		return x.Source
 	}
 	return ""
+}
+
+func (x *IsolationObservation) GetResolvedPaths() []string {
+	if x != nil {
+		return x.ResolvedPaths
+	}
+	return nil
 }
 
 type DesktopSessionRequest struct {
@@ -1919,7 +1927,7 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"KIND_LOCAL\x10\x01\x12\x14\n" +
 	"\x10KIND_BRIDGE_NODE\x10\x02B\x11\n" +
 	"\x0f_bridge_node_idB\x10\n" +
-	"\x0e_bridge_job_id\"\xc7\x01\n" +
+	"\x0e_bridge_job_id\"\xee\x01\n" +
 	"\x14IsolationObservation\x12\x1d\n" +
 	"\n" +
 	"state_root\x18\x01 \x01(\tR\tstateRoot\x12\x1f\n" +
@@ -1927,7 +1935,8 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"socketPath\x12#\n" +
 	"\rdatabase_path\x18\x03 \x01(\tR\fdatabasePath\x122\n" +
 	"\x15adopted_session_count\x18\x04 \x01(\x05R\x13adoptedSessionCount\x12\x16\n" +
-	"\x06source\x18\x05 \x01(\tR\x06source\"\xf8\x02\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12%\n" +
+	"\x0eresolved_paths\x18\x06 \x03(\tR\rresolvedPaths\"\xf8\x02\n" +
 	"\x15DesktopSessionRequest\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12(\n" +
 	"\rartifact_path\x18\x02 \x01(\tH\x00R\fartifactPath\x88\x01\x01\x12J\n" +

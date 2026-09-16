@@ -183,6 +183,138 @@ func (x *DiagnoseCredentialsRequest) GetTarget() string {
 	return ""
 }
 
+type RevealCredentialRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Target    string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	LogicalId string                 `protobuf:"bytes,2,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field     string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	// The caller must acknowledge that the credential value will be displayed.
+	// A request without this acknowledgement is refused.
+	ConfirmReveal bool `protobuf:"varint,4,opt,name=confirm_reveal,json=confirmReveal,proto3" json:"confirm_reveal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevealCredentialRequest) Reset() {
+	*x = RevealCredentialRequest{}
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevealCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevealCredentialRequest) ProtoMessage() {}
+
+func (x *RevealCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevealCredentialRequest.ProtoReflect.Descriptor instead.
+func (*RevealCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RevealCredentialRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *RevealCredentialRequest) GetLogicalId() string {
+	if x != nil {
+		return x.LogicalId
+	}
+	return ""
+}
+
+func (x *RevealCredentialRequest) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *RevealCredentialRequest) GetConfirmReveal() bool {
+	if x != nil {
+		return x.ConfirmReveal
+	}
+	return false
+}
+
+type RevealCredentialResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	LogicalId string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field     string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+	// The revealed value is present only in this response and must be treated as
+	// sensitive: never logged, cached, or persisted by a caller.
+	Value         string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevealCredentialResponse) Reset() {
+	*x = RevealCredentialResponse{}
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevealCredentialResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevealCredentialResponse) ProtoMessage() {}
+
+func (x *RevealCredentialResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevealCredentialResponse.ProtoReflect.Descriptor instead.
+func (*RevealCredentialResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RevealCredentialResponse) GetLogicalId() string {
+	if x != nil {
+		return x.LogicalId
+	}
+	return ""
+}
+
+func (x *RevealCredentialResponse) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *RevealCredentialResponse) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 type CredentialConsumerProvenance struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	LogicalId      string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
@@ -200,7 +332,7 @@ type CredentialConsumerProvenance struct {
 
 func (x *CredentialConsumerProvenance) Reset() {
 	*x = CredentialConsumerProvenance{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[3]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +344,7 @@ func (x *CredentialConsumerProvenance) String() string {
 func (*CredentialConsumerProvenance) ProtoMessage() {}
 
 func (x *CredentialConsumerProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[3]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,7 +357,7 @@ func (x *CredentialConsumerProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialConsumerProvenance.ProtoReflect.Descriptor instead.
 func (*CredentialConsumerProvenance) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CredentialConsumerProvenance) GetLogicalId() string {
@@ -308,7 +440,7 @@ type CredentialApplicabilityMatch struct {
 
 func (x *CredentialApplicabilityMatch) Reset() {
 	*x = CredentialApplicabilityMatch{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +452,7 @@ func (x *CredentialApplicabilityMatch) String() string {
 func (*CredentialApplicabilityMatch) ProtoMessage() {}
 
 func (x *CredentialApplicabilityMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +465,7 @@ func (x *CredentialApplicabilityMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialApplicabilityMatch.ProtoReflect.Descriptor instead.
 func (*CredentialApplicabilityMatch) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CredentialApplicabilityMatch) GetContext() string {
@@ -412,7 +544,7 @@ type CredentialApplicabilityRule struct {
 
 func (x *CredentialApplicabilityRule) Reset() {
 	*x = CredentialApplicabilityRule{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -424,7 +556,7 @@ func (x *CredentialApplicabilityRule) String() string {
 func (*CredentialApplicabilityRule) ProtoMessage() {}
 
 func (x *CredentialApplicabilityRule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -437,7 +569,7 @@ func (x *CredentialApplicabilityRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialApplicabilityRule.ProtoReflect.Descriptor instead.
 func (*CredentialApplicabilityRule) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CredentialApplicabilityRule) GetComparison() isCredentialApplicabilityRule_Comparison {
@@ -492,7 +624,7 @@ type CredentialApplicability struct {
 
 func (x *CredentialApplicability) Reset() {
 	*x = CredentialApplicability{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -504,7 +636,7 @@ func (x *CredentialApplicability) String() string {
 func (*CredentialApplicability) ProtoMessage() {}
 
 func (x *CredentialApplicability) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -517,7 +649,7 @@ func (x *CredentialApplicability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialApplicability.ProtoReflect.Descriptor instead.
 func (*CredentialApplicability) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CredentialApplicability) GetAll() []*CredentialApplicabilityRule {
@@ -553,7 +685,7 @@ type CredentialMigrationDiagnostic struct {
 
 func (x *CredentialMigrationDiagnostic) Reset() {
 	*x = CredentialMigrationDiagnostic{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +697,7 @@ func (x *CredentialMigrationDiagnostic) String() string {
 func (*CredentialMigrationDiagnostic) ProtoMessage() {}
 
 func (x *CredentialMigrationDiagnostic) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +710,7 @@ func (x *CredentialMigrationDiagnostic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialMigrationDiagnostic.ProtoReflect.Descriptor instead.
 func (*CredentialMigrationDiagnostic) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CredentialMigrationDiagnostic) GetAddress() string {
@@ -644,7 +776,7 @@ type CredentialProvenance struct {
 
 func (x *CredentialProvenance) Reset() {
 	*x = CredentialProvenance{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +788,7 @@ func (x *CredentialProvenance) String() string {
 func (*CredentialProvenance) ProtoMessage() {}
 
 func (x *CredentialProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +801,7 @@ func (x *CredentialProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialProvenance.ProtoReflect.Descriptor instead.
 func (*CredentialProvenance) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CredentialProvenance) GetOwner() string {
@@ -894,7 +1026,7 @@ type Credential struct {
 
 func (x *Credential) Reset() {
 	*x = Credential{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -906,7 +1038,7 @@ func (x *Credential) String() string {
 func (*Credential) ProtoMessage() {}
 
 func (x *Credential) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -919,7 +1051,7 @@ func (x *Credential) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Credential.ProtoReflect.Descriptor instead.
 func (*Credential) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Credential) GetResource() string {
@@ -1149,7 +1281,7 @@ type ListCredentialsResponse struct {
 
 func (x *ListCredentialsResponse) Reset() {
 	*x = ListCredentialsResponse{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1293,7 @@ func (x *ListCredentialsResponse) String() string {
 func (*ListCredentialsResponse) ProtoMessage() {}
 
 func (x *ListCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1306,7 @@ func (x *ListCredentialsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*ListCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListCredentialsResponse) GetCredentials() []*Credential {
@@ -1204,7 +1336,7 @@ type ProvisionCredentialResponse struct {
 
 func (x *ProvisionCredentialResponse) Reset() {
 	*x = ProvisionCredentialResponse{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1216,7 +1348,7 @@ func (x *ProvisionCredentialResponse) String() string {
 func (*ProvisionCredentialResponse) ProtoMessage() {}
 
 func (x *ProvisionCredentialResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1229,7 +1361,7 @@ func (x *ProvisionCredentialResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProvisionCredentialResponse.ProtoReflect.Descriptor instead.
 func (*ProvisionCredentialResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ProvisionCredentialResponse) GetStatus() string {
@@ -1281,7 +1413,7 @@ type ProviderDiagnosis struct {
 
 func (x *ProviderDiagnosis) Reset() {
 	*x = ProviderDiagnosis{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1293,7 +1425,7 @@ func (x *ProviderDiagnosis) String() string {
 func (*ProviderDiagnosis) ProtoMessage() {}
 
 func (x *ProviderDiagnosis) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1306,7 +1438,7 @@ func (x *ProviderDiagnosis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderDiagnosis.ProtoReflect.Descriptor instead.
 func (*ProviderDiagnosis) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProviderDiagnosis) GetPlatform() string {
@@ -1418,7 +1550,7 @@ type RecoveryStatus struct {
 
 func (x *RecoveryStatus) Reset() {
 	*x = RecoveryStatus{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1430,7 +1562,7 @@ func (x *RecoveryStatus) String() string {
 func (*RecoveryStatus) ProtoMessage() {}
 
 func (x *RecoveryStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1443,7 +1575,7 @@ func (x *RecoveryStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryStatus.ProtoReflect.Descriptor instead.
 func (*RecoveryStatus) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RecoveryStatus) GetReceiptExists() bool {
@@ -1531,7 +1663,7 @@ type DiagnoseCredentialsResponse struct {
 
 func (x *DiagnoseCredentialsResponse) Reset() {
 	*x = DiagnoseCredentialsResponse{}
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1543,7 +1675,7 @@ func (x *DiagnoseCredentialsResponse) String() string {
 func (*DiagnoseCredentialsResponse) ProtoMessage() {}
 
 func (x *DiagnoseCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1556,7 +1688,7 @@ func (x *DiagnoseCredentialsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiagnoseCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*DiagnoseCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DiagnoseCredentialsResponse) GetProvider() *ProviderDiagnosis {
@@ -1622,7 +1754,18 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\x05field\x18\x03 \x01(\tR\x05field\x12\x1d\n" +
 	"\x05value\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05value\"4\n" +
 	"\x1aDiagnoseCredentialsRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\"\x95\x02\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\"\x96\x01\n" +
+	"\x17RevealCredentialRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12&\n" +
+	"\n" +
+	"logical_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tlogicalId\x12\x14\n" +
+	"\x05field\x18\x03 \x01(\tR\x05field\x12%\n" +
+	"\x0econfirm_reveal\x18\x04 \x01(\bR\rconfirmReveal\"e\n" +
+	"\x18RevealCredentialResponse\x12\x1d\n" +
+	"\n" +
+	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"\x95\x02\n" +
 	"\x1cCredentialConsumerProvenance\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12'\n" +
@@ -1776,11 +1919,12 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\x16declaration_site_count\x18\x04 \x01(\x05R\x14declarationSiteCount\x12'\n" +
 	"\x0finventory_basis\x18\x05 \x01(\tR\x0einventoryBasis\x12<\n" +
 	"\x1amanaged_instances_included\x18\x06 \x01(\bR\x18managedInstancesIncluded\x12S\n" +
-	"\brecovery\x18\a \x01(\v27.vrooli.vrooli_onboarding.v1.credentials.RecoveryStatusR\brecovery2\xf1\x03\n" +
+	"\brecovery\x18\a \x01(\v27.vrooli.vrooli_onboarding.v1.credentials.RecoveryStatusR\brecovery2\x8b\x05\n" +
 	"\x12CredentialsService\x12\x94\x01\n" +
 	"\x0fListCredentials\x12?.vrooli.vrooli_onboarding.v1.credentials.ListCredentialsRequest\x1a@.vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse\x12\xa0\x01\n" +
 	"\x13ProvisionCredential\x12C.vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialRequest\x1aD.vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialResponse\x12\xa0\x01\n" +
-	"\x13DiagnoseCredentials\x12C.vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsRequest\x1aD.vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials;credentialsv1b\x06proto3"
+	"\x13DiagnoseCredentials\x12C.vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsRequest\x1aD.vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse\x12\x97\x01\n" +
+	"\x10RevealCredential\x12@.vrooli.vrooli_onboarding.v1.credentials.RevealCredentialRequest\x1aA.vrooli.vrooli_onboarding.v1.credentials.RevealCredentialResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials;credentialsv1b\x06proto3"
 
 var (
 	file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescOnce sync.Once
@@ -1794,47 +1938,51 @@ func file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescGZIP() []byt
 	return file_vrooli_onboarding_v1_credentials_credentials_proto_rawDescData
 }
 
-var file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_vrooli_onboarding_v1_credentials_credentials_proto_goTypes = []any{
 	(*ListCredentialsRequest)(nil),        // 0: vrooli.vrooli_onboarding.v1.credentials.ListCredentialsRequest
 	(*ProvisionCredentialRequest)(nil),    // 1: vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialRequest
 	(*DiagnoseCredentialsRequest)(nil),    // 2: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsRequest
-	(*CredentialConsumerProvenance)(nil),  // 3: vrooli.vrooli_onboarding.v1.credentials.CredentialConsumerProvenance
-	(*CredentialApplicabilityMatch)(nil),  // 4: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
-	(*CredentialApplicabilityRule)(nil),   // 5: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
-	(*CredentialApplicability)(nil),       // 6: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
-	(*CredentialMigrationDiagnostic)(nil), // 7: vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnostic
-	(*CredentialProvenance)(nil),          // 8: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance
-	(*Credential)(nil),                    // 9: vrooli.vrooli_onboarding.v1.credentials.Credential
-	(*ListCredentialsResponse)(nil),       // 10: vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse
-	(*ProvisionCredentialResponse)(nil),   // 11: vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialResponse
-	(*ProviderDiagnosis)(nil),             // 12: vrooli.vrooli_onboarding.v1.credentials.ProviderDiagnosis
-	(*RecoveryStatus)(nil),                // 13: vrooli.vrooli_onboarding.v1.credentials.RecoveryStatus
-	(*DiagnoseCredentialsResponse)(nil),   // 14: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse
+	(*RevealCredentialRequest)(nil),       // 3: vrooli.vrooli_onboarding.v1.credentials.RevealCredentialRequest
+	(*RevealCredentialResponse)(nil),      // 4: vrooli.vrooli_onboarding.v1.credentials.RevealCredentialResponse
+	(*CredentialConsumerProvenance)(nil),  // 5: vrooli.vrooli_onboarding.v1.credentials.CredentialConsumerProvenance
+	(*CredentialApplicabilityMatch)(nil),  // 6: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
+	(*CredentialApplicabilityRule)(nil),   // 7: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
+	(*CredentialApplicability)(nil),       // 8: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
+	(*CredentialMigrationDiagnostic)(nil), // 9: vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnostic
+	(*CredentialProvenance)(nil),          // 10: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance
+	(*Credential)(nil),                    // 11: vrooli.vrooli_onboarding.v1.credentials.Credential
+	(*ListCredentialsResponse)(nil),       // 12: vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse
+	(*ProvisionCredentialResponse)(nil),   // 13: vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialResponse
+	(*ProviderDiagnosis)(nil),             // 14: vrooli.vrooli_onboarding.v1.credentials.ProviderDiagnosis
+	(*RecoveryStatus)(nil),                // 15: vrooli.vrooli_onboarding.v1.credentials.RecoveryStatus
+	(*DiagnoseCredentialsResponse)(nil),   // 16: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse
 }
 var file_vrooli_onboarding_v1_credentials_credentials_proto_depIdxs = []int32{
-	4,  // 0: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule.eq:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
-	4,  // 1: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule.neq:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
-	5,  // 2: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.all:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
-	5,  // 3: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.any:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
-	5,  // 4: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.not:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
-	3,  // 5: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance.consumers:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialConsumerProvenance
-	6,  // 6: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance.applies_when:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
-	8,  // 7: vrooli.vrooli_onboarding.v1.credentials.Credential.provenance:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance
-	6,  // 8: vrooli.vrooli_onboarding.v1.credentials.Credential.applies_when:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
-	7,  // 9: vrooli.vrooli_onboarding.v1.credentials.Credential.migration_diagnostics:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnostic
-	9,  // 10: vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse.credentials:type_name -> vrooli.vrooli_onboarding.v1.credentials.Credential
-	12, // 11: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.provider:type_name -> vrooli.vrooli_onboarding.v1.credentials.ProviderDiagnosis
-	9,  // 12: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.credentials:type_name -> vrooli.vrooli_onboarding.v1.credentials.Credential
-	13, // 13: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.recovery:type_name -> vrooli.vrooli_onboarding.v1.credentials.RecoveryStatus
+	6,  // 0: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule.eq:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
+	6,  // 1: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule.neq:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityMatch
+	7,  // 2: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.all:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
+	7,  // 3: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.any:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
+	7,  // 4: vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability.not:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicabilityRule
+	5,  // 5: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance.consumers:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialConsumerProvenance
+	8,  // 6: vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance.applies_when:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
+	10, // 7: vrooli.vrooli_onboarding.v1.credentials.Credential.provenance:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialProvenance
+	8,  // 8: vrooli.vrooli_onboarding.v1.credentials.Credential.applies_when:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialApplicability
+	9,  // 9: vrooli.vrooli_onboarding.v1.credentials.Credential.migration_diagnostics:type_name -> vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnostic
+	11, // 10: vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse.credentials:type_name -> vrooli.vrooli_onboarding.v1.credentials.Credential
+	14, // 11: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.provider:type_name -> vrooli.vrooli_onboarding.v1.credentials.ProviderDiagnosis
+	11, // 12: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.credentials:type_name -> vrooli.vrooli_onboarding.v1.credentials.Credential
+	15, // 13: vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse.recovery:type_name -> vrooli.vrooli_onboarding.v1.credentials.RecoveryStatus
 	0,  // 14: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ListCredentials:input_type -> vrooli.vrooli_onboarding.v1.credentials.ListCredentialsRequest
 	1,  // 15: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ProvisionCredential:input_type -> vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialRequest
 	2,  // 16: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.DiagnoseCredentials:input_type -> vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsRequest
-	10, // 17: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ListCredentials:output_type -> vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse
-	11, // 18: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ProvisionCredential:output_type -> vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialResponse
-	14, // 19: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.DiagnoseCredentials:output_type -> vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse
-	17, // [17:20] is the sub-list for method output_type
-	14, // [14:17] is the sub-list for method input_type
+	3,  // 17: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.RevealCredential:input_type -> vrooli.vrooli_onboarding.v1.credentials.RevealCredentialRequest
+	12, // 18: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ListCredentials:output_type -> vrooli.vrooli_onboarding.v1.credentials.ListCredentialsResponse
+	13, // 19: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ProvisionCredential:output_type -> vrooli.vrooli_onboarding.v1.credentials.ProvisionCredentialResponse
+	16, // 20: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.DiagnoseCredentials:output_type -> vrooli.vrooli_onboarding.v1.credentials.DiagnoseCredentialsResponse
+	4,  // 21: vrooli.vrooli_onboarding.v1.credentials.CredentialsService.RevealCredential:output_type -> vrooli.vrooli_onboarding.v1.credentials.RevealCredentialResponse
+	18, // [18:22] is the sub-list for method output_type
+	14, // [14:18] is the sub-list for method input_type
 	14, // [14:14] is the sub-list for extension type_name
 	14, // [14:14] is the sub-list for extension extendee
 	0,  // [0:14] is the sub-list for field type_name
@@ -1845,7 +1993,7 @@ func file_vrooli_onboarding_v1_credentials_credentials_proto_init() {
 	if File_vrooli_onboarding_v1_credentials_credentials_proto != nil {
 		return
 	}
-	file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[5].OneofWrappers = []any{
+	file_vrooli_onboarding_v1_credentials_credentials_proto_msgTypes[7].OneofWrappers = []any{
 		(*CredentialApplicabilityRule_Eq)(nil),
 		(*CredentialApplicabilityRule_Neq)(nil),
 	}
@@ -1855,7 +2003,7 @@ func file_vrooli_onboarding_v1_credentials_credentials_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc), len(file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

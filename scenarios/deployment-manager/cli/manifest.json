@@ -941,12 +941,12 @@
     {
       "service": "ReleasesService",
       "method": "RegisterCandidate",
-      "reason": "Candidate registration is a UI and owner workflow; no separate operator CLI command exposes this API operation."
+      "reason": "The composite releases command dispatches register-candidate through the generated ReleasesService client from a protojson document; the manifest represents its nested operation grammar as one command."
     },
     {
       "service": "ReleasesService",
       "method": "RegisterDestinationRevision",
-      "reason": "Destination revision registration is a UI and owner workflow; no separate operator CLI command exposes this API operation."
+      "reason": "The composite releases command dispatches register-destination through the generated ReleasesService client from a protojson document; the manifest represents its nested operation grammar as one command."
     },
     {
       "service": "ReleasesService",

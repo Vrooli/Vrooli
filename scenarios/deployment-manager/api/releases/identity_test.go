@@ -198,3 +198,13 @@ func TestTargetIdentityBridgesSharedTargetModelWithoutDroppingArchitecture(t *te
 		t.Fatalf("shared target projection changed identity: %+v", projected)
 	}
 }
+
+func TestDestinationRevisionCanonicalizesLpbsChannelAlias(t *testing.T) {
+	canonical, err := (DestinationRevision{Kind: "lpbs-channel", DestinationID: "prod", ConfigurationDigest: "sha256:config", Channel: "stable"}).Canonical()
+	if err != nil {
+		t.Fatalf("Canonical() error: %v", err)
+	}
+	if canonical.Kind != "lpbs" {
+		t.Fatalf("kind = %q, want the canonical lpbs kind", canonical.Kind)
+	}
+}

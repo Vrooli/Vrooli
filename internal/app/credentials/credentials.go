@@ -376,10 +376,8 @@ func (app *Service) ExportRecovery(ctx context.Context, root string, out, errOut
 	if !all && len(entries) == 0 {
 		return fmt.Errorf("recovery export requires at least one --entry or --all")
 	}
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, formatOK := normalizeOutputFormat(format)
+	if !formatOK {
 		return fmt.Errorf("credentials recovery export format must be text or json")
 	}
 	selected := make([]credentialauthority.RecoveryEntry, 0, len(entries))
@@ -492,11 +490,8 @@ func (app *Service) VerifyRecovery(ctx context.Context, out, errOut io.Writer, o
 	if path == "" {
 		return fmt.Errorf("recovery verify requires --input")
 	}
-	if format == "" {
-		format = string(cliout.FormatHuman)
-	}
-	format = strings.TrimSpace(format)
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, formatOK := normalizeOutputFormat(format)
+	if !formatOK {
 		return fmt.Errorf("credentials recovery verify format must be text or json")
 	}
 	passphrase, err := recoveryPassphrase(input, errOut)

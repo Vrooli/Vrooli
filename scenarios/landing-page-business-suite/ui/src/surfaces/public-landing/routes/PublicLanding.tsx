@@ -34,7 +34,12 @@ export function PublicLanding() {
   const resolved = useMemo(() => {
     if (!config?.presentation || !request) return undefined;
     try { return resolvePublicPresentation(config.presentation, request, base, config.downloads); }
-    catch { return undefined; }
+    catch (error) {
+      // Keep the public response generic while exposing contract failures to
+      // production browser evidence and operators.
+      console.error('[landing-page-business-suite] public presentation binding failed', error);
+      return undefined;
+    }
   }, [config, request, base]);
   if (location.pathname !== '/' && !/^\/apps\/[a-z0-9][a-z0-9-]*$/.test(location.pathname)) return <PublicPresentationState state="not-found" />;
   if (loading) return <PublicPresentationState state="loading" />;

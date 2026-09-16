@@ -29,7 +29,7 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	if minutes < 1 {
 		minutes = 1
 	}
-	command := `"` + strings.ReplaceAll(executable, `"`, `\"`) + `" credentials store copy scheduled --format json`
+	command := `"` + strings.ReplaceAll(executable, `"`, `\"`) + `" credentials store copy-scheduled --format json`
 	output, err := shell.NewCommand("schtasks", "/Create", "/TN", credentialCopyTask, "/SC", "MINUTE", "/MO", strconv.FormatInt(minutes, 10), "/TR", command, "/F").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("enable credential-store copy task: %w: %s", err, output)

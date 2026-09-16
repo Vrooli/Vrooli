@@ -29,7 +29,7 @@ deployment-manager releases health "<release-id>"
 - Swap and re-score: `deployment-manager swaps list "picker-wheel"`, review the result, then use `swaps apply` with the exact profile ID.
 - Desktop artifact dry-run: `deployment-manager deploy-desktop --profile demo --dry-run --timeout 10m` (local preparation only)
 - Readiness applicability: `deployment-manager readiness-reviews prepare "<scenario>" "<profile-id>" "<commit>" "<artifact-digest>" stable linux --fact commercial_release=true --fact paid_release=true`
-- Governed release lifecycle: `deployment-manager releases start <profile-id> --commit <hash> --version <version> --readiness-review-key <key> --candidate-id <id> --destination-revision-id <id>`
+- Governed release lifecycle: `deployment-manager releases register-candidate --file candidate.json`, `deployment-manager releases register-destination --file destination.json`, then `deployment-manager releases start <profile-id> --commit <hash> --version <version> --readiness-review-key <key> --candidate-id <id> --destination-revision-id <id> --authorization-epoch <n> --artifact-digest <digest>`
 - Inspect a governed release: `deployment-manager --json releases dossier "<release-id>" && deployment-manager releases health "<release-id>"`
 
 Electron builds run with pnpm by default (falls back to npm if pnpm is unavailable). Use `--timeout` to extend long-running builds (default 10m).

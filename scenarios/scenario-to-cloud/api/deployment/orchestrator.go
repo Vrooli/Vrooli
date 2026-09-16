@@ -3,8 +3,10 @@ package deployment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -493,7 +495,7 @@ func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID stri
 
 	req := domain.VPSBundleGCRequest{
 		ScenarioID:    manifest.Scenario.ID,
-		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
+		KeepLatest:    o.vpsBundleKeepLatest(ctx, deploymentID, manifest),
 		ProtectSHA256: protect,
 		DryRun:        false,
 	}
@@ -537,7 +539,7 @@ func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, 
 
 	req := domain.VPSBundleGCRequest{
 		ScenarioID:    manifest.Scenario.ID,
-		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
+		KeepLatest:    o.vpsBundleKeepLatest(ctx, deploymentID, manifest),
 		ProtectSHA256: protect,
 		DryRun:        false,
 	}
@@ -566,6 +568,52 @@ func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, 
 		DurationMs: time.Since(gcStart).Milliseconds(),
 		Success:    boolPtr(resp.OK),
 	})
+}
+
+// vpsBundleKeepLatest adapts retention to observed target pressure. The
+// target owner always protects active, previous, and in-flight releases, so
+// keep=1 is the most aggressive safe policy while retaining rollback safety.
+// If disk cannot be observed, retain the conservative default and let
+// preflight report the reachability problem instead of guessing.
+func (o *Orchestrator) vpsBundleKeepLatest(ctx context.Context, deploymentID string, manifest domain.CloudManifest) int {
+	const lowDiskFreeKB = int64(8 * 1024 * 1024)
+	target := o.targetFor(ctx, deploymentID, manifest)
+	cmd, err := reach.NewObservation("df", "-Pk", "/")
+	if err != nil {
+		return bundle.DefaultVPSBundleKeepLatest
+	}
+	res, err := o.reach.Exec(ctx, target, cmd)
+	if err != nil || res.ExitCode != 0 {
+		return bundle.DefaultVPSBundleKeepLatest
+	}
+	// Observation transports may return the target owner's JSON envelope.
+	// Normalize it before reading df's tabular output, just as preflight does.
+	var envelope struct {
+		Result *struct {
+			Stdout string `json:"stdout"`
+			Exit   int    `json:"exit_code"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(res.Stdout), &envelope) == nil && envelope.Result != nil {
+		res.Stdout = envelope.Result.Stdout
+		res.ExitCode = envelope.Result.Exit
+	}
+	lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+	if len(lines) < 2 {
+		return bundle.DefaultVPSBundleKeepLatest
+	}
+	fields := strings.Fields(lines[len(lines)-1])
+	if len(fields) < 4 {
+		return bundle.DefaultVPSBundleKeepLatest
+	}
+	availableKB, err := strconv.ParseInt(fields[3], 10, 64)
+	if err != nil || availableKB < 0 {
+		return bundle.DefaultVPSBundleKeepLatest
+	}
+	if availableKB < lowDiskFreeKB {
+		return 1
+	}
+	return bundle.DefaultVPSBundleKeepLatest
 }
 
 func boolPtr(value bool) *bool {

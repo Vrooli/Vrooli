@@ -539,6 +539,13 @@ func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsSer
 		Dialect:             dialect,
 		Log:                 logx.Info,
 		InsufficientCredits: intelligence.ErrInsufficientCredits,
+		// The status endpoint must report what the request gate actually
+		// checks: whether the shared service secret resolves from the
+		// authority. A missing secret is the only real "disabled" state.
+		ServiceAuthConfigured: func() bool {
+			value, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET")
+			return err == nil && strings.TrimSpace(value) != ""
+		},
 	})
 }
 

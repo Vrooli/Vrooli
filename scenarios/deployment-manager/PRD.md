@@ -2,7 +2,7 @@
 
 > **Version**: 1.0.0
 > **Canonical Reference**: /scenarios/deployment-manager/PRD.md
-> **Last Updated**: 2026-09-04
+> **Last Updated**: 2026-09-15
 > **Status**: Active product contract
 
 ---
@@ -104,6 +104,7 @@ approval.
 - [ ] OT-P0-042 | Attributable Producer and Predecessor Evidence | When readiness evidence is collected, deployment-manager shall preserve typed unavailable and stale states, bind every item to its producer and candidate, and compare against the latest actual deployed predecessor without copying producer analyzers
 - [ ] OT-P0-043 | Exact-Identity Approval and Promotion | When independent goal close-out is synchronized or promotion is requested, deployment-manager shall revalidate current evidence and authorize only the unchanged review identity while refusing open, stale, regressed, unavailable-required, or mismatched state
 - [ ] OT-P0-044 | Adaptive Agent Capability Loop | When an agent assesses, observes, recovers, or improves a release, deployment-manager shall provide discoverable skills, bounded governed programs, attributable learning records, and live measures that route recurring defects to the owning skill, program, producer, or durable scenario layer
+- [ ] OT-P0-045 | Installed-Client Update Receipt | When a published desktop release supersedes a deployed predecessor, deployment-manager shall require an attributable owner receipt proving the installed client detected, verified, and relaunched the exact successor bytes before the release is treated as update-qualified
 
 ### 🟠 P1 – Should have post-launch
 

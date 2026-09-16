@@ -53,6 +53,10 @@ func (d procmetricsDesktopDriver) WindowGeometry(ctx context.Context, display st
 	return d.detector.WindowGeometry(ctx, 0, display)
 }
 
+func (d procmetricsDesktopDriver) WindowTitle(ctx context.Context, display string) (string, error) {
+	return d.detector.WindowTitle(ctx, 0, display)
+}
+
 func (d procmetricsDesktopDriver) ActivateWindow(ctx context.Context, display string) error {
 	return d.detector.ActivateWindow(ctx, 0, display)
 }
@@ -304,9 +308,6 @@ func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (Jour
 	var result JourneyOperationResult
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return JourneyOperationResult{}, fmt.Errorf("decode communication journey result: %w", err)
-	}
-	if operation == "terminal_fixture" {
-		return result, nil
 	}
 	if strings.TrimSpace(result.AppKey) == "" {
 		return JourneyOperationResult{}, fmt.Errorf("probe_app_unidentified")
@@ -565,7 +566,7 @@ func (s *DefaultService) runJourneyStep(ctx context.Context, base *deliveryramp.
 			step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, captureErr.Error(), deliveryramp.DispositionFailed
 		}
 	}
-	if step.Disposition == deliveryramp.StepDisposition(journeyStepPass) && spec.Assertion == nil && requiresSurfaceChange(spec.Action) && identicalCapturePair(step) {
+	if step.Disposition == deliveryramp.StepDisposition(journeyStepPass) && (!step.AssertionSurfaceObserved) && requiresSurfaceChange(spec.Action) && identicalCapturePair(step) {
 		step.Disposition, step.Error, step.DegradedReason = deliveryramp.StepFailed, "surface_unchanged", "surface_unchanged"
 		base.Disposition = deliveryramp.DispositionFailed
 	}
@@ -660,6 +661,7 @@ func applyJourneyObservation(base *deliveryramp.JourneyResult, step *deliveryram
 	}
 	step.AssertionID, step.ExpectedState = spec.Assertion.ID, spec.Assertion.Expected
 	step.AssertionStatus = assertionStatus(spec.Assertion.Expected, observation.Observed, observation.Geometry, input)
+	step.AssertionSurfaceObserved = step.AssertionStatus == journeyStepPass && observation.SurfaceObserved
 	if step.AssertionStatus != journeyStepPass {
 		step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "assertion did not match observed result", deliveryramp.DispositionFailed
 	}

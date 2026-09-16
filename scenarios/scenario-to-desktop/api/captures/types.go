@@ -28,6 +28,9 @@ type Capture struct {
 	VoidedAt      *time.Time  `json:"voided_at,omitempty"`
 	SupersededBy  string      `json:"superseded_by,omitempty"`
 	CreatedAt     time.Time   `json:"created_at"`
+	// CapturedAt is the observation time supplied by the producing run. It is
+	// distinct from metadata persistence time for audit and run-window checks.
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 // CapturesSummary provides aggregate statistics for a scenario's captures.

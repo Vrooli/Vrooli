@@ -1,12 +1,9 @@
 package admin
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -123,23 +120,23 @@ func stripeSettingsCommands(deps support.Dependencies) []cliapp.Command {
 
 func runLogin(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("admin-login", flag.ContinueOnError)
-	email := fs.String("email", "", "Admin email")
-	password := fs.String("password", "", "Admin password or @file")
+	email := fs.String("email", "", "Admin email (defaults to admin@localhost or ADMIN_DEFAULT_EMAIL)")
+	password := fs.String("password", "", "Admin password, @file, or omit to resolve from the credential authority")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: admin-login [--email <email>] [--password <password|@file>] [--json]")
+	}
 
-	emailValue := strings.TrimSpace(*email)
-	if emailValue == "" {
-		return fmt.Errorf("usage: admin-login --email <email> --password <password> [--json]")
-	}
-	passwordValue, err := support.ResolveSecretArg(*password)
+	// admin-login resolves the seeded administrator identity from the
+	// credential authority so a single command works after the operator
+	// provisions admin-default-password once.
+	emailValue := support.ResolveAdminEmail(*email)
+	passwordValue, err := support.ResolveAdminPassword(*password)
 	if err != nil {
-		return fmt.Errorf("read password: %w", err)
-	}
-	if strings.TrimSpace(passwordValue) == "" {
-		return fmt.Errorf("usage: admin-login --email <email> --password <password> [--json]")
+		return err
 	}
 
 	base := strings.TrimRight(strings.TrimSpace(deps.ScenarioApp().APIClient.BaseURL()), "/")
@@ -147,50 +144,22 @@ func runLogin(deps support.Dependencies, args []string) error {
 		return fmt.Errorf("api base URL is empty; configure an API base first")
 	}
 
-	payload, err := json.Marshal(map[string]string{
-		"email":    emailValue,
-		"password": passwordValue,
-	})
-	if err != nil {
-		return fmt.Errorf("encode request: %w", err)
-	}
-
-	endpoint, err := deps.ResolveURL("/admin/login", false, nil)
+	httpClient, connectBase := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	client := lpbsconnect.NewAdminAuthServiceClient(httpClient, connectBase)
+	response, err := client.Login(context.Background(), connect.NewRequest(&lpbsv1.LoginRequest{
+		Email:    emailValue,
+		Password: passwordValue,
+	}))
 	if err != nil {
 		return err
 	}
-
-	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: deps.ScenarioApp().HTTPClient.Timeout()}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-	if resp.StatusCode >= http.StatusBadRequest {
-		return cliutil.ParseAPIError(resp.StatusCode, data)
-	}
-
-	var loginResp support.AdminLoginResponse
-	if err := json.Unmarshal(data, &loginResp); err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-	if !loginResp.Authenticated {
+	if response == nil || response.Msg == nil || !response.Msg.GetAuthenticated() {
 		return fmt.Errorf("admin login failed")
 	}
 
-	cookie := support.FindCookie(resp.Cookies(), "admin_session")
+	// The admin session is an HTTP cookie carried on the Connect response
+	// headers; it is never part of the protobuf message.
+	cookie := support.FindCookie((&http.Response{Header: response.Header()}).Cookies(), "admin_session")
 	if cookie == nil || strings.TrimSpace(cookie.Value) == "" {
 		return fmt.Errorf("admin login did not return a session cookie")
 	}
@@ -198,7 +167,7 @@ func runLogin(deps support.Dependencies, args []string) error {
 	cfg := support.AdminSessionConfig{
 		APIBase:   base,
 		Session:   cookie.Value,
-		Email:     loginResp.Email,
+		Email:     response.Msg.GetEmail(),
 		ExpiresAt: support.DeriveCookieExpiry(cookie),
 	}
 	if strings.TrimSpace(cfg.Email) == "" {
@@ -209,7 +178,11 @@ func runLogin(deps support.Dependencies, args []string) error {
 	}
 
 	if *jsonOut {
-		cliutil.PrintJSON(data)
+		encoded, err := protojson.Marshal(response.Msg)
+		if err != nil {
+			return fmt.Errorf("encode response: %w", err)
+		}
+		cliutil.PrintJSON(encoded)
 		return nil
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
@@ -257,7 +230,7 @@ func runLogout(deps support.Dependencies, args []string) error {
 				return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
 					Result:      []string{"Admin session cleared"},
 					Changes:     []string{"Stale local session cookie removed"},
-					NextCommand: []string{"landing-page-business-suite admin-login --email <email> --password @/path/to/password.txt"},
+					NextCommand: []string{"landing-page-business-suite admin-login"},
 				})
 			}
 		}
@@ -274,7 +247,7 @@ func runLogout(deps support.Dependencies, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
 		Result:      []string{"Admin session cleared"},
 		Changes:     []string{"Local admin session cookie removed for the current API base"},
-		NextCommand: []string{"landing-page-business-suite admin-login --email <email> --password @/path/to/password.txt"},
+		NextCommand: []string{"landing-page-business-suite admin-login"},
 	})
 }
 

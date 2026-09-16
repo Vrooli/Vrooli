@@ -22,7 +22,7 @@ var (
 	credentialStatusCommand = "status"
 	credentialRootNames     = []string{"doctor", "list", "delete", "provision", credentialStatusCommand}
 	credentialGroupNames    = map[string][]string{
-		"store":      {credentialStatusCommand, "init", "unlock", "lock", "rewrap", "change-passphrase", "add-passphrase", "verify-passphrase"},
+		"store":      {credentialStatusCommand, "init", "unlock", "lock", "rewrap", "change-passphrase", "add-passphrase", "verify-passphrase", "copy", "copy-configure", "copy-scheduled"},
 		"keyring":    {credentialStatusCommand, "inspect", "repair", "unlock"},
 		"recovery":   {"export", "verify", "restore"},
 		"extensions": {"install", "uninstall", credentialStatusCommand},
@@ -250,6 +250,43 @@ func dispatchCredentialGroup(app *credentialsapp.Service, ctx *rootcli.CommandCo
 			return app.StoreAddPassphrase(ctx.OperationContext(), ctx.Stdout, format, ctx.Input())
 		case "verify-passphrase":
 			return app.StoreVerifyPassphrase(ctx.OperationContext(), ctx.Stdout, format, ctx.Input())
+		case "copy":
+			// The service already falls back to the persisted configuration and
+			// to VROOLI_CREDENTIAL_COPY_SINK, so --sink is optional here.
+			return app.StoreCopy(ctx.OperationContext(), ctx.Stdout, credentialsapp.StoreCopyOptions{
+				Sink:                      flagValue(runCtx, "sink"),
+				ObjectStoreCredentialID:   flagValue(runCtx, "object-store-credential"),
+				ObjectStoreRegion:         flagValue(runCtx, "object-store-region"),
+				ObjectStoreEndpoint:       flagValue(runCtx, "object-store-endpoint"),
+				ObjectStoreAccessKeyField: flagValue(runCtx, "object-store-access-key-field"),
+				ObjectStoreSecretKeyField: flagValue(runCtx, "object-store-secret-key-field"),
+				ObjectStoreSessionField:   flagValue(runCtx, "object-store-session-field"),
+				Configured:                boolFlag(runCtx, "configured"),
+				Format:                    format,
+			})
+		case "copy-configure":
+			interval := time.Duration(0)
+			if raw := strings.TrimSpace(flagValue(runCtx, "interval")); raw != "" {
+				parsed, err := time.ParseDuration(raw)
+				if err != nil {
+					return fmt.Errorf("interval: %w", err)
+				}
+				interval = parsed
+			}
+			return app.StoreCopyConfigure(ctx.OperationContext(), ctx.Stdout, credentialsapp.StoreCopyConfigureOptions{
+				Sink:                      flagValue(runCtx, "sink"),
+				Interval:                  interval,
+				ObjectStoreCredentialID:   flagValue(runCtx, "object-store-credential"),
+				ObjectStoreRegion:         flagValue(runCtx, "object-store-region"),
+				ObjectStoreEndpoint:       flagValue(runCtx, "object-store-endpoint"),
+				ObjectStoreAccessKeyField: flagValue(runCtx, "object-store-access-key-field"),
+				ObjectStoreSecretKeyField: flagValue(runCtx, "object-store-secret-key-field"),
+				ObjectStoreSessionField:   flagValue(runCtx, "object-store-session-field"),
+				Enabled:                   boolFlag(runCtx, "enabled"),
+				Format:                    format,
+			})
+		case "copy-scheduled":
+			return app.StoreCopyScheduled(ctx.OperationContext(), ctx.Stdout, format)
 		}
 	case "keyring":
 		opts := credentialsapp.KeyringOptions{Path: flagValue(runCtx, "path"), Format: format}

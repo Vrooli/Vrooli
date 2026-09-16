@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/target"
+	"scenario-to-desktop-api/validationdesktop"
 	"scenario-to-desktop-api/validationprovider"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -131,140 +131,61 @@ func (e validationMatrixLocalExecutor) findValidationArtifact(request validation
 }
 
 func (e validationMatrixLocalExecutor) executeProviderJourney(ctx context.Context, request validationmatrix.CellRequest, artifactPath string) validationmatrix.CellResult {
-	if e.desktop == nil || e.workflow == nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "provider-owned Electron target adapter is unavailable"}
-	}
-	if request.Target == nil || !request.Target.GetAvailable() {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "selected Electron target is unavailable"}
-	}
-	if strings.TrimSpace(request.Journey.SourcePath) == "" {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "provider journey has no normalized source path"}
-	}
-	session, err := e.desktop.StartSession(ctx, livedesktop.SessionConfig{Width: 1920, Height: 1080, ScenarioName: request.Cell.GetScenarioName(), Platform: "linux"})
-	if err != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("start Electron validation desktop: %v", err)}
-	}
-	defer func() { _ = e.desktop.StopSession(session.ID) }()
-
-	recording, err := e.desktop.ExecuteAction(ctx, session.ID, "start_recording", json.RawMessage("{}"))
-	if err != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("start desktop evidence recording: %v", err)}
-	}
-	recordingID := actionString(recording, "capture_id")
-	if recordingID == "" {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: "desktop evidence recording returned no capture identity"}
-	}
-	recordingStopped := false
-	defer func() {
-		if !recordingStopped {
-			_, _ = e.desktop.ExecuteAction(context.Background(), session.ID, "stop_recording", json.RawMessage("{}"))
-		}
-	}()
-
-	contextID := "desktop-validation-" + request.Cell.GetCellId()
-	targetInfo, err := e.desktop.LaunchElectronValidation(ctx, session.ID, artifactPath, target.ElectronLaunchOptions{
-		ContextID:        contextID,
-		ScenarioName:     request.Cell.GetScenarioName(),
-		ArtifactDigest:   request.ArtifactDigest,
-		TargetID:         request.Cell.GetTargetId(),
-		JourneyID:        request.Cell.GetJourneyId(),
-		ProfileID:        profileID(request.Cell.GetEnvironmentProfile()),
-		IsolationLeaseID: request.RunID + ":" + request.Cell.GetCellId(),
-	}, target.RendererExpectation{
-		// Bundled Electron apps may expose a file:// splash page before their
-		// runtime-owned UI is ready. Bind to the loopback UI origin so the
-		// provider never receives the bootstrap renderer.
-		URLPrefix: "http://127.0.0.1:",
+	targetAvailable := request.Target != nil && request.Target.GetAvailable()
+	result := validationdesktop.Execute(ctx, validationdesktop.Dependencies{
+		Desktop:  e.desktop,
+		Workflow: e.workflow,
+		Captures: captureReader{service: e.captures},
+	}, validationdesktop.Request{
+		RunID: request.RunID, CellID: request.Cell.GetCellId(), ScenarioName: request.Cell.GetScenarioName(),
+		ScenarioRoot: e.scenarioRoot, ArtifactPath: artifactPath, ArtifactDigest: request.ArtifactDigest,
+		JourneyID: request.Cell.GetJourneyId(), WorkflowPath: request.Journey.SourcePath,
+		TargetID: request.Cell.GetTargetId(), ProfileID: profileID(request.Cell.GetEnvironmentProfile()),
+		TargetAvailable: targetAvailable,
 	})
-	if err != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("launch and attach Electron target: %v", err)}
-	}
-
-	providerResult := e.workflow.Execute(ctx, validationprovider.Request{
-		MatrixRunID:    request.RunID,
-		CellID:         request.Cell.GetCellId(),
-		ScenarioName:   request.Cell.GetScenarioName(),
-		ScenarioPath:   scenarioPathForRequest(e.scenarioRoot, request.Cell.GetScenarioName(), artifactPath),
-		WorkflowPath:   request.Journey.SourcePath,
-		WorkflowID:     request.Journey.JourneyID,
-		Target:         targetInfo,
-		ProfileID:      profileID(request.Cell.GetEnvironmentProfile()),
-		ContextID:      contextID,
-		ArtifactDigest: request.ArtifactDigest,
-	})
-
-	stopped, stopErr := e.desktop.ExecuteAction(context.Background(), session.ID, "stop_recording", json.RawMessage("{}"))
-	recordingStopped = true
-	if stopErr != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("stop desktop evidence recording: %v", stopErr), Evidence: providerResult.Evidence}
-	}
-	if stoppedID := actionString(stopped, "capture_id"); stoppedID != "" {
-		recordingID = stoppedID
-	}
-	evidence := append([]*domainv1.LayeredEvidence(nil), providerResult.Evidence...)
-	if capture := findCapture(e.captures, request.Cell.GetScenarioName(), recordingID); capture != nil {
-		mediaType := "video/mp4"
-		evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME, EvidenceId: capture.ID, Uri: "/api/v1/captures/" + request.Cell.GetScenarioName() + "/" + capture.ID + "/file", Sha256: capture.Checksum, MediaType: &mediaType, Redacted: true})
-	} else {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: "desktop evidence recording was not persisted", Evidence: evidence}
-	}
-	evidence = append(evidence, targetEvidence(targetInfo, request), machineEvidence(request, providerResult.ProviderRunID))
-	if !providerResult.Passed {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: firstNonEmpty(providerResult.Reason, "provider-owned workflow failed"), Evidence: evidence}
-	}
-	return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "provider workflow and Electron desktop evidence completed", Evidence: evidence}
+	return validationmatrix.CellResult{Disposition: mapValidationDisposition(result.Disposition), Reason: result.Reason, Evidence: result.Evidence}
 }
 
-func actionString(action *livedesktop.ActionResult, key string) string {
-	if action == nil || action.Data == nil {
-		return ""
+func mapValidationDisposition(disposition string) domainv1.ValidationDisposition {
+	switch disposition {
+	case "pass":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS
+	case "failed":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED
+	case "degraded":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED
+	case "unsupported":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED
+	case "refused":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED
+	case "not_run":
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN
+	default:
+		return domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE
 	}
-	value, _ := action.Data[key].(string)
-	return strings.TrimSpace(value)
 }
 
-func findCapture(service *captures.Service, scenario, id string) *captures.Capture {
-	if service == nil || id == "" {
-		return nil
+type captureReader struct{ service *captures.Service }
+
+func (r captureReader) FindCapture(scenario, id string) (*validationdesktop.Capture, error) {
+	if r.service == nil || id == "" {
+		return nil, fmt.Errorf("capture service is unavailable")
 	}
-	items, err := service.Store().List(scenario)
+	items, err := r.service.Store().List(scenario)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	for _, item := range items {
 		if item.ID == id {
-			copy := item
-			return &copy
+			return &validationdesktop.Capture{ID: item.ID, Checksum: item.Checksum}, nil
 		}
 	}
-	return nil
-}
-
-func scenarioPathForRequest(scenarioRoot, scenarioName, artifactPath string) string {
-	if strings.TrimSpace(scenarioRoot) != "" && strings.TrimSpace(scenarioName) != "" {
-		return filepath.Join(scenarioRoot, scenarioName)
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(artifactPath), "..", "..", ".."))
+	return nil, fmt.Errorf("capture %q not found", id)
 }
 
 func profileID(profile domainv1.ValidationEnvironmentProfile) string {
 	name := strings.TrimPrefix(profile.String(), "VALIDATION_ENVIRONMENT_PROFILE_")
 	return strings.ToLower(strings.ReplaceAll(name, "_", "-"))
-}
-
-func targetEvidence(info *domainv1.AppTarget, request validationmatrix.CellRequest) *domainv1.LayeredEvidence {
-	value := fmt.Sprintf("target=%s endpoint=%s renderer=%s digest=%s", info.GetTargetId(), info.GetCdpEndpoint(), info.GetRendererId(), request.ArtifactDigest)
-	return evidenceFromText(domainv1.LayeredEvidence_KIND_TARGET, "target-"+request.Cell.GetTargetId(), "validation://target/"+request.Cell.GetTargetId(), value)
-}
-
-func machineEvidence(request validationmatrix.CellRequest, providerRunID string) *domainv1.LayeredEvidence {
-	value := fmt.Sprintf("run=%s cell=%s provider_run=%s profile=%s", request.RunID, request.Cell.GetCellId(), providerRunID, profileID(request.Cell.GetEnvironmentProfile()))
-	return evidenceFromText(domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION, "assertion-"+request.Cell.GetCellId(), "validation://assertion/"+request.Cell.GetCellId(), value)
-}
-
-func evidenceFromText(kind domainv1.LayeredEvidence_Kind, id, uri, value string) *domainv1.LayeredEvidence {
-	digest := sha256.Sum256([]byte(value))
-	return &domainv1.LayeredEvidence{Kind: kind, EvidenceId: id, Uri: uri, Sha256: "sha256:" + hex.EncodeToString(digest[:]), Redacted: true}
 }
 
 func smokeEvidence(status *smoketest.Status, captureService *captures.Service, request validationmatrix.CellRequest) []*domainv1.LayeredEvidence {

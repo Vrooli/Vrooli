@@ -14,7 +14,7 @@ func deriveScreenContentSource(observations []deliveryramp.IsolationObservation)
 		return "unknown"
 	}
 	for _, observation := range observations {
-		for _, resolved := range []string{observation.StateRoot, observation.SocketPath, observation.DatabasePath} {
+		for _, resolved := range resolvedIsolationPaths(observation) {
 			if isLiveSessionPath(resolved) {
 				return "unknown"
 			}
@@ -30,13 +30,18 @@ func deriveScreenContentSource(observations []deliveryramp.IsolationObservation)
 
 func validateIsolationObservations(observations []deliveryramp.IsolationObservation) error {
 	for _, observation := range observations {
-		for _, resolved := range []string{observation.StateRoot, observation.SocketPath, observation.DatabasePath} {
+		for _, resolved := range resolvedIsolationPaths(observation) {
 			if isLiveSessionPath(resolved) {
 				return fmt.Errorf("live_state_resolved: %s", resolved)
 			}
 		}
 	}
 	return nil
+}
+
+func resolvedIsolationPaths(observation deliveryramp.IsolationObservation) []string {
+	paths := []string{observation.StateRoot, observation.SocketPath, observation.DatabasePath}
+	return append(paths, observation.ResolvedPaths...)
 }
 
 func isUnderOperatorHome(path string) bool {

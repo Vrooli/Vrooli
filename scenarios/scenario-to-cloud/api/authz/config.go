@@ -93,7 +93,7 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 		cfg.Mode = ModePersonalLocal
 		providers := []authn.Provider{authn.NewPersonalLocalProviderWithTokenFile(getenv(EnvAuthLocalToken), Scopes()...)}
 		cfg.Authn = authn.Config{Providers: append(providers, shared.Providers...), RecoveryURL: shared.RecoveryURL}
-	case ModeShared:
+	case ModeShared, "shared_provider":
 		cfg.Mode = ModeShared
 		if !shared.Enabled() {
 			return Config{}, errors.New(EnvAuthMode + "=shared requires VROOLI_AUTH_PROVIDERS; the management boundary never admits anonymous callers")

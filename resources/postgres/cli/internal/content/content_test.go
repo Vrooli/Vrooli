@@ -346,13 +346,16 @@ func TestAdd_InitCreatesDatabaseFirst(t *testing.T) {
 	if len(runner.calls) != 2 {
 		t.Fatalf("expected 2 calls (create + execute), got %d", len(runner.calls))
 	}
-	// First call: create-database issued against admin_db
+	// First call: create-database, issued against the maintenance database
+	// rather than POSTGRES_DB. Connecting to POSTGRES_DB to create a database
+	// fails on any host where that database does not exist yet, which is the
+	// case this step exists to handle (see maintenance_db_test.go).
 	got0 := strings.Join(runner.calls[0].args, " ")
 	if !strings.Contains(got0, "CREATE DATABASE myapp") {
 		t.Errorf("first call missing CREATE DATABASE: %q", got0)
 	}
-	if !containsString(runner.calls[0].args, "admin_db") {
-		t.Errorf("create should run against admin_db; args: %v", runner.calls[0].args)
+	if !containsString(runner.calls[0].args, "postgres") {
+		t.Errorf("create should run against the maintenance database; args: %v", runner.calls[0].args)
 	}
 	// Second call: execute file against myapp
 	if !containsString(runner.calls[1].args, "myapp") {

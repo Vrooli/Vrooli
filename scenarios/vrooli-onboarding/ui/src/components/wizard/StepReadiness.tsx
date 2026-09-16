@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, Loader2, Save, Search } from "lucide-react";
+import { CheckCircle2, CircleAlert, Copy, Eye, EyeOff, Loader2, Save, Search } from "lucide-react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { fetchCapabilities, type CapabilityStatus } from "../../api/capabilities";
-import { fetchCredentials, provisionCredential, type CredentialListItem } from "../../api/credentials";
+import { fetchCredentials, provisionCredential, revealCredential, type CredentialListItem } from "../../api/credentials";
 import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply } from "../../api/apply";
 import { acknowledgeDegraded, fetchReadiness } from "../../api/readiness";
 import { fetchOperatorInputs, resolveOperatorInputs } from "../../api/operatorinputs";
@@ -151,6 +151,11 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   const [values, setValues] = useState<Record<string, string>>({});
   const [provisioning, setProvisioning] = useState<string | null>(null);
   const [provisionError, setProvisionError] = useState<ProvisionError | null>(null);
+  const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const [copiedReveal, setCopiedReveal] = useState<string | null>(null);
+  const revealTimers = useRef<Record<string, number>>({});
   const [applyState, setApplyState] = useState<ApplyRunView | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applyReconnecting, setApplyReconnecting] = useState(false);
@@ -235,6 +240,60 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     if (!provisionError) return;
     void provision(provisionError.logicalID, provisionError.field);
   };
+
+  const hideRevealedValue = (key: string) => {
+    setRevealedValues((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setCopiedReveal((current) => (current === key ? null : current));
+    const timer = revealTimers.current[key];
+    if (timer) {
+      window.clearTimeout(timer);
+      delete revealTimers.current[key];
+    }
+  };
+
+  // toggleReveal is the operator's explicit, audited value view. The value is
+  // held only in component state and is auto-hidden after 30 seconds.
+  const toggleReveal = async (logicalID: string, field: string) => {
+    const key = `${logicalID}/${field}`;
+    if (Object.prototype.hasOwnProperty.call(revealedValues, key)) {
+      hideRevealedValue(key);
+      return;
+    }
+    setRevealing(key);
+    setRevealError(null);
+    try {
+      const value = await revealCredential({ logical_id: logicalID, field }, target);
+      setRevealedValues((current) => ({ ...current, [key]: value }));
+      revealTimers.current[key] = window.setTimeout(() => hideRevealedValue(key), 30_000);
+    } catch (error) {
+      setRevealError(error instanceof ConnectError && error.code === Code.PermissionDenied
+        ? i18n.t("onboarding.readiness.credentialRevealDenied")
+        : i18n.t("onboarding.readiness.credentialRevealError"));
+    } finally {
+      setRevealing(null);
+    }
+  };
+
+  const copyRevealedValue = async (key: string) => {
+    const value = revealedValues[key];
+    if (value === undefined) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedReveal(key);
+      window.setTimeout(() => setCopiedReveal((current) => (current === key ? null : current)), 2_000);
+    } catch {
+      // Clipboard access can be denied; the value stays visible for manual copy.
+    }
+  };
+
+  useEffect(() => () => {
+    Object.values(revealTimers.current).forEach((timer) => window.clearTimeout(timer));
+    revealTimers.current = {};
+  }, []);
 
   const openAuthRecovery = () => {
     if (typeof window === "undefined") return;
@@ -381,6 +440,12 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
         provisioning={provisioning}
         onValueChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
         onProvision={(logicalID, field) => { void provision(logicalID, field); }}
+        revealedValues={revealedValues}
+        revealing={revealing}
+        revealError={revealError}
+        copiedReveal={copiedReveal}
+        onToggleReveal={(logicalID, field) => { void toggleReveal(logicalID, field); }}
+        onCopyReveal={(key) => { void copyRevealedValue(key); }}
       />
       <ResponsiveDialog
         open={credentialDetailsOpen}
@@ -478,6 +543,12 @@ function CredentialList({
   provisioning,
   onValueChange,
   onProvision,
+  revealedValues,
+  revealing,
+  revealError,
+  copiedReveal,
+  onToggleReveal,
+  onCopyReveal,
 }: {
   credentials: Credential[];
   checkedAt?: string;
@@ -487,6 +558,12 @@ function CredentialList({
   provisioning: string | null;
   onValueChange: (key: string, value: string) => void;
   onProvision: (logicalID: string, field: string) => void;
+  revealedValues: Record<string, string>;
+  revealing: string | null;
+  revealError: string | null;
+  copiedReveal: string | null;
+  onToggleReveal: (logicalID: string, field: string) => void;
+  onCopyReveal: (key: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -537,6 +614,7 @@ function CredentialList({
       <label className="credential-list__select"><span>{i18n.t("onboarding.readiness.credentialFilter")}</span><Select data-testid="credential-filter" aria-label={i18n.t("onboarding.readiness.credentialFilter")} value={filter} onValueChange={setFilter} options={[{ value: "all", label: i18n.t("onboarding.readiness.credentialFilterAll") }, { value: "attention", label: i18n.t("onboarding.readiness.credentialFilterAttention") }, { value: "configured", label: i18n.t("onboarding.readiness.credentialFilterConfigured") }, { value: "optional", label: i18n.t("onboarding.readiness.credentialFilterOptional") }]} /></label>
       <label className="credential-list__select"><span>{i18n.t("onboarding.readiness.credentialSort")}</span><Select data-testid="credential-sort" aria-label={i18n.t("onboarding.readiness.credentialSort")} value={sort} onValueChange={setSort} options={[{ value: "attention", label: i18n.t("onboarding.readiness.credentialSortAttention") }, { value: "name", label: i18n.t("onboarding.readiness.credentialSortName") }, { value: "resource", label: i18n.t("onboarding.readiness.credentialSortResource") }]} /></label>
     </div>}
+    {revealError && <p data-testid="credential-reveal-error" role="alert" className="credential-list__empty text-danger">{revealError}</p>}
     {loading && <ul className="credential-list__items" aria-label={i18n.t("onboarding.readiness.credentialLoading")} role="status">
       {["one", "two", "three"].map((key) => <li key={key} className="credential-skeleton" aria-hidden="true"><span /><span /><span /></li>)}
     </ul>}
@@ -550,6 +628,8 @@ function CredentialList({
       const canProvision = !componentSupplied && !stored;
       const checking = credential.status === "pending";
       const deferred = credential.status === "deferred";
+      const revealable = stored && !componentSupplied;
+      const revealValue = revealedValues[key];
       const evidenceLabel = deferred
         ? i18n.t("onboarding.readiness.credentialDeferred")
         : checking
@@ -591,7 +671,19 @@ function CredentialList({
                 {provisioning === key ? <Loader2 className="credential-list__save-icon credential-list__save-icon--loading" aria-hidden="true" /> : <Save className="credential-list__save-icon" aria-hidden="true" />}
                 <span className="sr-only">{provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")}</span>
               </InputGroup.Segment>
-            </InputGroup> : undefined}
+            </InputGroup> : revealable ? (
+              <div className="credential-list__reveal">
+                <Button type="button" variant="secondary" size="sm" data-testid="credential-reveal" onClick={() => onToggleReveal(credential.logical_id, credential.field)} disabled={revealing === key}>
+                  {revealValue !== undefined ? <EyeOff className="credential-list__save-icon" aria-hidden="true" /> : <Eye className="credential-list__save-icon" aria-hidden="true" />}
+                  <span>{revealing === key ? i18n.t("onboarding.readiness.credentialRevealing") : revealValue !== undefined ? i18n.t("onboarding.readiness.credentialHide") : i18n.t("onboarding.readiness.credentialReveal")}</span>
+                </Button>
+                {revealValue !== undefined && <>
+                  <Input readOnly data-testid="credential-revealed-value" aria-label={i18n.t("onboarding.readiness.credentialRevealedValue", { label: credential.label || credential.field })} value={revealValue} className="min-w-0 flex-1" />
+                  <Button type="button" variant="secondary" size="sm" data-testid="credential-reveal-copy" onClick={() => onCopyReveal(key)}>{copiedReveal === key ? i18n.t("onboarding.readiness.credentialRevealCopied") : i18n.t("onboarding.readiness.credentialRevealCopy")}</Button>
+                  <p className="credential-list__item-copy" role="note">{i18n.t("onboarding.readiness.credentialRevealNote")}</p>
+                </>}
+              </div>
+            ) : undefined}
           >
             {credential.description && <p className="credential-list__item-copy" data-testid="credential-purpose">{credential.description}</p>}
             {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}

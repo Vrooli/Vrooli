@@ -498,6 +498,46 @@
       "category": "credentials"
     },
     {
+      "id": "credentials_reveal",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/RevealCredential",
+      "method": "POST",
+      "summary": "Reveal one credential value",
+      "description": "Returns exactly one credential value to a verified human operator holding the onboarding write capability, only when the request explicitly confirms the reveal. Every call is audited without the value.",
+      "category": "credentials",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Credential identity is missing"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Verified operator authorization is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Onboarding write capability is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Credential is not configured"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Explicit reveal confirmation is required"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Credential authority is unavailable"
+        }
+      ]
+    },
+    {
       "id": "host_requirements",
       "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements",
       "method": "POST",

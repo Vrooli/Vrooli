@@ -621,20 +621,40 @@ func TestUsageService_CheckLimit_NoTier_AllowsAll(t *testing.T) {
 	}
 }
 
-func TestUsageService_HealthCheck_DoesNotExposeServiceAuth(t *testing.T) {
-	svc, _, db := createTestUsageService(t)
-	defer db.Close()
-
-	status, err := svc.HealthCheck(context.Background())
-	if err != nil {
-		t.Fatalf("HealthCheck() returned error: %v", err)
+func TestUsageService_HealthCheck_ReportsServiceAuthState(t *testing.T) {
+	cases := []struct {
+		name       string
+		configured func() bool
+		want       bool
+		wantMode   string
+	}{
+		{"unconfigured seam", nil, false, "disabled"},
+		{"configured", func() bool { return true }, true, "enabled"},
+		{"explicitly disabled", func() bool { return false }, false, "disabled"},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := createTestUsageDB(t)
+			defer db.Close()
 
-	if status.ServiceAuthConfigured {
-		t.Fatal("service auth must remain unavailable")
-	}
-	if status.ServiceAuthMode != "disabled" {
-		t.Fatalf("expected service_auth_mode=disabled, got %q", status.ServiceAuthMode)
+			svc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
+				DB:                    db,
+				LimitsService:         NewLimitsService(db, "sqlite"),
+				Dialect:               "sqlite",
+				ServiceAuthConfigured: tc.configured,
+			})
+
+			status, err := svc.HealthCheck(context.Background())
+			if err != nil {
+				t.Fatalf("HealthCheck() returned error: %v", err)
+			}
+			if status.ServiceAuthConfigured != tc.want {
+				t.Fatalf("service_auth_configured = %v, want %v", status.ServiceAuthConfigured, tc.want)
+			}
+			if status.ServiceAuthMode != tc.wantMode {
+				t.Fatalf("service_auth_mode = %q, want %q", status.ServiceAuthMode, tc.wantMode)
+			}
+		})
 	}
 }
 

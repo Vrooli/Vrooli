@@ -478,13 +478,24 @@ func (d Dependencies) RequestAdmin(method, pathValue string, query url.Values, p
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+	// Remote-profile calls relay the remote host's status. A 401/403 there
+	// means the remote credentials failed, not that the local admin session is
+	// stale, so only a direct local rejection may clear the stored session.
+	if (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
+		!isRemoteProfileRelay(pathValue) {
 		_ = d.ClearAdminSession()
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, cliutil.ParseAPIError(resp.StatusCode, data)
 	}
 	return data, nil
+}
+
+// isRemoteProfileRelay reports whether a path is proxied to a remote LPBS host.
+// The wrapper shares the local admin session; the remote verdict must not be
+// treated as a local authentication failure.
+func isRemoteProfileRelay(pathValue string) bool {
+	return strings.HasPrefix(pathValue, "/admin/remote-profiles/")
 }
 
 func (d Dependencies) RequestRemoteProxy(profileID, method, pathValue string, query url.Values, headers map[string]string, body []byte) ([]byte, error) {

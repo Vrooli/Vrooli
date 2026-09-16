@@ -770,7 +770,7 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		}
 	}
 	visualReadiness := "unavailable"
-	if journey.WindowManager != "" && journey.Titlebar {
+	if journey != nil && len(journey.Steps) > 0 && journey.Steps[0].Disposition == deliveryramp.StepPassed && journey.Steps[0].Geometry != nil {
 		visualReadiness = "usable"
 	}
 	err = s.manifestWriter.WriteManifest(ctx, EvidenceManifestInput{

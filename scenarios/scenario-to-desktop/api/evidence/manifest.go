@@ -38,7 +38,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	if err := populateTimeline(&manifest, input); err != nil {
 		return err
 	}
-	recordingOK, err := w.appendCaptureArtifacts(ctx, &manifest, input, items)
+	recordingOK, persistenceOK, err := w.appendCaptureArtifacts(ctx, &manifest, input, items)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	}
 	appendPerformanceArtifacts(&manifest, input)
 	setPerformanceSummary(&manifest, input)
-	manifest.Gates = manifestGates(input, profile, recordingOK, startedAt, completedAt)
+	manifest.Gates = manifestGates(input, profile, recordingOK, persistenceOK, startedAt, completedAt)
 	if allRequiredGatesPassed(manifest) {
 		manifest.State = deliveryramp.StatePassed
 	}
@@ -87,10 +87,70 @@ func prepareManifestInput(w *ManifestWriter, input smoketest.EvidenceManifestInp
 		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("hash built artifact: %w", err)
 	}
 	items := capturesForRun(input.Captures, input.RunID)
+	if err := rejectCrossRunReferences(input.Journey, input.Captures, input.RunID); err != nil {
+		return "", time.Time{}, time.Time{}, "", nil, err
+	}
 	if len(items) == 0 {
 		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("no persisted captures found for run %q", input.RunID)
 	}
+	for _, item := range items {
+		capturedAt := item.CapturedAt
+		if capturedAt.IsZero() {
+			capturedAt = item.CreatedAt
+		}
+		if capturedAt.Before(startedAt) || capturedAt.After(completedAt) {
+			return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("capture %q was created outside run window", item.ID)
+		}
+	}
+	if err := validateRecoveryCount(input.Journey, input.IsolationObservations); err != nil {
+		return "", time.Time{}, time.Time{}, "", nil, err
+	}
 	return profile, startedAt, completedAt, artifactDigest, items, nil
+}
+
+func validateRecoveryCount(journey *deliveryramp.JourneyResult, observations []deliveryramp.IsolationObservation) error {
+	if journey == nil || len(observations) == 0 {
+		return nil
+	}
+	recoverySurface := false
+	for _, step := range journey.Steps {
+		value := strings.ToLower(step.ObservedState + " " + step.Error)
+		if strings.Contains(value, "sessions awaiting recovery") || strings.Contains(value, "session recovery") {
+			recoverySurface = true
+			break
+		}
+	}
+	if !recoverySurface {
+		return nil
+	}
+	for _, observation := range observations {
+		if observation.AdoptedSessionCount == 0 {
+			return fmt.Errorf("adopted_session_count=0 contradicts recovered-session surface")
+		}
+	}
+	return nil
+}
+
+func rejectCrossRunReferences(journey *deliveryramp.JourneyResult, items []captures.Capture, runID string) error {
+	if journey == nil {
+		return nil
+	}
+	byID := make(map[string]captures.Capture, len(items))
+	for _, item := range items {
+		byID[item.ID] = item
+	}
+	for _, step := range journey.Steps {
+		for _, captureID := range []string{step.BeforeCaptureID, step.AfterCaptureID} {
+			if captureID == "" {
+				continue
+			}
+			item, ok := byID[captureID]
+			if ok && item.SourceSession != "smoke-test:"+runID {
+				return fmt.Errorf("capture %q belongs to original run %q, current run %q cannot reuse it", captureID, item.SourceSession, runID)
+			}
+		}
+	}
+	return nil
 }
 
 func newManifest(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, artifactDigest string, startedAt, completedAt time.Time) deliveryramp.Manifest {
@@ -141,12 +201,17 @@ func populateTimeline(manifest *deliveryramp.Manifest, input smoketest.EvidenceM
 	return nil
 }
 
-func (w *ManifestWriter) appendCaptureArtifacts(ctx context.Context, manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput, items []captures.Capture) (bool, error) {
+func (w *ManifestWriter) appendCaptureArtifacts(ctx context.Context, manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput, items []captures.Capture) (bool, bool, error) {
 	recordingOK := false
+	persistenceOK := true
 	for _, item := range items {
 		path, err := w.captures.CaptureFilePath(input.ScenarioName, item.ID)
 		if err != nil {
-			return false, fmt.Errorf("resolve %s capture %q: %w", item.Type, item.ID, err)
+			return false, false, fmt.Errorf("resolve %s capture %q: %w", item.Type, item.ID, err)
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil || checksumBytes(data) != item.Checksum {
+			persistenceOK = false
 		}
 		switch item.Type {
 		case captures.CaptureRecording:
@@ -158,7 +223,12 @@ func (w *ManifestWriter) appendCaptureArtifacts(ctx context.Context, manifest *d
 			manifest.Artifacts = append(manifest.Artifacts, artifactFromCapture(item, path, screenrecording.MediaInspection{}))
 		}
 	}
-	return recordingOK, nil
+	return recordingOK, persistenceOK, nil
+}
+
+func checksumBytes(data []byte) string {
+	digest := sha256.Sum256(data)
+	return "sha256:" + hex.EncodeToString(digest[:])
 }
 
 func appendPerformanceArtifacts(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput) {
@@ -240,18 +310,42 @@ func setPerformanceSummary(manifest *deliveryramp.Manifest, input smoketest.Evid
 	}
 }
 
-func manifestGates(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, recordingOK bool, startedAt, completedAt time.Time) []deliveryramp.GateResult {
+func manifestGates(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, recordingOK, persistenceOK bool, startedAt, completedAt time.Time) []deliveryramp.GateResult {
+	journeyReason := "platform-smoke journey"
+	if input.WorkflowReference != nil || (input.Journey != nil && input.Journey.WorkflowReference != nil) {
+		journeyReason = "provider-workflow:" + input.ScenarioName
+	}
+	visualSignal := input.VisualReadiness
+	if strings.TrimSpace(input.DemoTracePath) != "" {
+		visualSignal = visualLaunchSignal(input)
+	}
 	gates := []deliveryramp.GateResult{
 		gate(deliveryramp.GateProtocol, input.ProtocolPassed, "protocol smoke completed", startedAt, completedAt),
-		gateReadiness(deliveryramp.GateVisual, input.VisualReadiness, "usable application window and visual launch", startedAt, completedAt),
-		gate(deliveryramp.GateJourney, input.Journey != nil && input.Journey.Disposition == deliveryramp.DispositionPass, "semantic desktop journey", startedAt, completedAt),
+		gateReadiness(deliveryramp.GateVisual, visualSignal, "usable application window and visual launch", startedAt, completedAt),
+		gate(deliveryramp.GateJourney, input.Journey != nil && input.Journey.Disposition == deliveryramp.DispositionPass, journeyReason, startedAt, completedAt),
 		gate(deliveryramp.GateCapture, recordingOK, "MP4 decoded with useful frames", startedAt, completedAt),
-		gate(deliveryramp.GatePersistence, strings.TrimSpace(input.JourneyCaptureID) != "" && strings.TrimSpace(input.RecordingCaptureID) != "", "journey and recording captures persisted", startedAt, completedAt),
+		gate(deliveryramp.GatePersistence, persistenceOK && strings.TrimSpace(input.JourneyCaptureID) != "" && strings.TrimSpace(input.RecordingCaptureID) != "", "journey and recording captures persisted and checksummed", startedAt, completedAt),
 	}
 	if profile == deliveryramp.ProfileReleaseVisual {
 		gates = append(gates, gate(deliveryramp.GateGovernance, input.GovernanceReported, "deployment-manager evidence report", startedAt, completedAt))
 	}
 	return gates
+}
+
+func visualLaunchSignal(input smoketest.EvidenceManifestInput) string {
+	if input.Journey == nil || len(input.Journey.Steps) == 0 {
+		return "unavailable"
+	}
+	first := input.Journey.Steps[0]
+	usableWindow := first.Disposition == deliveryramp.StepPassed && first.Geometry != nil && first.Geometry.Width > 0 && first.Geometry.Height > 0
+	trace, err := readValidatedLaunchTrace(input.DemoTracePath, smoketest.LaunchRunDemo)
+	if err != nil {
+		return "unavailable"
+	}
+	if usableWindow && trace.Has(smoketest.EventMainWindowShown) && trace.Has(smoketest.EventAppReady) {
+		return "usable"
+	}
+	return "failed"
 }
 
 func gateReadiness(name deliveryramp.GateName, signal, reason string, startedAt, completedAt time.Time) deliveryramp.GateResult {

@@ -16,6 +16,8 @@ import (
 	"deployment-manager/bundles"
 	"deployment-manager/profiles"
 	"deployment-manager/releases"
+
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 type publishPipelineRunner interface {
@@ -48,6 +50,13 @@ func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Prof
 	if strings.TrimSpace(req.ReleaseID) == "" {
 		step.Status = "skipped"
 		step.Message = "local packaging has no governed release identity; publication was not attempted"
+		return
+	}
+	if err := validateTargetPlatformProjection(req.Platforms); err != nil {
+		// The LPBS download catalog keys one artifact per operating system. A
+		// release that would map two architectures onto the same platform must
+		// fail before the owner effect starts rather than silently collapse.
+		fail(err.Error())
 		return
 	}
 	pipelineReq := &PublishPipelineRequest{
@@ -253,6 +262,30 @@ func exactArtifactTargetSet(requested []string, artifacts []PipelineDeployArtifa
 		delete(want, artifact.Platform)
 	}
 	return len(want) == 0
+}
+
+// validateTargetPlatformProjection rejects a governed release whose target set
+// maps two distinct architectures onto the same desktop operating system. The
+// LPBS download catalog keys one artifact per platform, so collapsing two
+// targets would lose an architecture and advertise the wrong bytes. It also
+// refuses an unknown target so a release never guesses a machine.
+func validateTargetPlatformProjection(platforms []string) error {
+	if len(platforms) == 0 {
+		return nil
+	}
+	seen := make(map[string]string, len(platforms))
+	for _, target := range platforms {
+		target = strings.TrimSpace(target)
+		osPlatform, _, err := targetmodel.ProjectDesktopPlatform(target)
+		if err != nil {
+			return fmt.Errorf("release target %q: %w", target, err)
+		}
+		if prior, exists := seen[osPlatform]; exists && prior != target {
+			return fmt.Errorf("release targets %q and %q both map to desktop platform %q; one architecture per platform is supported", prior, target, osPlatform)
+		}
+		seen[osPlatform] = target
+	}
+	return nil
 }
 
 // applySigningConfig applies the provided signing configuration to scenario-to-desktop.

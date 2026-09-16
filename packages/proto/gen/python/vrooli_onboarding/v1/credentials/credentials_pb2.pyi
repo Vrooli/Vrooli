@@ -31,6 +31,28 @@ class DiagnoseCredentialsRequest(_message.Message):
     target: str
     def __init__(self, target: _Optional[str] = ...) -> None: ...
 
+class RevealCredentialRequest(_message.Message):
+    __slots__ = ("target", "logical_id", "field", "confirm_reveal")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_REVEAL_FIELD_NUMBER: _ClassVar[int]
+    target: str
+    logical_id: str
+    field: str
+    confirm_reveal: bool
+    def __init__(self, target: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., confirm_reveal: _Optional[bool] = ...) -> None: ...
+
+class RevealCredentialResponse(_message.Message):
+    __slots__ = ("logical_id", "field", "value")
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    logical_id: str
+    field: str
+    value: str
+    def __init__(self, logical_id: _Optional[str] = ..., field: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
 class CredentialConsumerProvenance(_message.Message):
     __slots__ = ("logical_id", "address_pattern", "field", "kind", "consumer", "source_ref", "required", "reason", "tiers")
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]

@@ -77,7 +77,7 @@ func RunServiceAuthStatus(deps support.Dependencies, args []string) error {
 			Items:   []string{"[FAIL] service_auth: disabled"},
 		})
 		report.NextSteps = []string{
-			"vrooli credentials provision --identity vrooli/landing-page-business-suite --field consumer-signing-key",
+			"Start landing-page-business-suite so it mints its service secret into the credential authority",
 			"landing-page-business-suite service-auth-status --require-enabled",
 			"scenario-to-desktop deploy-target test <target-name> --require-service-auth",
 		}
@@ -142,7 +142,7 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 	checks = append(checks, adminSessionCheck)
 	if !adminSessionCheck.Passed {
 		ready = false
-		nextSteps = append(nextSteps, "landing-page-business-suite admin-login --email <local_admin_email> --password @/path/to/local-admin-password.txt")
+		nextSteps = append(nextSteps, "landing-page-business-suite admin-login")
 	}
 
 	storageCheck := support.DeployReadinessCheck{Name: "download_storage", Required: true}
@@ -194,9 +194,9 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 		checks = append(checks, profileCheck)
 		if !profileCheck.Passed && !profileCheck.Blocked {
 			if profileTag != "" {
-				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login --tag %s --email <remote_admin_email> --password @/path/to/remote-admin-password.txt", profileTag))
+				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login --tag %s", profileTag))
 			} else {
-				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login %s --email <remote_admin_email> --password @/path/to/remote-admin-password.txt", resolvedProfileID))
+				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login %s", resolvedProfileID))
 			}
 		}
 		profileID = resolvedProfileID
@@ -317,7 +317,7 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 	checks = append(checks, serviceAuthCheck)
 	if !serviceAuthCheck.Passed {
 		nextSteps = append(nextSteps,
-			"vrooli credentials provision --identity vrooli/landing-page-business-suite --field consumer-signing-key",
+			"Start landing-page-business-suite so it mints its service secret into the credential authority",
 			"landing-page-business-suite service-auth-status --require-enabled",
 		)
 		if profileTag != "" {
@@ -385,7 +385,7 @@ func serviceAuthNotConfiguredError() error {
 		Status: []string{"Status: NOT READY"},
 		Triage: []cliapp.TriageGroup{{Heading: "Auth Gate", Items: []string{"[FAIL] service_auth: service auth is not configured"}}},
 		NextSteps: []string{
-			"Provision the LPBS consumer signing key through the credential authority, then restart the scenario",
+			"Start landing-page-business-suite so it mints its service secret into the credential authority",
 			"Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled",
 			"Verify desktop deploy auth gate: scenario-to-desktop deploy-target test <target-name> --require-service-auth",
 		},

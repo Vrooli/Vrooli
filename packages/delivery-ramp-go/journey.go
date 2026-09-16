@@ -235,35 +235,38 @@ type Geometry struct {
 }
 
 type JourneyStep struct {
-	ID                 string              `json:"id,omitempty"`
-	ChapterID          string              `json:"chapter_id,omitempty"`
-	Name               string              `json:"name"`
-	Purpose            string              `json:"purpose,omitempty"`
-	Action             string              `json:"action"`
-	Disposition        StepDisposition     `json:"disposition"`
-	BeforeCaptureID    string              `json:"before_capture_id,omitempty"`
-	AfterCaptureID     string              `json:"after_capture_id,omitempty"`
-	Evidence           []EvidenceReference `json:"evidence,omitempty"`
-	Geometry           *Geometry           `json:"geometry,omitempty"`
-	AssertionID        string              `json:"assertion_id,omitempty"`
-	AssertionStatus    string              `json:"assertion_status,omitempty"`
-	ExpectedState      string              `json:"expected_state,omitempty"`
-	ObservedState      string              `json:"observed_state,omitempty"`
-	ProcessBefore      string              `json:"process_before,omitempty"`
-	ProcessAfter       string              `json:"process_after,omitempty"`
-	Route              string              `json:"route,omitempty"`
-	Error              string              `json:"error,omitempty"`
-	DegradedReason     string              `json:"degraded_reason,omitempty"`
-	Readiness          ReadinessPolicy     `json:"readiness,omitempty"`
-	Settle             SettlePolicy        `json:"settle,omitempty"`
-	StartedAt          time.Time           `json:"started_at"`
-	CompletedAt        time.Time           `json:"completed_at"`
-	MonotonicStartMs   int64               `json:"monotonic_start_ms"`
-	MonotonicEndMs     int64               `json:"monotonic_end_ms"`
-	VideoStartOffsetMs *int64              `json:"video_start_offset_ms,omitempty"`
-	VideoEndOffsetMs   *int64              `json:"video_end_offset_ms,omitempty"`
-	VideoDisposition   StepDisposition     `json:"video_disposition,omitempty"`
-	VideoError         string              `json:"video_error,omitempty"`
+	ID              string              `json:"id,omitempty"`
+	ChapterID       string              `json:"chapter_id,omitempty"`
+	Name            string              `json:"name"`
+	Purpose         string              `json:"purpose,omitempty"`
+	Action          string              `json:"action"`
+	Disposition     StepDisposition     `json:"disposition"`
+	BeforeCaptureID string              `json:"before_capture_id,omitempty"`
+	AfterCaptureID  string              `json:"after_capture_id,omitempty"`
+	Evidence        []EvidenceReference `json:"evidence,omitempty"`
+	Geometry        *Geometry           `json:"geometry,omitempty"`
+	AssertionID     string              `json:"assertion_id,omitempty"`
+	AssertionStatus string              `json:"assertion_status,omitempty"`
+	// AssertionSurfaceObserved distinguishes a product observation from a
+	// producer-side echo. Only the former can exempt identical captures.
+	AssertionSurfaceObserved bool            `json:"assertion_surface_observed,omitempty"`
+	ExpectedState            string          `json:"expected_state,omitempty"`
+	ObservedState            string          `json:"observed_state,omitempty"`
+	ProcessBefore            string          `json:"process_before,omitempty"`
+	ProcessAfter             string          `json:"process_after,omitempty"`
+	Route                    string          `json:"route,omitempty"`
+	Error                    string          `json:"error,omitempty"`
+	DegradedReason           string          `json:"degraded_reason,omitempty"`
+	Readiness                ReadinessPolicy `json:"readiness,omitempty"`
+	Settle                   SettlePolicy    `json:"settle,omitempty"`
+	StartedAt                time.Time       `json:"started_at"`
+	CompletedAt              time.Time       `json:"completed_at"`
+	MonotonicStartMs         int64           `json:"monotonic_start_ms"`
+	MonotonicEndMs           int64           `json:"monotonic_end_ms"`
+	VideoStartOffsetMs       *int64          `json:"video_start_offset_ms,omitempty"`
+	VideoEndOffsetMs         *int64          `json:"video_end_offset_ms,omitempty"`
+	VideoDisposition         StepDisposition `json:"video_disposition,omitempty"`
+	VideoError               string          `json:"video_error,omitempty"`
 }
 
 type WorkflowArtifactReference struct {

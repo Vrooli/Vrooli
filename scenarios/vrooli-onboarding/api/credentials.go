@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	credentialdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/credentials"
 )
@@ -57,6 +58,22 @@ func diagnoseCredentials(ctx context.Context) (credentialclient.DoctorResponse, 
 		return credentialclient.DoctorResponse{}, fmt.Errorf("credential diagnosis returned invalid data: %w", err)
 	}
 	return diagnosis, nil
+}
+
+// revealCredential resolves exactly one value from the local credential
+// authority. It is the single value-returning credential path; authorization,
+// explicit confirmation, and audit are enforced by the handler and authz
+// interceptor before this runs.
+func revealCredential(_ context.Context, logicalID, field string) (string, error) {
+	authority, err := onboardingAuthority()
+	if err != nil {
+		return "", fmt.Errorf("open credential authority: %w", err)
+	}
+	identity, err := credentialauthority.ParseIdentity(strings.TrimSpace(logicalID))
+	if err != nil {
+		return "", fmt.Errorf("parse credential identity %q: %w", logicalID, err)
+	}
+	return authority.Require(identity, credentialDescriptorField(field))
 }
 
 func credentialDescriptorField(field string) string {

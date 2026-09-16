@@ -27,8 +27,8 @@ tier contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-
 
 | Mode | Journey baseline | Smoke target | Probes |
 |---|---|---|---|
-| `bundled` | `bundled.private.v1` or the selected scenario fixture | Private runtime ports reported by the bundle supervisor | Runtime readiness and bundled service identity |
-| `external-server` (thin client) | `tier2.tier1.thin-client.v1` or the selected scenario fixture | A named isolated Tier 1 instance, never the operator's live port | Application identity, route class, and provider response |
+| `bundled` | `bundled.private.v1`, the selected scenario fixture, or a provider-owned BAS journey | Private runtime ports reported by the bundle supervisor | Runtime readiness, bundled service identity, and provider semantic assertions |
+| `external-server` (thin client) | `tier2.tier1.thin-client.v1`, the selected scenario fixture, or a provider-owned journey | A named isolated Tier 1 instance, never the operator's live port | Application identity, route class, and provider response |
 | `static` | `desktop.launch.baseline` | The generated local UI | Window readiness and visual capture |
 
 The selection order, sidecar/manifest recording, and refusal dispositions are

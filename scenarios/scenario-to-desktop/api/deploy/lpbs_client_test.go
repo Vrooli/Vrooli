@@ -394,6 +394,59 @@ func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
 	}
 }
 
+func TestPromoteChannelProjectsArchitectureQualifiedTargets(t *testing.T) {
+	var promotion map[string]interface{}
+	receipt := `{"app_key":"desktop","variant_key":"default","revision":8,"predecessor_revision":7,"artifact_ids":{"linux":42},"release_id":"release-1","artifact_manifest_digest":"sha256:manifest","candidate_id":"candidate-1","destination_revision_id":"destination-1","authorization_epoch":7,"readiness_review_key":"review-1"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == http.MethodGet:
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{{ID: 5, Tag: "prod"}})
+		case r.URL.Path == "/api/v1/admin/remote-profiles/5/proxy" && r.Method == http.MethodPost:
+			var envelope map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&envelope)
+			path, _ := envelope["path"].(string)
+			switch {
+			case strings.Contains(path, "/download-channels/head"):
+				_, _ = w.Write([]byte(`{"revision":7}`))
+			case strings.Contains(path, "/download-channels/promote"):
+				promotion, _ = envelope["body"].(map[string]interface{})
+				_, _ = w.Write([]byte(receipt))
+			default:
+				t.Fatalf("unexpected proxy path %q", path)
+			}
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	if err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, []UploadResult{{ArtifactID: 42, Platform: "linux-x64"}}); err != nil {
+		t.Fatalf("PromoteChannel with architecture-qualified target: %v", err)
+	}
+	if promotion == nil {
+		t.Fatal("promotion request was not observed")
+	}
+	ids, ok := promotion["artifact_ids"].(map[string]interface{})
+	if !ok || ids["linux"] != float64(42) {
+		t.Fatalf("artifact set = %#v, want canonical linux key", promotion["artifact_ids"])
+	}
+
+	// Two architectures for one operating system cannot share a catalog
+	// platform and must be refused before the promotion request is sent.
+	if err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, []UploadResult{{ArtifactID: 51, Platform: "darwin-x64"}, {ArtifactID: 52, Platform: "darwin-arm64"}}); err == nil || !strings.Contains(err.Error(), "one architecture per platform") {
+		t.Fatalf("expected one-architecture-per-platform refusal, got %v", err)
+	}
+}
+
 func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
 	requiresEntitlement := true
 	metadata := artifactMetadata(&UploadRequest{

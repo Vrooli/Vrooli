@@ -103,7 +103,7 @@ func (s *Server) setupRoutes() {
 	readinessH.Module(readinessdomain.Service{Evaluate: buildReadinessResponseForTarget, Acknowledge: acknowledgeDegradedReadiness}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	applyH.Module(applydomain.Service{Start: s.startApply, Cancel: s.cancelApply, Review: s.reviewApply, Get: s.getApplyRun, Plan: s.getApplyPlan}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	capabilitiesH.Module(capabilitiesdomain.Service{Executor: controlPlaneExecutor{}}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
-	credentialsH.Module(credentialsdomain.Service{ListFn: listCredentials, ProvisionFn: provisionCredential, DiagnoseFn: diagnoseCredentials}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
+	credentialsH.Module(credentialsdomain.Service{ListFn: listCredentials, ProvisionFn: provisionCredential, DiagnoseFn: diagnoseCredentials, RevealFn: revealCredential}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	hostH.Module(hostService(s), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	operatorstateH.Module(operatorstateapi.New(operatorStateService(), validateOperatorState), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	profilesH.Module(onboardingProfilesService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)

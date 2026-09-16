@@ -51,7 +51,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "credentials",
-      "description": "The implementation is correct by construction, but only the response-body half is asserted. The target adds explicit negative assertions across every egress the value could reach, so a later refactor that starts logging the request body fails a test.",
+      "description": "The implementation is correct by construction, but only the response-body half is asserted. The target adds explicit negative assertions across every egress the value could reach, so a later refactor that starts logging the request body fails a test. This boundary governs provision, list, and diagnose responses and every log, URL, and operator-state egress; the single value-returning action is RevealCredential, which is separately gated, explicitly confirmed, audited without the value, and covered by ONB-CRED-UI-REVEAL.",
       "validation": [
         {
           "type": "test",
@@ -199,6 +199,37 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Asserts explicit confirmation, no JSON mode, local authority resolution, and terminal-only output."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CRED-UI-REVEAL",
+      "title": "The credentials surface shall reveal one configured value only to a verified human operator with the onboarding write capability, only after explicit confirmation, without persisting or logging the value",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "category": "credentials",
+      "description": "The in-UI reveal is the single authorized exception to the write-only surface. The procedure is classified OperationEffectReveal, which the mutation interceptor admits only under the verified-human plus onboarding-write requirement; the handler refuses a request without confirm_reveal, maps an unconfigured value to not-found and an unavailable authority to unavailable, and writes a value-free audit event. The UI holds the value in component state only and hides it after 30 seconds.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/credentials/connect_handler_reveal_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts explicit confirmation, value returned only on confirm, typed not-found/unavailable mapping, and that the audit event never contains the value."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authz/mutation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts RevealCredential is classified as the sensitive-reveal effect, not a plain read or mutation."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the value is absent until the operator reveals it and is removed when they hide it."
         }
       ]
     }

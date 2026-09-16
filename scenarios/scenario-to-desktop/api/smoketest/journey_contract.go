@@ -102,6 +102,7 @@ type DesktopDriver interface {
 	IsAvailable(context.Context) bool
 	LargestVisibleWindow(context.Context, string) (*procmetrics.WindowGeometry, error)
 	WindowGeometry(context.Context, string) (*procmetrics.WindowGeometry, error)
+	WindowTitle(context.Context, string) (string, error)
 	ActivateWindow(context.Context, string) error
 	MaximizeWindow(context.Context, string, int, int) error
 	ResizeWindow(context.Context, string, int, int) error
@@ -156,6 +157,9 @@ type JourneyObservation struct {
 	Geometry *deliveryramp.Geometry
 	Provider *deliveryramp.ProviderObservation
 	Route    string
+	// SurfaceObserved is true only when the action read a value from the
+	// rendered application surface. Provider/API echoes must leave it false.
+	SurfaceObserved bool
 }
 
 type JourneyAction func(context.Context, DesktopDriver, JourneyAPIProbe, JourneyInput) (JourneyObservation, error)
@@ -369,7 +373,7 @@ func (helloDesktopFixture) Actions() map[string]JourneyAction {
 				return JourneyObservation{}, fmt.Errorf("semantic API probe is unavailable")
 			}
 			message, err := api.Greet(ctx, name)
-			return JourneyObservation{Observed: message}, err
+			return JourneyObservation{Observed: message, SurfaceObserved: err == nil}, err
 		},
 	}
 }
@@ -444,6 +448,9 @@ func (f communicationFixture) Actions() map[string]JourneyAction {
 }
 
 func operationJourneyAction(operation string) JourneyAction {
+	if operation == "terminal_fixture" {
+		return terminalFixtureJourneyAction
+	}
 	return func(ctx context.Context, _ DesktopDriver, api JourneyAPIProbe, _ JourneyInput) (JourneyObservation, error) {
 		probe, ok := api.(JourneyOperationProbe)
 		if !ok {
@@ -455,6 +462,36 @@ func operationJourneyAction(operation string) JourneyAction {
 		}
 		return JourneyObservation{Observed: result.Observed, Provider: result.Provider, Route: result.Route}, nil
 	}
+}
+
+func terminalFixtureJourneyAction(ctx context.Context, driver DesktopDriver, api JourneyAPIProbe, input JourneyInput) (JourneyObservation, error) {
+	probe, ok := api.(JourneyOperationProbe)
+	if !ok {
+		return JourneyObservation{}, fmt.Errorf("journey operation probe is unavailable for terminal_fixture")
+	}
+	result, err := probe.Probe(ctx, "terminal_fixture")
+	if err != nil {
+		return JourneyObservation{}, err
+	}
+	if err := driver.Type(ctx, input.Display, "printf 'desktop-terminal-fixture\\n'"); err != nil {
+		return JourneyObservation{}, fmt.Errorf("type terminal fixture command: %w", err)
+	}
+	if err := driver.KeyPress(ctx, input.Display, "Return"); err != nil {
+		return JourneyObservation{}, fmt.Errorf("submit terminal fixture command: %w", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		title, titleErr := driver.WindowTitle(ctx, input.Display)
+		if titleErr == nil && strings.Contains(title, "terminal_output=desktop-terminal-fixture") {
+			return JourneyObservation{Observed: result.Observed, Provider: result.Provider, Route: result.Route, SurfaceObserved: true}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return JourneyObservation{}, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	return JourneyObservation{}, fmt.Errorf("terminal fixture output was not observed on the rendered application surface")
 }
 
 type unsupportedPeerFixture struct{}

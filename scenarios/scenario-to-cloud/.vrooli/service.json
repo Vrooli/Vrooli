@@ -120,7 +120,7 @@
   "authentication": {
     "version": 1,
     "profile": "scenario_authenticator",
-    "default_mode": "personal_local",
+    "default_mode": "shared_provider",
     "supported_modes": [
       "personal_local",
       "shared_provider"
@@ -128,7 +128,7 @@
     "human_sign_in": "optional",
     "provider": "scenario-authenticator",
     "resource": "scenario-to-cloud",
-    "scenario_audience": "scenario-authenticator:scenario-to-cloud",
+    "scenario_audience": "scenario-authenticator:default",
     "offline": true,
     "public_routes": [
       "/health",

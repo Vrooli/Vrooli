@@ -13,6 +13,7 @@ commercial delivery tiers in `docs/monetization/strategy/TIERS.md`.
 - [Architecture](concepts/ARCHITECTURE.md) — boundaries and proto-first data flow
 - [Evidence contract](guides/evidence-contract.md) — the reviewable release evidence model
 - [Desktop workflow](workflows/desktop-deployment.md) — scenario-to-desktop release path
+- [Commercial release runbook](workflows/commercial-release.md) — governed desktop publication into LPBS
 - [Tier 2 desktop](tiers/tier-2-desktop.md) — desktop target requirements
 - [General deployment guide](DEPLOYMENT-GUIDE.md) — governance workflow and target map
 - [CLI overview](cli/overview-commands.md) — current command surface

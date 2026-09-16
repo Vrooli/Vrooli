@@ -90,3 +90,17 @@ func TestIsMutationProcedureCoversDeclaredWriteBoundary(t *testing.T) {
 		t.Fatal("read procedure was classified as a mutation")
 	}
 }
+
+func TestRevealProcedureUsesRevealEffect(t *testing.T) {
+	procedure := "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/RevealCredential"
+	effect, classified := ClassifyProcedure(procedure)
+	if !classified {
+		t.Fatalf("reveal procedure has no authorization classification")
+	}
+	if effect != OperationEffectReveal {
+		t.Fatalf("reveal effect = %v, want OperationEffectReveal", effect)
+	}
+	if IsMutationProcedure(procedure) {
+		t.Fatal("reveal must not be classified as a plain mutation")
+	}
+}

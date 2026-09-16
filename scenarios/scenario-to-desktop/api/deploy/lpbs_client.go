@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 // BaseURLResolver abstracts URL resolution for testability.
@@ -320,12 +321,9 @@ func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, art
 	if variantKey == "" || variantKey == "stable" {
 		variantKey = "default"
 	}
-	artifactIDs := make(map[string]int64, len(artifacts))
-	for _, artifact := range artifacts {
-		if artifact.Platform == "" || artifact.ArtifactID <= 0 {
-			return fmt.Errorf("promotion artifact identity is incomplete")
-		}
-		artifactIDs[artifact.Platform] = artifact.ArtifactID
+	artifactIDs, err := projectPromotionArtifacts(artifacts)
+	if err != nil {
+		return err
 	}
 	if len(artifactIDs) == 0 {
 		return fmt.Errorf("promotion requires at least one artifact")
@@ -362,6 +360,30 @@ func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, art
 		return fmt.Errorf("channel promotion receipt does not match release identity")
 	}
 	return nil
+}
+
+// projectPromotionArtifacts maps each uploaded target identifier to the
+// operating-system platform the LPBS catalog keys on. It refuses an unknown
+// target and refuses two architectures colliding on one platform, so a
+// promotion can never silently drop an architecture.
+func projectPromotionArtifacts(artifacts []UploadResult) (map[string]int64, error) {
+	artifactIDs := make(map[string]int64, len(artifacts))
+	resolvedTargets := make(map[string]string, len(artifacts))
+	for _, artifact := range artifacts {
+		if artifact.Platform == "" || artifact.ArtifactID <= 0 {
+			return nil, fmt.Errorf("promotion artifact identity is incomplete")
+		}
+		osPlatform, _, err := targetmodel.ProjectDesktopPlatform(artifact.Platform)
+		if err != nil {
+			return nil, fmt.Errorf("promotion artifact platform %q: %w", artifact.Platform, err)
+		}
+		if prior, exists := resolvedTargets[osPlatform]; exists && prior != artifact.Platform {
+			return nil, fmt.Errorf("promotion maps targets %q and %q to platform %q; one architecture per platform is supported", prior, artifact.Platform, osPlatform)
+		}
+		resolvedTargets[osPlatform] = artifact.Platform
+		artifactIDs[osPlatform] = artifact.ArtifactID
+	}
+	return artifactIDs, nil
 }
 
 func hashArtifact(path string) (string, string, error) {

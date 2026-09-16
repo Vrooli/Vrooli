@@ -25,7 +25,7 @@ func TestManifestGatesUseIndependentSignals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, gate := range manifestGates(tc.input, deliveryramp.ProfileVisual, tc.recording, now, now.Add(time.Second)) {
+			for _, gate := range manifestGates(tc.input, deliveryramp.ProfileVisual, tc.recording, true, now, now.Add(time.Second)) {
 				if want, ok := tc.want[gate.Name]; ok && gate.Disposition != want {
 					t.Fatalf("%s=%s want %s", gate.Name, gate.Disposition, want)
 				}

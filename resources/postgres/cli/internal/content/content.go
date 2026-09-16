@@ -310,8 +310,8 @@ func (h *Handlers) ensureDatabase(instance, dbName, owner string) error {
 	if err := validateIdentifier(owner); err != nil {
 		return err
 	}
-	// We connect to POSTGRES_DB (not the target) to issue the CREATE.
-	adminDB := h.resolveDatabase("")
+	// We connect to a maintenance database (not the target) to issue the CREATE.
+	adminDB := h.resolveMaintenanceDatabase()
 	sql := fmt.Sprintf("CREATE DATABASE %s OWNER %s;", dbName, owner)
 	err := h.runPSQL(instance, adminDB, []string{"-c", sql}, nil)
 	if err == nil {
@@ -429,7 +429,7 @@ func (h *Handlers) List(args []string) error {
 	if fs.NArg() > 0 {
 		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
 	}
-	adminDB := h.resolveDatabase("")
+	adminDB := h.resolveMaintenanceDatabase()
 	// -t = tuples only, -A = unaligned output
 	return h.runPSQL(*instance, adminDB, []string{"-At", "-c", "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"}, nil)
 }
@@ -503,6 +503,22 @@ func (h *Handlers) resolveDatabase(override string) string {
 		return v
 	}
 	return "vrooli"
+}
+
+// resolveMaintenanceDatabase is the database to connect to for work *about*
+// databases — creating one, or reading the catalog — as opposed to work inside
+// one. It must be a database that always exists, so it cannot be POSTGRES_DB:
+// that names an application database, and on a host where it is absent every
+// admin path failed, including the one meant to repair it. `content list`, the
+// scenario setup step `create-database`, and even `create-database vrooli`
+// itself all died with `FATAL: database "vrooli" does not exist`, because
+// creating vrooli required connecting to vrooli first (2026-09-16, minimouse).
+// initdb always creates `postgres`, so it is the safe default.
+func (h *Handlers) resolveMaintenanceDatabase() string {
+	if v := h.GetEnv("POSTGRES_MAINTENANCE_DB"); v != "" {
+		return v
+	}
+	return "postgres"
 }
 
 func (h *Handlers) resolveUser() string {

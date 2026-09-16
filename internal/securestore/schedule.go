@@ -18,7 +18,7 @@ func InstallCopySchedule(executable string, interval time.Duration, enabled bool
 	if !nativeScheduleSupported {
 		status.Enabled = false
 		status.State = "degraded"
-		status.Remediation = "refresh manually with `vrooli credentials store copy scheduled --format json`"
+		status.Remediation = "refresh manually with `vrooli credentials store copy-scheduled --format json`"
 		return status, nil
 	}
 	if err := installNativeCopySchedule(executable, interval, enabled); err != nil {

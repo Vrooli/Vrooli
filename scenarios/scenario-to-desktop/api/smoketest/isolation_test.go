@@ -36,3 +36,10 @@ func TestIsolationObservationAllowsPrivateAppDataUnderUserHome(t *testing.T) {
 		t.Fatalf("private app data should be allowed: %v", err)
 	}
 }
+
+func TestIsolationObservationRefusesNestedResolvedLivePath(t *testing.T) {
+	path := "/tmp/private-runtime/web-console-sessions/tmux/wc.sock"
+	if err := validateIsolationObservations([]deliveryramp.IsolationObservation{{StateRoot: "/tmp/private-runtime", ResolvedPaths: []string{path}}}); err == nil || !strings.Contains(err.Error(), path) {
+		t.Fatalf("expected nested path refusal, got %v", err)
+	}
+}

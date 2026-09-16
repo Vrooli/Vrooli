@@ -1,13 +1,13 @@
 # Requirements Registry: deployment-manager
 
-**Total**: 104 requirements (39 P0, 36 P1, 29 P2)
-**Last Updated**: 2025-11-21 (Generator Phase)
+**Total**: 110 requirements (45 P0, 36 P1, 29 P2)
+**Last Updated**: 2026-09-15 (Evidence governance and adaptive readiness modules)
 
 ---
 
 ## Module Structure
 
-Requirements organized by PRD operational targets into 15 functional modules:
+Requirements organized by PRD operational targets into 16 functional modules:
 
 | Module | Directory | Count | Priority | PRD Section |
 |--------|-----------|-------|----------|-------------|
@@ -21,17 +21,18 @@ Requirements organized by PRD operational targets into 15 functional modules:
 | Post-Deployment Monitoring | `08-post-deployment-monitoring` | 8 | P1 | Health tracking, metrics, alerting, dashboards |
 | Update & Rollback Management | `09-update-rollback` | 6 | P1 | Change detection, zero-downtime updates, auto-rollback |
 | Multi-Tier Deployment Orchestration | `10-multi-tier-orchestration` | 5 | P1 | Multi-tier profiles, parallel orchestration, per-tier status |
-| Agent Integration & Custom Swaps | `11-agent-integration` | 17 | P1 | AI migration proposals, custom swap requests, UX/accessibility |
+| Agent Integration & Custom Swaps | `11-agent-integration` | 4 | P1 | AI migration proposals, custom swap requests, UX/accessibility |
 | Enterprise Compliance & Licensing | `12-enterprise-compliance` | 8 | P2 | License validation, audit logging, approval workflows |
 | CLI Automation & CI/CD | `13-cli-automation` | 4 | P2 | Headless deployment, machine-readable output, exit codes |
-| Advanced Features & Visual Builder | `14-advanced-features` | 14 | P2 | Cost tracking, visual editor, templates, tier recommendations |
+| Advanced Features & Visual Builder | `14-advanced-features` | 30 | P1/P2 | Cost tracking, visual editor, templates, tier recommendations |
 | Evidence-Backed Release Governance | `15-evidence-governance` | 2 | P0 | Shared contract validation and decision-grade desktop evidence |
+| Adaptive Readiness & Client Updates | `16-adaptive-readiness` | 6 | P0 | Immutable readiness reviews, producer evidence, installed-client update receipts |
 
 ---
 
 ## Requirement ID Pattern
 
-- **P0 (Core)**: `DM-P0-001` through `DM-P0-039` — Must ship for viability
+- **P0 (Core)**: `DM-P0-001` through `DM-P0-045` — Must ship for viability
 - **P1 (Enhanced)**: `DM-P1-001` through `DM-P1-036` — Should have post-launch
 - **P2 (Advanced)**: `DM-P2-001` through `DM-P2-029` — Future/expansion ideas
 

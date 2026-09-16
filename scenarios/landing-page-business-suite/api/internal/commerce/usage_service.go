@@ -16,27 +16,42 @@ type UsageService struct {
 	dialect             string
 	logf                func(string, map[string]interface{})
 	insufficientCredits error
+	// serviceAuthConfigured reports whether the service-to-service credential
+	// the request gate actually checks (the shared LPBS service secret) resolves.
+	// It is a composition-owned seam so this package does not read credentials.
+	serviceAuthConfigured func() bool
 }
 
 // NewUsageService creates a new usage service.
 // UsageServiceOptions provides full configurability for testing.
 type UsageServiceOptions struct {
-	DB                  UsageStore
-	LimitsService       LimitsServicer
-	Dialect             string
-	Log                 func(string, map[string]interface{})
-	InsufficientCredits error
+	DB                    UsageStore
+	LimitsService         LimitsServicer
+	Dialect               string
+	Log                   func(string, map[string]interface{})
+	InsufficientCredits   error
+	ServiceAuthConfigured func() bool
 }
 
 // NewUsageServiceWithOptions creates a usage service with explicit configuration.
 func NewUsageServiceWithOptions(opts UsageServiceOptions) *UsageService {
 	return &UsageService{
-		db:                  opts.DB,
-		limitsSvc:           opts.LimitsService,
-		dialect:             opts.Dialect,
-		logf:                opts.Log,
-		insufficientCredits: opts.InsufficientCredits,
+		db:                    opts.DB,
+		limitsSvc:             opts.LimitsService,
+		dialect:               opts.Dialect,
+		logf:                  opts.Log,
+		insufficientCredits:   opts.InsufficientCredits,
+		serviceAuthConfigured: opts.ServiceAuthConfigured,
 	}
+}
+
+// serviceAuthMode projects the configured boolean onto the stable mode string
+// that the service-auth status readers depend on.
+func serviceAuthMode(configured bool) string {
+	if configured {
+		return "enabled"
+	}
+	return "disabled"
 }
 
 func (s *UsageService) log(event string, fields map[string]interface{}) {
@@ -452,10 +467,12 @@ func (s *UsageService) GetAllUsageForPeriod(ctx context.Context, billingPeriod s
 
 // HealthCheck returns the health status of the usage service.
 func (s *UsageService) HealthCheck(ctx context.Context) (*UsageHealthStatus, error) {
+	configured := s.serviceAuthConfigured != nil && s.serviceAuthConfigured()
 	status := &UsageHealthStatus{
-		Healthy:           true,
-		DatabaseConnected: true,
-		ServiceAuthMode:   "disabled",
+		Healthy:               true,
+		DatabaseConnected:     true,
+		ServiceAuthConfigured: configured,
+		ServiceAuthMode:       serviceAuthMode(configured),
 	}
 
 	// Check database connectivity

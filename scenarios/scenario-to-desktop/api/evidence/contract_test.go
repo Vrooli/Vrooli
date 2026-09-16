@@ -7,6 +7,7 @@ import (
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	"scenario-to-desktop-api/captures"
 )
 
 func validManifest(profile deliveryramp.Profile, state deliveryramp.RunState) deliveryramp.Manifest {
@@ -133,5 +134,22 @@ func TestVisualManifestRejectsRequiredFailedWorkflow(t *testing.T) {
 	manifest.Timeline.Workflow = &deliveryramp.WorkflowManifestReference{Provider: "workflow-provider", AssetID: "asset-1", ExecutionID: "execution-1", RunID: "run-1", ArtifactDigest: "sha256:artifact", TargetID: "target-linux-xvfb", CellID: "cell-1", Disposition: "failed"}
 	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "disposition") {
 		t.Fatalf("expected required failed workflow to fail, got %v", err)
+	}
+}
+
+func TestRejectCrossRunReferencesNamesOriginalRun(t *testing.T) {
+	journey := &deliveryramp.JourneyResult{Steps: []deliveryramp.JourneyStep{{BeforeCaptureID: "old-capture"}}}
+	items := []captures.Capture{{ID: "old-capture", SourceSession: "smoke-test:old-run"}}
+	err := rejectCrossRunReferences(journey, items, "new-run")
+	if err == nil || !strings.Contains(err.Error(), `capture "old-capture"`) || !strings.Contains(err.Error(), "old-run") {
+		t.Fatalf("expected named cross-run refusal, got %v", err)
+	}
+}
+
+func TestValidateRecoveryCountRejectsFalseZero(t *testing.T) {
+	journey := &deliveryramp.JourneyResult{Steps: []deliveryramp.JourneyStep{{ObservedState: "13 sessions awaiting recovery from a previous run"}}}
+	err := validateRecoveryCount(journey, []deliveryramp.IsolationObservation{{AdoptedSessionCount: 0}})
+	if err == nil || !strings.Contains(err.Error(), "adopted_session_count=0") {
+		t.Fatalf("expected recovery count refusal, got %v", err)
 	}
 }

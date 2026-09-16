@@ -112,6 +112,29 @@
           "notes": "The validated usage/improve skill set declares five bounded governed programs, owned measures, failure classes, and attributable learning capture."
         }
       ]
+    },
+    {
+      "id": "DM-P0-045",
+      "title": "Installed-client update receipt",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-045",
+      "description": "When a published desktop release supersedes a deployed predecessor, deployment-manager shall require an attributable owner receipt proving the installed client detected, verified, and relaunched the exact successor bytes before the release is treated as update-qualified.",
+      "tags": [
+        "evidence",
+        "desktop",
+        "update",
+        "receipt",
+        "release-gate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/releases/identity_storage_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Client update receipts are durably stored and projected into target-bound health, and the desktop updater refuses a successor without an immutable digest. Live hosted-feed delivery and an installed-client relaunch receipt remain external qualification work."
+        }
+      ]
     }
   ]
 }

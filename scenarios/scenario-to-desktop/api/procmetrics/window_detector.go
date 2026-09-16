@@ -159,6 +159,20 @@ func (d *XdotoolDetector) WindowGeometry(ctx context.Context, pid int, display s
 	return &WindowGeometry{X: x, Y: y, Width: w, Height: h}, nil
 }
 
+// WindowTitle reads the title of the primary visible application window. It is
+// a native desktop surface observation, not an API or renderer-side echo.
+func (d *XdotoolDetector) WindowTitle(ctx context.Context, pid int, display string) (string, error) {
+	id, err := d.primaryWindowID(ctx, pid, display)
+	if err != nil {
+		return "", err
+	}
+	stdout, err := d.shell(ctx, []string{fmt.Sprintf("DISPLAY=%s", display)}, "xdotool", "getwindowname", id)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(stdout)), nil
+}
+
 // LargestVisibleWindow returns the geometry of the largest visible window on the display.
 // Returns nil if no visible window exists or xdotool is not available.
 func (d *XdotoolDetector) LargestVisibleWindow(ctx context.Context, pid int, display string) (*WindowGeometry, error) {

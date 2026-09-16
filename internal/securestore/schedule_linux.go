@@ -41,7 +41,7 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	if err := os.MkdirAll(unitDir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create credential-store copy systemd directory: %w", err)
 	}
-	service := "[Unit]\nDescription=Vrooli encrypted credential-store copy\n\n[Service]\nType=oneshot\nExecStart=" + strconv.Quote(executable) + " credentials store copy scheduled --format json\n"
+	service := "[Unit]\nDescription=Vrooli encrypted credential-store copy\n\n[Service]\nType=oneshot\nExecStart=" + strconv.Quote(executable) + " credentials store copy-scheduled --format json\n"
 	timer := fmt.Sprintf("[Unit]\nDescription=Refresh Vrooli encrypted credential-store copy\n\n[Timer]\nOnBootSec=5m\nOnUnitActiveSec=%s\nPersistent=true\nUnit=vrooli-credential-store-copy.service\n\n[Install]\nWantedBy=timers.target\n", interval)
 	if err := os.WriteFile(servicePath, []byte(service), tuning.PermSecret); err != nil {
 		return fmt.Errorf("write credential-store copy service: %w", err)

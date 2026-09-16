@@ -30,7 +30,7 @@ func TestRecommendedSignalStudioSeedDecodesAndValidates(t *testing.T) {
 		enabled     bool
 		visibility  string
 		publication string
-	}{true, "public", "draft"}, apps["web-console"])
+	}{true, "public", "published"}, apps["web-console"])
 	require.Equal(t, struct {
 		enabled     bool
 		visibility  string

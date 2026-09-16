@@ -288,6 +288,14 @@
     },
     {
       "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/RevealCredential",
+      "surfaces": [
+        "ui"
+      ],
+      "internal_reason": "The UI reveal is the authorized, confirmed, audited value view; the CLI keeps its local-terminal reveal instead of calling this RPC"
+    },
+    {
+      "method": "POST",
       "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements",
       "surfaces": [
         "cli",

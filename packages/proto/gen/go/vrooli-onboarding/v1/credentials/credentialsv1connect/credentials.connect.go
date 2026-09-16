@@ -42,6 +42,9 @@ const (
 	// CredentialsServiceDiagnoseCredentialsProcedure is the fully-qualified name of the
 	// CredentialsService's DiagnoseCredentials RPC.
 	CredentialsServiceDiagnoseCredentialsProcedure = "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials"
+	// CredentialsServiceRevealCredentialProcedure is the fully-qualified name of the
+	// CredentialsService's RevealCredential RPC.
+	CredentialsServiceRevealCredentialProcedure = "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/RevealCredential"
 )
 
 // CredentialsServiceClient is a client for the
@@ -50,6 +53,11 @@ type CredentialsServiceClient interface {
 	ListCredentials(context.Context, *connect.Request[credentials.ListCredentialsRequest]) (*connect.Response[credentials.ListCredentialsResponse], error)
 	ProvisionCredential(context.Context, *connect.Request[credentials.ProvisionCredentialRequest]) (*connect.Response[credentials.ProvisionCredentialResponse], error)
 	DiagnoseCredentials(context.Context, *connect.Request[credentials.DiagnoseCredentialsRequest]) (*connect.Response[credentials.DiagnoseCredentialsResponse], error)
+	// RevealCredential returns exactly one credential value to a verified human
+	// operator holding the onboarding write capability, only when the request
+	// explicitly confirms the reveal. Every call is audited; the value is never
+	// logged or persisted.
+	RevealCredential(context.Context, *connect.Request[credentials.RevealCredentialRequest]) (*connect.Response[credentials.RevealCredentialResponse], error)
 }
 
 // NewCredentialsServiceClient constructs a client for the
@@ -82,6 +90,12 @@ func NewCredentialsServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(credentialsServiceMethods.ByName("DiagnoseCredentials")),
 			connect.WithClientOptions(opts...),
 		),
+		revealCredential: connect.NewClient[credentials.RevealCredentialRequest, credentials.RevealCredentialResponse](
+			httpClient,
+			baseURL+CredentialsServiceRevealCredentialProcedure,
+			connect.WithSchema(credentialsServiceMethods.ByName("RevealCredential")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -90,6 +104,7 @@ type credentialsServiceClient struct {
 	listCredentials     *connect.Client[credentials.ListCredentialsRequest, credentials.ListCredentialsResponse]
 	provisionCredential *connect.Client[credentials.ProvisionCredentialRequest, credentials.ProvisionCredentialResponse]
 	diagnoseCredentials *connect.Client[credentials.DiagnoseCredentialsRequest, credentials.DiagnoseCredentialsResponse]
+	revealCredential    *connect.Client[credentials.RevealCredentialRequest, credentials.RevealCredentialResponse]
 }
 
 // ListCredentials calls vrooli.vrooli_onboarding.v1.credentials.CredentialsService.ListCredentials.
@@ -109,12 +124,23 @@ func (c *credentialsServiceClient) DiagnoseCredentials(ctx context.Context, req 
 	return c.diagnoseCredentials.CallUnary(ctx, req)
 }
 
+// RevealCredential calls
+// vrooli.vrooli_onboarding.v1.credentials.CredentialsService.RevealCredential.
+func (c *credentialsServiceClient) RevealCredential(ctx context.Context, req *connect.Request[credentials.RevealCredentialRequest]) (*connect.Response[credentials.RevealCredentialResponse], error) {
+	return c.revealCredential.CallUnary(ctx, req)
+}
+
 // CredentialsServiceHandler is an implementation of the
 // vrooli.vrooli_onboarding.v1.credentials.CredentialsService service.
 type CredentialsServiceHandler interface {
 	ListCredentials(context.Context, *connect.Request[credentials.ListCredentialsRequest]) (*connect.Response[credentials.ListCredentialsResponse], error)
 	ProvisionCredential(context.Context, *connect.Request[credentials.ProvisionCredentialRequest]) (*connect.Response[credentials.ProvisionCredentialResponse], error)
 	DiagnoseCredentials(context.Context, *connect.Request[credentials.DiagnoseCredentialsRequest]) (*connect.Response[credentials.DiagnoseCredentialsResponse], error)
+	// RevealCredential returns exactly one credential value to a verified human
+	// operator holding the onboarding write capability, only when the request
+	// explicitly confirms the reveal. Every call is audited; the value is never
+	// logged or persisted.
+	RevealCredential(context.Context, *connect.Request[credentials.RevealCredentialRequest]) (*connect.Response[credentials.RevealCredentialResponse], error)
 }
 
 // NewCredentialsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -142,6 +168,12 @@ func NewCredentialsServiceHandler(svc CredentialsServiceHandler, opts ...connect
 		connect.WithSchema(credentialsServiceMethods.ByName("DiagnoseCredentials")),
 		connect.WithHandlerOptions(opts...),
 	)
+	credentialsServiceRevealCredentialHandler := connect.NewUnaryHandler(
+		CredentialsServiceRevealCredentialProcedure,
+		svc.RevealCredential,
+		connect.WithSchema(credentialsServiceMethods.ByName("RevealCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CredentialsServiceListCredentialsProcedure:
@@ -150,6 +182,8 @@ func NewCredentialsServiceHandler(svc CredentialsServiceHandler, opts ...connect
 			credentialsServiceProvisionCredentialHandler.ServeHTTP(w, r)
 		case CredentialsServiceDiagnoseCredentialsProcedure:
 			credentialsServiceDiagnoseCredentialsHandler.ServeHTTP(w, r)
+		case CredentialsServiceRevealCredentialProcedure:
+			credentialsServiceRevealCredentialHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -169,4 +203,8 @@ func (UnimplementedCredentialsServiceHandler) ProvisionCredential(context.Contex
 
 func (UnimplementedCredentialsServiceHandler) DiagnoseCredentials(context.Context, *connect.Request[credentials.DiagnoseCredentialsRequest]) (*connect.Response[credentials.DiagnoseCredentialsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.credentials.CredentialsService.DiagnoseCredentials is not implemented"))
+}
+
+func (UnimplementedCredentialsServiceHandler) RevealCredential(context.Context, *connect.Request[credentials.RevealCredentialRequest]) (*connect.Response[credentials.RevealCredentialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.credentials.CredentialsService.RevealCredential is not implemented"))
 }

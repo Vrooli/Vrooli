@@ -143,8 +143,10 @@ checked against the local registry and descriptors.
 1. **A (Recommended):** Use the registered skills and three programs; execute the
    filed measurement/binding work through the owning implementation workflows.
    Verify each new sensor with attributable before/after evidence. **B:** Retain
-   manual UI/CLI operation while those obligations remain open; preserve the same
-   evidence boundaries and do not claim automated matrix orchestration.
+   manual UI/CLI operation while this plan's CLI obligations remain open. Once
+   the provider-journey CLI and pipeline path are delivered, operators may use
+   that governed path; it still does not turn a passing cell into a claim that
+   every capability, offline mode, signing, or release authority is certified.
 
 Initial verification: contract JSON schema checks, clean runtime name-resolution
 explanations, all eight declared fixtures in fresh test-provenance sessions, and

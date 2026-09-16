@@ -16,7 +16,7 @@ import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboar
 const api = vi.hoisted(() => ({
   fetchHostRequirements: vi.fn(),
 }));
-const credentialsApi = vi.hoisted(() => ({ fetchCredentials: vi.fn(), provisionCredential: vi.fn() }));
+const credentialsApi = vi.hoisted(() => ({ fetchCredentials: vi.fn(), provisionCredential: vi.fn(), revealCredential: vi.fn() }));
 const capabilitiesApi = vi.hoisted(() => ({
   fetchCapabilities: vi.fn(),
   previewCapability: vi.fn(),
@@ -98,6 +98,7 @@ beforeEach(() => {
     standalone: [{ name: "qdrant", category: "search", enabled: false, installed: true }], count: 3,
   });
   credentialsApi.provisionCredential.mockResolvedValue({ status: "provisioned" });
+  credentialsApi.revealCredential.mockResolvedValue("revealed-secret-value");
   credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "openrouter", logical_id: "openrouter", field: "api_key", label: "OpenRouter key", required: true, status: "unconfigured" }], count: 1 });
   applyApi.startApply.mockResolvedValue({ run: { runId: "apply-test", status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [{ name: "postgres", state: ApplyStepState.APPLIED, legacyOutcome: "applied" }] } });
   applyApi.reviewApply.mockResolvedValue({ target: "local", planId: "plan-test", planDigest: "digest-test", revision: "revision-test", consentReceiptId: "receipt-test" });
@@ -213,6 +214,24 @@ describe("V2 onboarding wizard steps", () => {
     expect(await screen.findByText("Host requirements")).toBeInTheDocument();
     expect(screen.getByText("Integrations")).toBeInTheDocument();
     expect(screen.getByText("alpha/github-oauth")).toBeInTheDocument();
+  });
+
+  it("reveals a stored credential only on explicit action and hides it again", async () => {
+    credentialsApi.fetchCredentials.mockResolvedValueOnce({
+      credentials: [{ resource: "landing-page-business-suite", logical_id: "vrooli/landing-page-business-suite", field: "admin-default-password", label: "Seeded admin password", required: true, provisioning: "operator", status: "configured" }],
+      count: 1,
+    });
+    renderWithProviders(<StepCredentials />);
+
+    const revealButton = await screen.findByTestId("credential-reveal");
+    expect(screen.queryByTestId("credential-revealed-value")).toBeNull();
+
+    fireEvent.click(revealButton);
+    await waitFor(() => expect(credentialsApi.revealCredential).toHaveBeenCalledWith({ logical_id: "vrooli/landing-page-business-suite", field: "admin-default-password" }, "local"));
+    expect(await screen.findByTestId("credential-revealed-value")).toHaveValue("revealed-secret-value");
+
+    fireEvent.click(revealButton);
+    await waitFor(() => expect(screen.queryByTestId("credential-revealed-value")).toBeNull());
   });
 
   it("surfaces provider failures", async () => {

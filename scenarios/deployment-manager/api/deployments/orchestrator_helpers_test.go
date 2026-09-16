@@ -46,6 +46,34 @@ func TestResolveBuildAndInstallerPlatforms(t *testing.T) {
 	}
 }
 
+func TestValidateTargetPlatformProjection(t *testing.T) {
+	tests := []struct {
+		name      string
+		platforms []string
+		wantErr   string
+	}{
+		{name: "empty is allowed", platforms: nil},
+		{name: "one architecture per platform", platforms: []string{"linux-x64", "darwin-arm64", "win-x64"}},
+		{name: "duplicate platform names are the same target", platforms: []string{"linux-x64", "linux-x64"}},
+		{name: "two mac architectures collide", platforms: []string{"darwin-x64", "darwin-arm64"}, wantErr: "one architecture per platform"},
+		{name: "unknown target is refused", platforms: []string{"freebsd-x64"}, wantErr: "unsupported desktop OS"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateTargetPlatformProjection(tc.platforms)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateTargetPlatformProjection(%v) error: %v", tc.platforms, err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("validateTargetPlatformProjection(%v) = %v, want containing %q", tc.platforms, err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestAssetMetadataAndUIExpansion(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "ui", "dist", "assets"), 0o755); err != nil {

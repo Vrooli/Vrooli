@@ -14,6 +14,31 @@ interface State {
   key: string; config: LandingConfigResponse | null; loading: boolean;
   error: string | null; notFound: boolean; updated: number | null;
 }
+const presentationRetryDelaysMs = [100, 300];
+
+async function loadPublicPresentation(
+  variant: string | undefined,
+  visitorId: string | undefined,
+  options: Parameters<typeof getLandingConfig>[2],
+) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= presentationRetryDelaysMs.length; attempt += 1) {
+    try {
+      return await getLandingConfig(variant, visitorId, options);
+    } catch (error) {
+      lastError = error;
+      if (attempt === presentationRetryDelaysMs.length || options.signal?.aborted) throw error;
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(resolve, presentationRetryDelaysMs[attempt]);
+        options.signal?.addEventListener('abort', () => {
+          window.clearTimeout(timer);
+          reject(options.signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    }
+  }
+  throw lastError;
+}
 /** Globally composed for legacy consumers, but public assignment is route-scoped. */
 export function LandingVariantProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -48,12 +73,17 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
     try {
       await waitForLandingWorkflowLoadingState();
       if (!current()) return;
-      const config = await getLandingConfig(variant || undefined, visitor.current, { route, locale, signal: controller.signal });
+      const config = await loadPublicPresentation(variant || undefined, visitor.current, { route, locale, signal: controller.signal });
       if (!current()) return;
       if (!config.presentation.diagnostics?.resolvedVariant || config.presentation.diagnostics.preview) throw new Error('Invalid public configuration');
       setState({ key, config, loading: false, error: null, notFound: false, updated: Date.now() });
     } catch (error) {
       if (!current()) return;
+      // Keep the public surface intentionally generic, but preserve the
+      // concrete failure in browser diagnostics. A successful HTTP response
+      // can still fail during protobuf/Zod decoding or presentation binding;
+      // without this signal production probes only see a misleading 200.
+      console.error('[landing-page-business-suite] public presentation load failed', error);
       const code = ConnectError.from(error).code;
       setState({ key, config: null, loading: false, error: presentationSystemUi.unavailable,
         notFound: code === Code.NotFound || (detail && code === Code.PermissionDenied), updated: Date.now() });

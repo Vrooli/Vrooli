@@ -16,6 +16,10 @@ type Service struct {
 	ListFn      func(context.Context) ([]readiness.Credential, error)
 	ProvisionFn func(context.Context, string, string, string) (credentialclient.ProvisionResponse, error)
 	DiagnoseFn  func(context.Context) (credentialclient.DoctorResponse, error)
+	// RevealFn returns exactly one credential value. It is the only function in
+	// this package that may return a value, and its caller is responsible for
+	// authorization, explicit confirmation, and audit.
+	RevealFn func(context.Context, string, string) (string, error)
 }
 
 type Credential = readiness.Credential
@@ -47,4 +51,21 @@ func (s Service) Diagnose(ctx context.Context) (credentialclient.DoctorResponse,
 		return credentialclient.DoctorResponse{}, errors.New("credential diagnosis is unavailable")
 	}
 	return s.DiagnoseFn(ctx)
+}
+
+// Reveal returns one credential value. The transport handler enforces explicit
+// confirmation and authorization before calling this method.
+func (s Service) Reveal(ctx context.Context, logicalID, field string) (string, error) {
+	logicalID = strings.TrimSpace(logicalID)
+	field = strings.TrimSpace(field)
+	if field == "" {
+		field = "value"
+	}
+	if logicalID == "" {
+		return "", errors.New("logical_id is required")
+	}
+	if s.RevealFn == nil {
+		return "", errors.New("credential reveal is unavailable")
+	}
+	return s.RevealFn(ctx, logicalID, field)
 }

@@ -97,7 +97,8 @@ func (app *Service) StoreCopy(ctx context.Context, out io.Writer, opts StoreCopy
 	if sink == "" {
 		return fmt.Errorf("credentials store copy requires --sink <directory>, --configured, or VROOLI_CREDENTIAL_COPY_SINK")
 	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, formatOK := normalizeOutputFormat(format)
+	if !formatOK {
 		return fmt.Errorf("credentials store copy format must be text or json")
 	}
 	status, err := securestore.DescribeStore()
@@ -231,7 +232,8 @@ func (app *Service) StoreCopyConfigure(ctx context.Context, out io.Writer, opts 
 	if strings.TrimSpace(sink) == "" {
 		return fmt.Errorf("credentials store copy configure requires --sink <directory|s3://bucket/prefix> when enabling")
 	}
-	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
+	format, formatOK := normalizeOutputFormat(format)
+	if !formatOK {
 		return fmt.Errorf("credentials store copy configure format must be text or json")
 	}
 	config := securestore.CopyConfig{

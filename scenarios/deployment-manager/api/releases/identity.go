@@ -207,8 +207,21 @@ type DestinationRevision struct {
 	ExpectedChannelRevision string `json:"expected_channel_revision"`
 }
 
+// canonicalDestinationKind folds documented destination aliases onto the
+// canonical dispatch value. The runbook and early registrations use
+// "lpbs-channel" while the release path dispatches on "lpbs"; storing the
+// alias verbatim would misroute observe and recovery to the cloud owner.
+func canonicalDestinationKind(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "lpbs", "lpbs-channel", "lpbs_channel":
+		return "lpbs"
+	default:
+		return strings.TrimSpace(value)
+	}
+}
+
 func (d DestinationRevision) Canonical() (DestinationRevision, error) {
-	d.Kind = strings.TrimSpace(d.Kind)
+	d.Kind = canonicalDestinationKind(d.Kind)
 	d.DestinationID = strings.TrimSpace(d.DestinationID)
 	d.ConfigurationDigest = strings.TrimSpace(d.ConfigurationDigest)
 	d.Channel = strings.TrimSpace(d.Channel)

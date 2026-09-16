@@ -28,6 +28,13 @@ No suppression, waiver, or lowered threshold is used for these findings.
 - Measured: 2026-09-07. No new W1–W3 gate was run below this contract gap. Source inspection and historical receipts below are diagnostic evidence, not gate passes.
 - Visual assessment and proposed acceptance matrix: Commercial release readiness (preserved HTML).
 
+Contract reconciliation added after this review: OT-P0-045 now requires an
+attributable installed-client update receipt before a superseding desktop
+release is treated as update-qualified (`requirements/16-adaptive-readiness/module.json`,
+`DM-P0-045`). This raises the update/upgrade acceptance into the P0 contract.
+The receipt itself still requires hosted publication and native relaunch
+fixtures, so the gap register above remains the authority on what is earned.
+
 ### Source findings requiring focused reproduction
 
 These findings describe the inspected working tree; no live publication or security exploit was attempted.

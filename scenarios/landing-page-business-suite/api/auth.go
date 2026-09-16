@@ -88,6 +88,15 @@ func resolveMagicLinkBaseURL() string {
 	return strings.TrimRight(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"), "/")
 }
 
+// adminPasswordConfigured reports whether the operator supplied the admin
+// password credential, as opposed to the ephemeral development fallback. Only
+// an operator-supplied value is authoritative enough to reconcile an existing
+// admin row on startup.
+func adminPasswordConfigured() bool {
+	value, err := resolveAuthorityCredential("ADMIN_DEFAULT_PASSWORD")
+	return err == nil && strings.TrimSpace(value) != ""
+}
+
 // getAdminDefaults returns an explicitly configured admin credential. Development
 // uses an ephemeral password so a committed default can never authenticate a user.
 func getAdminDefaults() (email string, passwordHash string, err error) {

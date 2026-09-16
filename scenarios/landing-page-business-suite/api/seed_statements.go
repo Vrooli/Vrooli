@@ -4,6 +4,12 @@ const (
 	seedDeleteDuplicateAdminSQL = `DELETE FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`
 	seedAdminSQL                = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
 		 ON CONFLICT (id) DO NOTHING`
+	// seedAdminUpsertSQL is used only when the operator supplied the admin
+	// password credential. The declared credential is authoritative, so a
+	// rotated password takes effect on the next start instead of remaining
+	// pinned to the hash captured at first seed.
+	seedAdminUpsertSQL = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
+		 ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, password_hash = EXCLUDED.password_hash`
 	seedAdminSequenceSQL   = `SELECT setval(pg_get_serial_sequence('admin_users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM admin_users), true)`
 	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, dashboard_url, updated_at)
 		VALUES (1, NULL, NOW())

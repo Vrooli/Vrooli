@@ -108,12 +108,13 @@ type IsolationObservationSource interface {
 }
 
 type IsolationObservation struct {
-	ServiceID           string `json:"service_id"`
-	StateRoot           string `json:"state_root,omitempty"`
-	SocketPath          string `json:"socket_path,omitempty"`
-	DatabasePath        string `json:"database_path,omitempty"`
-	AdoptedSessionCount int    `json:"adopted_session_count"`
-	Source              string `json:"source,omitempty"`
+	ServiceID           string   `json:"service_id"`
+	StateRoot           string   `json:"state_root,omitempty"`
+	SocketPath          string   `json:"socket_path,omitempty"`
+	DatabasePath        string   `json:"database_path,omitempty"`
+	AdoptedSessionCount int      `json:"adopted_session_count"`
+	Source              string   `json:"source,omitempty"`
+	ResolvedPaths       []string `json:"resolved_paths,omitempty"`
 }
 
 // ProviderObservationSource is optional so older/test runtimes can keep the

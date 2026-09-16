@@ -84,6 +84,26 @@ func TestLoopbackJourneyAPIRejectsCommunicationIdentityMismatch(t *testing.T) {
 	}
 }
 
+func TestLoopbackJourneyAPITerminalFixtureChecksIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "unidentified", body: `{"observed":"terminal_output=desktop-terminal-fixture"}`, want: "probe_app_unidentified"},
+		{name: "mismatch", body: `{"observed":"terminal_output=desktop-terminal-fixture","app_key":"other-app"}`, want: "probe_app_mismatch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(tc.body)) }))
+			defer server.Close()
+			api := loopbackJourneyAPI{target: JourneyTarget{APIURL: server.URL}, expectedAppKey: "web-console"}
+			if _, err := api.Probe(context.Background(), "terminal_fixture"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %s", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestResolveBundledTargetReadsPrivateRuntimeEndpoints(t *testing.T) {
 	id := "bundled-target-test"
 	path := bundledTargetPath(id)

@@ -245,6 +245,9 @@ func VerifyUpdate(deps UpdateDependencies, assets UpdateAssetLookup, artifacts U
 			"actual_version":   artifact.ReleaseVersion, "actual_sha512": artifact.SHA512,
 			"sha512_match": metadataSHA512Match,
 		}
+		if architecture, _ := artifact.Metadata["architecture"].(string); strings.TrimSpace(architecture) != "" {
+			resp["architecture"] = strings.TrimSpace(architecture)
+		}
 		if r.URL.Query().Get("deep") == "true" {
 			artifactAccessible := artifacts.HeadArtifact(r.Context(), bundleKey, *artifact) == nil
 			resp["artifact_accessible"] = artifactAccessible

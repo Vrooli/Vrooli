@@ -98,11 +98,12 @@ type TimelineSummary struct {
 
 // IsolationObservation records what a bundled child resolved at readiness.
 type IsolationObservation struct {
-	StateRoot           string `json:"state_root,omitempty"`
-	SocketPath          string `json:"socket_path,omitempty"`
-	DatabasePath        string `json:"database_path,omitempty"`
-	AdoptedSessionCount int    `json:"adopted_session_count"`
-	Source              string `json:"source,omitempty"`
+	StateRoot           string   `json:"state_root,omitempty"`
+	SocketPath          string   `json:"socket_path,omitempty"`
+	DatabasePath        string   `json:"database_path,omitempty"`
+	AdoptedSessionCount int      `json:"adopted_session_count"`
+	Source              string   `json:"source,omitempty"`
+	ResolvedPaths       []string `json:"resolved_paths,omitempty"`
 }
 
 type WorkflowManifestArtifact struct {

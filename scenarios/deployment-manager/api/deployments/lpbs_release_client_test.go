@@ -281,3 +281,40 @@ func TestNewHTTPLPBSReleaseClientWarnsWhenAuthoritySecretUnavailable(t *testing.
 		t.Fatal("missing warning for unavailable credential authority")
 	}
 }
+
+func TestLazyLPBSReleaseClientRetriesResolutionOnLaterUse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ready": true,
+			"gates": []map[string]any{{"name": "download_storage", "ready": true}},
+		})
+	}))
+	defer server.Close()
+
+	attempts := 0
+	client := NewLazyLPBSReleaseClient(LPBSClientConfig{
+		ResolveBaseURL: func(context.Context) (string, error) {
+			attempts++
+			if attempts == 1 {
+				return "", errors.New("scenario_not_running")
+			}
+			return server.URL, nil
+		},
+		ResolveServiceSecret: func() (string, error) { return "secret", nil },
+	})
+
+	if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "web-console"}); err == nil {
+		t.Fatal("expected the first resolution to fail while LPBS was not running")
+	}
+	result, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "web-console"})
+	if err != nil {
+		t.Fatalf("second call returned error: %v", err)
+	}
+	if result == nil || !result.Ready {
+		t.Fatalf("result = %+v, want a ready result after retry", result)
+	}
+	if attempts != 2 {
+		t.Fatalf("resolve attempts = %d, want 2 (resolution retried)", attempts)
+	}
+}

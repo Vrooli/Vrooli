@@ -43,7 +43,7 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	escape := func(value string) string {
 		return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&apos;").Replace(value)
 	}
-	content := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>%s</string>\n  <key>ProgramArguments</key><array><string>%s</string><string>credentials</string><string>store</string><string>copy</string><string>scheduled</string><string>--format</string><string>json</string></array>\n  <key>RunAtLoad</key><true/>\n  <key>StartInterval</key><integer>%d</integer>\n</dict></plist>\n", credentialCopyLaunchLabel, escape(executable), seconds)
+	content := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>%s</string>\n  <key>ProgramArguments</key><array><string>%s</string><string>credentials</string><string>store</string><string>copy-scheduled</string><string>--format</string><string>json</string></array>\n  <key>RunAtLoad</key><true/>\n  <key>StartInterval</key><integer>%d</integer>\n</dict></plist>\n", credentialCopyLaunchLabel, escape(executable), seconds)
 	if err := os.WriteFile(path, []byte(content), tuning.PermSecret); err != nil {
 		return fmt.Errorf("write credential-store copy launch agent: %w", err)
 	}

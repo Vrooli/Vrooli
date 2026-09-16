@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,17 @@ func seedDefaultData(db StartupStore) error {
 	if _, err := db.Exec(seedDeleteDuplicateAdminSQL, adminEmail, seededAdminID); err != nil {
 		return fmt.Errorf("failed to cleanup admin duplicates: %w", err)
 	}
-	if _, err := db.Exec(seedAdminSQL, seededAdminID, adminEmail, adminPasswordHash); err != nil {
+	// The seeded admin is bootstrap state: an administrator who changes their
+	// account through the profile surface owns it, and a reseed must never
+	// revert that change. So the operator-supplied password credential is
+	// re-applied only while the stored account still holds the bootstrap email.
+	// That lets an operator rotate the declared credential to recover a lost
+	// password without clobbering a self-managed account.
+	adminSeedSQL := seedAdminSQL
+	if adminPasswordConfigured() && seededAdminHoldsBootstrapEmail(db, adminEmail) {
+		adminSeedSQL = seedAdminUpsertSQL
+	}
+	if _, err := db.Exec(adminSeedSQL, seededAdminID, adminEmail, adminPasswordHash); err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)
 	}
 	if _, err := db.Exec(seedAdminSequenceSQL); err != nil {
@@ -80,6 +91,19 @@ func seedDefaultData(db StartupStore) error {
 		return err
 	}
 	return seedTierLimitsDefaults(db)
+}
+
+// seededAdminHoldsBootstrapEmail reports whether the seeded administrator still
+// carries the bootstrap email (or does not exist yet). A different email means
+// the account is operator-managed and must not be reconciled.
+func seededAdminHoldsBootstrapEmail(db StartupStore, bootstrapEmail string) bool {
+	var storedEmail string
+	if err := db.QueryRow(`SELECT email FROM admin_users WHERE id = $1`, seededAdminID).Scan(&storedEmail); err != nil {
+		// No row yet (first start) uses the insert path; any other read failure
+		// falls back to the non-destructive insert.
+		return errors.Is(err, sql.ErrNoRows)
+	}
+	return strings.EqualFold(strings.TrimSpace(storedEmail), strings.TrimSpace(bootstrapEmail))
 }
 
 func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {

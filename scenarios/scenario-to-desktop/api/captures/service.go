@@ -91,6 +91,7 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 		return nil, fmt.Errorf("stat capture file: %w", err)
 	}
 
+	capturedAt := time.Now().UTC()
 	capture := Capture{
 		ID:            id,
 		ScenarioName:  scenarioName,
@@ -102,7 +103,8 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 		DurationMs:    durationMs,
 		Checksum:      digest,
 		SourceSession: sourceSession,
-		CreatedAt:     time.Now(),
+		CreatedAt:     capturedAt,
+		CapturedAt:    capturedAt,
 	}
 
 	if err := s.store.Add(capture); err != nil {

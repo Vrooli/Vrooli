@@ -23,7 +23,7 @@
       "name": "Aquila",
       "enabled": true,
       "visibility": "public",
-      "publication": "draft",
+      "publication": "published",
       "page_id": "aquila-signal",
       "tagline": "Bring your agents into focus.",
       "description": "Organize your agent sessions. Talk, listen, and catch up with AI summaries. Open the plans, previews, and evidence they create.",
@@ -35,7 +35,9 @@
             "Group durable agent sessions so project context stays easy to return to."
           ],
           "status": "preview",
-          "evidence_refs": ["signal-fixture-sessions"],
+          "evidence_refs": [
+            "signal-fixture-sessions"
+          ],
           "status_label": "Design preview"
         },
         {
@@ -45,7 +47,9 @@
             "Use local speech options and configured AI summaries when the provider is available."
           ],
           "status": "preview",
-          "evidence_refs": ["signal-fixture-voice"],
+          "evidence_refs": [
+            "signal-fixture-voice"
+          ],
           "status_label": "Design preview"
         },
         {
@@ -55,7 +59,9 @@
             "Open plans, pages, previews, and evidence beside the sessions that created them."
           ],
           "status": "preview",
-          "evidence_refs": ["signal-fixture-artifacts"],
+          "evidence_refs": [
+            "signal-fixture-artifacts"
+          ],
           "status_label": "Design preview"
         },
         {
@@ -65,7 +71,9 @@
             "Connect to remote machines from your Aquila workspace."
           ],
           "status": "coming-soon",
-          "evidence_refs": ["signal-roadmap-copy"],
+          "evidence_refs": [
+            "signal-roadmap-copy"
+          ],
           "status_label": "COMING SOON"
         },
         {
@@ -75,7 +83,9 @@
             "Bring Android device control into the same place as your agent work."
           ],
           "status": "coming-soon",
-          "evidence_refs": ["signal-roadmap-copy"],
+          "evidence_refs": [
+            "signal-roadmap-copy"
+          ],
           "status_label": "COMING SOON"
         },
         {
@@ -85,7 +95,9 @@
             "Extend the workspace to controlling your iPhone, too."
           ],
           "status": "coming-soon",
-          "evidence_refs": ["signal-roadmap-copy"],
+          "evidence_refs": [
+            "signal-roadmap-copy"
+          ],
           "status_label": "COMING SOON"
         }
       ]
@@ -1211,8 +1223,8 @@
         "fixture_display": {
           "backdrop-studies": {
             "mark": "landscape"
-        }
-      },
+          }
+        },
         "blocks": {
           "details": {
             "eyebrow": "VISUAL SURFACES"

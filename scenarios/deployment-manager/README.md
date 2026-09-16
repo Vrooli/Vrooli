@@ -41,7 +41,7 @@ authorization through the release service.
 
 ## Key Features (See PRD.md for full operational targets)
 
-**Core Deployment Lifecycle (P0 - 39 operational targets)**:
+**Core Deployment Lifecycle (P0 - 45 operational targets)**:
 - **Dependency Analysis**: Recursive dep fetching, circular dependency detection, resource/scenario aggregation
 - **Fitness Scoring**: 0-100 scores for each of 5 deployment tiers with breakdown (portability, resources, licensing, platform support)
 - **Dependency Swapping**: Suggest alternatives for blockers (postgres → sqlite), impact analysis, non-destructive profile-only swaps
@@ -167,8 +167,8 @@ See [docs/README.md](docs/README.md) for full tier documentation.
 - **[Workflows](docs/workflows/desktop-deployment.md)**: step-by-step deployment guide
 - **[Guides](docs/guides/evidence-contract.md)**: technical deep-dives and release evidence
 - **[Tier reference](docs/tiers/tier-2-desktop.md)**: desktop target requirements
-- **PRD.md**: Full operational targets (104 OTs across P0/P1/P2)
-- **requirements/**: Requirements registry (index.json + 15 modules mapping OTs to testable requirements)
+- **PRD.md**: Full operational targets (110 OTs across P0/P1/P2)
+- **requirements/**: Requirements registry (index.json + 16 modules mapping OTs to testable requirements)
 - **docs/RESEARCH.md**: Uniqueness check, integration points, external references
 - **docs/PROGRESS.md**: Implementation progress log
 - **[docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md)**: Known issues, blockers, deferred decisions

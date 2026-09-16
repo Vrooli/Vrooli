@@ -59,18 +59,20 @@ class EvidenceTarget(_message.Message):
     def __init__(self, kind: _Optional[_Union[EvidenceTarget.Kind, str]] = ..., bridge_node_id: _Optional[str] = ..., bridge_job_id: _Optional[str] = ...) -> None: ...
 
 class IsolationObservation(_message.Message):
-    __slots__ = ("state_root", "socket_path", "database_path", "adopted_session_count", "source")
+    __slots__ = ("state_root", "socket_path", "database_path", "adopted_session_count", "source", "resolved_paths")
     STATE_ROOT_FIELD_NUMBER: _ClassVar[int]
     SOCKET_PATH_FIELD_NUMBER: _ClassVar[int]
     DATABASE_PATH_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_SESSION_COUNT_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_PATHS_FIELD_NUMBER: _ClassVar[int]
     state_root: str
     socket_path: str
     database_path: str
     adopted_session_count: int
     source: str
-    def __init__(self, state_root: _Optional[str] = ..., socket_path: _Optional[str] = ..., database_path: _Optional[str] = ..., adopted_session_count: _Optional[int] = ..., source: _Optional[str] = ...) -> None: ...
+    resolved_paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, state_root: _Optional[str] = ..., socket_path: _Optional[str] = ..., database_path: _Optional[str] = ..., adopted_session_count: _Optional[int] = ..., source: _Optional[str] = ..., resolved_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DesktopSessionRequest(_message.Message):
     __slots__ = ("scenario_name", "artifact_path", "platform", "width", "height", "target")

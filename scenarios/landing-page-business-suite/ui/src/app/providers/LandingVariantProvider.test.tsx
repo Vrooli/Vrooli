@@ -74,6 +74,12 @@ describe('route-owned public assignment', () => {
     expect(result.current.config).toBeNull(); expect(result.current.variant).toBeNull();
     expect(result.current.error).toBe('This page is currently unavailable.');
   });
+  it('recovers from a transient presentation owner outage automatically', async () => {
+    mocks.get.mockRejectedValueOnce(new Error('temporary 503')).mockResolvedValueOnce(publicConfig());
+    const { result } = renderHook(useLandingVariant, { wrapper });
+    await waitFor(() => { expect(result.current.config?.presentation.diagnostics?.resolvedVariant).toBe('control'); }, { timeout: 2000 });
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
   it('retains not-found classification for unknown/private app routes', async () => {
     mocks.get.mockRejectedValue(new ConnectError('private details', Code.NotFound));
     const routeWrapper = ({ children }: { children: ReactNode }) => <MemoryRouter initialEntries={['/apps/unknown']}><LandingVariantProvider>{children}</LandingVariantProvider></MemoryRouter>;

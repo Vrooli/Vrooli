@@ -332,12 +332,10 @@ func New() (*Server, error) {
 	} else {
 		LogStructured("cloud health client unavailable", map[string]interface{}{"error": err.Error()})
 	}
-	var lpbsClient deployments.LPBSReleaseClient
-	if c, err := deployments.NewHTTPLPBSReleaseClient(deployments.LPBSClientConfig{Log: logFn}); err == nil {
-		lpbsClient = c
-	} else {
-		LogStructured("lpbs release client unavailable", map[string]interface{}{"error": err.Error()})
-	}
+	// The LPBS destination may start after deployment-manager, so resolve the
+	// owner lazily. A failed discovery is retried on the next release request
+	// instead of disabling publication for the process lifetime.
+	lpbsClient := deployments.LPBSReleaseClient(deployments.NewLazyLPBSReleaseClient(deployments.LPBSClientConfig{Log: logFn}))
 
 	srv := &Server{
 		Config:              cfg,
