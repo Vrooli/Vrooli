@@ -6,7 +6,28 @@ import { assertRendererContract } from './contract';
 import { resolveResources } from './resolvedResources';
 import './presentation.css';
 import { safeHref } from './links';
+import { StarField } from './ConstellationSky';
 import type { ResolvedPricing } from './commerce';
+
+const INTRO_KEY = 'lpbs:presentation-intro-seen';
+
+/**
+ * The opening sequence plays in full once. A returning viewer gets the short
+ * form: the same composition, without being made to wait for it again. Storage
+ * is per-browser and best-effort — a throw or a cleared store only means the
+ * full intro plays again, never a broken page.
+ */
+function useIntroPace(preview: boolean): 'first' | 'replay' {
+  const [pace] = useState<'first' | 'replay'>(() => {
+    if (preview) return 'replay';
+    try {
+      if (window.localStorage.getItem(INTRO_KEY)) return 'replay';
+      window.localStorage.setItem(INTRO_KEY, '1');
+    } catch { /* private mode or blocked storage: play the full intro */ }
+    return 'first';
+  });
+  return pace;
+}
 
 export interface PresentationPageProps {
   presentation: Presentation;
@@ -17,6 +38,8 @@ export interface PresentationPageProps {
 /** Pure integration boundary. The parent owns transport, SEO and commerce joins. */
 export function PresentationPage({ presentation, resolvedActions, resolvedPricing }: PresentationPageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-boolean-literal-compare -- Capture boundary emits literal booleans even for malformed runtime input.
+  const pace = useIntroPace(presentation.diagnostics.preview === true);
   const menu = useRef<HTMLButtonElement>(null);
   const id = useId();
   const page = presentation.page;
@@ -29,10 +52,11 @@ export function PresentationPage({ presentation, resolvedActions, resolvedPricin
   const theme = { '--ink': page.theme.primary, '--paper': page.theme.background, '--accent': page.theme.accent } as CSSProperties;
   // An embedded private preview belongs to the editor's landmark, not a second main.
   const Content = presentation.diagnostics.preview ? 'div' : 'main';
-  return <div className={`presentation-page theme-${page.theme.variant} ${presentation.scope === 'bundle' ? 'bundle-page' : 'app-page'}`} lang={page.locale} style={theme} data-presentation-mode={presentation.mode}
+  return <div className={`presentation-page theme-${page.theme.variant} ${presentation.scope === 'bundle' ? 'bundle-page' : 'app-page'} intro-${pace}`} lang={page.locale} style={theme} data-presentation-mode={presentation.mode}
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-boolean-literal-compare -- Capture boundary emits literal booleans even for malformed runtime input.
     data-presentation-preview={presentation.diagnostics.preview === true} data-presentation-fallback={presentation.diagnostics.fallback === true}>
     <a className="skip-link" href={`#${id}-main`}>{shell.skip_label}</a>
+    <StarField />
     {presentation.diagnostics.preview && <div className="private-notice">{shell.preview_label}</div>}
     <header className={`site-header wrap ${menuOpen ? 'menu-open' : ''}`} onKeyDown={event => { if (event.key === 'Escape' && menuOpen) { setMenuOpen(false); menu.current?.focus(); } }}>
       <a className="brand" href={safeHref(shell.brand_target)}><BrandLogo kind={shell.brand_mark} logo={shell.brand_logo} alt={shell.brand_logo_alt} /><span>{shell.brand_name}</span>{shell.brand_subtitle && <><span className="brand-divider" /><span className="brand-subtitle">{shell.brand_subtitle}</span></>}</a>

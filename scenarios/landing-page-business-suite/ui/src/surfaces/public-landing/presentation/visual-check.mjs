@@ -53,7 +53,7 @@ try {
     if (!path.startsWith(directory + sep)) return route.abort();
     try {
       const body = await readFile(path);
-      const contentType = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf' }[extname(path)] || 'application/octet-stream';
+      const contentType = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2' }[extname(path)] || 'application/octet-stream';
       await route.fulfill({ status: 200, contentType, body });
     } catch { await route.fulfill({ status: 404, body: 'Missing fixture artifact' }); }
   });

@@ -34,7 +34,7 @@ export function previewFixture() {
   return create(ResolvedProductPresentationSchema, {
     schemaVersion: 1, mode: 'empty', scope: 'bundle', page: {
       id: 'empty', locale: 'fr', title: 'Configured preview',
-      theme: { variant: 'signal', primary: '#202924', background: '#faf9f6', accent: '#b94721' },
+      theme: { variant: 'signal', primary: '#eef4fb', background: '#0b1728', accent: '#22d3ee' },
       navigation: { label: 'Configured navigation' }, footer: { label: 'Configured footer' },
       blocks: [{ id: 'closing', kind: 'closing-action', version: 1, variant: 'plain', content: { value: { case: 'closingAction', value: { heading: 'Configured preview heading', description: 'Configured closing copy', actions: [{ kind: 'purchase', label: 'Configured action', accessibleLabel: 'Configured action', planRef: 'configured-plan' }] } } } }],
       display: { shell: {

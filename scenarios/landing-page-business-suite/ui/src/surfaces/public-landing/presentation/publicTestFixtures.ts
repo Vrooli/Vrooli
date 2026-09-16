@@ -10,7 +10,7 @@ export function publicConfig(route = '/', locale = 'en', variant = 'control'): L
       schemaVersion: 1, mode: route === '/' ? 'empty' : 'app_detail', scope: route === '/' ? 'bundle' : 'app',
       page: {
         id: 'configured', locale, title: `Configured ${route}`, description: `Description ${locale}`,
-        theme: { variant: 'signal', primary: '#263e38', background: '#faf9f6', accent: '#a84422' },
+        theme: { variant: 'signal', primary: '#263e38', background: '#0b1728', accent: '#a84422' },
         navigation: { label: 'Configured navigation', items: [{ label: 'Configured detail', accessibleLabel: 'Configured detail', target: '/apps/example' }] },
         footer: { label: 'Configured footer', links: [] },
         display: { shell: {

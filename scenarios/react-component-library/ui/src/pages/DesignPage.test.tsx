@@ -84,6 +84,26 @@ describe("Design workspace", () => {
     expect(api.putSketch).not.toHaveBeenCalled();
     expect(api.saveCandidate).not.toHaveBeenCalled();
   });
+  it("keeps image-less reference revisions visible for honest comparison", async () => {
+    const current = {
+      ...sketch,
+      placements: [{
+        region: "body",
+        fills: { placeholder: "brief-only-v2", intent: "A readable responsive work surface." },
+        note: "reference-source=generated; provenance=unavailable: no image-tools binding; visual-contract=preserve hierarchy; replacement-owner=page implementation",
+      }],
+    };
+    api.getSketch.mockResolvedValue({ sketch: current, contentHash: "current-hash" });
+    api.getHistory.mockResolvedValue({ revisions: [
+      { contentHash: "current-hash", createdAt: "2026-01-02", sketch: current, current: true },
+      { contentHash: "old-hash", createdAt: "2026-01-01", sketch: { ...current, placements: [{ ...current.placements[0], fills: { placeholder: "uploaded-v1" }, note: "reference-source=uploaded; asset-url=/api/v1/reference-assets/demo.png; visual-contract=preserve hierarchy" }] }, current: false },
+    ] });
+    renderPage();
+    expect(await screen.findByText(/No reference bytes attached/)).toBeInTheDocument();
+    expect(screen.getByText("body · generated")).toBeInTheDocument();
+    expect(screen.getByText("brief-only-v2")).toBeInTheDocument();
+    expect(screen.getByText(/body · uploaded/)).toBeInTheDocument();
+  });
   it("requires confirmation for displaced occupants after template preview", async () => {
     setup();
     api.searchDesignAssets.mockResolvedValue({
@@ -107,6 +127,7 @@ describe("Design workspace", () => {
     const details = screen.getByText(i18n.t("design.changeTemplate")).closest("details")!;
     details.open = true;
     fireEvent(details, new Event("toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /Choose a template/ }));
     await screen.findByRole("option", { name: /New template/ });
     fireEvent.change(screen.getByLabelText(i18n.t("design.template")), { target: { value: "templates.new" } });
     fireEvent.click(screen.getByRole("button", { name: i18n.t("design.previewRemap") }));
@@ -238,6 +259,7 @@ describe("Design workspace", () => {
     setup();
     renderPage();
     const picker = await screen.findByLabelText(i18n.t("design.revision"));
+    fireEvent.click(screen.getByRole("button", { name: /Current/ }));
     await screen.findByRole("option", { name: /2026-01-01/ });
     fireEvent.change(picker, { target: { value: "old-hash" } });
     expect(screen.getByRole("button", { name: i18n.t("design.verify") })).toBeDisabled();
@@ -278,7 +300,8 @@ it("renders the exact revision and hides stale appearance evidence", async () =>
     data: { type: "preview-ready", sha256: "render-hash" } }));
   expect(await screen.findByText(i18n.t("design.canvasEvidence"))).toBeInTheDocument();
   expect(api.renderSketch).toHaveBeenCalledWith(expect.objectContaining({ expectedContentHash: "current-hash", theme: "light", direction: "ltr" }));
-  fireEvent.change(screen.getByLabelText(i18n.t("design.canvasTheme")), { target: { value: "dark" } });
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasTheme") }));
+  fireEvent.click(await screen.findByRole("option", { name: i18n.t("design.canvasDark") }));
   expect(screen.queryByTitle(i18n.t("design.canvas"))).not.toBeInTheDocument();
   expect(screen.getByText(/revision or appearance changed/)).toBeInTheDocument();
 });
@@ -488,7 +511,8 @@ it("renders and captures the selected declared preview state", async () => {
   api.captureCandidate.mockResolvedValue({ id: "detail-capture", state: "running", artifacts: [] });
   renderPage();
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "states", revision: "state-hash" }) }));
-  fireEvent.change(await screen.findByLabelText(i18n.t("design.canvasState")), { target: { value: "detail" } });
+  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.canvasState") }));
+  fireEvent.click(await screen.findByRole("option", { name: "detail" }));
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   const enabled = buttons.find((button) => !(button as HTMLButtonElement).disabled)!;
   fireEvent.click(enabled);
@@ -497,7 +521,8 @@ it("renders and captures the selected declared preview state", async () => {
     expectedRenderHash: "detail-render", render: expect.objectContaining({ candidate, previewState: "detail" }),
   })));
   expect(api.renderCandidate).toHaveBeenCalledWith(expect.objectContaining({ candidate, previewState: "detail" }));
-  fireEvent.change(screen.getByLabelText(i18n.t("design.canvasState")), { target: { value: "list" } });
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasState") }));
+  fireEvent.click(await screen.findByRole("option", { name: "list" }));
   expect(await screen.findByText(i18n.t("design.canvasStale"))).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: i18n.t("design.captureStart") })).not.toBeInTheDocument();
 });

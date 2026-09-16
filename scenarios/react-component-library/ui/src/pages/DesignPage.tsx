@@ -10,7 +10,7 @@ import { searchDesignAssets } from "../api/catalog";
 import type { CandidateResponse, CaptureOperation, CritiqueEvidence } from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
 import { listComponentStories } from "../api/components";
 import { API_BASE } from "../api/client";
-import { sketchClient } from "../api/sketch";
+import { sketchClient, uploadReferenceAsset } from "../api/sketch";
 import { strings } from "../consts/strings";
 import { designPath } from "../routes";
 import { useTranslation } from "../i18n";
@@ -127,6 +127,10 @@ function DesignOverview({ scenario }: { scenario?: string }) {
 
 function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const { t } = useTranslation();
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: "auto" });
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [scenario, page]);
   const cache = useQueryClient();
   const target = { scenario, page };
   const key = ["design-sketch", scenario, page];
@@ -134,6 +138,17 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
     queryKey: key,
     queryFn: ({ signal }) => sketchClient.getSketch({ target }, { signal }),
   });
+  useEffect(() => {
+    if (!current.data) return;
+    const resetScroll = () => {
+      const main = document.querySelector("main");
+      if (main) main.scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: "auto" });
+    };
+    resetScroll();
+    const frame = window.requestAnimationFrame(resetScroll);
+    return () => window.cancelAnimationFrame(frame);
+  }, [current.data]);
   const history = useQuery({
     queryKey: ["design-history", scenario, page],
     queryFn: ({ signal }) => sketchClient.getHistory({ target }, { signal }),
@@ -208,6 +223,13 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   });
   const evidence = verify.data?.hash === hash ? verify.data.result : undefined;
   const staleEvidence = Boolean(verify.data && !evidence);
+  const workflowSteps = [
+    { id: "brief", label: "Brief", detail: "Intent & references", complete: Boolean(doc?.notes.length || declaredRegions.length) },
+    { id: "compose", label: "Compose", detail: "Canvas & assets", complete: Boolean(doc?.placements.length) },
+    { id: "review", label: "Review", detail: "Evidence & critique", complete: Boolean(evidence) },
+    { id: "adopt", label: "Adopt", detail: "Handoff & obligations", complete: Boolean(evidence?.passes) },
+  ];
+  const nextStep = workflowSteps.find((step) => !step.complete) ?? workflowSteps.at(-1)!;
   return (
     <section data-experience-surface="design-workspace" className="grid min-w-0 grid-cols-1 gap-space-md" aria-label={t("design.workspace")}>
       <nav aria-label={t("design.breadcrumb")} className="flex flex-wrap gap-space-2xs">
@@ -216,22 +238,64 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
         <Link to={designPath(scenario)}>{scenario}</Link>
         <span>/ {page}</span>
       </nav>
-      <div className="flex flex-wrap items-center justify-between gap-space-sm">
-        <h1 className="text-title font-semibold">{page}</h1>
-        <Button
-          disabled={!current.data || verify.isPending || readOnly}
-          onClick={() => verify.mutate()}
-        >
-          {verify.isPending ? t("design.verifying") : t("design.verify")}
-        </Button>
-      </div>
+      <header className="grid gap-space-sm rounded-panel border border-app-border bg-app-surface p-space-sm shadow-sm sm:sticky sm:top-0 sm:z-20" data-testid="design-workspace-header">
+        <div className="flex flex-wrap items-start justify-between gap-space-sm">
+          <div className="min-w-0">
+            <p className="text-label font-semibold uppercase tracking-[0.14em] text-app-primary">Design studio</p>
+            <h1 className="mt-1 break-words text-title font-semibold">{page}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-app-muted-foreground">Turn a brief into a reviewable, evidence-backed candidate. Technical details stay available when you need them.</p>
+            <p className="mt-2 break-all text-label text-app-muted-foreground">{scenario} · {current.data ? `revision ${current.data.contentHash.slice(0, 12)} · ${readOnly ? t("design.readOnly") : t("design.saved")}` : t("design.loading")}</p>
+          </div>
+          <div className="flex items-center gap-space-xs">
+            <span className="rounded-full border border-app-border bg-app-surface-muted px-space-xs py-space-2xs text-label text-app-muted-foreground">{readOnly ? "Historical revision" : "Working draft"}</span>
+            <Button
+              disabled={!current.data || verify.isPending || readOnly}
+              onClick={() => verify.mutate()}
+            >
+              {verify.isPending ? t("design.verifying") : t("design.verify")}
+            </Button>
+          </div>
+        </div>
+        <nav aria-label="Design workflow" className="grid gap-2 sm:grid-cols-4">
+          {workflowSteps.map((step, index) => (
+            <div key={step.id} className={`relative rounded-control border p-space-xs ${step.complete ? "border-emerald-500/40 bg-emerald-500/5" : step.id === nextStep.id ? "border-app-primary/50 bg-app-primary/5" : "border-app-border bg-app-surface-muted"}`}>
+              <div className="flex items-center gap-2">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-app-surface text-label font-semibold text-app-muted-foreground">{index + 1}</span>
+                <span className="min-w-0 text-sm font-semibold">{step.label}</span>
+                {step.complete && <span className="ml-auto text-label text-emerald-600">Ready</span>}
+              </div>
+              <p className="mt-1 pl-8 text-label text-app-muted-foreground">{step.detail}</p>
+            </div>
+          ))}
+        </nav>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-app-border pt-space-xs text-sm">
+          <span className="font-medium">Next best action</span>
+          <span className="text-app-primary">{nextStep.label}</span>
+          <span className="text-app-muted-foreground">— {nextStep.detail}</span>
+        </div>
+      </header>
       {current.isPending && <p role="status">{t("design.loading")}</p>}
       {current.error && <Failure error={current.error} retry={() => void refresh()} />}
       {current.data && (
         <>
           {!readOnly && <SavedCandidates key={`${target.scenario}/${target.page}`} target={target} onSelected={refresh} />}
-          <IntentProposals target={target} hash={hash} readOnly={readOnly} onSaved={refresh} />
           <DesignCanvas target={target} hash={hash} configured={Boolean(doc?.render)} readOnly={readOnly} />
+          <IntentProposals target={target} hash={hash} readOnly={readOnly} onSaved={refresh} />
+          <AssetDecisionGuide
+            target={target}
+            hash={current.data.contentHash}
+            regions={regions}
+            readOnly={readOnly}
+            onSaved={refresh}
+          />
+          <ReferencePlaceholderEditor
+            target={target}
+            hash={current.data.contentHash}
+            regions={regions}
+            readOnly={readOnly}
+            onSaved={refresh}
+          />
+          <ReferenceRevisionReview revisions={history.data?.revisions ?? []} currentHash={current.data.contentHash} />
           <TemplateEditor
             target={target}
             hash={current.data.contentHash}
@@ -246,6 +310,9 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           />
           <div className="grid gap-space-sm">
             <Button
+              size="sm"
+              variant="secondary"
+              className="justify-self-start"
               disabled={readOnly || importPage.isPending}
               onClick={() => importPage.mutate(false)}
             >
@@ -617,6 +684,270 @@ function TemplateEditor({
   );
 }
 
+function AssetDecisionGuide({ target, hash, regions, readOnly, onSaved }: {
+  target: { scenario: string; page: string };
+  hash: string;
+  regions: string[];
+  readOnly: boolean;
+  onSaved: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [region, setRegion] = useState(regions[0] ?? "");
+  const [decision, setDecision] = useState("adopt");
+  const [reason, setReason] = useState("");
+  const [savedDecision, setSavedDecision] = useState("");
+  const activeRegion = regions.includes(region) ? region : regions[0] ?? "";
+  const decisions = [
+    { id: "adopt", label: "Adopt", detail: "The library asset fits the concept and its existing contract." },
+    { id: "repair", label: "Repair / version", detail: "The concept fits, but the shared asset has a defect worth fixing centrally." },
+    { id: "extend", label: "Extend", detail: "The asset fits, but a reusable variant or hook contract is missing." },
+    { id: "local", label: "Compose locally", detail: "The composition is product-specific and should stay outside the library." },
+    { id: "placeholder", label: "Record placeholder", detail: "The visual is not representable truthfully yet; preserve a replacement obligation." },
+  ];
+  const record = useMutation({
+    mutationFn: () => sketchClient.addNote({
+      target,
+      scope: `asset-decision:${activeRegion || "page"}`,
+      text: `decision=${decision}; reason=${reason.trim()}`,
+      expectedContentHash: hash,
+    }),
+    onSuccess: async () => {
+      setSavedDecision(`${activeRegion || "page"}:${decision}`);
+      setReason("");
+      await onSaved();
+    },
+  });
+  return (
+    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="rounded-control border border-app-border bg-app-surface p-space-sm">
+      <summary className="cursor-pointer list-none font-semibold marker:hidden">
+        <span className="flex flex-wrap items-center justify-between gap-space-xs">
+          <span>Asset decision</span>
+          <span className="text-label font-normal text-app-muted-foreground">Choose the smallest truthful reuse boundary</span>
+        </span>
+      </summary>
+      {open && <div className="grid gap-space-sm pt-space-sm">
+        <p className="max-w-3xl text-sm text-app-muted-foreground">Use the evidence order from the campaign contract: conceptual fit, contract quality, tokens and defaults, accessibility, responsive behavior, tests, stories, hook semantics, and consumer impact. Record the decision before moving to review.</p>
+        <label className="grid gap-space-2xs">Region
+          <Select className="min-h-touch min-w-0 rounded-control border border-app-border bg-app-surface" value={activeRegion} options={regions.map((item) => ({ value: item, label: item }))} disabled={readOnly || regions.length === 0} onChange={(event) => setRegion(event.target.value)} />
+        </label>
+        <div className="grid gap-space-xs sm:grid-cols-2 lg:grid-cols-5">
+          {decisions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={decision === item.id}
+              disabled={readOnly}
+              onClick={() => setDecision(item.id)}
+              className={`min-h-touch rounded-control border p-space-xs text-left transition-colors ${decision === item.id ? "border-app-primary bg-app-primary/5" : "border-app-border bg-app-surface-muted hover:bg-app-surface"}`}
+            >
+              <span className="block text-sm font-semibold">{item.label}</span>
+              <span className="mt-1 block text-label text-app-muted-foreground">{item.detail}</span>
+            </button>
+          ))}
+        </div>
+        <label className="grid gap-space-2xs">Decision evidence / reason
+          <textarea className="min-h-20 rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-sm" value={reason} disabled={readOnly} placeholder="Name the evidence that made this boundary truthful…" onChange={(event) => setReason(event.target.value)} />
+        </label>
+        <div className="flex flex-wrap items-center gap-space-sm">
+          <Button disabled={readOnly || record.isPending || !activeRegion || reason.trim().length < 12} onClick={() => record.mutate()}>
+            {record.isPending ? "Recording decision…" : "Record asset decision"}
+          </Button>
+          {savedDecision && <span role="status" className="text-sm text-emerald-700 dark:text-emerald-300">Recorded {savedDecision.replace(":", " · ")}.</span>}
+        </div>
+        {record.error && <Failure error={record.error} />}
+      </div>}
+    </details>
+  );
+}
+
+function ReferencePlaceholderEditor({
+  target,
+  hash,
+  regions,
+  readOnly,
+  onSaved,
+}: {
+  target: { scenario: string; page: string };
+  hash: string;
+  regions: string[];
+  readOnly: boolean;
+  onSaved: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [region, setRegion] = useState("");
+  const [slug, setSlug] = useState("");
+  const [intent, setIntent] = useState("");
+  const [source, setSource] = useState("generated");
+  const [provenance, setProvenance] = useState("");
+  const [visualContract, setVisualContract] = useState("");
+  const [replacement, setReplacement] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploaded, setUploaded] = useState<{ id: string; url: string } | null>(null);
+  const activeRegion = regions.includes(region) ? region : regions[0] ?? "";
+  const effectiveProvenance = provenance.trim() || (source === "generated"
+    ? "unavailable: RCL has no image-tools / AI Gateway generation binding"
+    : source === "uploaded" ? "uploaded reference; upload receipt recorded with the revision" : "existing approved asset");
+  const note = [
+    `reference-source=${source}`,
+    `provenance=${effectiveProvenance}`,
+    visualContract.trim() ? `visual-contract=${visualContract.trim()}` : "",
+    replacement.trim() ? `replacement-owner=${replacement.trim()}` : "",
+  ].filter(Boolean).join("; ");
+  const placeholder = useMutation({
+    mutationFn: async () => {
+      const asset = file ? await uploadReferenceAsset(target, file) : null;
+      const assetNote = asset ? `; uploaded-asset=${asset.id}; asset-url=${asset.url}` : "";
+      return sketchClient.placeholder({
+        target,
+        expectedContentHash: hash,
+        region: activeRegion,
+        placeholder: slug.trim(),
+        intent: intent.trim(),
+        note: note + assetNote,
+      });
+    },
+    onSuccess: async () => {
+      setSlug("");
+      setIntent("");
+      setProvenance("");
+      setVisualContract("");
+      setReplacement("");
+      setUploaded(file ? { id: "uploaded", url: URL.createObjectURL(file) } : null);
+      setFile(null);
+      await onSaved();
+    },
+  });
+
+  return (
+    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="rounded-control border border-app-border bg-app-surface p-space-sm">
+      <summary className="cursor-pointer list-none font-semibold marker:hidden">
+        <span className="flex flex-wrap items-center justify-between gap-space-xs">
+          <span>Reference placeholder</span>
+          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-space-xs py-space-2xs text-label font-normal text-amber-700 dark:text-amber-300">Illustrative · replacement required</span>
+        </span>
+      </summary>
+      {open && <div className="grid gap-space-sm pt-space-sm">
+        <p className="max-w-3xl text-sm text-app-muted-foreground">Use this for a complex visual region that cannot yet be represented truthfully by a library asset. Generate in image-tools / AI Gateway or choose an existing reference, then attach the source here. The bytes are retained in the experience workspace and the Sketch revision records provenance, limitations, and the replacement owner.</p>
+        <fieldset className="grid gap-space-sm rounded-control border border-app-border bg-app-surface-muted p-space-sm sm:grid-cols-2">
+          <legend className="px-space-2xs text-sm font-semibold">Source and target</legend>
+          <label className="grid gap-space-2xs">Region
+            <Select className="min-h-touch min-w-0 rounded-control border border-app-border bg-app-surface" value={activeRegion} options={regions.map((item) => ({ value: item, label: item }))} disabled={readOnly || regions.length === 0} onChange={(event) => setRegion(event.target.value)} />
+          </label>
+          <label className="grid gap-space-2xs">Reference source
+            <Select className="min-h-touch min-w-0 rounded-control border border-app-border bg-app-surface" value={source} disabled={readOnly} options={[{ value: "generated", label: "Image tools / AI gateway" }, { value: "uploaded", label: "Uploaded reference" }, { value: "existing", label: "Existing approved asset" }]} onChange={(event) => setSource(event.target.value)} />
+          </label>
+        </fieldset>
+        <fieldset className="grid gap-space-sm rounded-control border border-app-border bg-app-surface-muted p-space-sm">
+          <legend className="px-space-2xs text-sm font-semibold">Visual brief</legend>
+          <label className="grid gap-space-2xs">Stable placeholder id
+            <Input value={slug} disabled={readOnly} placeholder="operations-map-reference" onChange={(event) => setSlug(event.target.value)} />
+          </label>
+          <label className="grid gap-space-2xs">What must the final region do?
+            <textarea className="min-h-20 rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-sm" value={intent} disabled={readOnly} placeholder="Describe the behavior and content the real renderer must provide…" onChange={(event) => setIntent(event.target.value)} />
+          </label>
+        </fieldset>
+        <details className="rounded-control border border-app-border bg-app-surface-muted p-space-sm">
+          <summary className="cursor-pointer font-semibold">Handoff evidence and replacement obligation</summary>
+          <div className="grid gap-space-sm pt-space-sm">
+            <p className="text-sm text-app-muted-foreground">Add this when the source is ready to hand off. The save remains honest if generation is unavailable, but the final implementation still needs an owner and visual contract.</p>
+            <label className="grid gap-space-2xs">Provider receipt / upload id / unavailable reason
+              <Input value={provenance} disabled={readOnly} placeholder="model/provider receipt, upload id, or why generation is unavailable" onChange={(event) => setProvenance(event.target.value)} />
+            </label>
+            {source === "generated" && !provenance.trim() && <p role="status" className="text-label text-amber-700 dark:text-amber-300">Generation is unavailable in this workspace; the revision will record that boundary instead of implying a model result.</p>}
+            <div className="grid gap-space-sm sm:grid-cols-2">
+              <label className="grid gap-space-2xs">Replacement owner
+                <Input value={replacement} disabled={readOnly} placeholder="renderer team or implementation path" onChange={(event) => setReplacement(event.target.value)} />
+              </label>
+              <label className="grid gap-space-2xs">Visual contract
+                <Input value={visualContract} disabled={readOnly} placeholder="crop, aspect ratio, palette, density, and known inaccuracies" onChange={(event) => setVisualContract(event.target.value)} />
+              </label>
+            </div>
+            <label className="grid gap-space-2xs">Reference bytes (upload or attach an image-tools result)
+              <input className="min-h-touch rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-sm" type="file" accept="image/*" disabled={readOnly || placeholder.isPending} onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+              {file && <span className="text-label text-app-muted-foreground">Ready: {file.name} · {Math.ceil(file.size / 1024)} KiB</span>}
+            </label>
+          </div>
+        </details>
+        <Button disabled={readOnly || placeholder.isPending || !activeRegion || !slug.trim() || intent.trim().length < 20} onClick={() => placeholder.mutate()}>
+          {placeholder.isPending ? (file ? "Uploading and recording…" : "Recording placeholder…") : "Save reference revision"}
+        </Button>
+        {placeholder.error && <Failure error={placeholder.error} />}
+        {placeholder.isSuccess && <p role="status">Reference revision recorded with provenance, source bytes, and replacement metadata. Later revisions remain in Sketch history.</p>}
+        {uploaded && <img src={uploaded.url} alt="Recently uploaded reference revision" className="max-h-48 max-w-full rounded-control border border-app-border object-contain" />}
+      </div>}
+    </details>
+  );
+}
+
+type ReferenceRevision = {
+  id: string;
+  hash: string;
+  createdAt: string;
+  region: string;
+  url?: string;
+  source: string;
+  contract: string;
+  note: string;
+};
+
+function referenceRevisions(revisions: Array<{ contentHash: string; createdAt: string; sketch?: { placements: Array<{ region: string; fills?: { placeholder?: string }; note: string }> } }>): ReferenceRevision[] {
+  const output: ReferenceRevision[] = [];
+  const seen = new Set<string>();
+  for (const revision of revisions) {
+    for (const placement of revision.sketch?.placements ?? []) {
+      if (!placement.fills?.placeholder) continue;
+      const url = placement.note.match(/(?:^|; )asset-url=([^;]+)/)?.[1];
+      const id = `${revision.contentHash}:${placement.region}:${placement.fills.placeholder}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      output.push({
+        id,
+        hash: revision.contentHash,
+        createdAt: revision.createdAt,
+        region: placement.region,
+        url,
+        source: placement.note.match(/(?:^|; )reference-source=([^;]+)/)?.[1] ?? "unknown",
+        contract: placement.note.match(/(?:^|; )visual-contract=([^;]+)/)?.[1] ?? "No visual contract recorded",
+        note: placement.note,
+      });
+    }
+  }
+  return output;
+}
+
+function ReferenceRevisionReview({ revisions, currentHash }: { revisions: Array<{ contentHash: string; createdAt: string; sketch?: { placements: Array<{ region: string; fills?: { placeholder?: string }; note: string }> } }>; currentHash: string }) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const items = referenceRevisions(revisions);
+  if (items.length === 0) return null;
+  const toggle = (id: string) => setSelected((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : previous.length < 2 ? [...previous, id] : [previous[1]!, id]);
+  const compared = items.filter((item) => selected.includes(item.id));
+  const sourceUrl = (url: string) => url.startsWith("http") ? url : `${API_BASE.replace(/\/$/, "")}${url}`;
+  return (
+    <section className="grid gap-space-sm rounded-control border border-app-border bg-app-surface p-space-sm" aria-label="Reference revision review">
+      <div className="flex flex-wrap items-start justify-between gap-space-xs">
+        <div>
+          <h2 className="font-semibold">Reference revisions</h2>
+          <p className="text-sm text-app-muted-foreground">Inspect limitations before approval. Select up to two revisions to compare; Sketch history keeps every prior source.</p>
+        </div>
+        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-space-xs py-space-2xs text-label text-amber-700 dark:text-amber-300">Illustrative · not production fidelity</span>
+      </div>
+      <div className="grid gap-space-xs sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <button key={item.id} type="button" aria-pressed={selected.includes(item.id)} onClick={() => toggle(item.id)} className={`grid gap-space-2xs rounded-control border p-space-xs text-left ${selected.includes(item.id) ? "border-app-primary bg-app-primary/5" : "border-app-border bg-app-surface-muted"}`}>
+            {item.url ? <img src={sourceUrl(item.url)} alt={`Reference for ${item.region}`} className="aspect-video w-full rounded-control border border-app-border object-contain bg-black/5" /> : <div className="grid aspect-video place-items-center rounded-control border border-dashed border-amber-500/40 bg-amber-500/5 p-space-sm text-center text-label text-amber-700 dark:text-amber-300">No reference bytes attached. Review the recorded brief and provenance.</div>}
+            <span className="text-sm font-medium">{item.region} · {item.source}</span>
+            <span className="text-label text-app-muted-foreground">{item.createdAt} · {item.hash.slice(0, 12)}{item.hash === currentHash ? " · current" : ""}</span>
+            <span className="text-label text-amber-700 dark:text-amber-300">Limitations: {item.contract}</span>
+          </button>
+        ))}
+      </div>
+      {compared.length > 1 && <div className="grid gap-space-sm border-t border-app-border pt-space-sm sm:grid-cols-2" aria-label="Reference comparison">
+        {compared.map((item) => <figure key={item.id} className="grid gap-space-2xs">{item.url ? <img src={sourceUrl(item.url)} alt={`Compared reference for ${item.region}`} className="max-h-72 w-full rounded-control border border-app-border object-contain bg-black/5" /> : <div className="grid min-h-40 place-items-center rounded-control border border-dashed border-amber-500/40 bg-amber-500/5 p-space-sm text-center text-label text-amber-700 dark:text-amber-300">Brief-only revision; no image bytes were available for this source.</div>}<figcaption className="text-label text-app-muted-foreground">{item.createdAt} · {item.contract}</figcaption></figure>)}
+      </div>}
+    </section>
+  );
+}
+
 
 function DesignCanvas({ target, hash, configured, readOnly, candidate, previewStates = [] }: {
   target: { scenario: string; page: string }; hash: string; configured: boolean; readOnly: boolean;
@@ -676,20 +1007,26 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
     window.addEventListener("message", receive);
     return () => window.removeEventListener("message", receive);
   }, [renderHash, t]);
-  return <Card>
+  return <div id="design-canvas"><Card>
     <CardHeader><CardTitle>{t("design.canvas")}</CardTitle></CardHeader>
     <CardContent className="grid gap-space-sm">
-      {!configured && <p>{t("design.canvasUnconfigured")}</p>}
+      {!configured && (
+        <div className="grid gap-space-2xs rounded-panel border border-dashed border-app-primary/40 bg-app-primary/5 p-space-sm">
+          <p className="font-semibold">{candidate ? "Candidate needs a render contract" : t("design.canvasEmptyTitle")}</p>
+          <p className="text-sm text-app-muted-foreground">{candidate ? "Map this candidate to a published template, then render it here to inspect the real composition." : t("design.canvasEmptyHelp")}</p>
+        </div>
+      )}
+      {configured && !current && !render.isPending && <p role="status">The current candidate is ready for a live composition preview.</p>}
       <div className="flex flex-wrap items-center gap-space-sm">
-        <label>{t("design.canvasWidth")} <Select value={width} onChange={(e) => setWidth(e.target.value)} options={[
+        <label>{t("design.canvasWidth")} <Select id="design-canvas-width" aria-label={t("design.canvasWidth")} value={width} onChange={(e) => setWidth(e.target.value)} options={[
           { value: "1440px", label: t("design.canvasDesktop") },
           { value: "390px", label: t("design.canvasPhone") },
         ]} /></label>
-        <label>{t("design.canvasTheme")} <Select value={theme} onChange={(e) => setTheme(e.target.value)} options={[
+        <label>{t("design.canvasTheme")} <Select id="design-canvas-theme" aria-label={t("design.canvasTheme")} value={theme} onChange={(e) => setTheme(e.target.value)} options={[
           { value: "light", label: t("design.canvasLight") },
           { value: "dark", label: t("design.canvasDark") },
         ]} /></label>
-        {previewStates.length > 0 && <label>{t("design.canvasState")} <Select value={previewState} onChange={(e) => setPreviewState(e.target.value)} options={[
+        {previewStates.length > 0 && <label>{t("design.canvasState")} <Select id="design-canvas-state" aria-label={t("design.canvasState")} value={previewState} onChange={(e) => setPreviewState(e.target.value)} options={[
           { value: "", label: t("design.canvasInitialState") },
           ...previewStates.map((state) => ({ value: state, label: state })),
         ]} /></label>}
@@ -698,6 +1035,7 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
         </Button>
       </div>
       {render.error && <Failure error={render.error} />}
+      {render.error && /component .* not found|template .* not found|published template/i.test(render.error.message) && <p role="status" className="rounded-control border border-amber-500/40 bg-amber-500/5 p-space-sm text-sm text-amber-700 dark:text-amber-300">This revision cannot be rendered because its published template is not available in the current library registry. Keep the candidate as a reference or placeholder until the template owner publishes the exact version; it is not ready for implementation verification.</p>}
       {render.data && !current && <p role="status">{t("design.canvasStale")}</p>}
       {current && <>
         {runtime && runtime.hash === renderHash
@@ -719,7 +1057,7 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
         {candidate && <CandidateCritiques key={`${candidate.hash}:${current.result.renderHash}`} candidate={candidate} renderHash={current.result.renderHash} appearance={current.appearance} />}
       </>}
     </CardContent>
-  </Card>;
+  </Card></div>;
 }
 
 

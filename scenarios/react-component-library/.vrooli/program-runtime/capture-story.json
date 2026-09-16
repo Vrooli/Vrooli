@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Capture one immutable library asset across its story, viewport, and theme matrix through ui-health, retaining a stable first-capture baseline.",
+  "purpose": "Capture one immutable library asset across its story, viewport, and theme matrix through the governed Browser Automation Studio owner, retaining a stable first-capture baseline.",
   "inputs": {
     "asset_id": {
       "type": "string",
@@ -40,7 +40,7 @@
   },
   "assumptions": [
     "The selected immutable version has one validated story contract.",
-    "ui-health owns surface resolution and visual-rule analysis.",
+    "browser-automation-studio owns navigation, readiness, durable screenshots, and computed DOM evidence.",
     "The first successful combination is the baseline; later runs compare normalized status, route, and findings rather than volatile artifact ids."
   ],
   "invariants": [
@@ -93,7 +93,7 @@
         "no_governed_binding"
       ]
     },
-    "evidence": "ui-health capture envelopes and baseline keys"
+    "evidence": "BAS capture envelopes and baseline keys"
   },
   "budget": {
     "wall_ms": 120000,
@@ -135,7 +135,6 @@
       },
       "requires": [
         "react-component-library",
-        "ui-health",
         "browser-automation-studio"
       ]
     }

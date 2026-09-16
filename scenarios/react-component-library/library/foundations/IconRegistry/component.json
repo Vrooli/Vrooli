@@ -11,7 +11,9 @@
     }
   ],
   "draft": "",
-  "evictedVersions": [],
+  "evictedVersions": [
+    "1.1.0"
+  ],
   "latest": "1.1.1",
   "libraryId": "react-component-library:IconRegistry"
 }

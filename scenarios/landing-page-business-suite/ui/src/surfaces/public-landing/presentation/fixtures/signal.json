@@ -11,9 +11,9 @@
       "description": "Organize your agent sessions. Talk, listen, and catch up. Explore the plans, pages, and evidence they create—all in one workspace.",
       "theme": {
         "variant": "signal",
-        "primary": "#202924",
-        "background": "#faf9f6",
-        "accent": "#b94721"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",

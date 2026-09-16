@@ -154,14 +154,6 @@
       "sha256": "c5e67ec628a80121862c0371715dc1684672631b3530d4647ea4c66d7bdff5da"
     },
     {
-      "path": "components/AttachmentPreview/versions/1.0.4/AttachmentPreview.tsx",
-      "sha256": "abd67b7977f73edee3a3e9de365cd03c775f57c6b4dd4a67f25f2b9eac3a65a6"
-    },
-    {
-      "path": "components/AttachmentPreview/versions/1.0.4/story.tsx",
-      "sha256": "069641c5d11e49d837c9b7ada5990b1fa0c0f811f20cbfdfe17e5343639e8694"
-    },
-    {
       "path": "components/AttachmentPreview/versions/1.0.5/AttachmentPreview.tsx",
       "sha256": "be13692edf24c60656f0459494803592633775c40b593976be81548ba1568086"
     },
@@ -238,30 +230,6 @@
       "sha256": "91fd420f66d085bcfe636ff4dd45bd280bc38e331f56d6656c962e8344af4ee0"
     },
     {
-      "path": "components/BottomSheet/versions/1.3.0/BottomSheet.tsx",
-      "sha256": "37b151782fd6da33a0a65817b0b870619612d608547bcfc85a9c19f7d68ed10a"
-    },
-    {
-      "path": "components/BottomSheet/versions/1.3.0/story.tsx",
-      "sha256": "aabcc647584a6dfd1bd3ddf818e6346bf24033afede7ee8877b4d3f534c43354"
-    },
-    {
-      "path": "components/BottomSheet/versions/1.3.1/BottomSheet.tsx",
-      "sha256": "c1dd01b5c8792be64df99adb631b1f5f8025c9076b1f9eec10d6fcf0ad4ff1f1"
-    },
-    {
-      "path": "components/BottomSheet/versions/1.3.1/story.tsx",
-      "sha256": "aabcc647584a6dfd1bd3ddf818e6346bf24033afede7ee8877b4d3f534c43354"
-    },
-    {
-      "path": "components/BottomSheet/versions/1.3.2/BottomSheet.tsx",
-      "sha256": "767c83f52c126f8defa3c13598374b8e25b698e356a7fe0fa909ec442b45ce0d"
-    },
-    {
-      "path": "components/BottomSheet/versions/1.3.2/story.tsx",
-      "sha256": "aabcc647584a6dfd1bd3ddf818e6346bf24033afede7ee8877b4d3f534c43354"
-    },
-    {
       "path": "components/BottomSheet/versions/1.3.3/BottomSheet.tsx",
       "sha256": "25698af4d6f475f5bf5ac766c1a0774640e1894f05ea0ff5736f054bf7edc484"
     },
@@ -328,22 +296,6 @@
     {
       "path": "components/BulkActionBar/versions/1.0.9/story.tsx",
       "sha256": "ef50ef417d9a3caac74a39ccdf42c85823e2e91919c38e1e45ea02f131bf19f3"
-    },
-    {
-      "path": "components/Button/versions/2.2.10/Button.tsx",
-      "sha256": "1f7a415e2cdc38b8b413503c2372c93c6a53a7d32f4960aafad5ec1daa9296d6"
-    },
-    {
-      "path": "components/Button/versions/2.2.10/story.tsx",
-      "sha256": "671eb434656cce4baaef21c248fbc19e96866eda2c332590d43ae476d8f965ba"
-    },
-    {
-      "path": "components/Button/versions/2.2.11/Button.tsx",
-      "sha256": "2819aacb3abf8ea5685a4064d4e9027b38742c14e819c49d38ae097f0e2c8d37"
-    },
-    {
-      "path": "components/Button/versions/2.2.11/story.tsx",
-      "sha256": "671eb434656cce4baaef21c248fbc19e96866eda2c332590d43ae476d8f965ba"
     },
     {
       "path": "components/Button/versions/2.2.12/Button.tsx",
@@ -678,14 +630,6 @@
       "sha256": "3fbb79a01928f1cdb439a9fbfd4481b462eb3875c91597d46248239a48468b7e"
     },
     {
-      "path": "components/ControlBase/versions/1.1.3/ControlBase.tsx",
-      "sha256": "cb83a6ad15f3389fd44123c557f1af3a98ac48b2c736961eba5191db22e7b484"
-    },
-    {
-      "path": "components/ControlBase/versions/1.1.3/story.tsx",
-      "sha256": "2444c92606c38d3adee4a9504dc1a422e8f794675898c2d020974a52e0f5d916"
-    },
-    {
       "path": "components/ControlBase/versions/1.1.5/ControlBase.tsx",
       "sha256": "acda3ffaf52ba852d07d7bfd66347c42fee5c5c8191ba1338c90de990bfae220"
     },
@@ -704,18 +648,6 @@
     {
       "path": "components/CopyableText/versions/1.0.6/story.tsx",
       "sha256": "8b694216dc841fb20f3a95961296b68f74720eb1f48aac5afdedaba76a242889"
-    },
-    {
-      "path": "components/CopyIconButton/versions/0.1.0/CopyIconButton.tsx",
-      "sha256": "eaaa01b9722cc632cae29c2e6b86b9293129c7d95959d00dd721d65f500015aa"
-    },
-    {
-      "path": "components/CopyIconButton/versions/1.0.0/CopyIconButton.tsx",
-      "sha256": "c9e491fc25c52e24da80bb004263a63d244b675b0b4464777493c0b1ea018ff5"
-    },
-    {
-      "path": "components/CopyIconButton/versions/1.0.0/story.tsx",
-      "sha256": "7f1f2e06e7c8840527095c747dd6f3798d115a160395ac1b1bdbf9fb568ab70f"
     },
     {
       "path": "components/CopyIconButton/versions/1.0.1/CopyIconButton.tsx",
@@ -1040,38 +972,6 @@
     {
       "path": "components/FreshnessArc/versions/0.1.2/story.tsx",
       "sha256": "2631c9f7bbeb56765dfd00bd1c9837b49ccb1cad6623e87a201e07f2b294af29"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.3.4/FullPageDrawer.tsx",
-      "sha256": "b1309311bbcef2efa758a7cbc5fc29789331c41f08231860550f9f64879a581c"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.3.4/story.tsx",
-      "sha256": "0fff49c03339cbdb355e7bbef61956cb06f0b8232228547da8cf4fc0a9557ea2"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.0/FullPageDrawer.tsx",
-      "sha256": "8b9fff481b4508c137869e9e34b15fd4e165d448b11f944ae877dc382c21e42d"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.0/story.tsx",
-      "sha256": "0fff49c03339cbdb355e7bbef61956cb06f0b8232228547da8cf4fc0a9557ea2"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.1/FullPageDrawer.tsx",
-      "sha256": "5c84d96f5ce25dff6635ccb358a5681db69002b004e75b5cb34def41246f4a22"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.1/story.tsx",
-      "sha256": "0fff49c03339cbdb355e7bbef61956cb06f0b8232228547da8cf4fc0a9557ea2"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.2/FullPageDrawer.tsx",
-      "sha256": "17bf0495c76e58f794700f7afbd4f437c6b94431afac1b1cfec6bc082ab62da8"
-    },
-    {
-      "path": "components/FullPageDrawer/versions/1.4.2/story.tsx",
-      "sha256": "0fff49c03339cbdb355e7bbef61956cb06f0b8232228547da8cf4fc0a9557ea2"
     },
     {
       "path": "components/FullPageDrawer/versions/1.4.3/FullPageDrawer.tsx",
@@ -1830,14 +1730,6 @@
       "sha256": "7f632d3d05cc5ec131c16517b3ad3b859acf8252f45e94bcb844568212ac13ad"
     },
     {
-      "path": "components/RollingNumber/versions/0.1.5/RollingNumber.tsx",
-      "sha256": "ef7618066097e9d6d1d700ba0999b3c4e75ec565d6e8fd686ba712a726ffd1c8"
-    },
-    {
-      "path": "components/RollingNumber/versions/0.1.5/story.tsx",
-      "sha256": "3dc2bf7274dae3b3cd3e25736991b7c37227039963ca337b3898ecb590dbcb72"
-    },
-    {
       "path": "components/RollingNumber/versions/0.1.6/RollingNumber.tsx",
       "sha256": "6b9b984170c90a276756be0b47cb1384b069c27bbda56237a1f0620d5af25325"
     },
@@ -2166,14 +2058,6 @@
       "sha256": "70d699fe6657e73a07aed132b0665c9340383c23732f0a49b68b8f71fc2454ba"
     },
     {
-      "path": "components/Toggle/versions/1.0.3/story.tsx",
-      "sha256": "f2ecab03c8e51fef53ed4268d802e8b8790b6b747fffe4ce2e746f16846ab26f"
-    },
-    {
-      "path": "components/Toggle/versions/1.0.3/Toggle.tsx",
-      "sha256": "598b12c30e9d7f0c03a62fceb4394a8273dcf40449d0849d9a04a5c93f90e0c9"
-    },
-    {
       "path": "components/Toggle/versions/1.0.4/story.tsx",
       "sha256": "f2ecab03c8e51fef53ed4268d802e8b8790b6b747fffe4ce2e746f16846ab26f"
     },
@@ -2226,18 +2110,6 @@
       "sha256": "e37d7c6f389ef5f5b092eb05234bd57c5d05d1b1faa0d0c4ff7647502f5a612b"
     },
     {
-      "path": "components/UndoBanner/versions/1.0.8/story.tsx",
-      "sha256": "83789cc02edcfe87f8d7d8539be22cc353beae5caefc4b310957716a3144d665"
-    },
-    {
-      "path": "components/UndoBanner/versions/1.0.8/UndoBanner.strings.ts",
-      "sha256": "07861bc19636cce367f0adad5ea5e9369f936a6ee28e765e39cc326a6d666c27"
-    },
-    {
-      "path": "components/UndoBanner/versions/1.0.8/UndoBanner.tsx",
-      "sha256": "6fa81fd97925a909caafc8d999634bcbdb8548e4a1e56cd4a2e6bbaa4f6d44bf"
-    },
-    {
       "path": "components/UndoBanner/versions/1.0.9/story.tsx",
       "sha256": "af651982296891c254e208230432c6bbdefb3e6a751bc614679013db2728f03f"
     },
@@ -2274,14 +2146,6 @@
       "sha256": "2655859835b48139653777a8f3fe936ff758c01e671bc5a42dae8c279d6a7f75"
     },
     {
-      "path": "components/useOverlaySurface/versions/1.4.2/story.tsx",
-      "sha256": "033c756bf6684537ca3f65f189c0e5633207487cb557ed1a4e44a33beb6f9f84"
-    },
-    {
-      "path": "components/useOverlaySurface/versions/1.4.2/useOverlaySurface.tsx",
-      "sha256": "07d2bf0bb047b362ecebc833c079f10b7858a11d7f927fbfc9eeae4054f4f615"
-    },
-    {
       "path": "components/useOverlaySurface/versions/1.4.3/story.tsx",
       "sha256": "033c756bf6684537ca3f65f189c0e5633207487cb557ed1a4e44a33beb6f9f84"
     },
@@ -2300,18 +2164,6 @@
     {
       "path": "components/useViewportEnvironment/versions/1.0.3/useViewportEnvironment.tsx",
       "sha256": "e49cc5beda490ac3cea975fdd87af3951bfcee3322227472a7091f6ddacc5ff4"
-    },
-    {
-      "path": "components/useViewportEnvironment/versions/1.0.4/story.tsx",
-      "sha256": "65924a9ca2446571c25c679e0b769b38e3449502f63a30867d5f07af275a6d38"
-    },
-    {
-      "path": "components/useViewportEnvironment/versions/1.0.4/useViewportEnvironment.ingest.tsx",
-      "sha256": "766ad79e4ba84252f062010d3a6a4cacdac6244c56afbb73085bba80ffa5af33"
-    },
-    {
-      "path": "components/useViewportEnvironment/versions/1.0.4/useViewportEnvironment.tsx",
-      "sha256": "20529b13ca7f78af397271143b7f6b15bab4fa15ef14179823de547cfbc1cb5d"
     },
     {
       "path": "components/useViewportEnvironment/versions/1.1.0/story.tsx",
@@ -2372,14 +2224,6 @@
     {
       "path": "components/VirtualList/versions/1.1.0/VirtualList.tsx",
       "sha256": "3ec36c30354b2441a0d4182f33e9f2410f036a32e29f73bc8292880d1aa9922f"
-    },
-    {
-      "path": "components/VirtualList/versions/1.3.1/story.tsx",
-      "sha256": "62485d0d0907094c0681643c441e81d72048e910cbd8fc1e1c41fc6949c3ca8c"
-    },
-    {
-      "path": "components/VirtualList/versions/1.3.1/VirtualList.tsx",
-      "sha256": "849098684bd14a1c4f2ad9f9674bf69b33e1f02bb348c2b54c19d3c6906244a1"
     },
     {
       "path": "components/VirtualList/versions/1.3.2/story.tsx",
@@ -2460,14 +2304,6 @@
     {
       "path": "foundations/IconGeometry/versions/1.0.1/story.tsx",
       "sha256": "6ac821753dd0740cd99aaf45086b816e5411e6785577471976f8a82cfe3c6b9b"
-    },
-    {
-      "path": "foundations/IconRegistry/versions/1.1.0/IconRegistry.tsx",
-      "sha256": "7ddec94a9a7e8bab499370fb3c2f06f8a7f2a19a4dc74629f3286e0cf9c3a748"
-    },
-    {
-      "path": "foundations/IconRegistry/versions/1.1.0/story.tsx",
-      "sha256": "015a59aa915a37fc0201c0aaf50e62174204ad7ccdd2065eac9bbb559990361e"
     },
     {
       "path": "foundations/IconRegistry/versions/1.1.1/IconRegistry.tsx",
@@ -2702,14 +2538,6 @@
       "sha256": "9b87c4e41393052db8e1937d98ecf31ccb0c67160bb79a68a9fb2f6cf4122603"
     },
     {
-      "path": "hooks/useLocale/versions/1.1.1/story.tsx",
-      "sha256": "91acc2b77483c40e8daeede53e59f392540e75110fe9f65012643767f24ee150"
-    },
-    {
-      "path": "hooks/useLocale/versions/1.1.1/useLocale.ts",
-      "sha256": "67039614a0d3e88bab84d33d4777ed6c573684794cabe318a4ac4f66d6bac4f0"
-    },
-    {
       "path": "hooks/useLocale/versions/1.1.2/story.tsx",
       "sha256": "91acc2b77483c40e8daeede53e59f392540e75110fe9f65012643767f24ee150"
     },
@@ -2724,14 +2552,6 @@
     {
       "path": "hooks/useLongPress/versions/1.0.0/useLongPress.ts",
       "sha256": "55f5790fe92e0de636532f5a2f9a5d1cea5067f502aa591b32090e7d318eb32d"
-    },
-    {
-      "path": "hooks/useLongPress/versions/1.0.1/story.tsx",
-      "sha256": "8204335263ba1a654ef7c440a1ef7b75e9df557b84de077ae868d514707571ba"
-    },
-    {
-      "path": "hooks/useLongPress/versions/1.0.1/useLongPress.ts",
-      "sha256": "09f1f7240dabf8f836259e52d4eced9ad67774dc8e38d272f81d256063ee272e"
     },
     {
       "path": "hooks/useLongPress/versions/1.0.2/story.tsx",
@@ -2780,14 +2600,6 @@
     {
       "path": "hooks/useOutsideInteraction/versions/1.0.1/useOutsideInteraction.ts",
       "sha256": "f69f6ff5611c2e39d504cc59c0343d5cdf77224e5e8df323bc51f3ca268a1acc"
-    },
-    {
-      "path": "hooks/useReducedMotion/versions/1.0.0/story.tsx",
-      "sha256": "f3aab4eb4fcc3c7d0206147e559883bad31567ea7c937ed39f5767d2772996a4"
-    },
-    {
-      "path": "hooks/useReducedMotion/versions/1.0.0/useReducedMotion.ts",
-      "sha256": "942fd173aacbe2465f554b1a3db77036575aad71b87957eff4458e6eab201bd9"
     },
     {
       "path": "hooks/useReducedMotion/versions/1.0.1/story.tsx",
@@ -3006,18 +2818,6 @@
       "sha256": "1d07f4e42967dcdd1924c30a2f30a6e5095c574b0c0ea76eb55317fe20750918"
     },
     {
-      "path": "primitives/Progress/versions/1.0.5/Progress.strings.ts",
-      "sha256": "cf9f91c18c670ba9760a2fdcb1b1d843b234812978b3720fade65666092d7be1"
-    },
-    {
-      "path": "primitives/Progress/versions/1.0.5/Progress.tsx",
-      "sha256": "bea666c48717eab3a076a7a7148904f6d35796c95e4f24e53fbb0d180f28a87f"
-    },
-    {
-      "path": "primitives/Progress/versions/1.0.5/story.tsx",
-      "sha256": "8131e95e94c4c03d31198a444b431bad5c4b568bba267f3c1ccfcd3a5e9674e9"
-    },
-    {
       "path": "primitives/Progress/versions/1.0.6/Progress.strings.ts",
       "sha256": "cf9f91c18c670ba9760a2fdcb1b1d843b234812978b3720fade65666092d7be1"
     },
@@ -3192,14 +2992,6 @@
     {
       "path": "services/ChromeTheme/versions/1.0.2/story.tsx",
       "sha256": "5bb63a78f47896d1378fe1d1b28f7e5d6035ebd3627ccdaa13025bbb59d22496"
-    },
-    {
-      "path": "services/CommandRegistry/versions/1.0.0/CommandRegistry.tsx",
-      "sha256": "f5a60eb1127160043bc24631dcf8ca69cfc0d6f156095fac24aeb182faf4b07f"
-    },
-    {
-      "path": "services/CommandRegistry/versions/1.0.0/story.tsx",
-      "sha256": "c954fd7842c6ec7b915f027d175f3ad9990e877b3f702d53d00b0dc729a275c4"
     },
     {
       "path": "services/CommandRegistry/versions/1.0.1/CommandRegistry.tsx",

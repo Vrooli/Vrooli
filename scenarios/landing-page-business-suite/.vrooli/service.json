@@ -30,7 +30,8 @@
   },
   "environment": {
     "PUBLIC_BASE_URL": "https://vrooli.com",
-    "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify"
+    "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify",
+    "STRIPE_MODE": "test"
   },
   "generation": {
     "template": {

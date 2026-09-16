@@ -471,6 +471,8 @@ export const strings = {
     canvasMissing: "design.canvasMissing",
     canvasFailed: "design.canvasFailed",
     canvasUnconfigured: "design.canvasUnconfigured",
+    canvasEmptyTitle: "design.canvasEmptyTitle",
+    canvasEmptyHelp: "design.canvasEmptyHelp",
     canvasWidth: "design.canvasWidth",
     canvasDesktop: "design.canvasDesktop",
     canvasPhone: "design.canvasPhone",

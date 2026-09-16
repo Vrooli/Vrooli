@@ -49,7 +49,8 @@
     "1.3.6",
     "1.3.12",
     "1.4.0",
-    "1.4.1"
+    "1.4.1",
+    "1.4.2"
   ],
   "latest": "1.4.3",
   "libraryId": "react-component-library:useOverlaySurface"

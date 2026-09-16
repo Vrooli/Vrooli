@@ -29,6 +29,21 @@ they appear.
   comment there is more discoverable
 - **Test failures** — fix them, don't document them
 
+## Work ladder — RCL Prompt Manager UX campaign (2026-09-16)
+
+- Rung: W3, scoped implementation repair under the existing executable page-design
+  target.
+- Evidence: live captures showed the design route reading as a long technical
+  document, with preview configuration visible before a composed candidate and
+  mobile containment still unproven. The campaign ledger keeps the product UX
+  requirement unverified.
+- Target: `.vrooli/plan-artifacts/efforts/rcl-prompt-manager-ux-design-campaign/review/critique-07.md`.
+- Validation: the managed RCL runtime is healthy in degraded mode; the full lint
+  gate remains red on broader repository policy violations. A configured candidate
+  now auto-renders and the workspace has mobile content clearance, but valid seeded
+  candidate recapture is still required.
+- Measured: 2026-09-16.
+
 ## Entry template
 
 Use this shape so entries are scannable. Append newest at the bottom.

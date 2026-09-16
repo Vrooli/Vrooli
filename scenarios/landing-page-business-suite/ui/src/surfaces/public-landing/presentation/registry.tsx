@@ -8,6 +8,8 @@ import { safeHref } from './links';
 import { ArtifactExplorer } from './ArtifactExplorer';
 import { PricingCards } from './PricingCards';
 import { ProductDemo } from './ProductDemo';
+import { ConstellationFigure } from './ConstellationSky';
+import { constellationForMark } from './constellations';
 import type { ResolvedPricing } from './commerce';
 
 export interface RenderContext { presentation: Presentation; resources: PresentationResources; resolvedActions?: ResolvedActions; resolvedPricing?: ResolvedPricing }
@@ -20,7 +22,11 @@ function Hero({ block, context }: { block: Block<'product-hero' | 'bundle-hero'>
   const display = resources.blocks[block.id] ?? {};
   const content = block.content;
   const bundle = block.kind === 'bundle-hero';
+  // Decorative: the page's own figure, drawn from real star positions, behind
+  // the hero and resolving into the exhibit. Never page-owned content.
+  const figure = constellationForMark(resources.shell.brand_mark);
   return <section id={block.id} data-block={block.kind} data-capture-landmark="hero" className={`hero hero-${bundle ? 'editorial' : 'center'}`}>
+    {figure && <ConstellationFigure chart={figure} />}
     <div className="hero-copy"><p className="eyebrow"><span />{content.eyebrow}</p><Heading level={1} text={content.title} breaks={display.heading_breaks} /><p className="hero-description">{content.description}</p><Actions actions={content.actions} context={context} />{display.note && <p className="hero-note">{display.note}</p>}</div>
     <figure className="hero-stage" aria-label={content.accessibility_label}>
       {block.kind === 'product-hero' ? <Visual visualRef={block.content.fixture_ref || block.content.visual_ref} resources={resources} eager /> : <>

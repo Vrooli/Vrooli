@@ -459,6 +459,8 @@
     "canvasMissing": "Missing fixture",
     "canvasFailed": "Region failed",
     "canvasUnconfigured": "Configure template ports and deterministic fixtures to render this revision.",
+    "canvasEmptyTitle": "No live composition yet",
+    "canvasEmptyHelp": "Choose a template or create a candidate from intent, then render this page to inspect the real composition here.",
     "canvasWidth": "Viewport",
     "canvasDesktop": "Desktop",
     "canvasPhone": "Phone",

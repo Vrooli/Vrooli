@@ -208,8 +208,14 @@ func TestModule_HarnessUsesSelectedKitAndRejectsMissingCompiledUtilities(t *test
 		require.Contains(t, rec.Body.String(), tc.radius, tc.kit)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?kit=missing-kit", nil)
+	req := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?kit=system", nil)
 	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, "legacy system kit should resolve to the default kit")
+	require.Contains(t, rec.Body.String(), "--radius-control: 0.375rem")
+
+	req = httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?kit=missing-kit", nil)
+	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 }

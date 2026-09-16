@@ -134,9 +134,9 @@
       "description": "Organize your agent sessions. Talk, listen, and catch up. Explore the plans, pages, and evidence they create—all in one workspace.",
       "theme": {
         "variant": "signal",
-        "primary": "#202924",
-        "background": "#faf9f6",
-        "accent": "#b94721"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",
@@ -670,9 +670,9 @@
       "description": "A place for your AI work. A canvas for your ideas. Thoughtful apps for people who love to make things.",
       "theme": {
         "variant": "studio",
-        "primary": "#30372c",
-        "background": "#f6f4ec",
-        "accent": "#ab4829"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",
@@ -880,9 +880,9 @@
       "description": "Choose a configured app to begin.",
       "theme": {
         "variant": "studio",
-        "primary": "#30372c",
-        "background": "#f6f4ec",
-        "accent": "#ab4829"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",
@@ -938,9 +938,9 @@
       "description": "A separate staged product for visual browser workflows, testing, and replay evidence.",
       "theme": {
         "variant": "studio",
-        "primary": "#30372c",
-        "background": "#f6f4ec",
-        "accent": "#ab4829"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",
@@ -1110,9 +1110,9 @@
       "description": "A private staged visual studio for shaping the surfaces around your work.",
       "theme": {
         "variant": "studio",
-        "primary": "#30372c",
-        "background": "#f6f4ec",
-        "accent": "#ab4829"
+        "primary": "#eef4fb",
+        "background": "#0b1728",
+        "accent": "#22d3ee"
       },
       "navigation": {
         "label": "Main navigation",

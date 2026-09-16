@@ -454,6 +454,8 @@
     "canvasMissing": "フィクスチャがありません",
     "canvasFailed": "領域の表示に失敗しました",
     "canvasUnconfigured": "このリビジョンを表示するには、テンプレートのポートと決定的なフィクスチャを設定してください。",
+    "canvasEmptyTitle": "ライブ合成はまだありません",
+    "canvasEmptyHelp": "テンプレートを選択するか意図から候補を作成し、このページを描画して実際の合成をここで確認してください。",
     "canvasWidth": "表示幅",
     "canvasDesktop": "デスクトップ",
     "canvasPhone": "スマートフォン",

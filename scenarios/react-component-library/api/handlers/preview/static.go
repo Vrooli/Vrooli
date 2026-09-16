@@ -150,6 +150,12 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if kit == "" {
 		kit = defaultPreviewKit
 	}
+	// Older preview sessions persisted the appearance mode "system" in the
+	// kit slot. It is not a concrete server-backed design kit; preserve those
+	// sessions by resolving the stale value to the canonical default kit.
+	if kit == "system" {
+		kit = defaultPreviewKit
+	}
 	css, err := previewDesignSystemCSS(h.repoRoot, kit)
 	if err != nil {
 		h.logger.Printf("preview.harness design kit %q: %v", kit, err)

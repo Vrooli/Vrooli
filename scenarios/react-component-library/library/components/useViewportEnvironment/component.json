@@ -8,14 +8,16 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
   "entry": "useViewportEnvironment.tsx",
-  "evictedVersions": [],
+  "evictedVersions": [
+    "1.0.4"
+  ],
   "latest": "1.1.0",
   "libraryId": "react-component-library:useViewportEnvironment"
 }

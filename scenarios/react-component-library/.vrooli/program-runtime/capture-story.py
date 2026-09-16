@@ -1,7 +1,5 @@
 import hashlib
 import json
-import os
-import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
@@ -37,7 +35,7 @@ def repo_root():
     for candidate in (here, *here.parents):
         if (candidate / "scenarios" / "react-component-library" / "catalog").is_dir():
             return candidate
-    return Path(os.environ.get("VROOLI_ROOT", here))
+    return here
 
 
 def find_component(root):
@@ -68,22 +66,55 @@ def fingerprint(capture_result):
     }
 
 
-def run_capture(root, url, viewport, theme):
-    command = [
-        "ui-health", "capture", "--scenario", "react-component-library", "--surface", url,
-        "--viewport", viewport, "--theme", theme, "--fail-on", "error", "--json",
-    ]
+def dimensions(viewport):
+    if viewport == "desktop":
+        return {"width": 1440, "height": 900}
+    if viewport == "mobile":
+        return {"width": 390, "height": 844}
+    if viewport == "tablet":
+        return {"width": 768, "height": 1024}
+    width, height = viewport.split("x", 1)
+    return {"width": int(width), "height": int(height)}
+
+
+def run_capture(url, viewport, theme):
+    # Browser Automation Studio is the governed capture owner. The prior
+    # implementation spawned ui-health as a child process; program-runtime's
+    # local supervisor can execute that binary but its HTTP client crashes at
+    # the BAS dial boundary. Calling the declared binding preserves durable
+    # execution identity and keeps failure classification inside the owner.
     try:
-        completed = subprocess.run(command, cwd=str(root), text=True, capture_output=True, timeout=110, check=False)
-    except subprocess.TimeoutExpired as exc:
-        return {"status": "failed", "error": "capture timed out: " + str(exc)}
-    try:
-        result = json.loads(completed.stdout)
-    except (TypeError, ValueError):
-        return {"status": "failed", "error": (completed.stderr or completed.stdout or "ui-health returned no JSON")[-500:]}
-    if completed.returncode != 0 and result.get("status") not in ("ok", "partial"):
-        result["error"] = result.get("error") or completed.stderr[-500:]
-    return result
+        kwargs = {
+            "url": url,
+            "capture": ["CAPTURE_TYPE_SCREENSHOT", "CAPTURE_TYPE_DOM_TREE"],
+            "wait_for": {"timeoutMs": 15000},
+            "device_scale_factor": 1.0,
+            "inline_dom_tree": True,
+            "direction": "ltr",
+            "browser_profile": {"fingerprint": {"colorScheme": theme}},
+        }
+        kwargs.update(dimensions(viewport))
+        result = browser_automation_studio.capture.capture(**kwargs)
+        rows = result.head(16)
+        meta = result.meta()
+    except Exception as exc:
+        return {"status": "failed", "error": str(exc)[:500]}
+    by_type = {}
+    for row in rows:
+        kind = str(row.get("type") or row.get("captureType") or "").lower()
+        by_type[kind] = row
+    screenshot = by_type.get("capture_type_screenshot") or by_type.get("screenshot")
+    snapshot = by_type.get("capture_type_dom_tree") or by_type.get("dom_tree")
+    execution_id = meta.get("executionId") or meta.get("execution_id")
+    artifacts = [item for item in (screenshot, snapshot) if item]
+    return {
+        "status": "ok" if screenshot and snapshot else "partial",
+        "resolved": {"route": url, "rung": 1},
+        "artifacts": artifacts,
+        "execution_id": execution_id,
+        "readiness": meta.get("readiness"),
+        "findings": [],
+    }
 
 
 if not asset_id:
@@ -126,7 +157,12 @@ else:
                             viewport = str(viewport).strip().lower()
                             theme = str(theme).strip().lower()
                             item = {"story": story, "viewport": viewport, "theme": theme, "url": preview}
-                            capture_result = run_capture(root, "http://localhost:23906" + preview, viewport, theme)
+                            # Program-runtime subprocesses do not inherit the
+                            # browser's hostname resolution consistently;
+                            # pin the local owner to IPv4 so a capture failure
+                            # is reported as a normal unavailable result rather
+                            # than a Go transport crash in the child process.
+                            capture_result = run_capture("http://127.0.0.1:23906" + preview, viewport, theme)
                             item["capture"] = capture_result
                             item["changed"] = False
                             item["baseline"] = False
@@ -148,7 +184,7 @@ else:
                 envelope["phase"] = "decide"
                 statuses = [item.get("capture", {}).get("status") for item in envelope["signals"]["combinations"]]
                 envelope["status"] = "ok" if statuses and all(status == "ok" for status in statuses) else "partial"
-                envelope["evidence"].append("ui-health capture per story x viewport x theme")
+                envelope["evidence"].append("BAS capture per story x viewport x theme")
                 envelope["phase"] = "report"
 
 print(json.dumps(envelope, allow_nan=False))

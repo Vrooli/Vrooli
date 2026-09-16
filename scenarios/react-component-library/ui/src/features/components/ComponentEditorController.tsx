@@ -50,6 +50,15 @@ function readPreviewPreference<T>(key: string, fallback: T): T {
   }
 }
 
+function readPreviewKitPreference(): string {
+
+  const stored = readPreviewPreference<string>("rcl.preview.kit", "vrooli-default");
+  // `system` was used by an older appearance selector, but it is not a
+  // server-backed preview kit. Treat it as stale preference data so a saved
+  // browser session cannot make every story harness return HTTP 500.
+  return stored === "system" ? "vrooli-default" : stored || "vrooli-default";
+}
+
 // JSDOM does not provide ResizeObserver, while the browser-only panel library
 // requires one at mount time. The fallback is intentionally inert: production
 // browsers retain the native observer and panel sizing; unit tests only need a
@@ -239,7 +248,7 @@ export function ComponentEditorImpl({
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
   const [previewKit, setPreviewKit] = useState<PreviewKit>(
-    () => readPreviewPreference("rcl.preview.kit", "vrooli-default") || "vrooli-default",
+    readPreviewKitPreference,
   );
   const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;

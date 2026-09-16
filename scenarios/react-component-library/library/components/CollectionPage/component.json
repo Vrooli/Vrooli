@@ -1,0 +1,25 @@
+{
+  "libraryId": "react-component-library:CollectionPage",
+  "displayName": "CollectionPage",
+  "description": "The responsive collection workspace with explicit region composition and mobile navigation.",
+  "catalogId": "templates.collection-page",
+  "kind": "control",
+  "tags": [
+    "template",
+    "collection",
+    "workspace"
+  ],
+  "slot": "ui-pattern",
+  "category": "uncategorized",
+  "entry": "CollectionPage.tsx",
+  "latest": "1.7.1",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "evictedVersions": []
+}

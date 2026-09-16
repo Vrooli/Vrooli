@@ -2,8 +2,10 @@ package sketch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -100,6 +102,13 @@ func buildModule(repoRoot string, logger *log.Logger, scanner reconcile.Scanner,
 	return module.Module{
 		Name: "sketch",
 		Mount: func(router *mux.Router) {
+			referenceAssets := &referenceAssetHTTP{repoRoot: repoRoot, routes: routes}
+			router.HandleFunc("/reference-assets", referenceAssets.upload).Methods(http.MethodPost)
+			router.HandleFunc("/reference-assets/{scenario}/{page}/{name}", referenceAssets.serve).Methods(http.MethodGet)
+			// REST callers resolve the conventional /api/v1 suffix; retain the
+			// short aliases for local tools and existing scenario conventions.
+			router.HandleFunc("/api/v1/reference-assets", referenceAssets.upload).Methods(http.MethodPost)
+			router.HandleFunc("/api/v1/reference-assets/{scenario}/{page}/{name}", referenceAssets.serve).Methods(http.MethodGet)
 			if deps.CapturesFor != nil {
 				captureH.MountTarget(router, deps.CapturesFor)
 			}
@@ -107,6 +116,59 @@ func buildModule(repoRoot string, logger *log.Logger, scanner reconcile.Scanner,
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type referenceAssetHTTP struct {
+	repoRoot string
+	routes   []*filerouting.RoutedRoots
+}
+
+func (h *referenceAssetHTTP) root(ctx context.Context) (string, error) {
+	if len(h.routes) == 0 || h.routes[0] == nil {
+		return h.repoRoot, nil
+	}
+	return requestWorkspaceRoot(ctx, h.repoRoot, h.routes[0])
+}
+
+func (h *referenceAssetHTTP) upload(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(2 << 20); err != nil {
+		http.Error(w, "malformed multipart form", http.StatusBadRequest)
+		return
+	}
+	scenario, page := r.FormValue("scenario"), r.FormValue("page")
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "file is required", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	root, err := h.root(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+		return
+	}
+	id, name, size, err := internal.SaveReferenceAsset(root, scenario, page, header.Filename, header.Header.Get("Content-Type"), file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "name": name, "size": size, "mime": header.Header.Get("Content-Type"), "url": fmt.Sprintf("/api/v1/reference-assets/%s/%s/%s", scenario, page, name)})
+}
+
+func (h *referenceAssetHTTP) serve(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	root, err := h.root(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+		return
+	}
+	path, err := internal.ReferenceAssetPath(root, vars["scenario"], vars["page"], vars["name"])
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, path)
 }
 
 func Schema() string { return "" }

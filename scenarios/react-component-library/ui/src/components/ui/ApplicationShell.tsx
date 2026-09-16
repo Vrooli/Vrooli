@@ -147,7 +147,7 @@ export function ApplicationShell({ children }: Props) {
         className="h-dvh min-h-0 w-full overflow-hidden"
         header={header}
         mainMode={isComponentDetail ? "fill" : "scroll"}
-        mainClassName={isComponentDetail ? "min-h-0 min-w-0 w-full flex flex-1 flex-col overflow-auto" : "min-h-0 min-w-0 w-full flex-1"}
+        mainClassName={isComponentDetail ? "min-h-0 min-w-0 w-full flex flex-1 flex-col overflow-auto" : isDesign ? "min-h-0 min-w-0 w-full flex-1 overflow-x-clip pb-24 sm:pb-0" : "min-h-0 min-w-0 w-full flex-1"}
         utility={
           <div className="flex items-center gap-space-2xs">
             <Link to="/settings" aria-label={t("nav.settings", { defaultValue: "Settings" })} className="touch-target inline-flex items-center justify-center rounded-control">
