@@ -13,6 +13,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
 import TerminalHeader from "./TerminalHeader";
 import MessagesPane from "./MessagesPane";
+import type { PreviewSourceContext } from "../api/filePreview";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 
 interface WorkspacePaneShellProps {
@@ -63,6 +64,7 @@ interface WorkspacePaneShellProps {
   onNeedsUnlock: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
   onPlayFromHere: (sessionId: string, eventId: string) => void;
   onPlayEvent: (sessionId: string, eventId: string) => void;
+  onOpenFilePreview?: (sessionId: string, path: string, source: PreviewSourceContext) => void;
 }
 
 function WorkspacePaneShell({
@@ -105,6 +107,7 @@ function WorkspacePaneShell({
   onNeedsUnlock,
   onPlayFromHere,
   onPlayEvent,
+  onOpenFilePreview,
 }: WorkspacePaneShellProps) {
   const { sessionId, name, headerColor, supportsMessagesView } = paneMeta;
 
@@ -217,6 +220,7 @@ function WorkspacePaneShell({
             onSpeakingEventChange={(eventId) => { onSpeakingEventChange(sessionId, eventId); }}
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}
+			onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
 			viewMode={viewMode}
             ref={(handle) => {
               terminalHandleRef.current = handle;
@@ -249,6 +253,7 @@ function WorkspacePaneShell({
               onOpenTerminal={handleToggleView}
               getTerminalText={getTerminalText}
               onPressEnter={pressEnter}
+              onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
             />
             </Profiler>
           </div>

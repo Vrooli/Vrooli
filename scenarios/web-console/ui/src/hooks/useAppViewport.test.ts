@@ -47,7 +47,7 @@ describe("useAppViewport", () => {
 
   it("projects the snapshot into only the shell's variables; the library owns its own", () => {
     renderHook(() => useAppViewport());
-    expect(cssVar("--wc-app-height")).toBe("760px");
+    expect(cssVar("--wc-app-height")).toBe("844px");
     expect(cssVar("--wc-kb-height")).toBe("0px");
     expect(cssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
     // The library owns the overlays' inset; the shell publishes only its own.
@@ -71,6 +71,17 @@ describe("useAppViewport", () => {
 
     rerender();
     expect(onKeyboardChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores the layout height when visual viewport remains shrunken after dismissal", () => {
+    viewportState.current = {
+      ...viewportState.current,
+      visibleHeight: 520,
+      keyboardInset: 0,
+      keyboardVisible: false,
+    };
+    renderHook(() => useAppViewport());
+    expect(cssVar("--wc-app-height")).toBe("844px");
   });
 
   it("reserves no bottom inset in the shell when the library says the app stops short of the screen's bottom", () => {

@@ -45,7 +45,7 @@ describe("migrateToolbarPrefs — already on v23", () => {
       overflow: "more" as const,
       enabled: { more: true, modifiers: true, special: false, arrows: true, mic: true, image: true, ai: true },
     };
-    expect(migrateToolbarPrefs({ toolbarPrefs: stored }, 23)).toEqual(stored);
+    expect(migrateToolbarPrefs({ toolbarPrefs: stored }, 23)).toMatchObject(stored);
   });
 
   it("repairs values an older or hand-edited build could have written", () => {

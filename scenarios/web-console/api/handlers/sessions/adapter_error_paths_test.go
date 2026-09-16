@@ -17,13 +17,14 @@ import (
 
 type emptySessionManager struct{}
 
-type remoteCreateErrorService struct{ err error }
+type remoteCreateErrorService struct {
+	RemoteService
+	err error
+}
 
 func (r remoteCreateErrorService) Create(context.Context, CreateInput) (Session, error) {
 	return Session{}, r.err
 }
-func (remoteCreateErrorService) List(context.Context) ([]Session, error)      { return nil, nil }
-func (remoteCreateErrorService) Get(context.Context, string) (Session, error) { return Session{}, nil }
 
 func (emptySessionManager) Create(context.Context, string, uint16, uint16, backend.ID, *policy.Policy) (*session.Session, error) {
 	return nil, session.ErrBackendUnknown

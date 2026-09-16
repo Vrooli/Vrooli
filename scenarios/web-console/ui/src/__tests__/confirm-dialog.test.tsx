@@ -100,7 +100,7 @@ describe("AlertDialog consumer contract", () => {
     // A confirmation is the topmost interactive surface: it is raised from
     // inside drawers and menus, so sharing --layer-modal with them left it
     // winning only by DOM order, and losing outright to --layer-menu.
-    expect(sheet).toContain("z-index: var(--layer-alert, 700)");
+    expect(sheet).toContain("z-index: var(--layer-alert)");
     expect(sheet).not.toContain("z-index: var(--layer-modal");
   });
 });

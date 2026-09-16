@@ -1,7 +1,8 @@
 import { createRef, useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import { useVirtualList } from "../hooks/useVirtualList";
+import { renderWithProviders as render } from "../test-utils";
 
 describe("useVirtualList", () => {
   it("keeps a 2500-item list bounded before its viewport is measured", () => {

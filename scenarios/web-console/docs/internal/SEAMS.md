@@ -351,11 +351,15 @@ exemption.
 | [CODE: ui/src/api/health.ts] | `GET /health` | `RESTReasonOpsProbe` | The API liveness probe must answer before Connect-RPC routing is wired up. Load balancers, lifecycle checks, and `curl` need the simplest possible shape. The proto in `packages/proto/schemas/web-console/v1/health/health.proto` carries the JSON wire shape so the response decodes through `fromJson(ResponseSchema, ...)` for type safety — there is no hand-rolled `HealthResponse` type. |
 | [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart binary upload. Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
 | [CODE: ui/src/api/filePreview.ts] (consumed by native elements, not `fetch`) | `GET\|HEAD /sessions/{id}/file-previews/{previewId}/blob` | `RESTReasonOpsProbe` | Byte-range blob stream consumed directly by native `<img>/<video>/<audio>/<iframe>` `src`/`href` — browser-native transport Connect cannot express (the same category as `terminal_ws`). The opaque, session-bound `preview_id` (never a raw path) is issued by `FilePreviewService.Resolve`; preview metadata + bounded text stay proto-typed over Connect. Bytes never travel through Connect. |
+| [CODE: ui/src/api/ttsHook.ts] | `POST /api/v1/tts-hook/{ack,playback}`; `GET /api/v1/tts-hook/{status,config}` | `RESTReasonHostHookGlue` | Claude project-settings hook routing and playback diagnostics are a deliberately tiny web-console-internal surface. It never crosses scenario boundaries; audio synthesis stays on the Connect-RPC audio-tools path. |
+| [CODE: ui/src/api/ai.ts] | `POST /api/v1/ai/generate` | `RESTReasonBrowserSurface` | The browser-facing JSON endpoint preserves the typed `credits_required` 402 response used by the AI composer. The endpoint descriptor explicitly records this exception; the Connect service remains available for typed callers. |
+| [CODE: ui/src/api/conversation.ts] | `POST /sessions/{id}/conversation/control/{preflight,execute}` | `RESTReasonBrowserSurface` | Existing browser conversation controls use a small JSON command/result contract while the surrounding session APIs remain Connect-RPC. |
+| [CODE: ui/src/api/monetization.ts] | `GET\|POST\|DELETE /api/v1/{auth/subscription/*,credentials/*,integrations/connections,commercial-context}` | `RESTReasonThirdPartyShape` | Commercial-session, credential, and context endpoints bridge LPBS/third-party JSON contracts that are intentionally kept stable for browser and desktop clients. |
 
 **Regression guard**: [CODE: ui/src/api/__tests__/no-rest-exceptions.test.ts]
 greps `ui/src/api/*.ts` for the literal token `fetch(` and fails if it
-appears outside `health.ts` and `uploads.ts`. `filePreview.ts` does not
-trip it: the blob bytes are loaded by native element `src`/`href`
+appears outside the explicit allowlist in that test. `filePreview.ts` does
+not trip it: the blob bytes are loaded by native element `src`/`href`
 attributes, not a `fetch(` call, so the file-preview REST surface adds no
 `fetch(` to the API layer.
 

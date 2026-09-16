@@ -134,7 +134,7 @@ describe("AppearanceModal", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     const firstColor = HEADER_COLORS[0] ?? "transparent";
-    fireEvent.click(screen.getByTestId(`appearance-header-color-palette-${firstColor}`));
+    fireEvent.click(screen.getByTestId(`forms.color-picker-appearance-header-color-palette-${firstColor}`));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", firstColor);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { header_color: firstColor });
   });
@@ -142,7 +142,7 @@ describe("AppearanceModal", () => {
   it("clicking transparent swatch calls setPaneColor with transparent", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    fireEvent.click(screen.getByTestId("appearance-header-color-transparent"));
+    fireEvent.click(screen.getByTestId("forms.color-picker-appearance-header-color-transparent"));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", "transparent");
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { header_color: "transparent" });
   });

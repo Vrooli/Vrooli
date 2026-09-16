@@ -1112,6 +1112,24 @@
           "completion": "optional"
         },
         {
+          "path": "perf/2026-09-15-workspace-steady-state-audit.md",
+          "docType": "performance-audit",
+          "title": "Workspace Steady-State Audit",
+          "description": "Measured workspace steady-state performance observations and follow-up notes",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-09-16-messages-and-markdown-journeys.md",
+          "docType": "performance-audit",
+          "title": "Messages and Markdown Journey Audit",
+          "description": "Measured messages and markdown journey performance observations and follow-up notes",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "internal/TEMPORAL-FLOWS.md",
           "docType": "flows",
           "title": "Temporal Flows (internal notes)",

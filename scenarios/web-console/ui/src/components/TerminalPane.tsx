@@ -24,6 +24,7 @@ import { usePaneSelection } from "../hooks/terminal/usePaneSelection";
 import { DeviceFrame } from "./terminal/DeviceFrame";
 import { useFollowerViewportLayout } from "../hooks/terminal/useFollowerViewportLayout";
 import type { FollowerMode } from "../lib/terminalProtocol";
+import type { PreviewSourceContext } from "../api/filePreview";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -48,6 +49,7 @@ interface TerminalPaneProps {
    * call `enable()` on click — a successful return replays pending events.
    */
   onNeedsUnlock?: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
+	onOpenFilePreview?: (path: string, source: PreviewSourceContext) => void;
 	viewMode?: "terminal" | "messages";
 }
 
@@ -79,7 +81,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, viewMode = "terminal" }, ref) {
+	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, onOpenFilePreview, viewMode = "terminal" }, ref) {
     const { t } = useTranslation();
     const paneStatus = useWorkspaceStore((state) => state.paneStatuses?.[sessionId] ?? null);
     const updatePaneStatus = useWorkspaceStore((state) => state.setPaneStatus);
@@ -116,6 +118,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 	const [followerMode, setFollowerMode] = useState<FollowerMode>("leader");
     const sendResizeToSession = useCallback((cols: number, rows: number) => { sendResizeRef.current(cols, rows); }, []);
     const getServerSizeFromSession = useCallback(() => serverSizeRef.current, []);
+    const handleOpenFilePreview = useCallback((path: string) => {
+      onOpenFilePreview?.(path, "cli");
+    }, [onOpenFilePreview]);
     const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
     const { syncPaneUpdate } = useWorkspaceSync();
     const { containerRef, terminalHostRef, fitRef, terminal, paneSize, scrollAwareFit } = useXtermLifecycle({
@@ -128,6 +133,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 	  followerMode,
       renamePaneById,
       syncPaneUpdate,
+      onOpenFileReference: handleOpenFilePreview,
     });
 
     // Delegate all WebSocket protocol handling to the session hook

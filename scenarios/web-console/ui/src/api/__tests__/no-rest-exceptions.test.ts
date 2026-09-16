@@ -9,21 +9,32 @@ import { fileURLToPath } from "node:url";
 // exceptions are the files allowlisted below, each tied to one
 // of the template's enumerated RESTReason values:
 //
-//   health.ts   -> RESTReasonOpsProbe
-//   uploads.ts  -> RESTReasonMultipartUpload
-//   ttsHook.ts  -> RESTReasonHostHookGlue (Claude project-settings hook
-//                  routing / playback diagnostics — a deliberately tiny
-//                  web-console-internal surface that never crosses scenario
-//                  boundaries; all audio synthesis flows through Connect
-//                  against audio-tools)
-// See docs/internal/SEAMS.md for the registry. Adding a fourth REST
+//   health.ts        -> RESTReasonOpsProbe
+//   uploads.ts       -> RESTReasonMultipartUpload
+//   ttsHook.ts       -> RESTReasonHostHookGlue (Claude project-settings hook
+//                       routing / playback diagnostics)
+//   ai.ts            -> RESTReasonBrowserSurface (typed 402 browser contract)
+//   conversation.ts  -> RESTReasonBrowserSurface (legacy browser controls)
+//   monetization.ts  -> RESTReasonThirdPartyShape (commercial/session JSON)
+//
+// The tts hook is a deliberately tiny web-console-internal surface that never
+// crosses scenario boundaries; all audio synthesis flows through Connect
+// against audio-tools.
+// See docs/internal/SEAMS.md for the registry. Adding another REST
 // surface requires picking another enumerated RESTReason and updating
 // SEAMS.md AND this allowlist in the same change.
 
 const THIS_FILE = fileURLToPath(import.meta.url);
 const API_DIR = resolve(THIS_FILE, "..", "..");
 
-const ALLOWLIST = new Set(["health.ts", "uploads.ts", "ttsHook.ts"]);
+const ALLOWLIST = new Set([
+  "health.ts",
+  "uploads.ts",
+  "ttsHook.ts",
+  "ai.ts",
+  "conversation.ts",
+  "monetization.ts",
+]);
 
 function listApiFiles(dir: string): string[] {
   const out: string[] = [];
@@ -39,7 +50,7 @@ function listApiFiles(dir: string): string[] {
 }
 
 describe("REST exceptions (UI api/)", () => {
-  it("no fetch( outside the two sanctioned REST exception files", () => {
+  it("no fetch( outside the sanctioned REST exception files", () => {
     const files = listApiFiles(API_DIR);
     const offenders: { file: string; line: number; text: string }[] = [];
 

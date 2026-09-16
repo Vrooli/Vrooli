@@ -65,6 +65,7 @@ describe("MESSAGE_ACTIONS", () => {
       "save-as-snippet",
       "handoff",
       "send-to-composer",
+      "rewind",
       "render-mode",
       "playback-mode",
     ]);

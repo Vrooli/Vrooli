@@ -476,6 +476,7 @@ function ArchiveStorageSummary({ onRequestClose }: { onRequestClose: () => void 
         title={t(strings.settings.sessionsSection.archiveStoragePruneTitle)}
         closeLabel={t(strings.settings.closeAriaLabel)}
         testId="archive-prune-sheet"
+        avoidKeyboard
       >
         <div className="flex flex-col gap-4 pb-2">
           <p className="text-sm text-wc-text-secondary">
@@ -863,6 +864,7 @@ export default function SessionManagementSection({
           title={menuPane.name}
           closeLabel={t(strings.settings.closeAriaLabel)}
           testId={`sessions-pane-sheet-${menuPane.sessionId}`}
+          avoidKeyboard
         >
           <div className="flex flex-col gap-1 pb-2">
             <div className="px-3 pb-2 pt-1">

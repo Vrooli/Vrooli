@@ -98,7 +98,7 @@ describe("library style integration", () => {
   it("mounts the library banner stylesheet with token-derived tone palettes", () => {
     render(<BannerRegion banners={[warning("styled")]} damping={INSTANT_DAMPING} />);
 
-    const sheet = document.querySelector('style[data-rcl-sheet^="banner-"]');
+    const sheet = document.querySelector('style[data-rcl-sheet="react-component-library-banner-1.0.13"]');
     expect(sheet).not.toBeNull();
     const css = sheet?.textContent ?? "";
 
@@ -112,6 +112,6 @@ describe("library style integration", () => {
     // The close control is a bare icon button, and its touch target is an
     // overlay so a conforming hit area costs the compact row no height.
     expect(css).toMatch(/\[data-rcl-banner-dismiss\]\s*\{[^}]*border:\s*0/);
-    expect(css).toContain("var(--tap-target-min, 44px)");
+    expect(css).toContain("var(--tap-target-min)");
   });
 });

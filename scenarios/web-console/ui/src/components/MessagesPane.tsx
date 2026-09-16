@@ -12,7 +12,6 @@ import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
 import { executeConversationControl, getConversationRange, preflightConversationControl, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
-import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
@@ -23,7 +22,7 @@ import MessageJumpList, { type MessageExportSelection, type SearchOptionsState }
 import MessageExportDrawer from "./MessageExportDrawer";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
-import MessagesFileViewer from "./MessagesFileViewer";
+import type { PreviewSourceContext } from "../api/filePreview";
 import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
 import { groupSuggestionsByRule } from "../lib/captureRules";
 import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
@@ -86,6 +85,8 @@ interface MessagesPaneProps {
   getTerminalText?: () => Promise<string | null>;
   /** Presses Enter in this pane's terminal (an echo row's "Press Enter"). */
   onPressEnter?: () => void;
+  /** Opens a preview in the workspace-level viewer host. */
+  onOpenFilePreview?: (path: string, source: PreviewSourceContext) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +134,7 @@ export default function MessagesPane({
   onOpenTerminal,
   getTerminalText,
   onPressEnter,
+  onOpenFilePreview,
 }: MessagesPaneProps) {
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
@@ -208,7 +210,6 @@ export default function MessagesPane({
   const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
 
   // --- File preview ---
-  const filePreview = useFilePreviewController(sessionId);
   // Rules only ever offer. Nothing on this path can send.
   const handoffSuggestions = useHandoffSuggestions(sessionId);
 
@@ -634,16 +635,15 @@ export default function MessagesPane({
     focusAndScroll(playbackFocusRequest.eventId);
   }, [focusAndScroll, playbackFocusRequest]);
 
-  const { openPreview } = filePreview;
   const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!looksLikeFileReference(href)) return;
     event.preventDefault();
-    void openPreview(href, "message_link");
-  }, [openPreview]);
+    onOpenFilePreview?.(href, "message_link");
+  }, [onOpenFilePreview]);
 
   const handleInlineCodeFileClick = useCallback((path: string) => {
-    void openPreview(path, "inline_code");
-  }, [openPreview]);
+    onOpenFilePreview?.(path, "inline_code");
+  }, [onOpenFilePreview]);
 
   const [mermaidViewer, setMermaidViewer] = useState<{ code: string } | null>(null);
   const handleMermaidOpen = useCallback((code: string) => {
@@ -1021,18 +1021,6 @@ export default function MessagesPane({
           )}
         </div>
       )}
-
-      <MessagesFileViewer
-        state={filePreview.state}
-        onHandoff={onHandoff ? (path) => { onHandoff(sessionId, path); } : undefined}
-        onClose={filePreview.close}
-        onReopen={filePreview.reopen}
-        onRendererError={filePreview.reportError}
-        onNavigate={filePreview.navigateTo}
-        onNavigateBack={filePreview.navigateBack}
-        onLoadMore={filePreview.loadMore}
-        onListOptionsChange={filePreview.setListOptions}
-      />
 
       {rewindPreflight && (
         <div role="dialog" aria-modal="true" aria-label={t(strings.messagesPane.rewindDialogLabel)} className="absolute inset-x-3 bottom-3 z-wc-chrome-raised max-h-[min(32rem,calc(100%-1.5rem))] overflow-y-auto rounded-lg border border-wc-default bg-wc-surface-raised p-4 shadow-xl">

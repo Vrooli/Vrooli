@@ -11,7 +11,14 @@ export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => 
   useEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--wc-kb-height", `${String(viewport.keyboardInset)}px`);
-    root.setProperty("--wc-app-height", `${String(viewport.visibleHeight)}px`);
+    // visualViewport can remain keyboard-shrunken for a frame (and on some
+    // iOS/WebKit paths until the next interaction) after the keyboard has
+    // already been dismissed.  Using that value while keyboardVisible is
+    // false strands the whole shell in the upper part of the screen.  The
+    // layout viewport is the stable app height; only adopt the smaller visual
+    // height once the shared detector has positively established a keyboard.
+    const appHeight = viewport.keyboardVisible ? viewport.visibleHeight : viewport.layoutHeight;
+    root.setProperty("--wc-app-height", `${String(appHeight)}px`);
     root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
     root.setProperty("--wc-safe-left", "env(safe-area-inset-left)");
     root.setProperty("--wc-safe-right", "env(safe-area-inset-right)");

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -32,6 +32,15 @@ export function useFilePreviewController(sessionId: string) {
   const { t } = useTranslation();
   const [state, setState] = useState<PreviewState>(IDLE_PREVIEW_STATE);
   const reqIdRef = useRef(0);
+
+  // A workspace can keep the viewer mounted while the operator changes panes.
+  // Reset the state when that viewer is repinned to another session so a
+  // previous session's preview can never flash in the new session.
+  useEffect(() => {
+    reqIdRef.current++;
+    stateRef.current = IDLE_PREVIEW_STATE;
+    setState(IDLE_PREVIEW_STATE);
+  }, [sessionId]);
 
   // stateRef mirrors the latest state so event handlers can read it without
   // doing work inside a setState updater — updaters must stay pure, since

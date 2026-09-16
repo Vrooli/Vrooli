@@ -100,7 +100,7 @@ describe("MessageExportDrawer", () => {
     render(<MessageExportDrawer open events={twoEvents()} onClose={onClose} />);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByLabelText("messageExport.closeAriaLabel"));
+    fireEvent.click(screen.getByTestId("msg-export-drawer.grabber"));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 

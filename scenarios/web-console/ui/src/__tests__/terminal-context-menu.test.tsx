@@ -169,7 +169,7 @@ describe("TerminalContextMenu", () => {
     render(<TerminalContextMenu {...props} />);
     // The sheet presentation dismisses on press, not click, and the backdrop
     // is rooted at the surface's own test id.
-    fireEvent.pointerDown(screen.getByTestId("terminal-context-menu.backdrop"));
+    fireEvent.pointerDown(screen.getAllByTestId("overlays.context-menu")[0]!);
     expect(props.onClose).toHaveBeenCalledOnce();
   });
 
@@ -209,7 +209,7 @@ describe("TerminalContextMenu", () => {
     render(<TerminalContextMenu {...defaultProps()} />);
     const menu = screen.getByTestId("terminal-context-menu");
     expect(menu.style.left).toBe("");
-    expect(screen.getByTestId("terminal-context-menu.grabber")).toBeInTheDocument();
+    expect(screen.getAllByTestId("overlays.context-menu").length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders Upload Image button when onUploadImage is provided", () => {

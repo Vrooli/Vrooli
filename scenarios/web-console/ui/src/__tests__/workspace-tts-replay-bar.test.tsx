@@ -143,6 +143,7 @@ vi.mock("../stores/useConversationStore", () => {
     sessions: mockConversationSessions,
     clearSession: vi.fn(),
     hydrateSession: vi.fn(),
+    failLoad: vi.fn(),
     appendEvent: vi.fn(),
     updateEvent: vi.fn(),
   };

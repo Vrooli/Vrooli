@@ -96,6 +96,9 @@ import ArchiveDrawer from "./ArchiveDrawer";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
+import WorkspaceFilePreview, { type WorkspaceFilePreviewRequest } from "./file-preview/WorkspaceFilePreview";
+import type { PreviewSourceContext } from "../api/filePreview";
+import { shouldFocusArtifactViewer } from "./file-preview/artifactViewerLayout";
 import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { setupMediaSession } from "../domains/tts-playback/mediaSession";
@@ -467,6 +470,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
 
+  const [filePreviewRequest, setFilePreviewRequest] = useState<WorkspaceFilePreviewRequest | null>(null);
+  const [filePreviewWidth, setFilePreviewWidth] = useState(440);
+  const [filePreviewFocus, setFilePreviewFocus] = useState(false);
+  const filePreviewAreaRef = useRef<HTMLDivElement | null>(null);
+  const openFilePreview = useCallback((sessionId: string, path: string, source: PreviewSourceContext) => {
+    activatePane(sessionId);
+    setFilePreviewFocus(false);
+    setFilePreviewRequest({ sessionId, path, source });
+  }, [activatePane]);
+  const closeFilePreview = useCallback(() => {
+    setFilePreviewRequest(null);
+    setFilePreviewFocus(false);
+  }, []);
   // Adaptive app-chrome: tell the imperative chrome controller which pane owns
   // the chrome (the focused pane in single-focus modes), whether tinting is
   // active, and the owner's configured theme background (the detection
@@ -499,6 +515,20 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     window.addEventListener("resize", onResize);
     return () => { window.removeEventListener("resize", onResize); };
   }, []);
+
+  useEffect(() => {
+    const element = filePreviewAreaRef.current;
+    if (!element || !filePreviewRequest || isMobile) return;
+    const update = () => {
+      if (!filePreviewFocus && shouldFocusArtifactViewer(element.clientWidth, filePreviewWidth)) {
+        setFilePreviewFocus(true);
+      }
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => { observer.disconnect(); };
+  }, [filePreviewFocus, filePreviewRequest, filePreviewWidth, isMobile]);
 
   // --- Pane drag-and-drop reordering ---
   const [activeArrangeDrag, setActiveArrangeDrag] =
@@ -2036,6 +2066,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onNeedsUnlock={handleNeedsUnlock}
         onPlayFromHere={playPaneFromHere}
         onPlayEvent={playPaneEvent}
+        onOpenFilePreview={openFilePreview}
       />
     );
   });
@@ -2294,7 +2325,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             </Profiler>
           )}
           {/* Tab-like modes: stacked panes with hidden inactive panes */}
-          <div className="relative flex-1 min-h-0 overflow-hidden">
+          <div ref={filePreviewAreaRef} className="relative flex min-w-0 flex-1 min-h-0 overflow-hidden">
+          <div className={cn("relative min-w-0 min-h-0 flex-1 overflow-hidden", filePreviewFocus && "invisible")}>
           {/* Toggle between terminal and messages view.
            * Shows the icon for the view you'll switch TO (not the current view):
            *   • In terminal mode → show chat icon (click to switch to messages)
@@ -2343,14 +2375,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onNeedsUnlock={handleNeedsUnlock}
                   onPlayFromHere={playPaneFromHere}
                   onPlayEvent={playPaneEvent}
+                  onOpenFilePreview={openFilePreview}
                 />
               );
             })}
           </div>
+          {filePreviewRequest && !isMobile && (
+            <WorkspaceFilePreview
+              request={filePreviewRequest}
+              mobile={false}
+              width={filePreviewWidth}
+              focusMode={filePreviewFocus}
+              onWidthChange={setFilePreviewWidth}
+              onFocus={() => { setFilePreviewFocus(true); }}
+              onRestore={() => { setFilePreviewFocus(false); }}
+              onClose={closeFilePreview}
+              onHandoff={openHandoff}
+            />
+          )}
+          </div>
         </div>
       ) : (
         /* Grid mode: original grid layout with minimap */
-        <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
+        <div ref={filePreviewAreaRef} className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div className={cn("relative min-w-0 min-h-0 flex-1 overflow-hidden", filePreviewFocus && "invisible") }>
           <div
             ref={scrollContainerRef}
             className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", workspace.isMinimapVisible && "right-[34px]")}
@@ -2377,7 +2425,35 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
           {/* Minimap (only in grid mode) */}
           <WorkspaceMinimap scrollRef={scrollContainerRef} rowCount={layout.rows} />
+          </div>
+          {filePreviewRequest && !isMobile && (
+            <WorkspaceFilePreview
+              request={filePreviewRequest}
+              mobile={false}
+              width={filePreviewWidth}
+              focusMode={filePreviewFocus}
+              onWidthChange={setFilePreviewWidth}
+              onFocus={() => { setFilePreviewFocus(true); }}
+              onRestore={() => { setFilePreviewFocus(false); }}
+              onClose={closeFilePreview}
+              onHandoff={openHandoff}
+            />
+          )}
         </div>
+      )}
+
+      {filePreviewRequest && isMobile && (
+        <WorkspaceFilePreview
+          request={filePreviewRequest}
+          mobile
+          width={filePreviewWidth}
+          focusMode={false}
+          onWidthChange={setFilePreviewWidth}
+          onFocus={() => undefined}
+          onRestore={() => undefined}
+          onClose={closeFilePreview}
+          onHandoff={openHandoff}
+        />
       )}
 
       {/* Bottom bar */}

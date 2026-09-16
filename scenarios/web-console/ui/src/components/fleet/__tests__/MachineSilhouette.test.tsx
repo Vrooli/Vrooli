@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { renderWithProviders as render } from "../../../test-utils";
 import { describe, expect, it } from "vitest";
 import MachineSilhouette from "../MachineSilhouette";
 import { MACHINE_ARCHETYPES, MACHINE_GEOMETRY, faceBox } from "../../../lib/machineGeometry";

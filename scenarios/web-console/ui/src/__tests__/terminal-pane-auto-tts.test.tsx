@@ -29,6 +29,7 @@ vi.stubGlobal("SpeechSynthesisUtterance", MockUtterance);
 
 const mockSpeak = vi.fn();
 const mockSpeakParagraphs = vi.fn().mockResolvedValue("browser");
+const mockPrewarmParagraphs = vi.fn().mockResolvedValue(undefined);
 const mockStop = vi.fn();
 const mockIncoming = vi.fn();
 const mockSendAck = vi.fn();
@@ -44,6 +45,7 @@ vi.mock("../hooks/useTextToSpeech", () => ({
     error: null,
     speak: mockSpeak,
     speakParagraphs: mockSpeakParagraphs,
+    prewarmParagraphs: mockPrewarmParagraphs,
     stop: mockStop,
   }),
 }));
@@ -86,7 +88,7 @@ vi.mock("@xterm/xterm", () => ({
     rows: 24,
     options: {},
     buffer: { active: { viewportY: 0, baseY: 0, length: 0, getLine: () => ({ translateToString: () => "" }) } },
-    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(),
+    loadAddon: vi.fn(), registerLinkProvider: vi.fn(() => ({ dispose: vi.fn() })), attachCustomWheelEventHandler: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),

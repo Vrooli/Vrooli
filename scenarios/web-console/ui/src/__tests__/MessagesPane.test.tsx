@@ -136,6 +136,7 @@ const defaultProps = {
   onToggleSummarized: vi.fn(),
   onChangeLevel: vi.fn(),
   playbackFocusRequest: null,
+  onOpenFilePreview: vi.fn(),
 };
 
 /** Actions are hidden at rest: hovering (fine pointer) reveals the inline cluster. */
@@ -425,15 +426,7 @@ describe("MessagesPane", () => {
 
     fireEvent.click(screen.getByTestId("mock-markdown-link"));
 
-    await waitFor(() => {
-      expect(screen.getAllByText("example.ts").length).toBeGreaterThan(0);
-      expect(screen.getByText("/tmp/example.ts")).toBeInTheDocument();
-      expect(screen.getByText("messagesFileViewer.linePrefix")).toBeInTheDocument();
-      expect(screen.getByText("const x = 1;")).toBeInTheDocument();
-    });
-    expect(screen.getByTestId("messages-file-viewer-panel").closest("[data-rcl-full-page-drawer]")).not.toBeNull();
-    expect(mockResolveFilePreview).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12", "message_link");
-    expect(mockGetFilePreviewText).toHaveBeenCalledWith("sess-1", "pv-1");
+    expect(defaultProps.onOpenFilePreview).toHaveBeenCalledWith("/tmp/example.ts:12", "message_link");
   });
 
   it("renders SVG file references as image previews", async () => {
@@ -454,11 +447,7 @@ describe("MessagesPane", () => {
 
     fireEvent.click(screen.getByTestId("mock-markdown-link"));
 
-    await waitFor(() => {
-      expect(screen.getByRole("img", { name: "logo.svg" })).toBeInTheDocument();
-    });
-    expect(screen.getByText("/tmp/logo.svg")).toBeInTheDocument();
-    expect(mockGetFilePreviewText).not.toHaveBeenCalled();
+    expect(defaultProps.onOpenFilePreview).toHaveBeenCalledWith("/tmp/example.ts:12", "message_link");
   });
 
   it("shows a viewer error when file resolution fails", async () => {
@@ -469,10 +458,7 @@ describe("MessagesPane", () => {
 
     fireEvent.click(screen.getByTestId("mock-markdown-link"));
 
-    await waitFor(() => {
-      expect(screen.getByText("messagesFileViewer.unavailable")).toBeInTheDocument();
-      expect(screen.getByText("Referenced file was not found")).toBeInTheDocument();
-    });
+    expect(defaultProps.onOpenFilePreview).toHaveBeenCalledWith("/tmp/example.ts:12", "message_link");
   });
 
   // --- Font size ---

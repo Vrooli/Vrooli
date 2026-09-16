@@ -185,7 +185,7 @@ describe("SettingsModal", () => {
     // pinning the whole key here would turn every unrelated drawer release
     // into a failure in this file.
     const sheet = document.head.querySelector(
-      '[data-rcl-sheet^="full-page-drawer-"]',
+      '[data-rcl-sheet*="FullPageDrawer"]',
     )?.textContent;
     expect(sheet).toBeTruthy();
     // The bug this guards: the panel used to inset itself from the bottom by
@@ -194,7 +194,7 @@ describe("SettingsModal", () => {
     // in from. The surface reaches the edge; the safe area is padding inside.
     expect(sheet).toContain("inset-block-end: 0");
     expect(sheet).toContain(
-      "inset-block-start: calc(var(--rcl-safe-top, 0px) + var(--overlay-drawer-top-gap, 32px))",
+      "inset-block-start: calc(var(--rcl-safe-top, 0px) + var(--overlay-drawer-top-gap))",
     );
     expect(sheet).toContain("padding-block-end: var(--rcl-safe-bottom, 0px)");
   });

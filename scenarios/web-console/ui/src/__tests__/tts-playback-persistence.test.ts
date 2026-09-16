@@ -107,7 +107,13 @@ beforeEach(() => {
   useWorkspaceStore.setState({ startMutedOnLoad: false });
   mockSynthGetVoices.mockReturnValue([]);
   mockFetchCaps.mockResolvedValue({
-    capabilities: [{ id: "audio-tools", status: "available", featureStatus: { "voice-output": "available" } }],
+    capabilities: [{
+      id: "audio-tools",
+      status: "available",
+      featureStatus: { "voice-output": "available" },
+      providerStatus: { "kokoro-tts": "available" },
+      providerFeatures: { "kokoro-tts": ["voice-output"] },
+    }],
     timestamp: new Date().toISOString(),
   });
   mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);

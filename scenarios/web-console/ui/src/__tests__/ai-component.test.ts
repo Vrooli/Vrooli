@@ -87,7 +87,7 @@ describe("AiInput rendering (DrawerShell compact)", () => {
     const panel = screen.getByTestId("ai-input");
     expect(panel.getAttribute("role")).toBe("dialog");
     expect(panel.getAttribute("aria-modal")).toBe("true");
-    expect(panel.className).toContain("md:max-w-md");
+    expect(panel.parentElement).toHaveAttribute("data-size", "md");
     // The prompt input auto-focuses shortly after open (50ms defer) and must
     // be the initially focused element inside the trap.
     await act(async () => {

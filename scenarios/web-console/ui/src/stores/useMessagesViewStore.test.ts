@@ -18,7 +18,7 @@ describe("useMessagesViewStore", () => {
   it("[REQ:P0-017b] persists the per-session view mode under wc-messages-view", () => {
     useMessagesViewStore.getState().setViewMode("s1", "messages");
 
-    expect(persisted().version).toBe(1);
+    expect(persisted().version).toBe(2);
     expect(persisted().state.viewModes).toEqual({ s1: "messages" });
   });
 
@@ -70,6 +70,6 @@ describe("useMessagesViewStore", () => {
 
     expect(useMessagesViewStore.getState().viewModes).toEqual({ s1: "messages" });
     expect(useMessagesViewStore.getState().positions).toEqual({});
-    expect(persisted().version).toBe(1);
+    expect(persisted().version).toBe(2);
   });
 });

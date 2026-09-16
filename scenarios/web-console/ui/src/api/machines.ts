@@ -1,6 +1,6 @@
 // Cross-scenario reach and configuration ownership is documented in the
 // repository's docs/concepts/REACH-AND-CONFIGURATION.md. Historical machine-linking
-// proposals are recoverable through docs/internal/PROGRESS.md.
+// proposals are recoverable through docs/PROGRESS.md.
 import { createClient } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import {

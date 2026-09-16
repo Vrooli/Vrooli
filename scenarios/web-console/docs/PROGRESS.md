@@ -5,7 +5,7 @@ Detailed pre-cleanup entries are preserved beneath the protected runtime home:
 `plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/web-console/docs/PROGRESS.md`.
 Use that original for command transcripts, measurements, and full qualifications.
 Hashes and recovery instructions are in the project documentation cleanup record
-(`docs/internal/PROGRESS.md`, "Documentation cleanup completion — 2026-09-07").
+(`docs/internal/PROBLEMS.md`, "Documentation cleanup completion — 2026-09-07").
 Current unresolved issues belong in this scenario's problem ledger; the historical
 handoff notes below remain follow-up leads until checked against current evidence.
 

@@ -78,6 +78,7 @@ export function AttachmentPreviewTray({
           testId="composer-image-preview"
           className="composer-image-preview-layer"
           contentPadding="none"
+          avoidKeyboard
         >
           <div className="flex min-h-[min(70vh,36rem)] items-center justify-center bg-black/20 p-3">
             <img

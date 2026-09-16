@@ -96,7 +96,7 @@ describe("MessagesMermaidViewer", () => {
     ready();
     const onClose = vi.fn();
     render(<MessagesMermaidViewer open code={CODE} onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText("mermaid.closeViewer"));
+    fireEvent.click(screen.getByTestId("messages-mermaid-viewer-panel.grabber"));
     expect(onClose).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(2);

@@ -15,6 +15,9 @@ describe("Connect client wrappers", () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it("maps AI generation, suggestions, config and health", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ command: "ls", provider: "local" }), { status: 200 }),
+    ));
     vi.spyOn(ai.aiClient, "generate").mockResolvedValue({ command: "ls", provider: "local" } as never);
     vi.spyOn(ai.aiClient, "suggest").mockResolvedValue({ commands: ["pwd"], provider: "local" } as never);
     vi.spyOn(ai.aiClient, "getConfig").mockResolvedValue({ providers: [{ name: "local", enabled: true, priority: 1, timeoutSec: 5, maxRetries: 2 }], health: [{ name: "local", available: true, lastCheck: "", lastLatency: "", errorCount: 1n, successCount: 2n, errorRate: .1 }] } as never);

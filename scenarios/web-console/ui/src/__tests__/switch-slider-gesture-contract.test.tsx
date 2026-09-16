@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { Switch } from "@vrooli/react-component-library/Switch";
 import { Slider } from "@vrooli/react-component-library/Slider";
+import { renderWithProviders as render } from "../test-utils";
 
 /**
  * These two controls own a horizontal drag. The rules below are the difference

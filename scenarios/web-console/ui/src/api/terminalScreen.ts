@@ -2,7 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import { TerminalService } from "@vrooli/proto-types/web-console/v1/terminal/terminal_pb";
 import { transport } from "./client";
 
-const terminalClient = createClient(TerminalService, transport);
+export const terminalClient = createClient(TerminalService, transport);
 
 /**
  * The session's current screen as text, decoded by the server's emulator.

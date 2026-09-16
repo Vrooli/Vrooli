@@ -7,6 +7,26 @@
 - Blocker: None; the unearned declarations were demoted to `in_progress` while their validation references remain intact so a future comprehensive run can earn completion.
 - Measured: 2026-09-04
 
+## 2026-09-16 — Stale keyboard-shrunken viewport after dismissal
+
+**RESOLVED, scoped W3 UI repair:** On mobile WebKit, the terminal shell could
+remain constrained to the upper portion of the screen after the virtual
+keyboard was dismissed. The reported screenshots showed the terminal and its
+toolbar ending halfway down the device, with the remaining screen painted
+black.
+
+**Root cause:** `useAppViewport` projected `visualViewport.height` into the
+shell height even when `useViewportEnvironment` had not positively established
+that a keyboard was visible. WebKit can retain a keyboard-shrunken visual
+viewport during dismissal or until another interaction, so the shell treated a
+stale transient measurement as its permanent height.
+
+**Fix and prevention:** The shell now uses the stable layout viewport height
+unless `keyboardVisible` is true, and uses the visual height only for an
+established keyboard. A regression test covers a shrunken visual viewport with
+the keyboard closed. Focused viewport tests, type-check, and production build
+pass.
+
 ## 2026-09-12 — Session get manifest positional mismatch
 
 **RESOLVED, scoped W3 CLI repair:** `web-console session get
@@ -908,3 +928,33 @@ server was cleared so new sessions inherit color-capable defaults.
   added its keys to all three), including every machine key added earlier on
   2026-09-15.
 - Measured: 2026-09-15
+
+## 2026-09-16 — Maintained unit gate still has UI execution debt
+
+**PARTIALLY RESOLVED (scoped W3 test-infrastructure repair):** Test Genie run
+`20260916-185137-bcbbdf26` initially reported direct Testing Library render
+imports and a test-only `remoteCreateErrorService` that duplicated the shape
+of `databasetest.SliceRepo`. The three actual component offenders now use the
+scenario-owned `renderWithProviders`; the remote fake embeds the existing
+`RemoteService` seam; and `authStore` has explicit success, expiry, and error
+regressions.
+
+Focused evidence is green: 24 UI tests for the render-policy repairs, 6
+auth-store tests, the sessions Go package, the REST-exception contract (2
+tests), locale parity (7 tests), and `pnpm run type-check`. The canonical UI
+coverage command still fails honestly across remaining pre-existing
+UI cohorts. The overlay keyboard contract is green (50 tests), AlertDialog
+and SettingsModal focused contracts are green (23 tests), and the terminal
+reliability cohort is green (21 tests) after completing xterm and capability
+fixtures. The shared audio transport setup gap, REST-exception registry drift,
+locale catalog drift, overlay contract drift, and terminal fixture drift are
+now repaired in
+`src/test-utils/setup.ts`, `src/api/__tests__/no-rest-exceptions.test.ts`, and
+`src/i18n/locales/{en,ar,ja}.json`;
+The canonical UI suite now has zero assertion failures (278 files, 2,701
+tests); its only remaining exit failure is function coverage at 82.44% against
+the configured 85% floor. The threshold was not weakened. The next repair
+should add meaningful coverage for the largest uncovered production branches,
+then re-run the canonical command.
+
+- Measured: 2026-09-16

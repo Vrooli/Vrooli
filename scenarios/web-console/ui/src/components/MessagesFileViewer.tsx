@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Loader2, RotateCw, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Maximize2, Minimize2, RotateCw, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
@@ -27,6 +27,11 @@ interface MessagesFileViewerProps {
   onNavigateBack: () => void;
   onLoadMore: () => void;
   onListOptionsChange: (options: { sort?: DirectorySort; showHidden?: boolean }) => void;
+  presentation?: "drawer" | "dock";
+  focusMode?: boolean;
+  onFocus?: () => void;
+  onRestore?: () => void;
+  onResizeStart?: (event: React.PointerEvent<HTMLDivElement>) => void;
 }
 
 export default function MessagesFileViewer({
@@ -39,6 +44,11 @@ export default function MessagesFileViewer({
   onNavigateBack,
   onLoadMore,
   onListOptionsChange,
+  presentation = "drawer",
+  focusMode = false,
+  onFocus,
+  onRestore,
+  onResizeStart,
 }: MessagesFileViewerProps) {
   const { t } = useTranslation();
   const { open, status, model, text, listing, error, requestedPath, stack, loadingMore } = state;
@@ -166,6 +176,55 @@ export default function MessagesFileViewer({
     </>
   );
 
+  const content = (
+    <>
+      {isLoading && (
+        <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>{t(strings.messagesFileViewer.loadingPreview)}</span>
+        </div>
+      )}
+
+      {!isLoading && status === "error" && (
+        <div className="h-full overflow-auto px-4 py-4">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            <div className="mb-2 flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" /><span>{t(strings.messagesFileViewer.unavailable)}</span></div>
+            <p>{error}</p>
+            {requestedPath && <p className="mt-2 break-all text-xs text-red-200/80">{t(strings.messagesFileViewer.requestedPrefix, { path: requestedPath })}</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {requestedPath && <button type="button" onClick={onReopen} data-testid="file-preview-reopen" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><RotateCw className="h-3.5 w-3.5" />{t(strings.messagesFileViewer.reopen)}</button>}
+              {canGoBack && <button type="button" onClick={onNavigateBack} data-testid="file-preview-error-back" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><ArrowLeft className="h-3.5 w-3.5" />{t(strings.messagesFileViewer.directoryBack)}</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && (status === "ready" || status === "unsupported") && model && Renderer && (
+        <Renderer model={model} text={text} listing={listing} onError={onRendererError} onNavigate={onNavigate} onLoadMore={onLoadMore} onListOptionsChange={onListOptionsChange} loadingMore={loadingMore} />
+      )}
+    </>
+  );
+
+  if (presentation === "dock") {
+    return (
+      <aside data-testid="file-preview-dock" data-focus-mode={focusMode ? "true" : "false"} className="relative flex h-full min-h-0 min-w-0 flex-col border-s border-wc-default bg-wc-surface-base">
+        <div role="separator" aria-orientation="vertical" aria-label="Resize file viewer" onPointerDown={onResizeStart} className="absolute -start-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-wc-accent/40" />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-wc-default px-3 py-2">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <div className="min-w-0 flex-1"><div className="text-sm font-semibold text-wc-text-primary">{titleEl}</div>{headerExtra}</div>
+              <div className="flex shrink-0 items-center gap-1">{headerActions}
+                <IconButton onClick={focusMode ? onRestore : onFocus} data-testid="file-preview-focus-toggle" aria-label={focusMode ? "Restore split view" : "Focus file viewer"} title={focusMode ? "Restore split view" : "Focus file viewer"} surface="soft" shape="rounded" className="shrink-0">{focusMode ? <Minimize2 /> : <Maximize2 />}</IconButton>
+                <IconButton onClick={onClose} data-testid="file-preview-dock-close" aria-label={t(strings.messagesFileViewer.closeAriaLabel)} surface="soft" shape="rounded" className="shrink-0">×</IconButton>
+              </div>
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <FullPageDrawer
       // Sized to the app's viewport like every overlay. No text entry, so the
@@ -179,68 +238,7 @@ export default function MessagesFileViewer({
       headerExtra={headerExtra}
       testId="messages-file-viewer-panel"
     >
-      <>
-        {isLoading && (
-          <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{t(strings.messagesFileViewer.loadingPreview)}</span>
-          </div>
-        )}
-
-        {!isLoading && status === "error" && (
-          <div className="h-full overflow-auto px-4 py-4">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-              <div className="mb-2 flex items-center gap-2 font-medium">
-                <AlertTriangle className="h-4 w-4" />
-                <span>{t(strings.messagesFileViewer.unavailable)}</span>
-              </div>
-              <p>{error}</p>
-              {requestedPath && (
-                <p className="mt-2 break-all text-xs text-red-200/80">
-                  {t(strings.messagesFileViewer.requestedPrefix, { path: requestedPath })}
-                </p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {requestedPath && (
-                  <button
-                    type="button"
-                    onClick={onReopen}
-                    data-testid="file-preview-reopen"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
-                  >
-                    <RotateCw className="h-3.5 w-3.5" />
-                    {t(strings.messagesFileViewer.reopen)}
-                  </button>
-                )}
-                {canGoBack && (
-                  <button
-                    type="button"
-                    onClick={onNavigateBack}
-                    data-testid="file-preview-error-back"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    {t(strings.messagesFileViewer.directoryBack)}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!isLoading && (status === "ready" || status === "unsupported") && model && Renderer && (
-          <Renderer
-            model={model}
-            text={text}
-            listing={listing}
-            onError={onRendererError}
-            onNavigate={onNavigate}
-            onLoadMore={onLoadMore}
-            onListOptionsChange={onListOptionsChange}
-            loadingMore={loadingMore}
-          />
-        )}
-      </>
+      {content}
     </FullPageDrawer>
   );
 }

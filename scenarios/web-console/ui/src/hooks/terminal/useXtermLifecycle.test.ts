@@ -15,7 +15,8 @@ const textarea = {
 const terminal = {
   open: vi.fn(), dispose: vi.fn(), loadAddon: vi.fn(), options: {}, cols: 80, rows: 24,
   onTitleChange: vi.fn(() => ({ dispose: vi.fn() })), textarea,
-  buffer: { active: { baseY: 0, viewportY: 0 } }, scrollLines: vi.fn(), element: null,
+  registerLinkProvider: vi.fn(() => ({ dispose: vi.fn() })),
+  buffer: { active: { baseY: 0, viewportY: 0, getLine: vi.fn(() => null) } }, scrollLines: vi.fn(), element: null,
 };
 vi.mock("@xterm/xterm", () => ({ Terminal: vi.fn(() => terminal) }));
 vi.mock("@xterm/addon-fit", () => ({ FitAddon: vi.fn(() => ({ fit })) }));

@@ -6,6 +6,7 @@ import { TERMINAL_FONT_FAMILY } from "../../consts/config";
 import { TERMINAL_SCROLLBACK_LINES } from "../../lib/terminalConfig";
 import { scrollTerminalLines } from "../../lib/terminalScroll";
 import type { FollowerMode } from "../../lib/terminalProtocol";
+import { terminalFileLinksForLine } from "../../lib/terminalFileLinks";
 
 export interface XtermLifecycleOptions {
   sessionId: string;
@@ -17,6 +18,7 @@ export interface XtermLifecycleOptions {
 	followerMode: FollowerMode;
   renamePaneById: (sessionId: string, name: string) => void;
   syncPaneUpdate: (sessionId: string, patch: { name?: string }) => void;
+  onOpenFileReference?: (path: string) => void;
 }
 
 function maybeSendResize(
@@ -55,6 +57,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
 		followerMode,
     renamePaneById,
     syncPaneUpdate,
+    onOpenFileReference,
   } = options;
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalHostRef = useRef<HTMLDivElement>(null);
@@ -63,8 +66,13 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
   const pendingTitleRef = useRef<string | null>(null);
   const syncedTitleRef = useRef<string | null>(null);
   const titleFlushRef = useRef<number | null>(null);
+  const onOpenFileReferenceRef = useRef(onOpenFileReference);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    onOpenFileReferenceRef.current = onOpenFileReference;
+  }, [onOpenFileReference]);
 
   useEffect(() => {
     const terminalHost = terminalHostRef.current;
@@ -79,9 +87,45 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
       scrollSensitivity: wheelScrollSensitivity,
     });
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      if (/^file:/i.test(uri)) {
+        event.preventDefault();
+        onOpenFileReferenceRef.current?.(uri);
+        return;
+      }
+      window.open(uri, "_blank", "noopener,noreferrer");
+    });
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
+    const fileLinkProvider = term.registerLinkProvider({
+      provideLinks(bufferLineNumber, callback) {
+        // ILinkProvider receives the one-based buffer row used by ILink
+        // ranges; BufferNamespace.getLine uses a zero-based index.
+        const line = term.buffer.active.getLine(bufferLineNumber - 1);
+        if (!line) {
+          callback(undefined);
+          return;
+        }
+        const cell = term.buffer.active.getNullCell();
+        const stringOffsetToCell = (offset: number): number => {
+          let stringOffset = 0;
+          for (let cellIndex = 0; cellIndex < line.length; cellIndex++) {
+            line.getCell(cellIndex, cell);
+            const chars = cell.getChars();
+            const width = cell.getWidth() || 1;
+            if (chars.length > 0) {
+              if (offset < stringOffset + chars.length) return cellIndex;
+              stringOffset += chars.length;
+            } else {
+              stringOffset += width;
+              if (offset < stringOffset) return cellIndex;
+            }
+          }
+          return line.length;
+        };
+        callback(terminalFileLinksForLine(line.translateToString(true), bufferLineNumber, (path) => onOpenFileReferenceRef.current?.(path), stringOffsetToCell));
+      },
+    });
     term.open(terminalHost);
     let disposed = false;
     const fitAfterFontLoad = async () => {
@@ -123,6 +167,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
       disposed = true;
       if (isTouchDevice && xtermTextarea) xtermTextarea.removeEventListener("blur", handleXtermBlur);
       titleDisposable.dispose();
+      fileLinkProvider.dispose();
       if (titleFlushRef.current !== null) {
         window.clearTimeout(titleFlushRef.current);
         titleFlushRef.current = null;

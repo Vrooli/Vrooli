@@ -78,9 +78,9 @@ describe("SnippetsPanel", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
-  it("places snippets between templates and handoff rules as the tenth settings tab", () => {
-    expect(SETTINGS_TAB_IDS).toHaveLength(10);
-    expect(SETTINGS_TAB_IDS.slice(6, 9)).toEqual(["templates", "snippets", "handoff-rules"]);
+  it("places snippets between templates and handoff rules in the settings tabs", () => {
+    expect(SETTINGS_TAB_IDS).toHaveLength(11);
+    expect(SETTINGS_TAB_IDS.slice(7, 10)).toEqual(["templates", "snippets", "handoff-rules"]);
   });
 
   it("creates a snippet through the New sheet and adds its row", async () => {

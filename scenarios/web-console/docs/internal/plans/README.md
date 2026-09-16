@@ -24,7 +24,7 @@ plan-manager plans get web-console-unlosable-conversations
 Relocation does not complete, supersede, or abandon any plan. The persistent
 session recovery hardening source and roles-and-handoffs baseline remain
 historical context in that archive. Existing Plan Manager references now name
-the preserved artifacts. The [preservation record](../../../../../docs/internal/PROGRESS.md#documentation-cleanup-follow-up--2026-09-07)
+the preserved artifacts. The [preservation record](../../../../../docs/PROGRESS.md#documentation-cleanup-follow-up--2026-09-07)
 locates original hashes and recovery copies.
 
 Before retiring any historical source, verify a retained copy and update its
