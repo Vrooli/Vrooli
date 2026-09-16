@@ -3,10 +3,10 @@
   "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
   "name": "open-workspace",
   "folder_path": "/bas/actions",
-  "description": "Navigate to web-console workspace and wait for launch control",
+  "description": "Navigate to web-console workspace and require a non-empty workspace",
   "metadata": {
     "name": "open-workspace",
-    "description": "Navigate to web-console workspace and wait for launch control",
+    "description": "Navigate to web-console workspace and require a non-empty workspace",
     "execution_mode": "mutating",
     "reset": "none",
     "labels": {
@@ -60,7 +60,7 @@
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
-            "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const launch = document.querySelector('[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]'); if (launch) return; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } await new Promise((resolve) => setTimeout(resolve, 500)); } throw new Error('New terminal button did not appear within timeout'); })()"
+            "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-pane\"]')) return; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } await new Promise((resolve) => setTimeout(resolve, 500)); } throw new Error('empty workspace: no terminal session is available'); })()"
           },
           "metadata": {
             "label": "Wait for New Terminal button"
@@ -72,8 +72,8 @@
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "[data-testid=\"workspace-top-edge\"]",
-            "failure_message": "Expected the workspace shell experience region"
+            "selector": "[data-testid=\"terminal-pane\"]",
+            "failure_message": "empty workspace: expected a terminal session"
           },
           "metadata": {
             "label": "Verify workspace shell"

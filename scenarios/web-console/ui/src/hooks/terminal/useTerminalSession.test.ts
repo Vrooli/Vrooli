@@ -154,6 +154,12 @@ describe("reconnect presentation", () => {
 });
 
 describe("terminal debug output probe", () => {
+	it("marks the native application title when the rendered terminal receives the fixture output", () => {
+		document.title = "Web Console";
+		appendOutputProbe("session-1", "desktop-terminal-fixture\n");
+		expect(document.title).toBe("Web Console — terminal_output=desktop-terminal-fixture");
+	});
+
   it("returns before touching window when terminal debug is disabled", () => {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
     Object.defineProperty(globalThis, "window", {

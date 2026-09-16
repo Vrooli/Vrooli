@@ -4,21 +4,103 @@
   "name": "tunnel-manager-awareness",
   "folder_path": "/bas/cases/04-commercial",
   "description": "Verify remote access is represented as a disabled Tunnel Manager-owned capability.",
-  "metadata": { "name": "tunnel-manager-awareness", "description": "Verify remote access is represented as a disabled Tunnel Manager-owned capability.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "tunnel-manager", "requirements_json": "[\"WEBCONSO-P0-011\"]" } },
-  "tags": ["reset:full", "requirements_json:[\"WEBCONSO-P0-011\"]"],
+  "metadata": {
+    "name": "tunnel-manager-awareness",
+    "description": "Verify remote access is represented as a disabled Tunnel Manager-owned capability.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "spec_entry_id": "tunnel-manager",
+      "requirements_json": "[\"WEBCONSO-P0-011\"]"
+    }
+  },
+  "tags": [
+    "requirements_json:[\"WEBCONSO-P0-011\"]"
+  ],
   "version": 1,
   "flow_definition": {
-    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
     "nodes": [
-      { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
-      { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/workspace.settings" } } },
-      { "id": "open-integrations", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/settings.integrationsTab" } } },
-      { "id": "assert-awareness", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/settings.tunnelManagerAwareness", "timeout_ms": 10000 } } }
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          }
+        }
+      },
+      {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure terminal session"
+          }
+        }
+      },
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/workspace.settings"
+          }
+        }
+      },
+      {
+        "id": "open-integrations",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settings.integrationsTab"
+          }
+        }
+      },
+      {
+        "id": "assert-awareness",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/settings.tunnelManagerAwareness",
+            "timeout_ms": 10000
+          }
+        }
+      }
     ],
     "edges": [
-      { "id": "e1", "source": "open-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e2", "source": "open-settings", "target": "open-integrations", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e3", "source": "open-integrations", "target": "assert-awareness", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+      {
+        "id": "e1",
+        "source": "open-workspace",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-open-workspace-ensure-session",
+        "source": "open-workspace",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "open-settings",
+        "target": "open-integrations",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "open-integrations",
+        "target": "assert-awareness",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
     ]
   }
 }

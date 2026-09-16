@@ -8,9 +8,7 @@
     "name": "group-template-creates-waiting-role",
     "description": "Create a group from a two-role template and confirm it starts one session and leaves one waiting role, then start the waiting role and confirm a second session exists",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-014e\", \"REQ-P0-014g\"]"
   ],
   "version": 1,
@@ -30,6 +27,18 @@
       "viewport_height": 900
     },
     "nodes": [
+      {
+        "id": "capture-session-baseline",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/capture-session-baseline.json"
+          },
+          "metadata": {
+            "label": "Capture owned-session baseline before mutation"
+          }
+        }
+      },
       {
         "id": "open-workspace",
         "action": {
@@ -243,6 +252,12 @@
       }
     ],
     "edges": [
+      {
+        "id": "e-capture-baseline",
+        "source": "capture-session-baseline",
+        "target": "open-workspace",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
       {
         "id": "e0",
         "source": "open-workspace",

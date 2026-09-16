@@ -8,9 +8,7 @@
     "name": "devices-and-machines-overlay",
     "description": "Render the Machines & screens overlay with both horizontal population rails, machines first",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -19,7 +17,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P1-013c\"]"
   ],
   "version": 1,
@@ -35,6 +32,18 @@
           "type": "ACTION_TYPE_SUBFLOW",
           "subflow": {
             "workflow_path": "actions/open-workspace.json"
+          }
+        }
+      },
+      {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure terminal session"
           }
         }
       },
@@ -166,7 +175,13 @@
       {
         "id": "e1",
         "source": "open-workspace",
-        "target": "open-fleet",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-open-workspace-ensure-session",
+        "source": "open-workspace",
+        "target": "ensure-session",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {

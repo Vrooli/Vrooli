@@ -28,39 +28,57 @@
           "scenario": "web-console",
           "scenario_path": "/#/workspace"
         },
-        "metadata": { "label": "Open Web Console workspace" }
+        "metadata": {
+          "label": "Open Web Console workspace"
+        }
       }
     },
     {
       "id": "open-settings",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"toolbar-settings\"]" },
-        "metadata": { "label": "Open Settings" }
+        "click": {
+          "selector": "[data-testid=\"toolbar-settings\"]"
+        },
+        "metadata": {
+          "label": "Open Settings"
+        }
       }
     },
     {
       "id": "open-workspace-settings",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"settings-tab-workspace\"]" },
-        "metadata": { "label": "Open workspace settings" }
+        "click": {
+          "selector": "[data-testid=\"settings-tab-workspace\"]"
+        },
+        "metadata": {
+          "label": "Open workspace settings"
+        }
       }
     },
     {
       "id": "select-sidebar-mode",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"display-mode-sidebar\"]" },
-        "metadata": { "label": "Select sidebar workspace mode" }
+        "click": {
+          "selector": "[data-testid=\"display-mode-sidebar\"]"
+        },
+        "metadata": {
+          "label": "Select sidebar workspace mode"
+        }
       }
     },
     {
       "id": "close-settings",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"settings-modal.close\"]" },
-        "metadata": { "label": "Return to workspace" }
+        "click": {
+          "selector": "[data-testid=\"settings-modal.close\"]"
+        },
+        "metadata": {
+          "label": "Return to workspace"
+        }
       }
     },
     {
@@ -72,15 +90,21 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Wait for the archive entry point" }
+        "metadata": {
+          "label": "Wait for the archive entry point"
+        }
       }
     },
     {
       "id": "open-archive",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"sidebar-archive-footer\"]" },
-        "metadata": { "label": "Open the archive view" }
+        "click": {
+          "selector": "[data-testid=\"sidebar-archive-footer\"]"
+        },
+        "metadata": {
+          "label": "Open the archive view"
+        }
       }
     },
     {
@@ -92,15 +116,21 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Wait for the archive sidebar" }
+        "metadata": {
+          "label": "Wait for the archive sidebar"
+        }
       }
     },
     {
       "id": "open-full-archive",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"sidebar-archive-search-all\"]" },
-        "metadata": { "label": "Open full archive search" }
+        "click": {
+          "selector": "[data-testid=\"sidebar-archive-search-all\"]"
+        },
+        "metadata": {
+          "label": "Open full archive search"
+        }
       }
     },
     {
@@ -112,15 +142,21 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Wait for the archive drawer" }
+        "metadata": {
+          "label": "Wait for the archive drawer"
+        }
       }
     },
     {
       "id": "enable-all-states-search",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "[data-testid=\"archive-all-states\"]" },
-        "metadata": { "label": "Include every lifecycle state in the search" }
+        "click": {
+          "selector": "[data-testid=\"archive-all-states\"]"
+        },
+        "metadata": {
+          "label": "Include every lifecycle state in the search"
+        }
       }
     },
     {
@@ -132,9 +168,13 @@
           "value": "validation-intent receipt contract",
           "clear_first": true
         },
-        "metadata": { "label": "Search durable conversation text" }
+        "metadata": {
+          "label": "Search durable conversation text"
+        }
       },
-      "execution_settings": { "wait_after_ms": 1000 }
+      "execution_settings": {
+        "wait_after_ms": 1000
+      }
     },
     {
       "id": "wait-incident-hit",
@@ -145,7 +185,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Wait for the recovered conversation hit" }
+        "metadata": {
+          "label": "Wait for the recovered conversation hit"
+        }
       }
     },
     {
@@ -155,7 +197,9 @@
         "evaluate": {
           "expression": "(() => { const hit = document.querySelector('[data-testid^=\"archive-hit-\"]'); if (!(hit instanceof HTMLElement)) throw new Error('continuity catalog orphan hit not found'); hit.click(); })()"
         },
-        "metadata": { "label": "Inspect the recovered conversation" }
+        "metadata": {
+          "label": "Inspect the recovered conversation"
+        }
       }
     },
     {
@@ -167,33 +211,144 @@
           "failure_message": "Expected the catalog-only conversation to remain inspectable with an honest read-only restore action",
           "timeout_ms": 10000
         },
-        "metadata": { "label": "Verify inspectable degraded archive state" }
+        "metadata": {
+          "label": "Verify inspectable degraded archive state"
+        }
       }
     },
     {
       "id": "capture-evidence",
       "action": {
         "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": { "full_page": true },
-        "metadata": { "label": "Capture archive inspection evidence" }
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture archive inspection evidence"
+        }
+      }
+    },
+    {
+      "id": "remember-display-mode",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const root = document.querySelector(\"[data-display-mode]\"); sessionStorage.setItem(\"__bas_previous_display_mode\", root?.getAttribute(\"data-display-mode\") || \"sidebar\"); })()"
+        },
+        "metadata": {
+          "label": "Remember display mode before continuity mode pin"
+        }
+      }
+    },
+    {
+      "id": "restore-display-mode",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/restore-display-mode.json"
+        },
+        "metadata": {
+          "label": "Restore display mode after continuity case"
+        }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e2", "source": "open-settings", "target": "open-workspace-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e3", "source": "open-workspace-settings", "target": "select-sidebar-mode", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e4", "source": "select-sidebar-mode", "target": "close-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e5", "source": "close-settings", "target": "wait-archive-footer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e6", "source": "wait-archive-footer", "target": "open-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e7", "source": "open-archive", "target": "wait-sidebar-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e8", "source": "wait-sidebar-archive", "target": "open-full-archive", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e9", "source": "open-full-archive", "target": "wait-archive-drawer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e10", "source": "wait-archive-drawer", "target": "enable-all-states-search", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e11", "source": "enable-all-states-search", "target": "search-incident", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e12", "source": "search-incident", "target": "wait-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e13", "source": "wait-incident-hit", "target": "select-incident-hit", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e14", "source": "select-incident-hit", "target": "assert-read-only-reader", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-    { "id": "e15", "source": "assert-read-only-reader", "target": "capture-evidence", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    {
+      "id": "e1",
+      "source": "navigate-workspace",
+      "target": "open-settings",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e2",
+      "source": "open-settings",
+      "target": "open-workspace-settings",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e3",
+      "source": "open-workspace-settings",
+      "target": "remember-display-mode",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e4",
+      "source": "select-sidebar-mode",
+      "target": "close-settings",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e5",
+      "source": "close-settings",
+      "target": "wait-archive-footer",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e6",
+      "source": "wait-archive-footer",
+      "target": "open-archive",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e7",
+      "source": "open-archive",
+      "target": "wait-sidebar-archive",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e8",
+      "source": "wait-sidebar-archive",
+      "target": "open-full-archive",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e9",
+      "source": "open-full-archive",
+      "target": "wait-archive-drawer",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e10",
+      "source": "wait-archive-drawer",
+      "target": "enable-all-states-search",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e11",
+      "source": "enable-all-states-search",
+      "target": "search-incident",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e12",
+      "source": "search-incident",
+      "target": "wait-incident-hit",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e13",
+      "source": "wait-incident-hit",
+      "target": "select-incident-hit",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e14",
+      "source": "select-incident-hit",
+      "target": "assert-read-only-reader",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e15",
+      "source": "assert-read-only-reader",
+      "target": "restore-display-mode",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "e-remember-display-mode",
+      "source": "remember-display-mode",
+      "target": "select-sidebar-mode",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    }
   ]
 }

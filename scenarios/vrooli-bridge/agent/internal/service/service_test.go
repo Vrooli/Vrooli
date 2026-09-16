@@ -148,13 +148,44 @@ func TestRenderers_RejectMissingFields(t *testing.T) {
 	require.Error(t, err)
 }
 
+// [REQ:BRG-P0-007] The installed unit carries the managed tool PATH. Without an
+// EnvironmentVariables/Environment= entry launchd hands the agent the bare
+// `/usr/bin:/bin:/usr/sbin:/sbin` default, which is invisible for a native
+// binary and fatal for an interpreted one: on minimouse (2026-09-16) the
+// capability probe resolved `~/.local/bin/codex`, a `#!/usr/bin/env node`
+// script, then exited 127 because no node was reachable, and Web Console
+// refused every codex session on that node as "unknown".
+func TestUnitsCarryTheManagedToolPath(t *testing.T) {
+	unit, err := service.SystemdUnit(sampleDef())
+	require.NoError(t, err)
+	require.Contains(t, unit, "Environment=PATH=")
+	require.Contains(t, unit, "/usr/local/bin")
+
+	plist, err := service.LaunchdPlist(sampleDef())
+	require.NoError(t, err)
+	require.Contains(t, plist, "<key>EnvironmentVariables</key>")
+	require.Contains(t, plist, "<key>PATH</key>")
+	require.Contains(t, plist, "/usr/local/bin")
+}
+
 // assertNoHardcodedHostPaths fails if a rendered unit contains an absolute POSIX
 // path that did not come from the Definition — guarding against Linux-only
 // assumptions creeping into the renderers.
 func assertNoHardcodedHostPaths(t *testing.T, unit string, d service.Definition) {
 	t.Helper()
 	allowed := append([]string{d.ExecPath, d.WorkingDir}, d.Args...)
-	for _, line := range strings.Split(unit, "\n") {
+	lines := strings.Split(unit, "\n")
+	for i, line := range lines {
+		// The managed tool PATH is a declared, platform-derived value shared by
+		// every Vrooli core unit, not a host path leaking into a renderer. It
+		// has its own pin in TestUnitsCarryTheManagedToolPath; the guard stays
+		// strict for every other line.
+		if strings.HasPrefix(strings.TrimSpace(line), "Environment=PATH=") {
+			continue
+		}
+		if i > 0 && strings.TrimSpace(lines[i-1]) == "<key>PATH</key>" {
+			continue
+		}
 		for _, tok := range strings.Fields(line) {
 			tok = strings.Trim(tok, `"<>`)
 			tok = strings.TrimPrefix(tok, "ExecStart=")

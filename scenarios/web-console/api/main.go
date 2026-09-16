@@ -47,6 +47,7 @@ import (
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	_ "modernc.org/sqlite"
+	sessionsH "web-console/handlers/sessions"
 	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
 	internalContinuity "web-console/internal/continuity"
@@ -87,6 +88,7 @@ type Server struct {
 	// lifecycleDelete is installed from the sessions transport adapter so
 	// retention cleanup cannot bypass the canonical lifecycle owner.
 	lifecycleDelete       func(context.Context, string) error
+	desktopCreateSession  func(context.Context, sessionsH.CreateInput) (sessionsH.Session, error)
 	aiChain               *intai.Chain
 	shortcuts             ShortcutStore
 	aiConfig              intai.ConfigStore

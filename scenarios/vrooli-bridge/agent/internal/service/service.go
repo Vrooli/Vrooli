@@ -16,6 +16,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/user"
 	"strings"
 	"time"
 
@@ -133,7 +135,46 @@ func (d Definition) Artifact(target string) (platformgo.RenderedArtifact, error)
 	if err != nil {
 		return platformgo.RenderedArtifact{}, err
 	}
+	def.Env = d.unitEnvironment(target)
 	return platformgo.RenderDefinition(def, target)
+}
+
+// unitEnvironment gives the installed service the managed tool PATH every
+// other Vrooli core unit already carries (platform-go's emergency, supervisor
+// and watchdog definitions all set it). The agent was the one long-lived unit
+// that set no environment at all, so launchd handed it the bare
+// `/usr/bin:/bin:/usr/sbin:/sbin` default. That is invisible for a native
+// binary and fatal for an interpreted one: on minimouse (2026-09-16) the
+// capability probe found `~/.local/bin/codex`, a `#!/usr/bin/env node`
+// trampoline, then exited 127 because no `node` was reachable — while the same
+// command succeeded in a login shell. Homebrew's node lives in /usr/local/bin,
+// which DefaultPath includes.
+func (d Definition) unitEnvironment(target string) map[string]string {
+	home := d.principalHome()
+	if home == "" {
+		return nil
+	}
+	return map[string]string{"PATH": platformgo.DefaultPath(target, home)}
+}
+
+// lookupUser is a seam so the renderers stay testable without depending on the
+// host's account database.
+var lookupUser = user.Lookup
+
+// principalHome resolves the home of the OS principal the service RUNS AS,
+// which is not always the one installing it. A LaunchDaemon installed under
+// sudo would otherwise bake root's home into the unit's PATH and leave the
+// owner's tool directories unreachable.
+func (d Definition) principalHome() string {
+	if name := strings.TrimSpace(d.User); name != "" {
+		if account, err := lookupUser(name); err == nil && account.HomeDir != "" {
+			return account.HomeDir
+		}
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	return ""
 }
 
 // execLine renders the ExecPath + Args as a single space-joined command line,

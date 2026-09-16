@@ -115,9 +115,41 @@ func ensureLaunchCapability(target targetConnection, command string) error {
 		if state == targetmodel.ReadinessReady {
 			return nil
 		}
-		return fmt.Errorf("%w: capability %q on %s is %s; %s", sessionsH.ErrTargetUnavailable, capability, target.Label, state, fact.RecoveryAction)
+		// Lead with what the machine actually observed. Reporting only the
+		// state and a generic recovery line told an operator that codex was
+		// "unknown" and to refresh a probe that was already reporting
+		// correctly, while the observation itself said the agent was installed
+		// and its Node.js runtime was unreachable.
+		return fmt.Errorf("%w: %s on %s is %s%s", sessionsH.ErrTargetUnavailable,
+			capabilityName(fact, capability), target.Label, state, capabilityGuidance(fact))
 	}
 	return fmt.Errorf("%w: capability %q on %s is unknown; refresh the target inventory before launching", sessionsH.ErrTargetUnavailable, capability, target.Label)
+}
+
+// capabilityName prefers the machine's own label ("Codex") over the slug, so
+// the refusal names the agent the way the operator selected it.
+func capabilityName(fact targetmodel.ReadinessCheck, capability string) string {
+	if label := strings.TrimSpace(fact.Label); label != "" {
+		return label
+	}
+	return capability
+}
+
+// capabilityGuidance appends what the machine observed, then what to do about
+// it, skipping whichever the observation did not carry. The detail comes first
+// because it is evidence from the machine itself; the recovery action is
+// advice derived from the state alone.
+func capabilityGuidance(fact targetmodel.ReadinessCheck) string {
+	parts := make([]string, 0, 2)
+	for _, value := range []string{fact.Detail, fact.RecoveryAction} {
+		if value = strings.TrimSpace(value); value != "" {
+			parts = append(parts, value)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "; " + strings.Join(parts, " — ")
 }
 
 func launchCapability(command string) (string, bool) {

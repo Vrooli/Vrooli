@@ -42,6 +42,30 @@
         }
       },
       {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure terminal session"
+          }
+        }
+      },
+      {
+        "id": "ensure-messages-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-messages-session.json"
+          },
+          "metadata": {
+            "label": "Ensure seeded Messages session"
+          }
+        }
+      },
+      {
         "id": "hydrate-wait",
         "action": {
           "type": "ACTION_TYPE_WAIT",
@@ -58,7 +82,7 @@
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
-            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let opened = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { toggle.click(); await sleep(400); } const link = document.querySelector('a[href$=\"preview-fixture.md\"]'); if (link instanceof HTMLElement) { link.click(); await sleep(900); if (document.querySelector('[data-testid=\"messages-file-viewer-panel\"]') && document.querySelector('[data-testid=\"file-preview-markdown\"]')) { opened = true; break; } } } document.body.setAttribute('data-filepreview-md-opened', opened ? 'true' : 'false'); })()"
+            "expression": "(() => { const link = document.querySelector('a[href$=\"preview-fixture.md\"]'); if (!(link instanceof HTMLElement)) throw new Error('FILEPREVIEW_SEED markdown link not found'); link.click(); })()"
           },
           "metadata": {
             "label": "Find the FILEPREVIEW_SEED session and open the markdown fixture link"
@@ -104,6 +128,23 @@
             "label": "Verify SVG image preview opened"
           }
         }
+      }
+    ],
+    "edges": [
+      {
+        "target": "ensure-session"
+      },
+      {
+        "id": "e-open-workspace-ensure-session",
+        "source": "open-workspace",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-ensure-messages-session-next",
+        "source": "ensure-messages-session",
+        "target": null,
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]
   }

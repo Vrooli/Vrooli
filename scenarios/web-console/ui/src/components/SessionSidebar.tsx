@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, MonitorSmartphone, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -55,6 +55,9 @@ interface SessionSidebarProps {
   /** Open a waiting role's overflow menu. */
   onOpenRoleMenu: (role: RoleMeta, position: { x: number; y: number }) => void;
   onOpenSettings: () => void;
+  /** Opens the machines (fleet) surface. Omitted only when the host has no
+   *  fleet surface to open; the header button is then not rendered. */
+  onOpenMachines?: () => void;
   onOpenArchiveDrawer?: (sessionId?: string) => void;
 }
 
@@ -92,6 +95,7 @@ export default function SessionSidebar({
   onHandoffToRole,
   onOpenRoleMenu,
   onOpenSettings,
+  onOpenMachines,
   onOpenArchiveDrawer,
 }: SessionSidebarProps) {
   const { t } = useTranslation();
@@ -343,7 +347,7 @@ export default function SessionSidebar({
       <div className="flex h-11 select-none items-center gap-2 border-b border-wc-default px-3">
         {/* Aquila's applied mark. Sourced from the brand-manager-written
             /public/logo.svg so it follows any future brand change. */}
-        <img src="/public/logo.svg" alt="" aria-hidden className="h-5 w-5 shrink-0" />
+        <img src="/public/logo.svg" alt="" aria-hidden className="h-7 w-7 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-wc-text-primary">
             {t(strings.sessionSidebar.title)}
@@ -369,6 +373,20 @@ export default function SessionSidebar({
         >
           <Plus className="h-4 w-4" />
         </Button>
+        {onOpenMachines && (
+          <Button
+            data-testid="workspace-sidebar-machines"
+            variant="ghost"
+            size="icon"
+            shape="square"
+            className="h-11 w-11 shrink-0 md:h-8 md:w-8"
+            onClick={onOpenMachines}
+            aria-label={t(strings.fleet.openAriaLabel)}
+            title={t(strings.fleet.openAriaLabel)}
+          >
+            <MonitorSmartphone className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           data-testid="workspace-sidebar-settings"
           variant="ghost"

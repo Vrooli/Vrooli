@@ -22,6 +22,7 @@ const literalSelectors = {
     sidebarActiveTitle: 'workspace-sidebar-active-title',
     toggleView: 'workspace-toggle-view',
     topEdge: 'workspace-top-edge',
+    root: 'workspace-root',
   },
   playback: {
     pill: 'playback-pill',

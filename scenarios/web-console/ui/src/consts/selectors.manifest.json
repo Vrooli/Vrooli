@@ -49,6 +49,10 @@
       "testId": "workspace-top-edge",
       "selector": "[data-testid=\"workspace-top-edge\"]"
     },
+    "workspace.root": {
+      "testId": "workspace-root",
+      "selector": "[data-testid=\"workspace-root\"]"
+    },
     "playback.pill": {
       "testId": "playback-pill",
       "selector": "[data-testid=\"playback-pill\"]"
@@ -1704,6 +1708,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "da1655434c9aa74563b974f69ae4d2480456c11e0cc7e0148283c8127c077ce4"
+    "ui/src/consts/selectors.ts": "f943abf1967fd2ac8424e7cf76265041cabe094361ebb6bdefbfbe13a67eb137"
   }
 }

@@ -58,6 +58,18 @@ interface FloatingToolbarProps {
   isCreating: boolean;
   /** When true the toolbar is not rendered at all (e.g. mobile tab mode). */
   hidden?: boolean;
+  /**
+   * When false the new-session plus is omitted. Tab-like layouts expose it in
+   * their own chrome (tab strip, sidebar header); grid mode has no such chrome,
+   * so it keeps the plus. Defaults to true.
+   */
+  showNewAction?: boolean;
+  /**
+   * When false the AI, expand-composer, and voice controls are omitted,
+   * because the bottom composer bar is on screen and already provides all
+   * three. Defaults to true.
+   */
+  showComposerActions?: boolean;
   // Voice input (optional — hidden when not provided)
   voiceSupported?: boolean;
   voicePreparing?: boolean;
@@ -91,6 +103,8 @@ export default function FloatingToolbar({
   onExpandComposer,
   isCreating,
   hidden,
+  showNewAction = true,
+  showComposerActions = true,
   voiceSupported,
   voicePreparing,
   voiceRecording,
@@ -304,18 +318,20 @@ export default function FloatingToolbar({
        * the bottom touch toolbar already provides both there. Wider touch
        * viewports may show both surfaces so keyboardless devices retain the
        * terminal key controls without changing the desktop toolbar contract. */}
-      <Button
-        data-testid="toolbar-ai"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 hidden md:inline-flex"
-        onClick={onOpenAi}
-        title={t(strings.floatingToolbar.aiCommandTitle)}
-        tabIndex={docked ? -1 : undefined}
-      >
-        <Sparkles className="h-4 w-4" />
-      </Button>
-      {onExpandComposer && (
+      {showComposerActions && (
+        <Button
+          data-testid="toolbar-ai"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hidden md:inline-flex"
+          onClick={onOpenAi}
+          title={t(strings.floatingToolbar.aiCommandTitle)}
+          tabIndex={docked ? -1 : undefined}
+        >
+          <Sparkles className="h-4 w-4" />
+        </Button>
+      )}
+      {showComposerActions && onExpandComposer && (
         <Button
           data-testid="toolbar-expand-composer"
           variant="ghost"
@@ -328,7 +344,7 @@ export default function FloatingToolbar({
           <Maximize2 className="h-4 w-4" />
         </Button>
       )}
-      {onVoiceStart && onVoiceStop && (
+      {showComposerActions && onVoiceStart && onVoiceStop && (
         <VoiceMicButton
           testId="voice-mic-btn"
           supported={voiceSupported ?? false}
@@ -353,21 +369,23 @@ export default function FloatingToolbar({
           buttonClassName="h-8 w-8"
         />
       )}
-      <Button
-        data-testid="toolbar-new"
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 md:h-8 md:w-8"
-        disabled={isCreating}
-        title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
-        tabIndex={docked ? -1 : undefined}
-        onPointerDown={plusHandlers.onPointerDown}
-        onPointerUp={plusHandlers.onPointerUp}
-        onPointerCancel={plusHandlers.onPointerCancel}
-        onContextMenu={plusHandlers.onContextMenu}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
+      {showNewAction && (
+        <Button
+          data-testid="toolbar-new"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 md:h-8 md:w-8"
+          disabled={isCreating}
+          title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
+          tabIndex={docked ? -1 : undefined}
+          onPointerDown={plusHandlers.onPointerDown}
+          onPointerUp={plusHandlers.onPointerUp}
+          onPointerCancel={plusHandlers.onPointerCancel}
+          onContextMenu={plusHandlers.onContextMenu}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 

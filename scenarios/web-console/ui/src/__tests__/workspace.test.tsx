@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 import Workspace from "../components/Workspace";
 import { strings } from "../consts/strings";
@@ -79,7 +79,8 @@ const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
   mockSyncPaneUpdate: vi.fn(),
   mockSyncPaneOrder: vi.fn(),
 }));
-const { mockVoiceInputState } = vi.hoisted(() => ({
+const { mockVoiceInputState, voiceTranscriptCapture } = vi.hoisted(() => ({
+  voiceTranscriptCapture: { callback: null as null | ((text: string) => void) },
   mockVoiceInputState: {
     supported: true,
     backend: "whisper",
@@ -163,7 +164,10 @@ vi.mock("../hooks/useTouchControls", () => ({
 }));
 
 vi.mock("../audio-integration", () => ({
-  useScenarioVoiceInput: () => mockVoiceInputState,
+  useScenarioVoiceInput: (onTranscript: (text: string) => void) => {
+    voiceTranscriptCapture.callback = onTranscript;
+    return mockVoiceInputState;
+  },
   getTTSSummarizeConfig: vi.fn().mockResolvedValue({ level: "moderate" }),
 }));
 
@@ -352,6 +356,7 @@ describe("Workspace", () => {
     mockVoiceInputState.fallbackNotice = null;
     mockVoiceInputState.dismissFallbackNotice.mockClear();
     touchControlsState.needsTouchControls = false;
+    voiceTranscriptCapture.callback = null;
     mockStoreState.panes = [];
     mockStoreState.columnFractions = [];
     mockStoreState.rowFractions = [];
@@ -569,6 +574,40 @@ describe("Workspace", () => {
     expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
     await waitFor(() => { expect(mobileToolbarHandle.focusInput).toHaveBeenCalled(); });
     expect(mockFocusActiveTerminal).not.toHaveBeenCalled();
+  });
+
+  it("routes a voice transcript into the composer bar whenever the bar is on screen", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
+    // Desktop-sized viewport that still needs touch controls (touchscreen or
+    // coarse pointer): the bar is visible, so it owns the transcript.
+    touchControlsState.needsTouchControls = true;
+    render(<Workspace />);
+    expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+
+    await waitFor(() => { expect(voiceTranscriptCapture.callback).toBeTruthy(); });
+    const onTranscript = voiceTranscriptCapture.callback;
+    act(() => { onTranscript?.("hello from voice"); });
+
+    expect(mobileToolbarHandle.appendText).toHaveBeenCalledWith("hello from voice");
+    expect(mockSendToActiveTerminal).not.toHaveBeenCalled();
+  });
+
+  it("routes a voice transcript to the terminal when no composer bar is on screen", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
+    touchControlsState.needsTouchControls = false;
+    render(<Workspace />);
+    expect(screen.queryByTestId("mock-mobile-toolbar")).toBeNull();
+
+    await waitFor(() => { expect(voiceTranscriptCapture.callback).toBeTruthy(); });
+    const onTranscript = voiceTranscriptCapture.callback;
+    act(() => { onTranscript?.("hello from voice"); });
+
+    expect(mockSendToActiveTerminal).toHaveBeenCalledWith("hello from voice", "bulk_text", mockSession.id);
+    expect(mobileToolbarHandle.appendText).not.toHaveBeenCalled();
   });
 
   it("keeps touch controls available on wide phone landscape viewports", () => {

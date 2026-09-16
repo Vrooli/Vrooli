@@ -129,7 +129,12 @@ func capabilityRecovery(state capabilityprobe.State) string {
 	case capabilityprobe.Missing:
 		return "Install this coding agent on the selected machine"
 	case capabilityprobe.Unknown:
-		return "Refresh the capability probe and check that the node is reporting"
+		// Never tell an operator to "refresh the probe": a node reporting an
+		// unknown capability IS reporting, and re-probing repeats the same
+		// failing command. The observation's own detail names the cause (a
+		// runtime that is not on the service's PATH, a command that hung, a
+		// non-zero exit); the action is to repair that on the machine.
+		return "This machine reported the agent but could not run it; fix the cause named above on that machine, or reinstall the agent there"
 	case capabilityprobe.NotApplicable:
 		return "Choose another coding agent or a supported machine"
 	default:

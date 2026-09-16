@@ -8,9 +8,7 @@
     "name": "multi-pane-independent-io",
     "description": "Launch two panes, run distinct stdin commands, and verify output stays isolated per pane",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
   ],
   "version": 1,

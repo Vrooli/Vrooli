@@ -52,8 +52,10 @@ var AITools = []Definition{
 	{Capability: "ai-cli", ID: "opencode", Label: "OpenCode", Command: "opencode", VersionArg: []string{"--version"}},
 }
 
-type LookPath func(string) (string, error)
-type RunVersion func(context.Context, string, []string) (string, error)
+type (
+	LookPath   func(string) (string, error)
+	RunVersion func(context.Context, string, []string) (string, error)
+)
 
 const (
 	DefaultCommandTimeout = 3 * time.Second
@@ -130,9 +132,14 @@ func managedEnviron() []string {
 
 // ManagedLookPath mirrors the runtime PATH contract for long-lived node
 // services. Native service managers commonly omit the interactive user's
-// PATH, while Vrooli-owned CLIs are deliberately installed in these two
-// user-owned directories. Prefer the real PATH and then resolve those exact
-// managed locations; never scan arbitrary directories or execute a shell.
+// PATH, while Vrooli-owned CLIs are deliberately installed in user-owned
+// directories. Prefer the real PATH and then resolve the managed locations;
+// never scan arbitrary directories or execute a shell.
+//
+// It searches exactly ManagedPathEntries, the same list the probe puts on the
+// child's PATH, so a tool this function can find is a tool whose interpreter
+// the probe can also find. Two lists drifted apart is how a tool became
+// resolvable while its runtime stayed invisible.
 func ManagedLookPath(binary string) (string, error) {
 	if path, err := exec.LookPath(binary); err == nil {
 		return path, nil
@@ -141,7 +148,7 @@ func ManagedLookPath(binary string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, dir := range []string{filepath.Join(home, ".local", "bin"), filepath.Join(home, ".vrooli", "bin")} {
+	for _, dir := range ManagedPathEntries(home) {
 		candidate := filepath.Join(dir, binary)
 		if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
 			return candidate, nil

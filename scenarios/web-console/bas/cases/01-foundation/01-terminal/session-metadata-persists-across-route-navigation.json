@@ -8,9 +8,7 @@
     "name": "session-metadata-persists-across-route-navigation",
     "description": "Verify server-side session persistence after leaving and returning from workspace route",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-003a\"]"
   ],
   "version": 1,
@@ -30,6 +27,18 @@
       "viewport_height": 900
     },
     "nodes": [
+      {
+        "id": "capture-session-baseline",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/capture-session-baseline.json"
+          },
+          "metadata": {
+            "label": "Capture owned-session baseline before mutation"
+          }
+        }
+      },
       {
         "id": "run-terminal-command-flow",
         "action": {
@@ -198,9 +207,29 @@
             "label": "Delete sessions created by this case"
           }
         }
+      },
+      {
+        "id": "assert-no-session-leak",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-teardown-leaked='0']",
+            "failure_message": "Expected teardown to remove only sessions created by this case and report no leak",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify no session leak"
+          }
+        }
       }
     ],
     "edges": [
+      {
+        "id": "e-capture-baseline",
+        "source": "capture-session-baseline",
+        "target": "run-terminal-command-flow",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
       {
         "id": "e1",
         "source": "run-terminal-command-flow",
@@ -270,7 +299,7 @@
       {
         "id": "e12",
         "source": "assert-session-persistence",
-        "target": "teardown-test-sessions",
+        "target": "assert-no-session-leak",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

@@ -8,9 +8,7 @@
     "name": "message-actions-overflow",
     "description": "Keep message actions to three inline actions and expose the rest through one overflow menu",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-015f\",\"REQ-P0-015h\"]"
   ],
   "version": 1,
@@ -43,6 +40,18 @@
         }
       },
       {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure terminal session"
+          }
+        }
+      },
+      {
         "id": "hydrate",
         "action": {
           "type": "ACTION_TYPE_WAIT",
@@ -57,25 +66,12 @@
       {
         "id": "activate",
         "action": {
-          "type": "ACTION_TYPE_EVALUATE",
-          "evaluate": {
-            "expression": "(async () => { const sleep=(ms)=>new Promise(r=>setTimeout(r,ms)); const tabs=Array.from(document.querySelectorAll('[data-testid^=\\\"tab-\\\"]')).filter(el=>{const id=el.getAttribute('data-testid')||'';return id!=='tab-bar'&&id!=='tab-bar-new'&&!id.startsWith('tab-group-')&&!id.startsWith('tab-rename-input-');}); let ok=false; for(const tab of tabs){tab.click();await sleep(350);const toggle=document.querySelector('[data-testid=\\\"workspace-toggle-view\\\"]');if(toggle instanceof HTMLElement){toggle.click();await sleep(500);if(document.querySelector('[data-testid^=\\\"messages-pane-\\\"]')){ok=true;break;}}} document.body.setAttribute('data-bas-actions-active',ok?'true':'false');})()"
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-messages-session.json"
           },
           "metadata": {
-            "label": "Activate seeded Messages session"
-          }
-        }
-      },
-      {
-        "id": "assert-messages",
-        "action": {
-          "type": "ACTION_TYPE_ASSERT",
-          "assert": {
-            "selector": "body[data-bas-actions-active='true']",
-            "failure_message": "Expected seeded Messages view"
-          },
-          "metadata": {
-            "label": "Verify Messages view"
+            "label": "Ensure seeded Messages session"
           }
         }
       },
@@ -147,7 +143,7 @@
       {
         "id": "e1",
         "source": "open",
-        "target": "hydrate",
+        "target": "ensure-session",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
@@ -157,14 +153,8 @@
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e3",
-        "source": "activate",
-        "target": "assert-messages",
-        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
-      },
-      {
         "id": "e4",
-        "source": "assert-messages",
+        "source": "activate",
         "target": "reveal",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },

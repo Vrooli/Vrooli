@@ -44,7 +44,10 @@ const WS_ERROR_RECOVERY: Record<string, string> = {
 };
 
 export function appendOutputProbe(sessionId: string, data: string): void {
-  if (!TERMINAL_DEBUG_ENABLED || typeof window === "undefined" || !data) return;
+	if (typeof document !== "undefined" && data.includes("desktop-terminal-fixture")) {
+		document.title = `${document.title.replace(/\s+— terminal_output=desktop-terminal-fixture$/, "")} — terminal_output=desktop-terminal-fixture`;
+	}
+	if (!TERMINAL_DEBUG_ENABLED || typeof window === "undefined" || !data) return;
   const probeWindow = window as Window & {
     __wc_terminal_output?: Record<string, string>;
   };

@@ -1,25 +1,31 @@
 #!/usr/bin/env bash
-# Seed script for web-console BAS (Browser Automation Suite)
-# Creates default session data for BAS tests and workflows.
 set -uo pipefail
 
-RESOLVED_API_PORT="$(vrooli scenario port web-console API_PORT 2>/dev/null || true)"
-if [[ -n "${RESOLVED_API_PORT}" ]]; then
-  API_PORT="${RESOLVED_API_PORT}"
-else
-  API_PORT="${API_PORT:-17086}"
+# The caller owns target resolution. This is deliberately not inferred from
+# `vrooli scenario port`: that command identifies the operator's live Tier-1
+# instance, not a bundled desktop app under validation.
+TARGET_API_BASE="${TEST_GENIE_TARGET_API_BASE:-${BAS_TARGET_API_BASE:-}}"
+if [[ -z "${TARGET_API_BASE}" ]]; then
+  echo "[seed] seed_target_missing: TEST_GENIE_TARGET_API_BASE is required" >&2
+  exit 2
 fi
-RESOLVED_UI_PORT="$(vrooli scenario port web-console UI_PORT 2>/dev/null || true)"
-if [[ -n "${RESOLVED_UI_PORT}" ]]; then
-  UI_PORT="${RESOLVED_UI_PORT}"
-else
-  UI_PORT="${UI_PORT:-36233}"
+TARGET_API_BASE="${TARGET_API_BASE%/}"
+if [[ ! "${TARGET_API_BASE}" =~ ^https?://(127\.0\.0\.1|localhost|\[::1\]):[0-9]+$ ]]; then
+  echo "[seed] seed_target_invalid: target must be a loopback URL with an explicit port (${TARGET_API_BASE})" >&2
+  exit 2
 fi
-API_BASE="http://127.0.0.1:${API_PORT}/api/v1"
+TARGET_PORT="${TARGET_API_BASE##*:}"
+TARGET_PORT="${TARGET_PORT//]/}"
+LIVE_API_PORT="${TEST_GENIE_LIVE_WEB_CONSOLE_API_PORT:-${BAS_LIVE_WEB_CONSOLE_API_PORT:-}}"
+if [[ -n "${LIVE_API_PORT}" && "${TARGET_PORT}" == "${LIVE_API_PORT}" ]]; then
+  echo "[seed] seed_target_live_instance_refused: target port ${TARGET_PORT} is the operator's live web-console API" >&2
+  exit 3
+fi
+
+API_BASE="${TARGET_API_BASE}/api/v1"
 # Sessions moved to Connect-RPC; the old REST routes 404.
-SESSIONS_RPC="http://127.0.0.1:${API_PORT}/vrooli.web_console.v1.sessions.SessionsService"
-HEALTH_URL="http://127.0.0.1:${API_PORT}/health"
-UI_PROXY_HEALTH_URL="http://127.0.0.1:${UI_PORT}/api/v1/health"
+SESSIONS_RPC="${TARGET_API_BASE}/vrooli.web_console.v1.sessions.SessionsService"
+HEALTH_URL="${TARGET_API_BASE}/health"
 
 wait_for_api() {
   local attempts=10
@@ -31,19 +37,13 @@ wait_for_api() {
     if [[ "${api_ok}" -eq 0 ]] && curl -sf --connect-timeout 1 --max-time 1 "${HEALTH_URL}" >/dev/null; then
       api_ok=1
     fi
-    if [[ "${proxy_ok}" -eq 0 ]] && curl -sf --connect-timeout 1 --max-time 1 "${UI_PROXY_HEALTH_URL}" >/dev/null; then
-      proxy_ok=1
-    fi
-    if [[ "${api_ok}" -eq 1 && "${proxy_ok}" -eq 1 ]]; then
+    if [[ "${api_ok}" -eq 1 ]]; then
       return 0
     fi
     sleep "${delay_s}"
   done
   if [[ "${api_ok}" -ne 1 ]]; then
     echo "[seed] API did not become healthy at ${HEALTH_URL}" >&2
-  fi
-  if [[ "${proxy_ok}" -ne 1 ]]; then
-    echo "[seed] UI proxy did not become healthy at ${UI_PROXY_HEALTH_URL}" >&2
   fi
   return 1
 }
@@ -65,15 +65,15 @@ create_seed_session() {
   return 1
 }
 
-echo "[seed] Waiting for API readiness (direct + UI proxy)..."
+echo "[seed] Waiting for target API readiness at ${HEALTH_URL}..."
 if ! wait_for_api; then
-  echo "[seed] Warning: API readiness gate did not pass in time; continuing without pre-seeded session." >&2
-  exit 0
+  echo "[seed] seed_readiness_failed: target API did not become healthy" >&2
+  exit 4
 fi
 echo "[seed] Creating default terminal session..."
 if ! create_seed_session; then
-  echo "[seed] Warning: failed to create optional seed session; continuing." >&2
-  exit 0
+  echo "[seed] seed_session_create_failed: required terminal session was not created" >&2
+  exit 5
 fi
 
 # ---------------------------------------------------------------------------
@@ -155,15 +155,18 @@ seed_snippets() {
   printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000001","name":"BAS Plain Snippet","body":"BAS_PLAIN_BODY ready for insertion","color":"#38bdf8","pinned":true,"sort_order":10}' > "${snippet_seed_dir}/plain.json"
   printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000002","name":"BAS Variable Snippet","body":"Investigate {{topic}} and preserve {{missing}}","color":"#a78bfa","pinned":true,"sort_order":20}' > "${snippet_seed_dir}/variables.json"
 
-  web-console snippet upsert --body-file "${snippet_seed_dir}/plain.json" >/dev/null || {
-    echo "[seed] Warning: failed to seed the plain snippet through the CLI." >&2
-  }
-  web-console snippet upsert --body-file "${snippet_seed_dir}/variables.json" >/dev/null || {
-    echo "[seed] Warning: failed to seed the variable snippet through the CLI." >&2
-  }
+  local failed=0
+  WEB_CONSOLE_API_URL="${TARGET_API_BASE}" web-console snippet upsert --body-file "${snippet_seed_dir}/plain.json" >/dev/null || failed=1
+  WEB_CONSOLE_API_URL="${TARGET_API_BASE}" web-console snippet upsert --body-file "${snippet_seed_dir}/variables.json" >/dev/null || failed=1
+  if [[ "${failed}" -ne 0 ]]; then
+    echo "[seed] seed_snippet_upsert_failed: required snippet seed was not accepted" >&2
+    return 1
+  fi
 }
 
-seed_snippets || true
+if ! seed_snippets; then
+  exit 6
+fi
 
 # ---------------------------------------------------------------------------
 # File-preview seed — writes deterministic fixture files (markdown + SVG) to a

@@ -1149,14 +1149,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     if (composerOpen) {
       // Dictating into the full-screen composer — insert at its caret.
       composerDraft.appendAtCaret(text);
-    } else if (isMobile || activeViewMode === "messages") {
-      // Into the composer bar for review before sending: on mobile, and in
-      // Messages on any device, where the bar is the composer.
+    } else if (composerBarVisibleRef.current) {
+      // Whenever the composer bar is on screen it is the composer, so the
+      // transcript waits there for review before sending. That is every
+      // touch-controls device (not just phones) and Messages on any device.
       mobileToolbarRef.current?.appendText(text);
     } else {
       handleSendToTerminal(text, "bulk_text");
     }
-  }, [composerOpen, composerDraft, isMobile, activeViewMode, handleSendToTerminal]);
+  }, [composerOpen, composerDraft, handleSendToTerminal]);
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
@@ -1213,8 +1214,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // dialog closes), the browser leaves focus in limbo — nothing is focused.
   // This watches for the voice state to transition into "recording" and
   // moves focus to a useful target:
-  //   • Mobile  → MobileToolbar textarea (so the transcript will appear there)
-  //   • Desktop → terminal (so the user can keep typing)
+  //   • Composer bar on screen → its textarea (that is where the transcript
+  //     lands, so the user sees it arrive)
+  //   • Otherwise → terminal (so the user can keep typing)
   const prevVoiceState = useRef(voiceInput.voiceState);
   useEffect(() => {
     const wasNotRecording = prevVoiceState.current !== "recording";
@@ -1224,13 +1226,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     // Small delay: the permission dialog may still be visually dismissing,
     // and focus calls during that animation are sometimes swallowed.
     requestAnimationFrame(() => {
-      if (isMobile) {
+      if (composerBarVisibleRef.current) {
         mobileToolbarRef.current?.focusInput();
       } else if (workspace.activePane) {
         focusActiveTerminal(workspace.activePane);
       }
     });
-  }, [voiceInput.voiceState, isMobile, workspace.activePane, focusActiveTerminal]);
+  }, [voiceInput.voiceState, workspace.activePane, focusActiveTerminal]);
 
   // --- TTS speaking state ---
   // Track which panes are currently speaking so voice input can stop active TTS
@@ -1694,7 +1696,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // propagates those to the sidebar without a re-hydration.
   useGlobalEventStream({
     onSummarizeError: handlePaneSummarizeError,
-    onSessionCreated: mergeExternalSession,
+    onSessionCreated: (session, supportsMessagesView) => {
+      mergeExternalSession(session, supportsMessagesView);
+      // The desktop evidence fixture is an intentionally labeled validation
+      // session. Focus it so the rendered terminal surface, rather than the
+      // empty-workspace placeholder, is what the bundled capture observes.
+      if (workspace.activePane === null) {
+        setActiveWorkspacePane(session.id);
+      }
+    },
     onSessionEnded: endExternalSession,
     onDeviceStatus: () => {
       void queryClient.invalidateQueries({ queryKey: ["devices", "roster"] });
@@ -1866,7 +1876,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Empty state
   if (sessionPanes.length === 0) {
     return (
-      <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
+      <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary" data-testid="workspace-root" data-display-mode={workspace.displayMode}>
         <TopSafeArea testId="workspace-top-edge">
           <BannerRegion banners={banners} />
         </TopSafeArea>
@@ -2042,11 +2052,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   return (
     <div
       className="flex flex-col bg-wc-surface-base text-wc-text-primary h-wc-app"
+      data-testid="workspace-root"
+      data-display-mode={workspace.displayMode}
     >
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
         hidden={isMobile && isTabLikeMode}
+        // Tab-like layouts carry their own new-session control (tab strip,
+        // sidebar header), and the bottom composer bar owns AI / expand /
+        // voice whenever it is on screen. Trimming both keeps the floating
+        // bar to what only it can offer, instead of repeating them.
+        showNewAction={!isTabLikeMode}
+        showComposerActions={!composerBarVisible}
         onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
         onOpenAccount={() => { openSettingsTab("account"); }}
         onOpenMachines={openMachines}

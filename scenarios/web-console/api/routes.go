@@ -130,6 +130,7 @@ func (s *Server) setupRoutes() {
 		Remote:            s,
 	}
 	s.lifecycleDelete = sessionAdapter.Delete
+	s.desktopCreateSession = sessionAdapter.Create
 	if s.sweeper != nil {
 		s.sweeper.SetArchiveHandler(sessionAdapter.Archive)
 	}

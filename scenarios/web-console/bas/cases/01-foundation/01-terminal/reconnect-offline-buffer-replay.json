@@ -8,9 +8,7 @@
     "name": "reconnect-offline-buffer-replay",
     "description": "Force websocket disconnect, reload, and verify buffered terminal output replays",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-003b\", \"REQ-P0-003b-i\"]"
   ],
   "version": 1,

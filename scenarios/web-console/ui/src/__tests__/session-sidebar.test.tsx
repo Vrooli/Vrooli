@@ -420,6 +420,28 @@ describe("SessionSidebar", () => {
   });
 });
 
+describe("SessionSidebar header actions", () => {
+  const items = () => buildWorkspaceNavigationItems({
+    panes: [pane("a", "transparent")],
+    groups: [],
+    activePane: "a",
+  });
+
+  it("opens the machines surface from the header", () => {
+    const onOpenMachines = vi.fn();
+    render(<SessionSidebar {...baseProps} onOpenMachines={onOpenMachines} buckets={asBuckets(items())} />);
+    fireEvent.click(screen.getByTestId("workspace-sidebar-machines"));
+    expect(onOpenMachines).toHaveBeenCalledOnce();
+  });
+
+  // The button is how a layout that has no floating bar still reaches the
+  // fleet surface, so its presence must track the host actually supplying one.
+  it("omits the machines button when no fleet surface is supplied", () => {
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items())} />);
+    expect(screen.queryByTestId("workspace-sidebar-machines")).toBeNull();
+  });
+});
+
 describe("SessionSidebar swipe actions", () => {
   const mobileProps = { ...baseProps, isMobile: true };
 

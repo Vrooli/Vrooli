@@ -8,9 +8,7 @@
     "name": "interactive-stdin-roundtrip",
     "description": "Launch empty shell, send stdin via keyboard, and verify stdout round-trip in terminal pane",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -19,7 +17,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-002b\"]"
   ],
   "version": 1,

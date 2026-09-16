@@ -42,6 +42,18 @@
         }
       },
       {
+        "id": "ensure-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-session.json"
+          },
+          "metadata": {
+            "label": "Ensure terminal session"
+          }
+        }
+      },
+      {
         "id": "hydrate-wait",
         "action": {
           "type": "ACTION_TYPE_WAIT",
@@ -56,26 +68,12 @@
       {
         "id": "activate-messages-session",
         "action": {
-          "type": "ACTION_TYPE_EVALUATE",
-          "evaluate": {
-            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let found = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { found = true; break; } } document.body.setAttribute('data-nav-seed-session-active', found ? 'true' : 'false'); })()"
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/ensure-messages-session.json"
           },
           "metadata": {
-            "label": "Activate the seeded messages-capable session"
-          }
-        }
-      },
-      {
-        "id": "assert-messages-session",
-        "action": {
-          "type": "ACTION_TYPE_ASSERT",
-          "assert": {
-            "selector": "body[data-nav-seed-session-active='true']",
-            "failure_message": "Expected a seeded session that supports the Messages view (seed.sh hook seeding may be unavailable)",
-            "timeout_ms": 5000
-          },
-          "metadata": {
-            "label": "Verify a messages-capable session is active"
+            "label": "Ensure seeded Messages session"
           }
         }
       },
@@ -202,7 +200,13 @@
       {
         "id": "e1",
         "source": "open-workspace",
-        "target": "hydrate-wait",
+        "target": "ensure-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-open-workspace-ensure-session",
+        "source": "open-workspace",
+        "target": "ensure-session",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
@@ -212,14 +216,8 @@
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e3",
-        "source": "activate-messages-session",
-        "target": "assert-messages-session",
-        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
-      },
-      {
         "id": "e4",
-        "source": "assert-messages-session",
+        "source": "activate-messages-session",
         "target": "switch-to-messages",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },

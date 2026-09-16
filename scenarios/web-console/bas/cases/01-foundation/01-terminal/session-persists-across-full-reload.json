@@ -8,9 +8,7 @@
     "name": "session-persists-across-full-reload",
     "description": "Reload workspace after interactive stdin and verify the same session + output are restored",
     "execution_mode": "mutating",
-    "reset": "full",
     "labels": {
-      "reset": "full",
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
@@ -18,7 +16,6 @@
     }
   },
   "tags": [
-    "reset:full",
     "requirements_json:[\"REQ-P0-003a\"]"
   ],
   "version": 1,

@@ -146,3 +146,41 @@ describe("FloatingToolbar machines control", () => {
     expect(handlers.onOpenMachines).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("FloatingToolbar trimming", () => {
+  const handlers = {
+    onOpenSettings: vi.fn(),
+    onOpenAccount: vi.fn(),
+    onOpenMachines: vi.fn(),
+    onOpenAi: vi.fn(),
+    onNewTerminal: vi.fn(),
+    onOpenLauncher: vi.fn(),
+    onExpandComposer: vi.fn(),
+    onVoiceStart: vi.fn(),
+    onVoiceStop: vi.fn(),
+  };
+
+  it("shows every action by default", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} />);
+    expect(screen.getByTestId("toolbar-new")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-expand-composer")).toBeTruthy();
+    expect(screen.getByTestId("voice-mic-btn")).toBeTruthy();
+  });
+
+  it("drops the new action when the layout carries its own", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} showNewAction={false} />);
+    expect(screen.queryByTestId("toolbar-new")).toBeNull();
+    // The global controls are the remainder and must survive the trim.
+    expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-machines")).toBeTruthy();
+  });
+
+  it("drops composer actions when the composer bar already shows them", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} showComposerActions={false} />);
+    expect(screen.queryByTestId("toolbar-ai")).toBeNull();
+    expect(screen.queryByTestId("toolbar-expand-composer")).toBeNull();
+    expect(screen.queryByTestId("voice-mic-btn")).toBeNull();
+    expect(screen.getByTestId("toolbar-new")).toBeTruthy();
+  });
+});
