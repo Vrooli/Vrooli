@@ -41,6 +41,43 @@ func TestComposeVariantsAreFilterFreeAndDeterministic(t *testing.T) {
 	}
 }
 
+// image-tools' pure-Go rasterizer drops a group whose transform is a list such
+// as "translate(x y) scale(s)", which shipped every PNG target as an empty tile.
+// Every composed variant must place the mark with a single matrix().
+func TestComposePlacesTheMarkWithASingleMatrix(t *testing.T) {
+	for _, v := range []Variant{Rounded, FullBleed, Maskable, SocialCard} {
+		out, err := Compose([]byte(markSVG), nil, testStyle(), v, 180, false)
+		if err != nil {
+			t.Fatalf("%s: %v", v, err)
+		}
+		s := string(out)
+		if strings.Contains(s, "translate(") || strings.Contains(s, "scale(") {
+			t.Fatalf("%s: output uses a transform list oksvg drops:\n%s", v, s)
+		}
+		if !strings.Contains(s, `transform="matrix(`) {
+			t.Fatalf("%s: mark is not placed with matrix():\n%s", v, s)
+		}
+	}
+}
+
+// A traced mark has a 2048-unit viewBox; on a 180 px icon its longer side must
+// come out at MarkScale of the edge, centred, not at MarkScale of 2048 units.
+func TestComposeFitsALargeViewBoxMarkToTheTile(t *testing.T) {
+	traced := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="#ffffff" d="M100 100H1948V1948H100Z"/></svg>`
+	for _, edge := range []int{16, 32, 180, 512} {
+		out, err := Compose([]byte(traced), nil, testStyle(), Rounded, edge, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		scale := parseGroupScale(t, string(out))
+		got := scale * 2048
+		want := 0.86 * float64(edge)
+		if got < want-0.5 || got > want+0.5 {
+			t.Fatalf("edge %d: mark side = %.2f px, want %.2f", edge, got, want)
+		}
+	}
+}
+
 func TestComposeRoundedUsesCornerRadiusAndGradient(t *testing.T) {
 	out, err := Compose([]byte(markSVG), nil, testStyle(), Rounded, 512, false)
 	if err != nil {
@@ -97,11 +134,12 @@ func TestComposeMaskableKeepsMarkInsideSafeZone(t *testing.T) {
 
 func parseGroupScale(t *testing.T, svg string) float64 {
 	t.Helper()
-	idx := strings.Index(svg, "scale(")
+	// The mark group is placed with matrix(s 0 0 s tx ty); its first term is the scale.
+	idx := strings.Index(svg, "matrix(")
 	if idx < 0 {
-		t.Fatal("no scale in output")
+		t.Fatal("no matrix in output")
 	}
-	rest := svg[idx+len("scale("):]
+	rest := svg[idx+len("matrix("):]
 	end := strings.IndexAny(rest, ") ")
 	if end < 0 {
 		t.Fatal("bad scale")

@@ -102,6 +102,33 @@ quality, fallback and role. See `DECISIONS.md` 2026-09-15.
 **Refs:** `api/internal/candidates/service.go`, `handlers/candidates/module.go`,
 `scenarios/image-tools/api/internal/models/selector.go`.
 
+### 2026-09-15 — Applied PNG icons showed an empty tile, then a zoomed fragment (fixed)
+
+**Symptom:** web-console's iOS "Add to Home Screen" icon was a blank navy tile. Every PNG
+target written by `apply run` (apple-touch-icon, icon-192/512, favicons, electron PNGs) had
+the tile but no mark; `apple-touch-icon.png` was 559 bytes. The phase-13 evidence passed because
+it compared served bytes with disk bytes, never what the pixels showed.
+
+**Root cause:** (1) render placed the mark with `transform="translate(x y) scale(s)"`, and
+image-tools' pinned oksvg silently drops a group with a transform list; (2) once drawn, the mark
+was scaled by `MarkScale` in its own viewBox units instead of relative to the tile, so a
+2048-unit traced mark came out 1761 px wide on a 180 px icon. Only the maskable variant
+normalized correctly, and the render tests used a 100-unit fixture.
+
+**Real fix (landed):** render emits one `matrix()` and scales to `MarkScale × edge / longest
+viewBox side` (social card: 0.8 of height); regression tests
+`TestComposePlacesTheMarkWithASingleMatrix` and `TestComposeFitsALargeViewBoxMarkToTheTile`.
+image-tools now routes any transform list to the Chrome rasterizer (`transform-list` feature)
+instead of drawing a blank. Web-console icons were re-applied.
+
+**Still open:** apply evidence should assert the mark is present (non-background pixel share per
+target), not only byte equality. Pick's automatic vectorize can keep a concept's tile border
+glow; remove it with `refine --mask-asset` before vectorizing (Vega, 2026-09-15).
+
+**Owner:** brand-manager.
+
+**Refs:** `api/internal/render/render.go`, `scenarios/image-tools/api/internal/ops/svg.go`.
+
 ### 2026-09-15 — Duplicate Aquila candidate records
 
 **Symptom:** Aquila lists the round-1 constellation concept twice, and a rejected record shares

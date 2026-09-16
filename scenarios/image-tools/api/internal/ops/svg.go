@@ -59,6 +59,11 @@ var highFidelityFeatures = []highFidelityFeature{
 	{"mask", regexp.MustCompile(`(?i)<\s*mask[\s>]|\bmask\s*=\s*["']\s*url\(`)},
 	{"pattern", regexp.MustCompile(`(?i)<\s*pattern[\s>]`)},
 	{"css", regexp.MustCompile(`(?i)<\s*style[\s>]|\bstyle\s*=\s*["'][^"']*\bfilter\s*:`)},
+	// A transform list ("translate(x y) scale(s)") is dropped by the pinned
+	// oksvg together with everything in its group: brand-manager icon targets
+	// came out as empty tiles with the mark missing (2026-09-15). A single
+	// function, including matrix(), renders correctly and stays on the fast path.
+	{"transform-list", regexp.MustCompile(`(?i)\btransform\s*=\s*["'][^"']*\)\s*,?\s*(?:matrix|translate|scale|rotate|skewx|skewy)\s*\(`)},
 }
 
 // HighFidelitySVGFeatures reports which oksvg-unsupported features an SVG uses.

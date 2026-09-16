@@ -75,10 +75,22 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 		clipRadius = 0
 	}
 
-	// Fit the mark into the tile.
-	scale := style.MarkScale
-	if scale <= 0 {
-		scale = 0.86
+	// Fit the mark into the tile: MarkScale is the mark's longer side as a
+	// fraction of the tile edge, so the scale is normalized by the mark's own
+	// viewBox. (Using MarkScale directly drew a 2048-unit traced mark at 1761 px
+	// on a 180 px icon, so every PNG showed a zoomed-in fragment.) A social card
+	// sizes the mark to 0.8 of the card height.
+	markFraction := style.MarkScale
+	if markFraction <= 0 {
+		markFraction = 0.86
+	}
+	longest := math.Max(float64(vbW), float64(vbH))
+	if longest <= 0 {
+		return nil, fmt.Errorf("render: mark has an empty viewBox")
+	}
+	scale := markFraction * float64(edge) / longest
+	if variant == SocialCard {
+		scale = 0.8 * float64(height) / longest
 	}
 	if variant == Maskable {
 		s := style.MaskableScale
@@ -112,15 +124,18 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 	markH := float64(vbH) * scale
 	tx := (float64(width) - markW) / 2
 	ty := (float64(height) - markH) / 2
-	if variant == SocialCard {
-		ty = 0.8*float64(height) - markH/2
-	}
+
+	// Place the mark with one matrix() rather than a transform list: image-tools'
+	// pure-Go rasterizer silently drops a group whose transform is
+	// "translate(...) scale(...)", which rendered every PNG target as an empty
+	// tile (web-console's apple-touch-icon, 2026-09-15).
+	place := fmt.Sprintf(`matrix(%.6f 0 0 %.6f %.3f %.3f)`, scale, scale, tx, ty)
 
 	// Layered glow strokes under each accent path.
 	if style.AccentColor != "" && len(style.Glow) > 0 {
 		accent := accentPaths(inner, style.AccentColor)
 		if len(accent) > 0 {
-			b.WriteString(fmt.Sprintf(`<g transform="translate(%.3f %.3f) scale(%.6f)" fill="none" stroke="%s" stroke-linejoin="round" stroke-linecap="round">`, tx, ty, scale, style.AccentColor))
+			b.WriteString(fmt.Sprintf(`<g transform="%s" fill="none" stroke="%s" stroke-linejoin="round" stroke-linecap="round">`, place, style.AccentColor))
 			for _, layer := range style.Glow {
 				for _, d := range accent {
 					b.WriteString(fmt.Sprintf(`<path d="%s" stroke-width="%.3f" stroke-opacity="%.3f"/>`, d, layer.Width, layer.Opacity))
@@ -130,7 +145,7 @@ func Compose(markSVG []byte, smallSVG []byte, style Style, variant Variant, edge
 		}
 	}
 
-	b.WriteString(fmt.Sprintf(`<g transform="translate(%.3f %.3f) scale(%.6f)">%s</g>`, tx, ty, scale, inner))
+	b.WriteString(fmt.Sprintf(`<g transform="%s">%s</g>`, place, inner))
 	b.WriteString(`</svg>`)
 	out := []byte(b.String())
 	if !opaque && variant != FullBleed {

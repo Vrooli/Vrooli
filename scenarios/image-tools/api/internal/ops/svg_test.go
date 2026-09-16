@@ -27,6 +27,12 @@ func TestHighFidelityFeatureDetection(t *testing.T) {
 		// The detector keys on element and url() forms so an ordinary id or
 		// class containing the word does not force the slow path.
 		{"word in an id", `<svg><rect id="filter-panel" class="mask-layer"/></svg>`, nil},
+		// oksvg drops a group whose transform is a list, so a list takes the
+		// high-fidelity path; a single function (even matrix) does not.
+		{"transform list", `<svg><g transform="translate(35.8 35.8) scale(0.2)"><path d="M0 0h1v1z"/></g></svg>`, []string{"transform-list"}},
+		{"comma transform list", `<svg><g transform="translate(1,2),rotate(45)"/></svg>`, []string{"transform-list"}},
+		{"single matrix", `<svg><g transform="matrix(0.2 0 0 0.2 35.8 35.8)"><path d="M0 0h1v1z"/></g></svg>`, nil},
+		{"single translate", `<svg><g transform="translate(4 4)"/></svg>`, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, HighFidelitySVGFeatures([]byte(tc.svg)))

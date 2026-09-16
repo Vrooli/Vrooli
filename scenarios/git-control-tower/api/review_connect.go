@@ -19,7 +19,11 @@ func (s reviewConnectServer) Start(ctx context.Context, req *connect.Request[rev
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("review request is required"))
 	}
-	resolved, err := s.server.resolveRepoForConnect(ctx, fmt.Sprintf("%d", req.Msg.GetRepositoryId()), "")
+	repositoryID := ""
+	if id := req.Msg.GetRepositoryId(); id > 0 {
+		repositoryID = fmt.Sprintf("%d", id)
+	}
+	resolved, err := s.server.resolveRepoForConnect(ctx, repositoryID, "")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

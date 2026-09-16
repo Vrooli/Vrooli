@@ -1,5 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "branding": {
+    "brand": "rigel",
+    "targets": [
+      "web-public-v1",
+      "electron-v1"
+    ]
+  },
   "dependencies": {
     "resources": {},
     "scenarios": {

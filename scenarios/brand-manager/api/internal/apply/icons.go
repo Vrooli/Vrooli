@@ -137,7 +137,9 @@ func (s *service) writeWebPublicWiring(ctx context.Context, scenario, brandSlug 
 	manifest := map[string]any{
 		"name":             firstNonEmpty(brand.DisplayName, brandSlug),
 		"short_name":       firstNonEmpty(brand.DisplayName, brandSlug),
-		"theme_color":      firstNonEmpty(brand.Colors.Primary, "#0f172a"),
+		// theme_color tints the status bar and launch screen, so it is the brand
+		// background (the page's <meta theme-color>), not the accent-like primary.
+		"theme_color": firstNonEmpty(firstNonEmpty(brand.Colors.Background, brand.Colors.Primary), "#0f172a"),
 		"background_color": firstNonEmpty(brand.Colors.Background, "#0f172a"),
 		"icons":            manifestIcons(written),
 	}
