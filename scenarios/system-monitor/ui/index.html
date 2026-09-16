@@ -3,12 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>System Monitor | Vrooli</title>
+    <title>Vega</title>
     <meta name="theme-color" content="#0b0e0f" />
+    <meta name="color-scheme" content="dark" />
     <meta name="description" content="Live, durable system observability for Vrooli operators." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="application-name" content="Vega" />
+
+    <!-- Installable PWA / iOS standalone: the home-screen title and icon come
+         from these metas and the brand-manager icon block below. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Vega" />
+
+    <!-- Open Graph / Twitter link-preview cards. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vega" />
+    <meta property="og:title" content="Vega" />
+    <meta property="og:description" content="Live, durable system observability for Vrooli operators." />
+    <meta property="og:image" content="/public/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Vega" />
+    <meta name="twitter:description" content="Live, durable system observability for Vrooli operators." />
+    <meta name="twitter:image" content="/public/og-image.png" />
     <!-- Fonts are loaded non-render-blocking so they never sit on the critical
          path (a render-blocking font stylesheet — or a CSS @import chained
          behind tokens.css — delays first paint/LCP and inflates TBT). We
@@ -48,7 +66,14 @@
         min-height: 100vh;
       }
     </style>
-  </head>
+  <!-- brand-manager:icons:start profile=web-public-v1 brand=vega version=5 -->
+<link rel="icon" type="image/svg+xml" href="/public/logo.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />
+<link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />
+<!-- brand-manager:icons:end -->
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -21,6 +21,7 @@ This guide covers how to deploy your landing page from development to production
 7. [Health Checks & Monitoring](#health-checks--monitoring)
 8. [Rollback Procedures](#rollback-procedures)
 9. [Credential Authority and Recovery](#credential-authority-and-recovery)
+10. [Download Distribution Storage and Credentials](#download-distribution-storage-and-credentials)
 
 ---
 
@@ -80,6 +81,85 @@ The command writes only values missing from the authority and prints migrated
 counts. It refuses to run when the authority is unavailable. Keep the encrypted
 off-host copy receipt current; a missing receipt is a recovery blocker, not a
 reason to mint replacement generated keys.
+
+---
+
+## Download Distribution Storage and Credentials
+
+Released desktop artifacts live in an S3-compatible bucket owned by the
+deployment that serves downloads. A local LPBS instance publishes to a remote
+deployment through a stored remote profile; the local host never writes that
+bucket directly.
+
+### How a release reaches the bucket
+
+1. `scenario-to-desktop` calls the local LPBS admin API, which forwards each
+   download request through the stored remote profile
+   (`POST /api/v1/admin/remote-profiles/{id}/proxy`).
+2. The remote LPBS signs an S3 upload URL; the packager uploads the bytes
+   directly to the bucket.
+3. The remote LPBS commits the artifact metadata, then the channel head is
+   promoted to the new immutable revision.
+
+The remote host is the authority for the bucket credentials; the local host
+only holds the encrypted remote session.
+
+### Credentials
+
+The bucket client resolves three optional credentials from the authority:
+
+| Field | Purpose |
+|---|---|
+| `delivery-s3-access-key-id` | Access key ID for the artifact bucket |
+| `delivery-s3-secret-access-key` | Secret access key |
+| `delivery-s3-session-token` | Optional STS session token |
+
+When both key fields are absent, the client falls back to the host AWS default
+credential chain (an instance role, for example). Provision explicit keys only
+when the deployment has no role:
+
+```bash
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-access-key-id
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-secret-access-key
+```
+
+Inline keys are rejected by the storage settings API; the value always travels
+through the authority.
+
+### Object layout
+
+Each artifact is stored under:
+
+```
+<default_prefix>/<bundle_key>/<app_key>/<platform>/<release_version>/<unix>-<nonce>-<filename>
+```
+
+The catalog records `platform`, `release_version`, `release_id`,
+`git_commit_hash`, and `sha512`; the channel head and immutable channel
+revisions record which artifact set is visible for each `variant_key`
+(`default`/stable, `beta`, and so on).
+
+### Permission validation
+
+Readiness proves the bucket accepts object **write, read, and delete** with a
+bounded readiness object that is always deleted. A bucket that is merely
+discoverable (`HeadBucket`) is not sufficient, because a role can discover a
+bucket while lacking object permissions. Run:
+
+```bash
+# Local bucket
+landing-page-business-suite admin-download-storage-test
+
+# Remote bucket through the stored profile
+landing-page-business-suite remote-profiles-proxy --profile-tag prod --method POST --path /admin/download-storage/test --json
+
+# Full remote-aware readiness: session, remote storage, remote app key, service auth
+landing-page-business-suite deploy-readiness --profile-tag prod --app-key web-console --domain <domain>
+```
+
+The `/api/v1/deploy-readiness` endpoint that Deployment Manager calls runs the
+same remote checks, so a release cannot be approved for a target whose bucket,
+session, or app registration is not proven.
 
 ---
 

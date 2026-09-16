@@ -142,6 +142,39 @@ func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1
 	return connect.NewResponse(syncResultToProto(result)), nil
 }
 
+func (h *connectHandler) EnsureDNSRecord(ctx context.Context, req *connect.Request[configv1.EnsureDNSRecordRequest]) (*connect.Response[configv1.EnsureDNSRecordResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	result, err := h.deps.Service.EnsureDNSRecord(ctx, internalconfig.DNSRecordSpec{
+		ProviderProfile: req.Msg.ProviderProfile,
+		Hostname:        req.Msg.Hostname,
+		Type:            req.Msg.Type,
+		Content:         req.Msg.Content,
+		TTL:             int(req.Msg.Ttl),
+		Proxied:         req.Msg.Proxied,
+		Owner:           req.Msg.Owner,
+	}, req.Msg.DryRun)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.EnsureDNSRecord: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.EnsureDNSRecordResponse{
+		ProviderProfile: req.Msg.ProviderProfile,
+		Hostname:        req.Msg.Hostname,
+		Type:            req.Msg.Type,
+		RecordId:        result.RecordID,
+		Created:         result.Created,
+		Changed:         result.Created,
+		DryRun:          req.Msg.DryRun,
+		Owner:           req.Msg.Owner,
+		Message:         "deployment DNS record reconciled",
+	}), nil
+}
+
 func (h *connectHandler) SwitchMode(ctx context.Context, req *connect.Request[configv1.SwitchModeRequest]) (*connect.Response[configv1.SwitchModeResponse], error) {
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSwitchMode, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)

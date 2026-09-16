@@ -65,6 +65,7 @@ type Orchestrator struct {
 	releaseBuilder    ReleaseBuilder
 	credentials       CredentialBinder
 	backups           vps.RecoveryPointRecorder
+	managedDNS        vps.ManagedDNSProvisioner
 	secretsFetcher    secrets.Fetcher
 	secretsGenerator  secrets.GeneratorFunc
 	dnsService        dns.Service
@@ -91,6 +92,7 @@ type OrchestratorConfig struct {
 	ReleaseBuilder    ReleaseBuilder
 	Credentials       CredentialBinder
 	Backups           vps.RecoveryPointRecorder
+	ManagedDNS        vps.ManagedDNSProvisioner
 	SecretsFetcher    secrets.Fetcher
 	SecretsGenerator  secrets.GeneratorFunc
 	DNSService        dns.Service
@@ -108,6 +110,7 @@ func NewOrchestrator(cfg OrchestratorConfig) *Orchestrator {
 		releaseBuilder:    cfg.ReleaseBuilder,
 		credentials:       cfg.Credentials,
 		backups:           cfg.Backups,
+		managedDNS:        cfg.ManagedDNS,
 		secretsFetcher:    cfg.SecretsFetcher,
 		secretsGenerator:  cfg.SecretsGenerator,
 		dnsService:        cfg.DNSService,

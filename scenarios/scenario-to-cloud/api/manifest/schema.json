@@ -100,6 +100,7 @@
       "properties": {
         "domain": { "type": "string", "minLength": 1 },
         "dns_policy": { "type": "string", "enum": ["required", "warn", "skip"] },
+        "managed_dns_profile": { "type": "string", "minLength": 1 },
         "caddy": {
           "type": "object",
           "required": ["enabled"],

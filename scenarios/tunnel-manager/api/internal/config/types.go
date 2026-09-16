@@ -270,6 +270,30 @@ type DNSResult struct {
 	Created  bool
 }
 
+// DNSRecordSpec is the provider-neutral desired state for one DNS record.
+// Owner is an opaque deployment or exposure identity used by the caller's
+// ownership ledger; providers never receive secret material.
+type DNSRecordSpec struct {
+	// ProviderProfile identifies the configured external DNS account/profile.
+	// It is deliberately separate from TunnelConfig: a deployment DNS profile
+	// must never be inferred from the local secure-tunnel configuration.
+	ProviderProfile string
+	Hostname        string
+	Type            string
+	Content         string
+	TTL             int
+	Proxied         bool
+	Owner           string
+}
+
+// ManagedDNSClient is the generic DNS mutation seam. DNSClient remains the
+// narrow tunnel CNAME compatibility seam; new deployment integrations should
+// use ManagedDNSClient so they can request A, AAAA, or CNAME records without
+// depending on Cloudflare-specific behavior.
+type ManagedDNSClient interface {
+	EnsureManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error)
+}
+
 // DNSClient is the seam over the Cloudflare API v4 DNS-records surface — the
 // piece that makes a freshly-exposed hostname publicly RESOLVABLE (the gap that
 // left ingress live but the URL NXDOMAIN). Declared at the consumer per

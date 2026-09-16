@@ -1061,6 +1061,16 @@
       "service": "ConfigService",
       "method": "VerifyCredentials",
       "reason": "Surfaced through `config credentials-status --verify` (the same command's live path) rather than its own verb, so the presence-only fast path and the live scope probe share one ergonomic surface."
+    },
+    {
+      "service": "ConfigService",
+      "method": "EnsureDNSRecord",
+      "reason": "Deployment DNS is owned by scenario-to-cloud and invoked through its typed tunnel-manager client; exposing a second operator CLI mutation would create an ambiguous ownership path."
+    },
+    {
+      "service": "ConfigService",
+      "method": "GetAuthenticationBinding",
+      "reason": "Existing Connect-only runtime binding consumed by scenario authentication clients; no standalone operator CLI command."
     }
   ]
 }

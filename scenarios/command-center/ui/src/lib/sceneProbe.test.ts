@@ -41,6 +41,21 @@ describe("probeTier on a constrained device", () => {
   });
 });
 
+describe("probeTier on a software renderer", () => {
+  it("keeps the composed still when WebGL is emulated in software", () => {
+    const gl = {
+      getExtension: (name: string) => (name === "WEBGL_debug_renderer_info" ? { UNMASKED_RENDERER_WEBGL: 37446 } : null),
+      getParameter: () => "ANGLE (Google, Vulkan 1.0.0 (SwiftShader Device (Subzero)))",
+    };
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(gl as unknown as RenderingContext);
+    try {
+      expect(probeTier(null)).toBe("still");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe("probeTier when the probe itself fails", () => {
   it("never blocks first paint: a throwing canvas probe resolves to the reduced tier", () => {
     const spy = vi.spyOn(document, "createElement").mockImplementation(() => { throw new Error("no canvas here"); });

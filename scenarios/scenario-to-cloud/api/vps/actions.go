@@ -37,6 +37,7 @@ var actionHandlers = map[string]actionHandler{
 	execplan.OpConfigApply:             runConfigApply,
 	execplan.OpWorkloadStop:            runCommandsHandler,
 	execplan.OpEdgeRouteApply:          runCommandsHandler,
+	execplan.OpEdgeDNSEnsure:           runManagedDNSHandler,
 	execplan.OpCredentialsProvision:    runCredentialsProvision,
 	execplan.OpRuntimeStartDeps:        runCommandsHandler,
 	execplan.OpWorkloadStart:           runWorkloadStart,
@@ -50,6 +51,23 @@ var actionHandlers = map[string]actionHandler{
 
 func runCommandsHandler(ctx context.Context, e *executor, action execplan.Action) (string, error) {
 	return e.runCommands(ctx, action)
+}
+
+func runManagedDNSHandler(ctx context.Context, e *executor, action execplan.Action) (string, error) {
+	if e.rt.ManagedDNS == nil {
+		return "", fmt.Errorf("managed DNS profile %q requested but tunnel-manager DNS client is not configured", action.Inputs["provider_profile"])
+	}
+	ttl := 0
+	if raw := action.Inputs["ttl"]; raw != "" {
+		if _, err := fmt.Sscanf(raw, "%d", &ttl); err != nil {
+			return "", fmt.Errorf("managed DNS ttl: %w", err)
+		}
+	}
+	recordID, created, err := e.rt.ManagedDNS.Ensure(ctx, action.Inputs["provider_profile"], action.Inputs["hostname"], action.Inputs["record_type"], action.Inputs["content"], action.Inputs["owner"], ttl, action.Inputs["proxied"] == "true", false)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("managed DNS record %s (created=%t)", recordID, created), nil
 }
 
 func runDataInventory(ctx context.Context, e *executor, action execplan.Action) (string, error) {

@@ -58,6 +58,68 @@ func NewCFDNSClient(doer httpc.Doer, cfg CFConfig) DNSClient {
 }
 
 var _ DNSClient = (*cfDNSClient)(nil)
+var _ ManagedDNSClient = (*cfDNSClient)(nil)
+
+// EnsureManagedRecord implements the provider-neutral record contract while
+// retaining the same ownership safety as the tunnel-specific path: an
+// existing record with different content is a conflict and is never
+// overwritten automatically.
+func (c *cfDNSClient) EnsureManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error) {
+	if err := validateDNSRecordSpec(spec); err != nil {
+		return DNSResult{}, err
+	}
+	zoneID, err := c.zoneID(ctx, apexOf(spec.Hostname))
+	if err != nil {
+		return DNSResult{}, err
+	}
+	existing, err := c.findRecordByType(ctx, zoneID, spec.Hostname, spec.Type)
+	if err != nil {
+		return DNSResult{}, err
+	}
+	if existing.ID != "" {
+		if existing.Content != spec.Content || existing.Proxied != spec.Proxied {
+			return DNSResult{}, fmt.Errorf("dns: record %q conflicts with existing %s record", spec.Hostname, spec.Type)
+		}
+		return DNSResult{RecordID: existing.ID}, nil
+	}
+	payload := map[string]any{
+		"type": spec.Type, "name": spec.Hostname, "content": spec.Content,
+		"ttl": spec.TTL, "proxied": spec.Proxied,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return DNSResult{}, fmt.Errorf("dns: marshal managed record: %w", err)
+	}
+	respBody, err := c.do(ctx, http.MethodPost, fmt.Sprintf("%s/zones/%s/dns_records", c.baseURL, url.PathEscape(zoneID)), body)
+	if err != nil {
+		return DNSResult{}, fmt.Errorf("dns: create managed record %q: %w", spec.Hostname, err)
+	}
+	return DNSResult{RecordID: parseRecordID(respBody), Created: true}, nil
+}
+
+func validateDNSRecordSpec(spec DNSRecordSpec) error {
+	if strings.TrimSpace(spec.ProviderProfile) == "" {
+		return fmt.Errorf("provider profile is required")
+	}
+	spec.Hostname = strings.TrimSpace(strings.ToLower(spec.Hostname))
+	spec.Type = strings.ToUpper(strings.TrimSpace(spec.Type))
+	spec.Content = strings.TrimSpace(spec.Content)
+	if spec.Hostname == "" || spec.Content == "" {
+		return fmt.Errorf("dns: hostname and content are required")
+	}
+	switch spec.Type {
+	case "A", "AAAA", "CNAME":
+	default:
+		return fmt.Errorf("dns: record type %q is not supported", spec.Type)
+	}
+	if spec.TTL < 0 || spec.TTL > 86400 {
+		return fmt.Errorf("dns: ttl %d is outside 0..86400", spec.TTL)
+	}
+	if spec.Proxied && spec.Type != "A" && spec.Type != "AAAA" && spec.Type != "CNAME" {
+		return fmt.Errorf("dns: proxied record type %q is not supported", spec.Type)
+	}
+	return nil
+}
 
 // tunnelTarget is the CNAME content every managed record points at.
 func (c *cfDNSClient) tunnelTarget() string {
@@ -131,6 +193,26 @@ type cfDNSRecord struct {
 	ID      string `json:"id"`
 	Content string `json:"content"`
 	Type    string `json:"type"`
+	Proxied bool   `json:"proxied"`
+}
+
+func (c *cfDNSClient) findRecordByType(ctx context.Context, zoneID, hostname, recordType string) (cfDNSRecord, error) {
+	u := fmt.Sprintf("%s/zones/%s/dns_records?type=%s&name=%s", c.baseURL, url.PathEscape(zoneID), url.QueryEscape(recordType), url.QueryEscape(hostname))
+	body, err := c.do(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return cfDNSRecord{}, fmt.Errorf("dns: list %s records for %q: %w", recordType, hostname, err)
+	}
+	var env struct {
+		Success bool          `json:"success"`
+		Result  []cfDNSRecord `json:"result"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil {
+		return cfDNSRecord{}, fmt.Errorf("dns: parse %s records for %q: %w", recordType, hostname, err)
+	}
+	if len(env.Result) == 0 {
+		return cfDNSRecord{}, nil
+	}
+	return env.Result[0], nil
 }
 
 func (c *cfDNSClient) findRecord(ctx context.Context, zoneID, hostname string) (cfDNSRecord, error) {

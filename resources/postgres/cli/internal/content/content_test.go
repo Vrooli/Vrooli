@@ -576,3 +576,33 @@ func TestRunnerSkipsThePackagingWrapperForTheRealClient(t *testing.T) {
 		t.Fatalf("LookupPSQL = %q, want the client beside the server %q", found, realClient)
 	}
 }
+
+// A scenario setup step runs this CLI without RESOURCE_ARTIFACT_DIR, and a Mac
+// has no host psql; the client is still found in the runtime home's staged
+// tree (secrets-manager's create-database failed there, 2026-09-15).
+func TestRunnerFindsTheStagedClientWithoutTheResourceEnvironment(t *testing.T) {
+	root := t.TempDir()
+	binDir := filepath.Join(root, "16", "postgres_darwin_amd64", "postgresql-16.15.0-x86_64-apple-darwin", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	staged := filepath.Join(binDir, psqlName())
+	for _, name := range []string{psqlName(), serverName()} {
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	previous := stagedArtifactRoot
+	stagedArtifactRoot = func() string { return root }
+	t.Cleanup(func() { stagedArtifactRoot = previous })
+	t.Setenv(psqlExecutableEnv, "")
+	t.Setenv("RESOURCE_ARTIFACT_DIR", "")
+	t.Setenv("PATH", "")
+	found, err := LookupPSQL()
+	if err != nil {
+		t.Fatalf("LookupPSQL: %v", err)
+	}
+	if found != staged {
+		t.Fatalf("LookupPSQL = %q, want the staged client %q", found, staged)
+	}
+}

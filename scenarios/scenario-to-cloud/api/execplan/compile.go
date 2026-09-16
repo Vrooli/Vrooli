@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"path"
 	"slices"
 	"sort"
@@ -122,7 +123,7 @@ type CompileInputs struct {
 
 // HostPreparePackages is the fixed package set host.prepare ensures. It
 // mirrors the privilege broker's apt allowlist.
-var HostPreparePackages = []string{"ca-certificates", "curl", "git", "gnupg", "jq", "lsb-release", "tar", "unzip"}
+var HostPreparePackages = []string{"ca-certificates", "curl", "git", "gnupg", "iproute2", "jq", "lsb-release", "tar", "unzip"}
 
 func hostPreparePackages(edgeEnabled bool) []string {
 	packages := append([]string(nil), HostPreparePackages...)
@@ -767,6 +768,34 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		CancelPoint:  false,
 	}
 	actions = append(actions, activate)
+	edgeDeps := []string{OpReleaseActivate}
+	if profile := strings.TrimSpace(in.Manifest.Edge.ManagedDNSProfile); profile != "" {
+		recordType := "CNAME"
+		if net.ParseIP(strings.TrimSpace(in.Manifest.Target.VPS.Host)) != nil {
+			recordType = "A"
+		}
+		actions = append(actions, Action{
+			ID:                 OpEdgeDNSEnsure,
+			OwnerOperation:     OpEdgeDNSEnsure,
+			Effect:             EffectEdgeWrite,
+			RequiredCapability: "tunnel-manager:dns.ensure",
+			Inputs: map[string]string{
+				"provider_profile": profile,
+				"hostname":         strings.TrimSpace(in.Manifest.Edge.Domain),
+				"record_type":      recordType,
+				"content":          strings.TrimSpace(in.Manifest.Target.VPS.Host),
+				"ttl":              "300",
+				"proxied":          "true",
+				"owner":            in.Deployment.ID,
+			},
+			DependsOn:    []string{OpReleaseActivate},
+			Verification: "managed_dns_record_present",
+			Recovery:     "reconcile_managed_dns_record",
+			Retry:        RetrySafeReplay,
+			CancelPoint:  true,
+		})
+		edgeDeps = append(edgeDeps, OpEdgeDNSEnsure)
+	}
 	if in.Manifest.Edge.Caddy.Enabled || strings.TrimSpace(in.Manifest.Edge.Domain) != "" {
 		actions = append(actions, Action{
 			ID:                 OpEdgeRouteApply,
@@ -783,7 +812,7 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 				"config_path":   "/etc/caddy/Caddyfile",
 				"release_id":    in.ReleaseArtifacts.ID,
 			},
-			DependsOn:    []string{OpReleaseActivate},
+			DependsOn:    edgeDeps,
 			Verification: "caddy_config_validates",
 			Recovery:     "restore_previous_caddyfile",
 			Retry:        RetrySafeReplay,

@@ -25,6 +25,7 @@ import (
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/instance"
 	"scenario-to-cloud/investigation"
+	"scenario-to-cloud/manageddns"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/onboarding"
 	"scenario-to-cloud/operations"
@@ -301,6 +302,7 @@ func NewServer() (*Server, error) {
 		ReleaseBuilder:    srv.releaseBuilder(),
 		Credentials:       srv.credentialBinder(),
 		Backups:           srv.recoveryPointRecorder(),
+		ManagedDNS:        manageddns.New(os.Getenv("VROOLI_TUNNEL_MANAGER_URL")),
 		SecretsFetcher:    secretsFetcher,
 		SecretsGenerator:  secretsGenerator,
 		DNSService:        dnsService,

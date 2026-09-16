@@ -55,6 +55,13 @@ func TestDefaultDownloadSeedPreservesExactFallbackCatalog(t *testing.T) {
 		t.Fatalf("hosted apps unexpectedly gained installer records")
 	}
 
+	// The web-console desktop release depends on this exact catalog row being
+	// live and enabled before scenario-to-desktop can promote to LPBS.
+	console := apps[2]
+	if console.AppKey != "web-console" || console.Metadata["enabled"] != true || console.Metadata["catalog_status"] != "live" {
+		t.Fatalf("web-console release app is not live/enabled: %#v", console)
+	}
+
 	var value any
 	if err := json.Unmarshal(downloadSeedJSON, &value); err != nil {
 		t.Fatal(err)

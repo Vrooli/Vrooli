@@ -122,6 +122,26 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "config_dns_ensure",
+		Path:        configconnect.ConfigServiceEnsureDNSRecordProcedure,
+		Method:      "POST",
+		Summary:     "Ensure an explicitly owned deployment DNS record",
+		Description: "Reconciles one A, AAAA, or CNAME record through the configured provider profile. The provider profile and owner are explicit; this operation never infers the local tunnel domain.",
+		Category:    "config",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider_profile": "string", "hostname": "string", "type": "A|AAAA|CNAME", "content": "string", "ttl": "int", "proxied": "bool", "owner": "string", "dry_run": "bool",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider_profile": "string", "hostname": "string", "type": "string", "record_id": "string", "created": "bool", "dry_run": "bool", "owner": "string",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 412, Code: "failed_precondition", Description: "DNS provider credentials or managed DNS configuration is unavailable"},
+			{Status: 409, Code: "already_exists", Description: "A record with different content or proxy mode already exists"},
+			{Status: 500, Code: "internal", Description: "DNS provider request failed"},
+		},
+		Examples: []module.Example{{Name: "Dry-run deployment record", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/EnsureDNSRecord -H 'Content-Type: application/json' -d '{\"provider_profile\":\"cloudflare-production\",\"hostname\":\"app.example.com\",\"type\":\"A\",\"content\":\"203.0.113.10\",\"owner\":\"deployment-id\",\"dry_run\":true}'"}},
+	},
+	{
 		ID:          "config_credentials_status",
 		Path:        configconnect.ConfigServiceGetCredentialStatusProcedure,
 		Method:      "POST",

@@ -64,6 +64,11 @@ type Service interface {
 	// the report without applying. NoChanges is set when nothing would change.
 	Sync(ctx context.Context, dryRun, prune bool) (SyncResult, error)
 
+	// EnsureDNSRecord reconciles one explicitly owned deployment DNS record.
+	// It is separate from Sync so local tunnel hostnames cannot be mistaken for
+	// VPS deployment hostnames.
+	EnsureDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRun bool) (DNSResult, error)
+
 	// SwitchMode migrates between remote and local management and persists
 	// the new mode. It is PURE: it never writes ingress. Switching to remote
 	// requires the remote read path to be available (a read-only credential
@@ -138,6 +143,9 @@ type Deps struct {
 	// publicly resolvable. Nil disables DNS automation (ingress-only, the old
 	// behaviour) so local mode and credential-less installs are unaffected.
 	DNS DNSClient
+	// ManagedDNS handles explicit deployment DNS records. It is intentionally
+	// separate from DNS, which is the local tunnel CNAME compatibility seam.
+	ManagedDNS ManagedDNSClient
 	// DNSLedger tracks which DNS records TM created so prune/revoke only ever
 	// deletes TM-created CNAMEs. Nil disables DNS removal (records are still
 	// created, but never auto-deleted — the safe direction).
@@ -216,6 +224,19 @@ func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
 		Config:    cfg,
 		Readiness: readiness,
 	}, nil
+}
+
+func (s *service) EnsureDNSRecord(ctx context.Context, spec DNSRecordSpec, dryRun bool) (DNSResult, error) {
+	if err := validateDNSRecordSpec(spec); err != nil {
+		return DNSResult{}, err
+	}
+	if dryRun {
+		return DNSResult{}, nil
+	}
+	if s.deps.ManagedDNS == nil {
+		return DNSResult{}, ErrRemoteUnavailable{Reason: "managed deployment DNS is not configured"}
+	}
+	return s.deps.ManagedDNS.EnsureManagedRecord(ctx, spec)
 }
 
 // metricsEndpointFromEnvironment follows the endpoint exported by the

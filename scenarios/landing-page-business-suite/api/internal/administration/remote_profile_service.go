@@ -74,6 +74,11 @@ var remoteProfileProxyAllowlist = []string{
 	"/admin/download-artifacts",
 	"/admin/download-assets",
 	"/admin/download-apps",
+	// Channel head/promote/halt/recover ride the same download domain as the
+	// artifact and asset routes above; scenario-to-desktop promotes a release
+	// only through the remote-profile proxy, so withholding this prefix would
+	// make the first commercial promotion unreachable against a remote target.
+	"/admin/download-channels",
 	// These are the only secret/settings procedures that may cross a stored
 	// remote-profile session. Keep the list exact: the proxy must not become a
 	// general Connect or remote-shell tunnel.

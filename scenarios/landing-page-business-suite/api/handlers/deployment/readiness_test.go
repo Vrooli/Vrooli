@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/delivery"
 )
 
@@ -110,3 +111,140 @@ func (readinessStorageWithSettings) GetSettings(context.Context, string) (*deliv
 type readinessStorageProbe struct{ err error }
 
 func (probe readinessStorageProbe) TestConnection(context.Context, string) error { return probe.err }
+
+type readinessCatalog struct{ apps map[string]bool }
+
+func (c readinessCatalog) GetApp(_, appKey string) (*delivery.App, error) {
+	if c.apps[appKey] {
+		return &delivery.App{}, nil
+	}
+	return nil, nil
+}
+
+// readinessRemote is a deterministic stand-in for the stored remote LPBS
+// profile. proxyFn lets a test shape each proxied admin response.
+type readinessRemote struct {
+	profiles []administration.RemoteProfile
+	testErr  error
+	proxyFn  func(administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error)
+}
+
+func (f readinessRemote) List(context.Context) ([]administration.RemoteProfile, error) {
+	return f.profiles, nil
+}
+
+func (f readinessRemote) Test(context.Context, int64) (*administration.RemoteProfile, error) {
+	if f.testErr != nil {
+		return nil, f.testErr
+	}
+	return &administration.RemoteProfile{}, nil
+}
+
+func (f readinessRemote) Proxy(_ context.Context, _ int64, req administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error) {
+	if f.proxyFn != nil {
+		return f.proxyFn(req)
+	}
+	return &administration.RemoteProxyResponse{StatusCode: http.StatusOK, Body: []byte(`{}`)}, nil
+}
+
+func remoteReadyDeps(remote readinessRemote) Dependencies {
+	return Dependencies{
+		BundleKey:      func() string { return "bundle" },
+		Storage:        readinessStorageWithSettings{},
+		Catalog:        readinessCatalog{apps: map[string]bool{"web-console": true}},
+		RemoteProfiles: remote,
+	}
+}
+
+func remoteProxyByPath(storageStatus, appStatus int) func(administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error) {
+	return func(req administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error) {
+		switch req.Path {
+		case "/admin/download-storage/test":
+			return &administration.RemoteProxyResponse{StatusCode: storageStatus}, nil
+		case "/admin/download-apps":
+			body := []byte(`{"apps":[{"app_key":"web-console","name":"Aquila"}]}`)
+			if appStatus != http.StatusOK {
+				body = []byte(`{"apps":[]}`)
+			}
+			return &administration.RemoteProxyResponse{StatusCode: appStatus, Body: body}, nil
+		default:
+			return &administration.RemoteProxyResponse{StatusCode: http.StatusOK, Body: []byte(`{}`)}, nil
+		}
+	}
+}
+
+func TestCheckReadinessProvesRemoteStorageAndApp(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("remote storage permission failure blocks readiness", func(t *testing.T) {
+		deps := remoteReadyDeps(readinessRemote{
+			profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+			proxyFn:  remoteProxyByPath(http.StatusForbidden, http.StatusOK),
+		})
+		response := CheckReadiness(ctx, deps, Request{AppKey: "web-console", RemoteProfile: "prod"})
+		if response.Ready {
+			t.Fatalf("expected readiness false, got %+v", response)
+		}
+		if !strings.Contains(response.Error, "remote_download_storage") {
+			t.Fatalf("expected remote_download_storage to be the first failure, got %q", response.Error)
+		}
+	})
+
+	t.Run("missing remote app key blocks readiness", func(t *testing.T) {
+		deps := remoteReadyDeps(readinessRemote{
+			profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+			proxyFn:  remoteProxyByPath(http.StatusOK, http.StatusOK),
+		})
+		deps.RemoteProfiles = readinessRemote{
+			profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+			proxyFn: func(req administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error) {
+				if req.Path == "/admin/download-apps" {
+					return &administration.RemoteProxyResponse{StatusCode: http.StatusOK, Body: []byte(`{"apps":[]}`)}, nil
+				}
+				return &administration.RemoteProxyResponse{StatusCode: http.StatusOK, Body: []byte(`{}`)}, nil
+			},
+		}
+		response := CheckReadiness(ctx, deps, Request{AppKey: "web-console", RemoteProfile: "prod"})
+		if response.Ready {
+			t.Fatalf("expected readiness false, got %+v", response)
+		}
+		if !strings.Contains(response.Error, "remote_app_key") {
+			t.Fatalf("expected remote_app_key failure, got %q", response.Error)
+		}
+	})
+
+	t.Run("inactive remote session blocks readiness before remote probes", func(t *testing.T) {
+		deps := remoteReadyDeps(readinessRemote{
+			profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+			testErr:  fmt.Errorf("session expired"),
+			proxyFn:  remoteProxyByPath(http.StatusOK, http.StatusOK),
+		})
+		response := CheckReadiness(ctx, deps, Request{AppKey: "web-console", RemoteProfile: "prod"})
+		if response.Ready {
+			t.Fatalf("expected readiness false, got %+v", response)
+		}
+		if !strings.Contains(response.Error, "remote_profile_session") {
+			t.Fatalf("expected remote_profile_session failure, got %q", response.Error)
+		}
+	})
+
+	t.Run("ready remote target passes every remote gate", func(t *testing.T) {
+		deps := remoteReadyDeps(readinessRemote{
+			profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+			proxyFn:  remoteProxyByPath(http.StatusOK, http.StatusOK),
+		})
+		response := CheckReadiness(ctx, deps, Request{AppKey: "web-console", RemoteProfile: "prod"})
+		if !response.Ready {
+			t.Fatalf("expected readiness true, got %+v", response)
+		}
+		names := map[string]bool{}
+		for _, gate := range response.Gates {
+			names[gate.Name] = true
+		}
+		for _, want := range []string{"remote_profile_session", "remote_download_storage", "remote_app_key"} {
+			if !names[want] {
+				t.Fatalf("missing gate %q in %+v", want, response.Gates)
+			}
+		}
+	})
+}

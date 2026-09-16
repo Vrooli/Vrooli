@@ -143,6 +143,8 @@ func summarize(action Action) string {
 		return "Stop scenario " + action.Inputs["scenario"]
 	case OpEdgeRouteApply:
 		return "Route " + action.Inputs["domain"] + " to upstream port " + action.Inputs["upstream_port"]
+	case OpEdgeDNSEnsure:
+		return "Ensure " + action.Inputs["record_type"] + " " + action.Inputs["hostname"] + " via DNS profile " + action.Inputs["provider_profile"]
 	case OpCredentialsProvision:
 		return "Provision credential descriptors: " + action.Inputs["descriptors"]
 	case OpRuntimeStartDeps:

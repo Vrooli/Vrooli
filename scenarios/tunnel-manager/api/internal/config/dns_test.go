@@ -150,3 +150,55 @@ func TestNewCFDNSClientNilWithoutCreds(t *testing.T) {
 		t.Error("expected a client when token+tunnel present")
 	}
 }
+
+func TestEnsureManagedRecordCreatesARecord(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"a1"}}`))
+
+	c := newTestDNSClient(doer)
+	res, err := c.EnsureManagedRecord(context.Background(), DNSRecordSpec{
+		ProviderProfile: "cloudflare-default", Hostname: "test.example.invalid", Type: "A", Content: "203.0.113.10", TTL: 300,
+	})
+	if err != nil {
+		t.Fatalf("EnsureManagedRecord: %v", err)
+	}
+	if !res.Created || res.RecordID != "a1" {
+		t.Fatalf("result = %+v", res)
+	}
+	body, _ := io.ReadAll(doer.Requests[2].Body)
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["type"] != "A" || payload["content"] != "203.0.113.10" || payload["proxied"] != false {
+		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestEnsureManagedRecordRefusesConflict(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"a1","content":"203.0.113.11","type":"A","proxied":false}]}`))
+	c := newTestDNSClient(doer)
+	_, err := c.EnsureManagedRecord(context.Background(), DNSRecordSpec{ProviderProfile: "cloudflare-default", Hostname: "test.example.invalid", Type: "A", Content: "203.0.113.10", TTL: 300})
+	if err == nil || !strings.Contains(err.Error(), "conflicts") {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+	if doer.Calls.Load() != 2 {
+		t.Fatalf("expected no POST after conflict, got %d calls", doer.Calls.Load())
+	}
+}
+
+func TestValidateDNSRecordSpec(t *testing.T) {
+	for _, spec := range []DNSRecordSpec{
+		{Hostname: "x.example.invalid", Type: "TXT", Content: "x"},
+		{Hostname: "x.example.invalid", Type: "A", Content: "x", TTL: 86401},
+		{Hostname: "x.example.invalid", Type: "A"},
+	} {
+		if err := validateDNSRecordSpec(spec); err == nil {
+			t.Fatalf("expected invalid spec: %+v", spec)
+		}
+	}
+}

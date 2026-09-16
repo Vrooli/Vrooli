@@ -12,9 +12,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/vrooli/envkit-go"
-	"time"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -110,6 +111,15 @@ func LookupPSQL() (string, error) {
 			return found, nil
 		}
 	}
+	// A scenario setup step runs this CLI directly, without the resource
+	// runtime's RESOURCE_ARTIFACT_DIR. The staged trees still live under the
+	// runtime home, so search there before PATH: a Mac has no host psql, and
+	// secrets-manager's create-database step failed on it (2026-09-15).
+	if root := stagedArtifactRoot(); root != "" {
+		if found, err := findPSQL(root); err == nil {
+			return found, nil
+		}
+	}
 	if found, err := exec.LookPath(psqlName()); err == nil {
 		return found, nil
 	}
@@ -185,4 +195,22 @@ func executableAt(path string) error {
 		return errors.New("file is not executable")
 	}
 	return nil
+}
+
+// stagedArtifactRoot is the runtime home's postgres artifact directory, or ""
+// when it cannot be resolved.
+var stagedArtifactRoot = func() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	artifacts, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyArtifacts)
+	if err != nil {
+		return ""
+	}
+	root := filepath.Join(artifacts, "postgres")
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		return ""
+	}
+	return root
 }

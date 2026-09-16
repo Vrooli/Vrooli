@@ -142,6 +142,13 @@ type RecoveryPointRecorder interface {
 	Record(ctx context.Context, deploymentID string, identity Identity, manifest json.RawMessage, releaseDigest string) (string, error)
 }
 
+// ManagedDNSProvisioner is the typed scenario-to-cloud to tunnel-manager
+// seam. Implementations own transport and authentication; provider secrets
+// never pass through the VPS plan or target.
+type ManagedDNSProvisioner interface {
+	Ensure(ctx context.Context, providerProfile, hostname, recordType, content, owner string, ttl int, proxied bool, dryRun bool) (recordID string, created bool, err error)
+}
+
 // Runtime is the target-facing seam set one execution runs with.
 type Runtime struct {
 	Reach       reach.Reach
@@ -149,6 +156,7 @@ type Runtime struct {
 	Identity    Identity
 	Credentials CredentialProvisioner
 	Backups     RecoveryPointRecorder
+	ManagedDNS  ManagedDNSProvisioner
 	// SecretsGen mints per-install generated values; nil selects the
 	// default generator.
 	SecretsGen      secrets.GeneratorFunc

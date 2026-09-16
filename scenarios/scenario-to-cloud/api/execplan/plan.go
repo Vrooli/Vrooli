@@ -63,6 +63,7 @@ const (
 	OpRuntimeStartDeps        = "runtime.start_dependencies"
 	OpReleaseActivate         = "release.activate"
 	OpEdgeRouteApply          = "edge.route.apply"
+	OpEdgeDNSEnsure           = "edge.dns.ensure"
 	OpVerifyReadiness         = "verify.readiness"
 	OpReleaseRetainPredecesor = "release.retain_predecessor"
 	OpWorkloadStop            = "workload.stop"
@@ -237,7 +238,7 @@ func Ops() []string {
 	return []string{
 		OpHostPrepare, OpEdgeFirewallAllow, OpReleaseDeliver, OpReleaseVerify, OpReleaseStage,
 		OpDataInventory, OpDataBackup, OpConfigApply, OpCredentialsProvision, OpRuntimeStartDeps,
-		OpReleaseActivate, OpEdgeRouteApply, OpVerifyReadiness, OpReleaseRetainPredecesor,
+		OpReleaseActivate, OpEdgeDNSEnsure, OpEdgeRouteApply, OpVerifyReadiness, OpReleaseRetainPredecesor,
 		OpWorkloadStop, OpWorkloadStart, OpInputResumeHandoff,
 		OpEdgeRouteRetire, OpGrantsRevoke, OpDataRetire, OpArtifactsRetire,
 	}

@@ -101,9 +101,12 @@ type ManifestPorts map[string]int
 
 // ManifestEdge configures edge/TLS settings.
 type ManifestEdge struct {
-	Domain    string        `json:"domain"`
-	DNSPolicy DNSPolicy     `json:"dns_policy,omitempty"`
-	Caddy     ManifestCaddy `json:"caddy"`
+	Domain    string    `json:"domain"`
+	DNSPolicy DNSPolicy `json:"dns_policy,omitempty"`
+	// ManagedDNSProfile opts this deployment into the typed tunnel-manager DNS
+	// operation. Empty means DNS remains operator-managed.
+	ManagedDNSProfile string        `json:"managed_dns_profile,omitempty"`
+	Caddy             ManifestCaddy `json:"caddy"`
 	// ACMEEnvironment requests "staging" or "production" issuance. Empty
 	// derives it: production for the production environment, staging
 	// otherwise (production elsewhere needs the EXT-04 authority).

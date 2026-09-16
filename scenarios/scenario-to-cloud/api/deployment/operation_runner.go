@@ -123,6 +123,7 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		Target:          targetFor(dep, manifest),
 		Identity:        vps.Identity{OperationID: op.ID, Fence: ec.Fence},
 		Backups:         o.backups,
+		ManagedDNS:      o.managedDNS,
 		SecretsGen:      o.secretsGenerator,
 		ProvidedSecrets: ec.Options.ProvidedSecrets,
 	}

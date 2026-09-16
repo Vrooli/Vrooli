@@ -1,6 +1,12 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "branding": {
+    "brand": "vega",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
   "storage": {
     "entries": {
       "data": {
@@ -57,7 +63,7 @@
   "service": {
     "parent": "vrooli",
     "name": "system-monitor",
-    "displayName": "System Monitor",
+    "displayName": "Vega",
     "description": "Real-time system monitoring with AI-driven anomaly investigations and reporting.",
     "version": "1.0.0",
     "type": "business-application",

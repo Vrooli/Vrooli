@@ -90,6 +90,7 @@ func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOp
 		BootstrapAuthority: authority,
 		Verifier:           NewCFVerifier(opts.Doer),
 		DNS:                resolvingDNSClient{store: store, doer: opts.Doer},
+		ManagedDNS:         resolvingManagedDNSClient{store: store, doer: opts.Doer},
 		DNSLedger:          NewSQLiteDNSLedger(db, clk),
 		Access:             resolvingAccessClient{store: store, doer: opts.Doer},
 		AccessMetadata:     resolvingAccessMetadata{store: store, doer: opts.Doer},
@@ -209,6 +210,27 @@ func (c resolvingIngressClient) client(ctx context.Context) (IngressClient, erro
 type resolvingDNSClient struct {
 	store CredentialStore
 	doer  httpDoer
+}
+
+// resolvingManagedDNSClient is the deployment DNS path. It resolves the
+// credential authority per request but never consults TunnelConfig, keeping
+// VPS domains independent from the local secure tunnel domain.
+type resolvingManagedDNSClient struct {
+	store CredentialStore
+	doer  httpDoer
+}
+
+func (c resolvingManagedDNSClient) EnsureManagedRecord(ctx context.Context, spec DNSRecordSpec) (DNSResult, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return DNSResult{}, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFDNSClient(c.doer, cfg)
+	managed, ok := client.(ManagedDNSClient)
+	if !ok {
+		return DNSResult{}, ErrRemoteUnavailable{}
+	}
+	return managed.EnsureManagedRecord(ctx, spec)
 }
 
 func (c resolvingDNSClient) EnsureRecord(ctx context.Context, hostname string) (DNSResult, error) {

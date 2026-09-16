@@ -25,6 +25,12 @@ interface AmbientCanvasProps {
  */
 const LAYOUT_REFRESH_MS = 250;
 
+/**
+ * Backing-store budget. A 4K panel at 2x is 33M pixels redrawn every frame; the
+ * scene is decoration, so it never draws past this and keeps the main thread free.
+ */
+const MAX_CANVAS_PIXELS = 3_000_000;
+
 const readPalette = (element: HTMLElement): Palette => {
   const style = getComputedStyle(element);
   const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
@@ -95,6 +101,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     let height = 0;
     let started = 0;
     let last = 0;
+    let lastPaintAt = Number.NEGATIVE_INFINITY;
     let raf = 0;
     let activeInitialised = false;
     let incomingInitialised = false;
@@ -135,9 +142,10 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       const box = canvas.getBoundingClientRect();
       width = Math.max(1, Math.floor(box.width));
       height = Math.max(1, Math.floor(box.height));
-      canvas.width = Math.floor(width * ratio);
-      canvas.height = Math.floor(height * ratio);
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const density = Math.max(1, Math.min(ratio, Math.sqrt(MAX_CANVAS_PIXELS / (width * height))));
+      canvas.width = Math.floor(width * density);
+      canvas.height = Math.floor(height * density);
+      context.setTransform(density, 0, 0, density, 0, 0);
       activeInitialised = false;
       incomingInitialised = false;
       layoutReadAt = Number.NEGATIVE_INFINITY;
@@ -217,8 +225,12 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       paintSafely(performance.now(), probed === "still");
     };
 
+    const frameInterval = probed === "reduced" ? 1000 / 30 : 0;
     const loop = (nowMs: number) => {
-      if (!document.hidden && !paintSafely(nowMs, false)) return;
+      if (!document.hidden && nowMs - lastPaintAt >= frameInterval) {
+        if (!paintSafely(nowMs, false)) return;
+        lastPaintAt = nowMs;
+      }
       raf = window.requestAnimationFrame(loop);
     };
 

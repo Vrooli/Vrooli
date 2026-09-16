@@ -121,6 +121,10 @@ func (f *fakeService) Sync(_ context.Context, dryRun, prune bool) (internalconfi
 	return f.syncOut, f.syncErr
 }
 
+func (f *fakeService) EnsureDNSRecord(_ context.Context, spec internalconfig.DNSRecordSpec, _ bool) (internalconfig.DNSResult, error) {
+	return internalconfig.DNSResult{}, nil
+}
+
 func (f *fakeService) SwitchMode(_ context.Context, target internalconfig.Mode) (internalconfig.Mode, internalconfig.Mode, error) {
 	f.swCalls++
 	f.swTgt = target

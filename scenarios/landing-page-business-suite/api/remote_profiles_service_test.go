@@ -1465,8 +1465,21 @@ func TestIsAllowedRemoteProxyPath(t *testing.T) {
 	if !isAllowedRemoteProxyPath("/admin/download-storage/subpath") {
 		t.Fatalf("expected allowlisted prefix")
 	}
+	for _, path := range []string{
+		"/admin/download-channels/head",
+		"/admin/download-channels/promote",
+		"/admin/download-channels/halt",
+		"/admin/download-channels/recover",
+	} {
+		if !isAllowedRemoteProxyPath(path) {
+			t.Fatalf("expected channel path %q to be allowlisted for release promotion", path)
+		}
+	}
 	if isAllowedRemoteProxyPath("/admin/users") {
 		t.Fatalf("expected disallowed path")
+	}
+	if isAllowedRemoteProxyPath("/admin/download-channels-evil") {
+		t.Fatalf("expected sibling path to remain disallowed")
 	}
 	if !administration.IsAllowedRemoteProxyRequest(http.MethodPost, "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys") {
 		t.Fatalf("expected API-key Connect procedure to be allowed")
