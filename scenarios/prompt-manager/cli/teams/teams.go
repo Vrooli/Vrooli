@@ -621,6 +621,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
 		return cmdHeartbeatTrigger(ctx, subArgs)
+	case "heartbeat-supervision-readiness":
+		return cmdHeartbeatSupervisionReadiness(ctx, subArgs)
 	case "heartbeat-logs":
 		return cmdHeartbeatLogs(ctx, subArgs)
 	case "heartbeat-control":
@@ -726,6 +728,8 @@ Heartbeat Commands:
   heartbeat-restart-effort <team-id> <agent-id> Recover a terminal dispatched run from --request-file
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
+  heartbeat-supervision-readiness <team-id> <agent-id>
+                                             Show read-only supervisor preflight
   heartbeat-logs <team-id> <agent-id>         List execution logs
   heartbeat-control <team-id> <action>        Status, pause, resume, or set team auto-pause policy
   queue-clear <team-id> <agent-id>            Clear a stuck running entry from the team queue
@@ -1589,6 +1593,110 @@ type HeartbeatFleetHealth struct {
 	SuccessPercent         float64 `json:"successPercent"`
 	ThresholdPercent       int     `json:"thresholdPercent"`
 	MeetsThreshold         bool    `json:"meetsThreshold"`
+}
+
+type supervisionPreflight struct {
+	TeamID      string   `json:"teamId"`
+	AgentID     string   `json:"agentId"`
+	Enabled     bool     `json:"enabled"`
+	Effective   string   `json:"effectiveState"`
+	Schedule    string   `json:"schedule"`
+	PromptBytes uint64   `json:"promptBytesLast"`
+	PromptRev   string   `json:"promptRevision"`
+	Wakes       uint64   `json:"wakeAttempts"`
+	Avoided     uint64   `json:"llmWakesAvoided"`
+	Observation uint64   `json:"observationOnlyAcknowledged"`
+	Transitions uint64   `json:"actionableTransitions"`
+	Coverage    string   `json:"coverage,omitempty"`
+	State       string   `json:"state"`
+	Error       string   `json:"error,omitempty"`
+	Readiness   string   `json:"readiness"`
+	OwnerAction string   `json:"ownerAction,omitempty"`
+	Limitations []string `json:"limitations,omitempty"`
+}
+
+func cmdHeartbeatSupervisionReadiness(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-supervision-readiness", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-supervision-readiness <team-id> <agent-id> [--json]")
+	}
+	teamID, agentID := fs.Arg(0), fs.Arg(1)
+	var config HeartbeatConfig
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), &config); err != nil {
+		return fmt.Errorf("failed to get heartbeat configuration: %w", err)
+	}
+	result := supervisionPreflight{TeamID: teamID, AgentID: agentID, Enabled: config.Enabled, Effective: config.EffectiveState, Schedule: config.Schedule, Readiness: "not-configured"}
+	if config.SupervisionError != "" {
+		result.Error = config.SupervisionError
+	}
+	if config.Supervision == nil {
+		result.Limitations = []string{"standing supervision is not configured; this command is read-only"}
+	} else if len(config.SupervisionState) == 0 {
+		result.Readiness, result.OwnerAction = "not-scanned", "run one bounded supervisor trigger or wait for the scheduled scan"
+	} else {
+		var state struct {
+			Status                      string `json:"status"`
+			Coverage                    string `json:"coverage"`
+			Error                       string `json:"error"`
+			WakeAttempts                uint64 `json:"wakeAttempts"`
+			LLMWakesAvoided             uint64 `json:"llmWakesAvoided"`
+			ObservationOnlyAcknowledged uint64 `json:"observationOnlyAcknowledged"`
+			ActionableTransitions       uint64 `json:"actionableTransitions"`
+			PromptBytesLast             uint64 `json:"promptBytesLast"`
+			PromptRevision              string `json:"promptRevision"`
+			Efforts                     map[string]struct {
+				Eligible        bool   `json:"eligible"`
+				ObservationOnly bool   `json:"observationOnly"`
+				Readiness       string `json:"readiness"`
+				Disposition     string `json:"disposition"`
+			} `json:"efforts"`
+		}
+		if err := json.Unmarshal(config.SupervisionState, &state); err != nil {
+			return fmt.Errorf("decode supervision state: %w", err)
+		}
+		result.State, result.Coverage, result.Error = state.Status, state.Coverage, state.Error
+		result.Wakes, result.Avoided, result.Observation, result.Transitions = state.WakeAttempts, state.LLMWakesAvoided, state.ObservationOnlyAcknowledged, state.ActionableTransitions
+		result.PromptBytes, result.PromptRev = state.PromptBytesLast, state.PromptRevision
+		ready, actionable, waits := 0, 0, 0
+		for _, effort := range state.Efforts {
+			if effort.Readiness == "ready" && !effort.ObservationOnly {
+				ready++
+			}
+			if effort.Eligible && effort.Readiness == "ready" && !effort.ObservationOnly {
+				actionable++
+			}
+			if effort.ObservationOnly || effort.Disposition == "owner-wait" {
+				waits++
+			}
+		}
+		result.Readiness = "ready"
+		if !config.Enabled || config.EffectiveState == "disabled" {
+			result.Readiness, result.OwnerAction = "disabled", "enable only after owner mandate and team preflight are green"
+		} else if actionable == 0 && waits > 0 {
+			result.Readiness, result.OwnerAction = "observation-only", "qualify an explicit Agent Manager mandate or repair owner evidence"
+		} else if ready == 0 {
+			result.Readiness, result.OwnerAction = "unavailable", "inspect supervision error and owner discovery coverage"
+		}
+		result.Limitations = append(result.Limitations, fmt.Sprintf("cached owner cut: %d ready, %d actionable, %d owner-wait", ready, actionable, waits))
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+	fmt.Printf("Supervisor readiness: %s\n", result.Readiness)
+	fmt.Printf("State: %s; coverage: %s; wakes: %d; avoided: %d\n", result.State, result.Coverage, result.Wakes, result.Avoided)
+	if result.OwnerAction != "" {
+		fmt.Printf("Next owner action: %s\n", result.OwnerAction)
+	}
+	for _, limitation := range result.Limitations {
+		fmt.Printf("- %s\n", limitation)
+	}
+	return nil
 }
 
 // HeartbeatExecResult represents execution result

@@ -13,11 +13,6 @@
       "id": "default",
       "example": "default",
       "description": "A measured subject is outlined and named."
-    },
-    {
-      "id": "empty",
-      "example": "empty",
-      "description": "Missing selection is explicit."
     }
   ],
   "elements": [
@@ -34,7 +29,7 @@
       "statement": "The overlay surface is present in every state.",
       "tier": "machine",
       "elements": ["surface"],
-      "states": ["default", "empty"]
+      "states": ["default"]
     }
   ],
   "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }

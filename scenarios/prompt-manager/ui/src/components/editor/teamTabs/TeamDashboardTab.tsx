@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Clock, Cpu, Target, ExternalLink, ChevronDown } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Cpu, ExternalLink, ChevronDown, HelpCircle, PauseCircle, Target, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type {
   TeamDetails,
@@ -62,6 +62,21 @@ interface TeamDashboardTabProps {
 }
 
 const LOGS_PAGE_SIZE = 25
+
+type DashboardStatus = 'loading' | 'unknown' | 'healthy' | 'attention' | 'blocked' | 'paused'
+
+const dashboardStatusCopy: Record<DashboardStatus, { label: string; tone: string; description: string }> = {
+  loading: { label: 'Loading health', tone: 'text-muted-foreground', description: 'Reading current owner evidence.' },
+  unknown: { label: 'Health unknown', tone: 'text-muted-foreground', description: 'No recent execution evidence is available.' },
+  healthy: { label: 'Healthy', tone: 'text-emerald-500', description: 'Recent owner evidence is current.' },
+  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent evidence includes a failed or waiting signal.' },
+  blocked: { label: 'Blocked', tone: 'text-red-500', description: 'Work cannot advance until the next action is completed.' },
+  paused: { label: 'Paused', tone: 'text-amber-500', description: 'Heartbeats are disabled; current execution is unknown.' },
+}
+
+function initials(value: string): string {
+  return value.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
 
 /**
  * Team dashboard tab - identity, schedule, and activity in one view.
@@ -553,25 +568,135 @@ export function TeamDashboardTab({
     return map
   }, [team.roles])
 
+  // RCL applicability: the library's collection/navigation primitives do not
+  // model this domain-specific overview. Keep the mission, evidence states,
+  // and operator guidance local; reuse existing Prompt Manager primitives and
+  // hooks for editing, rows, and data loading rather than forcing a generic
+  // library asset to own dashboard semantics.
+  const dashboardStatus = useMemo<DashboardStatus>(() => {
+    if (!team.enabled) return 'paused'
+    if (isLoadingHeartbeats || !heartbeatsLoaded) return 'loading'
+    if (heartbeatError) return 'unknown'
+    const executions = heartbeatConfigs.flatMap((config) => config.lastExecution ? [config.lastExecution] : [])
+    if (executions.length === 0) return 'unknown'
+    if (executions.some((execution) => execution.status === 'failed')) return 'attention'
+    if (accounting?.terminalReasons.blocked) return 'blocked'
+    return 'healthy'
+  }, [accounting?.terminalReasons.blocked, heartbeatConfigs, heartbeatError, heartbeatsLoaded, isLoadingHeartbeats, team.enabled])
+  const statusCopy = dashboardStatusCopy[dashboardStatus]
+  const nextHeartbeat = upcoming24h[0]
+  const lastActivity = heartbeatConfigs
+    .map((config) => config.lastExecution?.startedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+  const workSummary = openWorkCount === null
+    ? 'Open work unavailable'
+    : `${openWorkCount} open item${openWorkCount === 1 ? '' : 's'}`
+  const statusIcon = dashboardStatus === 'paused'
+    ? <PauseCircle aria-hidden="true" className="h-4 w-4" />
+    : dashboardStatus === 'blocked' || dashboardStatus === 'attention'
+      ? <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+      : dashboardStatus === 'unknown' || dashboardStatus === 'loading'
+        ? <HelpCircle aria-hidden="true" className="h-4 w-4" />
+        : <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+
   return (
-    <div className="space-y-6">
-      {/* ================================================================ */}
-      {/* Section 1: "What" - Team Identity                                */}
-      {/* ================================================================ */}
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Mission</h3>
-        <div className="flex items-start gap-3 p-3 bg-muted rounded-lg border border-border">
-          <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-          <ExpandableDescription
-            value={team.mission ?? ''}
-            onChange={handleMissionChange}
-            placeholder="Add a mission statement..."
-            className="flex-1"
-            maxLines={3}
-          />
+    <div className="space-y-6 pb-6 sm:pb-0" data-testid="team-dashboard">
+      <header className="space-y-4" aria-label="Team overview">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/10 text-primary" aria-hidden="true">
+              <Users className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Team overview</p>
+              <h2 id="team-dashboard-title" className="mt-1 line-clamp-2 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{team.displayName}</h2>
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Team summary">
+                <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{team.purpose ?? 'Team'}</span>
+                <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{team.runtime.mode === 'single-process' ? 'Single-process' : 'Multi-process'}</span>
+                <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px]', statusCopy.tone, 'border-current/30')}>
+                  {statusIcon}<span>{statusCopy.label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <a href="/swarm-manager" target="_blank" rel="noreferrer" className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-auto">
+            Review work feed <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+          </a>
+        </div>
+
+        {dashboardStatus === 'paused' && (
+          <div role="status" className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+            <PauseCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <div><strong className="font-medium text-amber-500">Team is paused.</strong><p className="mt-0.5 text-muted-foreground">Existing activity is retained, but no current execution should be inferred.</p><p className="mt-1 text-foreground"><strong>Next:</strong> review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.</p><a className="mt-2 inline-flex min-h-10 items-center rounded-lg border border-amber-500/40 px-3 text-xs font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300" href="#dashboard-activity">Review retained evidence</a></div>
+          </div>
+        )}
+
+        <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-muted/30 p-4 shadow-sm sm:p-5" aria-labelledby="mission-heading" role="region">
+          <div className="flex items-start gap-3">
+            <Target aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p id="mission-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Mission</p>
+              <ExpandableDescription value={team.mission ?? ''} onChange={handleMissionChange} placeholder="Add a mission statement..." className="mt-2 text-base leading-snug text-foreground sm:text-xl" maxLines={3} />
+              <p className="mt-2 text-xs text-muted-foreground">Tap or click to edit · saves automatically</p>
+            </div>
+          </div>
+        </section>
+
+        <nav aria-label="Dashboard sections" className="sticky top-2 z-10 mb-1 grid grid-cols-4 gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur sm:hidden">
+          {[['dashboard-work', 'Work'], ['dashboard-schedule', 'Schedule'], ['dashboard-people', 'People'], ['dashboard-activity', 'Activity']].map(([href, label]) => (
+            <a key={href} href={`#${href}`} className="flex min-h-11 items-center justify-center rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{label}</a>
+          ))}
+        </nav>
+
+        <div role="region" className="grid grid-cols-2 gap-2 px-1 pb-1 sm:grid-cols-2 lg:grid-cols-5" aria-label="Team metrics">
+          {[
+            { label: 'Team health', value: statusCopy.label, note: statusCopy.description, tone: statusCopy.tone },
+            { label: 'Members', value: String(team.members.length), note: 'registered members', tone: 'text-foreground' },
+            { label: 'Next activity', value: team.enabled && nextHeartbeat ? formatRelativeTime(nextHeartbeat.nextRun) : '—', note: team.enabled && nextHeartbeat ? nextHeartbeat.memberName : team.enabled ? 'No schedule observed' : 'heartbeats paused', tone: 'text-foreground' },
+            { label: 'Open work', value: workSummary, note: openWorkCount === null ? 'read unavailable' : 'from unified work feed', tone: 'text-foreground' },
+            { label: 'Last activity', value: lastActivity ? formatRelativePastTime(new Date(lastActivity)) : 'Unknown', note: lastActivity ? 'latest owner evidence' : 'no execution record', tone: 'text-foreground' },
+          ].map((metric) => (
+            <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-[11px] text-muted-foreground">{metric.label}</p>
+              <p className={cn('mt-2 min-h-[2.5rem] break-words text-base font-semibold', metric.tone)}>{metric.value}</p>
+              <p className="mt-1 line-clamp-2 min-h-[2rem] text-[11px] text-muted-foreground">{metric.note}</p>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      <section id="dashboard-work" aria-labelledby="current-work-heading" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3"><h3 id="current-work-heading" className="text-base font-semibold text-foreground">Current work</h3><a href="/swarm-manager" className="text-xs font-medium text-primary hover:underline">View all work <ArrowUpRight aria-hidden="true" className="inline h-3 w-3" /></a></div>
+        <div className={cn('grid gap-3', dashboardStatus === 'paused' ? 'lg:grid-cols-1' : 'lg:grid-cols-2')}>
+          {dashboardStatus !== 'paused' && <article className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Operator guidance</p><h4 className="mt-1 font-semibold text-foreground">{statusCopy.label === 'Healthy' ? 'Keep the next handoff moving' : statusCopy.label === 'Paused' ? 'Resolve the pause intentionally' : statusCopy.label}</h4></div><span className={cn('rounded-full border border-current/30 px-2 py-1 text-[11px]', statusCopy.tone)}>{statusCopy.label}</span></div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{statusCopy.description} {accounting?.terminalReasons.blocked ? 'A blocked owner run is present in the latest accounting read.' : 'Open the work feed for the authoritative task disposition.'}</p>
+            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : 'Review the next open work item and its evidence.'}</p>
+          </article>}
+          <article className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Coverage</p><h4 className="mt-1 font-semibold text-foreground">Evidence stays honest</h4></div><Activity aria-hidden="true" className="h-5 w-5 text-muted-foreground" /></div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{accounting ? `${accounting.observedRuns} observed owner run${accounting.observedRuns === 1 ? '' : 's'} · ${accounting.unavailableRuns} unavailable` : accountingError ? 'Accounting read unavailable; see Activity for the exact limitation.' : 'Loading owner run accounting…'}</p>
+            <details className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground"><summary className="cursor-pointer select-none">Show evidence and limitations</summary><p className="mt-2">Successful runtime completion still needs outcome acceptance. Partial or unavailable reads remain labeled below in Activity.</p></details>
+          </article>
         </div>
       </section>
 
+      <section id="dashboard-people" aria-labelledby="people-heading" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3"><h3 id="people-heading" className="text-base font-semibold text-foreground">People <span className="font-normal text-muted-foreground">({team.members.length})</span></h3><span className="text-xs text-muted-foreground">{team.members.length ? 'Registered members' : 'No members yet'}</span></div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {team.members.slice(0, 6).map((member) => <button key={member.agentId} type="button" onClick={() => onNavigateToMember?.(member.agentId)} className="flex min-h-12 items-start gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-xs font-semibold text-primary">{initials(member.displayName)}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium text-foreground">{member.displayName}</span><span className="block break-words text-xs text-muted-foreground">{member.status} · {member.roles.length ? member.roles.map((roleId) => roleNameMap.get(roleId) ?? roleId).join(', ') : 'registered member'}</span></span><span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', member.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400')} title={member.status} /></button>)}
+          {team.members.length === 0 && <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground"><p>No members yet.</p><p className="mt-1">Add a member before expecting schedule or execution coverage.</p></div>}
+        </div>
+      </section>
+      <details className="rounded-2xl border border-border bg-muted/10 p-4">
+        <summary className="cursor-pointer list-none font-semibold text-foreground marker:hidden">
+          <span className="flex flex-wrap items-center justify-between gap-3">
+            <span>Team configuration</span>
+            <span className="text-xs font-normal text-muted-foreground">Runtime, coordination, scheduling, and governance</span>
+          </span>
+        </summary>
+        <div className="mt-5 space-y-6">
       <TeamPurposePanel key={team.id} team={team} onUpdate={onUpdate} />
       <TeamEffortsPanel
         team={team}
@@ -586,64 +711,6 @@ export function TeamDashboardTab({
             : 'No member heartbeats configured',
         } : undefined}
       />
-
-      {/* Member Roster */}
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Members ({team.members.length})
-        </h3>
-        {team.members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {team.members.map((member) => {
-              const agent = agentsById.get(member.agentId)
-              const isActive = member.status === 'active'
-              return (
-                <button
-                  key={member.agentId}
-                  type="button"
-                  onClick={() => onNavigateToMember?.(member.agentId)}
-                  className={cn(
-                    'flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors text-left',
-                    'bg-muted border-border hover:bg-muted/70 hover:border-foreground/20',
-                    onNavigateToMember && 'cursor-pointer',
-                  )}
-                >
-                  <AgentColorBadge appearance={agent?.appearance} size="xs" />
-                  <span className="text-sm font-medium text-foreground truncate max-w-[120px]">
-                    {member.displayName}
-                  </span>
-                  {member.roles.length > 0 && (
-                    <span className="flex gap-1">
-                      {member.roles.slice(0, 2).map((roleId) => (
-                        <span
-                          key={roleId}
-                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium truncate max-w-[60px]"
-                        >
-                          {roleNameMap.get(roleId) ?? roleId}
-                        </span>
-                      ))}
-                      {member.roles.length > 2 && (
-                        <span className="text-[10px] px-1 text-muted-foreground">
-                          +{member.roles.length - 2}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      'inline-block h-2 w-2 rounded-full flex-shrink-0',
-                      isActive ? 'bg-emerald-500' : 'bg-slate-400',
-                    )}
-                    title={member.status}
-                  />
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
 
       <section data-testid={selectors.teamEditor.runtimeMode}>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Runtime</h3>
@@ -875,10 +942,13 @@ export function TeamDashboardTab({
         </div>
       </section>
 
+        </div>
+      </details>
+
       {/* ================================================================ */}
       {/* Section 2: "When" - Schedule                                     */}
       {/* ================================================================ */}
-      <section>
+      <section id="dashboard-schedule">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Schedule</h3>
 
         {/* Team-off warning */}
@@ -886,10 +956,10 @@ export function TeamDashboardTab({
           <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <Clock className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm text-amber-500 font-medium">Team is turned off</p>
+                <p className="text-sm text-amber-500 font-medium">Scheduling is paused</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Heartbeats are paused
-                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''}. Turn the team on to resume.
+                No new heartbeats will run
+                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''} while the team is paused.
               </p>
             </div>
           </div>
@@ -924,10 +994,10 @@ export function TeamDashboardTab({
                   size="sm"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="break-words text-sm font-medium text-foreground">
                     {upcoming24h[0].memberName}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="break-words text-xs text-muted-foreground">
                     {formatScheduleSummary(upcoming24h[0].config.schedule)}
                   </p>
                 </div>
@@ -956,10 +1026,10 @@ export function TeamDashboardTab({
                         appearance={agentsById.get(entry.config.agentId)?.appearance}
                         size="xs"
                       />
-                      <span className="text-sm text-foreground truncate min-w-0 flex-1">
+                      <span className="min-w-0 flex-1 break-words text-sm text-foreground">
                         {entry.memberName}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                      <span className="max-w-[140px] break-words text-xs text-muted-foreground">
                         {formatScheduleSummary(entry.config.schedule)}
                       </span>
                       <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -977,7 +1047,7 @@ export function TeamDashboardTab({
       {/* ================================================================ */}
       {/* Section 3: "What happened" - Activity Feed                       */}
       {/* ================================================================ */}
-      <section>
+      <section id="dashboard-activity">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Activity</h3>
 
         <div aria-label="Owner run accounting" className="mb-4 space-y-2 text-sm">
@@ -1063,7 +1133,7 @@ export function TeamDashboardTab({
                       !['completed', 'failed', 'cancelled', 'running'].includes(statusNormalized) && 'bg-slate-400',
                     )}
                   />
-                  <span className="text-sm text-foreground truncate min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 break-words text-sm text-foreground">
                     {resolveMemberName(entry.agentId)}
                   </span>
                   <span className="text-xs text-muted-foreground flex-shrink-0">

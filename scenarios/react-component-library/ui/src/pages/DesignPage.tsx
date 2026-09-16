@@ -54,7 +54,9 @@ function DesignOverview({ scenario }: { scenario?: string }) {
   return (
     <section data-experience-surface="design-overview" className="grid gap-space-sm" aria-label={t("design.title")}>
       {scenario && <nav aria-label={t("design.breadcrumb")}>
-        <Link to={designPath()}>{t("design.title")}</Link>
+        <Link to={designPath()} className="inline-flex min-h-11 items-center rounded-control px-space-2xs text-sm text-app-primary hover:bg-app-surface-muted">
+          {t("design.title")}
+        </Link>
         {scenario && <span> / {scenario}</span>}
       </nav>}
       <h2 className="text-title font-semibold">{scenario ?? t("design.chooseScenario")}</h2>
@@ -74,8 +76,9 @@ function DesignOverview({ scenario }: { scenario?: string }) {
           {issue}
         </p>
       ))}
-      {!scenario && <label className="flex items-center gap-space-2xs text-label text-app-muted-foreground">
-        <input type="checkbox" checked={showEmpty} onChange={event => setShowEmpty(event.target.checked)} />
+      {!scenario && <label className="relative flex min-h-11 items-center gap-space-2xs text-label text-app-muted-foreground">
+        <input className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0" type="checkbox" checked={showEmpty} onChange={event => setShowEmpty(event.target.checked)} />
+        <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded border border-app-border bg-app-surface text-xs peer-checked:bg-app-primary peer-checked:text-white">{showEmpty ? "✓" : ""}</span>
         {t(strings.design.showEmptyScenarios)}
       </label>}
       <div className="grid gap-space-2xs md:grid-cols-2 xl:grid-cols-3">
@@ -128,8 +131,7 @@ function DesignOverview({ scenario }: { scenario?: string }) {
 function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const { t } = useTranslation();
   useEffect(() => {
-    document.querySelector("main")?.scrollTo({ top: 0, behavior: "auto" });
-    window.scrollTo({ top: 0, behavior: "auto" });
+    document.querySelector<HTMLElement>("main")?.scrollTo({ top: 0, behavior: "auto" });
   }, [scenario, page]);
   const cache = useQueryClient();
   const target = { scenario, page };
@@ -141,9 +143,8 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   useEffect(() => {
     if (!current.data) return;
     const resetScroll = () => {
-      const main = document.querySelector("main");
+      const main = document.querySelector<HTMLElement>("main");
       if (main) main.scrollTop = 0;
-      window.scrollTo({ top: 0, behavior: "auto" });
     };
     resetScroll();
     const frame = window.requestAnimationFrame(resetScroll);
@@ -170,6 +171,10 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
       ...(doc?.placements.map((item) => item.region) ?? []),
     ]),
   ];
+  const referenceRegions = regions.filter((item) => {
+    const placement = doc?.placements.find((candidate) => candidate.region === item);
+    return !placement || Boolean(placement.fills?.placeholder);
+  });
   const active = selected && regions.includes(selected) ? selected : (regions[0] ?? "");
   const placement = doc?.placements.find((item) => item.region === active);
   const region =
@@ -224,18 +229,22 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const evidence = verify.data?.hash === hash ? verify.data.result : undefined;
   const staleEvidence = Boolean(verify.data && !evidence);
   const workflowSteps = [
-    { id: "brief", label: "Brief", detail: "Intent & references", complete: Boolean(doc?.notes.length || declaredRegions.length) },
-    { id: "compose", label: "Compose", detail: "Canvas & assets", complete: Boolean(doc?.placements.length) },
-    { id: "review", label: "Review", detail: "Evidence & critique", complete: Boolean(evidence) },
-    { id: "adopt", label: "Adopt", detail: "Handoff & obligations", complete: Boolean(evidence?.passes) },
+    { id: "brief", label: "Brief", detail: "Intent & references", anchor: "design-brief", complete: Boolean(doc?.notes.length || declaredRegions.length) },
+    { id: "compose", label: "Compose", detail: "Canvas & assets", anchor: "design-canvas", complete: Boolean(doc?.placements.length) },
+    { id: "review", label: "Review", detail: "Evidence & critique", anchor: "design-review", complete: Boolean(evidence) },
+    { id: "adopt", label: "Adopt", detail: "Handoff & obligations", anchor: "design-adoption", complete: Boolean(evidence?.passes) },
   ];
   const nextStep = workflowSteps.find((step) => !step.complete) ?? workflowSteps.at(-1)!;
   return (
     <section data-experience-surface="design-workspace" className="grid min-w-0 grid-cols-1 gap-space-md" aria-label={t("design.workspace")}>
       <nav aria-label={t("design.breadcrumb")} className="flex flex-wrap gap-space-2xs">
-        <Link to={designPath()}>{t("design.title")}</Link>
+        <Link to={designPath()} className="inline-flex min-h-11 items-center rounded-control px-space-2xs text-sm text-app-primary hover:bg-app-surface-muted">
+          {t("design.title")}
+        </Link>
         <span>/</span>
-        <Link to={designPath(scenario)}>{scenario}</Link>
+        <Link to={designPath(scenario)} className="inline-flex min-h-11 items-center rounded-control px-space-2xs text-sm text-app-primary hover:bg-app-surface-muted">
+          {scenario}
+        </Link>
         <span>/ {page}</span>
       </nav>
       <header className="grid gap-space-sm rounded-panel border border-app-border bg-app-surface p-space-sm shadow-sm sm:sticky sm:top-0 sm:z-20" data-testid="design-workspace-header">
@@ -249,6 +258,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           <div className="flex items-center gap-space-xs">
             <span className="rounded-full border border-app-border bg-app-surface-muted px-space-xs py-space-2xs text-label text-app-muted-foreground">{readOnly ? "Historical revision" : "Working draft"}</span>
             <Button
+              className="min-h-11"
               disabled={!current.data || verify.isPending || readOnly}
               onClick={() => verify.mutate()}
             >
@@ -258,19 +268,21 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
         </div>
         <nav aria-label="Design workflow" className="grid gap-2 sm:grid-cols-4">
           {workflowSteps.map((step, index) => (
-            <div key={step.id} className={`relative rounded-control border p-space-xs ${step.complete ? "border-emerald-500/40 bg-emerald-500/5" : step.id === nextStep.id ? "border-app-primary/50 bg-app-primary/5" : "border-app-border bg-app-surface-muted"}`}>
+            <a key={step.id} href={`#${step.anchor}`} className={`relative rounded-control border p-space-xs transition-colors hover:border-app-primary/60 ${step.complete ? "border-emerald-500/40 bg-emerald-500/5" : step.id === nextStep.id ? "border-app-primary/50 bg-app-primary/5" : "border-app-border bg-app-surface-muted"}`}>
               <div className="flex items-center gap-2">
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-app-surface text-label font-semibold text-app-muted-foreground">{index + 1}</span>
-                <span className="min-w-0 text-sm font-semibold">{step.label}</span>
+                <span className="inline-flex min-h-11 min-w-0 items-center text-sm font-semibold">{step.label}</span>
                 {step.complete && <span className="ml-auto text-label text-emerald-600">Ready</span>}
               </div>
               <p className="mt-1 pl-8 text-label text-app-muted-foreground">{step.detail}</p>
-            </div>
+            </a>
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-app-border pt-space-xs text-sm">
           <span className="font-medium">Next best action</span>
-          <span className="text-app-primary">{nextStep.label}</span>
+          <a href={`#${nextStep.anchor}`} className="font-semibold text-app-primary underline-offset-2 hover:underline">
+            {nextStep.label}
+          </a>
           <span className="text-app-muted-foreground">— {nextStep.detail}</span>
         </div>
       </header>
@@ -278,9 +290,9 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
       {current.error && <Failure error={current.error} retry={() => void refresh()} />}
       {current.data && (
         <>
+          <div><IntentProposals target={target} hash={hash} readOnly={readOnly} onSaved={refresh} /></div>
           {!readOnly && <SavedCandidates key={`${target.scenario}/${target.page}`} target={target} onSelected={refresh} />}
           <DesignCanvas target={target} hash={hash} configured={Boolean(doc?.render)} readOnly={readOnly} />
-          <IntentProposals target={target} hash={hash} readOnly={readOnly} onSaved={refresh} />
           <AssetDecisionGuide
             target={target}
             hash={current.data.contentHash}
@@ -291,7 +303,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           <ReferencePlaceholderEditor
             target={target}
             hash={current.data.contentHash}
-            regions={regions}
+            regions={referenceRegions}
             readOnly={readOnly}
             onSaved={refresh}
           />
@@ -308,7 +320,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
             readOnly={readOnly}
             onSaved={refresh}
           />
-          <div className="grid gap-space-sm">
+          <div id="design-adoption" className="scroll-mt-24 grid gap-space-sm">
             <Button
               size="sm"
               variant="secondary"
@@ -447,7 +459,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
                 ) : null}
               </CardContent>
             </Card>
-            <Card className={panel !== "findings" ? "hidden md:block" : ""}>
+            <Card id="design-review" className={`scroll-mt-24 ${panel !== "findings" ? "hidden md:block" : ""}`}>
               <CardHeader>
                 <CardTitle>{t("design.findings")}</CardTitle>
               </CardHeader>
@@ -828,6 +840,7 @@ function ReferencePlaceholderEditor({
       </summary>
       {open && <div className="grid gap-space-sm pt-space-sm">
         <p className="max-w-3xl text-sm text-app-muted-foreground">Use this for a complex visual region that cannot yet be represented truthfully by a library asset. Generate in image-tools / AI Gateway or choose an existing reference, then attach the source here. The bytes are retained in the experience workspace and the Sketch revision records provenance, limitations, and the replacement owner.</p>
+        {regions.length === 0 ? <p role="status" className="rounded-control border border-app-border bg-app-surface-muted p-space-sm text-sm text-app-muted-foreground">Every current region already has an asset. Add a new empty region or revise an existing placement before recording a reference placeholder.</p> : <>
         <fieldset className="grid gap-space-sm rounded-control border border-app-border bg-app-surface-muted p-space-sm sm:grid-cols-2">
           <legend className="px-space-2xs text-sm font-semibold">Source and target</legend>
           <label className="grid gap-space-2xs">Region
@@ -874,6 +887,7 @@ function ReferencePlaceholderEditor({
         {placeholder.error && <Failure error={placeholder.error} />}
         {placeholder.isSuccess && <p role="status">Reference revision recorded with provenance, source bytes, and replacement metadata. Later revisions remain in Sketch history.</p>}
         {uploaded && <img src={uploaded.url} alt="Recently uploaded reference revision" className="max-h-48 max-w-full rounded-control border border-app-border object-contain" />}
+        </>}
       </div>}
     </details>
   );
@@ -949,10 +963,11 @@ function ReferenceRevisionReview({ revisions, currentHash }: { revisions: Array<
 }
 
 
-function DesignCanvas({ target, hash, configured, readOnly, candidate, previewStates = [] }: {
+function DesignCanvas({ target, hash, configured, readOnly, candidate, previewStates = [], unmappedRegions = [] }: {
   target: { scenario: string; page: string }; hash: string; configured: boolean; readOnly: boolean;
   candidate?: { scenario: string; designId: string; hash: string };
   previewStates?: string[];
+  unmappedRegions?: string[];
 }) {
   const { t, i18n } = useTranslation();
   const [width, setWidth] = useState("1440px");
@@ -1018,8 +1033,16 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
     <CardContent className="grid gap-space-sm">
       {!configured && (
         <div className="grid gap-space-2xs rounded-panel border border-dashed border-app-primary/40 bg-app-primary/5 p-space-sm">
-          <p className="font-semibold">{candidate ? "Candidate needs a render contract" : t("design.canvasEmptyTitle")}</p>
-          <p className="text-sm text-app-muted-foreground">{candidate ? "Map this candidate to a published template, then render it here to inspect the real composition." : t("design.canvasEmptyHelp")}</p>
+          <p className="font-semibold">{candidate && unmappedRegions.length > 0 ? "Candidate needs port mapping" : candidate ? "Candidate needs a render contract" : t("design.canvasEmptyTitle")}</p>
+          <p className="text-sm text-app-muted-foreground">
+            {candidate && unmappedRegions.length > 0
+              ? "Map " + unmappedRegions.length + " semantic region" + (unmappedRegions.length === 1 ? "" : "s") + " to published template ports before rendering."
+              : candidate
+                ? "Map this candidate to a published template, then render it here to inspect the real composition."
+                : t("design.canvasEmptyHelp")}
+          </p>
+          {candidate && unmappedRegions.length > 0 && <a href="#candidate-port-mapping" className="mt-1 inline-flex min-h-touch w-fit items-center rounded-control border border-app-primary px-space-sm py-space-xs text-sm font-semibold text-app-primary hover:bg-app-primary/5">Review port mapping</a>}
+          {!candidate && <a href="#design-brief" className="mt-1 inline-flex min-h-touch w-fit items-center rounded-control bg-app-primary px-space-sm py-space-xs text-sm font-semibold text-white hover:opacity-90">Create a candidate from intent</a>}
         </div>
       )}
       {configured && !current && !render.isPending && <p role="status">The current candidate is ready for a live composition preview.</p>}
@@ -1045,7 +1068,17 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
       {render.data && !current && <p role="status">{t("design.canvasStale")}</p>}
       {current && <>
         {runtime && runtime.hash === renderHash
-          ? runtime.error ? <p role="alert">{runtime.error}</p> : <p>{t("design.canvasEvidence")}</p>
+          ? runtime.error ? (
+            <div role="alert" className="grid gap-space-2xs rounded-control border border-amber-500/40 bg-amber-500/5 p-space-sm text-sm text-amber-800 dark:text-amber-200">
+              <p>{runtime.error}</p>
+              {/no template slot mapping/i.test(runtime.error) && (
+                <p>
+                  This candidate needs a region-to-template-port decision before it can render.
+                  <a href="#candidate-port-mapping" className="ml-1 font-semibold underline underline-offset-2">Review port mapping</a>.
+                </p>
+              )}
+            </div>
+          ) : <p>{t("design.canvasEvidence")}</p>
           : <p role="status">{t("design.canvasRendering")}</p>}
         {current.result.bundle?.gaps.map((gap) => <p role="status" key={`${gap.region}:${gap.code}`}>{gap.region}: {gap.message}</p>)}
         {candidate && current.result.target && <CandidateCapture
@@ -1098,7 +1131,7 @@ function IntentProposals({ target, hash, readOnly, onSaved }: {
     if (!saved.sketch || saved.baseHash !== proposals.contentHash) throw new Error(t("design.conflict"));
     return sketchClient.putSketch({ target, expectedContentHash: saved.baseHash, sketch: saved.sketch });
   }, onSuccess: onSaved });
-  return <details className="rounded-control border border-app-border p-space-sm">
+  return <details id="design-brief" open className="scroll-mt-24 rounded-control border border-app-border p-space-sm">
     <summary>{t("design.proposeTitle")}</summary>
     <div className="grid gap-space-sm pt-space-sm">
       <p>{t("design.proposeHelp")}</p>
@@ -1146,15 +1179,25 @@ function CandidatePreview({ target, initial, onSelected }: { target: { scenario:
   const { t } = useTranslation();
   const [current, setCurrent] = useState(initial);
   const [selections, setSelections] = useState<Record<string, string>>({});
-  const authored = [...new Set([
+  const ports = current.sketch?.render?.regions ?? [];
+  // Only top-level render regions are remappable template ports. Nested
+  // regions inherit their parent's slot and must stay out of this control.
+  const topLevelPorts = ports.filter((port) => !port.parent);
+  const authoredIds = new Set([
     ...current.declaredRegions.map((region) => region.id),
     ...(current.sketch?.regions.filter((region) => region.origin !== "template").map((region) => region.id) ?? []),
-  ])];
-  const ports = current.sketch?.render?.regions ?? [];
+  ]);
+  const authored = topLevelPorts.map((port) => port.id).filter((region) => authoredIds.has(region));
   const select = useMutation({ mutationFn: () => sketchClient.putSketch({ target, expectedContentHash: current.baseHash, sketch: current.sketch }), onSuccess: onSelected });
-  const value = (region: string) => selections[region] ?? ports.find((port) => port.id === region)?.templateRegion ?? "";
+  const value = (region: string) => {
+    if (selections[region] !== undefined) return selections[region];
+    const port = topLevelPorts.find((candidate) => candidate.id === region);
+    return port?.templateRegion || port?.id || "";
+  };
+  const unmappedRegions = ports.length > 0 ? authored.filter((region) => !value(region)) : [];
   const map = useMutation({ mutationFn: () => sketchClient.mapCandidateRegions({ candidate: current.candidate,
-    mappings: authored.filter((region) => value(region)).map((region) => ({ region, templateRegion: value(region) })),
+    mappings: authored.filter((region) => value(region) && (selections[region] !== undefined || value(region) !== region))
+      .map((region) => ({ region, templateRegion: value(region) })),
   }), onSuccess: setCurrent });
   return <div className="grid gap-space-sm" data-candidate-hash={current.candidate?.hash} data-candidate-parent={current.parentHash || undefined}>
     {current.refinement && <div>
@@ -1164,20 +1207,23 @@ function CandidatePreview({ target, initial, onSelected }: { target: { scenario:
       {current.refinement.broaderChangeReason && <p>{current.refinement.broaderChangeReason}</p>}
     </div>}
 
-    {authored.length > 0 && <>
+    {authored.length > 0 && <section id="candidate-port-mapping" className="grid gap-space-sm rounded-control border border-app-border bg-app-surface-muted p-space-sm">
       <p>{t("design.portMappingHelp")}</p>
       {authored.map((region) => <label key={region}>{t("design.portMappingRegion", { region })}
         <Select className="block w-full" value={value(region)} options={[
           { value: "", label: t("design.portMappingChoose") },
-          ...ports.map((port) => ({ value: port.templateRegion || port.id, label: port.templateRegion || port.id })),
+          ...topLevelPorts.map((port) => ({ value: port.templateRegion || port.id, label: port.templateRegion || port.id })),
         ]} onChange={(event) => setSelections({ ...selections, [region]: event.target.value })} />
       </label>)}
       <Button disabled={map.isPending || !authored.some((region) => value(region))} onClick={() => map.mutate()}>{t("design.portMappingApply")}</Button>
       {map.error && <Failure error={map.error} />}
-    </>}
+    </section>}
     <CandidateAssetPicker current={current} onSelected={setCurrent} />
     {current.candidate && <DesignCanvas key={current.candidate.hash} target={target} hash={current.candidate.hash}
-      candidate={current.candidate} previewStates={declaredPreviewStates(current)} configured={Boolean(current.sketch?.render)} readOnly={false} />}
+      candidate={current.candidate} previewStates={declaredPreviewStates(current)}
+      configured={Boolean(current.sketch?.render) && unmappedRegions.length === 0}
+      unmappedRegions={unmappedRegions}
+      readOnly={false} />}
     <Button disabled={select.isPending || !current.sketch} onClick={() => select.mutate()}>{t("design.proposeChoose")}</Button>
     {select.error && <Failure error={select.error} />}
   </div>;
@@ -1515,7 +1561,22 @@ function CandidateAcceptanceCheck({ candidate, renderHash, appearance, critiqueI
     {check.isPending && <p role="status">{t("design.acceptanceChecking")}</p>}
     {check.error && <Failure error={check.error} />}
     {check.data && <div className="grid gap-space-sm">
-      <p role="status">{t("design.acceptanceNotAccepted")}</p>
+      <p
+        role="status"
+        className={check.data.acceptanceEstablished || check.data.ready ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}
+      >
+        {check.data.acceptanceEstablished
+          ? t("design.acceptanceAlreadyEstablished")
+          : check.data.ready
+            ? t("design.acceptanceReady")
+            : t("design.acceptanceNotAccepted")}
+      </p>
+      <p className="text-sm text-app-muted-foreground">
+        {t("design.acceptanceRequirementSummary", {
+          passed: check.data.requirements.filter((row) => row.status === "passed").length,
+          total: check.data.requirements.length,
+        })}
+      </p>
       <ul className="grid gap-space-sm">
         {check.data.requirements.map((row, index) => <li key={`${row.code}:${index}`}>
           <strong>{t(`design.acceptanceRequirement_${row.code}`, { defaultValue: row.code })} · {t(`design.acceptanceStatus_${row.status}`, { defaultValue: row.status })}</strong>

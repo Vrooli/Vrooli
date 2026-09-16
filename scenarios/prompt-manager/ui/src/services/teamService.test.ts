@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { buildDefaultCreateTeamRequest, ValidationError } from '@/lib/schemas'
-import { createTeam, getTeams, invalidateCache } from './teamService'
+import { createTeam, getEffortWorkspaceContent, getTeams, invalidateCache } from './teamService'
 
 beforeEach(() => { invalidateCache() })
 afterEach(() => { vi.unstubAllGlobals(); invalidateCache() })
@@ -41,4 +41,13 @@ test('creating an empty finite delivery team succeeds when Connect omits zero me
   connectResponse('CreateTeam', { ...team(), purpose: 'delivery', lifetime: 'finite', roles: [], members: [] })
   await expect(createTeam({ ...buildDefaultCreateTeamRequest('Delivery'), purpose: 'delivery', lifetime: 'finite' }))
     .resolves.toEqual(expect.objectContaining({ id: 'delivery', purpose: 'delivery', lifetime: 'finite', memberCount: 0, members: [], enabled: false }))
+})
+
+test('materializes bounded binary workspace bytes as a typed preview URL', async () => {
+  connectResponse('GetEffortWorkspaceContent', {
+    effortRef: 'effort:media', path: 'reference.png', content: '',
+    previewDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+  })
+  const result = await getEffortWorkspaceContent('effort:media', 'reference.png')
+  expect(result.content).toBe('data:image/png;base64,iVBORw0KGgo=')
 })

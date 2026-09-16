@@ -116,6 +116,55 @@ const SYNTHETIC_MAX_TEAMS = 5
 const SYNTHETIC_SCALE_MAX_TEAMS = 4
 const TICKER_LIMIT = 12
 
+function WorldPreparationState({
+  layoutError,
+  layoutLoaded,
+  onRetryLayout,
+  runtimeError,
+  onRetryWorld,
+  onResetLayout,
+  hasLayoutHistory,
+  progressStage,
+}: {
+  layoutError: string | null
+  layoutLoaded: boolean
+  onRetryLayout: () => void
+  runtimeError: string | null
+  onRetryWorld: () => void
+  onResetLayout?: () => void
+  hasLayoutHistory: boolean
+  progressStage?: string
+}) {
+  const error = layoutError || runtimeError
+  const title = layoutError
+    ? `Could not ${layoutLoaded ? 'save' : 'load'} the world layout`
+    : runtimeError
+      ? 'World preparation needs attention'
+      : 'Preparing your operational world'
+  const description = layoutError
+    ? 'Your world is safe, but the saved layout is not available right now. Retry the owner read before making further edits.'
+    : runtimeError
+      ? 'The world could not finish its renderer-backed preparation. Retry is safe; your existing layout remains available.'
+      : 'Building the terrain, rooms, and presentation layers from the current world inputs.'
+  return (
+    <div className="flex h-full min-h-[24rem] items-center justify-center bg-gradient-to-br from-slate-950 via-background to-background px-6" role={error ? 'alert' : 'status'} data-testid="world-preparation-state">
+      <section className="w-full max-w-lg rounded-2xl border border-border/80 bg-background/90 p-6 shadow-2xl backdrop-blur" aria-labelledby="world-preparation-title">
+        <div className={`mb-5 grid h-12 w-12 place-items-center rounded-2xl text-xl ${error ? 'bg-amber-500/15 text-amber-300' : 'bg-primary/15 text-primary'}`} aria-hidden="true">{error ? '!' : '✦'}</div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">World operations</p>
+        <h1 id="world-preparation-title" className="mt-2 text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+        {progressStage && !error && <div className="mt-5" aria-label={`Preparation stage: ${progressStage}`}><div className="mb-2 flex justify-between text-xs text-muted-foreground"><span>Current stage</span><span className="font-medium capitalize text-foreground">{progressStage}</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full w-1/2 animate-pulse rounded-full bg-primary" /></div></div>}
+        {error && <p className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100">{error}</p>}
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" className="min-h-10 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:brightness-110" onClick={layoutError ? onRetryLayout : onRetryWorld}>{error ? 'Retry preparation' : 'Keep waiting'}</button>
+          {layoutError && <button type="button" className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted" onClick={onRetryWorld}>Continue without saved layout</button>}
+          {runtimeError && hasLayoutHistory && onResetLayout && <button type="button" className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted" onClick={onResetLayout}>Reset local layout</button>}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export function WorldView(props: WorldViewProps) {
   const terrainMeshCache = useMemo(() => new TerrainMeshCache({ onStats: terrainMeshCache => updateDiagnostics({ terrainMeshCache }) }), [])
   const [params, setParams] = useSearchParams()
@@ -600,11 +649,16 @@ export function WorldView(props: WorldViewProps) {
     return place?.space && insideSpace(place, conversationMember.position)
   }) : undefined
 
-  if (!runtime.store || !terrainTuning) return (
-    <div className="flex h-full items-center justify-center" role={runtime.error ? 'alert' : 'status'}>
-      {layoutStore.error ? <div role="alert"><p>Could not load layout: {layoutStore.error}</p><button onClick={layoutStore.retry}>Retry layout</button></div> : runtime.error ? <div><p>World preparation failed: {runtime.error}</p><button onClick={runtime.retry}>Retry</button>{history.current.length > 0 && <button onClick={() => applyHistory(commit(history, [], tuning.editor.maxHistory))}>Reset layout</button>}</div> : <p>Preparing world{runtime.progress ? `: ${runtime.progress.stage}` : '…'}</p>}
-    </div>
-  )
+  if (!runtime.store || !terrainTuning) return <WorldPreparationState
+    layoutError={layoutStore.error}
+    layoutLoaded={layoutStore.loaded}
+    onRetryLayout={layoutStore.retry}
+    runtimeError={runtime.error}
+    onRetryWorld={runtime.retry}
+    onResetLayout={() => applyHistory(commit(history, [], tuning.editor.maxHistory))}
+    hasLayoutHistory={history.current.length > 0}
+    progressStage={runtime.progress?.stage}
+  />
 
   return (
     <div className="relative h-full w-full overflow-hidden" data-testid="world-view">
@@ -741,7 +795,7 @@ export function WorldView(props: WorldViewProps) {
       <WorldHud
         store={runtime.store}
         actions={actions}
-        feed={runtime.feed}
+        feed={syntheticActors > 0 ? { ...runtime.feed, mode: 'snapshot' as const } : runtime.feed}
         focusedId={focusedId}
         onFocus={setFocusedId}
         onFocusTeam={focusTeam}

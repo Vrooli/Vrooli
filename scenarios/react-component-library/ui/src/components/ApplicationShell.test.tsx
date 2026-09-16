@@ -47,6 +47,8 @@ describe("AppShell", () => {
     expect(screen.getAllByRole("link", { name: "Browse assets" })).toHaveLength(1);
     expect(screen.queryByTestId("app-sidebar-content")).not.toBeInTheDocument();
     expect(screen.getByTestId("workspace-header")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-header").className).toContain("min-w-0");
+    expect(screen.getByTestId("workspace-header").className).toContain("flex-1");
     expect(screen.getByTestId("app-shell-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(screen.queryByTestId("active-work-menu")).not.toBeInTheDocument();

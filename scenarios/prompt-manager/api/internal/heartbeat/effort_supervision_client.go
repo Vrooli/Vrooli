@@ -127,18 +127,23 @@ func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
 		reason := row.GetRationale()
 		freshness := strings.ToLower(strings.TrimPrefix(row.GetFreshness().String(), "EFFORT_FRESHNESS_"))
 		observationOnly := row.GetFreshness() != ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH
+		readiness := "ready"
 		if observationOnly {
+			readiness = "stale"
 			reason += "; source freshness=" + freshness + "; uncertainty assessment only, no steering"
 		}
 		if strings.TrimSpace(enrollment.GetTargetRevision()) == "" {
 			observationOnly = true
+			readiness = "target-unknown"
 			reason += "; accepted target revision unknown; retain exact empty revision for assessment, no steering"
 		}
 		if enrollment.GetAuthorizedBy() == "" || (!enrollment.GetAutonomousSupervision() && len(enrollment.GetPermittedActions()) == 0) || enrollment.GetAuthorityExpiresAt() == nil || board.GetObservedAt() == nil || !enrollment.AuthorityExpiresAt.AsTime().After(board.ObservedAt.AsTime()) {
 			observationOnly = true
+			readiness = "mandate-unqualified"
 			reason += "; qualified supervision mandate unavailable or expired; retain observation and owner reconciliation"
 		}
 		if !valid {
+			readiness = "evidence-unknown"
 			reason += "; observation excluded: evidence identity unavailable"
 			cut.Coverage = "partial"
 			findings = append(findings, id+": observation excluded: evidence identity unavailable")
@@ -185,7 +190,7 @@ func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
 			EvidenceRevision:       row.GetChangeIdentity(),
 			SupervisorOwnerSubject: enrollment.GetSupervisorOwnerSubject(), SupervisorScope: enrollment.GetSupervisorScope(),
 			Eligible:  !enrollment.GetWithdrawn() && valid && !anchor,
-			Freshness: freshness, ObservationOnly: observationOnly,
+			Freshness: freshness, ObservationOnly: observationOnly, Readiness: readiness,
 			Retired: enrollment.GetWithdrawn(), WaitRef: strings.Join(namedWaits, ", "),
 			BoardRef: "agent-manager:GetEffortBoard:" + enrollment.GetEffortRef(), Reason: reason,
 			PriorAssessment: mapEffortAssessment(assessment), ChangedEvidence: changedEvidence,

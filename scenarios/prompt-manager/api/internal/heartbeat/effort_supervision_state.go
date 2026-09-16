@@ -14,27 +14,35 @@ import (
 
 // SupervisionState contains admission evidence only. It is not an effort ledger.
 type SupervisionState struct {
-	AccountingRef      string                         `json:"accountingRef"`
-	WindowStartedAt    time.Time                      `json:"windowStartedAt"`
-	WakesInWindow      int                            `json:"wakesInWindow"`
-	AllowanceResumesAt time.Time                      `json:"allowanceResumesAt"`
-	DiscoveryReads     uint64                         `json:"discoveryReads"`
-	OwnerRunReads      uint64                         `json:"ownerRunReads"`
-	AssessmentReads    uint64                         `json:"assessmentReads"`
-	WakeAttempts       uint64                         `json:"wakeAttempts"`
-	LastWake           *SupervisionWake               `json:"lastWake,omitempty"`
-	Version            int                            `json:"version"`
-	Status             string                         `json:"status"`
-	LastScanAt         time.Time                      `json:"lastScanAt"`
-	LastSuccessAt      time.Time                      `json:"lastSuccessAt"`
-	LastWakeAt         time.Time                      `json:"lastWakeAt"`
-	NextCursor         string                         `json:"nextCursor,omitempty"`
-	Coverage           string                         `json:"coverage,omitempty"`
-	Error              string                         `json:"error,omitempty"`
-	QuotaObservations  []*ampb.EffortQuotaObservation `json:"quotaObservations,omitempty"`
-	Sequence           uint64                         `json:"sequence"`
-	Efforts            map[string]SupervisedCut       `json:"efforts"`
-	Pending            *SupervisionWake               `json:"pending,omitempty"`
+	AccountingRef               string                         `json:"accountingRef"`
+	WindowStartedAt             time.Time                      `json:"windowStartedAt"`
+	WakesInWindow               int                            `json:"wakesInWindow"`
+	AllowanceResumesAt          time.Time                      `json:"allowanceResumesAt"`
+	DiscoveryReads              uint64                         `json:"discoveryReads"`
+	OwnerRunReads               uint64                         `json:"ownerRunReads"`
+	AssessmentReads             uint64                         `json:"assessmentReads"`
+	WakeAttempts                uint64                         `json:"wakeAttempts"`
+	ObservationOnlyAcknowledged uint64                         `json:"observationOnlyAcknowledged"`
+	ActionableTransitions       uint64                         `json:"actionableTransitions"`
+	LLMWakesAvoided             uint64                         `json:"llmWakesAvoided"`
+	PromptBytesLast             uint64                         `json:"promptBytesLast"`
+	PromptRevision              string                         `json:"promptRevision,omitempty"`
+	LastWake                    *SupervisionWake               `json:"lastWake,omitempty"`
+	Version                     int                            `json:"version"`
+	Status                      string                         `json:"status"`
+	LastScanAt                  time.Time                      `json:"lastScanAt"`
+	LastSuccessAt               time.Time                      `json:"lastSuccessAt"`
+	LastWakeAt                  time.Time                      `json:"lastWakeAt"`
+	NextCursor                  string                         `json:"nextCursor,omitempty"`
+	Coverage                    string                         `json:"coverage,omitempty"`
+	Error                       string                         `json:"error,omitempty"`
+	QuotaObservations           []*ampb.EffortQuotaObservation `json:"quotaObservations,omitempty"`
+	Sequence                    uint64                         `json:"sequence"`
+	Efforts                     map[string]SupervisedCut       `json:"efforts"`
+	// WakeHints are owner-change notifications. They are hints only: Tick still
+	// rereads Agent Manager and admission remains owner-authoritative.
+	WakeHints map[string]string `json:"wakeHints,omitempty"`
+	Pending   *SupervisionWake  `json:"pending,omitempty"`
 	// UnresolvedWakes retain dispatches whose owner call was attempted but
 	// returned no run identity. They are not replayed automatically: retaining
 	// them preserves the audit trail while allowing standing supervision to
@@ -53,6 +61,7 @@ type SupervisedCut struct {
 	RetryAfter          time.Time `json:"retryAfter"`
 	AssessmentID        string    `json:"assessmentId,omitempty"`
 	Disposition         string    `json:"disposition,omitempty"`
+	LastObservedKey     string    `json:"lastObservedKey,omitempty"`
 }
 
 type SupervisionWake struct {
@@ -95,7 +104,7 @@ func (s FileSupervisionStateStore) path(teamID, agentID string) string {
 func (s FileSupervisionStateStore) Load(teamID, agentID string) (*SupervisionState, error) {
 	b, err := os.ReadFile(s.path(teamID, agentID))
 	if os.IsNotExist(err) {
-		return &SupervisionState{Version: 1, Status: "idle", Efforts: map[string]SupervisedCut{}}, nil
+		return &SupervisionState{Version: 1, Status: "idle", Efforts: map[string]SupervisedCut{}, WakeHints: map[string]string{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -103,6 +112,15 @@ func (s FileSupervisionStateStore) Load(teamID, agentID string) (*SupervisionSta
 	var state SupervisionState
 	if err := json.Unmarshal(b, &state); err != nil {
 		return nil, fmt.Errorf("read supervision reservation: %w", err)
+	}
+	if state.Version == 0 {
+		// Older runtime state had no explicit version but is structurally
+		// compatible. Preserve pending/unresolved dispatch fences and let the
+		// next owner observation populate the new admission fields.
+		state.Version = 1
+	}
+	if state.WakeHints == nil {
+		state.WakeHints = map[string]string{}
 	}
 	if state.Version != 1 || state.Efforts == nil {
 		return nil, fmt.Errorf("unsupported supervision state; preserve reservation for owner recovery")

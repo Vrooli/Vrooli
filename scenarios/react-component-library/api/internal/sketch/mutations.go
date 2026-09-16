@@ -42,6 +42,22 @@ func AddPlaceholder(doc Document, placement Placement) (Document, error) {
 	if placement.Fills.Asset != "" || placement.Fills.Version != "" {
 		return doc, fmt.Errorf("placeholder cannot select a published asset or version")
 	}
+	for i := range doc.Placements {
+		if doc.Placements[i].Region != placement.Region {
+			continue
+		}
+		if placementsEqual(doc.Placements[i], placement) {
+			return doc, nil
+		}
+		if doc.Placements[i].Fills.Placeholder != "" {
+			// A placeholder is deliberately provisional. Replacing it creates a
+			// new immutable Sketch revision while retaining the previous source in
+			// history for comparison and rollback.
+			doc.Placements[i] = placement
+			return doc, nil
+		}
+		return doc, fmt.Errorf("region %q already has an occupant", placement.Region)
+	}
 	return insertPlacement(doc, placement)
 }
 

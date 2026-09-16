@@ -215,7 +215,7 @@ export async function listTeamSharedFiles(teamId: string): Promise<TeamSharedFil
  */
 export async function getTeamSharedFileContent(teamId: string, path: string): Promise<string> {
   const response = await api.getTeamSharedFileContent(teamId, path)
-  return response.content
+  return markPreviewTruncated(response.previewDataUrl || materializeFileContent(response.content, response.contentBytes, response.contentType), response.contentTruncated)
 }
 
 /** List the protected effort workspaces linked by the team's canonical refs. */
@@ -225,7 +225,17 @@ export async function listEffortWorkspaces(teamId: string): Promise<EffortWorksp
 
 /** Read one bounded effort workspace file. This projection is read-only. */
 export async function getEffortWorkspaceContent(effortRef: string, path: string): Promise<EffortWorkspaceContentResponse> {
-  return api.getEffortWorkspaceContent(effortRef, path)
+  const response = await api.getEffortWorkspaceContent(effortRef, path)
+  return { ...response, content: markPreviewTruncated(response.previewDataUrl || materializeFileContent(response.content, response.contentBytes, response.contentType), response.contentTruncated) }
+}
+
+function materializeFileContent(content: string, contentBytes?: string, contentType?: string): string {
+  if (!contentBytes) return content
+  return `data:${contentType || 'application/octet-stream'};base64,${contentBytes}`
+}
+
+function markPreviewTruncated(content: string, truncated?: boolean): string {
+  return truncated && content.startsWith('data:') && !content.endsWith('#truncated') ? `${content}#truncated` : content
 }
 
 /**

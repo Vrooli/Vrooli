@@ -184,9 +184,12 @@ type TeamSharedFileListResponse struct {
 
 // TeamSharedFileContentResponse is the response for shared file content.
 type TeamSharedFileContentResponse struct {
-	TeamID  string `json:"teamId"`
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	TeamID           string `json:"teamId"`
+	Path             string `json:"path"`
+	Content          string `json:"content"`
+	ContentBytes     []byte `json:"contentBytes,omitempty"`
+	ContentType      string `json:"contentType,omitempty"`
+	ContentTruncated bool   `json:"contentTruncated,omitempty"`
 }
 
 // TeamSharedFileWriteRequest is the request body for writing shared file content.

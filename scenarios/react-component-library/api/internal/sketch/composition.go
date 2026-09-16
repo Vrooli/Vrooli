@@ -44,6 +44,13 @@ func PrepareRender(snapshot Snapshot, missingLabel, failedLabel string) (preview
 	regions := map[string]bool{}
 	for _, list := range [][]Region{snapshot.DeclaredRegions, doc.Regions} {
 		for _, r := range list {
+			// Template placeholders are catalog structure, not semantic page
+			// obligations. The render settings are the authoritative list of
+			// slots selected for this candidate; keeping placeholders here would
+			// make unused ports look like unmapped authored regions.
+			if r.Origin == "template" {
+				continue
+			}
 			regions[r.ID] = true
 		}
 	}

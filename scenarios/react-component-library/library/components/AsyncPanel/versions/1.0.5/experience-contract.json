@@ -16,14 +16,14 @@
       "statement": "Every panel state is exposed through the embedded ExperienceSurface lifecycle attributes.",
       "states": ["loading", "ready", "empty", "partial", "error"],
       "tier": "manual",
-      "type": "custom"
+      "type": "manual-review"
     },
     {
       "id": "terminal-status-announced",
       "statement": "Loading, partial, and error states provide a polite status announcement.",
       "states": ["loading", "partial", "error"],
       "tier": "manual",
-      "type": "custom"
+      "type": "manual-review"
     }
   ],
   "component": {

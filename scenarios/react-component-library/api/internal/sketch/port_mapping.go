@@ -74,6 +74,18 @@ func MapRegionPorts(snapshot Snapshot, mappings []PortMapping) (Document, error)
 	settings := *doc.Render
 	settings.Regions = nil
 	removed := map[string]bool{}
+	for target, region := range assigned {
+		if target == region {
+			continue
+		}
+		if protected[target] && !sources[target] {
+			return doc, fmt.Errorf("port %s contains authored region %s; explicitly remap that region first", target, target)
+		}
+		// A semantic region already carrying this templateRegion can still be
+		// remapped. Remove the historical template placeholder so it is not
+		// reintroduced as a second, unmapped semantic region.
+		removed[target] = true
+	}
 	rendered := map[string]bool{}
 	var vacant []Region
 	for _, port := range doc.Render.Regions {

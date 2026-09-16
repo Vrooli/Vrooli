@@ -3,7 +3,39 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-09-12
+2026-09-16
+
+## Work ladder — RCL Prompt Manager UX campaign (2026-09-16)
+
+- Rung: W3, scoped implementation repair under the existing Prompt Manager web UI
+  and agent-world targets.
+- Evidence: live captures in the campaign workspace exposed a dashboard that still
+  mixed redesigned and legacy sections, mobile clipping/overflow, and a 2D view
+  whose actors lacked enough spatial context. The campaign ledger records these as
+  unverified rather than accepted.
+- Target: `.vrooli/plan-artifacts/efforts/rcl-prompt-manager-ux-design-campaign/review/critique-07.md`.
+- Validation: Prompt Manager type-check passed; managed runtime is healthy; fresh
+  mobile BAS capture still requires another pass after dashboard consolidation.
+- Measured: dashboard configuration is now progressively disclosed, duplicate
+  mission/member content is removed, and the 2D map renders authoritative room,
+  corridor, and gathering-place geometry. Product acceptance remains open.
+- Measured: 2026-09-16.
+
+- Follow-up: the managed production bundle was stale during the first Team Files
+  capture, so source-only evidence was rejected. After `make build` and managed
+  `make start`, the 390px capture exposed and then verified the repair of a real
+  split-pane defect: mobile now gives the file list the full width, hides the
+  desktop resize gutter, and opens the editor only for an explicit preview.
+  Effort paths wrap instead of ellipsizing. Focused Team Files/dashboard/HUD
+  regressions pass 22/22; the campaign remains unverified because the long team
+  slug still dominates the mobile header and other campaign surfaces retain
+  clipped-text warnings.
+
+- Follow-up: the mobile dashboard's bottom section navigator was covering the last
+  metric card. It now appears before the metric grid and uses a top-sticky position;
+  the live capture `bas-capture://34a69705-0c2e-4bd2-b844-a770546f743d/screenshot`
+  shows the navigator without content underneath it. This improves the mobile
+  dashboard but does not close the remaining long-identity and clipped-text review.
 
 ## Work ladder — team purpose, lifetime, and linked effort UX (2026-09-12)
 

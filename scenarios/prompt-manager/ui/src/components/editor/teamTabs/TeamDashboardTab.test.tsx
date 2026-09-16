@@ -71,6 +71,30 @@ describe('TeamDashboardTab', () => {
     return render(<TeamDashboardTab team={team} onUpdate={onUpdate} />)
   }
 
+  it('front-loads the dashboard candidate with accessible overview and mobile section navigation', () => {
+    renderDashboard({ ...baseTeam, mission: 'A deliberately long mission that must remain readable on a narrow viewport without losing the operator outcome.' }, vi.fn())
+
+    expect(screen.getByRole('heading', { name: 'Scenario QA' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Current work' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Team metrics' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Mission' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Mission' })).not.toHaveClass('hidden')
+    expect(screen.getByRole('link', { name: 'Work' })).toHaveAttribute('href', '#dashboard-work')
+    expect(screen.getByRole('link', { name: 'Activity' })).toHaveAttribute('href', '#dashboard-activity')
+    expect(screen.getAllByText(/deliberately long mission/)).not.toHaveLength(0)
+  })
+
+  it('labels paused teams and avoids implying current execution', () => {
+    renderDashboard({ ...baseTeam, enabled: false }, vi.fn())
+
+    expect(screen.getAllByText('Paused', { selector: 'span' })).not.toHaveLength(0)
+    expect(screen.getAllByRole('status').some((element) => element.textContent.includes('Team is paused'))).toBe(true)
+    expect(screen.getAllByText(/current execution is unknown/i)).not.toHaveLength(0)
+    expect(screen.getAllByText(/resume only when explicitly authorized/i)).not.toHaveLength(0)
+    expect(screen.queryByText(/turn the team on/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Review retained evidence' })).toHaveAttribute('href', '#dashboard-activity')
+  })
+
   it('reports unknown execution health when there are no execution records', async () => {
     vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
       teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',

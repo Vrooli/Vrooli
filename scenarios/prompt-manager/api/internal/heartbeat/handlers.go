@@ -2037,6 +2037,12 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.Offset = parsed
 	}
+	// Agent-scoped reads use the owner profile identity directly. Keep this
+	// separate from profile_key: the former is an exact agent-manager profile
+	// ID, while the latter requires canonical profile resolution.
+	if agentID := r.URL.Query().Get("agent_id"); agentID != "" {
+		opts.AgentProfileID = agentID
+	}
 
 	// agent-manager list-runs filters by agent_profile_id (UUID), not profile_key.
 	// Resolve profile_key to ID before forwarding so UI profile scoping works.

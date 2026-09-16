@@ -67,6 +67,25 @@ func TestPlaceholderCanBePlacedAndRestored(t *testing.T) {
 	}
 }
 
+func TestPlaceholderCanBeRefinedWithoutLosingThePreviousRevision(t *testing.T) {
+	first := Placement{Region: "map", Fills: Fill{Placeholder: "map-v1", Intent: "Show a navigable spatial overview with stable place identity"}, State: "invented"}
+	second := Placement{Region: "map", Fills: Fill{Placeholder: "map-v2", Intent: "Show a navigable spatial overview with stable place identity and mobile focus"}, State: "invented"}
+	doc, err := AddPlaceholder(Document{}, first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refined, err := AddPlaceholder(doc, second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := refined.Placements[0].Fills.Placeholder; got != "map-v2" {
+		t.Fatalf("placeholder was not refined: %q", got)
+	}
+	if _, err := Place(refined, Placement{Region: "map", Fills: Fill{Asset: "maps.canvas", Version: "1.0.0"}}); err == nil {
+		t.Fatal("published asset was incorrectly replaceable")
+	}
+}
+
 func TestPlacementKindsAreExclusive(t *testing.T) {
 	p := Placement{Region: "composer", Fills: Fill{Asset: "controls.button", Placeholder: "custom", Intent: "Collect the domain-specific response payload"}}
 	if _, err := Place(Document{}, p); err == nil {

@@ -101,7 +101,7 @@
     "vitest": "^1.2.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "\u003e=18.0.0"
   },
   "keywords": [
     "prompt-management",
@@ -118,8 +118,8 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && vite build",
-    "build:profile": "pnpm selector:manifest && vite build --mode profile",
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
     "lint": "eslint .",
@@ -128,13 +128,15 @@
     "pretest": "pnpm generate:selectors",
     "pretype-check": "pnpm generate:selectors",
     "preview": "vite preview",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "serve": "node server-vite.js",
     "serve:dev": "vite",
     "serve:express": "node server-express.js",
     "test": "vitest run",
-    "test:ux": "node ./scripts/ux-regression.mjs",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
+    "test:ux": "node ./scripts/ux-regression.mjs",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "world:assets": "node ./scripts/world-assets/build.mjs",
@@ -143,9 +145,7 @@
     "world:goldens": "node ./scripts/world-smoke/run.mjs --gpu --all-periods --weather-matrix --update-goldens --actors 25",
     "world:sheet": "node ./scripts/world-smoke/sheet.mjs",
     "world:smoke": "node ./scripts/world-smoke/run.mjs --actors 25",
-    "world:tuning-docs": "node ./scripts/world-tuning-docs/run.mjs",
-    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "world:tuning-docs": "node ./scripts/world-tuning-docs/run.mjs"
   },
   "type": "module",
   "version": "1.0.0"

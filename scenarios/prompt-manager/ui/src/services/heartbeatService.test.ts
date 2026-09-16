@@ -247,7 +247,7 @@ describe('heartbeatService listRuns filters', () => {
     resetHeartbeatServiceCachesForTests()
   })
 
-  it('forwards profile_key and task_id filters', async () => {
+  it('forwards exact agent_id, profile_key, and task_id filters', async () => {
     mockFetchResponse(
       new Response(JSON.stringify({ runs: [], total: 0, has_more: false }), {
         status: 200,
@@ -256,6 +256,7 @@ describe('heartbeatService listRuns filters', () => {
     )
 
     await listRuns({
+      agentId: 'agent-456',
       profileKey: 'prompt-manager-heartbeat',
       taskId: 'task-123',
       limit: 10,
@@ -265,6 +266,7 @@ describe('heartbeatService listRuns filters', () => {
     const callArgs = vi.mocked(fetch).mock.calls[0] ?? []
     const url = String(callArgs[0] as string | URL)
     expect(url).toContain('/runs?')
+    expect(url).toContain('agent_id=agent-456')
     expect(url).toContain('profile_key=prompt-manager-heartbeat')
     expect(url).toContain('task_id=task-123')
     expect(url).toContain('limit=10')

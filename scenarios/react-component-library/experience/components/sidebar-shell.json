@@ -11,12 +11,12 @@
   "states": [
     {
       "id": "default",
-      "example": "persistent",
+      "example": "default",
       "description": "The desktop navigation rail is visible."
     },
     {
       "id": "drawer-open",
-      "example": "overlay-open",
+      "example": "drawer-open",
       "description": "The mobile drawer is open and dismissible."
     }
   ],

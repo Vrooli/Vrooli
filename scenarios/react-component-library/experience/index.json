@@ -70,7 +70,14 @@
       "status": "active"
     }
   ],
-  "journeys": [],
+  "journeys": [
+    {
+      "id": "brief-to-adoption",
+      "path": "journeys/brief-to-adoption.json",
+      "title": "Move a page brief through design and adoption",
+      "status": "active"
+    }
+  ],
   "components": [
     {
       "id": "button",

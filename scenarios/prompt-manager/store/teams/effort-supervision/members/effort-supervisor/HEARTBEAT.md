@@ -1,8 +1,10 @@
 ## Task Loop
 
-Read `prompt-manager skill read large-effort-supervision`. Consume only the bounded
-effort selection appended by the runtime. Read current AM board details for those
-	effort references and prior owner decisions. Use its current CLI help for syntax.
+Use the qualified `large-effort-supervision` method. Read `prompt-manager skill read
+large-effort-supervision` only when the method revision changed or the compact owner
+cut leaves a decision-relevant uncertainty. Consume only the bounded effort selection
+appended by the runtime. Read current AM board details only for a decision-relevant
+uncertainty, and use its current CLI help for syntax.
 
 Assess each required outcome independently. Retain productive work and owner
 waits. For a selected healthy sample, record the selection basis and result under

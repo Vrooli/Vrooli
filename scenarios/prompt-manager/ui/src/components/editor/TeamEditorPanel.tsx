@@ -14,7 +14,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, LayoutGrid, Code, Archive } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
-import { cn } from '@/lib/utils'
+import { cn, compactIdentityLabel } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import type { HighlightRequest } from '@/lib/highlight'
@@ -137,6 +137,12 @@ interface TeamEditorPanelProps {
   className?: string
 }
 
+/** Keep public deep-link names compatible with the internal tab values. */
+export function normalizeTeamEditorTab(value: string | null | undefined): string {
+  return value === 'dashboard' ? 'info' : value ?? 'info'
+}
+
+/** Preserve the full editable name while giving narrow headers a useful identity label. */
 /**
  * Team editor panel component.
  */
@@ -175,7 +181,7 @@ export function TeamEditorPanel({
   // Respond to external tab navigation requests (e.g. from URL deep-link)
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab)
+      setActiveTab(normalizeTeamEditorTab(initialTab))
     }
   }, [initialTab])
 
@@ -544,11 +550,11 @@ export function TeamEditorPanel({
   }
 
   return (
-    <div className={cn('h-full flex flex-col bg-card/50', className)}>
+    <div className={cn('h-full min-w-0 max-w-full flex flex-col bg-card/50 overflow-x-hidden', className)}>
       {/* Header */}
       {!showDetailOnly && (
         <div
-          className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
+          className="flex-shrink-0 space-y-1.5 border-b border-border px-3 py-2 sm:space-y-2 sm:px-4 sm:py-3"
           data-testid={selectors.teamEditor.header}
         >
           {/* Row 1: Close, Icon, Name */}
@@ -566,12 +572,12 @@ export function TeamEditorPanel({
 
             {/* Team icon with health dot */}
             <div className="flex-shrink-0 relative">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/20">
-                <Users className="h-5 w-5 text-primary" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 sm:h-10 sm:w-10">
+                <Users className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
               </div>
               <span
                 className={cn(
-                  'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card',
+                'absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card sm:h-3 sm:w-3',
                   teamHealth === 'green' && 'bg-emerald-500',
                   teamHealth === 'yellow' && 'bg-amber-500',
                   teamHealth === 'red' && 'bg-red-500',
@@ -587,10 +593,11 @@ export function TeamEditorPanel({
                 value={team.displayName}
                 onChange={(value) => void handleNameChange(value)}
                 placeholder="Team name"
-                className="text-lg font-semibold"
+                displayValue={isMobile ? compactIdentityLabel(team.displayName) : team.displayName}
+                className="block max-w-[min(52vw,22rem)] overflow-hidden break-words text-base font-semibold leading-tight line-clamp-1 sm:max-w-none sm:text-lg sm:line-clamp-2"
               />
               {lastActiveAt && (
-                <p className="text-[11px] text-muted-foreground -mt-0.5">
+                <p className="-mt-0.5 hidden text-[11px] text-muted-foreground sm:block">
                   Last active: {formatRelativePastTime(new Date(lastActiveAt))}
                 </p>
               )}
@@ -644,11 +651,13 @@ export function TeamEditorPanel({
           </div>
 
           {/* Row 2: Expandable mission */}
-          <div className="flex items-start gap-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:items-start sm:gap-2">
             <button
               type="button"
               onClick={() => setIsMissionExpanded(!isMissionExpanded)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-expanded={isMissionExpanded}
+              aria-label={isMissionExpanded ? 'Hide mission' : 'Show full mission'}
+              className="flex shrink-0 items-center gap-1 rounded px-1 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {isMissionExpanded ? (
                 <ChevronUp className="h-4 w-4" />
@@ -663,10 +672,13 @@ export function TeamEditorPanel({
                 placeholder="Add a mission statement..."
                 className="flex-1"
               />
-            ) : (
-              <p className="flex-1 text-sm text-muted-foreground truncate">
-                {team.mission || 'No mission statement'}
-              </p>
+              ) : (
+              <>
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:hidden">Mission</span>
+                <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground line-clamp-2 sm:text-sm sm:line-clamp-2" title={team.mission || undefined}>
+                  {team.mission || 'No mission statement'}
+                </p>
+              </>
             )}
           </div>
           {(team.managedTeamIds?.length ?? 0) > 0 || (team.managedByTeamIds?.length ?? 0) > 0 ? (
@@ -683,7 +695,7 @@ export function TeamEditorPanel({
       <Tabs.Root
         value={activeTab}
         onValueChange={handleTabChange}
-        className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        className="flex-1 min-w-0 max-w-full flex flex-col min-h-0 overflow-hidden"
       >
         {/* Tab List */}
         {!showDetailOnly && (
@@ -705,7 +717,7 @@ export function TeamEditorPanel({
         )}
 
         {/* Tab Content */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-w-0 max-w-full min-h-0 flex flex-col">
           {/* Members tab - Split panel layout with view mode toggle */}
           <Tabs.Content
             value="members"
@@ -917,7 +929,7 @@ export function TeamEditorPanel({
 
           <Tabs.Content
             value="info"
-            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+            className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
             <TeamDashboardTab
               team={team}
@@ -932,7 +944,7 @@ export function TeamEditorPanel({
 
           <Tabs.Content
             value="files"
-            className="flex-1 min-h-0 data-[state=inactive]:hidden"
+            className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-hidden data-[state=inactive]:hidden"
           >
             <TeamFilesTab
               teamId={team.id}

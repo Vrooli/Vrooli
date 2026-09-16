@@ -42,13 +42,13 @@ export function SettingsPage() {
         </p>
         <a
           href="#appearance"
-          className="block rounded-control px-space-2xs py-space-2xs text-sm hover:bg-app-surface-muted"
+          className="flex min-h-11 items-center rounded-control px-space-2xs text-sm hover:bg-app-surface-muted"
         >
           {t("settings.appearance", { defaultValue: "Appearance" })}
         </a>
         <a
           href="#language"
-          className="block rounded-control px-space-2xs py-space-2xs text-sm hover:bg-app-surface-muted"
+          className="flex min-h-11 items-center rounded-control px-space-2xs text-sm hover:bg-app-surface-muted"
         >
           {t("settings.language", { defaultValue: "Language" })}
         </a>

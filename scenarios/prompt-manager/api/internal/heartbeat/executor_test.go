@@ -20,6 +20,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func TestExecutorBuildSupervisionPromptUsesCompactLane(t *testing.T) {
+	ctx := context.Background()
+	fileStore := newFileStore(t, paths.RootsForTest(t))
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	if err := teamStore.Create(ctx, newIndependentTestTeam("supervisors", "Standing supervisors")); err != nil {
+		t.Fatal(err)
+	}
+	executor := newTestExecutor(t, teamStore, fileStore.Agents().(*store.FileAgentStore), newMockAgentClient(), "", nil, nil)
+	prompt, err := executor.BuildSupervisionPrompt(ctx, "supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(prompt, "Source Ledger") || strings.Contains(prompt, "Team Context Wake") || len(prompt) > 5000 {
+		t.Fatalf("supervisor prompt was not compact: %d bytes\n%s", len(prompt), prompt)
+	}
+	if !strings.Contains(prompt, "compact Agent Manager owner cut") || !strings.Contains(prompt, "owner-qualified mandate") {
+		t.Fatalf("supervisor guardrails missing: %s", prompt)
+	}
+}
+
 func TestExecutorStandingSupervisorEnsuresSelectedTeamCorpus(t *testing.T) {
 	for _, unavailable := range []bool{false, true} {
 		name := "provisions-and-reuses"

@@ -6,7 +6,7 @@
     "id": "app-shell",
     "title": "AppShell",
     "purpose": "The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column or icon rail, a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and a routed main pane that scrolls or fills. Navigation is data; the router plugs in through renderLink and onNavigate.",
-    "storyRef": "../../library/components/AppShell/versions/2.0.2/story.json"
+    "storyRef": "../../library/components/AppShell/versions/2.0.4/story.json"
   },
   "states": [
     {

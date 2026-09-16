@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "64f31f5dd6a4ceaea9a381f41d465c40b25b0ea1be5f0d4e1de2f23af110fdf2",
+  "key": "35f04529eec8110ea055e442e7cf2b3ca446dc7e8cb5951df2ccedfacf0d93e3",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -80,6 +80,7 @@
     "packages/measures-go/go.mod",
     "packages/measures-go/go.sum",
     "packages/platform-go",
+    "packages/platform-go/credentialunlock",
     "packages/platform-go/go.mod",
     "packages/platform-go/go.sum",
     "packages/proto/architecture/findingid",

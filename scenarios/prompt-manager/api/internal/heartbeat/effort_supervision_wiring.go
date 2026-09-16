@@ -15,7 +15,7 @@ func WireStandingSupervisor(owner EffortSupervisionOwner, executor *Executor, qu
 	s := &StandingSupervisor{
 		Owner: owner, Agent: executor.agentClient, Queue: queue,
 		State: FileSupervisionStateStore{Root: runtimeRoot}, Root: executor.vrooliRoot,
-		Prompt:             executor.BuildPrompt,
+		Prompt:             executor.BuildSupervisionPrompt,
 		Record:             executor.recordSupervisionExecution,
 		DispatchCredential: resolveSupervisorDispatchCredential,
 	}
@@ -101,9 +101,11 @@ func (e *Executor) recordSupervisionExecution(ctx context.Context, teamID, agent
 	if err := e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, cfg); err != nil {
 		return err
 	}
-	e.appendAttempt(ctx, &store.HeartbeatAttempt{ID: wake.ID, TeamID: teamID, AgentID: agentID, ProfileKey: wake.ProfileKey,
+	e.appendAttempt(ctx, &store.HeartbeatAttempt{
+		ID: wake.ID, TeamID: teamID, AgentID: agentID, ProfileKey: wake.ProfileKey,
 		TaskID: wake.TaskID, RunID: run.ID, Tag: "supervision-" + wake.ID, Status: status, Phase: phase,
-		StartedAt: wake.CreatedAt.Format(time.RFC3339), EndedAt: ended, Error: run.Error})
+		StartedAt: wake.CreatedAt.Format(time.RFC3339), EndedAt: ended, Error: run.Error,
+	})
 	if e.runRegistry != nil {
 		if ended != "" {
 			e.runRegistry.Complete(teamID, agentID, status == store.HeartbeatStatusFailed, run.Error)

@@ -6,7 +6,7 @@
     "id": "button",
     "title": "Button",
     "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse.",
-    "storyRef": "../../library/components/Button/versions/2.2.4/story.json"
+    "storyRef": "../../library/components/Button/versions/2.2.12/story.json"
   },
   "states": [
     {
@@ -16,10 +16,12 @@
     },
     {
       "id": "disabled-long-label",
+      "example": "disabled-long-label",
       "description": "Disabled action with a retained label."
     },
     {
       "id": "start-icon",
+      "example": "start-icon",
       "description": "Icon-leading action with deliberate icon-to-label spacing."
     }
   ],

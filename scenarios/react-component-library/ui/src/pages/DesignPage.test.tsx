@@ -84,6 +84,21 @@ describe("Design workspace", () => {
     expect(api.putSketch).not.toHaveBeenCalled();
     expect(api.saveCandidate).not.toHaveBeenCalled();
   });
+  it("keeps the rendered workflow order aligned with the brief-to-adoption journey", async () => {
+    setup();
+    renderPage();
+    const workspace = await screen.findByRole("region", { name: i18n.t("design.workspace") });
+    const brief = document.querySelector("#design-brief");
+    const canvas = document.querySelector("#design-canvas");
+    expect(brief).toBeTruthy();
+    expect(canvas).toBeTruthy();
+    expect(brief!.compareDocumentPosition(canvas!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const workflow = document.querySelector('nav[aria-label="Design workflow"]');
+    expect(workflow?.querySelector('a[href="#design-brief"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href="#design-canvas"]')).toBeTruthy();
+    expect(workspace).toBeInTheDocument();
+  });
+
   it("keeps image-less reference revisions visible for honest comparison", async () => {
     const current = {
       ...sketch,
@@ -265,7 +280,7 @@ describe("Design workspace", () => {
     expect(screen.getByRole("button", { name: i18n.t("design.verify") })).toBeDisabled();
     expect(screen.getByLabelText(i18n.t("design.note", { region: "body" }))).toBeDisabled();
   });
-  it("does not present source verification as visual acceptance", async () => {
+it("does not present source verification as visual acceptance", async () => {
     setup();
     api.verifySketch.mockResolvedValue({
       passes: false,
@@ -298,6 +313,9 @@ it("renders the exact revision and hides stale appearance evidence", async () =>
   fireEvent(window, new MessageEvent("message", { source: (frame as HTMLIFrameElement).contentWindow,
     data: { type: "preview-ready", sha256: "render-hash" } }));
   expect(await screen.findByText(i18n.t("design.canvasEvidence"))).toBeInTheDocument();
+  fireEvent(window, new MessageEvent("message", { source: (frame as HTMLIFrameElement).contentWindow,
+    data: { type: "preview-error", sha256: "render-hash", message: "region header has no template slot mapping" } }));
+  expect(await screen.findByRole("link", { name: "Review port mapping" })).toHaveAttribute("href", "#candidate-port-mapping");
   expect(api.renderSketch).toHaveBeenCalledWith(expect.objectContaining({ expectedContentHash: "current-hash", theme: "light", direction: "ltr" }));
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasTheme") }));
   fireEvent.click(await screen.findByRole("option", { name: i18n.t("design.canvasDark") }));
@@ -470,11 +488,12 @@ it("lists exact-render reviews and rejects mismatched review detail", async () =
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.reviewOpen", { critic: "critic-one", date: "2026-09-05" }) }));
   await screen.findByText(rationale);
   expect(screen.getByText("alternate-render")).toBeInTheDocument();
-  api.checkCandidateAcceptance.mockResolvedValue({ ready: false, acceptanceEstablished: false, requirements: [{ code: "rubric_calibration", status: "unavailable", detail: "Reviewed calibration examples are required." }] });
+  api.checkCandidateAcceptance.mockResolvedValue({ ready: true, acceptanceEstablished: false, requirements: [{ code: "rubric_calibration", status: "unavailable", detail: "Reviewed calibration examples are required." }] });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceCheck") }));
   await screen.findByText("Reviewed calibration examples are required.");
   expect(api.checkCandidateAcceptance).toHaveBeenCalledWith({ render: expect.objectContaining({ candidate }), expectedRenderHash: "saved-render", critiqueIds: ["review-one"] });
-  expect(screen.getByText(i18n.t("design.acceptanceNotAccepted"))).toBeInTheDocument();
+  expect(screen.getByText(i18n.t("design.acceptanceReady"))).toBeInTheDocument();
+  expect(screen.getByText(i18n.t("design.acceptanceRequirementSummary", { passed: 0, total: 1 }))).toBeInTheDocument();
   api.acceptCandidate.mockRejectedValueOnce(new Error("response lost")).mockResolvedValue({ id: "acceptance-one", hash: "decision-hash", state: "needs_evidence", intent: { candidateHash: candidate.hash, expectedRenderHash: "saved-render" } });
   fireEvent.change(screen.getByLabelText(i18n.t("design.acceptanceActor")), { target: { value: "test-agent" } });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceRecord") }));

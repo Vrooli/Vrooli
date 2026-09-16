@@ -564,11 +564,15 @@
     "library.overlays.tooltip.root": {
       "testId": "overlays.tooltip",
       "selector": "[data-testid=\"overlays.tooltip\"]"
+    },
+    "library.templates.collection-page.root": {
+      "testId": "templates.collection-page",
+      "selector": "[data-testid=\"templates.collection-page\"]"
     }
   },
   "dynamicSelectors": {},
   "sources": {
     "ui/src/constants/selectors.ts": "6592b649f6b2c0b89a666d1237ed6a51fee90f8a637404e2ff5a4894fdad9025",
-    "ui/src/consts/selectors.library.ts": "fe101f34cc38410d1637ecbf94f28a3cf95e9e216b44b4155bb5213e64c953e2"
+    "ui/src/consts/selectors.library.ts": "8b26a7416a726d35468985f24b41d651b44f47633cf399d54a880ac5a33a6c01"
   }
 }

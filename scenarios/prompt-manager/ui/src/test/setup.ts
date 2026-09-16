@@ -46,6 +46,14 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: MockResizeObserver,
 })
 
+// axe-core probes canvas text metrics for color-contrast checks. jsdom does
+// not implement a canvas context; returning null keeps the probe deterministic
+// without installing a native canvas dependency unrelated to these tests.
+Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  configurable: true,
+  value: () => null,
+})
+
 const localStorageMock = installStorageMock()
 
 // ============================================================================

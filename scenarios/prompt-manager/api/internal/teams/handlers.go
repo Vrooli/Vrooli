@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -825,7 +826,27 @@ func (h *Handlers) ReadTeamSharedFile(ctx context.Context, id, path string) (Tea
 		}
 		return TeamSharedFileContentResponse{}, err
 	}
-	return TeamSharedFileContentResponse{TeamID: id, Path: path, Content: content}, nil
+	contentType := mime.TypeByExtension(filepath.Ext(path))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	result := TeamSharedFileContentResponse{TeamID: id, Path: path, Content: content, ContentType: contentType}
+	if IsBinaryPreviewType(contentType) {
+		bytes, truncated, bytesErr := fileStore.ReadSharedFileBytes(ctx, id, path)
+		if bytesErr != nil {
+			return TeamSharedFileContentResponse{}, bytesErr
+		}
+		result.Content = ""
+		result.ContentBytes = bytes
+		result.ContentTruncated = truncated
+	}
+	return result, nil
+}
+
+func IsBinaryPreviewType(contentType string) bool {
+	return strings.HasPrefix(contentType, "image/") || strings.HasPrefix(contentType, "audio/") ||
+		strings.HasPrefix(contentType, "video/") || contentType == "application/pdf" ||
+		contentType == "application/octet-stream"
 }
 
 func (h *Handlers) WriteTeamSharedFile(ctx context.Context, id, path, content string) error {

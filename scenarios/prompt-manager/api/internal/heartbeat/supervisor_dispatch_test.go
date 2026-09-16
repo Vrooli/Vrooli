@@ -93,8 +93,10 @@ func TestStandingSupervisorReplaysOnlyTheRetainedDelegatedBinding(t *testing.T) 
 	f.s.Agent = agent
 	f.s.DispatchCredential = func(context.Context) (string, error) { return "fresh-dispatch", nil }
 	f.cfg.Supervision.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}
-	wake := &SupervisionWake{ID: "wake-replay", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "delegated",
-		DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1", Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}}}
+	wake := &SupervisionWake{
+		ID: "wake-replay", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "delegated",
+		DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1", Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}},
+	}
 	state := &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: wake}
 	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
 		t.Fatal(err)
@@ -121,8 +123,10 @@ func TestStandingSupervisorReplaysLegacyOrdinaryWakeWithExactIntent(t *testing.T
 	tag := "supervision-" + wakeID
 	f.cfg.Supervision.DispatchRecovery = &teamconfig.SupervisorDispatchRecovery{WakeID: wakeID, Mode: "ordinary", TaskID: "task-1", ProfileKey: "qualified-role-profile", EvidenceRefs: []string{"run-report:dispatch-refused", "pm-state:pending-wake"}}
 	f.agent.WithCreateRunResponse(&Run{ID: "wake-run-legacy", TaskID: "task-1", Tag: tag, Status: "running"})
-	wake := &SupervisionWake{ID: wakeID, AccountingRef: "test:allowance", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true,
-		Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}}}
+	wake := &SupervisionWake{
+		ID: wakeID, AccountingRef: "test:allowance", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true,
+		Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}},
+	}
 	state := &SupervisionState{Version: 1, Status: "uncertain", WakesInWindow: 7, Efforts: map[string]SupervisedCut{}, Pending: wake}
 	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
 		t.Fatal(err)

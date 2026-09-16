@@ -1,7 +1,7 @@
 /** @vrooliComponentSource ai.message-list */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Message, type MessageProps } from "@vrooli/react-component-library/Message/1.2.1";
-import { VirtualList, type VirtualListHandle, type VirtualListPosition } from "@vrooli/react-component-library/VirtualList/1.3.1";
+import { VirtualList, type VirtualListHandle, type VirtualListPosition } from "@vrooli/react-component-library/VirtualList/1.3.2";
 import { AsyncBoundary, type AsyncBoundaryStatus } from "@vrooli/react-component-library/AsyncBoundary/1.0.9";
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";

@@ -44,6 +44,60 @@ func TestResolveAndReadUseCanonicalEffortReference(t *testing.T) {
 	if content.Content != "accepted intent" {
 		t.Fatalf("content = %q", content.Content)
 	}
+	if string(content.ContentBytes) != "accepted intent" {
+		t.Fatalf("content bytes = %q", content.ContentBytes)
+	}
+}
+
+func TestReadPreservesBoundedBinaryBytesForPreviewConsumers(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "efforts", "media")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeManifest(t, filepath.Join(workspace, "effort.json"), manifest{EffortRef: "effort:media"})
+	want := []byte{0x89, 0x50, 0x4e, 0x47, 0x00, 0xff}
+	if err := os.WriteFile(filepath.Join(workspace, "reference.png"), want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := New(root, nil).Read(t.Context(), "effort:media", "reference.png")
+	if err != nil {
+		t.Fatalf("read binary preview: %v", err)
+	}
+	if string(content.ContentBytes) != string(want) {
+		t.Fatalf("content bytes = %v, want %v", content.ContentBytes, want)
+	}
+}
+
+func TestReadReportsTruncatedContentAtTheWorkspaceBoundary(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "efforts", "large")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeManifest(t, filepath.Join(workspace, "effort.json"), manifest{EffortRef: "effort:large"})
+	want := make([]byte, maxFileBytes+1)
+	for i := range want {
+		want[i] = byte(i % 251)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "large.bin"), want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := New(root, nil).Read(t.Context(), "effort:large", "large.bin")
+	if err != nil {
+		t.Fatalf("read oversized preview: %v", err)
+	}
+	if !content.ContentTruncated {
+		t.Fatal("content was not marked truncated")
+	}
+	if len(content.ContentBytes) != maxFileBytes {
+		t.Fatalf("content bytes length = %d, want %d", len(content.ContentBytes), maxFileBytes)
+	}
+	if string(content.ContentBytes) != string(want[:maxFileBytes]) {
+		t.Fatal("content bytes were not bounded to the leading preview")
+	}
 }
 
 func TestResolveSupportsLegacyWorkspaceReferenceWhenManifestHasNoOpaqueRef(t *testing.T) {

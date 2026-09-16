@@ -133,7 +133,11 @@ function SkillManagerLayoutImpl() {
   const selectedTopicId = params.topicId ?? null
   const selectedActionId = params.actionId ?? null
   const topicWizardActive = location.pathname === topicWizardPath()
-  const pendingTab = searchParams.get('tab')
+  // The public URL uses human-readable tab names while the editor uses its
+  // stable Radix value for the dashboard. Normalize before the controlled
+  // editor mounts so a deep link never renders with every tab inactive.
+  const pendingTabParam = searchParams.get('tab')
+  const pendingTab = pendingTabParam === 'dashboard' ? 'info' : pendingTabParam
   const pendingSubTab = searchParams.get('subTab')
   const pendingMemberId = searchParams.get('memberId')
   const pendingMemberSection = searchParams.get('memberSection')

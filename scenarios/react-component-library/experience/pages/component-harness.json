@@ -41,7 +41,10 @@
       "required": true,
       "purpose": "Expose the rendered specimen only after the harness story has committed and completed its declared checks.",
       "component": {
-        "local": "preview-harness"
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
       },
       "lifecycle": {
         "kind": "async",

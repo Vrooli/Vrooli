@@ -6,7 +6,7 @@
     "id": "async-panel",
     "title": "Async Panel",
     "purpose": "Present a meaningful region's loading, ready, empty, partial, or error state while preserving the ExperienceSurface lifecycle contract.",
-    "storyRef": "../../library/components/AsyncPanel/versions/1.0.4/story.json"
+    "storyRef": "../../library/components/AsyncPanel/versions/1.0.5/story.json"
   },
   "states": [
     {
@@ -42,14 +42,14 @@
   "claims": [
     {
       "id": "surface-lifecycle-preserved",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every panel state is exposed through the embedded ExperienceSurface lifecycle attributes.",
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     },
     {
       "id": "terminal-status-announced",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading, partial, and error states provide a polite status announcement.",
       "tier": "manual",
       "states": ["loading", "partial", "error"]

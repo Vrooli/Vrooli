@@ -115,6 +115,13 @@ func TestStandingSupervisorFreshBoardWithoutGrantRemainsObservationOnly(t *testi
 			if !cut.Efforts[0].Eligible || cut.Efforts[0].ObservationOnly != (variant != "valid") {
 				t.Fatal("freshness was confused with permission", cut)
 			}
+			wantReadiness := "ready"
+			if variant == "missing" || variant == "expired" {
+				wantReadiness = "mandate-unqualified"
+			}
+			if cut.Efforts[0].Readiness != wantReadiness {
+				t.Fatalf("readiness=%q, want %q", cut.Efforts[0].Readiness, wantReadiness)
+			}
 		})
 	}
 }
@@ -208,8 +215,8 @@ func TestStandingSupervisorAMAssessmentOnlyChangeDoesNotWakeOrSwallowSubjectChan
 	for _, subjectChanged := range []bool{false, true} {
 		t.Run(map[bool]string{false: "assessment-only", true: "subject-changed-during-wake"}[subjectChanged], func(t *testing.T) {
 			f := newSupervisionFixture(t)
-			row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "a", TargetRevision: "target", Revision: 1}, ChangeIdentity: "subject-cut-1", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH}
-			owner := &effortBoardHandlerFake{board: &ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}}}
+			row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "a", TargetRevision: "target", Revision: 1, AuthorizedBy: "owner", PermittedActions: []ampb.WatchActionKind{ampb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE}, AuthorityExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}, ChangeIdentity: "subject-cut-1", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH}
+			owner := &effortBoardHandlerFake{board: &ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, ObservedAt: timestamppb.Now()}}
 			_, handler := amconnect.NewAgentManagerServiceHandler(owner)
 			server := httptest.NewServer(handler)
 			defer server.Close()
@@ -321,27 +328,22 @@ func TestStandingSupervisorStaleTransitionAssessedOnceWithoutSteering(t *testing
 		t.Run(freshness.String(), func(t *testing.T) {
 			f := newSupervisionFixture(t)
 			f.cfg.Supervision.HealthySampleIntervalSeconds, f.cfg.Supervision.MaxHealthySamplesPerWake = 60, 1
-			row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "a", TargetRevision: "target-1"}, Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, ChangeIdentity: "fresh-cut"}
-			f.owner.rows = mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}}).Efforts
+			row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "a", TargetRevision: "target-1", AuthorizedBy: "owner", PermittedActions: []ampb.WatchActionKind{ampb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE}, AuthorityExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}, Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, ChangeIdentity: "fresh-cut"}
+			f.owner.rows = mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, ObservedAt: timestamppb.Now()}).Efforts
 			f.tick(t)
 			f.dispatch(t)
 			f.receipt(t, "quiet")
 			f.agent.getRuns["wake-run-1"].Status = "complete"
 			f.tick(t)
 			row.Freshness, row.ChangeIdentity = freshness, "stale-or-unavailable-cut"
-			f.owner.rows = mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}}).Efforts
+			f.owner.rows = mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, ObservedAt: timestamppb.Now()}).Efforts
 			f.now = f.now.Add(time.Minute)
 			state := f.tick(t)
-			if state.Pending == nil || !state.Pending.Efforts[0].ObservationOnly || !strings.Contains(state.Pending.Efforts[0].Reason, "no steering") {
-				t.Fatal("valid stale identity could not get bounded uncertainty assessment")
-			}
-			f.dispatch(t)
-			f.receipt(t, "unknown")
-			if f.tick(t).Pending != nil {
-				t.Fatal("assessed stale cut woke again")
+			if state.Pending != nil {
+				t.Fatal("stale identity spent a model wake despite observation-only fast path")
 			}
 			f.now = f.now.Add(time.Hour)
-			if f.tick(t).Pending != nil || len(f.agent.createRunCalls) != 2 {
+			if f.tick(t).Pending != nil || len(f.agent.createRunCalls) != 1 {
 				t.Fatal("unchanged unavailable evidence was not coalesced")
 			}
 		})
@@ -365,33 +367,11 @@ func TestStandingSupervisorUnknownTargetAssessmentRequiresExplicitEmptyReceipt(t
 		t.Run(map[bool]string{false: "missing-map-key", true: "exact-empty-target"}[includeTarget], func(t *testing.T) {
 			f := newSupervisionFixture(t)
 			f.owner.rows = mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{{Enrollment: &ampb.EffortEnrollment{EffortRef: "legacy-effort:arbitrary", SourceRevision: "retained-source"}, ChangeIdentity: "external-input-cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_STALE, NextAction: "external-input", Blockers: []string{"owner input pending"}}}}).Efforts
-			wake := f.tick(t).Pending
-			if wake == nil || !wake.Efforts[0].ObservationOnly || wake.Efforts[0].TargetRevision != "" {
-				t.Fatal("unknown accepted target suppressed observation or fabricated revision")
+			if state := f.tick(t); state.Pending != nil || len(f.agent.createRunCalls) != 0 {
+				t.Fatal("unknown target spent a model wake")
 			}
-			f.dispatch(t)
-			prompt := f.agent.createTaskCalls[0].Description
-			var req ampb.RecordEffortAssessmentRequest
-			if err := protojson.Unmarshal([]byte(prompt[strings.LastIndex(prompt, "\n")+1:]), &req); err != nil {
-				t.Fatal(err)
-			}
-			if value, ok := req.Assessment.TargetRevisions["legacy-effort:arbitrary"]; !ok || value != "" {
-				t.Fatal("typed assessment omitted the explicit unknown target")
-			}
-			f.receipt(t, "unknown")
-			if !includeTarget {
-				delete(f.owner.receipts["legacy-effort:arbitrary"].TargetRevisions, "legacy-effort:arbitrary")
-			}
-			f.agent.getRuns["wake-run-1"].Status = "complete"
-			state := f.tick(t)
-			if got := state.Efforts["legacy-effort:arbitrary"].AssessmentID != ""; got != includeTarget {
-				t.Fatal("coverage did not require an explicit exact-empty target receipt")
-			}
-			if includeTarget {
-				f.now = f.now.Add(time.Hour)
-				if f.tick(t).Pending != nil {
-					t.Fatal("unchanged unknown target cut did not coalesce")
-				}
+			if state := f.tick(t); state.Pending != nil || len(f.agent.createRunCalls) != 0 {
+				t.Fatal("unchanged unknown target was not coalesced")
 			}
 		})
 	}

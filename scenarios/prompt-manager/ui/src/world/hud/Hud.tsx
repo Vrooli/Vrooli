@@ -51,7 +51,7 @@ export function WorldHud(props: HudProps) {
   )
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col" data-testid={selectors.world.hud.root}>
+    <div className={`pointer-events-none absolute inset-0 z-20 flex flex-col ${props.twoD ? 'overflow-y-auto' : ''}`} data-testid={selectors.world.hud.root}>
       <div className="flex items-start justify-center px-4 pt-3">
         <SummaryStrip
           summary={view.summary}
@@ -63,12 +63,12 @@ export function WorldHud(props: HudProps) {
         />
       </div>
       {props.twoD && (
-        <div className="pointer-events-auto flex-1 overflow-hidden">
-          <TwoDMode actors={filtered} teams={view.teams} now={view.time} focusedId={props.focusedId} onFocus={props.onFocus} weather={props.weather ?? view.weather} />
+        <div className="pointer-events-auto flex-none">
+          <TwoDMode actors={filtered} totalActors={view.actors.length} filtersActive={Boolean(props.filters.search || props.filters.teamId || props.filters.onlyFailed || props.summaryFilter)} teams={view.teams} places={view.places} bounds={view.bounds} terrain={view.terrain} biomes={view.biomes} biomeSetId={view.biomeSetId} pathMask={view.pathMask} nav={view.nav} waterGeometry={view.waterGeometry} now={view.time} focusedId={props.focusedId} onFocus={props.onFocus} weather={props.weather ?? view.weather} feedMode={props.feed.mode} />
         </div>
       )}
-      <div className="mt-auto flex items-end justify-between gap-3 p-3">
-        <aside className={`pointer-events-auto w-72 rounded-lg border border-border bg-background/85 shadow-sm backdrop-blur ${panelOpen ? '' : 'w-auto'}`}>
+      <div className={`${props.twoD ? 'mt-0 shrink-0' : 'mt-auto'} flex items-end justify-between gap-3 p-3`}>
+        <aside aria-label="World controls" className={`pointer-events-auto w-72 rounded-lg border border-border bg-background/85 shadow-sm backdrop-blur ${panelOpen ? '' : 'w-auto'}`}>
           <div className="flex items-center justify-between px-3 py-1.5">
             <button type="button" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" onClick={() => setPanelOpen((open) => !open)} aria-expanded={panelOpen}>
               Swarm {panelOpen ? '▾' : '▸'}

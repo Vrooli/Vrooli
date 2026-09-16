@@ -1248,6 +1248,42 @@ func (s *FileTeamStore) ReadSharedFile(ctx context.Context, teamID, relPath stri
 	return ReadContent(fullPath)
 }
 
+// ReadSharedFileBytes returns a bounded byte projection for preview/download
+// consumers. It uses the same team/path authority as ReadSharedFile and never
+// follows a path outside the team's configured shared roots.
+func (s *FileTeamStore) ReadSharedFileBytes(ctx context.Context, teamID, relPath string) ([]byte, bool, error) {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.ReadSharedFileBytes(ctx, teamID, relPath)
+	}
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return nil, false, err
+	}
+	fullPath, _, err := s.resolveSharedPath(team, relPath)
+	if err != nil {
+		return nil, false, err
+	}
+	const maxPreviewBytes = 1 << 20
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return nil, false, err
+	}
+	f, err := os.Open(fullPath)
+	if err != nil {
+		return nil, false, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, maxPreviewBytes+1))
+	if err != nil {
+		return nil, false, fmt.Errorf("reading %s: %w", relPath, err)
+	}
+	truncated := len(data) > maxPreviewBytes || info.Size() > maxPreviewBytes
+	if len(data) > maxPreviewBytes {
+		data = data[:maxPreviewBytes]
+	}
+	return data, truncated, nil
+}
+
 // WriteSharedFile overwrites file content within the team's shared folder.
 func (s *FileTeamStore) WriteSharedFile(ctx context.Context, teamID, relPath, content string) error {
 	if scoped := s.forContext(ctx); scoped != s {

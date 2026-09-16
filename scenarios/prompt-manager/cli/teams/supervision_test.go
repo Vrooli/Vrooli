@@ -2,8 +2,26 @@ package teams
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
+
+	"prompt-manager/internal/teamconfig"
 )
+
+func TestHeartbeatSupervisionReadinessReportsCachedOwnerCut(t *testing.T) {
+	ctx := &fakeContext{getResponse: HeartbeatConfig{
+		TeamID: "supervisors", AgentID: "leader", Enabled: true, EffectiveState: "scheduled",
+		Supervision:      &teamconfig.Supervision{},
+		SupervisionState: json.RawMessage(`{"status":"idle","coverage":"complete","wakeAttempts":3,"llmWakesAvoided":7,"efforts":{"a":{"eligible":true,"observationOnly":false,"readiness":"ready"},"b":{"eligible":true,"observationOnly":true,"readiness":"mandate-unqualified","disposition":"owner-wait"}}}`),
+	}}
+	out, err := captureTeamStdout(t, func() error { return cmdHeartbeatSupervisionReadiness(ctx, []string{"supervisors", "leader"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Supervisor readiness: ready") || !strings.Contains(out, "wakes: 3; avoided: 7") {
+		t.Fatalf("unexpected readiness output: %s", out)
+	}
+}
 
 func TestHeartbeatEnableStandingSupervisionPortableConfiguration(t *testing.T) {
 	ctx := &fakeContext{getResponse: HeartbeatConfig{TeamID: "arbitrary-team", AgentID: "leader"}}

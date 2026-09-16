@@ -21,6 +21,9 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  Eye,
+  Code2,
+  AlertCircle,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -29,12 +32,18 @@ import {
   Trash2,
   X,
   MoreHorizontal,
+  Search,
+  Download,
+  ExternalLink,
+  WrapText,
+  Type,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import type { TeamSharedFileEntry } from '@/types/team'
 import type { HighlightRequest } from '@/lib/highlight'
 import type { ContentSearchMatch, EffortWorkspace, EffortWorkspaceFile } from '@/lib/schemas'
@@ -43,6 +52,9 @@ import * as teamService from '@/services/teamService'
 import { SkillContentEditor } from '../SkillContentEditor'
 import { FilePathMenu } from '../FilePathMenu'
 import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
+import { MarkdownRenderer } from '@/components/markdown'
+import { CopyIconButton } from '@vrooli/react-component-library/CopyIconButton/1.0.1'
+import { CollectionPage } from '@vrooli/react-component-library/CollectionPage/1.7.1'
 
 interface TeamFilesTabProps {
   teamId: string
@@ -117,7 +129,52 @@ function isMarkdownFile(path: string): boolean {
   return path.toLowerCase().endsWith('.md')
 }
 
+type TeamFileKind = 'markdown' | 'code' | 'data' | 'html' | 'image' | 'audio' | 'video' | 'pdf' | 'unsupported'
+
+function teamFileKind(path: string): TeamFileKind {
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.md') || lower.endsWith('.mdx')) return 'markdown'
+  if (lower.endsWith('.json') || lower.endsWith('.yaml') || lower.endsWith('.yml') || lower.endsWith('.csv')) return 'data'
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html'
+  if (/\.(ts|tsx|js|jsx|go|py|rs|sh|css|scss|sql|toml|xml|diff|patch)$/.test(lower)) return 'code'
+  if (/\.(png|jpe?g|gif|webp|svg)$/.test(lower)) return 'image'
+  if (/\.(mp3|wav|ogg|m4a)$/.test(lower)) return 'audio'
+  if (/\.(mp4|webm|mov)$/.test(lower)) return 'video'
+  if (lower.endsWith('.pdf')) return 'pdf'
+  return 'unsupported'
+}
+
+function formatFileSize(size?: number): string {
+  if (!Number.isFinite(size)) return 'Size unavailable'
+  if ((size ?? 0) < 1024) return `${size ?? 0} B`
+  if ((size ?? 0) < 1024 * 1024) return `${((size ?? 0) / 1024).toFixed(1)} KB`
+  return `${((size ?? 0) / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function kindLabel(kind: TeamFileKind): string {
+  const labels: Record<TeamFileKind, string> = { markdown: 'Markdown', code: 'Source', data: 'Structured data', html: 'HTML', image: 'Image', audio: 'Audio', video: 'Video', pdf: 'PDF', unsupported: 'Unsupported' }
+  return labels[kind]
+}
+
+function fileMimeType(kind: TeamFileKind, path: string): string {
+  if (kind === 'html') return 'text/html'
+  if (kind === 'markdown') return 'text/markdown'
+  if (kind === 'data' && path.toLowerCase().endsWith('.json')) return 'application/json'
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  if (kind === 'image') return 'image/*'
+  if (kind === 'audio') return 'audio/*'
+  if (kind === 'video') return 'video/*'
+  if (kind === 'pdf') return 'application/pdf'
+  return 'text/plain'
+}
+
+function isDataUrl(content: string): boolean {
+  return /^data:[^,]+,/.test(content.trim())
+}
+
 export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRequest, onHighlightHandled, className }: TeamFilesTabProps) {
+  const isMobile = useIsMobile()
   const {
     width: filesSidebarWidth,
     isResizing: isFilesSidebarResizing,
@@ -140,6 +197,8 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
   const [effortWorkspacesLoading, setEffortWorkspacesLoading] = useState(false)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedEffortFile, setSelectedEffortFile] = useState<{ workspace: EffortWorkspace; file: EffortWorkspaceFile } | null>(null)
+  const [fileFilter, setFileFilter] = useState('')
+  const [mobilePreview, setMobilePreview] = useState(false)
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [fileContent, setFileContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
@@ -163,7 +222,19 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
   const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
   const [highlightScrollToLine, setHighlightScrollToLine] = useState<number | null>(null)
 
-  const tree = useMemo(() => buildFileTree(files), [files])
+  const filteredFiles = useMemo(() => {
+    const query = fileFilter.trim().toLowerCase()
+    if (!query) return files
+    const matchingPaths = new Set<string>()
+    files.forEach((file) => {
+      if (file.path.toLowerCase().includes(query)) {
+        const parts = file.path.split('/').filter(Boolean)
+        parts.forEach((_, index) => matchingPaths.add(parts.slice(0, index + 1).join('/')))
+      }
+    })
+    return files.filter((file) => matchingPaths.has(file.path))
+  }, [fileFilter, files])
+  const tree = useMemo(() => buildFileTree(filteredFiles), [filteredFiles])
   const recommendedMissing = useMemo(
     () =>
       RECOMMENDED_TEAM_FILES.filter(
@@ -179,6 +250,8 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
 
   const isDirectorySelected = selectedEntry?.isDir ?? false
   const isFileEditorActive = Boolean(selectedPath && !isDirectorySelected)
+  const selectedKind = selectedPath ? teamFileKind(selectedPath) : 'unsupported'
+  const selectedNeedsArtifactPreview = ['image', 'audio', 'video', 'pdf', 'unsupported'].includes(selectedKind)
   const isEffortFileSelected = selectedEffortFile !== null
   const isFileDirty = isFileEditorActive && !isEffortFileSelected && fileContent !== originalContent
 
@@ -586,6 +659,16 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
     []
   )
 
+  const selectSharedPath = useCallback((path: string, isDir: boolean) => {
+    handleSelectPath(path, isDir)
+    if (!isDir) setMobilePreview(true)
+  }, [handleSelectPath])
+
+  const selectEffortPath = useCallback((workspace: EffortWorkspace, file: EffortWorkspaceFile) => {
+    handleSelectEffortFile(workspace, file)
+    if (!file.isDir) setMobilePreview(true)
+  }, [handleSelectEffortFile])
+
   const handleRenameSelectedFile = useCallback(
     async (nextFile: string) => {
       if (!selectedPath || isDirectorySelected) return
@@ -677,7 +760,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
       <div key={node.path}>
         <button
           type="button"
-          onClick={() => handleSelectPath(node.path, node.isDir)}
+          onClick={() => selectSharedPath(node.path, node.isDir)}
           onContextMenu={(event) => handleContextMenu(event, node)}
           className={cn(
             'w-full flex items-center gap-2 rounded-md px-2 py-1 text-sm text-left',
@@ -686,18 +769,31 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
           style={{ paddingLeft: 8 + depth * 14 }}
         >
           {icon}
-          <span className="truncate">{node.name}</span>
+          <span className="min-w-0 flex-1 whitespace-normal break-all">{node.name}</span>
         </button>
         {node.isDir && isExpanded && node.children.map((child) => renderNode(child, depth + 1))}
       </div>
     )
   }
 
-  return (
-    <>
-      <div className={cn('flex h-full min-h-0 flex-col', className)}>
-        <div ref={filesContainerRef} className={cn('flex min-h-0 flex-1', isFilesSidebarResizing && 'select-none')}>
-        {isFilesSidebarCollapsed ? (
+  const workspaceHeader = (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Team workspace</p>
+        <p className="break-words text-sm text-muted-foreground">Shared files and linked effort evidence</p>
+      </div>
+      <span className="shrink-0 rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{files.length} shared</span>
+    </div>
+  )
+  const workspaceFilters = (
+    <label className="relative block">
+      <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input value={fileFilter} onChange={(event) => setFileFilter(event.target.value)} placeholder="Filter files and linked evidence" aria-label="Filter team files" className="h-11 pl-9" />
+    </label>
+  )
+  const fileCollection = (
+    <div ref={filesContainerRef} className={cn('min-h-[24rem] min-w-0 overflow-x-hidden', isFilesSidebarResizing && 'select-none')}>
+      {isFilesSidebarCollapsed ? (
           <div className="flex-shrink-0 w-10 border-r border-border flex flex-col items-center py-2">
             <button
               type="button"
@@ -710,7 +806,10 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
           </div>
         ) : (
           <>
-            <div className="flex-shrink-0 border-r border-border flex flex-col min-h-0" style={{ width: filesSidebarWidth }}>
+            <div
+              className={cn('flex-shrink-0 border-r border-border flex min-w-0 flex-col min-h-0 w-full md:w-auto', mobilePreview && 'hidden md:flex')}
+              style={isMobile ? undefined : { width: filesSidebarWidth }}
+            >
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Files</span>
                 <div className="flex items-center gap-1">
@@ -748,6 +847,8 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                   <div className="text-xs text-muted-foreground px-2 py-4">
                     No shared files yet. Create a file to get started.
                   </div>
+                ) : filteredFiles.length === 0 ? (
+                  <div className="px-2 py-4 text-xs text-muted-foreground">No files match “{fileFilter}”.</div>
                 ) : (
                   renderNode(tree)
                 )}
@@ -772,7 +873,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                             key={`${workspace.effortRef}:${file.path}`}
                             type="button"
                             disabled={file.isDir}
-                            onClick={() => handleSelectEffortFile(workspace, file)}
+                            onClick={() => selectEffortPath(workspace, file)}
                             className={cn(
                               'w-full flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground',
                               selectedEffortFile?.workspace.effortRef === workspace.effortRef && selectedEffortFile.file.path === file.path ? 'bg-primary/15 text-primary' : 'hover:bg-muted',
@@ -780,7 +881,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                             )}
                           >
                             {file.isDir ? <Folder className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                            <span className="truncate">{file.path}</span>
+                            <span className="min-w-0 flex-1 whitespace-normal break-all">{file.path}</span>
                           </button>
                         ))}
                       </div>
@@ -793,14 +894,18 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
               role="separator"
               aria-orientation="vertical"
               onMouseDown={handleFilesSidebarResizeStart}
-              className="relative flex-shrink-0 w-3 cursor-col-resize group"
+              className="relative hidden w-3 flex-shrink-0 cursor-col-resize group md:block"
             >
               <div className="absolute left-1 top-0 h-full w-0.5 bg-border group-hover:bg-primary/50 transition-colors" />
             </div>
           </>
         )}
 
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+  </div>
+  )
+  const fileInspector = (
+    <div className={cn('min-h-[24rem] min-w-0 flex min-h-0 flex-col', !mobilePreview && 'md:flex', mobilePreview ? 'flex' : 'hidden md:flex')}>
+          {(mobilePreview || selectedEffortFile || isFileEditorActive) && <div className="flex items-start gap-2 border-b border-border px-3 py-2 md:hidden"><span className="min-w-0 break-words text-xs text-muted-foreground">{selectedEffortFile?.file.path ?? selectedPath ?? 'Preview'}</span></div>}
           {!selectedPath && !selectedEffortFile && (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Select a file to view or edit.
@@ -808,14 +913,16 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
           )}
 
           {selectedEffortFile && (
-            <div className="flex h-full min-h-0 flex-col overflow-auto p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <h4 className="break-all text-sm font-medium">{selectedEffortFile.file.path}</h4>
-                  <p className="text-xs text-muted-foreground">{selectedEffortFile.workspace.slug} · Read only</p>
-                </div>
-              </div>
-              {isFileLoading ? <p className="text-sm text-muted-foreground">Loading file…</p> : <pre className="whitespace-pre-wrap break-words rounded border border-border bg-muted/20 p-3 font-mono text-xs">{fileContent}</pre>}
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
+              {isFileLoading ? <p className="p-4 text-sm text-muted-foreground">Loading file…</p> : (
+                <TeamFileArtifactPreview
+                  path={selectedEffortFile.file.path}
+                  content={fileContent}
+                  size={selectedEffortFile.file.size}
+                  sourceLabel={`${selectedEffortFile.workspace.slug} · linked effort workspace`}
+                  readOnly
+                />
+              )}
             </div>
           )}
 
@@ -831,6 +938,13 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                 <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
                   Loading file...
                 </div>
+              ) : selectedNeedsArtifactPreview ? (
+                <TeamFileArtifactPreview
+                  path={selectedPath}
+                  content={fileContent}
+                  size={selectedEntry?.size}
+                  sourceLabel="team shared files"
+                />
               ) : (
                 <SkillContentEditor
                   value={fileContent}
@@ -851,8 +965,27 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
               )}
             </div>
           )}
-        </div>
-        </div>
+    </div>
+  )
+
+  return (
+    <>
+      <div className={cn('h-full min-h-0 min-w-0 max-w-full overflow-x-hidden', className)}>
+        <CollectionPage
+          state="ready"
+          gutter="none"
+          mobilePane={mobilePreview ? 'inspector' : 'collection'}
+          onMobilePaneChange={(pane) => setMobilePreview(pane === 'inspector')}
+          backLabel="Back to files"
+          detailLabel="Selected file"
+          detailTitle={selectedEffortFile?.file.path ?? selectedPath ?? 'No file selected'}
+          regions={{
+            header: workspaceHeader,
+            filters: workspaceFilters,
+            collection: fileCollection,
+            inspector: fileInspector,
+          }}
+        />
       </div>
 
       {fileDialogOpen && (
@@ -974,6 +1107,154 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
   )
 }
 
+function TeamFileArtifactPreview({
+  path,
+  content,
+  size,
+  sourceLabel,
+  readOnly = false,
+}: {
+  path: string
+  content: string
+  size?: number
+  sourceLabel: string
+  readOnly?: boolean
+}) {
+  const kind = teamFileKind(path)
+  const [mode, setMode] = useState<'rendered' | 'source'>(kind === 'markdown' || kind === 'html' ? 'rendered' : 'source')
+  const [copied, setCopied] = useState(false)
+  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md')
+  const [wrap, setWrap] = useState(true)
+  const previewIdentity = `${kind}:${path}`
+  const previousPreviewIdentity = useRef(previewIdentity)
+  const canDownload = Boolean(content)
+  const canRenderDataMedia = isDataUrl(content)
+  const isTruncated = content.endsWith('#truncated')
+  const previewContent = content.replace(/#truncated$/, '')
+  const textContent = content.replace(/^data:[^,]+,/, '')
+  const sourceClass = fontSize === 'sm' ? 'text-[11px]' : fontSize === 'lg' ? 'text-sm' : 'text-xs'
+  useEffect(() => {
+    if (previousPreviewIdentity.current === previewIdentity) return
+    previousPreviewIdentity.current = previewIdentity
+    setMode(kind === 'markdown' || kind === 'html' ? 'rendered' : 'source')
+    setFontSize('md')
+    setWrap(true)
+  }, [kind, previewIdentity])
+  const createPreviewBlob = async () => {
+    if (isDataUrl(previewContent)) {
+      try {
+        return await (await fetch(previewContent)).blob()
+      } catch {
+        // Keep the escape hatch usable even when the browser refuses a data URL.
+      }
+    }
+    return new Blob([content], { type: fileMimeType(kind, path) })
+  }
+  const download = async () => {
+    if (!canDownload) return
+    const blob = await createPreviewBlob()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = path.split('/').pop() || 'download'
+    anchor.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+  const open = async () => {
+    if (!canDownload) return
+    const blob = await createPreviewBlob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
+  }
+  const lines = content.split('\n')
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col bg-card" data-testid="team-file-artifact-preview" data-preview-mode={mode} aria-label={`${path} preview`}>
+      <header className="shrink-0 border-b border-border bg-gradient-to-r from-primary/10 via-card to-card px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                {kind === 'markdown' ? <FileText className="h-4 w-4" aria-hidden="true" /> : <File className="h-4 w-4" aria-hidden="true" />}
+              </span>
+              <div className="min-w-0">
+                <h4 className="break-all text-sm font-semibold text-foreground">{path}</h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">{kindLabel(kind)} · {formatFileSize(size)} · {sourceLabel}</p>
+                {isTruncated && <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Preview truncated at the transport limit. Open the owning workspace for the complete artifact.</p>}
+              </div>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {(kind === 'markdown' || kind === 'html') && (
+              <div className="flex rounded-lg border border-border bg-muted/30 p-0.5" role="group" aria-label="Preview mode">
+                <button type="button" onClick={() => setMode('rendered')} aria-pressed={mode === 'rendered'} className={cn('inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-medium', mode === 'rendered' && 'bg-background text-primary shadow-sm')}><Eye className="h-3.5 w-3.5" aria-hidden="true" />Rendered</button>
+                <button type="button" onClick={() => setMode('source')} aria-pressed={mode === 'source'} className={cn('inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-medium', mode === 'source' && 'bg-background text-primary shadow-sm')}><Code2 className="h-3.5 w-3.5" aria-hidden="true" />Source</button>
+              </div>
+            )}
+            {['markdown', 'code', 'data', 'html'].includes(kind) && (
+              <>
+                <button type="button" onClick={() => setWrap((value) => !value)} aria-pressed={wrap} className={cn('inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted', wrap && 'bg-muted')}><WrapText className="h-3.5 w-3.5" aria-hidden="true" />Wrap</button>
+                <div className="flex items-center rounded-lg border border-border" role="group" aria-label="Preview text size">
+                  <Type className="mx-1.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  {(['sm', 'md', 'lg'] as const).map((size) => <button key={size} type="button" onClick={() => setFontSize(size)} aria-pressed={fontSize === size} className={cn('min-h-8 px-1.5 text-xs font-medium hover:bg-muted', fontSize === size && 'bg-muted text-primary')}>{size === 'sm' ? 'A−' : size === 'lg' ? 'A+' : 'A'}</button>)}
+                </div>
+              </>
+            )}
+            {canDownload && <>
+              <button type="button" onClick={download} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted"><Download className="h-3.5 w-3.5" aria-hidden="true" />Download</button>
+              <button type="button" onClick={open} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />Open</button>
+            </>}
+            <span className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-1 text-xs font-medium hover:bg-muted">
+              <CopyIconButton value={path} aria-label="Copy file path" title={copied ? 'Path copied' : 'Copy file path'} copiedLabel="Path copied" failedLabel="Copy failed" onCopied={() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600) }} className="h-7 w-7" />
+              <span aria-hidden="true" className="pr-1">{copied ? 'Copied' : 'Copy path'}</span>
+            </span>
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">{readOnly ? 'Read only' : 'Editable'}</span>
+          </div>
+        </div>
+      </header>
+
+      {kind === 'markdown' && mode === 'rendered' ? (
+        <div className="min-h-0 flex-1 overflow-auto px-5 py-5">
+          {content.trim() ? <MarkdownRenderer content={content} /> : <EmptyTeamFileState label="This Markdown file is empty." />}
+        </div>
+      ) : kind === 'html' && mode === 'rendered' ? (
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>HTML is isolated in a sandboxed preview. Scripts, forms, and same-origin access are disabled.</span>
+          </div>
+          {content.trim() ? <iframe title={`${path} rendered preview`} sandbox="" srcDoc={content} className="min-h-[28rem] w-full rounded-2xl border border-border bg-white" /> : <EmptyTeamFileState label="This HTML file is empty." />}
+        </div>
+      ) : kind === 'html' ? (
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <TeamFileSource content={content} className={sourceClass} wrap={wrap} />
+        </div>
+      ) : ['image', 'audio', 'video', 'pdf', 'unsupported'].includes(kind) ? (
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          {canRenderDataMedia && kind === 'image' ? <div className="flex min-h-48 items-center justify-center rounded-2xl border border-border bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0] p-6"><img src={previewContent} alt={path} className="max-h-[min(70vh,48rem)] max-w-full rounded-xl object-contain" /></div> : canRenderDataMedia && kind === 'audio' ? <audio controls src={previewContent} className="w-full" /> : canRenderDataMedia && kind === 'video' ? <video controls src={previewContent} className="max-h-[70vh] w-full rounded-xl" /> : canRenderDataMedia && kind === 'pdf' ? <iframe title={`${path} PDF preview`} src={previewContent} className="min-h-[36rem] w-full rounded-xl border border-border" /> : <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center"><AlertCircle className="mb-3 h-6 w-6 text-muted-foreground" aria-hidden="true" /><h5 className="text-sm font-semibold text-foreground">Preview unavailable from this transport</h5><p className="mt-1 max-w-md text-sm text-muted-foreground">{kindLabel(kind)} files are identified honestly, but this bounded Prompt Manager read did not provide safe bytes for an in-shell preview.</p><p className="mt-3 text-xs text-muted-foreground">Use Download or Open when content is available, or the owning workspace's permitted action.</p></div>}
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          {content ? <TeamFileSource content={textContent} lines={lines} className={sourceClass} wrap={wrap} /> : <EmptyTeamFileState label="This file is empty." />}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function TeamFileSource({ content, lines = content.split('\n'), className = 'text-xs', wrap = false }: { content: string; lines?: string[]; className?: string; wrap?: boolean }) {
+  return (
+    <pre className={cn('overflow-auto rounded-2xl border border-border bg-slate-950 p-4 leading-6 text-slate-100 shadow-inner', className, wrap && 'whitespace-pre-wrap break-words')} data-testid="team-file-source">
+      {lines.map((line, index) => <span key={index} className="block"><span className="mr-4 inline-block w-8 select-none text-right text-slate-500">{index + 1}</span>{line || ' '}</span>)}
+    </pre>
+  )
+}
+
+function EmptyTeamFileState({ label }: { label: string }) {
+  return <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">{label}</div>
+}
+
 interface TeamFileContextMenuProps {
   x: number
   y: number
@@ -1059,7 +1340,7 @@ function TeamFileContextMenu({
       )}
       style={{ left: x, top: y }}
     >
-      <div className="px-2 pt-2 pb-1 text-xs text-muted-foreground truncate">
+      <div className="break-words px-2 pt-2 pb-1 text-xs text-muted-foreground">
         {displayName}
       </div>
       <div className="p-1">

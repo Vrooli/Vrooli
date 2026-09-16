@@ -18,7 +18,7 @@
   "effortRefs": [
     "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -56,9 +56,9 @@
           }
         ],
         "safetyCriticalRules": [
-            "This team is enabled only after operator activation of its exact effort revision. Once enabled, execute all unfinished work inside that accepted destination automatically; do not request a second approval for ordinary in-boundary docs, plans, code, UX, validation, or owner handoffs.",
-            "Request a new approval only for scope expansion, a changed destination or revision, new credentials or dependencies, or effects outside the accepted effort boundary.",
-            "This is an autonomous delivery team: do not create Swarm Manager backlog items, open Plan Workshops, or wait for human plan acceptance. Spawn and manage bounded child runs through Agent Manager; use Plan Manager directly only when the selected work shape requires a plan.",
+          "This team is enabled only after operator activation of its exact effort revision. Once enabled, execute all unfinished work inside that accepted destination automatically; do not request a second approval for ordinary in-boundary docs, plans, code, UX, validation, or owner handoffs.",
+          "Request a new approval only for scope expansion, a changed destination or revision, new credentials or dependencies, or effects outside the accepted effort boundary.",
+          "This is an autonomous delivery team: do not create Swarm Manager backlog items, open Plan Workshops, or wait for human plan acceptance. Spawn and manage bounded child runs through Agent Manager; use Plan Manager directly only when the selected work shape requires a plan.",
           "Retain exact effort, team, task, run, revision, source, and evidence references.",
           "Do not invent continuation or replace uncertain dispatch identity."
         ],
@@ -70,10 +70,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 12,
+  "revision": 13,
   "runtime": {
     "mode": "single-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T21:30:50Z"
+  "updatedAt": "2026-09-16T02:49:04Z"
 }

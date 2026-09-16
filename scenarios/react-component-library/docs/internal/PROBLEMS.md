@@ -385,3 +385,57 @@ Closed with focused and live evidence in the make-the-library-observable plan:
 Enforcing checks are linked in [TESTING.md](TESTING.md#behavior-claim-register). Before/after captures, command outputs and exact subject run identities are retained under `<runtime-home>/plan-artifacts/react-component-library-make-the-library-observable/`.
 
 Remaining: a cold live Coverage report exceeded the bounded request, so the page truthfully shows Retry coverage; fixture-driven healthy rendering passes. Existing CollectionKeyboard/CollectionList test indexing errors prevent a clean whole-UI typecheck. The broader experience-owner validation still has historical contract/specimen findings, and Go-generated preview harness source is outside the TSX binding resolver. Capture bounds and current-major resolution are explicit limits, not full-page or historical-build certification. Source binding coverage alone does not establish visual quality; the successor design plan must re-anchor its baseline.
+
+## 2026-09-16 — Experience-contract drift found during UX campaign continuation
+
+Fresh `experience-manager spec validate react-component-library` evidence found
+stale story refs after governed releases, retired `custom` claim types, missing
+component state examples, and broader historical capture/binding/floor debt. The
+campaign repaired the exact affected version refs and added the `brief-to-adoption`
+journey contract, but does not claim scenario-wide experience certification. The
+remaining validator findings are now explicit W2 evidence debt rather than hidden
+behind passing page captures.
+
+The completed validation reported 571 findings (495 errors, 76 warnings). The
+experience-manager scaffold now provides observer BAS cases for the seven active
+pages that lacked them; execution and the broader historical contract repair remain
+outstanding.
+
+At the time of this historical entry, the comprehensive Test Genie run
+`20260916-143427-cebbb319` was server-owned and active; its later terminal result
+is recorded below.
+
+## 2026-09-16 — Fresh experience validation remains red
+
+The post-repair `experience-manager spec validate react-component-library --json`
+run completed with `FAILED`: 610 findings (514 errors, 96 warnings). The dominant
+classes are 399 unjoined accessibility-capture bindings, 17 unresolved references,
+31 horizontal-overflow floor failures, 37 failed machine claims, and six unresolved
+bindings. The highest capability remains `structure_reconciliation` at L0.
+
+This is broader historical experience-contract debt, but it is still authoritative
+scenario evidence. Generated observer BAS cases are scaffolds only; they do not
+constitute executed receipts. Active campaign pages and components must be repaired
+or explicitly separated from historical debt before the RCL experience contract can
+be described as healthy.
+
+The subsequent post-metadata validation completed as a fresh report with `FAILED`
+status: 588 findings (231 errors, 66 warnings, 291 informational
+capture-unavailable findings). Stale reference errors fell from 17 to 8. Required
+debt remains in capture joins, overflow/tap-target floors, failed claims, vacuous
+portable contracts, and pinned-chrome checks; the experience contract is improved
+but not clean.
+
+The post-restart validation then completed `FAILED` with 582 findings (486 errors,
+96 warnings). Its active DesignPage report no longer includes the Verify or filter
+tap-target failures; a final workflow-label target repair was applied afterward.
+RCL was rebuilt and restarted through managed lifecycle at 11:32:30 EDT with zero
+failed dependencies. The 582 receipt predates that last label adjustment; it is
+the latest complete contract result, not a green acceptance result.
+
+The comprehensive Test Genie run `20260916-143427-cebbb319` has since terminalized
+`FAIL`. Its component-tests phase hit a validation RPC deadline while the scheduler
+reported swap pressure; the experience phase recorded 609 findings (513 errors, 96
+warnings) from its pre-repair snapshot. This receipt is retained as terminal
+evidence, but it is not interpreted as a product assertion failure or a completion
+gate. A scoped rerun is required after the current metadata and mobile-shell repairs.

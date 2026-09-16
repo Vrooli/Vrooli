@@ -17,7 +17,7 @@
   "states": [
     {
       "id": "recording",
-      "example": "start-recording",
+      "example": "recording",
       "description": "Fixture enters recording."
     }
   ],

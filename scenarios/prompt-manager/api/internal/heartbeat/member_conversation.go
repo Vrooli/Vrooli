@@ -89,8 +89,10 @@ func (h *Handlers) createMemberConversation(w http.ResponseWriter, r *http.Reque
 			fail(http.StatusInternalServerError, err)
 			return
 		}
-		task = &Task{ID: taskID, Title: title, ScopePath: h.executor.vrooliRoot, ProjectRoot: h.executor.vrooliRoot,
-			Description: context + fmt.Sprintf("\n\nYou are %s (agent %s). The operator has started a conversation with you. Respond directly to their message, using your reference context. Do not execute an automatic heartbeat task.\n\nOperator message:\n%s", agent.DisplayName, req.AgentID, req.Message)}
+		task = &Task{
+			ID: taskID, Title: title, ScopePath: h.executor.vrooliRoot, ProjectRoot: h.executor.vrooliRoot,
+			Description: context + fmt.Sprintf("\n\nYou are %s (agent %s). The operator has started a conversation with you. Respond directly to their message, using your reference context. Do not execute an automatic heartbeat task.\n\nOperator message:\n%s", agent.DisplayName, req.AgentID, req.Message),
+		}
 		if _, err := h.agentClient.CreateTask(ctx, task); err != nil {
 			// A timeout or racing retry can follow a successful task write.
 			existing, readErr := h.agentClient.GetTask(ctx, taskID)

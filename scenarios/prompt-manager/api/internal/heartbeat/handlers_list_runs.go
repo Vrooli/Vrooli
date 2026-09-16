@@ -113,7 +113,8 @@ func (h *Handlers) listTeamRunAccounting(w http.ResponseWriter, r *http.Request)
 		limit = value
 	}
 	const declarationLimit = 500
-	out := teamRunAccounting{TeamID: teamID, AgentID: agentID, WindowStart: start, WindowEnd: end, ObservedAt: time.Now().UTC(),
+	out := teamRunAccounting{
+		TeamID: teamID, AgentID: agentID, WindowStart: start, WindowEnd: end, ObservedAt: time.Now().UTC(),
 		ActualModels: map[string]int{}, RuntimeStates: map[string]int{}, TerminalReasons: map[string]int{},
 		Usage: teamRunUsage{Partial: true}, Runs: []teamRunObservation{},
 		Coverage: teamRunCoverage{Partial: true, DeclarationLimit: declarationLimit, OwnerReadLimit: limit, Limitations: []string{

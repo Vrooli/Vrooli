@@ -66,7 +66,7 @@
       "component": {
         "library": {
           "component": "experience-surface",
-          "version": "1.0.2"
+          "version": "1.0.3"
         }
       },
       "lifecycle": {

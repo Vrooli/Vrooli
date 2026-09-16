@@ -33,6 +33,8 @@ export interface ActorView {
   /** Higher renders first when labels collide: focused > failed > working > gathered > idle. */
   labelPriority: number
   seated: boolean
+  /** Current X/Z position, exposed so the 2D operational view mirrors the world projection. */
+  position: readonly [x: number, z: number]
 }
 
 export interface TeamView {
@@ -53,6 +55,12 @@ export interface WorldView {
   places: Place[]
   events: WorldEvent[]
   bounds: WorldState['bounds']
+  terrain: WorldState['terrain']
+  biomes: WorldState['biomes']
+  biomeSetId: WorldState['biomeSetId']
+  pathMask: WorldState['pathMask']
+  nav: WorldState['nav']
+  waterGeometry: WorldState['waterGeometry']
   weather: WorldState['weather']
 }
 
@@ -126,6 +134,7 @@ export function buildView(state: WorldState, actor: Pick<ActorTuning, 'equipment
       message: a.message,
       labelPriority: PRIORITY[a.state],
       seated: a.anim.seated,
+      position: a.position,
     })
     if (a.teamId) {
       const team = teamMap.get(a.teamId)
@@ -150,6 +159,12 @@ export function buildView(state: WorldState, actor: Pick<ActorTuning, 'equipment
     places: state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p !== undefined),
     events: [...state.events].reverse(),
     bounds: state.bounds,
+    terrain: state.terrain,
+    biomes: state.biomes,
+    biomeSetId: state.biomeSetId,
+    pathMask: state.pathMask,
+    nav: state.nav,
+    waterGeometry: state.waterGeometry,
     weather: state.weather,
   }
 }

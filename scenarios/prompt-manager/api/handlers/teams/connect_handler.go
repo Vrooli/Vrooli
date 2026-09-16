@@ -2,10 +2,13 @@ package teams
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -77,7 +80,26 @@ func (h *connectHandler) GetEffortWorkspaceContent(ctx context.Context, req *con
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&teamsv1.EffortWorkspaceContent{EffortRef: result.EffortRef, Path: result.Path, Content: result.Content}), nil
+	contentType := mime.TypeByExtension(filepath.Ext(result.Path))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	content := result.Content
+	var contentBytes []byte
+	if domain.IsBinaryPreviewType(contentType) {
+		content = ""
+		contentBytes = result.ContentBytes
+	}
+	previewDataURL := ""
+	if len(contentBytes) > 0 {
+		previewDataURL = "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(contentBytes)
+	}
+	return connect.NewResponse(&teamsv1.EffortWorkspaceContent{
+		EffortRef: result.EffortRef, Path: result.Path, Content: content,
+		ContentBytes: contentBytes, ContentType: contentType,
+		ContentTruncated: result.ContentTruncated,
+		PreviewDataUrl:   previewDataURL,
+	}), nil
 }
 
 func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[teamsv1.ListTeamsRequest]) (*connect.Response[teamsv1.ListTeamsResponse], error) {
@@ -301,7 +323,19 @@ func (h *connectHandler) GetSharedFile(ctx context.Context, req *connect.Request
 		}
 		return nil, connect.NewError(code, err)
 	}
-	return connect.NewResponse(&teamsv1.SharedFileContent{TeamId: result.TeamID, Path: result.Path, Content: result.Content}), nil
+	return connect.NewResponse(&teamsv1.SharedFileContent{
+		TeamId: result.TeamID, Path: result.Path, Content: result.Content,
+		ContentBytes: result.ContentBytes, ContentType: result.ContentType,
+		ContentTruncated: result.ContentTruncated,
+		PreviewDataUrl:   previewDataURL(result.ContentType, result.ContentBytes),
+	}), nil
+}
+
+func previewDataURL(contentType string, content []byte) string {
+	if len(content) == 0 {
+		return ""
+	}
+	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(content)
 }
 
 func (h *connectHandler) SetSharedFile(ctx context.Context, req *connect.Request[teamsv1.SetSharedFileRequest]) (*connect.Response[teamsv1.SharedFileContent], error) {

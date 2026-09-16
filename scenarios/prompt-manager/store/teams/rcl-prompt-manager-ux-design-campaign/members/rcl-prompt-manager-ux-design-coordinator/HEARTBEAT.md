@@ -1,5 +1,37 @@
 # Finite delivery wake
 
+## Task Loop
+
+Treat each wake as a bounded delivery/recovery pass against the accepted effort
+workspace, never as a status-only heartbeat. Preserve the exact effort, team,
+task, run, revision, owner, and evidence identities. Read the owner projection
+and current campaign workspace before selecting work. Select the highest
+unfinished action whose acceptance evidence is still missing; do not report
+`no-action` while product requirements or readiness gates remain open.
+
+For a selected action, state the exact surface, allowed paths, acceptance
+evidence, and handoff before dispatch. Reuse an active task/run when its identity
+is authoritative; do not invent a replacement after an uncertain dispatch. Keep
+the team disabled unless operator activation is present. A disabled team may
+write durable knowledge and handoffs, but it must not imply execution or claim
+that the campaign is complete.
+
+Reconcile implementation evidence with the campaign ledger. Focused tests,
+builds, and screenshots support a claim but do not replace the required visual,
+behavioral, owner, and completion gates. Record unavailable or contradictory
+evidence explicitly and retain the exact reopening condition.
+
+## Run Decision
+
+Record one typed disposition for the wake in the owner system and Source Ledger:
+`existing-action-reference` when an authoritative action is active,
+`new-action-candidate` only when no existing action covers the selected gap,
+`blocked` only for a missing authority/capability that cannot be repaired in
+scope, or `complete` only after the revision-checked completion receipt exists.
+The handoff must include changed, verified, remaining, unverified, exact next
+action, task/run/plan references, and evidence references. Do not turn a paused
+team, a passing focused test, or a startup heartbeat into a completion claim.
+
 This effort is enabled and incomplete. Treat this wake as an advance/recovery pass, not a status-only review.
 
 1. Read the owner projection first:

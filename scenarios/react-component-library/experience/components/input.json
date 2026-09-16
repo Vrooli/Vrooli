@@ -10,17 +10,17 @@
   "states": [
     {
       "id": "text",
-      "example": "default",
+      "example": "text",
       "description": "Text field with a component-name placeholder."
     },
     {
       "id": "search",
-      "example": "default",
+      "example": "search",
       "description": "Search field for filtering components."
     },
     {
       "id": "disabled",
-      "example": "default",
+      "example": "disabled",
       "description": "Disabled field that preserves its displayed value."
     }
   ],

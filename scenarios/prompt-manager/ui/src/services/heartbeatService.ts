@@ -1023,6 +1023,7 @@ export async function listRuns(opts?: {
   status?: string
   tagPrefix?: string
   profileKey?: string
+  agentId?: string
   taskId?: string
   investigatesRunId?: string
   appliesInvestigationRunId?: string
@@ -1033,6 +1034,7 @@ export async function listRuns(opts?: {
   if (opts?.status) params.set('status', opts.status)
   if (opts?.tagPrefix) params.set('tag_prefix', opts.tagPrefix)
   if (opts?.profileKey) params.set('profile_key', opts.profileKey)
+  if (opts?.agentId) params.set('agent_id', opts.agentId)
   if (opts?.taskId) params.set('task_id', opts.taskId)
   if (opts?.investigatesRunId) params.set('investigates_run_id', opts.investigatesRunId)
   if (opts?.appliesInvestigationRunId) params.set('applies_investigation_run_id', opts.appliesInvestigationRunId)

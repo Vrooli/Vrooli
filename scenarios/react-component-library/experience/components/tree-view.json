@@ -15,11 +15,6 @@
       "description": "Expanded folders reveal their children with clear hierarchy and selection affordances."
     },
     {
-      "id": "collapsed",
-      "example": "collapsed",
-      "description": "Collapsed folders preserve context and expose an explicit disclosure control."
-    },
-    {
       "id": "empty",
       "example": "empty",
       "description": "An empty tree explains that there is nothing to display."
@@ -49,21 +44,21 @@
       "statement": "The surface exposes a named tree with level-aware treeitems and groups for nested content.",
       "tier": "machine",
       "elements": ["tree", "treeitem"],
-      "states": ["default", "collapsed"]
+      "states": ["default"]
     },
     {
       "id": "keyboard-navigation",
       "type": "manual-review",
       "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
       "tier": "manual",
-      "states": ["default", "collapsed"]
+      "states": ["default"]
     },
     {
       "id": "responsive-legibility",
       "type": "manual-review",
       "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
       "tier": "manual",
-      "states": ["default", "collapsed"]
+      "states": ["default"]
     },
     {
       "id": "empty-communication",

@@ -86,6 +86,7 @@ export function ApplicationShell({ children }: Props) {
   const header = isComponentDetail ? undefined : (
     <WorkspaceHeader
       as="div"
+      className="min-w-0 flex-1"
       title={pageTitle}
       description={pageDescription}
       leading={

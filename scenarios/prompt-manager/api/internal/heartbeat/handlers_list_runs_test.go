@@ -25,9 +25,12 @@ func TestTeamRunAccountingJoinsRecordedIDsAndDeduplicatesResumes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, row := range []struct{ team, member, run string }{
-		{"team-a", "lead", "resumed"}, {"team-a", "lead", "resumed"},
-		{"team-a", "worker", "imported"}, {"team-a", "worker", "missing"},
-		{"team-b", "lead", "foreign"}, {"team-a", "lead", ""},
+		{"team-a", "lead", "resumed"},
+		{"team-a", "lead", "resumed"},
+		{"team-a", "worker", "imported"},
+		{"team-a", "worker", "missing"},
+		{"team-b", "lead", "foreign"},
+		{"team-a", "lead", ""},
 	} {
 		if err := teams.AppendHeartbeatAttempt(ctx, row.team, &store.HeartbeatAttempt{
 			ID: time.Unix(int64(i), 0).String(), TeamID: row.team, AgentID: row.member, RunID: row.run,
@@ -39,11 +42,15 @@ func TestTeamRunAccountingJoinsRecordedIDsAndDeduplicatesResumes(t *testing.T) {
 	h.runRegistry = NewRunRegistry(t.TempDir())
 	h.runRegistry.Register("team-a", "lead", "resumed", time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC), nil)
 	owner := map[string]*ampb.Run{
-		"resumed": {Id: "resumed", Status: ampb.RunStatus_RUN_STATUS_COMPLETE, HarnessKind: "codex", SessionId: "session",
+		"resumed": {
+			Id: "resumed", Status: ampb.RunStatus_RUN_STATUS_COMPLETE, HarnessKind: "codex", SessionId: "session",
 			RequestedModel: "requested", ActualModel: "actual", TerminalClass: "verdict", StopReason: "blocked",
-			Summary: &ampb.RunSummary{TokensUsed: 120}},
-		"imported": {Id: "imported", Status: ampb.RunStatus_RUN_STATUS_COMPLETE, ImportSourceHarness: "codex", ImportSourceSessionId: "session",
-			ActualModel: "actual", TerminalClass: "verdict", StopReason: "blocked", Summary: &ampb.RunSummary{TokensUsed: 120}},
+			Summary: &ampb.RunSummary{TokensUsed: 120},
+		},
+		"imported": {
+			Id: "imported", Status: ampb.RunStatus_RUN_STATUS_COMPLETE, ImportSourceHarness: "codex", ImportSourceSessionId: "session",
+			ActualModel: "actual", TerminalClass: "verdict", StopReason: "blocked", Summary: &ampb.RunSummary{TokensUsed: 120},
+		},
 	}
 	reads := make(chan string, 10)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -145,8 +152,10 @@ func TestTeamRunAccountingBoundsOwnerReadsAndKeepsMissingIdentity(t *testing.T) 
 		t.Fatal(err)
 	}
 	for i := 0; i < 4; i++ {
-		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{ID: fmt.Sprint(i), TeamID: "team", AgentID: "lead",
-			RunID: fmt.Sprintf("run-%d", i), StartedAt: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)}); err != nil {
+		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{
+			ID: fmt.Sprint(i), TeamID: "team", AgentID: "lead",
+			RunID: fmt.Sprintf("run-%d", i), StartedAt: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339),
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -173,12 +182,17 @@ func TestTeamRunAccountingWindowMemberAndMissingMetricCoverage(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, row := range []struct{ member, id, started string }{
-		{"lead", "wanted", "2026-09-12T10:00:00Z"}, {"worker", "wrong-member", "2026-09-12T10:00:00Z"},
-		{"lead", "old", "2026-09-11T10:00:00Z"}, {"lead", "upper-bound", "2026-09-13T00:00:00Z"},
-		{"lead", "invalid-time", "missing"}, {"lead", "", "2026-09-12T10:00:00Z"},
+		{"lead", "wanted", "2026-09-12T10:00:00Z"},
+		{"worker", "wrong-member", "2026-09-12T10:00:00Z"},
+		{"lead", "old", "2026-09-11T10:00:00Z"},
+		{"lead", "upper-bound", "2026-09-13T00:00:00Z"},
+		{"lead", "invalid-time", "missing"},
+		{"lead", "", "2026-09-12T10:00:00Z"},
 	} {
-		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{ID: fmt.Sprint(i), TeamID: "team", AgentID: row.member,
-			RunID: row.id, StartedAt: row.started}); err != nil {
+		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{
+			ID: fmt.Sprint(i), TeamID: "team", AgentID: row.member,
+			RunID: row.id, StartedAt: row.started,
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -206,8 +220,10 @@ func TestTeamRunAccountingDoesNotMergeDifferentOrUnknownRunners(t *testing.T) {
 	client := newMockAgentClient()
 	for i, harness := range []string{"codex", "claude-code", "", ""} {
 		id := fmt.Sprintf("run-%d", i)
-		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{ID: id, TeamID: "team", AgentID: "lead", RunID: id,
-			StartedAt: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)}); err != nil {
+		if err := teams.AppendHeartbeatAttempt(ctx, "team", &store.HeartbeatAttempt{
+			ID: id, TeamID: "team", AgentID: "lead", RunID: id,
+			StartedAt: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339),
+		}); err != nil {
 			t.Fatal(err)
 		}
 		client.WithGetRunResponse(id, &Run{ID: id, HarnessKind: harness, SessionID: "same-session-text", Status: "RUN_STATUS_RUNNING"})
@@ -250,9 +266,11 @@ func TestListRunsPreservesOwnerAccountingEvidence(t *testing.T) {
 		RequestedModel: "requested", ActualModel: "actual", HarnessKind: "codex",
 		SessionId: "resumed-session", ImportSourceHarness: "codex", ImportSourceSessionId: "resumed-session",
 		TerminalClass: "verdict", StopReason: "blocked",
-		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort-a", Relationship: "supervisor",
+		WorkReferences: []*eventpb.WorkReference{{
+			Kind: "effort", Id: "effort-a", Relationship: "supervisor",
 			Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
-			State:      eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE, Verified: true}},
+			State:      eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE, Verified: true,
+		}},
 		Summary: &ampb.RunSummary{TokensUsed: 123, CostEstimate: 0.2},
 	}, {Id: "missing-metrics", Status: ampb.RunStatus_RUN_STATUS_RUNNING}}, Total: 2, HasMore: true}
 	wire, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(owner)
@@ -354,5 +372,28 @@ func TestListRuns_ProfileKeyResolutionFailureReturnsBadGateway(t *testing.T) {
 
 	if w.Code != http.StatusBadGateway {
 		t.Fatalf("expected 502, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListRuns_ForwardsAgentIDAsOwnerProfileID(t *testing.T) {
+	mockClient := newMockAgentClient().WithListRunsResponse(&ListRunsResponse{
+		Runs: []*Run{{ID: "agent-run", Status: "RUN_STATUS_COMPLETE"}}, Total: 1,
+	})
+	handlers := NewHandlers(HandlersDeps{AgentClient: mockClient})
+
+	req := httptest.NewRequest(http.MethodGet, "/runs?agent_id=agent-profile-1&limit=10", nil)
+	w := httptest.NewRecorder()
+	handlers.ListRuns(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	mockClient.mu.Lock()
+	defer mockClient.mu.Unlock()
+	if len(mockClient.listRunsCalls) != 1 {
+		t.Fatalf("expected one owner list call, got %d", len(mockClient.listRunsCalls))
+	}
+	if got := mockClient.listRunsCalls[0].AgentProfileID; got != "agent-profile-1" {
+		t.Fatalf("expected exact agent profile ID, got %q", got)
 	}
 }

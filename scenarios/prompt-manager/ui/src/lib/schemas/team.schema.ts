@@ -264,14 +264,22 @@ export type EffortWorkspaceListResponse = z.infer<typeof EffortWorkspaceListResp
 export const EffortWorkspaceContentResponseSchema = z.object({
   effortRef: z.string(),
   path: z.string(),
-  content: z.string(),
+  content: z.string().default(''),
+  contentBytes: z.string().optional(),
+  contentType: z.string().optional(),
+  contentTruncated: z.boolean().optional(),
+  previewDataUrl: z.string().optional(),
 })
 export type EffortWorkspaceContentResponse = z.infer<typeof EffortWorkspaceContentResponseSchema>
 
 export const TeamSharedFileContentResponseSchema = z.object({
   teamId: z.string(),
   path: z.string(),
-  content: z.string(),
+  content: z.string().default(''),
+  contentBytes: z.string().optional(),
+  contentType: z.string().optional(),
+  contentTruncated: z.boolean().optional(),
+  previewDataUrl: z.string().optional(),
 })
 export type TeamSharedFileContentResponse = z.infer<typeof TeamSharedFileContentResponseSchema>
 

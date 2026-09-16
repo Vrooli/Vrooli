@@ -6,12 +6,12 @@
     "id": "icon-button",
     "title": "IconButton",
     "purpose": "Provide an icon-only action with an explicit accessible name and the shared control size contract.",
-    "storyRef": "../../library/components/IconButton/versions/3.1.4/story.json"
+    "storyRef": "../../library/components/IconButton/versions/3.1.6/story.json"
   },
   "states": [
     {
       "id": "default",
-      "example": "variant-primary",
+      "example": "default",
       "description": "Named icon-only action."
     }
   ],

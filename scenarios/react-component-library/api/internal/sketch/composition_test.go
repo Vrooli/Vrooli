@@ -36,6 +36,21 @@ func TestPrepareRenderCannotSilentlyOmitDeclaredRegions(t *testing.T) {
 		t.Fatal("missing semantic region was omitted", err)
 	}
 }
+
+func TestPrepareRenderTreatsOccupiedTemplatePlaceholdersAsSlots(t *testing.T) {
+	s := Snapshot{
+		ContentHash:     "occupied-slot-revision",
+		DeclaredRegions: []Region{{ID: "thread-list-region", Note: "Authored list"}},
+		Document: Document{
+			Template: &AssetRef{Asset: "templates.collection-page", Version: "1.7.1"},
+			Regions:  []Region{{ID: "collection", Origin: "template"}, {ID: "thread-list-region", Note: "Authored list"}},
+			Render:   &RenderSettings{TemplateExport: "CollectionPage", Regions: []RenderRegion{{ID: "thread-list-region", TemplateRegion: "collection", Slot: []string{"regions", "collection"}}}, Bindings: map[string]any{"$template": map[string]any{}}},
+		},
+	}
+	if _, err := PrepareRender(s, "Missing", "Failed"); err != nil {
+		t.Fatalf("occupied template placeholder was treated as an unmapped semantic region: %v", err)
+	}
+}
 func TestPrepareRenderRetainsEmptyRegionsAndMissingFixtures(t *testing.T) {
 	s := renderSnapshot()
 	s.Document.Placements = nil

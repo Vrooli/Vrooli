@@ -23,7 +23,7 @@
         "error-inspector"
       ],
       "tier": "manual",
-      "type": "custom"
+      "type": "manual-review"
     },
     {
       "elements": ["canvas", "toolbar"],
@@ -31,7 +31,7 @@
       "statement": "The inspector moves below the canvas on narrow widths while preserving the content order.",
       "states": ["ready-inspector"],
       "tier": "manual",
-      "type": "custom"
+      "type": "manual-review"
     }
   ],
   "component": {

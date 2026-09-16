@@ -15,7 +15,7 @@
   },
   "createdAt": "2026-09-12T00:00:00Z",
   "displayName": "Effort Supervision",
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -110,7 +110,7 @@
     }
   },
   "purpose": "supervision",
-  "revision": 6,
+  "revision": 7,
   "runtime": {
     "mode": "multi-process"
   },
@@ -119,5 +119,5 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "updatedAt": "2026-09-14T21:30:49Z"
+  "updatedAt": "2026-09-16T02:49:18Z"
 }

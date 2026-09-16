@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +73,8 @@ func newSupervisionFixture(t *testing.T) *supervisionFixture {
 	f.agent.listRunsResp = &ListRunsResponse{}
 	f.cfg = &store.HeartbeatConfig{Enabled: true, ProfileKey: "qualified-role-profile", Supervision: &teamconfig.Supervision{DiscoveryLimit: 100, MaxEffortsPerWake: 1, MinWakeIntervalSeconds: 60}}
 	f.cfg.Supervision.DiagnosticAllowance = teamconfig.DiagnosticAllowance{MaxWakesPerWindow: 10, WindowSeconds: 3600, AccountingRef: "test:standing-supervision"}
-	f.s = &StandingSupervisor{Owner: f.owner, State: FileSupervisionStateStore{Root: t.TempDir()}, Queue: f.queue, Agent: f.agent, Root: t.TempDir(), Now: func() time.Time { return f.now },
+	f.s = &StandingSupervisor{
+		Owner: f.owner, State: FileSupervisionStateStore{Root: t.TempDir()}, Queue: f.queue, Agent: f.agent, Root: t.TempDir(), Now: func() time.Time { return f.now },
 		Config: func(context.Context, string, string) (*store.HeartbeatConfig, error) { return f.cfg, nil },
 		Prompt: func(context.Context, string, string) (string, error) { f.prompts++; return "team context", nil },
 	}
@@ -80,7 +82,22 @@ func newSupervisionFixture(t *testing.T) *supervisionFixture {
 }
 
 func effort(id string) EffortObservation {
-	return EffortObservation{ID: id, TargetRevision: "target-1", EvidenceRevision: "evidence-1", Freshness: "fresh", Eligible: true, BoardRef: "agent-manager effort board --effort-ref " + id}
+	return EffortObservation{ID: id, TargetRevision: "target-1", EvidenceRevision: "evidence-1", Freshness: "fresh", Readiness: "ready", Eligible: true, BoardRef: "agent-manager effort board --effort-ref " + id}
+}
+
+func TestFileSupervisionStateStoreMigratesUnversionedState(t *testing.T) {
+	store := FileSupervisionStateStore{Root: t.TempDir()}
+	path := store.path("supervisors", "leader")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"status":"idle","efforts":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state, err := store.Load("supervisors", "leader")
+	if err != nil || state.Version != 1 || state.Efforts == nil {
+		t.Fatalf("legacy supervision state was not migrated: state=%+v err=%v", state, err)
+	}
 }
 
 func (f *supervisionFixture) tick(t *testing.T) *SupervisionState {
@@ -175,6 +192,51 @@ func TestStandingSupervisorIdleArrivalChangeAndRetirement(t *testing.T) {
 	f.owner.rows = append(f.owner.rows, effort("another:bounded-task"))
 	if state := f.tick(t); state.Pending == nil || state.Pending.Efforts[0].ID != "another:bounded-task" {
 		t.Fatal("individual retirement stopped the standing service")
+	}
+}
+
+func TestStandingSupervisorObservationOnlyCutIsAcknowledgedWithoutWake(t *testing.T) {
+	f := newSupervisionFixture(t)
+	row := effort("observation-only")
+	row.ObservationOnly, row.Readiness = true, "mandate-unqualified"
+	f.owner.rows = []EffortObservation{row}
+	if state := f.tick(t); state.Pending != nil || f.queue.enqueues != 0 || len(f.agent.createRunCalls) != 0 {
+		t.Fatal("observation-only cut bought a supervisor wake")
+	}
+	state, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Efforts[row.ID].Disposition != "owner-wait" || state.Efforts[row.ID].LastObservedKey == "" || state.ObservationOnlyAcknowledged != 1 || state.LLMWakesAvoided != 1 {
+		t.Fatalf("observation-only admission was not durably acknowledged: %+v", state.Efforts[row.ID])
+	}
+	if state := f.tick(t); state.Pending != nil || f.owner.calls != 2 {
+		t.Fatal("unchanged observation-only cut was reprocessed as a wake")
+	}
+	f.owner.rows[0].ObservationOnly, f.owner.rows[0].Readiness = false, "ready"
+	state = f.tick(t)
+	if state.Pending == nil || state.Pending.Efforts[0].ID != row.ID {
+		t.Fatal("authority/readiness transition did not reopen the effort")
+	}
+}
+
+func TestStandingSupervisorEventHintUsesAuthoritativeTick(t *testing.T) {
+	f := newSupervisionFixture(t)
+	row := effort("event-first")
+	f.owner.rows = []EffortObservation{row}
+	state, err := f.s.NotifyEffortChange(context.Background(), "supervisors", "leader", row.ID, row.EvidenceRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Pending == nil || state.Pending.Efforts[0].ID != row.ID {
+		t.Fatal("event hint did not admit the authoritative changed effort")
+	}
+	state, err = f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.WakeHints) != 0 {
+		t.Fatalf("consumed event hint was retained: %+v", state.WakeHints)
 	}
 }
 
@@ -307,17 +369,27 @@ func TestStandingSupervisorDiagnosticSampleDoesNotRequireSteeringGrant(t *testin
 	row.ObservationOnly, row.Freshness = true, "fresh"
 	f.owner.rows = []EffortObservation{row}
 	f.cfg.Supervision.HealthySampleIntervalSeconds, f.cfg.Supervision.MaxHealthySamplesPerWake = 120, 1
-	f.tick(t)
-	f.dispatch(t)
-	f.receipt(t, "quiet")
-	f.agent.getRuns["wake-run-1"].Status = "complete"
-	f.now = f.now.Add(time.Minute)
-	f.tick(t)
+	if state := f.tick(t); state.Pending != nil || f.prompts != 0 {
+		t.Fatal("observation-only discovery spent an inference wake before a sample was due")
+	}
+	state, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cut := state.Efforts[row.ID]
+	cut.LastSampleAt = f.now
+	state.Efforts[row.ID] = cut
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
 	f.now = f.now.Add(3 * time.Minute)
-	state := f.tick(t)
+	state = f.tick(t)
 	if state.Pending == nil || len(state.Pending.SampledEffortIDs) != 1 || !state.Pending.Efforts[0].ObservationOnly {
 		t.Fatal("diagnostic allowance did not admit due observation-only sample without granting steering", state)
 	}
+	f.dispatch(t)
+	f.receipt(t, "quiet")
+	f.agent.getRuns["wake-run-1"].Status = "complete"
 }
 
 func TestStandingSupervisorRecoveryFollowupIsBoundedAndNotHealthySampling(t *testing.T) {

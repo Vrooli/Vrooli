@@ -52,9 +52,11 @@ type ListResult struct {
 }
 
 type Content struct {
-	EffortRef string `json:"effortRef"`
-	Path      string `json:"path"`
-	Content   string `json:"content"`
+	EffortRef        string `json:"effortRef"`
+	Path             string `json:"path"`
+	Content          string `json:"content"`
+	ContentBytes     []byte `json:"contentBytes,omitempty"`
+	ContentTruncated bool   `json:"contentTruncated,omitempty"`
 }
 
 type manifest struct {
@@ -117,9 +119,6 @@ func (s *Store) Read(ctx context.Context, effortRef, relPath string) (Content, e
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 		return Content{}, errors.New("workspace path is not a regular file")
 	}
-	if info.Size() > maxFileBytes {
-		return Content{}, fmt.Errorf("workspace file exceeds %d-byte read limit", maxFileBytes)
-	}
 	f, err := os.Open(fullPath)
 	if err != nil {
 		return Content{}, err
@@ -129,10 +128,11 @@ func (s *Store) Read(ctx context.Context, effortRef, relPath string) (Content, e
 	if err != nil {
 		return Content{}, err
 	}
-	if len(b) > maxFileBytes {
-		return Content{}, fmt.Errorf("workspace file exceeds %d-byte read limit", maxFileBytes)
+	truncated := len(b) > maxFileBytes
+	if truncated {
+		b = b[:maxFileBytes]
 	}
-	return Content{EffortRef: effortRef, Path: clean, Content: string(b)}, nil
+	return Content{EffortRef: effortRef, Path: clean, Content: string(b), ContentBytes: b, ContentTruncated: truncated}, nil
 }
 
 type resolvedWorkspace struct {

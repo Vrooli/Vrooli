@@ -26,7 +26,7 @@ export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamN
   const next = summary.nextHeartbeat
   return (
     <div
-      className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border bg-background/85 px-2 py-1 shadow-sm backdrop-blur"
+      className="pointer-events-auto flex max-w-[calc(100vw-1rem)] min-w-0 flex-wrap items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-background/85 px-1 py-1 shadow-sm backdrop-blur sm:max-w-full sm:flex-nowrap sm:px-2"
       data-testid={selectors.world.hud.summary}
       role="group"
       aria-label="Swarm summary"
@@ -41,16 +41,16 @@ export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamN
             aria-pressed={active}
             data-testid={`${selectors.world.hud.summary}-${count.id}`}
             onClick={() => onToggleFilter(count.id)}
-            className={`flex items-baseline gap-1 rounded-md px-2 py-1 text-xs transition-colors hover:bg-muted ${active ? 'bg-muted ring-1 ring-primary/40' : ''}`}
+            className={`flex items-baseline gap-1 rounded-md px-1 py-1 text-xs transition-colors hover:bg-muted sm:px-2 ${active ? 'bg-muted ring-1 ring-primary/40' : ''}`}
             title={`Show only ${count.label.toLowerCase()} agents`}
           >
             <span className={`text-base font-semibold tabular-nums ${count.tone}`}>{value}</span>
-            <span className="text-muted-foreground">{count.label}</span>
+            <span className="hidden text-muted-foreground sm:inline">{count.label}</span>
           </button>
         )
       })}
-      <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-      <span className="px-2 text-xs text-muted-foreground" data-testid={selectors.world.hud.nextHeartbeat}>
+      <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+      <span className="hidden px-2 text-xs text-muted-foreground sm:inline" data-testid={selectors.world.hud.nextHeartbeat}>
         {next ? (
           <>
             Next heartbeat <span className="font-medium text-foreground">{teamNames[next.teamId] ?? next.teamId}</span>{' '}
@@ -61,7 +61,7 @@ export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamN
         )}
       </span>
       {weather && (
-        <span className="border-l border-border px-2 text-xs text-muted-foreground" data-testid={selectors.world.hud.weather} title="Weather reflects recent run failures and failed agents">
+        <span className="hidden border-l border-border px-2 text-xs text-muted-foreground sm:inline" data-testid={selectors.world.hud.weather} title="Weather reflects recent run failures and failed agents">
           <span className="font-medium capitalize text-foreground">{weather.state}</span> — health pressure {Math.round(weather.pressure * 100)}%
         </span>
       )}

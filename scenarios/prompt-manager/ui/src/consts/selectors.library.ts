@@ -58,5 +58,10 @@ export const librarySelectors = {
   },
   "react-component-library:SettingsList": {
   },
+  "controls.copy-icon-button": {
+  },
+  "templates.collection-page": {
+    "root": "templates.collection-page",
+  },
 } as const;
 // vrooli:library-selectors end
