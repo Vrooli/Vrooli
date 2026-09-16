@@ -564,6 +564,25 @@
         "production",
         "minimal"
       ],
+      "name": "ast-grep",
+      "notes": "Installed from the checksum-verified ast-grep release (internal/tools/ast-grep acquisition) on Linux and macOS, amd64 and arm64; brew is only a fallback because an Intel Mac compiles it and Rust from source. Required on macOS; on Linux it remains an operator-installed tool until Linux hosts that never build UIs are gated separately.",
+      "platforms": [
+        "macos"
+      ],
+      "rationale": "The shared @vrooli/react-component-library runtime build scans module specifiers with ast-grep, and every React scenario start runs that build.",
+      "reason": "On 2026-09-15 a Mac could not restart any React scenario: ast-grep was never installed by setup, and the component-library build died on a TypeError",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
       "name": "yq",
       "notes": "Root-owned core tool",
       "rationale": "The documented operator and validation workflows require a portable YAML command-line parser.",

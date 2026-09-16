@@ -17,6 +17,28 @@
       "$ref": "#/definitions/pluginDeclaration",
       "description": "Optional, explicit publication contract consumed by scenario-to-plugin. Absence means this scenario is not publishable."
     },
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brand", "targets"],
+      "properties": {
+        "brand": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "brand-manager brand slug this scenario ships."
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["web-public-v1", "electron-v1"]
+          },
+          "description": "brand-manager target profiles; sizes live in brand-manager docs/concepts/BRAND-ASSET-PIPELINE.md."
+        }
+      },
+      "description": "Brand and icon target profiles this scenario ships. brand-manager apply reads it and writes the files."
+    },
     "$schema": {
       "type": "string",
       "description": "Schema reference"
@@ -1528,6 +1550,11 @@
             "either"
           ],
           "description": "How a Tier 2 bundle satisfies this scenario dependency edge."
+        },
+        "include_ui": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the dependency's UI in deployments that include this edge. Dependency runtime components remain included by default."
         },
         "config": {
           "type": "object",

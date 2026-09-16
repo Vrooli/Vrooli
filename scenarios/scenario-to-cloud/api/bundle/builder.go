@@ -700,7 +700,42 @@ func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byt
 	if rawVersion, ok := doc["version"].(string); ok {
 		rootVersion = strings.TrimSpace(rawVersion)
 	}
-	return buildGeneratedMiniServiceJSON(rootVersion, manifest)
+	generated, err := buildGeneratedMiniServiceJSON(rootVersion, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return mergeScenarioEnvironment(repoRoot, manifest.Scenario.ID, generated)
+}
+
+func mergeScenarioEnvironment(repoRoot, scenarioID string, generated []byte) ([]byte, error) {
+	if strings.TrimSpace(scenarioID) == "" {
+		return generated, nil
+	}
+	scenarioServicePath, err := ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, err
+	}
+	scenarioBytes, err := os.ReadFile(scenarioServicePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return generated, nil
+		}
+		return nil, err
+	}
+	var scenarioDoc map[string]interface{}
+	if err := json.Unmarshal(scenarioBytes, &scenarioDoc); err != nil {
+		return nil, fmt.Errorf("parse scenario service.json: %w", err)
+	}
+	environment, ok := scenarioDoc["environment"].(map[string]interface{})
+	if !ok || len(environment) == 0 {
+		return generated, nil
+	}
+	var generatedDoc map[string]interface{}
+	if err := json.Unmarshal(generated, &generatedDoc); err != nil {
+		return nil, fmt.Errorf("parse generated service.json: %w", err)
+	}
+	generatedDoc["environment"] = environment
+	return json.MarshalIndent(generatedDoc, "", "  ")
 }
 
 func buildGeneratedMiniServiceJSON(version string, manifest domain.CloudManifest) ([]byte, error) {

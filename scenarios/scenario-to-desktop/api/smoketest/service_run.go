@@ -842,8 +842,22 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		}
 	}
 	visualReadiness := "unavailable"
-	if journey != nil && len(journey.Steps) > 0 && journey.Steps[0].Disposition == deliveryramp.StepPassed && journey.Steps[0].Geometry != nil {
-		visualReadiness = "usable"
+	if journey != nil {
+		for _, step := range journey.Steps {
+			if step.Disposition == deliveryramp.StepPassed && step.Geometry != nil && step.Geometry.Width > 0 && step.Geometry.Height > 0 {
+				visualReadiness = "usable"
+				break
+			}
+		}
+	}
+	demoTracePath := status.DemoTracePath
+	if strings.TrimSpace(demoTracePath) != "" {
+		if _, statErr := os.Stat(demoTracePath); statErr != nil {
+			// Launch traces are transient runtime files. Preserve strict trace
+			// validation when the file is present, but do not turn a durable
+			// journey/capture into a false visual-gate failure after cleanup.
+			demoTracePath = ""
+		}
 	}
 	err = s.manifestWriter.WriteManifest(ctx, EvidenceManifestInput{
 		RunID: smokeTestID, ScenarioName: status.ScenarioName, Platform: platform,
@@ -851,7 +865,7 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		CompletedAt: time.Now().UTC(), Journey: journey, Captures: items,
 		GovernanceReported:      governanceReported,
 		ProtocolTracePath:       status.ProtocolTracePath,
-		DemoTracePath:           status.DemoTracePath,
+		DemoTracePath:           demoTracePath,
 		ProtocolResourceSummary: status.ProtocolResourceSummary,
 		DemoResourceSummary:     status.DemoResourceSummary,
 		DemoProcessTree:         status.DemoProcessTree,

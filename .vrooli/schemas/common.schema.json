@@ -900,6 +900,11 @@
           ],
           "description": "public_via_edge: reachable through the deployment edge (reverse proxy/TLS); private: bound to the target only."
         },
+        "path_prefix": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9._~/%-]*$",
+          "description": "Optional path prefix on the public host. Empty means the listener is the host fallback."
+        },
         "readiness": {
           "type": "object",
           "description": "Readiness probe the edge waits on before routing. Defaults to the owning component's run.readiness.",

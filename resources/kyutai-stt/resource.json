@@ -89,7 +89,7 @@
       "layout": "dir",
       "entry_path": "runtime/bin/python",
       "sha256_by_platform": {
-        "linux-amd64": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984"
+        "linux-amd64": "569971c5c6d864aee40e9aa79be300e37131f7581f802b29eadd7e1cf8df4c40"
       },
       "bundle_artifact": "kyutai-stt_${os}_${arch}"
     },
@@ -106,7 +106,7 @@
             "arch": "amd64"
           },
           "layout": "dir",
-          "artifact_sha256": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984",
+          "artifact_sha256": "569971c5c6d864aee40e9aa79be300e37131f7581f802b29eadd7e1cf8df4c40",
           "compose": [
             {
               "role": "runtime",
@@ -238,7 +238,8 @@
       "KYUTAI_STT_CONFIG_PATH": "${RESOURCE_DATA_DIR}/kyutai-config.json",
       "KYUTAI_STT_MOSHI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-model.safetensors",
       "KYUTAI_STT_MIMI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-mimi.safetensors",
-      "KYUTAI_STT_TOKENIZER": "${RESOURCE_DATA_DIR}/kyutai-tokenizer_en_fr_audio_8000.model"
+      "KYUTAI_STT_TOKENIZER": "${RESOURCE_DATA_DIR}/kyutai-tokenizer_en_fr_audio_8000.model",
+      "KYUTAI_STT_WARMUP_FRAMES": "8"
     },
     "attach_health_path": "/ready",
     "shutdown": {

@@ -68,6 +68,27 @@ class VrooliPcmCaptureProcessor extends AudioWorkletProcessor {
 registerProcessor("vrooli-pcm-capture", VrooliPcmCaptureProcessor);
 `;
 
+// AudioWorklet modules belong to an AudioContext. Rebuilding the Blob and
+// awaiting addModule on every press makes warm microphone reuse pay the full
+// module-load cost again, before the first PCM frame can reach the stream.
+// Keep one in-flight/completed load per context. A rejected load is removed so
+// a transient browser failure can still take the normal ScriptProcessor path
+// on a later attempt.
+const workletLoads = new WeakMap<AudioContext, Promise<void>>();
+
+function loadWorklet(context: AudioContext): Promise<void> {
+  const existing = workletLoads.get(context);
+  if (existing) return existing;
+
+  const moduleURL = URL.createObjectURL(new Blob([WORKLET_PROCESSOR], { type: "application/javascript" }));
+  const load = context.audioWorklet!.addModule(moduleURL).finally(() => URL.revokeObjectURL(moduleURL));
+  workletLoads.set(context, load);
+  void load.catch(() => {
+    if (workletLoads.get(context) === load) workletLoads.delete(context);
+  });
+  return load;
+}
+
 /**
  * Preferred capture path. It isolates audio callbacks from the UI thread on
  * modern browsers, then callers can use createScriptProcessorPcmCapture as a
@@ -81,12 +102,7 @@ export async function createAudioWorkletPcmCapture(
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet capture is unavailable");
   }
-  const moduleURL = URL.createObjectURL(new Blob([WORKLET_PROCESSOR], { type: "application/javascript" }));
-  try {
-    await context.audioWorklet.addModule(moduleURL);
-  } finally {
-    URL.revokeObjectURL(moduleURL);
-  }
+  await loadWorklet(context);
   const source = context.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(context, "vrooli-pcm-capture");
   const silentGain = context.createGain();
@@ -120,7 +136,16 @@ export async function createCanonicalPcmCapture(
   stream: MediaStream,
   onFrame: (samples: Float32Array, sampleRate: number) => void,
 ): Promise<PcmCapture> {
-  let capture: PcmCapture;
+	// Browser automation drivers may expose AudioWorklet but not schedule its
+	// processor for fake-media input. Waiting for the watchdog in that case
+	// delays the first voiced batch by 750 ms. Automation is already an
+	// explicitly non-device qualification lane, so use the universally
+	// scheduled compatibility graph immediately; real browsers retain the
+	// isolated AudioWorklet path below.
+	if (typeof navigator !== "undefined" && navigator.webdriver) {
+		return createScriptProcessorPcmCapture(context, stream, onFrame);
+	}
+	let capture: PcmCapture;
   let stopped = false;
   let receivedFrame = false;
   let fallbackTimer: ReturnType<typeof setTimeout> | undefined;

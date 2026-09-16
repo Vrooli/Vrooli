@@ -1161,6 +1161,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
       const langCode = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
       if ("language" in provider) provider.language = langCode;
+	  // The capability probe is intentionally asynchronous. If the user presses
+	  // the control before it has completed, admit the stream transport here so
+	  // the first voiced batch does not pay the WebSocket handshake. The provider
+	  // preserves this identity through start(), which makes the preconnect a
+	  // real handoff rather than an orphaned socket.
+	  if (isStreamingProvider(provider)) provider.preConnect(langCode);
 
       // Wire up segment-final handler for persistent mode
       if (isStreamingProvider(provider)) {

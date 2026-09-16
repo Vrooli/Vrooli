@@ -1,11 +1,13 @@
 // Package bundle provides bundle management commands for the CLI.
 package bundle
 
+import "scenario-to-cloud/cli/manifest"
+
 // BuildResponse represents the response from bundle build.
 type BuildResponse struct {
-	Artifact  Artifact `json:"artifact"`
-	Issues    []string `json:"issues,omitempty"`
-	Timestamp string   `json:"timestamp"`
+	Artifact  Artifact                   `json:"artifact"`
+	Issues    []manifest.ValidationIssue `json:"issues,omitempty"`
+	Timestamp string                     `json:"timestamp"`
 }
 
 // Artifact represents a built bundle.

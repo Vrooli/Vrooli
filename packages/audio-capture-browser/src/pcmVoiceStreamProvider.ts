@@ -7,6 +7,7 @@ import { dispatchStreamMessage } from "./streamMessages";
 import { requireVoiceTransport, type VoiceTransport, type VoiceTransportStatus } from "./transport";
 import { publishStreamDiagnostic, StreamDiagnosticRecorder, type StreamTurnDiagnostic } from "./streamDiagnostic";
 import { registerMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "./voice/micOwnership";
+import { getSharedAudioContext } from "./voice/sharedAudioContext";
 import type { LastTurnAudio } from "./voice/types";
 
 export type SharedPcmCaptureFactory = (
@@ -140,7 +141,7 @@ export class PcmVoiceStreamProvider {
     this.language = options.language ?? "en";
     this.captureFactory = options.captureFactory ?? ((stream, onFrame) => {
       if (typeof AudioContext === "undefined") return { stop: () => {} };
-      return createCanonicalPcmCapture(this.options.getAudioContext?.() ?? new AudioContext(), stream, onFrame);
+      return createCanonicalPcmCapture(this.options.getAudioContext?.() ?? getSharedAudioContext(), stream, onFrame);
     });
     this.retainStream = options.retainStream ?? false;
     this.onStatus = options.onStatus ?? null;
@@ -714,10 +715,22 @@ export class PcmVoiceStreamProvider {
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
-	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.pendingWriteCount = 0; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false; this.sequence = 0n; this.sample = 0n;
+	const preconnected = this.ws !== null
+		&& (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+		&& this.sessionId !== ""
+		&& this.resumeToken !== "";
+	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.pendingWriteCount = 0; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false;
+	if (!preconnected) {
+		this.sessionId = "";
+		this.resumeToken = "";
+		this.sequence = 0n;
+		this.sample = 0n;
+	}
     const recovered = loadUnfinishedSession();
-    if (recovered) { this.sessionId = recovered.sessionId; this.resumeToken = recovered.resumeToken; }
-    else { this.sessionId = newSessionIdentity(); this.resumeToken = newSessionIdentity(); rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken }); }
+    if (!preconnected) {
+		if (recovered) { this.sessionId = recovered.sessionId; this.resumeToken = recovered.resumeToken; }
+		else { this.sessionId = newSessionIdentity(); this.resumeToken = newSessionIdentity(); rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken }); }
+	}
     this.wsUrl = this.transport.buildStreamUrl(this.language, this.sessionId, this.resumeToken);
     // Publish the session before touching browser microphone APIs. A denied,
     // busy, or disappeared device must leave a machine-readable terminal
@@ -748,7 +761,14 @@ export class PcmVoiceStreamProvider {
     // factories are event-driven, while accelerated qualification sources may
     // emit a large virtual turn immediately; connecting first lets the server
     // acknowledge and compact durable journal frames while capture continues.
-    this.connect(this.sequence > 0n);
+    // Reuse a socket opened by preConnect(). Opening another socket here adds
+    // a full WebSocket handshake to the user's first turn and can also leave
+    // the preconnected socket orphaned. A preconnected socket already uses
+    // the restored session identity, so only connect when there is no usable
+    // transport (or when the preconnect was closed before capture began).
+    if (!this.ws || (this.ws.readyState !== WebSocket.OPEN && this.ws.readyState !== WebSocket.CONNECTING)) {
+      this.connect(this.sequence > 0n);
+    }
     this.capture = await this.makeCapture(this.stream);
   }
 

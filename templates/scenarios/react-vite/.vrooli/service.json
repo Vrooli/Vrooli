@@ -2,6 +2,10 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "hostTools": [],
+  "branding": {
+    "brand": "{{SCENARIO_ID}}",
+    "targets": ["web-public-v1"]
+  },
   "service": {
     "parent": "vrooli",
     "name": "{{SCENARIO_ID}}",

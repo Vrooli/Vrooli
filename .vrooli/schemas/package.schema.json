@@ -108,6 +108,12 @@
         "lifecycle": {
           "type": "object",
           "properties": {
+            "requires": {
+              "type": "array",
+              "description": "Governed package names (under packages/) whose build must be provisioned before this package's build, because this build consumes their generated outputs.",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
             "generate": {
               "$ref": "#/definitions/commandList"
             },

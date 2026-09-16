@@ -21,6 +21,9 @@
       "adoption_modes": ["file_dependency"]
     },
     "lifecycle": {
+      "requires": [
+        "audio-capture-browser"
+      ],
       "build": [
         {
           "name": "install",

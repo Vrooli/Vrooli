@@ -40,7 +40,18 @@ const astMatches = (roots, language, pattern) => {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
-  if (result.status !== 0 && result.stdout.trim() === "") {
+  // A missing binary is a host prerequisite gap, not a parse failure: without
+  // this, spawnSync returns no stdout and the build dies on a TypeError that
+  // names nothing (2026-09-15, every React scenario restart on a Mac).
+  if (result.error) {
+    const missing = result.error.code === "ENOENT";
+    throw new Error(
+      missing
+        ? "ast-grep is required to build the component library but is not on PATH; run `vrooli setup` (it installs ast-grep as a host tool) or install it (brew install ast-grep, or npm install -g @ast-grep/cli), then retry"
+        : `ast-grep could not run for ${language} pattern ${JSON.stringify(pattern)}: ${result.error.message}`,
+    );
+  }
+  if (result.status !== 0 && (result.stdout ?? "").trim() === "") {
     throw new Error(`ast-grep failed for ${language} pattern ${JSON.stringify(pattern)}:\n${result.stderr.trim()}`);
   }
   return result.stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));

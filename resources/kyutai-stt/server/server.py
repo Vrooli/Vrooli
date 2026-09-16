@@ -130,6 +130,13 @@ STREAM_RESET_REPLAY_FRAMES = max(
     0, int(os.environ.get("KYUTAI_STT_STREAM_RESET_REPLAY_FRAMES", "32"))
 )
 
+# CUDA kernels and the delayed-streams model can lazily initialize on the first
+# actual frame even after weights are loaded.  Pay that bounded cost during
+# service startup, before /ready admits a user stream, so the first dictated
+# words do not inherit model initialization latency.  This is silent model
+# input only; no browser audio is involved.
+WARMUP_FRAMES = max(0, int(os.environ.get("KYUTAI_STT_WARMUP_FRAMES", "8")))
+
 # Bounded wait (seconds) to acquire the single-session MODEL.lock before a new
 # connection reaps an abandoned/wedged prior session. A stuck stream (e.g. a
 # half-open consumer that stopped reading) can no longer starve the next
@@ -343,6 +350,22 @@ class Model:
         self.audio_silence_prefix_seconds = float(
             stt_cfg.get("audio_silence_prefix_seconds", 0.0)
         )
+        if WARMUP_FRAMES > 0:
+            log.info("warming decoder with %d silent model frames before readiness", WARMUP_FRAMES)
+            silent = torch.zeros(
+                (1, 1, self._frame_size), device=self.device, dtype=torch.float32
+            )
+            with torch.no_grad(), mimi.streaming(1), lm_gen.streaming(1):
+                for _ in range(WARMUP_FRAMES):
+                    audio_tokens = mimi.encode(silent)
+                    lm_gen.step(audio_tokens)
+                # The moshi reset API intentionally requires an active
+                # streaming context; reset before leaving both contexts so
+                # the first user stream starts from a clean decoder state.
+                for component in (mimi, lm_gen):
+                    reset_streaming = getattr(component, "reset_streaming", None)
+                    if callable(reset_streaming):
+                        reset_streaming()
         self.loaded = True
         log.info(
             "model loaded sample_rate=%d frame_size=%d frame_rate=%.3f "
@@ -685,7 +708,8 @@ class StreamSession:
                     await self._sender_task
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
-            self._sender_task = None
+        self._sender_task = None
+
 
     # -- per-frame stepping ----------------------------------------------
 
@@ -908,7 +932,6 @@ async def stream(ws: WebSocket) -> None:
                 "message": "Waiting for the local Kyutai decoder.",
             }))
         )
-        await ws.send_text(json.dumps({"type": "ready"}))
     except AdmissionRejected as exc:
         await ws.send_text(json.dumps({"type": "rejected", "code": "admission_full", "message": str(exc)}))
         await ws.close()
@@ -943,6 +966,7 @@ async def stream(ws: WebSocket) -> None:
     try:
         close_reason = "disconnect"
         with mimi.streaming(1), lm_gen.streaming(1):
+            await ws.send_text(json.dumps({"type": "ready"}))
             while True:
                 msg = await ws.receive()
                 if msg.get("type") == "websocket.disconnect":

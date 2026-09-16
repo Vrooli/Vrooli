@@ -124,10 +124,12 @@ UX & branding:
 - Accessibility bar:
 - Voice and messaging:
 - Branding hooks:
-- PWA install surface: keep the seeded `ui/public/site.webmanifest`,
-  `sw.js`, `apple-icon-180.png`, `favicon-196.png`, maskable manifest
-  icons, relative install asset URLs, and safe-area CSS tokens valid;
-  replace the generic icons when final product branding exists. The
+- PWA install surface: keep the seeded `ui/public/public/site.webmanifest`,
+  `sw.js`, `apple-touch-icon.png`, `favicon-16/32/196.png`, the
+  `icon-192/512.png` and `maskable-icon-192/512.png` set, `logo.svg`,
+  `og-image.png`, the `brand-manager:icons` marker block in `ui/index.html`,
+  and the `branding` block in `.vrooli/service.json` valid; replace the
+  generic placeholder icons by picking a brand through brand-manager. The
   service worker is a minimal app-shell baseline; tune dynamic caching
   only when the product needs offline data behavior. Treat shortcuts,
   share targets, protocol handlers, file handlers, and push flows as

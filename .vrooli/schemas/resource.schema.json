@@ -1531,6 +1531,11 @@
           },
           "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
         },
+        "run_as_user": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,31}$",
+          "description": "Operating-system account used for bootstrap and the supervised managed process on privileged targets."
+        },
         "credential_files": {
           "type": "array",
           "items": {

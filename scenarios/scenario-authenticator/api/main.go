@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
@@ -196,17 +196,7 @@ func main() {
 	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
 	localSocketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
 	if localSocketPath == "" {
-		socketName := "vrooli-scenario-authenticator"
-		if namespace := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_NAMESPACE")); namespace != "" {
-			namespace = strings.Map(func(r rune) rune {
-				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-					return r
-				}
-				return '-'
-			}, namespace)
-			socketName += "-" + namespace
-		}
-		localSocketPath = filepath.Join(os.TempDir(), socketName+".sock")
+		localSocketPath = authn.LocalAuthenticatorSocket(os.Getenv("VROOLI_STORAGE_NAMESPACE"))
 	}
 	localMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != accountsconnect.AccountsServiceExchangeMachinePrincipalProcedure {

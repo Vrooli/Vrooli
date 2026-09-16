@@ -33,6 +33,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	writeFile(t, repoRoot, "packages/pkg-a/README.md", "pkg-a\n")
 
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
+	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/service.json", `{"environment":{"CATALOG_PATH":".vrooli/plans.json"}}`)
 	writeFile(t, repoRoot, "scenarios/app-a/.vrooli/plans.json", `{"bundle":{"bundle_key":"app-a"},"plans":[]}`)
 	writeFile(t, repoRoot, "scenarios/app-b/README.md", "app-b\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
@@ -255,6 +256,9 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 	}
 	if strings.Contains(string(serviceBytes), "legacy-bootstrap") {
 		t.Fatalf("did not expect source setup steps to leak into generated service.json: %s", string(serviceBytes))
+	}
+	if !strings.Contains(string(serviceBytes), `"CATALOG_PATH": ".vrooli/plans.json"`) {
+		t.Fatalf("expected scenario environment in generated service.json: %s", string(serviceBytes))
 	}
 	lifecycleAny, ok := doc["lifecycle"]
 	if !ok {

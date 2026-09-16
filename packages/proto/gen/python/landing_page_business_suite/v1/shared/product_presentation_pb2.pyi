@@ -224,7 +224,7 @@ class PresentationPageDisplay(_message.Message):
     def __init__(self, shell: _Optional[_Union[PresentationShellDisplay, _Mapping]] = ..., asset_labels: _Optional[_Mapping[str, PresentationAssetLabel]] = ..., fixture_display: _Optional[_Mapping[str, PresentationFixtureDisplay]] = ..., blocks: _Optional[_Mapping[str, PresentationBlockDisplay]] = ..., apps: _Optional[_Mapping[str, PresentationAppDisplay]] = ...) -> None: ...
 
 class PresentationShellDisplay(_message.Message):
-    __slots__ = ("brand_name", "brand_mark", "brand_target", "brand_subtitle", "skip_label", "menu_label", "footer_brand_name", "footer_brand_mark", "footer_brand_target", "footer_tagline", "copyright", "footer_note", "unavailable_reason", "preview_label", "header_action")
+    __slots__ = ("brand_name", "brand_mark", "brand_target", "brand_subtitle", "skip_label", "menu_label", "footer_brand_name", "footer_brand_mark", "footer_brand_target", "footer_tagline", "copyright", "footer_note", "unavailable_reason", "preview_label", "header_action", "brand_logo", "brand_logo_alt", "footer_brand_logo")
     BRAND_NAME_FIELD_NUMBER: _ClassVar[int]
     BRAND_MARK_FIELD_NUMBER: _ClassVar[int]
     BRAND_TARGET_FIELD_NUMBER: _ClassVar[int]
@@ -240,6 +240,9 @@ class PresentationShellDisplay(_message.Message):
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
     PREVIEW_LABEL_FIELD_NUMBER: _ClassVar[int]
     HEADER_ACTION_FIELD_NUMBER: _ClassVar[int]
+    BRAND_LOGO_FIELD_NUMBER: _ClassVar[int]
+    BRAND_LOGO_ALT_FIELD_NUMBER: _ClassVar[int]
+    FOOTER_BRAND_LOGO_FIELD_NUMBER: _ClassVar[int]
     brand_name: str
     brand_mark: str
     brand_target: str
@@ -255,7 +258,10 @@ class PresentationShellDisplay(_message.Message):
     unavailable_reason: str
     preview_label: str
     header_action: PresentationAction
-    def __init__(self, brand_name: _Optional[str] = ..., brand_mark: _Optional[str] = ..., brand_target: _Optional[str] = ..., brand_subtitle: _Optional[str] = ..., skip_label: _Optional[str] = ..., menu_label: _Optional[str] = ..., footer_brand_name: _Optional[str] = ..., footer_brand_mark: _Optional[str] = ..., footer_brand_target: _Optional[str] = ..., footer_tagline: _Optional[str] = ..., copyright: _Optional[str] = ..., footer_note: _Optional[str] = ..., unavailable_reason: _Optional[str] = ..., preview_label: _Optional[str] = ..., header_action: _Optional[_Union[PresentationAction, _Mapping]] = ...) -> None: ...
+    brand_logo: str
+    brand_logo_alt: str
+    footer_brand_logo: str
+    def __init__(self, brand_name: _Optional[str] = ..., brand_mark: _Optional[str] = ..., brand_target: _Optional[str] = ..., brand_subtitle: _Optional[str] = ..., skip_label: _Optional[str] = ..., menu_label: _Optional[str] = ..., footer_brand_name: _Optional[str] = ..., footer_brand_mark: _Optional[str] = ..., footer_brand_target: _Optional[str] = ..., footer_tagline: _Optional[str] = ..., copyright: _Optional[str] = ..., footer_note: _Optional[str] = ..., unavailable_reason: _Optional[str] = ..., preview_label: _Optional[str] = ..., header_action: _Optional[_Union[PresentationAction, _Mapping]] = ..., brand_logo: _Optional[str] = ..., brand_logo_alt: _Optional[str] = ..., footer_brand_logo: _Optional[str] = ...) -> None: ...
 
 class PresentationAssetLabel(_message.Message):
     __slots__ = ("alt", "sizes")
@@ -331,18 +337,22 @@ class PresentationBlockDisplay(_message.Message):
     def __init__(self, eyebrow: _Optional[str] = ..., description: _Optional[str] = ..., note: _Optional[str] = ..., accessibility_label: _Optional[str] = ..., badge: _Optional[str] = ..., mark: _Optional[str] = ..., formats: _Optional[_Iterable[str]] = ..., anchors: _Optional[_Mapping[str, str]] = ..., heading_breaks: _Optional[_Iterable[int]] = ..., fixture_ref: _Optional[str] = ..., hero_fixture_refs: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class PresentationAppDisplay(_message.Message):
-    __slots__ = ("fixture_ref", "visual_ref", "mark", "tone", "detail_label")
+    __slots__ = ("fixture_ref", "visual_ref", "mark", "tone", "detail_label", "logo", "logo_alt")
     FIXTURE_REF_FIELD_NUMBER: _ClassVar[int]
     VISUAL_REF_FIELD_NUMBER: _ClassVar[int]
     MARK_FIELD_NUMBER: _ClassVar[int]
     TONE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_LABEL_FIELD_NUMBER: _ClassVar[int]
+    LOGO_FIELD_NUMBER: _ClassVar[int]
+    LOGO_ALT_FIELD_NUMBER: _ClassVar[int]
     fixture_ref: str
     visual_ref: str
     mark: str
     tone: str
     detail_label: str
-    def __init__(self, fixture_ref: _Optional[str] = ..., visual_ref: _Optional[str] = ..., mark: _Optional[str] = ..., tone: _Optional[str] = ..., detail_label: _Optional[str] = ...) -> None: ...
+    logo: str
+    logo_alt: str
+    def __init__(self, fixture_ref: _Optional[str] = ..., visual_ref: _Optional[str] = ..., mark: _Optional[str] = ..., tone: _Optional[str] = ..., detail_label: _Optional[str] = ..., logo: _Optional[str] = ..., logo_alt: _Optional[str] = ...) -> None: ...
 
 class PresentationTheme(_message.Message):
     __slots__ = ("variant", "primary", "background", "accent")

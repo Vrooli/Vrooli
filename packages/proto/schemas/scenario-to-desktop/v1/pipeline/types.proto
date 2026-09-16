@@ -162,6 +162,10 @@ message PipelineConfig {
   // LPBS deployment coordinates owned by scenario-to-desktop.
   DeployConfig deploy = 33;
   string artifact_manifest_digest = 34;
+
+  // Optional provider/platform journey capability to execute during smoke.
+  // Empty selects the deployment-mode default journey.
+  string journey_id = 35;
 }
 
 message DeployConfig {

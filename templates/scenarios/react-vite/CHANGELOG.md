@@ -76,6 +76,38 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 5.0.0 — 2026-09-15
+
+New scenarios are born with the brand-identity `/public/*` layout and a branding declaration.
+
+### Breaking
+
+- Public icons and the web manifest move from `ui/public/` (served at the URL root)
+  to `ui/public/public/` (served at `/public/*`) with the `web-public-v1` file set:
+  `logo.svg`, `favicon-16.png`, `favicon-32.png`, `favicon-196.png`, `icon-192.png`,
+  `icon-512.png`, `maskable-icon-192.png`, `maskable-icon-512.png`,
+  `apple-touch-icon.png`, `og-image.png`, and `site.webmanifest`.
+- `ui/index.html` now carries a `brand-manager:icons` marker block and the manifest
+  link points at `/public/site.webmanifest`; `og:image`/`twitter:image` point at
+  `/public/og-image.png`.
+- `.vrooli/service.json` declares a `branding` block (`brand` = the scenario id,
+  `targets` = `["web-public-v1"]`).
+- The service worker's app-shell list points at the new `/public/` manifest and logo.
+
+### Migration (for agents updating older scenarios)
+
+- [ ] Move the icon set into `ui/public/public/` under the `web-public-v1` names and
+      delete the old root-layout copies (`ui/public/*.png`, `ui/public/site.webmanifest`).
+- [ ] Replace the icon/apple-touch/manifest `<link>` tags in `ui/index.html` with the
+      `brand-manager:icons` marker block, and point `og:image`/`twitter:image` at
+      `/public/og-image.png`.
+- [ ] Add the `branding` block to `.vrooli/service.json`, then run
+      `brand-manager provider validate <scenario>` and
+      `brand-manager apply run --brand-id <brand> --scenario <scenario> --elements icons`
+      to replace the placeholders with a real brand.
+- [ ] Update `ui/public/sw.js` `APP_SHELL_URLS` to `./public/site.webmanifest` and
+      `./public/logo.svg`.
+
 ## 4.0.0 — 2026-09-07
 
 Shared testing recipes and CLI-domain guidance now have one maintained owner.

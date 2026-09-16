@@ -428,6 +428,7 @@
         "**/.git/**",
         "**/node_modules/**",
         "**/coverage/**",
+        "**/dist-electron/**",
         "**/data/**",
         ".vrooli/secrets.json",
         "**/.vrooli/secrets.json",

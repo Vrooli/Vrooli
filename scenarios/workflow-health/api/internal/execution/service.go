@@ -393,7 +393,10 @@ func bindElectronValidation(asset workflows.WorkflowAsset, opts Options, isolati
 	if validation.ContextID != "" && target.ContextID != "" && validation.ContextID != target.ContextID {
 		return nil, nil, "Electron target and validation context IDs do not match"
 	}
-	if validation.WorkflowID == "" {
+	// Durable desktop bindings historically carried the path when no catalog
+	// UUID was available. Normalize that provider-owned alias to the selected
+	// asset ID before enforcing identity, while still rejecting arbitrary IDs.
+	if validation.WorkflowID == "" || validation.WorkflowID == asset.Path {
 		validation.WorkflowID = asset.ID
 	} else if validation.WorkflowID != asset.ID {
 		return nil, nil, fmt.Sprintf("validation context workflow %q does not match selected asset %q", validation.WorkflowID, asset.ID)

@@ -108,6 +108,11 @@ message PresentationShellDisplay {
   string unavailable_reason = 13;
   string preview_label = 14;
   PresentationAction header_action = 15;
+  // Optional same-origin image that replaces the finite SVG brand mark. The
+  // mark stays required so an unloaded or rejected image still has a fallback.
+  string brand_logo = 16;
+  string brand_logo_alt = 17;
+  string footer_brand_logo = 18;
 }
 
 message PresentationAssetLabel {
@@ -145,6 +150,9 @@ message PresentationAppDisplay {
   string mark = 3;
   string tone = 4;
   string detail_label = 5;
+  // Optional same-origin product logo that replaces the finite SVG mark.
+  string logo = 6;
+  string logo_alt = 7;
 }
 
 message PresentationTheme {

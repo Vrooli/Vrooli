@@ -136,6 +136,18 @@ describe("shared PCM long-session recovery harness", () => {
     expect(status).not.toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
   });
 
+  it("reuses a preconnected socket when capture starts", async () => {
+    provider.preConnect("en");
+    await settle();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+
+    await provider.start();
+    await settle();
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+  });
+
   it("publishes a terminal diagnostic when microphone startup fails", async () => {
     const startupError = new Error("capture device disappeared");
     getUserMedia.mockRejectedValueOnce(startupError);

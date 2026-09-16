@@ -122,8 +122,11 @@ type PipelineConfig struct {
 	// LPBS deployment coordinates owned by scenario-to-desktop.
 	Deploy                 *DeployConfig `protobuf:"bytes,33,opt,name=deploy,proto3" json:"deploy,omitempty"`
 	ArtifactManifestDigest string        `protobuf:"bytes,34,opt,name=artifact_manifest_digest,json=artifactManifestDigest,proto3" json:"artifact_manifest_digest,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Optional provider/platform journey capability to execute during smoke.
+	// Empty selects the deployment-mode default journey.
+	JourneyId     string `protobuf:"bytes,35,opt,name=journey_id,json=journeyId,proto3" json:"journey_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PipelineConfig) Reset() {
@@ -390,6 +393,13 @@ func (x *PipelineConfig) GetDeploy() *DeployConfig {
 func (x *PipelineConfig) GetArtifactManifestDigest() string {
 	if x != nil {
 		return x.ArtifactManifestDigest
+	}
+	return ""
+}
+
+func (x *PipelineConfig) GetJourneyId() string {
+	if x != nil {
+		return x.JourneyId
 	}
 	return ""
 }
@@ -3656,7 +3666,7 @@ var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xfb\x14\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\x9a\x15\n" +
 	"\x0ePipelineConfig\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12L\n" +
 	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
@@ -3696,7 +3706,9 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x10platform_targets\x18\x1f \x03(\tR\x0fplatformTargets\x12\x8f\x01\n" +
 	"\x19expected_artifact_digests\x18  \x03(\v2S.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.ExpectedArtifactDigestsEntryR\x17expectedArtifactDigests\x12L\n" +
 	"\x06deploy\x18! \x01(\v24.vrooli.scenario_to_desktop.v1.pipeline.DeployConfigR\x06deploy\x128\n" +
-	"\x18artifact_manifest_digest\x18\" \x01(\tR\x16artifactManifestDigest\x1aC\n" +
+	"\x18artifact_manifest_digest\x18\" \x01(\tR\x16artifactManifestDigest\x12\x1d\n" +
+	"\n" +
+	"journey_id\x18# \x01(\tR\tjourneyId\x1aC\n" +
 	"\x15PreflightSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aJ\n" +

@@ -290,7 +290,25 @@ thumb
 # Windows Zone.Identifier files
 *:Zone.Identifier
 
+# Build output directories. A bare `build/` rule also hides source trees that
+# are legitimately named "build" (Go packages under api/build, api/cmd/build,
+# cli/domains/build, a React section, and an agent package), which tracked code
+# imports. Re-include those source trees; leave real outputs ignored.
 build/
+!scenarios/**/api/build/
+!scenarios/**/api/build/**
+!scenarios/**/cmd/build/
+!scenarios/**/cmd/build/**
+!scenarios/**/cli/domains/build/
+!scenarios/**/cli/domains/build/**
+!scenarios/**/ui/src/**/build/
+!scenarios/**/ui/src/**/build/**
+!scenarios/**/agent/build/
+!scenarios/**/agent/build/**
+# resources/doc-parse/build is a Go module; its built binary is not source.
+!resources/doc-parse/build/
+!resources/doc-parse/build/**
+resources/doc-parse/build/resource-doc-parse-build
 
 # Project CLI bootstrap/release outputs. Installed artifacts belong under the
 # user's ~/.vrooli, never in the checkout; sidecars are regenerated with their
@@ -556,6 +574,11 @@ cmd/vrooli-policy-runner/vrooli-policy-runner.exe
 scenarios/**/coverage.out
 scenarios/**/smart_scanner_test.go.backup
 scenarios/**/test-output.log
+# Signing keyrings hold private key material and are never repository state.
+# Managed keys live in the credential authority; only public anchors belong here.
+scenarios/**/signing/gnupg/
+scenarios/**/signing/*.keyring
+scenarios/**/signing/*.key
 # React Component Library scratch output is disposable; durable evidence lives
 # under the scenario's docs/reports directory.
 scenarios/react-component-library/tmp/

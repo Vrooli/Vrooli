@@ -100,6 +100,7 @@ lock.
 | `KYUTAI_STT_LOCK_TIMEOUT_S` | `10` | Bounded wait to acquire the single-session model lock before a new connection inspects the holder. |
 | `KYUTAI_STT_ACTIVITY_WEDGE_S` | `5` | If the current holder decoded a frame within this many seconds, it is active and the newcomer receives `{"type":"error","code":"stt_busy",...}` instead of cancelling it. Only holders idle beyond this threshold are reaped as wedged. |
 | `KYUTAI_STT_TORCH_COMPILE` | `0` | Enables moshi's experimental lazy `torch.compile` path when set to `1`. It is disabled by default because its first inference can spend many minutes compiling on a local GPU after health is already ready; CUDA graphing remains enabled. Enable only with measured cold and warm throughput evidence. |
+| `KYUTAI_STT_WARMUP_FRAMES` | `8` | Silent model-rate frames evaluated before `/ready` so lazy CUDA/Mimi/LM initialization is paid during startup rather than the first user turn. Set to `0` only when startup latency is more important than first-partial latency. |
 
 Every stream logs a close summary with reason, frames consumed, segments
 emitted, and duration. Reap warnings include holder age and idle time so active

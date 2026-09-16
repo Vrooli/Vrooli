@@ -58,6 +58,7 @@ describe("stream diagnostic telemetry", () => {
     recorder.captureStarted();
     recorder.capturedSamples(1600n);
     recorder.captureObserved();
+    recorder.signalObserved();
     recorder.retained(3200);
     recorder.partial();
     recorder.committed();
@@ -68,5 +69,16 @@ describe("stream diagnostic telemetry", () => {
     expect(value.firstPartialLatencyMs).not.toBeNull();
     expect(value.committedTextLagMs).not.toBeNull();
     expect(JSON.stringify(value)).not.toContain("transcript");
+  });
+
+  it("anchors first-partial latency to the first voiced sample", () => {
+    const recorder = new StreamDiagnosticRecorder("session-3", 0, "reduced");
+    recorder.captureStarted();
+    recorder.captureObserved();
+    const beforeVoice = recorder.read().firstPartialLatencyMs;
+    expect(beforeVoice).toBeNull();
+    recorder.signalObserved();
+    recorder.partial();
+    expect(recorder.read().firstPartialLatencyMs).not.toBeNull();
   });
 });

@@ -381,6 +381,15 @@
               "description": "Explicitly permit witnessed generated-credential replacement"
             },
             {
+              "name": "force-lifecycle",
+              "bool": true,
+              "description": "Emergency restart: override drain-only lifecycle blockers"
+            },
+            {
+              "name": "lifecycle-override-reason",
+              "description": "Audit reason required with --force-lifecycle"
+            },
+            {
               "name": "open",
               "bool": true,
               "local_only": true,
@@ -3579,6 +3588,205 @@
                   "filesystem:write"
                 ]
               }
+            },
+            {
+              "name": "add-passphrase",
+              "description": "Add a passphrase wrap (read from stdin) to a store that opens only through unattended wraps; existing wraps are unchanged.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "add-passphrase"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "verify-passphrase",
+              "description": "Check a passphrase (read from stdin) against the store's passphrase wrap only; changes nothing.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify-passphrase"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "copy",
+              "description": "Write one encrypted copy of this host's credential store to the configured sink (or --sink); the copy stays sealed and no passphrase is written.",
+              "flags": [
+                {
+                  "name": "sink",
+                  "description": "Destination directory or s3:// URL; defaults to the configured sink"
+                },
+                {
+                  "name": "configured",
+                  "bool": true,
+                  "description": "Use the persisted copy configuration"
+                },
+                {
+                  "name": "object-store-credential",
+                  "description": "Credential logical id that opens the object-store sink"
+                },
+                {
+                  "name": "object-store-region",
+                  "description": "Object-store region"
+                },
+                {
+                  "name": "object-store-endpoint",
+                  "description": "Object-store endpoint override"
+                },
+                {
+                  "name": "object-store-access-key-field",
+                  "description": "Credential field holding the access key id"
+                },
+                {
+                  "name": "object-store-secret-key-field",
+                  "description": "Credential field holding the secret access key"
+                },
+                {
+                  "name": "object-store-session-field",
+                  "description": "Credential field holding the session token"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "copy-configure",
+              "description": "Persist where and how often the encrypted credential-store copy is written; --enabled turns the schedule on.",
+              "flags": [
+                {
+                  "name": "sink",
+                  "description": "Destination directory or s3:// URL for the encrypted copy"
+                },
+                {
+                  "name": "enabled",
+                  "bool": true,
+                  "description": "Enable the configured copy schedule"
+                },
+                {
+                  "name": "interval",
+                  "description": "Go duration between scheduled copies (e.g. 24h)"
+                },
+                {
+                  "name": "object-store-credential",
+                  "description": "Credential logical id that opens the object-store sink"
+                },
+                {
+                  "name": "object-store-region",
+                  "description": "Object-store region"
+                },
+                {
+                  "name": "object-store-endpoint",
+                  "description": "Object-store endpoint override"
+                },
+                {
+                  "name": "object-store-access-key-field",
+                  "description": "Credential field holding the access key id"
+                },
+                {
+                  "name": "object-store-secret-key-field",
+                  "description": "Credential field holding the secret access key"
+                },
+                {
+                  "name": "object-store-session-field",
+                  "description": "Credential field holding the session token"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy-configure"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "copy-scheduled",
+              "description": "Timer entrypoint: perform one configured copy and exit, so a scheduler never places a passphrase in a process argument.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy-scheduled"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
             }
           ]
         },
@@ -4631,6 +4839,30 @@
                 "permissions": [
                   "filesystem:read"
                 ]
+              }
+            },
+            {
+              "name": "bootstrap",
+              "description": "Install or restart the setup-managed privilege broker from this target CLI.",
+              "flags": [
+                {"name": "deployment"},
+                {"name": "operation"},
+                {"name": "step"},
+                {"name": "fence"}
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "bootstrap"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ],
+                "requires_confirmation": true
               }
             },
             {

@@ -85,6 +85,9 @@ func (h *connectHandler) RevealCredential(ctx context.Context, req *connect.Requ
 	if logicalID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("logical_id is required"))
 	}
+	if _, err := credentialauthority.ParseIdentity(logicalID); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("logical_id is not a valid credential identity"))
+	}
 	if !req.Msg.GetConfirmReveal() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirm_reveal is required to display a credential value"))
 	}

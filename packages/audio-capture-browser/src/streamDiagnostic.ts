@@ -122,6 +122,7 @@ const MAX_CODES = 12;
 export class StreamDiagnosticRecorder {
   private snapshot: StreamTurnDiagnostic;
   private firstCaptureAtMs = 0;
+  private firstSignalAtMs = 0;
   private lastCaptureAtMs = 0;
 
   constructor(sessionId = "", generation = 0, durability: DurabilityLevel = "reduced") {
@@ -151,6 +152,7 @@ export class StreamDiagnosticRecorder {
     const fresh = new StreamDiagnosticRecorder(sessionId, generation, durability);
     this.snapshot = fresh.read();
     this.firstCaptureAtMs = 0;
+    this.firstSignalAtMs = 0;
     this.lastCaptureAtMs = 0;
   }
 
@@ -169,6 +171,7 @@ export class StreamDiagnosticRecorder {
 
   signalObserved(): void {
     this.snapshot.signalObserved = true;
+    if (this.firstSignalAtMs === 0) this.firstSignalAtMs = Date.now();
   }
 
   sent(sequence: bigint): void {
@@ -189,8 +192,13 @@ export class StreamDiagnosticRecorder {
 
   partial(): void {
     if (this.snapshot.firstPartialLatencyMs !== null) return;
-    this.snapshot.firstPartialLatencyMs = this.firstCaptureAtMs > 0
-      ? Math.max(0, Date.now() - this.firstCaptureAtMs)
+    // Interactive latency is speech-to-visible-partial latency. Capture can
+    // legitimately begin with device warm-up or leading silence, so anchoring
+    // this to the first PCM callback overstates the user's wait and violates
+    // the acceptance protocol's first-voiced-sample boundary.
+    const speechStartedAt = this.firstSignalAtMs > 0 ? this.firstSignalAtMs : this.firstCaptureAtMs;
+    this.snapshot.firstPartialLatencyMs = speechStartedAt > 0
+      ? Math.max(0, Date.now() - speechStartedAt)
       : null;
   }
 

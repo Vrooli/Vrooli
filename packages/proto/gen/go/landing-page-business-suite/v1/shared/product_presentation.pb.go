@@ -841,8 +841,13 @@ type PresentationShellDisplay struct {
 	UnavailableReason string                 `protobuf:"bytes,13,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
 	PreviewLabel      string                 `protobuf:"bytes,14,opt,name=preview_label,json=previewLabel,proto3" json:"preview_label,omitempty"`
 	HeaderAction      *PresentationAction    `protobuf:"bytes,15,opt,name=header_action,json=headerAction,proto3" json:"header_action,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional same-origin image that replaces the finite SVG brand mark. The
+	// mark stays required so an unloaded or rejected image still has a fallback.
+	BrandLogo       string `protobuf:"bytes,16,opt,name=brand_logo,json=brandLogo,proto3" json:"brand_logo,omitempty"`
+	BrandLogoAlt    string `protobuf:"bytes,17,opt,name=brand_logo_alt,json=brandLogoAlt,proto3" json:"brand_logo_alt,omitempty"`
+	FooterBrandLogo string `protobuf:"bytes,18,opt,name=footer_brand_logo,json=footerBrandLogo,proto3" json:"footer_brand_logo,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PresentationShellDisplay) Reset() {
@@ -978,6 +983,27 @@ func (x *PresentationShellDisplay) GetHeaderAction() *PresentationAction {
 		return x.HeaderAction
 	}
 	return nil
+}
+
+func (x *PresentationShellDisplay) GetBrandLogo() string {
+	if x != nil {
+		return x.BrandLogo
+	}
+	return ""
+}
+
+func (x *PresentationShellDisplay) GetBrandLogoAlt() string {
+	if x != nil {
+		return x.BrandLogoAlt
+	}
+	return ""
+}
+
+func (x *PresentationShellDisplay) GetFooterBrandLogo() string {
+	if x != nil {
+		return x.FooterBrandLogo
+	}
+	return ""
 }
 
 type PresentationAssetLabel struct {
@@ -1249,12 +1275,15 @@ func (x *PresentationBlockDisplay) GetHeroFixtureRefs() map[string]string {
 }
 
 type PresentationAppDisplay struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FixtureRef    string                 `protobuf:"bytes,1,opt,name=fixture_ref,json=fixtureRef,proto3" json:"fixture_ref,omitempty"`
-	VisualRef     string                 `protobuf:"bytes,2,opt,name=visual_ref,json=visualRef,proto3" json:"visual_ref,omitempty"`
-	Mark          string                 `protobuf:"bytes,3,opt,name=mark,proto3" json:"mark,omitempty"`
-	Tone          string                 `protobuf:"bytes,4,opt,name=tone,proto3" json:"tone,omitempty"`
-	DetailLabel   string                 `protobuf:"bytes,5,opt,name=detail_label,json=detailLabel,proto3" json:"detail_label,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	FixtureRef  string                 `protobuf:"bytes,1,opt,name=fixture_ref,json=fixtureRef,proto3" json:"fixture_ref,omitempty"`
+	VisualRef   string                 `protobuf:"bytes,2,opt,name=visual_ref,json=visualRef,proto3" json:"visual_ref,omitempty"`
+	Mark        string                 `protobuf:"bytes,3,opt,name=mark,proto3" json:"mark,omitempty"`
+	Tone        string                 `protobuf:"bytes,4,opt,name=tone,proto3" json:"tone,omitempty"`
+	DetailLabel string                 `protobuf:"bytes,5,opt,name=detail_label,json=detailLabel,proto3" json:"detail_label,omitempty"`
+	// Optional same-origin product logo that replaces the finite SVG mark.
+	Logo          string `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
+	LogoAlt       string `protobuf:"bytes,7,opt,name=logo_alt,json=logoAlt,proto3" json:"logo_alt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1320,6 +1349,20 @@ func (x *PresentationAppDisplay) GetTone() string {
 func (x *PresentationAppDisplay) GetDetailLabel() string {
 	if x != nil {
 		return x.DetailLabel
+	}
+	return ""
+}
+
+func (x *PresentationAppDisplay) GetLogo() string {
+	if x != nil {
+		return x.Logo
+	}
+	return ""
+}
+
+func (x *PresentationAppDisplay) GetLogoAlt() string {
+	if x != nil {
+		return x.LogoAlt
 	}
 	return ""
 }
@@ -5883,7 +5926,7 @@ const file_landing_page_business_suite_v1_shared_product_presentation_proto_rawD
 	"\x05value\x18\x02 \x01(\v2F.vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplayR\x05value:\x028\x01\x1a}\n" +
 	"\tAppsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12Z\n" +
-	"\x05value\x18\x02 \x01(\v2D.vrooli.landing_page_business_suite.v1.shared.PresentationAppDisplayR\x05value:\x028\x01\"\x89\x05\n" +
+	"\x05value\x18\x02 \x01(\v2D.vrooli.landing_page_business_suite.v1.shared.PresentationAppDisplayR\x05value:\x028\x01\"\xfa\x05\n" +
 	"\x18PresentationShellDisplay\x12\x1d\n" +
 	"\n" +
 	"brand_name\x18\x01 \x01(\tR\tbrandName\x12\x1d\n" +
@@ -5905,7 +5948,11 @@ const file_landing_page_business_suite_v1_shared_product_presentation_proto_rawD
 	"footerNote\x12-\n" +
 	"\x12unavailable_reason\x18\r \x01(\tR\x11unavailableReason\x12#\n" +
 	"\rpreview_label\x18\x0e \x01(\tR\fpreviewLabel\x12e\n" +
-	"\rheader_action\x18\x0f \x01(\v2@.vrooli.landing_page_business_suite.v1.shared.PresentationActionR\fheaderAction\"@\n" +
+	"\rheader_action\x18\x0f \x01(\v2@.vrooli.landing_page_business_suite.v1.shared.PresentationActionR\fheaderAction\x12\x1d\n" +
+	"\n" +
+	"brand_logo\x18\x10 \x01(\tR\tbrandLogo\x12$\n" +
+	"\x0ebrand_logo_alt\x18\x11 \x01(\tR\fbrandLogoAlt\x12*\n" +
+	"\x11footer_brand_logo\x18\x12 \x01(\tR\x0ffooterBrandLogo\"@\n" +
 	"\x16PresentationAssetLabel\x12\x10\n" +
 	"\x03alt\x18\x01 \x01(\tR\x03alt\x12\x14\n" +
 	"\x05sizes\x18\x02 \x01(\tR\x05sizes\"\x87\x03\n" +
@@ -5940,7 +5987,7 @@ const file_landing_page_business_suite_v1_shared_product_presentation_proto_rawD
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aB\n" +
 	"\x14HeroFixtureRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa3\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd2\x01\n" +
 	"\x16PresentationAppDisplay\x12\x1f\n" +
 	"\vfixture_ref\x18\x01 \x01(\tR\n" +
 	"fixtureRef\x12\x1d\n" +
@@ -5948,7 +5995,9 @@ const file_landing_page_business_suite_v1_shared_product_presentation_proto_rawD
 	"visual_ref\x18\x02 \x01(\tR\tvisualRef\x12\x12\n" +
 	"\x04mark\x18\x03 \x01(\tR\x04mark\x12\x12\n" +
 	"\x04tone\x18\x04 \x01(\tR\x04tone\x12!\n" +
-	"\fdetail_label\x18\x05 \x01(\tR\vdetailLabel\"\x7f\n" +
+	"\fdetail_label\x18\x05 \x01(\tR\vdetailLabel\x12\x12\n" +
+	"\x04logo\x18\x06 \x01(\tR\x04logo\x12\x19\n" +
+	"\blogo_alt\x18\a \x01(\tR\alogoAlt\"\x7f\n" +
 	"\x11PresentationTheme\x12\x18\n" +
 	"\avariant\x18\x01 \x01(\tR\avariant\x12\x18\n" +
 	"\aprimary\x18\x02 \x01(\tR\aprimary\x12\x1e\n" +
