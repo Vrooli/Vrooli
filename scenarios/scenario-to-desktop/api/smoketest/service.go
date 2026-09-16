@@ -40,20 +40,29 @@ type DefaultService struct {
 	captures   *captures.Service
 
 	// Optional process monitoring (nil = monitoring disabled)
-	monitorFactory      procmetrics.MonitorFactory
-	windowDetector      *procmetrics.XdotoolDetector
-	journeyDriver       DesktopDriver
-	journeyClock        Clock
-	journeyWaiter       JourneyWaiter
-	journeyCapture      JourneyCapture
-	journeyAPI          JourneyAPIProbe
-	journeyProcess      JourneyProcessObserver
-	journeyCapability   string
-	evidenceReporter    EvidenceReporter
-	manifestWriter      EvidenceManifestWriter
-	rendererURLResolver func(context.Context, string) (string, error)
-	apiURLResolver      func(context.Context, string) (string, error)
-	targetResolver      func(context.Context, *Status) (JourneyTarget, error)
+	monitorFactory       procmetrics.MonitorFactory
+	windowDetector       *procmetrics.XdotoolDetector
+	journeyDriver        DesktopDriver
+	journeyClock         Clock
+	journeyWaiter        JourneyWaiter
+	journeyCapture       JourneyCapture
+	journeyAPI           JourneyAPIProbe
+	journeyProcess       JourneyProcessObserver
+	journeyCapability    string
+	evidenceReporter     EvidenceReporter
+	manifestWriter       EvidenceManifestWriter
+	rendererURLResolver  func(context.Context, string) (string, error)
+	apiURLResolver       func(context.Context, string) (string, error)
+	targetResolver       func(context.Context, *Status) (JourneyTarget, error)
+	providerJourney      ProviderJourneyExecutor
+	providerScenarioRoot string
+}
+
+// WithProviderJourneyExecutor enables provider-owned BAS execution inside the
+// existing smoke journey, before its single evidence manifest is written.
+func (s *DefaultService) WithProviderJourneyExecutor(executor ProviderJourneyExecutor, scenarioRoot string) {
+	s.providerJourney = executor
+	s.providerScenarioRoot = scenarioRoot
 }
 
 // NewService creates a new smoke test service with all required dependencies.

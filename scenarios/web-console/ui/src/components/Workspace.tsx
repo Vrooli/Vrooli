@@ -2058,7 +2058,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
-        hidden={isMobile && isTabLikeMode}
+        // Phones already drop it in tab-like modes. Sidebar mode drops it as
+        // soon as the composer bar is on screen, because then every action it
+        // held lives in the sidebar header (new / machines / profile) or the
+        // bar itself (AI / expand / voice) — leaving nothing unique to show.
+        hidden={
+          (isMobile && isTabLikeMode)
+          || (workspace.displayMode === "sidebar" && composerBarVisible)
+        }
         // Tab-like layouts carry their own new-session control (tab strip,
         // sidebar header), and the bottom composer bar owns AI / expand /
         // voice whenever it is on screen. Trimming both keeps the floating
@@ -2276,7 +2283,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onStartRole={startRoleFromSurface}
           onHandoffToRole={handoffToRole}
           onOpenRoleMenu={openRoleMenu}
-              onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
+              onOpenAccount={() => { openSettingsTab("account"); }}
+              onOpenMachines={openMachines}
               onOpenArchiveDrawer={(sessionId) => {
                 setMobileSidebarOpen(false);
                 setArchiveInitialSessionId(sessionId ?? null);

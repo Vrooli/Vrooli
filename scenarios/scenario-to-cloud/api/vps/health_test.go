@@ -420,6 +420,11 @@ func TestComputeHealth_Unhealthy_ProcessMissing(t *testing.T) {
 	if !found {
 		t.Error("expected a process restart recommendation")
 	}
+	for _, r := range resp.Recommendations {
+		if r.Category == "processes" && r.Command != "scenario-to-cloud deployment start dep-123" {
+			t.Fatalf("process recommendation command = %q, want owner-level deployment start", r.Command)
+		}
+	}
 }
 
 func TestComputeHealth_Failed(t *testing.T) {

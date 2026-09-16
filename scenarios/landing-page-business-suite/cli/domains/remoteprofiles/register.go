@@ -58,12 +58,14 @@ func RunCreate(deps support.Dependencies, args []string) error {
 	tag := fs.String("tag", "", "Profile tag (unique)")
 	label := fs.String("label", "", "Profile label")
 	apiBase := fs.String("api-base", "", "Remote API base (must end with /api/v1)")
+	authMode := fs.String("auth-mode", "session", "Authentication mode: session or service")
+	remoteSecret := fs.String("remote-service-secret", "", "Remote destination service secret (service mode; use @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
-		return fmt.Errorf("usage: remote-profiles-create --tag <tag> --api-base <url> [--label <label>] [--json]")
+		return fmt.Errorf("usage: remote-profiles-create --tag <tag> --api-base <url> [--label <label>] [--auth-mode session|service] [--remote-service-secret <secret|@file>] [--json]")
 	}
 
 	tagValue := strings.TrimSpace(*tag)
@@ -77,8 +79,16 @@ func RunCreate(deps support.Dependencies, args []string) error {
 	}
 
 	payload := map[string]string{
-		"tag":      tagValue,
-		"api_base": normalizedAPIBase,
+		"tag":       tagValue,
+		"api_base":  normalizedAPIBase,
+		"auth_mode": strings.TrimSpace(*authMode),
+	}
+	secret, err := support.ResolveSecretArg(*remoteSecret)
+	if err != nil {
+		return err
+	}
+	if secret != "" {
+		payload["remote_service_secret"] = secret
 	}
 	if strings.TrimSpace(*label) != "" {
 		payload["label"] = strings.TrimSpace(*label)
@@ -105,9 +115,13 @@ func runUpdate(deps support.Dependencies, args []string) error {
 	var tag support.OptionalString
 	var label support.OptionalString
 	var apiBase support.OptionalString
+	var authMode support.OptionalString
+	var remoteSecret support.OptionalString
 	fs.Var(&tag, "tag", "Updated tag")
 	fs.Var(&label, "label", "Updated label (use empty string to clear)")
 	fs.Var(&apiBase, "api-base", "Updated API base")
+	fs.Var(&authMode, "auth-mode", "Authentication mode: session or service")
+	fs.Var(&remoteSecret, "remote-service-secret", "Remote destination service secret (use @file; empty clears)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
 		return err
@@ -130,8 +144,18 @@ func runUpdate(deps support.Dependencies, args []string) error {
 	if apiBase.IsSet {
 		payload["api_base"] = strings.TrimSpace(apiBase.Value)
 	}
+	if authMode.IsSet {
+		payload["auth_mode"] = strings.TrimSpace(authMode.Value)
+	}
+	if remoteSecret.IsSet {
+		secret, resolveErr := support.ResolveSecretArg(remoteSecret.Value)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		payload["remote_service_secret"] = secret
+	}
 	if len(payload) == 0 {
-		return fmt.Errorf("at least one of --tag, --label, or --api-base is required")
+		return fmt.Errorf("at least one of --tag, --label, --api-base, --auth-mode, or --remote-service-secret is required")
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {

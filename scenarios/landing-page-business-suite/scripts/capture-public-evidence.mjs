@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { execFile as execFileCallback } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +20,24 @@ export const DEFAULT_LATE_BLANK_SECONDS = 0.75;
 export const DEFAULT_SAMPLE_FPS = 4;
 export const DEFAULT_DECODE_WIDTH = 320;
 export const MEDIA_PROCESS_TIMEOUT_MS = 60000;
+
+// Prefer an explicitly pinned browser, then a system browser. CI images often
+// omit Playwright's managed browser cache while still providing Chrome or
+// Chromium. Returning undefined lets Playwright use its managed browser when
+// neither system candidate exists.
+export function resolveBrowserExecutable(explicit = process.env.LPBS_CHROMIUM_EXECUTABLE) {
+  const candidates = [explicit, '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser']
+    .filter(candidate => typeof candidate === 'string' && candidate.trim());
+  return candidates.find(candidate => existsSync(candidate)) || undefined;
+}
+
+export function resolveHeadless(requested = true) {
+  // A headed launch cannot work on a worker without a display server. Keep
+  // capture reliable in CI and SSH sessions while retaining headed behavior
+  // for operators who provide DISPLAY or Wayland.
+  if (requested === false && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return true;
+  return requested;
+}
 
 export function captureRouting(options) {
   if (options.testMode !== undefined && typeof options.testMode !== 'boolean') throw new Error('testMode must be a boolean');
@@ -629,8 +648,8 @@ export async function captureProductionEvidence(options) {
     const captureStarted = Date.now();
     context = await playwright.chromium.launchPersistentContext(tempProfile, {
       timeout: Math.min(options.timeoutMs, options.maxCaptureMs),
-      headless: options.headless ?? true,
-      executablePath: options.executablePath || '/usr/bin/google-chrome',
+      headless: resolveHeadless(options.headless ?? true),
+      executablePath: resolveBrowserExecutable(options.executablePath),
       viewport,
       deviceScaleFactor: Number(options.dpr ?? 1),
       reducedMotion: 'reduce',
@@ -721,8 +740,8 @@ export async function captureProductionEvidence(options) {
     mobileProfile = await mkdtemp(join(tmpdir(), 'lpbs-capture-mobile-'));
     mobileContext = await playwright.chromium.launchPersistentContext(mobileProfile, {
       timeout: Math.min(options.timeoutMs, options.maxCaptureMs),
-      headless: options.headless ?? true,
-      executablePath: options.executablePath || '/usr/bin/google-chrome',
+      headless: resolveHeadless(options.headless ?? true),
+      executablePath: resolveBrowserExecutable(options.executablePath),
       viewport: mobileViewport,
       deviceScaleFactor: Number(options.dpr ?? 1),
       reducedMotion: 'reduce',

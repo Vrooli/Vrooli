@@ -84,6 +84,18 @@ func TestConnectServiceGetReleaseGateUsesDedicatedContract(t *testing.T) {
 	}
 }
 
+func TestConnectServiceWaitReturnsPersistedTerminalState(t *testing.T) {
+	status := &Status{PipelineID: "pipeline-done", ScenarioName: "example", Status: StatusCompleted, CurrentState: PipelineStateCompleted}
+	service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{getResult: status, getFound: true})))
+	response, err := service.Wait(context.Background(), connect.NewRequest(&pipelinev1.PipelineWaitRequest{PipelineId: status.PipelineID, TimeoutSeconds: 1}))
+	if err != nil {
+		t.Fatalf("Wait() error for terminal state = %v", err)
+	}
+	if got := response.Msg.GetStatus(); got != sharedv1.StageStatus_STAGE_STATUS_COMPLETED {
+		t.Fatalf("Wait() status = %v, want completed", got)
+	}
+}
+
 func TestStageDetailsToProtoPreservesEveryPipelineResultKind(t *testing.T) {
 	tests := []struct {
 		name  string

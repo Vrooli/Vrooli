@@ -89,6 +89,12 @@ func (s *ConnectService) Wait(ctx context.Context, req *connect.Request[pipeline
 		if latest, ok := s.handler.orchestrator.GetStatus(id); ok {
 			status = latest
 		}
+		// A poller can lose its transport context at the same moment the
+		// orchestrator persists a terminal state. Return the terminal snapshot
+		// as success; clients must not turn a completed run into "unexpected EOF".
+		if status != nil && status.IsComplete() {
+			return connect.NewResponse(statusToProto(status)), nil
+		}
 		return connect.NewResponse(statusToProto(status)), connect.NewError(connect.CodeDeadlineExceeded, waitErr)
 	}
 	return connect.NewResponse(statusToProto(status)), nil
@@ -160,7 +166,9 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 	}
 	items := make([]*pipelinev1.PipelineListItem, 0)
 	limit := int(req.Msg.GetLimit())
-	if limit <= 0 { limit = 100 }
+	if limit <= 0 {
+		limit = 100
+	}
 	for _, status := range s.handler.orchestrator.ListPipelines() {
 		if scenario := req.Msg.GetScenarioName(); scenario != "" && status.ScenarioName != scenario {
 			continue
@@ -187,7 +195,9 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 			item.CompletedAt = unixTimestamp(status.CompletedAt)
 		}
 		items = append(items, item)
-		if len(items) >= limit { break }
+		if len(items) >= limit {
+			break
+		}
 	}
 	total := int32(len(items))
 	return connect.NewResponse(&pipelinev1.PipelineListResponse{Pipelines: items, Total: &total}), nil
@@ -358,6 +368,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 	}
 	config := &PipelineConfig{
 		ScenarioName:            value.GetScenarioName(),
+		JourneyID:               value.GetJourneyId(),
 		Platforms:               platformsFromProto(value.GetPlatforms()),
 		DeploymentMode:          deploymentModeFromProto(value.GetDeploymentMode()),
 		Framework:               frameworkFromProto(value.GetFramework()),
@@ -743,6 +754,9 @@ func configToProto(config *PipelineConfig) *pipelinev1.PipelineConfig {
 }
 
 func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *PipelineConfig) {
+	if config.JourneyID != "" {
+		result.JourneyId = config.JourneyID
+	}
 	if config.SkipPreflight {
 		result.SkipPreflight = boolPtr(true)
 	}

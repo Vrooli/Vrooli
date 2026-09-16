@@ -321,20 +321,24 @@ vi.mock("../components/AiInput", () => ({
 }));
 
 vi.mock("../components/FloatingToolbar", () => ({
-  default: vi.fn(({ onOpenSettings, onOpenAi, onNewTerminal, onOpenLauncher, onExpandComposer, isCreating: creating }: {
+  default: vi.fn(({ onOpenSettings, onOpenAi, onNewTerminal, onOpenLauncher, onExpandComposer, isCreating: creating, hidden }: {
     onOpenSettings: () => void;
     onOpenAi?: () => void;
     onNewTerminal: () => void; onOpenLauncher: () => void; isCreating: boolean;
     onExpandComposer?: () => void;
-  }) => (
-    <div data-testid="floating-toolbar">
-      <button data-testid="toolbar-settings" onClick={onOpenSettings}>Settings</button>
-      {onOpenAi && <button data-testid="toolbar-ai" onClick={onOpenAi}>AI</button>}
-      <button data-testid="toolbar-new" onClick={onNewTerminal} disabled={creating}>New</button>
-      <button data-testid="toolbar-launcher" onClick={onOpenLauncher}>Launcher</button>
-      {onExpandComposer && <button data-testid="toolbar-expand" onClick={onExpandComposer}>Expand</button>}
-    </div>
-  )),
+    hidden?: boolean;
+  }) => {
+    if (hidden) return null;
+    return (
+      <div data-testid="floating-toolbar">
+        <button data-testid="toolbar-settings" onClick={onOpenSettings}>Settings</button>
+        {onOpenAi && <button data-testid="toolbar-ai" onClick={onOpenAi}>AI</button>}
+        <button data-testid="toolbar-new" onClick={onNewTerminal} disabled={creating}>New</button>
+        <button data-testid="toolbar-launcher" onClick={onOpenLauncher}>Launcher</button>
+        {onExpandComposer && <button data-testid="toolbar-expand" onClick={onExpandComposer}>Expand</button>}
+      </div>
+    );
+  }),
 }));
 
 vi.mock("../components/ErrorBanner", () => ({
@@ -787,6 +791,40 @@ describe("Workspace", () => {
     expect(screen.queryByTestId(`tab-pane-${session2.id}`)).toBeNull();
   });
 
+  it("removes the floating bar in sidebar mode once the composer bar is on screen", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+    ];
+    touchControlsState.needsTouchControls = true;
+
+    render(<Workspace />);
+
+    expect(screen.queryByTestId("floating-toolbar")).toBeNull();
+    // Every action it held now lives on a surface that is still on screen:
+    // the composer bar, or the sidebar header.
+    expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+    expect(screen.getByTestId("workspace-sidebar-new")).toBeTruthy();
+    expect(screen.getByTestId("workspace-sidebar-profile")).toBeTruthy();
+    expect(screen.getByTestId("workspace-sidebar-machines")).toBeTruthy();
+  });
+
+  it("keeps the floating bar in sidebar mode while the composer bar is absent", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: false },
+    ];
+    touchControlsState.needsTouchControls = false;
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
+  });
+
   it("opens and closes the mobile sidebar drawer", () => {
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
@@ -807,7 +845,7 @@ describe("Workspace", () => {
     expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
     expect(screen.getByTestId("workspace-sidebar").className).toContain("--wc-safe-top");
     expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("border-b");
-    expect(screen.getByTestId("workspace-sidebar-settings").parentElement?.className).toContain("border-b");
+    expect(screen.getByTestId("workspace-sidebar-profile").parentElement?.className).toContain("border-b");
 
     fireEvent.click(screen.getByTestId("workspace-sidebar-backdrop"));
     expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();

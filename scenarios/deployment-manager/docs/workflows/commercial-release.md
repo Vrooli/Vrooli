@@ -102,6 +102,10 @@ card, or `PUT /api/v1/profiles/{profile_id}/lpbs-config`:
 ```
 
 The publish step refuses to start without an exact app key and remote profile.
+The remote profile may be session-authenticated or service-authenticated. For
+unattended releases, configure the profile with the destination's
+`LPBS_SERVICE_SECRET`; that mode has no seven-day session expiry and requires no
+human login.
 Leave `update_url` blank for a governed release: the owner-derived update URL is
 bound at publish time.
 

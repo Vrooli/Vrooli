@@ -36,19 +36,17 @@ func (s *Server) desktopTerminalFixture(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "terminal session unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	defer func() {
+	cleanupSession := func() {
 		// Give the browser's lifecycle stream and terminal transport time to
 		// attach, execute the command, and capture the rendered output before the
-		// fixture session is cleaned up. The response is not released until the
-		// initial producer acknowledgement, and this longer grace period covers
-		// the desktop action's output/read/settle sequence.
+		// fixture session is cleaned up.
 		time.Sleep(15 * time.Second)
 		if s.lifecycleDelete != nil {
 			_ = s.lifecycleDelete(context.Background(), sess.ID)
 		} else {
 			_ = s.sessions.Delete(context.Background(), sess.ID)
 		}
-	}()
+	}
 	// The response below is only a bounded producer acknowledgement; the
 	// desktop journey separately submits the command and proves rendered output.
 	_ = sess
@@ -65,4 +63,5 @@ func (s *Server) desktopTerminalFixture(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"observed":"terminal_output=desktop-terminal-fixture","route":"bundled-private","app_key":"web-console"}`))
+	go cleanupSession()
 }

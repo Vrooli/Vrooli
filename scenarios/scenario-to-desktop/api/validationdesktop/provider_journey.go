@@ -54,9 +54,10 @@ type Request struct {
 }
 
 type Result struct {
-	Disposition string
-	Reason      string
-	Evidence    []*domainv1.LayeredEvidence
+	Disposition   string
+	Reason        string
+	ProviderRunID string
+	Evidence      []*domainv1.LayeredEvidence
 }
 
 type Dependencies struct {
@@ -133,9 +134,9 @@ func Execute(ctx context.Context, deps Dependencies, request Request) Result {
 	}
 	evidence = append(evidence, targetEvidence(targetInfo, request), machineEvidence(request, providerResult.ProviderRunID))
 	if !providerResult.Passed {
-		return Result{Disposition: "failed", Reason: firstNonEmpty(providerResult.Reason, "provider-owned workflow failed"), Evidence: evidence}
+		return Result{Disposition: "failed", Reason: firstNonEmpty(providerResult.Reason, "provider-owned workflow failed"), ProviderRunID: providerResult.ProviderRunID, Evidence: evidence}
 	}
-	return Result{Disposition: "pass", Reason: "provider workflow and Electron desktop evidence completed", Evidence: evidence}
+	return Result{Disposition: "pass", Reason: "provider workflow and Electron desktop evidence completed", ProviderRunID: providerResult.ProviderRunID, Evidence: evidence}
 }
 
 func actionString(action *livedesktop.ActionResult, key string) string {

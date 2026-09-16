@@ -398,6 +398,25 @@ func buildProcessState(
 		}
 	}
 
+	// `vrooli resource status --json` is the control-plane source of truth for
+	// resource lifecycle state. A resource's serving process may be a supervisor,
+	// container, or system service whose name is unrelated to the resource ID, so
+	// do not turn a missing ps name into a false outage. Add typed rows only when
+	// process discovery did not already provide one; the PID remains zero to make
+	// the weaker evidence explicit.
+	for _, status := range typedResourceStatuses(resourceStatusJSON) {
+		if !expectedResources[status.ID] {
+			continue
+		}
+		if _, exists := resourceIndexByID[status.ID]; exists {
+			continue
+		}
+		resourceIndexByID[status.ID] = len(state.Resources)
+		state.Resources = append(state.Resources, domain.ResourceProcess{
+			ID: status.ID, Status: status.State, VrooliStatus: resourceStatusRaw,
+		})
+	}
+
 	// Find unexpected processes (non-system, non-classified)
 	for _, p := range processes {
 		if classifiedPIDs[p.PID] {
@@ -442,6 +461,72 @@ func buildProcessState(
 	}
 
 	return state
+}
+
+type typedResourceStatus struct {
+	ID    string
+	State string
+}
+
+// typedResourceStatuses accepts both the fleet envelope emitted by the CLI
+// and the older map-shaped status payload. Keeping this adapter at the edge
+// lets the health model depend on explicit lifecycle fields rather than on
+// driver-specific process names.
+func typedResourceStatuses(raw string) []typedResourceStatus {
+	var envelope struct {
+		Resources []struct {
+			Resource struct {
+				Name string `json:"name"`
+				ID   string `json:"id"`
+			} `json:"resource"`
+			Name    string `json:"name"`
+			ID      string `json:"id"`
+			Running bool   `json:"running"`
+			Status  string `json:"status"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal([]byte(raw), &envelope); err == nil && envelope.Resources != nil {
+		result := make([]typedResourceStatus, 0, len(envelope.Resources))
+		for _, item := range envelope.Resources {
+			id := item.Name
+			if id == "" {
+				id = item.ID
+			}
+			if id == "" {
+				id = item.Resource.Name
+			}
+			if id == "" {
+				id = item.Resource.ID
+			}
+			state := strings.ToLower(strings.TrimSpace(item.Status))
+			if item.Running || state == "running" || state == "healthy" || state == "ready" {
+				state = "running"
+			}
+			if id != "" && state != "" {
+				result = append(result, typedResourceStatus{ID: id, State: state})
+			}
+		}
+		return result
+	}
+
+	var byID map[string]struct {
+		Running bool   `json:"running"`
+		Status  string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(raw), &byID); err != nil {
+		return nil
+	}
+	result := make([]typedResourceStatus, 0, len(byID))
+	for id, item := range byID {
+		state := strings.ToLower(strings.TrimSpace(item.Status))
+		if item.Running {
+			state = "running"
+		}
+		if state != "" {
+			result = append(result, typedResourceStatus{ID: id, State: state})
+		}
+	}
+	return result
 }
 
 // categorizePortsWithManifest adds manifest-aware categorization to ports.

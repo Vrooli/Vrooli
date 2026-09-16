@@ -46,6 +46,7 @@ import (
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
 	"scenario-to-desktop-api/validationcatalog"
+	"scenario-to-desktop-api/validationdesktop"
 	"scenario-to-desktop-api/validationprovider"
 
 	"github.com/gorilla/handlers"
@@ -118,6 +119,14 @@ type Server struct {
 	smokeTestStore   smoketest.Store
 	smokeTestService smoketest.Service
 	smokeTestCancels smoketest.CancelManager
+}
+
+type providerJourneyExecutor struct {
+	deps validationdesktop.Dependencies
+}
+
+func (e providerJourneyExecutor) Execute(ctx context.Context, request validationdesktop.Request) validationdesktop.Result {
+	return validationdesktop.Execute(ctx, e.deps, request)
 }
 
 // NewServer creates a new server instance
@@ -291,6 +300,11 @@ func NewServer(port int) *Server {
 		liveDesktopService.WithCaptures(capturesService)
 	}
 	liveDesktopHandler := livedesktop.NewHandler(liveDesktopService)
+	smokeTestService.WithProviderJourneyExecutor(providerJourneyExecutor{deps: validationdesktop.Dependencies{
+		Desktop:  liveDesktopService,
+		Workflow: validationprovider.NewWorkflowHealthClient(),
+		Captures: captureReader{service: capturesService},
+	}}, scenarioRoot)
 	// Start idle session janitor (30s check interval, 30m idle timeout)
 	livedesktop.StartJanitor(lifecycleCtx, liveDesktopService, 30*time.Second, 30*time.Minute)
 
@@ -562,12 +576,15 @@ func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.L
 	}
 	var options []validationmatrix.ServiceOption
 	options = append(options, validationmatrix.WithCatalogResolver(validationcatalog.NewWorkflowHealthResolver()))
-	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
-		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
-		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
-		if profileID != "" && gitCommit != "" {
-			options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil, validationmatrix.WithDeploymentIdentity("scenario-to-desktop", "scenario-to-desktop", "desktop", runtime.GOOS))))
-		}
+	deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL"))
+	profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+	gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
+	configured := deploymentURL != "" || profileID != "" || gitCommit != ""
+	complete := deploymentURL != "" && profileID != "" && gitCommit != ""
+	if configured && !complete {
+		logger.Error("release reporter refused: DEPLOYMENT_MANAGER_URL, DEPLOYMENT_MANAGER_PROFILE_ID, and DEPLOYMENT_MANAGER_GIT_COMMIT must be configured together")
+	} else if complete {
+		options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil, validationmatrix.WithDeploymentIdentity("scenario-to-desktop", "scenario-to-desktop", "desktop", runtime.GOOS))))
 	}
 	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService, desktop: desktopOwner, workflow: workflowExecutor, builder: desktopRampBuilder{finder: artifactFinder}, scenarioRoot: scenarioRoot}, Bridge: bridgeExecutor}, options...)
 	if recovered := service.RecoverStale(); recovered > 0 {

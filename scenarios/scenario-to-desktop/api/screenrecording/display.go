@@ -209,10 +209,24 @@ func startWindowManagerWithMetadata(display string) (*os.Process, string, bool) 
 		args := append([]string(nil), wm.args...)
 		if wm.name == "openbox" {
 			configPath := filepath.Join(os.TempDir(), "vrooli-openbox-"+strings.TrimPrefix(display, ":")+".xml")
-			const config = `<?xml version="1.0" encoding="UTF-8"?><openbox_config><theme><name>Clearlooks</name><titleLayout>NLIMC</titleLayout><font place="ActiveWindow"><name>DejaVu Sans</name><size>12</size><weight>Bold</weight><slant>Normal</slant></font></theme></openbox_config>`
+			config := recordingOpenboxConfig()
 			if writeErr := os.WriteFile(configPath, []byte(config), 0o600); writeErr == nil {
+				themeRoot := filepath.Join(os.TempDir(), "vrooli-openbox-theme-"+strings.TrimPrefix(display, ":"))
+				themeDir := filepath.Join(themeRoot, "themes", "VrooliEvidence", "openbox-3")
+				if mkdirErr := os.MkdirAll(themeDir, 0o700); mkdirErr == nil {
+					_ = os.WriteFile(filepath.Join(themeDir, "themerc"), []byte(recordingOpenboxTheme()), 0o600)
+				}
 				args = append([]string{"--config-file", configPath}, args...)
 				defer os.Remove(configPath)
+				defer os.RemoveAll(themeRoot)
+				wmEnv := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{displayEnv, "XDG_DATA_HOME=" + themeRoot})
+				wmCmd := exec.Command(wmPath, args...)
+				wmCmd.Env = wmEnv
+				if err := wmCmd.Start(); err != nil {
+					continue
+				}
+				time.Sleep(200 * time.Millisecond)
+				return wmCmd.Process, wm.name, true
 			}
 		}
 
@@ -242,6 +256,14 @@ func startWindowManagerWithMetadata(display string) (*os.Process, string, bool) 
 			return names
 		}())
 	return nil, "", false
+}
+
+func recordingOpenboxConfig() string {
+	return `<?xml version="1.0" encoding="UTF-8"?><openbox_config><theme><name>VrooliEvidence</name><titleLayout>NLIMC</titleLayout><font place="ActiveWindow"><name>DejaVu Sans</name><size>12</size><weight>Bold</weight><slant>Normal</slant></font><font place="InactiveWindow"><name>DejaVu Sans</name><size>12</size><weight>Bold</weight><slant>Normal</slant></font></theme><desktops><number>1</number></desktops></openbox_config>`
+}
+
+func recordingOpenboxTheme() string {
+	return "window.active.title.bg: flat solid\nwindow.active.title.bg.color: #18375a\nwindow.active.label.bg: parentrelative\nwindow.active.label.text.color: #ffffff\nwindow.inactive.title.bg: flat solid\nwindow.inactive.title.bg.color: #242424\nwindow.inactive.label.bg: parentrelative\nwindow.inactive.label.text.color: #ffffff\nwindow.active.button.*.bg: parentrelative\nwindow.active.button.*.image.color: #ffffff\nwindow.inactive.button.*.bg: parentrelative\nwindow.inactive.button.*.image.color: #ffffff\nborder.width: 1\nwindow.active.border.color: #0b1726\nwindow.inactive.border.color: #111111\npadding.width: 3\npadding.height: 3\n"
 }
 
 // setDesktopBackground replaces the default black X11 root window with a

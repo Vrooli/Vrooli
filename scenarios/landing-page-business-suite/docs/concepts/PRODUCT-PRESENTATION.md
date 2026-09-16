@@ -57,7 +57,14 @@ typed `content`; arrays are authoritative order. Version 1 renderers are finite.
 
 `Page.display` owns locale-specific shell labels, finite brand marks, asset
 alt/sizes labels, fixture display labels, block decoration/heading-break data,
-and app exhibit references. These values share the immutable page revision and
+and app exhibit references. The shell and each app exhibit may also carry an
+optional real brand image: the shell accepts `brand_logo`, `brand_logo_alt` and
+`footer_brand_logo`; an app exhibit accepts `logo` and `logo_alt`. The finite
+`mark` stays required, so an image that fails to load still has a deterministic
+fallback. Logo references are validated as relative same-origin asset paths
+with no traversal or query/fragment, never third-party or remote URLs. When a
+logo is present the renderer shows the brand image and otherwise the mark.
+These values share the immutable page revision and
 content digest. No production sidecar or JSX defaults supply missing copy.
 Resolved display tables contain only selected blocks, referenced public app
 exhibits and their fixture/asset closure. Reference validation includes display

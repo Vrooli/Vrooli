@@ -138,7 +138,7 @@ func TestScopeCatalogDerivesScenarioScopes(t *testing.T) {
 	if len(profile.MissingDeclarations) != 0 {
 		t.Fatalf("authentication profile findings: %v (CLI manifest and service.json must agree)", profile.MissingDeclarations)
 	}
-	if profile.Profile != "scenario_authenticator" || profile.DefaultMode != "personal_local" || len(profile.Capabilities) != 3 {
+	if profile.Profile != "scenario_authenticator" || profile.DefaultMode != "shared_provider" || len(profile.Capabilities) != 3 {
 		t.Fatalf("profile = %+v", *profile)
 	}
 }

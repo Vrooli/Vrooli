@@ -473,6 +473,20 @@ func terminalFixtureJourneyAction(ctx context.Context, driver DesktopDriver, api
 	if err != nil {
 		return JourneyObservation{}, err
 	}
+	// The fixture publishes the created session through the normal lifecycle
+	// stream. The API response above is only identity/route metadata. Submit the
+	// fixed command through the now-active rendered terminal, then require the
+	// UI to surface its output.
+	if window, windowErr := driver.LargestVisibleWindow(ctx, input.Display); windowErr != nil || window == nil {
+		if windowErr == nil {
+			windowErr = fmt.Errorf("usable application window was not found")
+		}
+		return JourneyObservation{}, fmt.Errorf("focus rendered terminal: %w", windowErr)
+	} else if err := driver.Click(ctx, input.Display, window.X+150, window.Y+170, 1); err != nil {
+		return JourneyObservation{}, fmt.Errorf("select terminal session: %w", err)
+	} else if err := driver.Click(ctx, input.Display, window.X+window.Width/2, window.Y+(window.Height*70)/100, 1); err != nil {
+		return JourneyObservation{}, fmt.Errorf("focus rendered terminal: %w", err)
+	}
 	if err := driver.Type(ctx, input.Display, "printf 'desktop-terminal-fixture\\n'"); err != nil {
 		return JourneyObservation{}, fmt.Errorf("type terminal fixture command: %w", err)
 	}
@@ -483,6 +497,9 @@ func terminalFixtureJourneyAction(ctx context.Context, driver DesktopDriver, api
 	for time.Now().Before(deadline) {
 		title, titleErr := driver.WindowTitle(ctx, input.Display)
 		if titleErr == nil && strings.Contains(title, "terminal_output=desktop-terminal-fixture") {
+			// The title marker is updated by the terminal output hook before the
+			// renderer's next paint. Let that paint settle before the capture.
+			time.Sleep(500 * time.Millisecond)
 			return JourneyObservation{Observed: result.Observed, Provider: result.Provider, Route: result.Route, SurfaceObserved: true}, nil
 		}
 		select {

@@ -20,7 +20,7 @@ func (s *RemoteProfileService) GetByID(ctx context.Context, id int64) (*RemotePr
 
 func (s *RemoteProfileService) getRecordByID(ctx context.Context, id int64) (*remoteProfileRecord, error) {
 	row := s.DB.QueryRowContext(ctx, `
-		SELECT id, tag, label, api_base, connector_id, remote_session_id, status, encrypted_session,
+		SELECT id, tag, label, api_base, COALESCE(auth_mode, 'session'), encrypted_remote_service_secret, connector_id, remote_session_id, status, encrypted_session,
 		       session_expires_at, remote_session_last_synced_at, last_login_at, last_used_at,
 		       created_by, created_at, updated_at
 		FROM remote_profiles

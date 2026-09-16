@@ -171,6 +171,15 @@
           "notes": "Repository coverage verifies 2,500-event backward paging, oldest-history search over the FTS5 mirror, literal punctuation (% and _) in text search, and legacy complete-history reads."
         }
       ]
+    },
+    {
+      "id": "REQ-P0-001E2E-SESSION-PRECONDITION",
+      "title": "BAS cases establish a terminal session precondition",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "When a BAS case opens the terminal workspace, web-console MUST establish or verify its own terminal session before the strict workspace assertion runs.",
+      "validation": [{"type": "automation", "ref": "bas/cases/01-foundation/01-terminal/multi-pane-independent-io.json", "phase": "integration", "status": "implemented", "notes": "The case invokes ensure-session before open-workspace."}]
     }
   ]
 }

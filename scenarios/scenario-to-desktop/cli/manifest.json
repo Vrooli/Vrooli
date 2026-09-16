@@ -74,6 +74,12 @@
             "service": "PipelineService",
             "method": "Run"
           },
+          "flags": [
+            {
+              "name": "journey",
+              "description": "Provider/platform journey capability or catalog journey id"
+            }
+          ],
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -300,6 +306,16 @@
             "primitive": "proto_list"
           }
         }
+      ]
+    },
+    {
+      "name": "matrix",
+      "description": "Create and inspect desktop validation matrices",
+      "commands": [
+        {"name":"create","description":"Create a validation matrix","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"start","description":"Start a validation matrix","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"wait","description":"Wait for a validation matrix","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"show","description":"Show a validation matrix","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     },
     {
@@ -937,6 +953,15 @@
               }
             }
           ]
+        },
+        {
+          "name": "manifest",
+          "description": "Retrieve an evidence manifest without exposing its host path",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "scenario", "required": true, "description": "Scenario name"}],
+          "flags": [{"name": "pipeline", "description": "Pipeline ID"}, {"name": "run", "description": "Smoke-test run ID"}, {"name": "output", "description": "Write manifest JSON to this file"}]
         },
         {
           "name": "export",

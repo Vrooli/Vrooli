@@ -6,6 +6,7 @@ import (
 	"scenario-to-desktop/cli/domains/deploytarget"
 	"scenario-to-desktop/cli/domains/docs"
 	"scenario-to-desktop/cli/domains/evidence"
+	"scenario-to-desktop/cli/domains/matrix"
 	"scenario-to-desktop/cli/domains/pipeline"
 	"scenario-to-desktop/cli/domains/preflight"
 	"scenario-to-desktop/cli/domains/signing"
@@ -26,6 +27,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		build.Register(deps),
 		pipeline.Register(deps),
+		matrix.Register(deps),
 		preflight.Register(deps),
 		bundle.Register(deps),
 		docs.Register(deps),

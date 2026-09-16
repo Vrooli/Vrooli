@@ -64,11 +64,12 @@ Use command help for inputs; do not copy flags from historical work records.
 | The command or its inputs are unknown | Run `scenario-to-desktop help`, or the selected command's `--help` when its name is known. **[S1]** |
 | Need to choose a deployment mode | Read `path:scenarios/scenario-to-desktop/docs/concepts/deployment-modes.md`. Choose bundled for a verified local dependency plan; choose proxy for an explicitly configured external server. Resolve missing mode requirements before building. **[S0]** |
 | Need to inspect templates | Run `scenario-to-desktop templates`. **[S1]** |
-| Need a build with an agreed mode and target platforms | Run `scenario-to-desktop pipeline run` for the selected scenario with explicit `--platforms` and `--deployment-mode`. Preserve the returned pipeline ID. **[S1]** |
+| Need a build with an agreed mode and target platforms | Run `scenario-to-desktop pipeline run` for the selected scenario with explicit `--platforms`, `--deployment-mode`, and, when semantic validation is required, `--journey <catalog-journey-id>`. Preserve the returned pipeline ID. **[S1]** |
 | Need to diagnose or inspect a pipeline | Run `scenario-to-desktop.pipeline-inspect`. Supply the exact pipeline ID when continuing work; omit it only when the task is to inspect the newest pipeline. **[S3]** |
 | Need to locate retained desktop evidence | Run `scenario-to-desktop.evidence-inventory`. **[S3]** |
+| Need the evidence manifest for a pipeline | Run `scenario-to-desktop evidence manifest <scenario> --pipeline <pipeline-id>`; use `--output` to save JSON without exposing a host path. **[S1]** |
 | Need journey assertions for a candidate pipeline | Run `scenario-to-desktop evidence journey <scenario> --pipeline <pipeline-id>`. Without `--pipeline`, the command selects the latest journey. **[S1]** |
-| Need a validation matrix, target inventory, or profile capability check | Use the scenario's validation UI and `path:scenarios/scenario-to-desktop/docs/guides/interactive-desktop.md`. Governed matrix CLI bindings are not yet available; do not invent program calls. **[S0]** |
+| Need a validation matrix, target inventory, or profile capability check | Use `scenario-to-desktop matrix create`, `matrix start`, `matrix wait`, and `matrix show`; use the validation UI only when visual discovery is required. **[S0]** |
 | Need signing-tool availability | Run `scenario-to-desktop signing prerequisites`. **[S1]** |
 | Need to validate an existing signing configuration | Run `scenario-to-desktop signing validate <scenario>`. **[S1]** |
 | Need to configure signing | Run `scenario-to-desktop signing set` with the selected configuration per its help. Resolve credentials through the credential authority. **[S1]** |

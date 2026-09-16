@@ -1371,12 +1371,13 @@ async function startBundledRuntime(): Promise<string> {
     if (isSmokeTest) SmokeTestProtocol.stage.runtimePorts();
     updateSplashStatus("discovering-ports", "Discovering service endpoints...", 70);
     const ports = await runtimeControlClient!.request<RuntimePortsResponse>("/ports");
-    const serviceId = BUNDLED_RUNTIME.UI_SERVICE || Object.keys((ports as RuntimePortsResponse).services || {})[0];
-    const portName = BUNDLED_RUNTIME.UI_PORT_NAME || "http";
-    const svcPorts = (ports as RuntimePortsResponse).services?.[serviceId!];
-    const port = svcPorts?.[portName];
-    if (!serviceId || !port) throw new Error("Bundled runtime started but did not expose a UI port");
     const services = (ports as RuntimePortsResponse).services || {};
+    const serviceIds = Object.keys(services);
+    const serviceId = BUNDLED_RUNTIME.UI_SERVICE || serviceIds.find(id => /(^|[-_])ui($|[-_])/i.test(id) && Boolean(services[id]?.[BUNDLED_RUNTIME.UI_PORT_NAME || "http"])) || serviceIds.find(id => Boolean(services[id]?.[BUNDLED_RUNTIME.UI_PORT_NAME || "http"])) || serviceIds[0];
+    const portName = BUNDLED_RUNTIME.UI_PORT_NAME || "http";
+    const svcPorts = services[serviceId!];
+    const port = svcPorts?.[portName];
+    if (!serviceId || !port) throw new Error(`Bundled runtime started but did not expose UI port ${portName} for service ${serviceId || "<none>"}`);
     const apiService = Object.keys(services).find(id => id !== serviceId && /api|server|backend/i.test(id))
         || Object.keys(services).find(id => id !== serviceId);
     const apiPorts = apiService ? services[apiService] : undefined;

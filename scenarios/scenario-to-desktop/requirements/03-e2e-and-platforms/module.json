@@ -183,6 +183,114 @@
       "prd_ref": "OT-P0-004",
       "description": "When an operator lists or shows evidence, the CLI MUST support pipeline-scoped lookup and return an actionable error for an unknown pipeline.",
       "validation": []
+    },
+    {
+      "id": "STD-E2E-PROVIDER-JOURNEY-CELL",
+      "title": "Desktop cells execute provider-owned journeys",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a desktop validation cell selects a provider-owned journey, scenario-to-desktop MUST execute that journey against the packaged application and retain its provider run identity in the desktop evidence.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/smoketest/provider_journey_test.go::TestWorkflowReferenceFromProviderCarriesBASArtifactsAndIdentity",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-JOURNEY-KIND",
+      "title": "Passing manifests name the journey kind",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a validation manifest passes, the manifest MUST name the selected journey kind and preserve the same selection in the journey sidecar.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/smoketest/journey_contract_test.go::TestSelectJourneyCapabilityUsesModeAndOverride",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/evidence/contract_test.go::TestReleaseVisualManifestRoundTripsAndValidates",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-CAPTURE-OWNERSHIP",
+      "title": "Captures belong to their producing run",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a desktop journey persists capture references, the producer MUST reject a capture owned by another run and MUST retain the producing run identity with the evidence.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/evidence/contract_test.go::TestRejectCrossRunReferencesNamesOriginalRun",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-COUNTED-ISOLATION",
+      "title": "Isolation counts are observed",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a desktop runtime reports isolation, the evidence MUST use the observed adopted_session_count and MUST fail closed when the recorded count contradicts the recovery observation.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/evidence/contract_test.go::TestValidateRecoveryCountRejectsFalseZero",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-PROBE-APP-IDENTITY",
+      "title": "Every provider probe verifies app identity",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a provider or communication probe returns, the smoke test MUST verify the expected app_key and MUST report probe_app_mismatch or probe_app_unidentified when identity is not proven.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/smoketest/smoke_target_test.go::TestLoopbackJourneyAPIRejectsCommunicationIdentityMismatch",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/smoketest/smoke_target_test.go::TestLoopbackJourneyAPITerminalFixtureChecksIdentity",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-INDEPENDENT-GATE-DISPOSITIONS",
+      "title": "Manifest gates use independent dispositions",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-005",
+      "description": "When a validation manifest is produced, each required gate MUST derive its disposition from its own signal and MUST NOT report a constant disposition or copy another gate.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/evidence/manifest_test.go::TestManifestGatesUseIndependentSignals",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

@@ -135,7 +135,14 @@ func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 		if displayOrder == 0 {
 			displayOrder = idx + 1
 		}
-		if _, err := db.Exec(seedDownloadAppSQL, bundleKey, appKey, app.Name, app.Tagline, app.Description, app.InstallOverview, installSteps, storefronts, metadata, displayOrder); err != nil {
+		var iconURL, screenshotURL interface{}
+		if strings.TrimSpace(app.IconURL) != "" {
+			iconURL = app.IconURL
+		}
+		if strings.TrimSpace(app.ScreenshotURL) != "" {
+			screenshotURL = app.ScreenshotURL
+		}
+		if _, err := db.Exec(seedDownloadAppSQL, bundleKey, appKey, app.Name, app.Tagline, app.Description, iconURL, screenshotURL, app.InstallOverview, installSteps, storefronts, metadata, displayOrder); err != nil {
 			return fmt.Errorf("seed download app %s: %w", appKey, err)
 		}
 

@@ -114,6 +114,31 @@
     },
     "secrets": {
       "type": "object"
+    },
+    "local_credential_handoffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["consumer_scenario", "consumer_path", "auth_descriptor", "profile_tag", "api_base", "secret_id"],
+        "properties": {
+          "consumer_scenario": { "type": "string", "minLength": 1 },
+          "consumer_path": { "type": "string", "minLength": 1 },
+          "auth_descriptor": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["logical_id", "field"],
+            "properties": {
+              "logical_id": { "type": "string", "minLength": 1 },
+              "field": { "type": "string", "minLength": 1 }
+            }
+          },
+          "profile_tag": { "type": "string", "minLength": 1 },
+          "profile_label": { "type": "string" },
+          "api_base": { "type": "string", "minLength": 1 },
+          "secret_id": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   }
 }

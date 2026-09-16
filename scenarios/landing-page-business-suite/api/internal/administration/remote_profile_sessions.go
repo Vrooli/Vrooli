@@ -104,10 +104,60 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 	if err != nil {
 		return nil, err
 	}
+	var sessionValue string
+	if normalizedRemoteProfileAuthMode(rec.AuthMode) == remoteProfileAuthModeService {
+		secret, secretErr := s.remoteServiceSecret(rec)
+		if secretErr != nil {
+			return nil, secretErr
+		}
+		remoteURL, urlErr := s.buildRemoteProxyURL(rec.APIBase, pathValue, req.Query)
+		if urlErr != nil {
+			return nil, urlErr
+		}
+		var body io.Reader
+		if len(req.Body) > 0 {
+			body = bytes.NewReader(req.Body)
+		}
+		httpReq, requestErr := http.NewRequestWithContext(ctx, method, remoteURL, body)
+		if requestErr != nil {
+			return nil, requestErr
+		}
+		httpReq.Header.Set("Accept", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+secret)
+		if isRemoteConnectProcedure(pathValue) {
+			httpReq.Header.Set("Connect-Protocol-Version", "1")
+		}
+		for key, value := range req.Headers {
+			keyLower := strings.ToLower(strings.TrimSpace(key))
+			if keyLower == "" || keyLower == "authorization" || !remoteProfileProxyAllowedHeaders[keyLower] || strings.TrimSpace(value) == "" {
+				continue
+			}
+			httpReq.Header.Set(key, value)
+		}
+		if len(req.Body) > 0 && httpReq.Header.Get("Content-Type") == "" {
+			httpReq.Header.Set("Content-Type", "application/json")
+		}
+		resp, requestErr := s.HTTPClient.Do(httpReq)
+		if requestErr != nil {
+			_ = s.updateStatus(ctx, id, remoteProfileStatusError)
+			return nil, classifyRemoteError(requestErr)
+		}
+		defer resp.Body.Close()
+		bodyBytes, readErr := readLimitedBody(resp.Body, remoteProfileProxyResponseMax)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if resp.StatusCode >= 500 {
+			_ = s.updateStatus(ctx, id, remoteProfileStatusError)
+		} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			_ = s.updateStatus(ctx, id, remoteProfileStatusActive)
+		}
+		return &RemoteProxyResponse{StatusCode: resp.StatusCode, Body: bodyBytes, ContentType: resp.Header.Get("Content-Type")}, nil
+	}
 	if !rec.EncryptedSession.Valid || rec.EncryptedSession.String == "" {
 		return nil, ErrRemoteProfileSessionMissing
 	}
-	sessionValue, err := s.decrypt(rec.EncryptedSession.String)
+	sessionValue, err = s.decrypt(rec.EncryptedSession.String)
 	if err != nil {
 		return nil, err
 	}

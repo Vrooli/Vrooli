@@ -73,7 +73,7 @@ func TestUnauthenticatedRefusalExitsTwoWithNextAction(t *testing.T) {
 			t.Fatalf("%v: typed = %+v ok=%v", args, typed, ok)
 		}
 		message := apierr.Format(err)
-		for _, want := range []string{"unauthenticated", "Sign in", "SCENARIO_TO_CLOUD_API_TOKEN", "vrooli-bridge auth"} {
+		for _, want := range []string{"unauthenticated", "Sign in", "SCENARIO_TO_CLOUD_API_TOKEN", "Bridge login"} {
 			if !strings.Contains(message, want) {
 				t.Fatalf("%v: message missing %q: %s", args, want, message)
 			}
@@ -83,5 +83,18 @@ func TestUnauthenticatedRefusalExitsTwoWithNextAction(t *testing.T) {
 		if got := (&apierr.Typed{Code: code}).ExitCode(); got != want {
 			t.Fatalf("%s exit = %d, want %d", code, got, want)
 		}
+	}
+}
+
+func TestForbiddenScopeExplainsMissingHumanGrant(t *testing.T) {
+	err := testfakes.TypedErrorWithNextAction(connect.CodePermissionDenied, "forbidden_scope", "This human operator session lacks the required capability", map[string]any{"actor_kind": "human", "required_scope": "scenario-to-cloud:write", "agent_eligible": false}, &errorsv1.NextAction{Owner: "operator", Kind: "grant_scope", Reference: "docs/reference/configuration.md#authentication", Label: "Grant the required capability to this operator account"})
+	message := apierr.Format(err)
+	for _, want := range []string{"scenario-to-cloud:write", "authenticated operator account", "scenario-authenticator", "same account", "will not change its scopes"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("formatted refusal missing %q: %s", want, message)
+		}
+	}
+	if strings.Contains(message, "normal Vrooli terminal") {
+		t.Fatalf("human missing-scope refusal gives misleading terminal guidance: %s", message)
 	}
 }

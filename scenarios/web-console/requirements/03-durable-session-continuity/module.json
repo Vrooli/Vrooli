@@ -237,6 +237,15 @@
         { "type": "test", "ref": "api/internal/continuity/publisher_test.go:TestPublicRecordDoesNotExposeNativeLocators", "phase": "security", "status": "implemented", "notes": "Public records omit native transcript locators" },
         { "type": "test", "ref": "api/internal/continuity/publisher_test.go:TestAgentManagerPublisherTreatsMissingTombstoneAsConverged", "phase": "integration", "status": "implemented", "notes": "Tombstone publication converges safely" }
       ]
+    },
+    {
+      "id": "REQ-P0-003E2E-DISPLAY-MODE",
+      "title": "Mode-sensitive cases restore their display mode",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "description": "When a mode-sensitive BAS case pins a workspace display mode, web-console MUST restore the prior mode after the case completes or fails.",
+      "validation": [{"type": "automation", "ref": "bas/cases/01-foundation/01-terminal/session-persists-across-full-reload.json", "phase": "integration", "status": "implemented", "notes": "The reload journey exercises workspace state restoration."}]
     }
   ]
 }

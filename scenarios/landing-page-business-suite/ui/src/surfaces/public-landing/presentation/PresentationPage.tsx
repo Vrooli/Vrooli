@@ -1,6 +1,6 @@
 import { Fragment, useId, useRef, useState, type CSSProperties } from 'react';
 import type { Presentation, ResolvedActions } from './types';
-import { ActionLink, ProductMark } from './primitives';
+import { ActionLink, BrandLogo } from './primitives';
 import { renderBlock } from './registry';
 import { assertRendererContract } from './contract';
 import { resolveResources } from './resolvedResources';
@@ -35,11 +35,11 @@ export function PresentationPage({ presentation, resolvedActions, resolvedPricin
     <a className="skip-link" href={`#${id}-main`}>{shell.skip_label}</a>
     {presentation.diagnostics.preview && <div className="private-notice">{shell.preview_label}</div>}
     <header className={`site-header wrap ${menuOpen ? 'menu-open' : ''}`} onKeyDown={event => { if (event.key === 'Escape' && menuOpen) { setMenuOpen(false); menu.current?.focus(); } }}>
-      <a className="brand" href={safeHref(shell.brand_target)}><ProductMark kind={shell.brand_mark} /><span>{shell.brand_name}</span>{shell.brand_subtitle && <><span className="brand-divider" /><span className="brand-subtitle">{shell.brand_subtitle}</span></>}</a>
+      <a className="brand" href={safeHref(shell.brand_target)}><BrandLogo kind={shell.brand_mark} logo={shell.brand_logo} alt={shell.brand_logo_alt} /><span>{shell.brand_name}</span>{shell.brand_subtitle && <><span className="brand-divider" /><span className="brand-subtitle">{shell.brand_subtitle}</span></>}</a>
       <button ref={menu} type="button" className="menu-toggle" aria-label={shell.menu_label} aria-expanded={menuOpen} aria-controls={`${id}-nav`} onClick={() => { setMenuOpen(!menuOpen); }}><span /><span /></button>
       <nav id={`${id}-nav`} aria-label={page.navigation.label} onClick={() => { setMenuOpen(false); }}>{page.navigation.items.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}{shell.header_action && <ActionLink action={shell.header_action} resolvedActions={resolvedActions} reason={shell.unavailable_reason} className="button-nav" />}</nav>
     </header>
     <Content id={`${id}-main`} tabIndex={-1}>{page.blocks.map(block => <Fragment key={block.id}>{renderBlock(block, { presentation, resources, resolvedActions, resolvedPricing })}</Fragment>)}</Content>
-    <footer className="site-footer wrap" aria-label={page.footer.label}><div><a className="brand" href={safeHref(shell.footer_brand_target)}><ProductMark kind={shell.footer_brand_mark} /><span>{shell.footer_brand_name}</span></a><p>{shell.footer_tagline}</p></div><div className="footer-links">{page.footer.links.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}</div><div className="footer-fine"><span>{shell.copyright}</span><span>{shell.footer_note}</span></div></footer>
+    <footer className="site-footer wrap" aria-label={page.footer.label}><div><a className="brand" href={safeHref(shell.footer_brand_target)}><BrandLogo kind={shell.footer_brand_mark} logo={shell.footer_brand_logo} /><span>{shell.footer_brand_name}</span></a><p>{shell.footer_tagline}</p></div><div className="footer-links">{page.footer.links.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}</div><div className="footer-fine"><span>{shell.copyright}</span><span>{shell.footer_note}</span></div></footer>
   </div>;
 }

@@ -7,7 +7,16 @@ import (
 	"context"
 	"os"
 	"time"
+
+	"scenario-to-desktop-api/validationdesktop"
 )
+
+// ProviderJourneyExecutor runs a provider-owned workflow against the packaged
+// desktop target. It is optional so legacy smoke callers retain the platform
+// journey only.
+type ProviderJourneyExecutor interface {
+	Execute(context.Context, validationdesktop.Request) validationdesktop.Result
+}
 
 // Service orchestrates smoke test operations.
 type Service interface {
@@ -29,6 +38,7 @@ type SmokeTestRequest struct {
 	DeploymentMode string
 	ProxyURL       string
 	PipelineID     string
+	JourneyID      string
 }
 
 type requestService interface {

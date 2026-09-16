@@ -216,10 +216,18 @@ func (e *Enforcer) unauthenticated(cause error) *apierrors.Error {
 
 func (e *Enforcer) admit(r *http.Request, route Route, principal identity.Principal) *apierrors.Error {
 	if principal.Kind != identity.ActorHuman && !route.ServiceAllowed {
-		return apierrors.New(apierrors.CodeForbiddenScope, "Only a human operator session may use this route").WithDetail("actor_kind", string(principal.Kind))
+		return apierrors.New(apierrors.CodeForbiddenScope, "This operation requires a human operator session").WithDetail("actor_kind", string(principal.Kind)).WithDetail("required_scope", route.Scope).WithDetail("agent_eligible", false).WithNextAction(apierrors.NextAction{Owner: "operator", Kind: "approval", Reference: "docs/reference/configuration.md#authentication", Label: "Run this deployment change from an authenticated human operator session"})
 	}
 	if !scopecatalog.Resolve(principal.Scopes, route.Scope) {
-		return apierrors.New(apierrors.CodeForbiddenScope, "Principal lacks the required scope").WithDetail("required_scope", route.Scope)
+		message := "This human operator session lacks the required capability"
+		label := "Rerun this deployment command from your local Vrooli terminal; operator access is automatic"
+		kind := "grant_scope"
+		if principal.Kind != identity.ActorHuman {
+			message = "This operation requires a capability that the current agent session cannot hold"
+			label = "Run this deployment change from an authenticated human operator session"
+			kind = "approval"
+		}
+		return apierrors.New(apierrors.CodeForbiddenScope, message).WithDetail("actor_kind", string(principal.Kind)).WithDetail("required_scope", route.Scope).WithDetail("agent_eligible", false).WithNextAction(apierrors.NextAction{Owner: "operator", Kind: kind, Reference: "docs/reference/configuration.md#authentication", Label: label})
 	}
 	revoked, err := e.cfg.Policy.Revoked(principal)
 	if err != nil {

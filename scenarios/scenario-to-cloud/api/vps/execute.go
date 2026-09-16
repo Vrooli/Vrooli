@@ -115,6 +115,11 @@ type CredentialProvisioner interface {
 	Revoke(ctx context.Context, req CredentialProvisionRequest) (CredentialProvisionResult, error)
 }
 
+// LocalCredentialHandoff receives deployment-generated credentials after the
+// target authority has materialized them. Implementations must keep values in
+// memory and must not include them in logs, receipts, or deployment metadata.
+type LocalCredentialHandoff func(context.Context, domain.CloudManifest, string, map[string]string) error
+
 // CredentialProvisionRequest is what the executor hands the provisioner.
 type CredentialProvisionRequest struct {
 	DeploymentID string
@@ -161,6 +166,7 @@ type Runtime struct {
 	// default generator.
 	SecretsGen      secrets.GeneratorFunc
 	ProvidedSecrets map[string]string
+	LocalHandoff    LocalCredentialHandoff
 }
 
 // ExecuteRequest is everything one plan execution needs.

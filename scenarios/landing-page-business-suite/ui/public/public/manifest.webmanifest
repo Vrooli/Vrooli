@@ -7,7 +7,7 @@
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
-  "description": "A secure business suite for publishing, testing, and monetizing landing pages.",
+  "description": "A secure business suite for publishing, testing, and monetizing the apps you build.",
   "lang": "en-US",
   "dir": "ltr",
   "categories": ["business", "productivity"],
@@ -15,15 +15,9 @@
   "theme_color": "#07090F",
   "icons": [
     {
-      "src": "/public/icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/public/icon-512.svg",
+      "src": "/public/logo.webp",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/webp",
       "purpose": "any maskable"
     }
   ]

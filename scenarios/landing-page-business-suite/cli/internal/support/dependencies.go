@@ -212,6 +212,9 @@ func (d Dependencies) RunEndpoint(def EndpointDef, args []string) error {
 
 	resp, err := d.Request(def, path, query, payload)
 	if err != nil {
+		if _, ok := StorageDiagnosticFromError(err); ok {
+			return fmt.Errorf("%s", DescribeStorageFailure(err))
+		}
 		return err
 	}
 
@@ -478,11 +481,12 @@ func (d Dependencies) RequestAdmin(method, pathValue string, query url.Values, p
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
-	// Remote-profile calls relay the remote host's status. A 401/403 there
-	// means the remote credentials failed, not that the local admin session is
-	// stale, so only a direct local rejection may clear the stored session.
-	if (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
-		!isRemoteProfileRelay(pathValue) {
+	// Only an unauthenticated verdict means the local admin session is stale.
+	// A 403 (PermissionDenied) means the session is valid but the operation was
+	// denied — a delivery-storage AccessDenied returns 403 — and clearing the
+	// session there would drop a working login. Remote-profile calls relay the
+	// remote host's status, so their 401 is the remote's, not the local's.
+	if resp.StatusCode == http.StatusUnauthorized && !isRemoteProfileRelay(pathValue) {
 		_ = d.ClearAdminSession()
 	}
 	if resp.StatusCode >= http.StatusBadRequest {

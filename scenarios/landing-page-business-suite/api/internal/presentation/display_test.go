@@ -120,6 +120,8 @@ func TestLP_PRES_004_014_DisplayValidationRejectsUnrenderableConfiguration(t *te
 	}{
 		{"missing shell copy", func(d *Document) { d.Pages[2].Display.Shell.SkipLabel = "" }, "must not be empty"},
 		{"unknown mark", func(d *Document) { d.Pages[2].Display.Shell.BrandMark = "custom-jsx" }, "registered product mark"},
+		{"absolute brand logo", func(d *Document) { d.Pages[2].Display.Shell.BrandLogo = "https://evil.example/logo.png" }, "same-origin asset path"},
+		{"traversal footer logo", func(d *Document) { d.Pages[2].Display.Shell.FooterBrandLogo = "/public/../secret.png" }, "same-origin asset path"},
 		{"unsafe header action", func(d *Document) {
 			d.Pages[2].Display.Shell.HeaderAction = &Action{Kind: ActionOpen, Label: "Open", AccessibleLabel: "Open", Target: "javascript:alert(1)"}
 		}, "safe"},
@@ -138,6 +140,43 @@ func TestLP_PRES_004_014_DisplayValidationRejectsUnrenderableConfiguration(t *te
 				t.Fatalf("invalid display accepted or wrong error: %v", err)
 			}
 		})
+	}
+}
+
+func TestLP_PRES_014_ConfiguredBrandLogosProjectUnchanged(t *testing.T) {
+	app := testApp("web-console", "aquila", "aquila-page", VisibilityPublic, PublicationPublished, true)
+	other := testApp("backdrop-studio", "backdrop-studio", "backdrop-page", VisibilityPublic, PublicationPublished, true)
+	document := testDocument(app, other)
+	bundleShell := &document.Pages[0].Display.Shell
+	bundleShell.BrandLogo = "/public/logo.webp"
+	bundleShell.BrandLogoAlt = "Vrooli"
+	bundleShell.FooterBrandLogo = "/public/logo.webp"
+	appShell := &document.Pages[2].Display.Shell
+	appShell.BrandLogo = "/public/apps/aquila.png"
+	appShell.BrandLogoAlt = "Aquila"
+	appDisplay := document.Pages[0].Display.Apps[app.Key]
+	appDisplay.Logo = "/public/apps/aquila.png"
+	appDisplay.LogoAlt = "Aquila"
+	document.Pages[0].Display.Apps[app.Key] = appDisplay
+	if err := Validate(document); err != nil {
+		t.Fatal(err)
+	}
+	root, err := Resolve(document, ResolveRequest{Route: "/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root.Page.Display.Shell.BrandLogo != "/public/logo.webp" || root.Page.Display.Shell.BrandLogoAlt != "Vrooli" || root.Page.Display.Shell.FooterBrandLogo != "/public/logo.webp" {
+		t.Fatalf("resolved bundle shell lost configured logos: %#v", root.Page.Display.Shell)
+	}
+	if got := root.Page.Display.Apps[app.Key]; got.Logo != "/public/apps/aquila.png" || got.LogoAlt != "Aquila" {
+		t.Fatalf("resolved app lost configured logo: %#v", got)
+	}
+	detail, err := Resolve(document, ResolveRequest{Route: "/apps/aquila"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Page.Display.Shell.BrandLogo != "/public/apps/aquila.png" || detail.Page.Display.Shell.BrandLogoAlt != "Aquila" {
+		t.Fatalf("resolved detail shell lost configured logo: %#v", detail.Page.Display.Shell)
 	}
 }
 

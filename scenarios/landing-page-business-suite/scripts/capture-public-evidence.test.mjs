@@ -7,7 +7,16 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
-import { allocateOutputDir, captureUrl, presentationExpectation, validatePresentationBinding, captureJourney, captureRouteSelectors, captureRouting, installCaptureRouting, correlateCheckpoints, validateRecordingDimensions, captureProductionEvidence, decodeVideoFrames, rgbStats, validateCaptureEvidence, validatePageDiagnostics, validateVideoFrames } from './capture-public-evidence.mjs';
+import { allocateOutputDir, captureUrl, presentationExpectation, validatePresentationBinding, captureJourney, captureRouteSelectors, captureRouting, installCaptureRouting, correlateCheckpoints, validateRecordingDimensions, captureProductionEvidence, decodeVideoFrames, rgbStats, validateCaptureEvidence, validatePageDiagnostics, validateVideoFrames, resolveBrowserExecutable, resolveHeadless } from './capture-public-evidence.mjs';
+
+test('resolveBrowserExecutable prefers explicit existing browser and falls back safely', () => {
+  assert.equal(resolveBrowserExecutable('/usr/bin/google-chrome'), '/usr/bin/google-chrome');
+  assert.ok(resolveBrowserExecutable('/definitely/missing-browser'));
+});
+
+test('resolveHeadless fails safe when no display server is available', () => {
+  assert.equal(resolveHeadless(false), true);
+});
 
 const execFile = promisify(execFileCallback);
 

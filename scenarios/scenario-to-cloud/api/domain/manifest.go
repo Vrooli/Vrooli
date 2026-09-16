@@ -41,6 +41,11 @@ type CloudManifest struct {
 	Ports        ManifestPorts        `json:"ports"`
 	Edge         ManifestEdge         `json:"edge"`
 	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
+	// LocalCredentialHandoffs describe local, same-host consumers that must
+	// receive a newly materialised deployment credential. Values are delivered
+	// only in memory over the local service boundary; they are never included
+	// in the manifest or a deployment receipt.
+	LocalCredentialHandoffs []LocalCredentialHandoff `json:"local_credential_handoffs,omitempty"`
 }
 
 // CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
@@ -157,6 +162,21 @@ type BundleSecretTarget struct {
 type SecretPromptMetadata struct {
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
+}
+
+// LocalCredentialHandoff binds one deployment credential to a local consumer
+// such as an LPBS remote-profile store. The consumer scenario is resolved via
+// service discovery; the path is a fixed local API path, not a remote host
+// address. AuthDescriptor names the local credential used to authorize the
+// handoff request.
+type LocalCredentialHandoff struct {
+	ConsumerScenario string            `json:"consumer_scenario"`
+	ConsumerPath     string            `json:"consumer_path"`
+	AuthDescriptor   DescriptorAddress `json:"auth_descriptor"`
+	ProfileTag       string            `json:"profile_tag"`
+	ProfileLabel     string            `json:"profile_label,omitempty"`
+	APIBase          string            `json:"api_base"`
+	SecretID         string            `json:"secret_id"`
 }
 
 // SecretsSummary provides a quick overview of secret requirements.

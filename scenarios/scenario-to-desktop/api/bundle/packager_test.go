@@ -34,6 +34,38 @@ type packagerSizeCalculator struct{}
 func (packagerSizeCalculator) Calculate(string) (int64, []LargeFileInfo)        { return 42, nil }
 func (packagerSizeCalculator) CheckWarning(int64, []LargeFileInfo) *SizeWarning { return nil }
 
+type directoryCompiler struct{}
+
+func (directoryCompiler) Compile(_ bundlemanifest.Service, _ string, root string) (string, error) {
+	dir := filepath.Join(root, "compiled-driver")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	launcher := filepath.Join(dir, "run.sh")
+	return dir, os.WriteFile(launcher, []byte("#!/bin/sh\n"), 0o755)
+}
+
+func TestStageServiceBinariesUsesLauncherForDirectoryCompilerOutput(t *testing.T) {
+	root := t.TempDir()
+	bundleDir := t.TempDir()
+	packager := NewPackager(WithServiceCompiler(directoryCompiler{}))
+	service := bundlemanifest.Service{ID: "playwright-driver", Type: "api-binary", Build: &bundlemanifest.BuildConfig{Type: "npm"}}
+	copied, err := packager.stageServiceBinaries(service, []string{"linux-amd64"}, bundleDir, root, root)
+	if err != nil {
+		t.Fatalf("stageServiceBinaries() error = %v", err)
+	}
+	if len(copied) != 1 {
+		t.Fatalf("copied = %v, want one launcher", copied)
+	}
+	info, err := os.Stat(copied[0])
+	if err != nil {
+		t.Fatalf("staged launcher missing: %v", err)
+	}
+	if info.IsDir() || filepath.Base(copied[0]) != "run.sh" {
+		t.Fatalf("staged path = %q, want regular run.sh", copied[0])
+	}
+}
+
 func TestPackagerPackageStagesManifestServiceAndRuntime(t *testing.T) {
 	app := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(app, "bin"), 0o755); err != nil {

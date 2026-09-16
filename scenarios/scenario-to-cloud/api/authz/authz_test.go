@@ -218,6 +218,22 @@ func TestScopeIsRequired(t *testing.T) {
 	}
 }
 
+func TestMissingWriteScopeProvidesHumanHandoff(t *testing.T) {
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"alice": {Environments: []string{"*"}}}}), nil)
+	h.provider.set(human("alice", ScopeRead, ScopeDestructive), nil)
+	rec := h.do("POST", "/api/v1/bundle/build", nil)
+	if rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenScope {
+		t.Fatalf("build without write scope: %d %s", rec.Code, rec.Body.String())
+	}
+	typed := apierrors.FromHTTP(rec.Code, rec.Body.Bytes())
+	if typed.NextAction == nil || typed.NextAction.Owner != "operator" || typed.NextAction.Kind != "grant_scope" {
+		t.Fatalf("missing operator handoff: %+v", typed)
+	}
+	if typed.Details["actor_kind"] != string(identity.ActorHuman) || typed.Details["required_scope"] != ScopeWrite || typed.Details["agent_eligible"] != false {
+		t.Fatalf("missing scope details: %+v", typed.Details)
+	}
+}
+
 // [REQ:STC-P0-013] A grant for another target is refused without disclosing
 // the deployment's environment, key or host; a missing id looks the same.
 func TestWrongTargetGrantIsRefusedWithoutDisclosure(t *testing.T) {

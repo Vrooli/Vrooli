@@ -66,6 +66,22 @@ func (s *RemoteProfileService) DoJSONRequest(ctx context.Context, method, urlVal
 	return s.doJSONRequest(ctx, method, urlValue, body, cookies)
 }
 
+func (s *RemoteProfileService) doAuthenticatedJSONRequest(ctx context.Context, method, urlValue, secret string) (*http.Response, []byte, error) {
+	request, err := http.NewRequestWithContext(ctx, method, urlValue, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+secret)
+	response, err := s.HTTPClient.Do(request)
+	if err != nil {
+		return nil, nil, classifyRemoteError(err)
+	}
+	defer response.Body.Close()
+	body, err := readLimitedBody(response.Body, remoteProfileProxyResponseMax)
+	return response, body, err
+}
+
 func ClassifyRemoteError(err error) *RemoteProfileError { return classifyRemoteError(err) }
 
 func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, email string, password string, metadata RemoteProfileSessionMetadata) (string, string, *time.Time, error) {

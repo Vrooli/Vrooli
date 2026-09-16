@@ -1321,3 +1321,26 @@ integration, real authenticated server preview/publication validation, and relea
 asset qualification. No dependencies, descendants, team activation or deployment.
 The PM team was observed disabled. The separate branding inventory/output remains
 /home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/findings/web-console-ui-branding.md.
+
+## Real brand logo images with finite-mark fallback — 2026-09-16
+
+Shell and app displays now accept an optional, same-origin brand image next to
+the required finite mark: `brand_logo`/`brand_logo_alt`/`footer_brand_logo` on
+the shell and `logo`/`logo_alt` on an app exhibit. The Mark stays required, so
+an image that never loads still has a deterministic SVG fallback.
+
+`BrandLogo` in `primitives.tsx` renders the configured image when present and
+otherwise delegates to `ProductMark`. It rejects any non-relative logo
+(`https:`, scheme-relative, `javascript:`) at render time, and the Go display
+validator rejects the same references plus traversal and query/fragment. The
+LPBS platform uses the Vrooli logo (`/public/logo.webp`, copied from
+vrooli-onboarding); Aquila's exhibit uses the Aquila eagle
+(`/public/apps/aquila.png`).
+
+Server-side vocabulary: `PresentationShellDisplay.brand_logo`,
+`brand_logo_alt`, `footer_brand_logo` and `PresentationAppDisplay.logo`,
+`logo_alt` (proto regenerated), mirrored in `display.go`, `resources.ts`,
+`decode.ts`, `PresentationPage.tsx`, `registry.tsx` and `presentation.css`.
+Seed and every committed presentation revision carry the new fields. Adding a
+scenario to the bundle resolves its name and icon through
+`scripts/sync-bundle-catalog.mjs`.

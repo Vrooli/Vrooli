@@ -524,6 +524,7 @@ func statusForDiagnostic(code delivery.DiagnosticCode) int {
 		delivery.CodeSessionTokenInvalid:
 		return http.StatusConflict
 	case delivery.CodeAuthenticationRejected, delivery.CodeAccessKeyInactive,
+		delivery.CodeHeadBucketDenied,
 		delivery.CodeListBucketDenied, delivery.CodeGetObjectDenied,
 		delivery.CodePutObjectDenied, delivery.CodeDeleteObjectDenied,
 		delivery.CodeEncryptionPermission:

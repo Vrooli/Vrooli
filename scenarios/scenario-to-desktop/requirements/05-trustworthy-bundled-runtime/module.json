@@ -37,6 +37,25 @@
       "criticality": "P0",
       "description": "When an input chapter has identical captures without a passed application assertion, or captured frames contain a surface error, the journey MUST fail with the corresponding observed reason and MUST NOT report pass.",
       "validation": [{"type": "test", "status": "planned", "notes": "Planned chapter assertion tests, negative control, and fresh bundled evidence."}]
+    },
+    {
+      "id": "STD-BUNDLED-APP-TARGET-ISOLATION",
+      "title": "Bundled journeys target private runtime endpoints",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "When a bundled validation journey starts, scenario-to-desktop MUST resolve and target only endpoints reported by the private runtime, and MUST preserve the bundled-private source in the target observation.",
+      "validation": [{"type": "test", "ref": "api/smoketest/smoke_target_test.go::TestResolveBundledTargetReadsPrivateRuntimeEndpoints", "phase": "unit", "status": "implemented"}]
+    },
+    {
+      "id": "STD-BUNDLED-ISOLATION-FAIL-CLOSED",
+      "title": "Bundled isolation refuses live paths",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "If a bundled runtime resolves the operator home or a nested live session path, then scenario-to-desktop MUST fail with live_state_resolved and MUST retain the offending path in the diagnostic.",
+      "validation": [
+        {"type": "test", "ref": "api/smoketest/isolation_test.go::TestIsolationObservationRefusesOperatorHome", "phase": "unit", "status": "implemented"},
+        {"type": "test", "ref": "api/smoketest/isolation_test.go::TestIsolationObservationRefusesNestedResolvedLivePath", "phase": "unit", "status": "implemented"}
+      ]
     }
   ]
 }

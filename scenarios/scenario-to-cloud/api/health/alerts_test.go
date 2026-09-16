@@ -150,7 +150,7 @@ func TestAlerterOutageOpensThenResolves(t *testing.T) {
 		t.Fatalf("times = %v / %v", f["observed_at"], f["detected_at"])
 	}
 	next, _ := f["next_action"].(map[string]any)
-	if next["owner"] != "scenario-to-cloud" || next["kind"] != "command" || next["reference"] != "scenario-to-cloud process control "+down.GetDeploymentId()+" restart" {
+	if next["owner"] != "scenario-to-cloud" || next["kind"] != "command" || next["reference"] != "scenario-to-cloud deployment start "+down.GetDeploymentId() {
 		t.Fatalf("next_action was not carried over from the observation: %v", next)
 	}
 	if schema, ok := f["schema_version"].(float64); !ok || schema != 1 {

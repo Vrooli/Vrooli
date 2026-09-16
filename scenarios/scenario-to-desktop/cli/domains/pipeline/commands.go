@@ -2,6 +2,8 @@
 package pipeline
 
 import (
+	"context"
+	"net/url"
 	"scenario-to-desktop/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -9,12 +11,15 @@ import (
 
 // Commands provides pipeline CLI commands.
 type Commands struct {
-	rpc pipelineRPC
+	rpc  pipelineRPC
+	http interface {
+		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
+	}
 }
 
 // New creates a new pipeline Commands instance.
 func New(deps support.Dependencies) *Commands {
-	return &Commands{rpc: newPipelineRPC(deps.ScenarioApp())}
+	return &Commands{rpc: newPipelineRPC(deps.ScenarioApp()), http: deps.ScenarioApp().HTTPClient}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -35,7 +40,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			(cliapp.Command{Name: "reset", Description: "Reset active pipeline for scenario: reset <scenario>", Args: pipelineScenarioArgs()}).WithPrimitive(cmds.resetPrimitive()),
 			(cliapp.Command{Name: "history", Description: "Get pipeline history: history <scenario> [--limit N]", Args: pipelineScenarioArgs(cliapp.Flag{Name: "limit", Default: "10", Description: "Maximum history entries"})}).WithPrimitive(cmds.historyPrimitive()),
 			(cliapp.Command{Name: "start", Description: "Start active pipeline: start <scenario> [--stages ...] [--platforms ...]", Args: pipelineRunArgs()}).WithPrimitive(cmds.startPrimitive()),
-			(cliapp.Command{Name: "gate", Description: "Show approval gate status: gate <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.gatePrimitive()),
+			(cliapp.Command{Name: "gate", Description: "Show evidence manifest gates: gate <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.gatePrimitive()),
 		},
 	}
 }
@@ -55,6 +60,7 @@ func pipelineRunArgs() cliapp.ArgSchema {
 		cliapp.Flag{Name: "platforms", Description: "Comma-separated platforms: win,mac,linux"},
 		cliapp.Flag{Name: "deployment-mode", Default: "bundled", Values: []string{"bundled", "proxy"}, Description: "Deployment mode"},
 		cliapp.Flag{Name: "proxy-url", Description: "Explicit renderer URL for external-server desktop builds"},
+		cliapp.Flag{Name: "journey", Description: "Provider/platform journey capability or catalog journey id"},
 		cliapp.Flag{Name: "location-mode", Values: []string{"proper", "staging", "temp"}, Description: "Output location"},
 		cliapp.Flag{Name: "resource-artifact-root", Description: "Verified signed resource-artifact directory"},
 		cliapp.Flag{Name: "tool-artifact-root", Description: "Verified signed vendored tool-artifact directory"},

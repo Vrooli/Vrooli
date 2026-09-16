@@ -55,7 +55,7 @@ function renderSidebar() {
       onNewTerminal={() => {}}
       onOpenLauncher={() => {}}
       onNewSessionInGroup={() => {}}
-      onOpenSettings={() => {}}
+      onOpenAccount={() => {}}
       onStartRole={() => {}}
       onHandoffToRole={() => {}}
       onOpenRoleMenu={() => {}}

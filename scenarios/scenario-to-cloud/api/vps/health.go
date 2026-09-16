@@ -813,7 +813,11 @@ func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, c
 			Priority: 1,
 			Category: "processes",
 			Summary:  check.Message,
-			Command:  fmt.Sprintf("scenario-to-cloud process control %s restart", deploymentID),
+			// Process control is target-bound and intentionally restricted to
+			// operators with the low-level remediation capability. Deployment
+			// start is the owner-level repair path and also re-runs dependency
+			// startup plus readiness verification.
+			Command: fmt.Sprintf("scenario-to-cloud deployment start %s", deploymentID),
 		}
 	case category == "dns" && check.Status == domain.HealthCheckFail:
 		return &domain.Recommendation{

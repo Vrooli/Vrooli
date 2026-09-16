@@ -141,8 +141,11 @@ func (o *Orchestrator) ensureSecretsAvailable(
 	deploymentID string,
 	emitError func(step, stepTitle, errMsg string),
 ) error {
-	// Fetch secrets from secrets-manager BEFORE building bundle
-	if manifest.Secrets == nil {
+	// Fetch secrets from secrets-manager BEFORE building bundle. Treat an
+	// explicitly empty secrets object as unhydrated too: older manifests and
+	// hand-authored manifests commonly carry `{secrets:{bundle_secrets:[]}}`,
+	// which must not suppress the current declaration-derived secret plan.
+	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
 		resources := manifest.Dependencies.Resources
 		if manifest.Edge.Caddy.Enabled {
 			resources = append(resources, "edge-dns")

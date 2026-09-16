@@ -319,7 +319,14 @@ func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (Jour
 }
 
 func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState) deliveryramp.JourneyResult {
-	capability := strings.TrimSpace(s.journeyCapability)
+	return s.runDesktopJourneyWithCapability(ctx, smokeTestID, scenarioName, platform, rec, "")
+}
+
+func (s *DefaultService) runDesktopJourneyWithCapability(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, requestedCapability string) deliveryramp.JourneyResult {
+	capability := strings.TrimSpace(requestedCapability)
+	if capability == "" {
+		capability = strings.TrimSpace(s.journeyCapability)
+	}
 	override := strings.TrimSpace(capability)
 	if override == "" {
 		override = strings.TrimSpace(os.Getenv("S2D_JOURNEY_CAPABILITY"))
@@ -338,12 +345,22 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 		}
 	}
 	selection := selectJourneyCapability(selectionInput)
-	result := s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, selection.Capability)
+	platformCapability := selection.Capability
+	if isProviderJourneyCapability(capability) {
+		platformCapability = "desktop.launch.baseline"
+		selection = JourneySelection{Capability: capability, Reason: "explicit_provider_journey"}
+	}
+	result := s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, platformCapability)
 	result.CapabilitySelection = &deliveryramp.CapabilitySelection{Capability: selection.Capability, Reason: selection.Reason, Skipped: selection.Skipped}
 	if selectionInput.Target.Isolation != nil {
 		result.IsolationObservations = []deliveryramp.IsolationObservation{*selectionInput.Target.Isolation}
 	}
 	return result
+}
+
+func isProviderJourneyCapability(capability string) bool {
+	value := strings.TrimSpace(capability)
+	return strings.Contains(value, ".json") || strings.Contains(value, ":bas/") || strings.HasPrefix(value, "bas/")
 }
 
 type journeySetup struct {

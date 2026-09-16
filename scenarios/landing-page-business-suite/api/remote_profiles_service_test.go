@@ -165,6 +165,7 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	defer srv.Close()
 
 	svc := newRemoteProfileServiceForTest(db, srv.Client())
+	svc.encryptionKey = []byte("01234567890123456789012345678901")
 	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
@@ -211,6 +212,80 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	}
 	if lastConnectProtocol != "1" {
 		t.Fatalf("expected Connect protocol header, got %q", lastConnectProtocol)
+	}
+}
+
+func TestRemoteProfileService_ServiceModeUsesBearerOnly(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	db := setupTestDB(t)
+	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
+		t.Fatal(err)
+	}
+	var authHeader, cookieHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader, cookieHeader = r.Header.Get("Authorization"), r.Header.Get("Cookie")
+		if r.URL.Path == "/admin/download-apps" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"apps":[{"app_key":"web-console"}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	svc := newRemoteProfileServiceForTest(db, srv.Client())
+	svc.encryptionKey = []byte("01234567890123456789012345678901")
+	profile, err := svc.Create(context.Background(), RemoteProfileCreateRequest{Tag: "service", APIBase: srv.URL + "/api/v1", AuthMode: "service", RemoteServiceSecret: "destination-secret"}, defaultAdminEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.AuthMode != "service" || !profile.RemoteServiceSecretConfigured || profile.HasSession {
+		t.Fatalf("unexpected service profile: %#v", profile)
+	}
+	var sealed string
+	if err := db.QueryRow(`SELECT encrypted_remote_service_secret FROM remote_profiles WHERE id = $1`, profile.ID).Scan(&sealed); err != nil {
+		t.Fatal(err)
+	}
+	if sealed == "destination-secret" || sealed == "" {
+		t.Fatalf("service secret was not sealed: %q", sealed)
+	}
+	updatedSecret := "rotated-destination-secret"
+	updated, err := svc.Update(context.Background(), profile.ID, RemoteProfileUpdateRequest{RemoteServiceSecret: &updatedSecret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.RemoteServiceSecretConfigured || updated.AuthMode != "service" {
+		t.Fatalf("updated service profile lost configuration: %#v", updated)
+	}
+	var encoded []byte
+	encoded, err = json.Marshal(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), updatedSecret) || strings.Contains(string(encoded), "destination-secret") {
+		t.Fatalf("response exposed service secret: %s", encoded)
+	}
+	if _, err := svc.Test(context.Background(), profile.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Proxy(context.Background(), profile.ID, RemoteProfileProxyRequest{Method: "GET", Path: "/admin/download-apps", Headers: map[string]string{"Authorization": "Bearer caller-secret"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authHeader != "Bearer rotated-destination-secret" {
+		t.Fatalf("authorization = %q", authHeader)
+	}
+	if cookieHeader != "" {
+		t.Fatalf("unexpected cookie = %q", cookieHeader)
+	}
+}
+
+func TestRemoteProfileService_ServiceModeRequiresSecret(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	db := setupTestDB(t)
+	svc := newRemoteProfileServiceForTest(db, nil)
+	_, err := svc.Create(context.Background(), RemoteProfileCreateRequest{Tag: "service", APIBase: "http://example.com/api/v1", AuthMode: "service"}, defaultAdminEmail)
+	if !errors.Is(err, ErrRemoteProfileServiceSecretMissing) {
+		t.Fatalf("expected missing service secret, got %v", err)
 	}
 }
 

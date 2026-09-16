@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -72,7 +74,36 @@ func (c *Commands) waitPrimitive() cliapp.PrimitiveHandler {
 }
 
 func (c *Commands) gatePrimitive() cliapp.PrimitiveHandler {
-	return c.statusCall("get release gate", c.rpc.GetReleaseGate)
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*structpb.Struct, error) {
+		id := strings.TrimSpace(ctx.Positional("pipeline-id"))
+		status, err := c.rpc.GetReleaseGate(context.Background(), connect.NewRequest(&pipelinev1.PipelineGetRequest{PipelineId: id}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("get release gate", err, nil)
+		}
+		if c.http == nil {
+			return &structpb.Struct{Fields: map[string]*structpb.Value{"gates": structpb.NewListValue(&structpb.ListValue{})}}, nil
+		}
+		raw, err := c.http.DoWithContext(context.Background(), "GET", "/captures/"+url.PathEscape(status.Msg.GetScenarioName())+"/manifest", url.Values{"pipeline": []string{id}}, nil)
+		if err != nil {
+			return nil, cliapp.WrapAPIError("retrieve release-gate manifest", err, nil)
+		}
+		value := &structpb.Struct{}
+		if err := protojson.Unmarshal(raw, value); err != nil {
+			return nil, fmt.Errorf("decode release-gate manifest: %w", err)
+		}
+		return value, nil
+	}, func(_ cliapp.OperationContext, value *structpb.Struct) cliapp.ListReport {
+		gates, _ := value.AsMap()["gates"].([]any)
+		results := make([]string, 0, len(gates))
+		for _, item := range gates {
+			gate, _ := item.(map[string]any)
+			results = append(results, fmt.Sprintf("%s: %s — %s", gate["name"], gate["disposition"], gate["reason"]))
+		}
+		if len(results) == 0 {
+			results = []string{"No evidence gates recorded"}
+		}
+		return cliapp.ListReport{Summary: []string{"Evidence release gates"}, ResultsHeading: "Gates", Results: results, ListShaped: true, ResultCount: len(results)}
+	})
 }
 
 func (c *Commands) statusCall(operation string, call func(context.Context, *connect.Request[pipelinev1.PipelineGetRequest]) (*connect.Response[pipelinev1.PipelineStatus], error)) cliapp.PrimitiveHandler {
@@ -86,17 +117,56 @@ func (c *Commands) statusCall(operation string, call func(context.Context, *conn
 }
 
 func pipelineStatusReport(_ cliapp.OperationContext, response *pipelinev1.PipelineStatus) cliapp.ListReport {
-	results := []string{fmt.Sprintf("Scenario: %s", response.GetScenarioName()), fmt.Sprintf("Stage: %s", response.GetCurrentStage().String())}
+	stage := response.GetCurrentStage().String()
+	if response.GetCurrentStage() == sharedv1.StageName_STAGE_NAME_UNSPECIFIED {
+		if response.GetStoppedAfterStage() != sharedv1.StageName_STAGE_NAME_UNSPECIFIED {
+			stage = "stopped after " + response.GetStoppedAfterStage().String()
+		} else if len(response.GetStageOrder()) > 0 {
+			stage = "stage unspecified (last configured stage: " + response.GetStageOrder()[len(response.GetStageOrder())-1].String() + ")"
+		} else {
+			stage = "stage unspecified"
+		}
+	}
+	results := []string{fmt.Sprintf("Scenario: %s", response.GetScenarioName()), "Stage: " + stage}
+	if response.GetProgressMessage() != "" {
+		results = append(results, "Progress: "+response.GetProgressMessage())
+	}
+	if response.GetCurrentState() != "" {
+		results = append(results, "State: "+response.GetCurrentState())
+	}
 	if response.GetError() != "" {
 		results = append(results, "Pipeline error: "+strings.Split(response.GetError(), "\n")[0])
 	}
-	for name, stage := range response.GetStages() {
-		if stage.GetError() != "" {
-			results = append(results, fmt.Sprintf("%s error: %s", name, strings.Split(stage.GetError(), "\n")[0]))
+	for _, name := range response.GetStageOrder() {
+		result := response.GetStages()[stageMapKey(name)]
+		if result == nil {
+			results = append(results, fmt.Sprintf("%s: not started", name))
+			continue
 		}
+		line := fmt.Sprintf("%s: %s", name, result.GetStatus())
+		if result.GetError() != "" {
+			line += " error=" + strings.Split(result.GetError(), "\n")[0]
+		}
+		results = append(results, line)
 	}
-	slices.Sort(results[2:])
+	for name, result := range response.GetStages() {
+		if result == nil || slices.ContainsFunc(response.GetStageOrder(), func(stage sharedv1.StageName) bool { return stageMapKey(stage) == name }) {
+			continue
+		}
+		line := fmt.Sprintf("%s: %s", name, result.GetStatus())
+		if result.GetError() != "" {
+			line += " error=" + strings.Split(result.GetError(), "\n")[0]
+		}
+		results = append(results, line)
+	}
+	if len(results) > 2 {
+		slices.Sort(results[2:])
+	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: results, ListShaped: true, ResultCount: len(results)}
+}
+
+func stageMapKey(name sharedv1.StageName) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimPrefix(name.String(), "STAGE_NAME_")), "_", "-")
 }
 
 func (c *Commands) resumePrimitive() cliapp.PrimitiveHandler {
@@ -235,6 +305,9 @@ func positiveInt32(value, name string) (int32, error) {
 
 func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.PipelineConfig, error) {
 	config := &pipelinev1.PipelineConfig{ScenarioName: strings.TrimSpace(ctx.Positional("scenario"))}
+	if value := strings.TrimSpace(ctx.Flag("journey")); value != "" {
+		config.JourneyId = value
+	}
 	if path := strings.TrimSpace(ctx.Flag("native-extension-file")); path != "" {
 		info, err := os.Lstat(path)
 		if err != nil {

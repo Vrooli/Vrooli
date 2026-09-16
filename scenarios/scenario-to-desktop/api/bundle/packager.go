@@ -428,9 +428,25 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 				return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
 			}
 			src = compiledPath
+			// Node bundles are assembled as a directory so their launcher,
+			// dist/, and production dependencies travel together. The runtime
+			// manifest must point at the executable launcher inside that
+			// directory, never at the directory itself.
+			if info, statErr := os.Stat(compiledPath); statErr == nil && info.IsDir() {
+				launcher := filepath.Join(compiledPath, "run.sh")
+				if platformHasWindowsSuffix(platform) {
+					launcher = filepath.Join(compiledPath, "run.cmd")
+				}
+				if _, launcherErr := os.Stat(launcher); launcherErr != nil {
+					return nil, fmt.Errorf("service %s compiled directory has no launcher: %w", svc.ID, launcherErr)
+				}
+				src = launcher
+				compiledPath = launcher
+			}
 
-			// Update manifest binary path for this platform if not set
-			if !ok {
+			// Update the manifest path whenever compilation supplied the binary.
+			// This also repairs stale directory-shaped paths from older manifests.
+			if !ok || filepath.Ext(compiledPath) == ".sh" || filepath.Ext(compiledPath) == ".cmd" {
 				if svc.Binaries == nil {
 					svc.Binaries = make(map[string]bundlemanifest.Binary)
 				}
@@ -452,6 +468,10 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 		copied = append(copied, dst)
 	}
 	return copied, nil
+}
+
+func platformHasWindowsSuffix(platform string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(platform)), "win")
 }
 
 // stageServiceAssets copies all declared assets for a single service into the bundle directory.

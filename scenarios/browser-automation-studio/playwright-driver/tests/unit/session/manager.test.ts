@@ -215,8 +215,9 @@ describe('SessionManager', () => {
 
       expect(enable).toHaveBeenCalledTimes(1);
       expect(manager.getSessionCount()).toBe(0);
-      // The cached host-audio probe owns a separate context.
-      expect(mockContext.close).toHaveBeenCalledTimes(2);
+      // The cached host-audio probe owns a separate context. The failed
+      // session also closes its page before closing its browser context.
+      expect(mockContext.close).toHaveBeenCalledTimes(3);
     });
   });
 

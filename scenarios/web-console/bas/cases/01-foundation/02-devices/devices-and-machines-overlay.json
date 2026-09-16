@@ -27,15 +27,6 @@
     },
     "nodes": [
       {
-        "id": "open-workspace",
-        "action": {
-          "type": "ACTION_TYPE_SUBFLOW",
-          "subflow": {
-            "workflow_path": "actions/open-workspace.json"
-          }
-        }
-      },
-      {
         "id": "ensure-session",
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
@@ -44,6 +35,15 @@
           },
           "metadata": {
             "label": "Ensure terminal session"
+          }
+        }
+      },
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
           }
         }
       },
@@ -174,14 +174,8 @@
     "edges": [
       {
         "id": "e1",
-        "source": "open-workspace",
-        "target": "ensure-session",
-        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
-      },
-      {
-        "id": "e-open-workspace-ensure-session",
-        "source": "open-workspace",
-        "target": "ensure-session",
+        "source": "ensure-session",
+        "target": "open-workspace",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {

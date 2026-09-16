@@ -85,6 +85,12 @@ func TestClassifyS3ErrorCategories(t *testing.T) {
 			wantCode:  CodeDeleteObjectDenied,
 		},
 		{
+			name:      "head bucket denied",
+			err:       fakeAWSError{code: "AccessDenied", message: "Access Denied", status: 403},
+			operation: "HeadBucket",
+			wantCode:  CodeHeadBucketDenied,
+		},
+		{
 			name:      "wrong region",
 			err:       fakeAWSError{code: "PermanentRedirect", message: "wrong region", status: 301},
 			operation: "HeadBucket",

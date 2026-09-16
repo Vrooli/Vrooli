@@ -248,3 +248,19 @@ func TestCheckReadinessProvesRemoteStorageAndApp(t *testing.T) {
 		}
 	})
 }
+
+func TestCheckReadinessServiceProfileUsesAllRemoteGatesWithoutSession(t *testing.T) {
+	deps := remoteReadyDeps(readinessRemote{
+		profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod-service", AuthMode: administration.RemoteProfileAuthModeService, RemoteServiceSecretConfigured: true, HasSession: false}},
+		proxyFn:  remoteProxyByPath(http.StatusOK, http.StatusOK),
+	})
+	response := CheckReadiness(context.Background(), deps, Request{AppKey: "web-console", RemoteProfile: "prod-service"})
+	if !response.Ready {
+		t.Fatalf("service profile should be ready without a session: %+v", response)
+	}
+	for _, gate := range response.Gates {
+		if strings.HasPrefix(gate.Name, "remote_") && !gate.Ready {
+			t.Fatalf("remote gate %s failed: %s", gate.Name, gate.Message)
+		}
+	}
+}

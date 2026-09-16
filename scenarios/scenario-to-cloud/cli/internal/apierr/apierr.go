@@ -292,7 +292,19 @@ func Format(err error) string {
 		}
 	}
 	if typed.Code == "unauthenticated" {
-		b.WriteString("\nSign in: provide the runtime-owned local session token (personal_local), or set SCENARIO_TO_CLOUD_API_TOKEN / VROOLI_API_TOKEN to a bearer token from the configured provider (vrooli-bridge auth for a paired node).")
+		b.WriteString("\nFor a local CLI, scenario-to-cloud automatically exchanges the current process identity through scenario-authenticator and keeps the bearer token in memory. If that exchange is unavailable, start scenario-authenticator with `vrooli scenario start scenario-authenticator` and retry. For remote/shared endpoints, set SCENARIO_TO_CLOUD_API_TOKEN or VROOLI_API_TOKEN, or use the configured Bridge login.")
+	}
+	if typed.Code == "forbidden_scope" {
+		if required := str(typed.Details["required_scope"]); required != "" {
+			fmt.Fprintf(&b, "\nRequired capability: %s", required)
+		}
+		if eligible, ok := typed.Details["agent_eligible"].(bool); ok && !eligible {
+			if actor := str(typed.Details["actor_kind"]); actor == "human" {
+				b.WriteString("\nThe authenticated operator account is missing this capability. Grant it to that account through scenario-authenticator, then sign in again; rerunning from another terminal will use the same account and will not change its scopes.")
+			} else {
+				b.WriteString("\nThis capability is intentionally human-only. From a local Vrooli terminal, run the deployment command as an authenticated human operator; the CLI automatically authenticates the local operator. For a manifest update, the command is: scenario-to-cloud redeploy <manifest.json> --yes. Then let the agent resume the approved execution and health checks.")
+			}
+		}
 	}
 	return b.String()
 }

@@ -256,6 +256,9 @@ func runConfigApply(ctx context.Context, e *executor, action execplan.Action) (s
 
 func runCredentialsProvision(ctx context.Context, e *executor, action execplan.Action) (string, error) {
 	if e.manifest.Secrets == nil || len(e.manifest.Secrets.BundleSecrets) == 0 {
+		if len(e.manifest.LocalCredentialHandoffs) > 0 {
+			return "", fmt.Errorf("local credential handoff declared but no deployment credentials were hydrated")
+		}
 		return "no secrets declared", nil
 	}
 	if e.rt.Credentials == nil {
@@ -279,6 +282,18 @@ func runCredentialsProvision(ctx context.Context, e *executor, action execplan.A
 	})
 	if err != nil {
 		return "", err
+	}
+	if e.rt.LocalHandoff != nil && len(e.manifest.LocalCredentialHandoffs) > 0 {
+		values := make(map[string]string, len(generatedValues)+len(operatorValues))
+		for key, value := range generatedValues {
+			values[key] = value
+		}
+		for key, value := range operatorValues {
+			values[key] = value
+		}
+		if err := e.rt.LocalHandoff(ctx, e.manifest, e.deploymentID, values); err != nil {
+			return "", fmt.Errorf("local credential handoff: %w", err)
+		}
 	}
 	return fmt.Sprintf("%d materialized, %d preserved, %d skipped", len(result.Materialized), len(result.Preserved), len(result.Skipped)), nil
 }

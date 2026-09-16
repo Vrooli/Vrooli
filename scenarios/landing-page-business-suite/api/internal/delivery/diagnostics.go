@@ -30,6 +30,7 @@ const (
 	CodeBucketWrongRegion        DiagnosticCode = "bucket_wrong_region"
 	CodeNetworkFailure           DiagnosticCode = "network_failure"
 	CodeRequestTimeout           DiagnosticCode = "request_timeout"
+	CodeHeadBucketDenied         DiagnosticCode = "head_bucket_denied"
 	CodeListBucketDenied         DiagnosticCode = "list_bucket_denied"
 	CodeGetObjectDenied          DiagnosticCode = "get_object_denied"
 	CodePutObjectDenied          DiagnosticCode = "put_object_denied"
@@ -217,7 +218,17 @@ func ClassifyS3Error(err error, operation, bucket, region string) *DiagnosticErr
 		diagnostic.Retryable = false
 	case code == "AccessDenied" || code == "Forbidden" || status == 403:
 		diagnostic.Code = deniedCodeForOperation(operation)
-		diagnostic.Summary = fmt.Sprintf("%s denied on bucket %q", operation, bucket)
+		if diagnostic.Code == CodeHeadBucketDenied {
+			// AWS answers the same 403 for a missing bucket, a bucket in
+			// another account, and a missing s3:ListBucket grant, so the
+			// diagnostic states all three instead of guessing one.
+			diagnostic.Summary = fmt.Sprintf("HeadBucket was denied for bucket %q. AWS returns this same denial whether the bucket does not exist, belongs to another AWS account, or this identity lacks s3:GetBucketLocation/s3:ListBucket.", bucket)
+			if status != 0 {
+				diagnostic.Summary = fmt.Sprintf("%s (HTTP %d)", diagnostic.Summary, status)
+			}
+		} else {
+			diagnostic.Summary = fmt.Sprintf("%s denied on bucket %q", operation, bucket)
+		}
 		diagnostic.Remediation = remediationForDeniedOperation(operation)
 		diagnostic.Retryable = false
 	default:
@@ -235,6 +246,8 @@ func ClassifyS3Error(err error, operation, bucket, region string) *DiagnosticErr
 
 func deniedCodeForOperation(operation string) DiagnosticCode {
 	switch operation {
+	case "HeadBucket", "GetBucketLocation":
+		return CodeHeadBucketDenied
 	case "ListBucket":
 		return CodeListBucketDenied
 	case "PutObject":
@@ -250,6 +263,8 @@ func deniedCodeForOperation(operation string) DiagnosticCode {
 
 func remediationForDeniedOperation(operation string) string {
 	switch operation {
+	case "HeadBucket", "GetBucketLocation":
+		return "Confirm the bucket name and region are correct and that the bucket exists in the same AWS account as this access key. If it does, attach VrooliDeliveryBucketAccess (s3:GetBucketLocation, s3:ListBucket, s3:ListBucketMultipartUploads) to this IAM user; a bucket in another account requires a bucket policy that grants these actions."
 	case "ListBucket":
 		return "Add s3:ListBucket for the bucket ARN to the VrooliDeliveryBucketAccess policy."
 	case "PutObject":

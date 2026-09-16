@@ -61,6 +61,15 @@ func TestDefaultDownloadSeedPreservesExactFallbackCatalog(t *testing.T) {
 	if console.AppKey != "web-console" || console.Metadata["enabled"] != true || console.Metadata["catalog_status"] != "live" {
 		t.Fatalf("web-console release app is not live/enabled: %#v", console)
 	}
+	if console.IconURL != "/public/apps/aquila.png" || console.Name != "Aquila" {
+		t.Fatalf("web-console lost its Aquila branding: %#v", console)
+	}
+
+	// The platform catalog row is the subscription authority, not the Aquila
+	// product itself; it must not reuse the Aquila name.
+	if platform := apps[1]; platform.AppKey != "landing-page-business-suite" || platform.Name != "Silent Founder OS" {
+		t.Fatalf("platform catalog row is misbranded: %#v", platform)
+	}
 
 	var value any
 	if err := json.Unmarshal(downloadSeedJSON, &value); err != nil {
@@ -71,7 +80,7 @@ func TestDefaultDownloadSeedPreservesExactFallbackCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(canonical)
-	if got, want := hex.EncodeToString(digest[:]), "8424ba47e9712535411599e17db2af9da491b58e15adcbeae0c7c0dfce3cca67"; got != want {
+	if got, want := hex.EncodeToString(digest[:]), "da8085e16aeb4cfaf8bdda869a6236709a1cea27d82a63a1b1c0a178640b5c9b"; got != want {
 		t.Fatalf("embedded delivery seed digest = %s, want %s", got, want)
 	}
 }

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "9782a352af7c4932337ce843a2cdfab312fb323bfbd3cf801e8bf7b164005e7c",
+  "manifest_hash": "667e1549ad27b64eb86a150b74164313f073dfb7d964ae0ae2e8fc688f899581",
   "commands": [
     {
       "path": "build get",
@@ -140,6 +140,13 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "evidence manifest",
+      "group": "evidence",
+      "command": "manifest",
+      "binding": ".",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "evidence publish-offer-fact",
       "group": "evidence",
       "command": "publish-offer-fact",
@@ -166,6 +173,30 @@
       "command": "void",
       "binding": "EvidenceService.VoidEvidenceCapture",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "matrix create",
+      "group": "matrix",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "matrix show",
+      "group": "matrix",
+      "command": "show",
+      "binding": "."
+    },
+    {
+      "path": "matrix start",
+      "group": "matrix",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "matrix wait",
+      "group": "matrix",
+      "command": "wait",
+      "binding": "."
     },
     {
       "path": "pipeline active",

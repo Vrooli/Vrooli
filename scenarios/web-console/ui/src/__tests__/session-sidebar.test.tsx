@@ -51,7 +51,7 @@ const baseProps = {
   onNewTerminal: vi.fn(),
   onOpenLauncher: vi.fn(),
   onNewSessionInGroup: vi.fn(),
-  onOpenSettings: vi.fn(),
+  onOpenAccount: vi.fn(),
   onStartRole: vi.fn(),
   onHandoffToRole: vi.fn(),
   onOpenRoleMenu: vi.fn(),
@@ -192,11 +192,11 @@ describe("SessionSidebar", () => {
     const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
     render(<SessionSidebar {...baseProps} onOpenArchiveDrawer={onOpenArchiveDrawer} buckets={asBuckets(items)} />);
     fireEvent.click(screen.getByTestId("sidebar-session-a"));
-    fireEvent.click(screen.getByTestId("workspace-sidebar-settings"));
+    fireEvent.click(screen.getByTestId("workspace-sidebar-profile"));
     fireEvent.pointerDown(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
     fireEvent.pointerUp(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
     expect(baseProps.onActivatePane).toHaveBeenCalledWith("a");
-    expect(baseProps.onOpenSettings).toHaveBeenCalled();
+    expect(baseProps.onOpenAccount).toHaveBeenCalled();
     expect(baseProps.onOpenLauncher).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("sidebar-archive-footer"));

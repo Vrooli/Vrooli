@@ -28,8 +28,8 @@ Desktop packager             Local LPBS              Remote LPBS (production)
 ## Prerequisites
 
 1. **Local LPBS running** — The local LPBS instance must be discoverable via `api-core/discovery`.
-2. **Remote profile configured** — A remote profile must be set up in the local LPBS pointing to the production LPBS, with an active session (logged in).
-3. **Service token** — Set the `LPBS_SERVICE_SECRET` environment variable to the same value configured in your LPBS instance.
+2. **Remote profile configured** — When the production LPBS is deployed through scenario-to-cloud, the deployment automatically reconciles the local `prod` profile with the target service credential. No VPS login, secret copy, or manual profile command is required.
+3. **Local service identity** — The local LPBS service must be running and discoverable. Its own service credential authorizes the deployment handoff; the target credential is never placed in desktop configuration.
 4. **App registered** — The target desktop app must exist in the remote LPBS's download apps.
 
 ## Deploy Targets
@@ -145,17 +145,26 @@ Ensure deploy config is provided via either:
 - deploy target configuration is supplied through the UI/pipeline configuration
 - inline target: `--deploy-to <scenario> --remote-profile <tag> --app-key <key>`
 
-### "LPBS_SERVICE_SECRET environment variable not set"
-
-Set `LPBS_SERVICE_SECRET` in the environment used by the scenario-to-desktop API process.
-
 ### "no built artifacts available for deployment"
 
 Run build first and confirm the build stage produced at least one artifact.
 
 ### Remote profile test fails
 
-Confirm the remote profile is active/logged in on LPBS before starting the pipeline.
+If the production deployment has completed, scenario-to-cloud should already have
+reconciled a service-authenticated profile. Confirm it through the local LPBS
+diagnostics; do not connect to the VPS or copy its secret. The CLI form below is
+reserved for importing a separately managed destination or recovery workflow:
+
+```bash
+landing-page-business-suite remote-profiles-create --tag prod-service \
+  --api-base https://<domain>/api/v1 --auth-mode service \
+  --remote-service-secret @/secure/path/lpbs-service-secret
+landing-page-business-suite remote-profiles-test --tag prod-service
+```
+
+The value in the file must be the remote destination's `LPBS_SERVICE_SECRET`.
+It is sealed by LPBS and is never returned by list, test, or update responses.
 
 ### Service auth readiness fails
 

@@ -375,7 +375,9 @@ Revokes one incoming connector session on the current LPBS instance.
 
 ### POST /admin/remote-profiles/{id}/proxy
 
-Proxies an allowlisted remote admin request using the stored remote session cookie.
+Proxies an allowlisted remote admin request using the configured remote profile
+authentication. Session profiles use the encrypted remote session cookie;
+service profiles use the sealed destination service secret as a bearer token.
 
 **Authentication:** Admin session required
 
@@ -412,8 +414,8 @@ The proxy also permits these exact Connect settings procedures, always with
 - `/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings`
 
 Secret reveal procedures and arbitrary Connect methods remain unavailable. The
-remote profile identifies the target; credentials are kept in the remote
-session and response bodies are returned only to the authenticated local admin.
+remote profile identifies the target; credentials are never returned by profile
+reads or forwarded from caller headers.
 
 **Response:** Pass-through status + body from remote LPBS
 

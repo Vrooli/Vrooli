@@ -149,6 +149,7 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 		SmokeTestID: smokeTestID, ScenarioName: scenarioName, ArtifactPath: artifactPath,
 		Platform: currentPlatform, DeploymentMode: input.Config.GetDeploymentMode(),
 		ProxyURL: input.Config.ProxyURL, PipelineID: input.PipelineID,
+		JourneyID: input.Config.JourneyID,
 	})
 
 	// Wait for smoke test to complete

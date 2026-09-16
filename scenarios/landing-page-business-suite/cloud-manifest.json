@@ -46,5 +46,19 @@
       "infrastructure": 0
     },
     "bundle_secrets": []
-  }
+  },
+  "local_credential_handoffs": [
+    {
+      "consumer_scenario": "landing-page-business-suite",
+      "consumer_path": "/api/v1/admin/remote-profiles",
+      "auth_descriptor": {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret"
+      },
+      "profile_tag": "prod",
+      "profile_label": "Production",
+      "api_base": "https://vrooli.com/api/v1",
+      "secret_id": "service-secret"
+    }
+  ]
 }

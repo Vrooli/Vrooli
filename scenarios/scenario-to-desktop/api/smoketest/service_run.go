@@ -2,6 +2,8 @@ package smoketest
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -16,6 +18,7 @@ import (
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/errors"
+	"scenario-to-desktop-api/validationdesktop"
 
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
@@ -101,10 +104,14 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 			}
 		})
 	}
-	s.performSmokeTest(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform)
+	s.performSmokeTestWithJourney(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform, request.JourneyID)
 }
 
 func (s *DefaultService) performSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	s.performSmokeTestWithJourney(ctx, smokeTestID, scenarioName, artifactPath, platform, "")
+}
+
+func (s *DefaultService) performSmokeTestWithJourney(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform, journeyID string) {
 	if _, ok := s.store.Get(smokeTestID); !ok {
 		return
 	}
@@ -150,7 +157,7 @@ func (s *DefaultService) performSmokeTest(ctx context.Context, smokeTestID, scen
 	if rec.captureID != "" && rec.displayID != "" && execErr == nil && execResult != nil {
 		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
 			s.store.Update(smokeTestID, func(status *Status) { status.ProtocolPassed = true })
-			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec)
+			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec, journeyID)
 			if journey == nil {
 				evidenceErr = fmt.Errorf("desktop evidence demo launch did not produce a journey")
 			} else if journey.Disposition != deliveryramp.Disposition(journeyPass) {
@@ -500,7 +507,7 @@ func telemetryIngestURL(port int) string {
 // gate for the recording. A normal demo process may remain alive until the
 // configured hold expires, but an absent/invalid application window must fail
 // the smoke test when evidence was requested.
-func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState) *deliveryramp.JourneyResult {
+func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState, journeyID string) *deliveryramp.JourneyResult {
 	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", rec.displayID)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, "Starting demo launch for screen recording...")
@@ -554,7 +561,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		}{result: result, err: err}
 	}()
 
-	journey := s.runDesktopJourney(ctx, smokeTestID, scenarioName, platform, rec)
+	journey := s.runDesktopJourneyWithCapability(ctx, smokeTestID, scenarioName, platform, rec, journeyID)
 	// Give the final journey observation its normal settle window before
 	// releasing the demo. The desktop process remains bounded by demoTimeout.
 	select {
@@ -563,9 +570,10 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	}
 	_ = os.WriteFile(releaseFile, []byte("release\n"), 0o600)
 	attachWorkflowReference(&journey)
-	journeyID := s.persistJourney(journey)
+	s.attachProviderJourney(ctx, &journey, smokeTestID, scenarioName, artifactPath, platform, journeyID)
+	journeyCaptureID := s.persistJourney(journey)
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.JourneyCaptureID = journeyID
+		status.JourneyCaptureID = journeyCaptureID
 		status.JourneyDisposition = string(journey.Disposition)
 		status.JourneyDegradedReason = journey.DegradedReason
 		status.EvidenceReview = reviewFromJourney(journey)
@@ -593,6 +601,59 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		})
 	}
 	return &journey
+}
+
+func (s *DefaultService) attachProviderJourney(ctx context.Context, journey *deliveryramp.JourneyResult, smokeTestID, scenarioName, artifactPath, platform, journeyID string) {
+	if s == nil || s.providerJourney == nil || journey == nil || !isProviderJourneyCapability(journeyID) {
+		return
+	}
+	workflowPath := strings.TrimSpace(journeyID)
+	if parts := strings.SplitN(workflowPath, ":", 2); len(parts) == 2 {
+		workflowPath = parts[1]
+	}
+	if !filepath.IsAbs(workflowPath) {
+		workflowPath = filepath.Join(s.providerScenarioRoot, scenarioName, workflowPath)
+	}
+	digest := ""
+	if data, err := os.ReadFile(artifactPath); err == nil {
+		hash := sha256.Sum256(data)
+		digest = "sha256:" + hex.EncodeToString(hash[:])
+	}
+	provider := s.providerJourney.Execute(ctx, validationdesktop.Request{
+		RunID: smokeTestID, CellID: "cell-" + smokeTestID, ScenarioName: scenarioName,
+		ScenarioRoot: s.providerScenarioRoot, ArtifactPath: artifactPath, ArtifactDigest: digest,
+		JourneyID: journeyID, WorkflowPath: workflowPath, TargetID: "local-" + platform,
+		ProfileID: strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE")), TargetAvailable: true,
+	})
+	journey.WorkflowRequired = true
+	ref := workflowReferenceFromProvider(provider, smokeTestID, "local-"+platform, "cell-"+smokeTestID, journeyID, digest)
+	journey.WorkflowReference = &ref
+	appendWorkflowChapter(journey, &ref, provider.Reason)
+	if provider.Disposition != "pass" {
+		journey.Disposition = deliveryramp.DispositionFailed
+		journey.DegradedReason = firstNonEmpty(provider.Reason, "provider workflow failed")
+	}
+}
+
+func workflowReferenceFromProvider(result validationdesktop.Result, runID, targetID, cellID, journeyID, digest string) deliveryramp.WorkflowExecutionReference {
+	artifacts := make([]deliveryramp.EvidenceReference, 0, len(result.Evidence))
+	for _, item := range result.Evidence {
+		if item == nil || item.GetKind() != domainv1.LayeredEvidence_KIND_BAS_WORKFLOW {
+			continue
+		}
+		artifacts = append(artifacts, deliveryramp.EvidenceReference{ID: item.GetEvidenceId(), Kind: item.GetKind().String(), URI: item.GetUri(), MediaType: item.GetMediaType(), Checksum: item.GetSha256(), Redacted: item.GetRedacted()})
+	}
+	disposition := result.Disposition
+	return deliveryramp.WorkflowExecutionReference{Provider: "workflow-health", AssetID: journeyID, ExecutionID: result.ProviderRunID, RunID: runID, ArtifactDigest: digest, TargetID: targetID, CellID: cellID, Disposition: disposition, Artifacts: artifacts}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // attachWorkflowReference consumes the provider-neutral handoff produced by

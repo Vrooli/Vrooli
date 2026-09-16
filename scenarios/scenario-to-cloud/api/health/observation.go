@@ -154,7 +154,7 @@ func Build(in Input, policy Policy) *healthv1.HealthObservation {
 
 	obs.Checks = append(obs.Checks, systemCheck(sections["system"]))
 
-	obs.Status = statusFor(in.Report.Health, inspected)
+	obs.Status = statusFor(in.Report.Health, inspected, obs.Checks)
 	obs.Freshness = freshnessFor(inspected, observedAt, now, policy)
 	obs.Partial = len(missing) > 0
 	obs.MissingDependencies = missing
@@ -401,7 +401,7 @@ func systemCheck(sec *domain.HealthSection) *healthv1.HealthCheck {
 
 // statusFor maps the legacy overall level onto the typed verdict. A failed
 // inspection is UNKNOWN unless the record itself is in a terminal bad state.
-func statusFor(level domain.HealthLevel, inspected bool) healthv1.HealthStatus {
+func statusFor(level domain.HealthLevel, inspected bool, checks []*healthv1.HealthCheck) healthv1.HealthStatus {
 	switch level {
 	case domain.HealthHealthy:
 		if !inspected {
@@ -412,7 +412,15 @@ func statusFor(level domain.HealthLevel, inspected bool) healthv1.HealthStatus {
 		if !inspected {
 			return healthv1.HealthStatus_HEALTH_STATUS_UNKNOWN
 		}
-		return healthv1.HealthStatus_HEALTH_STATUS_DEGRADED
+		// The typed checks are the consumer contract. If the legacy aggregate
+		// says degraded but every exposed check passes, do not publish a stale
+		// warning that operators cannot act on.
+		for _, c := range checks {
+			if c.GetStatus() != healthv1.CheckStatus_CHECK_STATUS_PASSED {
+				return healthv1.HealthStatus_HEALTH_STATUS_DEGRADED
+			}
+		}
+		return healthv1.HealthStatus_HEALTH_STATUS_HEALTHY
 	case domain.HealthUnhealthy, domain.HealthFailed, domain.HealthStopped:
 		return healthv1.HealthStatus_HEALTH_STATUS_UNHEALTHY
 	default: // pending, starting, unknown

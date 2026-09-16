@@ -28,6 +28,15 @@
     },
     "nodes": [
       {
+        "id": "capture-session-baseline",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/capture-session-baseline.json"
+          }
+        }
+      },
+      {
         "id": "navigate-workspace-root",
         "action": {
           "type": "ACTION_TYPE_NAVIGATE",
@@ -374,6 +383,12 @@
       }
     ],
     "edges": [
+      {
+        "id": "e-capture-session-baseline",
+        "source": "capture-session-baseline",
+        "target": "navigate-workspace-root",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
       {
         "id": "e1",
         "source": "navigate-workspace-root",

@@ -32,6 +32,11 @@ type ShellDisplay struct {
 	UnavailableReason string  `json:"unavailable_reason"`
 	PreviewLabel      string  `json:"preview_label"`
 	HeaderAction      *Action `json:"header_action,omitempty"`
+	// BrandLogo is an optional same-origin image that replaces the finite SVG
+	// brand mark. Mark stays required so the header always has a fallback.
+	BrandLogo       string `json:"brand_logo,omitempty"`
+	BrandLogoAlt    string `json:"brand_logo_alt,omitempty"`
+	FooterBrandLogo string `json:"footer_brand_logo,omitempty"`
 }
 
 type AssetLabel struct {
@@ -69,6 +74,10 @@ type AppDisplay struct {
 	Mark        string `json:"mark"`
 	Tone        string `json:"tone"`
 	DetailLabel string `json:"detail_label"`
+	// Logo is an optional same-origin product logo that replaces the finite
+	// SVG mark. Mark stays required so the card always has a fallback.
+	Logo    string `json:"logo,omitempty"`
+	LogoAlt string `json:"logo_alt,omitempty"`
 }
 
 var displayMarks = map[string]bool{"letter-a": true, "landscape": true, "suite": true, "play": true}
@@ -92,6 +101,12 @@ func validateDisplay(page Page, path string, apps map[string]App, capabilities m
 			issues.add(path+".shell."+key, "unsafe_display_target", "must be a same-origin path")
 		}
 	}
+	for key, logo := range map[string]string{"brand_logo": shell.BrandLogo, "footer_brand_logo": shell.FooterBrandLogo} {
+		if logo != "" && !isSafeAssetPath(logo) {
+			issues.add(path+".shell."+key, "unsafe_display_target", "must be a same-origin asset path")
+		}
+	}
+	validateText(shell.BrandLogoAlt, path+".shell.brand_logo_alt", issues, false)
 	if shell.HeaderAction != nil {
 		data, _ := json.Marshal([]Action{*shell.HeaderAction})
 		var actions []any
@@ -173,6 +188,10 @@ func validateDisplay(page Page, path string, apps map[string]App, capabilities m
 			issues.add(p+".tone", "invalid_display_tone", "must select amber or sage")
 		}
 		validateText(value.DetailLabel, p+".detail_label", issues, true)
+		if value.Logo != "" && !isSafeAssetPath(value.Logo) {
+			issues.add(p+".logo", "unsafe_display_target", "must be a same-origin asset path")
+		}
+		validateText(value.LogoAlt, p+".logo_alt", issues, false)
 		if (value.FixtureRef == "") == (value.VisualRef == "") {
 			issues.add(p, "invalid_exhibit_ref", "select exactly one fixture or released visual")
 		}

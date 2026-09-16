@@ -149,9 +149,13 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 	if adminSessionConfigured {
 		_, err := deps.RequestAdmin("POST", "/admin/download-storage/test", nil, nil)
 		if err != nil {
-			storageCheck.Detail = err.Error()
+			storageCheck.Detail = support.DescribeStorageFailure(err)
 			ready = false
-			nextSteps = append(nextSteps, "landing-page-business-suite admin-download-storage-test")
+			if diagnostic, ok := support.StorageDiagnosticFromError(err); ok && diagnostic.Remediation != "" {
+				nextSteps = append(nextSteps, diagnostic.Remediation)
+			} else {
+				nextSteps = append(nextSteps, "landing-page-business-suite admin-download-storage-test")
+			}
 		} else {
 			storageCheck.Passed = true
 			storageCheck.Detail = "download storage test succeeded"

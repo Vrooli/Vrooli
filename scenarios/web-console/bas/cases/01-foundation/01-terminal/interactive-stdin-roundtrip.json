@@ -29,6 +29,15 @@
     },
     "nodes": [
       {
+        "id": "capture-session-baseline",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/capture-session-baseline.json"
+          }
+        }
+      },
+      {
         "id": "open-workspace",
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
@@ -255,6 +264,12 @@
       }
     ],
     "edges": [
+      {
+        "id": "e-capture-session-baseline",
+        "source": "capture-session-baseline",
+        "target": "open-workspace",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
       {
         "id": "e1",
         "source": "open-workspace",

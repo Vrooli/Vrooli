@@ -351,8 +351,11 @@ func registerRemoteProfileRoutes(s *Server) {
 	// List and test/proxy use requireAdminOrService so inter-scenario clients (e.g. s2d) can call them with a service bearer token.
 	deps := remoteProfileHandlerDependencies(s.remoteProfileService, s.sessionAdminEmail)
 	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(adminhttp.ListRemoteProfiles(deps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(adminhttp.CreateRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(adminhttp.UpdateRemoteProfile(deps))).Methods("PUT")
+	// The local LPBS service identity is used by scenario-to-cloud during a
+	// governed deployment to reconcile a sealed target credential. It is not a
+	// browser/admin credential and cannot access the remaining profile controls.
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(adminhttp.CreateRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdminOrService(adminhttp.UpdateRemoteProfile(deps))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(adminhttp.DeleteRemoteProfile(deps))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(adminhttp.LoginRemoteProfile(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdmin(adminhttp.LogoutRemoteProfile(deps))).Methods("POST")
@@ -369,7 +372,7 @@ func registerCommerceAdminRoutes(s *Server) {
 	// Download hosting + assets
 	downloadhttp.RegisterConnectAppRoutes(s.router, s.planService.BundleKey, s.downloadService, s.requireAdmin)
 	downloadAppDependencies := deliveryAppDependencies(s.planService)
-	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(downloadhttp.ListApps(downloadAppDependencies, s.downloadService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdminOrService(downloadhttp.ListApps(downloadAppDependencies, s.downloadService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(downloadhttp.CreateApp(downloadAppDependencies, s.downloadService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdmin(downloadhttp.SaveApp(downloadAppDependencies, s.downloadService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdmin(downloadhttp.DeleteApp(downloadAppDependencies, s.downloadService))).Methods("DELETE")
@@ -377,7 +380,7 @@ func registerCommerceAdminRoutes(s *Server) {
 	downloadAdminAssetDependencies := downloadAdminAssetDependencies(s.downloadService, s.downloadHosting, s.planService)
 	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(downloadhttp.GetStorage(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(downloadhttp.UpdateStorage(downloadAdminDependencies))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdmin(downloadhttp.TestStorage(downloadAdminDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdminOrService(downloadhttp.TestStorage(downloadAdminDependencies))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts", s.requireAdmin(downloadhttp.ListArtifacts(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/by-app", s.requireAdmin(downloadhttp.ListArtifactsByApp(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdminOrService(downloadhttp.PresignUpload(downloadAdminDependencies))).Methods("POST")

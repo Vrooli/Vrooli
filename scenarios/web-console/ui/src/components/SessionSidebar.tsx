@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, MonitorSmartphone, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, CircleUserRound, GripVertical, MessageSquareText, MonitorSmartphone, Pencil, Plus, Search, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -54,7 +54,11 @@ interface SessionSidebarProps {
   onHandoffToRole: (role: RoleMeta) => void;
   /** Open a waiting role's overflow menu. */
   onOpenRoleMenu: (role: RoleMeta, position: { x: number; y: number }) => void;
-  onOpenSettings: () => void;
+  /** Opens the settings modal on the account tab. The header carries one
+   *  account-shaped entry rather than a bare gear, because both lead to the
+   *  same modal and a single control is what lets a layout drop its
+   *  floating-bar duplicate. */
+  onOpenAccount: () => void;
   /** Opens the machines (fleet) surface. Omitted only when the host has no
    *  fleet surface to open; the header button is then not rendered. */
   onOpenMachines?: () => void;
@@ -94,7 +98,7 @@ export default function SessionSidebar({
   onStartRole,
   onHandoffToRole,
   onOpenRoleMenu,
-  onOpenSettings,
+  onOpenAccount,
   onOpenMachines,
   onOpenArchiveDrawer,
 }: SessionSidebarProps) {
@@ -388,15 +392,16 @@ export default function SessionSidebar({
           </Button>
         )}
         <Button
-          data-testid="workspace-sidebar-settings"
+          data-testid="workspace-sidebar-profile"
           variant="ghost"
           size="icon"
           shape="square"
           className="h-11 w-11 shrink-0 md:h-8 md:w-8"
-          onClick={onOpenSettings}
-          title={t(strings.workspace.settingsTitle)}
+          onClick={onOpenAccount}
+          aria-label={t(strings.settings.tabs.account.label)}
+          title={t(strings.settings.tabs.account.label)}
         >
-          <Settings className="h-4 w-4" />
+          <CircleUserRound className="h-4 w-4" />
         </Button>
         {isMobile && (
           <Button

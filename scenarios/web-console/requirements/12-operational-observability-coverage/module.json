@@ -108,6 +108,15 @@
           "notes": "Performance overhead benchmark passes"
         }
       ]
+    },
+    {
+      "id": "REQ-P1-004E2E-TARGET-SEED",
+      "title": "BAS seeding targets the instance under test",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "core",
+      "description": "When BAS seeds web-console data, the seeder MUST require an explicit loopback target for the instance under test and MUST refuse a target that matches the live operator instance.",
+      "validation": [{"type": "automation", "ref": "bas/seeds/seed.sh", "phase": "integration", "status": "implemented", "notes": "The seeder validates explicit target variables and rejects the live API port."}]
     }
   ]
 }

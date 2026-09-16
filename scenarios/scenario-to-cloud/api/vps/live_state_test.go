@@ -92,6 +92,27 @@ func TestBuildProcessState_DedupesResourceRowsByID(t *testing.T) {
 	}
 }
 
+func TestBuildProcessState_UsesTypedResourceStatusWhenProcessNameDiffers(t *testing.T) {
+	t.Parallel()
+
+	state := buildProcessState(
+		[]ProcessInfo{{PID: 42, Command: "resource-supervisor", User: "root"}},
+		nil,
+		`{"landing-page":{"status":"running"}}`,
+		`{"resources":[{"resource":{"name":"postgres"},"running":true,"serving":true,"message":"ready"}]}`,
+		"landing-page",
+		map[string]bool{"postgres": true},
+	)
+
+	if len(state.Resources) != 1 {
+		t.Fatalf("resources = %#v, want one typed resource row", state.Resources)
+	}
+	resource := state.Resources[0]
+	if resource.ID != "postgres" || resource.Status != "running" || resource.PID != 0 {
+		t.Fatalf("resource = %#v, want postgres running with unknown PID", resource)
+	}
+}
+
 func TestParsePSOutput(t *testing.T) {
 	t.Parallel()
 

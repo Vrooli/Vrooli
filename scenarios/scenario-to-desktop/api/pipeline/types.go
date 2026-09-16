@@ -138,6 +138,8 @@ type PipelineStateTransition struct {
 
 // PipelineConfig represents the configuration for a pipeline run.
 type PipelineConfig struct {
+	// JourneyID optionally selects a provider/platform journey capability for smoke validation.
+	JourneyID       string                      `json:"journey_id,omitempty"`
 	NativeExtension *generation.NativeExtension `json:"native_extension,omitempty"`
 	// ExpectedArtifactDigests binds governed publication to the finalized
 	// candidate bytes, keyed by exact target identifier.

@@ -124,7 +124,7 @@ func (journeyTestAPI) Probe(_ context.Context, operation string) (JourneyOperati
 }
 
 func TestTerminalFixtureFailsWhenRenderedSurfaceLacksOutput(t *testing.T) {
-	driver := &journeyTestDriver{title: "web-console"}
+	driver := &journeyTestDriver{geometry: &procmetrics.WindowGeometry{Width: 1536, Height: 864}, title: "web-console"}
 	_, err := terminalFixtureJourneyAction(context.Background(), driver, journeyTestAPI{}, JourneyInput{Display: ":99"})
 	if err == nil || !strings.Contains(err.Error(), "not observed on the rendered application surface") {
 		t.Fatalf("missing rendered terminal output must fail, got %v", err)

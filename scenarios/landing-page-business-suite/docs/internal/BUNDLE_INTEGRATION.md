@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-09-15
+2026-09-16
 
 ## Integration Status
 
@@ -26,6 +26,34 @@ Notification Hub, Device Control, Switchboard, Treasury, System Monitor, Portal,
 and Vrooli Memory. Web Console is the only seeded public entry; the remaining
 records retain polished metadata while remaining disabled until their release
 gates clear.
+
+## Branding and icons
+
+Each bundled scenario owns its brand meaning through `branding.brand` (plus target
+profiles) in `.vrooli/service.json` and its applied icon set under
+`ui/public/public/`; brand-manager produces the assets and the catalog consumes
+them. The catalog never hand-copies brand pixels.
+
+`scripts/sync-bundle-catalog.mjs` keeps the delivery seed aligned with those
+declarations:
+
+- It discovers every scenario whose `.vrooli/monetization.json` declares
+  `bundle_key: "business_suite"`.
+- It takes the catalog display name from `service.displayName` and takes the icon
+  from the brand-manager-applied `ui/public/public/` set (largest raster first).
+- It copies the icon to `ui/public/public/apps/<brand-slug>.<ext>` and writes
+  `/public/apps/<brand-slug>.<ext>` as the row's `icon_url`.
+- The suite authority (`landing-page-business-suite`) uses the platform logo at
+  `/public/logo.webp` instead of a per-app upload.
+- It refreshes the embedded-seed digest guard in `download_seed_test.go`.
+
+The tool is idempotent. Run it without flags for a dry-run report, `--write` to
+apply, and `--check` in verification to fail on drift. Adding a scenario to the
+bundle is: declare it in `monetization.json`, give it a `branding` block, apply
+its icon set with brand-manager, add a deliberate catalog row (its `enabled`
+metadata controls public visibility), then run `--write`. Scenarios that are
+bundled but lack branding, or that are absent from the catalog, are reported as
+warnings so the gap is visible instead of silent.
 
 ## Verification Evidence
 

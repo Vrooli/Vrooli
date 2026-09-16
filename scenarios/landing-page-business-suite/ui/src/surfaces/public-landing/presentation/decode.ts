@@ -443,6 +443,8 @@ function display(v: Wire.PresentationPageDisplay): PresentationDisplay {
       footer_brand_target: s.footerBrandTarget, footer_tagline: s.footerTagline,
       copyright: s.copyright, footer_note: s.footerNote, unavailable_reason: s.unavailableReason,
       preview_label: s.previewLabel, header_action: s.headerAction ? action(s.headerAction) : undefined,
+      brand_logo: s.brandLogo || undefined, brand_logo_alt: s.brandLogoAlt || undefined,
+      footer_brand_logo: s.footerBrandLogo || undefined,
     },
     asset_labels: mapValues(v.assetLabels, label => ({ alt: label.alt, sizes: label.sizes || undefined })),
     fixture_display: mapValues(v.fixtureDisplay, f => ({
@@ -458,6 +460,7 @@ function display(v: Wire.PresentationPageDisplay): PresentationDisplay {
     apps: mapValues(v.apps, a => ({
       fixture_ref: a.fixtureRef || undefined, visual_ref: a.visualRef || undefined, mark: mark(a.mark),
       tone: oneOf<'amber' | 'sage'>(a.tone, ['amber', 'sage']), detail_label: a.detailLabel,
+      logo: a.logo || undefined, logo_alt: a.logoAlt || undefined,
     })),
   };
 }

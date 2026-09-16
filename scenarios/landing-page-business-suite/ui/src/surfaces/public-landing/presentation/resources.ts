@@ -32,11 +32,13 @@ export interface PresentationDisplay {
     skip_label: string; menu_label: string; footer_brand_name: string; footer_brand_mark: Mark;
     footer_brand_target: string; footer_tagline: string; copyright: string; footer_note: string;
     unavailable_reason: string; preview_label: string; header_action?: Action;
+    /** Optional same-origin image that replaces the finite SVG brand mark. */
+    brand_logo?: string; brand_logo_alt?: string; footer_brand_logo?: string;
   };
   asset_labels: Record<string, { alt: string; sizes?: string }>;
   fixture_display: Record<string, WorkspaceDisplay | { mark: Mark }>;
   blocks: Record<string, BlockDisplay>;
-  apps: Record<string, { fixture_ref?: string; visual_ref?: string; mark: Mark; tone: 'amber' | 'sage'; detail_label: string }>;
+  apps: Record<string, { fixture_ref?: string; visual_ref?: string; mark: Mark; tone: 'amber' | 'sage'; detail_label: string; logo?: string; logo_alt?: string }>;
 }
 /** Internal reference indexes, built only from sanitized canonical arrays. */
 export interface PresentationResources extends Pick<PresentationDisplay, 'shell' | 'blocks' | 'apps'> {

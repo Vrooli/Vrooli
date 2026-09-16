@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
 	scenariocmd "scenario-to-cloud/cli/scenario"
 )
 
@@ -666,6 +667,28 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("new app: %v", err)
 	}
 	return app
+}
+
+func TestLocalManagementAutoExchangesOperatorToken(t *testing.T) {
+	t.Setenv("SCENARIO_TO_CLOUD_API_TOKEN", "")
+	t.Setenv("VROOLI_API_TOKEN", "")
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", "http://127.0.0.1:15672")
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	original := exchangeLocalMachinePrincipal
+	t.Cleanup(func() { exchangeLocalMachinePrincipal = original })
+	exchangeLocalMachinePrincipal = func(context.Context) (*accountsv1.LoginResponse, error) {
+		return &accountsv1.LoginResponse{Tokens: &accountsv1.TokenPair{AccessToken: "memory-only-access"}}, nil
+	}
+
+	if err := app.ensureLocalOperatorToken([]string{"deployment", "list"}); err != nil {
+		t.Fatalf("ensure local token: %v", err)
+	}
+	if app.core.Config.Token != "memory-only-access" {
+		t.Fatalf("token = %q, want exchanged token held in memory", app.core.Config.Token)
+	}
 }
 
 // withHealth wraps a test handler so that GET /health responds with a

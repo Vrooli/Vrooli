@@ -104,18 +104,19 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	subgroups := domains.SubcommandGroups(app.dependencies())
-	if len(subgroups) != 12 {
-		t.Errorf("NewApp subcommand callback returned %d groups, want 12", len(subgroups))
+	if len(subgroups) != 13 {
+		t.Errorf("NewApp subcommand callback returned %d groups, want 13", len(subgroups))
 	}
 
 	expectedNames := map[string]int{
 		"pipeline":      12,
+		"matrix":        4,
 		"preflight":     1,
 		"build":         1,
 		"bundle":        1,
 		"docs":          1,
 		"deploy-target": 6,
-		"evidence":      7,
+		"evidence":      8,
 		"signing":       8,
 		"state":         1,
 		"tasks":         1,

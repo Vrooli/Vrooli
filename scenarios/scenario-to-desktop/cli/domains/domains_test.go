@@ -24,8 +24,8 @@ func TestRegisteredCommandSurface(t *testing.T) {
 	}
 
 	subcommandGroups := SubcommandGroups(deps)
-	if len(subcommandGroups) != 12 {
-		t.Fatalf("SubcommandGroups() returned %d groups, want 12", len(subcommandGroups))
+	if len(subcommandGroups) != 13 {
+		t.Fatalf("SubcommandGroups() returned %d groups, want 13", len(subcommandGroups))
 	}
 	for _, group := range subcommandGroups {
 		if len(group.Subcommands) == 0 {

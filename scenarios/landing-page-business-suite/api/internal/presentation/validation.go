@@ -1331,6 +1331,16 @@ func isSafePublicURL(value string) bool {
 	return err == nil && !parsed.IsAbs() && parsed.Host == "" && parsed.User == nil && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "\\\x00\r\n\t") && !strings.ContainsAny(parsed.Path, "\\\x00\r\n\t")
 }
 
+// isSafeAssetPath narrows isSafePublicURL for configured brand-logo images:
+// a relative, same-origin path with no traversal or query/fragment injection.
+func isSafeAssetPath(value string) bool {
+	if !isSafePublicURL(value) || strings.Contains(value, "..") {
+		return false
+	}
+	parsed, err := url.Parse(value)
+	return err == nil && parsed.RawQuery == "" && parsed.Fragment == ""
+}
+
 func isSafeTarget(value string) bool {
 	if value == "" || strings.ContainsAny(value, "\\\x00\r\n\t") || strings.HasPrefix(value, "//") {
 		return false

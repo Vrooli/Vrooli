@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -28,11 +29,48 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{scenario}", h.listCaptures).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{scenario}/summary", h.summary).Methods("GET")
+	r.HandleFunc("/api/v1/captures/{scenario}/manifest", h.manifest).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{scenario}/{id}/file", h.serveFile).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{scenario}/{id}", h.deleteCapture).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/captures/{scenario}/{id}/void", h.voidCapture).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{scenario}", h.deleteAll).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/captures/{scenario}/download", h.download).Methods("GET")
+}
+
+func (h *Handler) manifest(w http.ResponseWriter, r *http.Request) {
+	scenario := mux.Vars(r)["scenario"]
+	identity := strings.TrimSpace(r.URL.Query().Get("pipeline"))
+	if identity == "" {
+		identity = strings.TrimSpace(r.URL.Query().Get("run"))
+	}
+	if identity == "" {
+		http.Error(w, "pipeline or run is required", http.StatusBadRequest)
+		return
+	}
+	items, err := h.service.Store().List(scenario)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, item := range items {
+		if item.Type != CaptureRecording || (item.PipelineID != identity && item.SourceSession != "smoke-test:"+identity) {
+			continue
+		}
+		path, pathErr := h.service.CaptureFilePath(scenario, item.ID)
+		if pathErr != nil {
+			http.Error(w, pathErr.Error(), http.StatusNotFound)
+			return
+		}
+		data, readErr := os.ReadFile(filepath.Clean(path) + ".manifest.json")
+		if readErr != nil {
+			http.Error(w, "evidence manifest not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(data)
+		return
+	}
+	http.Error(w, "evidence manifest not found", http.StatusNotFound)
 }
 
 func (h *Handler) voidCapture(w http.ResponseWriter, r *http.Request) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -35,6 +38,9 @@ type gatesRPC interface {
 type Commands struct {
 	rpc   evidenceRPC
 	gates gatesRPC
+	http  interface {
+		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
+	}
 }
 
 func New(deps support.Dependencies) *Commands {
@@ -43,7 +49,7 @@ func New(deps support.Dependencies) *Commands {
 	if offerDeskURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/"); offerDeskURL != "" {
 		gates = offersconnect.NewGatesServiceClient(httpClient, offerDeskURL)
 	}
-	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates}
+	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, http: deps.ScenarioApp().HTTPClient}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -54,10 +60,51 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		(cliapp.Command{Name: "show", Description: "Export or inspect one evidence capture", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "output"}}}}).WithPrimitive(c.showPrimitive()),
 		(cliapp.Command{Name: "export", Description: "Export all evidence captures with checksums", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "output", Required: true}}}}).WithPrimitive(c.exportPrimitive()),
 		(cliapp.Command{Name: "journey", Description: "Print the latest desktop journey steps and dispositions", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}}}}).WithPrimitive(c.journeyPrimitive()),
+		(cliapp.Command{Name: "manifest", Description: "Retrieve an evidence manifest without exposing its host path", Args: cliapp.ArgSchema{Positionals: scenarioArgs.Positionals, Flags: []cliapp.Flag{{Name: "pipeline"}, {Name: "run"}, {Name: "output"}}}}).WithPrimitive(c.manifestPrimitive()),
 		(cliapp.Command{Name: "summary", Description: "Summarize persisted evidence captures", Args: scenarioArgs}).WithPrimitive(c.summaryPrimitive()),
 		(cliapp.Command{Name: "void", Description: "Void evidence without deleting its capture file", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "capture-id", Required: true}}, Flags: []cliapp.Flag{{Name: "reason", Required: true}, {Name: "superseded-by"}}}}).WithPrimitive(c.voidPrimitive()),
 		(cliapp.Command{Name: "publish-offer-fact", Description: "Publish a producer-owned release fact to Offer Desk: publish-offer-fact <trigger-id> --scenario <name> [--observed-at RFC3339]", Args: publishFactArgs()}).WithPrimitive(c.publishOfferFactPrimitive()),
 	}}
+}
+
+func (c *Commands) manifestPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*structpb.Struct, error) {
+		if c.http == nil {
+			return nil, fmt.Errorf("scenario API HTTP client is unavailable")
+		}
+		identity := strings.TrimSpace(ctx.Flag("pipeline"))
+		if identity == "" {
+			identity = strings.TrimSpace(ctx.Flag("run"))
+		}
+		if identity == "" {
+			return nil, fmt.Errorf("--pipeline or --run is required")
+		}
+		value, err := c.http.DoWithContext(context.Background(), "GET", "/captures/"+url.PathEscape(ctx.Positional("scenario"))+"/manifest", url.Values{"pipeline": []string{identity}}, nil)
+		if err != nil {
+			return nil, cliapp.WrapAPIError("retrieve evidence manifest", err, nil)
+		}
+		if output := strings.TrimSpace(ctx.Flag("output")); output != "" {
+			if err := os.WriteFile(output, value, 0o600); err != nil {
+				return nil, err
+			}
+			return &structpb.Struct{Fields: map[string]*structpb.Value{"output": structpb.NewStringValue(output)}}, nil
+		}
+		result := &structpb.Struct{}
+		if err := protojson.Unmarshal(value, result); err != nil {
+			return nil, fmt.Errorf("decode evidence manifest: %w", err)
+		}
+		return result, nil
+	}, func(ctx cliapp.OperationContext, response *structpb.Struct) cliapp.MutationReport {
+		if output := strings.TrimSpace(ctx.Flag("output")); output != "" {
+			return cliapp.MutationReport{Result: []string{"Evidence manifest written: " + output}}
+		}
+		return cliapp.MutationReport{Result: []string{string(mustJSON(response))}}
+	})
+}
+
+func mustJSON(value *structpb.Struct) []byte {
+	data, _ := protojson.Marshal(value)
+	return data
 }
 
 func (c *Commands) voidPrimitive() cliapp.PrimitiveHandler {
@@ -295,7 +342,11 @@ func (c *Commands) exportPrimitive() cliapp.PrimitiveHandler {
 		}
 		return list.Msg, nil
 	}, func(ctx cliapp.OperationContext, response *domainv1.ListEvidenceCapturesResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Evidence exported: %d capture(s) to %s", len(response.GetCaptures()), ctx.Flag("output"))}, ResultCount: len(response.GetCaptures()), ListShaped: true}
+		results := make([]string, 0, len(response.GetCaptures()))
+		for _, capture := range response.GetCaptures() {
+			results = append(results, fmt.Sprintf("%s  %s  %s  %s", capture.GetCaptureId(), capture.GetKind(), capture.GetFilename(), capture.GetChecksum()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Evidence exported: %d capture(s) to %s", len(response.GetCaptures()), ctx.Flag("output"))}, ResultsHeading: "Captures", Results: results, ResultCount: len(results), ListShaped: true}
 	})
 }
 

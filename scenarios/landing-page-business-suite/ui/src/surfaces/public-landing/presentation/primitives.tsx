@@ -11,6 +11,16 @@ export function ProductMark({ kind }: { kind: Mark }) {
   const { viewBox, fill, ...stroke } = productMarkDrawing;
   return <span className={`product-mark mark-${kind}`} aria-hidden="true"><svg viewBox={viewBox} fill={fill}><path d={path} stroke="currentColor" {...stroke} /></svg></span>;
 }
+/** Renders the real brand image when configured, else the finite SVG mark. */
+export function BrandLogo({ kind, logo, alt }: { kind: Mark; logo?: string; alt?: string }) {
+  if (logo) {
+    // The contract is a same-origin path; reject absolute or scheme-relative URLs.
+    const src = safeHref(logo);
+    if (!src || !src.startsWith('/')) throw new Error('Unsafe product logo');
+    return <span className={`product-mark product-logo mark-${kind}`}><img src={src} alt={alt ?? ''} loading="eager" decoding="async" /></span>;
+  }
+  return <ProductMark kind={kind} />;
+}
 export function Arrow() {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

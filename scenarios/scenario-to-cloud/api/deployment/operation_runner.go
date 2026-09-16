@@ -72,6 +72,16 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		}
 		return err
 	}
+	// Persist the hydrated, metadata-only manifest so the deployment record
+	// remains an accurate description of the credential bindings that were
+	// actually executed. Secret values are never part of this document.
+	if manifest.Secrets != nil {
+		if hydrated, marshalErr := json.Marshal(manifest); marshalErr == nil {
+			if persistErr := o.repo.UpdateDeploymentManifest(ctx, dep.ID, hydrated); persistErr != nil {
+				o.log("failed to persist hydrated deployment manifest", map[string]interface{}{"deployment_id": dep.ID, "error": persistErr.Error()})
+			}
+		}
+	}
 	bundlePath := ""
 	if plan.Scope == execplan.ScopeFull || plan.Scope == execplan.ScopeInstall {
 		path, err := o.ensureBundleBuilt(ctx, manifest, dep.BundlePath, ec.Options.ForceBundleBuild, dep.ID, emitError)
@@ -126,6 +136,7 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		ManagedDNS:      o.managedDNS,
 		SecretsGen:      o.secretsGenerator,
 		ProvidedSecrets: ec.Options.ProvidedSecrets,
+		LocalHandoff:    o.localCredentialHandoff,
 	}
 	if o.credentials != nil {
 		runtime.Credentials = &credentialProvisioner{bind: o.credentials, store: o.repo}

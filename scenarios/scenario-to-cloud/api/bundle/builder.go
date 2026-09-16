@@ -158,9 +158,6 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		filteredExcludes = append(filteredExcludes, pattern)
 	}
 	for _, scenarioID := range scenarioIDs {
-		if scenarioID != "vrooli-autoheal" {
-			filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/cli/**")
-		}
 		// The deployed scenario owns the primary user experience and must
 		// always carry its UI. Dependency UIs remain opt-in through
 		// Bundle.UIScenarios.

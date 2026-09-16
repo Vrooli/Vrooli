@@ -211,6 +211,18 @@ State-changing methods and the terminal upgrade check `Origin` (and `Sec-Fetch-S
 
 Effectful handlers call `RequireEffect` immediately before their first side effect; it re-verifies the credential, the policy file and the target grant (`forbidden_revoked` / `forbidden_target`). Every admission, denial and effect writes an `authz.*` log line with actor, source, scope, route, deployment id, target key and outcome, never headers or bodies.
 
+### Human-only deployment definition changes
+
+The `scenario-to-cloud:write` capability covers creating or changing deployment definitions, building releases, and recording deployment metadata. It is intentionally not agent-eligible. Agents may inspect state and, when granted `scenario-to-cloud:destructive`, execute an already reviewed deployment or repair operation.
+
+When an agent receives `forbidden_scope` for a definition change, the API returns `details.required_scope`, `details.agent_eligible: false`, and an operator `next_action`. This does not mean that you must create a token or edit a permission file. From the same computer, run the command using your ordinary Vrooli terminal. The local CLI automatically authenticates the operator:
+
+```bash
+scenario-to-cloud redeploy /path/to/the/manifest.json --yes
+```
+
+The agent should provide the exact manifest path and deployment id in its handoff. The command updates the deployment definition, executes the reviewed plan, and waits for the result. If the agent only asked for a definition update, run the command through the plan/review step it provided, then tell the agent the command completed. The agent can then resume destructive execution and health verification. Tokens must stay in the authenticated runtime and never be pasted into an agent prompt or deployment payload.
+
 ### CLI
 
-The CLI sends `SCENARIO_TO_CLOUD_API_TOKEN` (or `VROOLI_API_TOKEN`, or the configured `token`) as a bearer credential. In `personal_local` mode that value may be the runtime-owned local session token; the API host must not rely on loopback location alone. A typed `unauthenticated` or `forbidden_*` refusal exits 2 and prints the server's `next_action`.
+The CLI sends `SCENARIO_TO_CLOUD_API_TOKEN` (or `VROOLI_API_TOKEN`, or the configured `token`) as a bearer credential. For a loopback API with no explicit token, the CLI automatically exchanges the current process identity through the local `scenario-authenticator` socket and holds the short-lived bearer token in memory for that invocation. It does not write the token to shell state, config, logs, or deployment payloads. If the exchange is unavailable, start `scenario-authenticator` through the lifecycle and retry. Remote/shared API bases still require an explicit configured bearer token or Bridge login. A typed `unauthenticated` or `forbidden_*` refusal exits 2 and prints the server's `next_action`.

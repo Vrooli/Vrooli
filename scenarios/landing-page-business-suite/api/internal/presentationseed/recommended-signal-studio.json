@@ -559,7 +559,10 @@
             "label": "Get Aquila",
             "accessible_label": "Get Aquila",
             "app_key": "web-console"
-          }
+          },
+          "brand_logo": "/public/apps/aquila.png",
+          "brand_logo_alt": "Aquila",
+          "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {
           "survey-relief": {
@@ -653,7 +656,9 @@
             "mark": "letter-a",
             "tone": "amber",
             "detail_label": "Explore Aquila",
-            "fixture_ref": "workspace"
+            "fixture_ref": "workspace",
+            "logo": "/public/apps/aquila.png",
+            "logo_alt": "Aquila"
           }
         }
       }
@@ -805,7 +810,10 @@
             "label": "Explore the apps",
             "accessible_label": "Explore the apps",
             "target": "#apps"
-          }
+          },
+          "brand_logo": "/public/logo.webp",
+          "brand_logo_alt": "Vrooli",
+          "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {
           "survey-relief": {
@@ -858,7 +866,9 @@
             "mark": "letter-a",
             "tone": "amber",
             "detail_label": "Explore Aquila",
-            "fixture_ref": "workspace"
+            "fixture_ref": "workspace",
+            "logo": "/public/apps/aquila.png",
+            "logo_alt": "Aquila"
           }
         }
       }
@@ -910,7 +920,10 @@
           "copyright": "Vrooli © 2026",
           "footer_note": "Design fixture. Product UI and release availability require owner validation.",
           "unavailable_reason": "Release availability is not connected in this draft.",
-          "preview_label": "Draft fixture. Illustrative content is not a release receipt."
+          "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
+          "brand_logo": "/public/logo.webp",
+          "brand_logo_alt": "Vrooli",
+          "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {},
         "fixture_display": {},
@@ -1049,7 +1062,8 @@
           "copyright": "Vrooli © 2026",
           "footer_note": "Design fixture. Product UI and release availability require owner validation.",
           "unavailable_reason": "Release availability is not connected in this draft.",
-          "preview_label": "Draft fixture. Illustrative content is not a release receipt."
+          "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
+          "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {},
         "fixture_display": {
@@ -1207,7 +1221,8 @@
           "copyright": "Vrooli © 2026",
           "footer_note": "Design fixture. Product UI and release availability require owner validation.",
           "unavailable_reason": "Release availability is not connected in this draft.",
-          "preview_label": "Draft fixture. Illustrative content is not a release receipt."
+          "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
+          "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {
           "survey-relief": {
