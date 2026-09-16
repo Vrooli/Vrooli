@@ -65,6 +65,8 @@ export interface SessionSpec {
   };
   /** Optional inter-clip pause for host-device qualification playback. */
   audio_playback_pause_ms?: number;
+  /** Optional delay before host-device qualification playback begins. */
+  audio_playback_start_delay_ms?: number;
   /** Opt this session into the user-owned PipeWire capture qualification device. */
   audio_device_evidence?: boolean;
   storage_state?: {
@@ -252,6 +254,8 @@ export interface SessionState {
   audioDeviceEvidence?: BrowserCaptureDeviceEvidence;
   /** Stops the session-owned host-device corpus playback loop. */
   audioPlaybackStop?: () => Promise<void>;
+  /** Restarts the session-owned host-device corpus playback loop. */
+  audioPlaybackRestart?: () => Promise<void>;
   /** Returns a playback failure observed after session creation, if any. */
   audioPlaybackFailure?: () => string | undefined;
   context: BrowserContext;
@@ -453,6 +457,7 @@ export interface StartSessionRequest {
    */
   fake_media?: SessionSpec['fake_media'];
   audio_playback_pause_ms?: SessionSpec['audio_playback_pause_ms'];
+  audio_playback_start_delay_ms?: SessionSpec['audio_playback_start_delay_ms'];
   audio_device_evidence?: SessionSpec['audio_device_evidence'];
   app_target?: SessionSpec['app_target'];
   validation_context?: SessionSpec['validation_context'];

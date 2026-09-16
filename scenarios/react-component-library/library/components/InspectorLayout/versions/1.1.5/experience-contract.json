@@ -12,6 +12,14 @@
   },
   "claims": [
     {
+      "id": "canvas-present",
+      "type": "element-present",
+      "statement": "The inspector layout exposes its primary canvas.",
+      "elements": ["canvas"],
+      "states": ["ready-inspector", "empty-inspector", "loading-inspector", "partial-inspector", "error-inspector"],
+      "tier": "machine"
+    },
+    {
       "elements": ["canvas"],
       "id": "canvas-first",
       "statement": "The canvas remains the primary task region while the inspector owns its own lifecycle state.",

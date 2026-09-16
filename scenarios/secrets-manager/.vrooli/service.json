@@ -178,6 +178,7 @@
       {
         "logical_id": "vrooli/secrets-manager/deployment",
         "field": "service-token",
+        "env": "SECRETS_MANAGER_DEPLOYMENT_TOKEN",
         "label": "Secrets Manager deployment service token",
         "description": "Scoped machine credential accepted only by tier-specific deployment manifest endpoints. It has no vault or owner authority.",
         "required": false,

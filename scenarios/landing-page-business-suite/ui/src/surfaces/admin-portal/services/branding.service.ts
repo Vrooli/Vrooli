@@ -6,6 +6,7 @@ import {
   type Asset,
 } from '../../../shared/api';
 import { isFormDirty } from '../../../shared/lib/formUtils';
+import { DEFAULT_PRIVACY_MARKDOWN, DEFAULT_TERMS_MARKDOWN } from '../../public-landing/site/legalTemplates';
 
 /**
  * Form state for branding configuration
@@ -34,6 +35,12 @@ export interface BrandingFormState {
   smtp_from: string;
   coming_soon_enabled: boolean;
   coming_soon_message: string;
+  legal_name: string;
+  contact_address: string;
+  privacy_policy_markdown: string;
+  terms_markdown: string;
+  privacy_effective_date: string;
+  terms_effective_date: string;
 }
 
 /**
@@ -41,6 +48,7 @@ export interface BrandingFormState {
  */
 export interface BrandingHealthChecks {
   identity: boolean;
+  business: boolean;
   favicon: boolean;
   seo: boolean;
   ogImage: boolean;
@@ -105,6 +113,12 @@ export const DEFAULT_BRANDING_FORM: BrandingFormState = {
   smtp_from: '',
   coming_soon_enabled: false,
   coming_soon_message: '',
+  legal_name: '',
+  contact_address: '',
+  privacy_policy_markdown: DEFAULT_PRIVACY_MARKDOWN,
+  terms_markdown: DEFAULT_TERMS_MARKDOWN,
+  privacy_effective_date: '',
+  terms_effective_date: '',
 };
 
 /**
@@ -135,6 +149,14 @@ export function brandingToForm(branding: SiteBranding): BrandingFormState {
     smtp_from: branding.smtp_from ?? '',
     coming_soon_enabled: branding.coming_soon_enabled ?? false,
     coming_soon_message: branding.coming_soon_message ?? '',
+    legal_name: branding.legal_name ?? '',
+    contact_address: branding.contact_address ?? '',
+    // An unset document is served from the default template, so the editor
+    // starts from exactly what visitors see; unchanged text is never saved.
+    privacy_policy_markdown: branding.privacy_policy_markdown ?? DEFAULT_PRIVACY_MARKDOWN,
+    terms_markdown: branding.terms_markdown ?? DEFAULT_TERMS_MARKDOWN,
+    privacy_effective_date: branding.privacy_effective_date ?? '',
+    terms_effective_date: branding.terms_effective_date ?? '',
   };
 }
 
@@ -194,6 +216,7 @@ export function isBrandingDirty(
 export function computeBrandingHealth(form: BrandingFormState): BrandingHealth {
   const checks: BrandingHealthChecks = {
     identity: Boolean(form.site_name && form.logo_url),
+    business: Boolean(form.legal_name.trim() && form.support_email.trim() && form.contact_address.trim()),
     favicon: Boolean(form.favicon_url),
     seo: Boolean(form.default_title && form.default_description),
     ogImage: Boolean(form.default_og_image_url),

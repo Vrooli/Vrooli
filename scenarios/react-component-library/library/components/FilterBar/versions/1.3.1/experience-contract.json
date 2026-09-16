@@ -2,6 +2,14 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "claims": [
     {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The filter bar exposes its search surface.",
+      "elements": ["surface"],
+      "states": ["inline-search"],
+      "tier": "machine"
+    },
+    {
       "id": "immediate-search",
       "statement": "Inline search retains an accessible name, applies edits immediately, and resets query and structured filters together.",
       "states": ["inline-search"],
@@ -24,6 +32,11 @@
   ],
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-rcl-filter-bar]" }
+    }
+  },
   "states": [
     {
       "description": "Search within an existing collection surface.",

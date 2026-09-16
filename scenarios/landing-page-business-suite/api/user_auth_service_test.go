@@ -15,6 +15,8 @@ func cleanupUserTestData(t *testing.T, db *sql.DB, email string) {
 	t.Helper()
 
 	// Delete user and cascade to related records
+	_, _ = db.Exec("DELETE FROM auth_tokens WHERE email = $1", email)
+	_, _ = db.Exec("DELETE FROM auth_rate_events WHERE bucket LIKE $1", "%:"+email)
 	_, _ = db.Exec("DELETE FROM users WHERE email = $1", email)
 }
 

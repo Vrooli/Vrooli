@@ -32,16 +32,18 @@ afterEach(() => {
 describe('userAuthRoutes', () => {
   it('loads the customer login route through the route error and profiler boundary', async () => {
     renderRoute('/auth/login');
-    expect(await screen.findByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
+    expect(await screen.findByTestId('email-input')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Sign in to /);
   });
 
   it('loads the administrator login route', async () => {
     renderRoute('/admin/login');
-    expect(await screen.findByRole('heading', { name: 'Admin Portal' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Admin sign-in' })).toBeInTheDocument();
   });
 
   it('loads the verification route and preserves its missing-token validation', async () => {
     renderRoute('/auth/verify');
-    expect(await screen.findByText('No verification token provided')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'This link doesn’t work' })).toBeInTheDocument();
+    expect(screen.getByText(/missing its sign-in token/)).toBeInTheDocument();
   });
 });

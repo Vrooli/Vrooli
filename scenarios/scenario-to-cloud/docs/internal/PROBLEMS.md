@@ -21,6 +21,19 @@
 
 ## Resolved in current execution
 
+- **Governed LPBS activation contract (2026-09-16)**: a production redeploy
+  initially failed for three independent contract gaps: the remote lifecycle
+  inherited the checkout's dynamic port ranges instead of the release's fixed
+  ports, the minimal release omitted the `templates/` source-root marker used
+  by credential validation, and production API startup required
+  `CONSUMER_AUTH_KEY_ID` without a declared value. The activation environment
+  now pins `VROOLI_SOURCE_ROOT` to the staged release, bundles
+  `templates/.keep`, and LPBS declares the versioned consumer key ID. Regression
+  tests cover the source-root environment and bundle marker. Governed
+  operation `da57c47d-f3fc-4d63-afcc-7663928ac2a5` completed all 13 steps;
+  public health, landing routes, and Linux/macOS/Windows update feeds returned
+  200 after activation.
+
 - **False disk-capacity refusal (2026-09-16)**: preflight previously treated a
   fixed 5 GiB floor and the analyzer's low-confidence PostgreSQL 8 GiB
   persistent-footprint estimate as the free space needed for every release.

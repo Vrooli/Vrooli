@@ -455,6 +455,11 @@ function setupRoutes(
     }
     await routes.handleSessionRelease(req, res, sessionId, sessionManager);
   });
+  router.post('/session/:id/audio/restart', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAudioRestart(req, res, sessionId, sessionManager);
+  });
   router.post('/session/:id/close', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {

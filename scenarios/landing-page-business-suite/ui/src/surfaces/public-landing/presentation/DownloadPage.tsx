@@ -13,6 +13,21 @@ import { downloadSystemUi as ui } from './systemUi';
 import { actionKey, type Presentation, type ResolvedActions } from './types';
 import './presentation.css';
 
+function detectedDownloadPlatform(): string {
+  if (typeof navigator === 'undefined') return '';
+  const value = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
+  if (value.includes('win')) return 'windows';
+  if (value.includes('mac')) return 'mac';
+  if (value.includes('linux') || value.includes('x11')) return 'linux';
+  return '';
+}
+
+function defaultDownloadSelection(options: DownloadAsset[]): string {
+  const platform = detectedDownloadPlatform();
+  const index = options.findIndex(option => option.platform === platform);
+  return index >= 0 ? String(index) : options.length > 0 ? '0' : '';
+}
+
 export function DownloadPage() {
   const { config, request, loading, notFound, canonicalBaseUrl } = useLandingVariant();
   const base = useHref('/'); const location = useLocation();
@@ -34,10 +49,13 @@ function DownloadSession({ presentation, resolvedActions, options, appMetadata, 
   const auth = useUserAuth();
   const { request } = useLandingVariant();
   const { refreshSession } = auth;
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(() => defaultDownloadSelection(options));
   const [state, setState] = useState<{ identity: object | null; value: DownloadState }>({ identity: null, value: { status: 'idle' } });
   const pending = useRef(false); const operation = useRef(0); const identity = useRef(auth.user); identity.current = auth.user;
   const stateValue = state.identity === auth.user ? state.value : { status: 'idle' as const };
+  useEffect(() => {
+    if (selected === '' && options.length > 0) setSelected(defaultDownloadSelection(options));
+  }, [options, selected]);
   const asset = selected === '' ? undefined : options[Number(selected)];
   const invalidId = asset && (asset.id === undefined || !Number.isSafeInteger(asset.id) || asset.id <= 0);
   const duplicateId = asset && options.filter(option => option.id === asset.id).length !== 1;

@@ -7,7 +7,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
+
+	admin "landing-page-business-suite-api/internal/administration"
 
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
@@ -19,6 +22,7 @@ type (
 	LoginRequest struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		TOTPCode string `json:"totp_code,omitempty"`
 	}
 	SessionResponse struct {
 		Email         string `json:"email,omitempty"`
@@ -52,8 +56,21 @@ type (
 		GetSession(*http.Request, string) (*sessions.Session, error)
 		SaveSession(*http.Request, http.ResponseWriter, *sessions.Session) error
 	}
+	// AdminThrottle counts failed administrator sign-ins durably.
+	AdminThrottle interface {
+		Exceeded(context.Context, string, admin.ThrottleRule) (bool, error)
+		Record(context.Context, string) error
+		Reset(context.Context, string) error
+	}
+	// AdminSecondFactor verifies authenticator-app or recovery codes.
+	AdminSecondFactor interface {
+		Enabled(context.Context, string) (bool, error)
+		Verify(context.Context, string, string) error
+	}
 	Dependencies struct {
 		Auth          AuthService
+		Throttle      AdminThrottle
+		MFA           AdminSecondFactor
 		Sessions      SessionManager
 		GenerateID    func() (string, error)
 		Now           func() time.Time
@@ -74,21 +91,112 @@ func response(email string, authenticated bool, sessionID string) SessionRespons
 	return out
 }
 
+// Admin login failure kinds that clients branch on.
+const (
+	LoginKindMFARequired = "mfa_required"
+	LoginKindMFAInvalid  = "mfa_invalid"
+	LoginKindLocked      = "rate_limited"
+)
+
+var (
+	timingHashOnce sync.Once
+	timingHash     []byte
+)
+
+// equalizeUnknownAdmin spends the same bcrypt work as a real comparison so
+// response time does not reveal whether an administrator email exists.
+func equalizeUnknownAdmin(password string) {
+	timingHashOnce.Do(func() {
+		timingHash, _ = bcrypt.GenerateFromPassword([]byte("lpbs-timing-equalizer"), bcrypt.DefaultCost)
+	})
+	_ = bcrypt.CompareHashAndPassword(timingHash, []byte(password))
+}
+
 // LoginSession applies credential validation and writes the session cookie to
 // the supplied response writer for the generated Connect transport.
 func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, deps Dependencies) (SessionResponse, *SessionError) {
-	hash, err := deps.Auth.PasswordHash(r.Context(), request.Email)
+	request.Email = strings.TrimSpace(request.Email)
+	ctx := r.Context()
+	userBucket := admin.ThrottleBucket("admin-login-email", request.Email)
+	ipBucket := ""
+	if ip := strings.TrimSpace(deps.ClientIP(r)); ip != "" {
+		ipBucket = admin.ThrottleBucket("admin-login-ip", ip)
+	}
+	locked := &SessionError{Status: http.StatusTooManyRequests, Message: "Too many failed sign-in attempts. Wait 15 minutes and try again.", Kind: LoginKindLocked}
+	if deps.Throttle != nil {
+		for _, check := range []struct {
+			bucket string
+			rule   admin.ThrottleRule
+		}{{userBucket, admin.AdminFailuresPerUser}, {ipBucket, admin.AdminFailuresPerIP}} {
+			if check.bucket == "" {
+				continue
+			}
+			exceeded, err := deps.Throttle.Exceeded(ctx, check.bucket, check.rule)
+			if err != nil {
+				deps.LogError("admin_login_throttle_degraded", map[string]any{"error": err.Error()})
+			}
+			if exceeded {
+				deps.Log("admin_login_locked", map[string]any{"level": "warn", "email": request.Email})
+				return SessionResponse{}, locked
+			}
+		}
+	}
+	recordFailure := func() {
+		if deps.Throttle == nil {
+			return
+		}
+		for _, bucket := range []string{userBucket, ipBucket} {
+			if bucket == "" {
+				continue
+			}
+			if err := deps.Throttle.Record(ctx, bucket); err != nil {
+				deps.LogError("admin_login_throttle_record_failed", map[string]any{"error": err.Error()})
+			}
+		}
+	}
+	invalid := &SessionError{Status: http.StatusUnauthorized, Message: "Invalid credentials", Kind: "unauthorized"}
+
+	hash, err := deps.Auth.PasswordHash(ctx, request.Email)
 	if errors.Is(err, sql.ErrNoRows) {
+		equalizeUnknownAdmin(request.Password)
+		recordFailure()
 		deps.Log("login_invalid_email", map[string]any{"level": "warn", "email": request.Email})
-		return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "Invalid credentials", Kind: "unauthorized"}
+		return SessionResponse{}, invalid
 	}
 	if err != nil {
 		deps.LogError("login_db_error", map[string]any{"error": err.Error()})
 		return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Unable to verify credentials. Please try again.", Kind: "server_error"}
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(request.Password)); err != nil {
+		recordFailure()
 		deps.Log("login_invalid_password", map[string]any{"level": "warn", "email": request.Email})
-		return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "Invalid credentials", Kind: "unauthorized"}
+		return SessionResponse{}, invalid
+	}
+	if deps.MFA != nil {
+		enabled, err := deps.MFA.Enabled(ctx, request.Email)
+		if err != nil {
+			deps.LogError("admin_mfa_status_failed", map[string]any{"error": err.Error()})
+			return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Unable to verify credentials. Please try again.", Kind: "server_error"}
+		}
+		if enabled {
+			if strings.TrimSpace(request.TOTPCode) == "" {
+				return SessionResponse{}, &SessionError{Status: http.StatusPreconditionRequired, Message: "Enter the code from your authenticator app.", Kind: LoginKindMFARequired}
+			}
+			if err := deps.MFA.Verify(ctx, request.Email, request.TOTPCode); err != nil {
+				if errors.Is(err, admin.ErrMFAUnavailable) {
+					deps.LogError("admin_mfa_unavailable", map[string]any{"error": err.Error()})
+					return SessionResponse{}, &SessionError{Status: http.StatusServiceUnavailable, Message: "Two-factor verification is unavailable. Check the server's credential authority.", Kind: "server_error"}
+				}
+				recordFailure()
+				deps.Log("login_invalid_mfa", map[string]any{"level": "warn", "email": request.Email})
+				return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "That code isn't right. Try the current code from your app.", Kind: LoginKindMFAInvalid}
+			}
+		}
+	}
+	if deps.Throttle != nil {
+		if err := deps.Throttle.Reset(ctx, userBucket); err != nil {
+			deps.LogError("admin_login_throttle_reset_failed", map[string]any{"error": err.Error()})
+		}
 	}
 	if err := deps.Auth.UpdateLastLogin(r.Context(), request.Email); err != nil {
 		deps.LogError("last_login_update_failed", map[string]any{"error": err.Error(), "email": request.Email})

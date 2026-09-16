@@ -13,8 +13,21 @@ import (
 )
 
 func isProductionEnvironment() bool {
-	env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+	env := runtimeEnvironment()
 	return env == "production" || env == "prod"
+}
+
+// runtimeEnvironment accepts the scenario-specific override used by local
+// development and the control-plane environment exported by cloud execution.
+// The latter is the authoritative signal for deployed processes, so public
+// production workloads cannot silently fall back to development security
+// behavior when LPBS_ENVIRONMENT is absent.
+func runtimeEnvironment() string {
+	env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+	if env == "" {
+		env = strings.ToLower(strings.TrimSpace(envx.Get("VROOLI_ENVIRONMENT")))
+	}
+	return env
 }
 
 func NewAPIKeyService(db administration.APIKeyStore) (*administration.APIKeyService, error) {

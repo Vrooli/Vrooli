@@ -13,13 +13,13 @@
  * Stored authentication tokens.
  */
 export interface StoredTokens {
-    /** Short-lived compatibility access token; process memory only. */
+    /** Short-lived access token; persisted only through Electron safeStorage. */
     accessToken: string;
-    /** Website refresh token; process memory only and never persisted. */
+    /** Website refresh token; persisted only through Electron safeStorage. */
     refreshToken: string;
     /** Compatibility session expiry; not a lease authorization boundary. */
     expiresAt: string;
-    /** Signed LPBS entitlement lease; the only durable auth artifact. */
+    /** Signed LPBS entitlement lease, when the account has one. */
     entitlementLease?: string;
 }
 

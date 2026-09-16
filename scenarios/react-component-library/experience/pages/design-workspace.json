@@ -9,6 +9,10 @@
       "/design/:scenario/:page",
       "/sketch/:scenario/:page"
     ],
+    "runtimeRoutes": [
+      "/design/switchboard/dashboard",
+      "/sketch/switchboard/dashboard"
+    ],
     "purpose": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
   },
   "priorities": [

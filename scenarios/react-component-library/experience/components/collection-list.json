@@ -52,5 +52,10 @@
         "keyboard-virtualized"
       ]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-rcl-collection-container]" }
+    }
+  }
 }

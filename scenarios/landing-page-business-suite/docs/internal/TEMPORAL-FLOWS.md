@@ -34,28 +34,35 @@ server.Run
 - `api/internal/*/schema.sql` is the sole schema authority. `applyRuntimeSchema` applies those files at runtime and test setup.
 - `ConfigStore.LoadAll` is also called inside `resetDemoData`, so an admin "reset" reloads JSON config without restarting.
 
-## Magic-link login
+## Customer sign-in (code or link)
 
 ```
-Client                       API                              Email provider
-   │  POST /auth/magic-link    │                                    │
+Browser                      API                              Email provider
+   │  POST /auth/magic-link {email, browser_binding, context?}      │
    ├──────────────────────────►│                                    │
-   │                           │ rate-limit (5/15 min per email)    │
-   │                           │ insert auth_tokens (token_type=magic_link, expires_at=+15m)
-   │                           │ send email ─────────────────────► │
-   │  202 Accepted             │                                    │
+   │                           │ throttle (auth_rate_events)        │
+   │                           │ insert auth_tokens: hashed token + hashed 6-digit code,
+   │                           │   binding hash, app context; no users row yet
+   │                           │ send code + link (SendGrid → SMTP) ►│
+   │  200 {expires_at} | 503 delivery_unavailable                   │
    ◄───────────────────────────│                                    │
    │                                                                │
-   │  GET /auth/verify?token=… (from email link)                    │
+   │  A) POST /auth/verify-code {email, code, browser_binding}      │
+   │  B) POST /auth/magic-link/preview {token}  → confirm screen    │
+   │     POST /auth/verify {token, browser_binding}                 │
+   │  C) POST /auth/authorize {token|code, PKCE} → loopback redirect│
    ├──────────────────────────►│                                    │
-   │                           │ hash + lookup auth_tokens          │
-   │                           │ mark used_at, mint JWT pair        │
-   │                           │ insert user_sessions               │
-   │  Set-Cookie/JSON tokens   │                                    │
+   │                           │ mark used_at; retire sibling requests
+   │                           │ get-or-create user, mark verified  │
+   │                           │ insert user_sessions, mint JWT pair│
+   │  Set-Cookie + tokens (+ context for the same browser)          │
    ◄───────────────────────────│                                    │
 ```
 
-- Magic-link tokens are single-use (`used_at` is set on first verify; subsequent verifies return 401).
+- Links and codes are single-use and expire after 15 minutes; finishing sign-in by either retires all outstanding requests for the address.
+- A resend keeps earlier codes valid until they expire, so a code the person is already typing still works.
+- `GET /auth/authorize` without a credential redirects to `/auth/login` with the same PKCE parameters; this is how native clients start.
+- An hourly janitor deletes sign-in requests that expired more than a day ago; throttle events older than a day are pruned on use.
 - Refresh-token rotation: each `/auth/refresh` issues a new refresh token and revokes the prior one.
 
 ## Stripe checkout & webhook

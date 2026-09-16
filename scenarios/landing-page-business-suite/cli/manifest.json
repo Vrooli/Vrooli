@@ -846,6 +846,34 @@
           }
         },
         {
+          "name": "admin-mfa-reset",
+          "description": "Turn off admin two-factor authentication for operator recovery using the service credential.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-mfa-status",
+          "description": "Show admin two-factor authentication status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "admin-profile",
           "description": "Legacy local command: admin-profile.",
           "binding": {
@@ -895,6 +923,20 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-sign-in-delivery",
+          "description": "Show recent customer sign-in email delivery outcomes.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": false,
             "permissions": [
               "network:internal"

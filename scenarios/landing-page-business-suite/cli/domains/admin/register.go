@@ -24,10 +24,13 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-login", NeedsAPI: true, Description: "Admin login (stores session)", Run: func(args []string) error { return runLogin(deps, args) }},
 		{Name: "admin-logout", NeedsAPI: true, Description: "Admin logout (clears session)", Run: func(args []string) error { return runLogout(deps, args) }},
 		{Name: "admin-session", NeedsAPI: true, Description: "Admin session status", Run: func(args []string) error { return runSession(deps, args) }},
+		{Name: "admin-mfa-reset", NeedsAPI: true, Description: "Turn off admin two-factor authentication (operator recovery; uses the service credential)", Run: func(args []string) error { return runMFAReset(deps, args) }},
 	}
 	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
 		{Name: "admin-profile", Method: "GET", Path: "/admin/profile", Description: "Admin profile"},
 		{Name: "admin-profile-update", Method: "PUT", Path: "/admin/profile", Description: "Update admin profile"},
+		{Name: "admin-mfa-status", Method: "GET", Path: "/admin/mfa", Description: "Admin two-factor authentication status"},
+		{Name: "admin-sign-in-delivery", Method: "GET", Path: "/admin/auth/delivery", Description: "Recent sign-in email delivery outcomes"},
 		{Name: "admin-stripe-verify-price", Method: "GET", Path: "/admin/stripe/verify-price", Description: "Verify Stripe price"},
 		{Name: "admin-reset-demo-data", Method: "POST", Path: "/admin/reset-demo-data", Description: "Reset demo data"},
 	})...)
@@ -122,12 +125,13 @@ func runLogin(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("admin-login", flag.ContinueOnError)
 	email := fs.String("email", "", "Admin email (defaults to admin@localhost or ADMIN_DEFAULT_EMAIL)")
 	password := fs.String("password", "", "Admin password, @file, or omit to resolve from the credential authority")
+	code := fs.String("code", "", "Authenticator or recovery code, required when two-factor authentication is on")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
-		return fmt.Errorf("usage: admin-login [--email <email>] [--password <password|@file>] [--json]")
+		return fmt.Errorf("usage: admin-login [--email <email>] [--password <password|@file>] [--code <code>] [--json]")
 	}
 
 	// admin-login resolves the seeded administrator identity from the
@@ -149,8 +153,12 @@ func runLogin(deps support.Dependencies, args []string) error {
 	response, err := client.Login(context.Background(), connect.NewRequest(&lpbsv1.LoginRequest{
 		Email:    emailValue,
 		Password: passwordValue,
+		TotpCode: strings.TrimSpace(*code),
 	}))
 	if err != nil {
+		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return fmt.Errorf("two-factor authentication is on for %s; rerun with --code <authenticator code>", emailValue)
+		}
 		return err
 	}
 	if response == nil || response.Msg == nil || !response.Msg.GetAuthenticated() {

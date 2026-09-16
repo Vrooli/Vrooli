@@ -35,6 +35,12 @@ const SiteBrandingSchema: z.ZodType<SiteBranding> = z.object({
   smtp_from: NullableStringSchema,
   coming_soon_enabled: z.boolean().nullable().optional(),
   coming_soon_message: NullableStringSchema,
+  legal_name: NullableStringSchema,
+  contact_address: NullableStringSchema,
+  privacy_policy_markdown: NullableStringSchema,
+  terms_markdown: NullableStringSchema,
+  privacy_effective_date: NullableStringSchema,
+  terms_effective_date: NullableStringSchema,
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -50,6 +56,13 @@ const PublicBrandingSchema: z.ZodType<PublicBranding> = z.object({
   support_chat_url: NullableStringSchema,
   coming_soon_enabled: z.boolean().nullable().optional(),
   coming_soon_message: NullableStringSchema,
+  support_email: NullableStringSchema,
+  legal_name: NullableStringSchema,
+  contact_address: NullableStringSchema,
+  privacy_policy_markdown: NullableStringSchema,
+  terms_markdown: NullableStringSchema,
+  privacy_effective_date: NullableStringSchema,
+  terms_effective_date: NullableStringSchema,
 });
 
 /** Decode the complete generated envelope; v2 messages have no instance codec. */

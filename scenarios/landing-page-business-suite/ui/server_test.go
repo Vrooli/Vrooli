@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -103,5 +104,81 @@ func TestUIHandlerServesStaticRoutesLocally(t *testing.T) {
 	h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
 	if response.Code != http.StatusOK || response.Body.String() != "ui" {
 		t.Fatalf("root response = %d %q", response.Code, response.Body.String())
+	}
+}
+
+func TestUIHandlerServesClientEntryForDirectPublicRoutes(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<html><head></head><body>ui</body></html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := newUIHandler(root, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unexpected proxy", http.StatusBadGateway)
+	}))
+	for _, path := range []string{"/apps/aquila", "/apps/aquila/download", "/checkout", "/contact", "/privacy", "/terms", "/thank-you"} {
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `<base href="/">`) {
+			t.Fatalf("%s response = %d %q", path, response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestUIHandlerServesBrandedNotFoundWithRealStatus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<html><head></head><body>ui</body></html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := newUIHandler(root, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unexpected proxy", http.StatusBadGateway)
+	}))
+	for path, wantEntry := range map[string]bool{"/no-such-page": true, "/pricing/old/link": true, "/assets/missing.js": false} {
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d, want 404", path, response.Code)
+		}
+		if got := strings.Contains(response.Body.String(), "<body>ui</body>"); got != wantEntry {
+			t.Fatalf("%s served client entry = %v, want %v: %q", path, got, wantEntry, response.Body.String())
+		}
+	}
+}
+
+func TestUIHandlerForwardsCrawlerDocumentsToAPI(t *testing.T) {
+	var proxied []string
+	h := newUIHandler(t.TempDir(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxied = append(proxied, r.URL.Path)
+		_, _ = w.Write([]byte("crawler"))
+	}))
+	for _, path := range []string{"/robots.txt", "/sitemap.xml"} {
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusOK || response.Body.String() != "crawler" {
+			t.Fatalf("%s response = %d %q", path, response.Code, response.Body.String())
+		}
+	}
+	if strings.Join(proxied, ",") != "/robots.txt,/sitemap.xml" {
+		t.Fatalf("proxied = %v", proxied)
+	}
+}
+
+func TestUIHandlerMakesSocialImagesAbsoluteFromConfiguredBase(t *testing.T) {
+	root := t.TempDir()
+	index := `<html><head><meta property="og:image" content="/public/og-image.jpg" /><meta name="twitter:image" content="./public/og-image.jpg" /><link rel="icon" href="/public/favicon.ico" /></head><body>ui</body></html>`
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte(index), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for base, want := range map[string]string{
+		"https://shop.example.test/": `content="https://shop.example.test/public/og-image.jpg"`,
+		"":                           `public/og-image.jpg"`,
+		"javascript:alert(1)":        `public/og-image.jpg"`,
+	} {
+		h := newUIHandlerWithOptions(root, http.NotFoundHandler(), nil, func() string { return base })
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+		body := response.Body.String()
+		if strings.Count(body, want) != 2 || !strings.Contains(body, `href="/public/favicon.ico"`) {
+			t.Fatalf("base %q: body = %s", base, body)
+		}
 	}
 }

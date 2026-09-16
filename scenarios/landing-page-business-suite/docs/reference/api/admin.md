@@ -22,9 +22,14 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "<replace-at-deploy>"
+  "password": "<replace-at-deploy>",
+  "totp_code": "123456"
 }
 ```
+
+`totp_code` is an authenticator-app code or a recovery code. Omit it on the
+first attempt; when two-factor authentication is on, a correct password
+returns `failed_precondition` and the client asks for the code.
 
 **Response:**
 ```json
@@ -38,7 +43,36 @@ Authenticates an admin user.
 Sets session cookie for subsequent requests.
 
 **Errors:**
-- `401 Unauthorized` - Invalid credentials
+- `401 Unauthorized` / `unauthenticated` - Invalid credentials or wrong two-factor code
+- `failed_precondition` - Password accepted; two-factor code required
+- `429` / `resource_exhausted` - Too many failures for this email (5 / 15 min) or client IP (20 / 15 min)
+
+---
+
+### Two-factor authentication
+
+All require an admin session except `reset`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/admin/mfa` | `{enabled, enabled_at, recovery_codes_left, enrollment_in_progress}` |
+| POST | `/admin/mfa/enroll` | Start setup; returns `{secret, otpauth_uri}` shown once. Login policy is unchanged until confirmed |
+| POST | `/admin/mfa/confirm` | `{code}` → turns two-factor on and returns ten one-use `recovery_codes` |
+| POST | `/admin/mfa/disable` | `{code}` (authenticator or recovery code) → turns two-factor off |
+| POST | `/admin/mfa/recovery-codes` | `{code}` → replaces all recovery codes |
+| POST | `/admin/mfa/reset` | `{email}`; **service credential only** (browser sessions are refused). Operator recovery for a lost authenticator and lost recovery codes; the CLI wraps it as `landing-page-business-suite admin-mfa-reset --email <email>` |
+
+Secrets are sealed with the generated `admin-mfa-encryption-key` ring;
+recovery codes are stored as bcrypt hashes.
+
+---
+
+### GET /admin/auth/delivery
+
+Customer sign-in email outcomes for the last 24 hours:
+`{window_hours, delivery: {sent, failed, last_failure, last_error, last_success}}`.
+
+**Authentication:** Admin session or metrics reader token
 
 ---
 

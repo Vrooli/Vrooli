@@ -24,7 +24,10 @@ How the HTTP API signals failure to clients, and how those signals translate to 
 | `404 Not Found` | Resource ID is well-formed but does not exist |
 | `409 Conflict` | Idempotency key collision, duplicate webhook delivery, race on a write |
 | `422 Unprocessable Entity` | **Not used.** Validation failures use `400`. |
-| `429 Too Many Requests` | Rate limiter (`api/rate_limit.go`) tripped — magic-link flow uses 5 / 15 min per email |
+| `429 Too Many Requests` | A throttle tripped. Sign-in uses durable `auth_rate_events` limits (5 requests / 15 min per email, 20 / hour per IP, 5 wrong codes / 15 min) and sets `Retry-After`; admin login maps to Connect `resource_exhausted` |
+| `401` + `reason` | Sign-in failures carry a stable `reason`: `token_expired`, `token_used`, `token_invalid`, `code_invalid`; the pages branch on it, never on message text |
+| `503` + `reason: delivery_unavailable` | The sign-in email could not be sent by any configured provider; the request was retired |
+| Connect `failed_precondition` on admin login | Password accepted; two-factor code required (`totp_code`) |
 | `500 Internal Server Error` | Unexpected panic, DB error, or Stripe API error that we cannot map to a 4xx |
 | `502 / 503` | Reserved for upstream LLM provider failures from the metered inference |
 

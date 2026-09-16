@@ -12,6 +12,14 @@
   },
   "claims": [
     {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The async panel exposes its lifecycle surface.",
+      "elements": ["surface"],
+      "states": ["loading", "ready", "empty", "partial", "error"],
+      "tier": "machine"
+    },
+    {
       "id": "surface-lifecycle-preserved",
       "statement": "Every panel state is exposed through the embedded ExperienceSurface lifecycle attributes.",
       "states": ["loading", "ready", "empty", "partial", "error"],

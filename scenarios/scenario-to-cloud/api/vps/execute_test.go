@@ -27,6 +27,29 @@ func stubHealth(t *testing.T) {
 	t.Cleanup(func() { checkOriginHealthFunc, checkPublicHealthFunc = prevOrigin, prevPublic })
 }
 
+type failedReceiptReach struct{}
+
+func (failedReceiptReach) Exec(context.Context, identity.TargetRef, reach.Command) (reach.Result, error) {
+	return reach.Result{ExitCode: 1, Stdout: `{"receipt":{"outcome":"failed","error":{"code":"activation_failed","message":"start landing-page-business-suite: listen tcp 18080: bind: address already in use"}}}`}, nil
+}
+
+func (failedReceiptReach) Deliver(context.Context, identity.TargetRef, reach.Delivery) (reach.DeliveryReceipt, error) {
+	return reach.DeliveryReceipt{}, nil
+}
+
+func (failedReceiptReach) Negotiate(context.Context, identity.TargetRef) (reach.Capabilities, error) {
+	return reach.Capabilities{}, nil
+}
+
+func TestInvokeIncludesFailedTargetReceiptMessage(t *testing.T) {
+	e := &executor{reach: &attributedReach{inner: failedReceiptReach{}}}
+	e.reach.enter("test")
+	_, _, err := e.invoke(context.Background(), TargetCommand{Command: reach.Command{Verb: "cloud-target release activate"}})
+	if err == nil || !strings.Contains(err.Error(), "address already in use") {
+		t.Fatalf("failed receipt detail was lost: %v", err)
+	}
+}
+
 func fixtureManifest(w *fixtures.Workload) domain.CloudManifest {
 	ports := domain.ManifestPorts{}
 	for i, listener := range w.Declaration.Listeners {

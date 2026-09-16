@@ -1,217 +1,243 @@
-import { useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, RefreshCw, WifiOff } from 'lucide-react';
-import { Button } from '../../../shared/ui/button';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, WifiOff } from 'lucide-react';
+import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import { useAdminAuth } from '../../../app/providers/useAdminAuth';
 import { isApiError } from '../../../shared/api';
-import { LAYOUT } from '../config/layout.constants';
+import { CodeInput } from '../../user-auth/components/CodeInput';
+
+type LoginFailure = { message: string; kind: 'auth' | 'locked' | 'network' | 'server' };
+
+function describeLoginError(err: unknown, step: 'credentials' | 'second-factor'): LoginFailure | 'mfa-required' {
+  if (err instanceof ConnectError) {
+    switch (err.code) {
+      case Code.FailedPrecondition:
+        return 'mfa-required';
+      case Code.ResourceExhausted:
+        return { kind: 'locked', message: 'Too many failed attempts. For your security, sign-in is paused for 15 minutes.' };
+      case Code.Unauthenticated:
+        return step === 'second-factor'
+          ? { kind: 'auth', message: 'That code isn’t right. Use the current code from your app, or a recovery code.' }
+          : { kind: 'auth', message: 'That email and password don’t match an administrator account.' };
+      case Code.Unavailable:
+        return { kind: 'server', message: err.rawMessage || 'Sign-in is temporarily unavailable. Please try again shortly.' };
+      case Code.Unknown:
+      case Code.Canceled:
+      case Code.DeadlineExceeded:
+        return { kind: 'network', message: 'We couldn’t reach the server. Check your connection and try again.' };
+      default:
+        return { kind: 'server', message: 'The server couldn’t complete sign-in. Please try again.' };
+    }
+  }
+  if (isApiError(err, 'network') || isApiError(err, 'timeout') || err instanceof TypeError) {
+    return { kind: 'network', message: 'We couldn’t reach the server. Check your connection and try again.' };
+  }
+  if (isApiError(err, 'server_error')) {
+    return { kind: 'server', message: 'The server couldn’t complete sign-in. Please try again.' };
+  }
+  return { kind: 'auth', message: 'That email and password don’t match an administrator account.' };
+}
 
 /**
- * Admin login page - implements ADMIN-AUTH requirement (OT-P0-008)
- *
- * Authentication uses bcrypt for password hashing and httpOnly cookies for session management.
- * Security by obscurity: Not linked from public pages (OT-P0-007)
+ * Operator sign-in: password, then an authenticator code when two-factor
+ * authentication is on. Not linked from public pages.
  *
  * [REQ:ADMIN-AUTH] [REQ:ADMIN-SECURITY]
  */
 export function AdminLogin() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<{ message: string; type: 'auth' | 'network' | 'server' | 'unknown' } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAdminAuth();
+  const [step, setStep] = useState<'credentials' | 'second-factor'>('credentials');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [code, setCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [failure, setFailure] = useState<LoginFailure | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
-  const submitLogin = async () => {
-    setError(null);
+  const attempt = async (secondFactor = '') => {
+    setFailure(null);
     setIsLoading(true);
-
     try {
-      await login(email, password);
+      await login(email.trim(), password, secondFactor);
       navigate('/admin');
     } catch (err) {
-      // Classify the error for appropriate user messaging
-      if (isApiError(err, 'network')) {
-        setError({
-          message: 'Unable to connect. Please check your internet connection and try again.',
-          type: 'network',
-        });
-      } else if (isApiError(err, 'timeout')) {
-        setError({
-          message: 'The server is taking too long to respond. Please try again.',
-          type: 'network',
-        });
-      } else if (isApiError(err, 'server_error')) {
-        setError({
-          message: 'The server encountered an error. Please try again later.',
-          type: 'server',
-        });
-      } else if (isApiError(err, 'unauthorized')) {
-        setError({
-          message: 'Invalid email or password.',
-          type: 'auth',
-        });
-      } else {
-        // Default to auth error for unclassified failures (security: don't reveal system details)
-        setError({
-          message: 'Invalid email or password.',
-          type: 'auth',
-        });
+      const outcome = describeLoginError(err, secondFactor ? 'second-factor' : 'credentials');
+      if (outcome === 'mfa-required') {
+        setStep('second-factor');
+        setCode('');
+        return;
       }
+      setFailure(outcome);
+      if (secondFactor) setCode('');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const onCredentials = (event: FormEvent) => {
     event.preventDefault();
-    return submitLogin();
+    if (!email.trim() || !password) {
+      setFailure({ kind: 'auth', message: 'Enter your administrator email and password.' });
+      return;
+    }
+    void attempt();
   };
 
-  return (
-    <div className="min-h-full bg-mesh-gradient flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background decoration */}
-      <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+  const onSecondFactor = (event: FormEvent) => {
+    event.preventDefault();
+    const value = useRecovery ? recoveryCode.trim() : code;
+    if (useRecovery ? value.length < 10 : value.length !== 6) return;
+    void attempt(value);
+  };
 
-      <div className={`relative z-10 w-full ${LAYOUT.maxWidth.narrow}`}>
-        {/* Logo/Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 mb-4">
-            <Lock className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            Admin Portal
-          </h1>
-          <p className="text-slate-400 mt-2">Landing Page Business Suite</p>
-        </div>
-
-        {/* Login Card */}
-        <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-8 shadow-2xl backdrop-blur">
-          <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                  <Mail className="w-5 h-5 text-slate-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); }}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-white placeholder-slate-500"
-                  placeholder="admin@example.com"
-                  required
-                  data-testid="admin-login-email"
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                  <Lock className="w-5 h-5 text-slate-400" />
-                </div>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); }}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-white placeholder-slate-500"
-                  placeholder="••••••••"
-                  required
-                  data-testid="admin-login-password"
-                />
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div
-                className={`rounded-lg border p-4 ${
-                  error.type === 'network'
-                    ? 'border-amber-500/20 bg-amber-500/10'
-                    : error.type === 'server'
-                      ? 'border-orange-500/20 bg-orange-500/10'
-                      : 'border-red-500/20 bg-red-500/10'
-                }`}
-                data-testid="admin-login-error"
-              >
-                <div className="flex items-start gap-3">
-                  {error.type === 'network' && (
-                    <WifiOff className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`text-sm ${
-                      error.type === 'network'
-                        ? 'text-amber-400'
-                        : error.type === 'server'
-                          ? 'text-orange-400'
-                          : 'text-red-400'
-                    }`}>
-                      {error.message}
-                    </p>
-                    {error.type === 'network' && (
-                      <button
-                        type="button"
-                        onClick={() => { void submitLogin(); }}
-                        className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 underline underline-offset-2"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Retry
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              className="w-full py-3 text-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-lg shadow-purple-500/25"
-              data-testid="admin-login-submit"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Logging in...
-                </span>
-              ) : (
-                'Log In'
-              )}
-            </Button>
-          </form>
-
-          {/* Security Info */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-xs text-slate-500 text-center leading-relaxed">
-              Secured with bcrypt password hashing and httpOnly cookies.
-              <br />
-              Admin portal is not linked from public pages for security.
-            </p>
-          </div>
-        </div>
-
-        {/* Back to Home */}
-        <div className="text-center mt-6">
-          <a
-            href="/"
-            className="inline-flex min-h-11 items-center px-2 text-sm text-slate-400 transition-colors hover:text-slate-300"
-          >
-            ← Back to Landing Page
-          </a>
-        </div>
-      </div>
+  const alert = failure && (
+    <div className={`auth-alert-box auth-alert-${failure.kind}`} role="alert" data-testid="admin-login-error">
+      {failure.kind === 'network' ? <WifiOff aria-hidden="true" /> : <AlertCircle aria-hidden="true" />}
+      <p>{failure.message}</p>
+      {failure.kind === 'network' && (
+        <button type="button" className="auth-link" onClick={() => { void attempt(step === 'second-factor' ? (useRecovery ? recoveryCode.trim() : code) : ''); }}>
+          Retry
+        </button>
+      )}
     </div>
+  );
+
+  if (step === 'second-factor') {
+    return (
+      <AuthPageLayout pageTitle="Two-factor verification" chrome="minimal" stepKey="admin-mfa">
+        <form className="auth-step" onSubmit={onSecondFactor} noValidate aria-busy={isLoading}>
+          <button type="button" className="auth-back" onClick={() => { setStep('credentials'); setFailure(null); setPassword(''); }}>
+            <ArrowLeft aria-hidden="true" />Back
+          </button>
+          <span className="auth-badge" aria-hidden="true"><ShieldCheck /></span>
+          <header className="auth-head">
+            <h1>Two-factor verification</h1>
+            <p>{useRecovery ? 'Enter one of the recovery codes you saved when you turned on two-factor authentication.' : 'Enter the 6-digit code from your authenticator app.'}</p>
+          </header>
+
+          {useRecovery ? (
+            <div className="site-field auth-field">
+              <label htmlFor="recovery-code">Recovery code</label>
+              <div className="site-input-icon">
+                <KeyRound aria-hidden="true" />
+                <input
+                  id="recovery-code"
+                  value={recoveryCode}
+                  onChange={(event) => { setRecoveryCode(event.target.value); setFailure(null); }}
+                  placeholder="xxxxx-xxxxx"
+                  autoComplete="one-time-code"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoFocus
+                  disabled={isLoading}
+                  data-testid="admin-recovery-code"
+                />
+              </div>
+            </div>
+          ) : (
+            <CodeInput
+              value={code}
+              onChange={(value) => { setCode(value); setFailure(null); }}
+              onComplete={(value) => { void attempt(value); }}
+              disabled={isLoading}
+              invalid={failure?.kind === 'auth'}
+              autoFocus
+              label="Authenticator code"
+              testId="admin-totp-code"
+            />
+          )}
+
+          {alert}
+
+          <button
+            type="submit"
+            className="button button-primary auth-submit"
+            disabled={isLoading || (useRecovery ? recoveryCode.trim().length < 10 : code.length !== 6)}
+            data-testid="admin-mfa-submit"
+          >
+            {isLoading ? <><span className="site-spinner" aria-hidden="true" />Verifying…</> : <>Verify and sign in<ArrowRight aria-hidden="true" /></>}
+          </button>
+          <button
+            type="button"
+            className="auth-link auth-toggle"
+            onClick={() => { setUseRecovery(!useRecovery); setFailure(null); }}
+          >
+            <KeyRound aria-hidden="true" />{useRecovery ? 'Use authenticator app instead' : 'Use a recovery code'}
+          </button>
+        </form>
+      </AuthPageLayout>
+    );
+  }
+
+  return (
+    <AuthPageLayout pageTitle="Admin sign-in" chrome="minimal" stepKey="admin-credentials">
+      <form className="auth-step" onSubmit={onCredentials} noValidate aria-busy={isLoading}>
+        <span className="auth-badge" aria-hidden="true"><Lock /></span>
+        <header className="auth-head">
+          <h1>Admin sign-in</h1>
+          <p>Manage your site, pricing, and customers.</p>
+        </header>
+
+        <div className="site-field auth-field">
+          <label htmlFor="email">Email address</label>
+          <div className="site-input-icon">
+            <Mail aria-hidden="true" />
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => { setEmail(event.target.value); setFailure(null); }}
+              placeholder="admin@example.com"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              autoFocus
+              required
+              disabled={isLoading}
+              data-testid="admin-login-email"
+            />
+          </div>
+        </div>
+
+        <div className="site-field auth-field">
+          <label htmlFor="password">Password</label>
+          <div className="site-input-icon auth-password">
+            <Lock aria-hidden="true" />
+            <input
+              ref={passwordRef}
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => { setPassword(event.target.value); setFailure(null); }}
+              autoComplete="current-password"
+              required
+              disabled={isLoading}
+              data-testid="admin-login-password"
+            />
+            <button
+              type="button"
+              className="auth-reveal"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              onClick={() => { setShowPassword(!showPassword); passwordRef.current?.focus(); }}
+            >
+              {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+            </button>
+          </div>
+        </div>
+
+        {alert}
+
+        <button type="submit" className="button button-primary auth-submit" data-testid="admin-login-submit" disabled={isLoading || failure?.kind === 'locked'}>
+          {isLoading ? <><span className="site-spinner" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight aria-hidden="true" /></>}
+        </button>
+        <p className="auth-fineprint auth-fineprint-center"><ShieldCheck aria-hidden="true" />Administrator access only. Sign-in attempts are rate-limited and logged.</p>
+      </form>
+    </AuthPageLayout>
   );
 }

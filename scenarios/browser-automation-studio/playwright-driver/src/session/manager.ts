@@ -350,6 +350,7 @@ export class SessionManager {
     const deviceEvidenceEnabled =
       spec.audio_device_evidence === true || process.env.VROOLI_AUDIO_DEVICE_EVIDENCE === '1';
     let audioPlaybackStop: (() => Promise<void>) | undefined;
+    let audioPlaybackRestart: (() => Promise<void>) | undefined;
     let audioPlaybackFailure: string | undefined;
     let contextForCleanup: BrowserContext | undefined;
     let browserForCleanup: Browser | undefined;
@@ -425,9 +426,10 @@ export class SessionManager {
               : null;
             if (!qualificationDevice)
               throw new Error('host capture qualification device is unavailable');
-            audioPlaybackStop = qualificationDevice.startWavLoop(
+            const startPlayback = () => qualificationDevice.startWavLoop(
               fakeMicrophoneWav,
               spec.audio_playback_pause_ms ?? 0,
+              spec.audio_playback_start_delay_ms ?? 0,
               (error) => {
                 audioPlaybackFailure = error.message;
                 logger.error(
@@ -439,6 +441,15 @@ export class SessionManager {
                 );
               }
             );
+            const initialPlayback = startPlayback();
+            await initialPlayback.ready;
+            audioPlaybackStop = initialPlayback.stop;
+            audioPlaybackRestart = async () => {
+              await audioPlaybackStop?.();
+              const restartedPlayback = startPlayback();
+              await restartedPlayback.ready;
+              audioPlaybackStop = restartedPlayback.stop;
+            };
             logger.info('browser: host capture qualification playback started', {
               path: fakeMicrophoneWav,
               pauseMs: spec.audio_playback_pause_ms ?? 0,
@@ -491,7 +502,8 @@ export class SessionManager {
         audioCapability,
         audioStrategy,
         audioDeviceEvidence,
-        audioPlaybackStop,
+        audioPlaybackStop: audioPlaybackStop ? async () => { await audioPlaybackStop?.(); } : undefined,
+        audioPlaybackRestart,
         audioPlaybackFailure: () => audioPlaybackFailure,
         context,
         page,
@@ -868,6 +880,18 @@ export class SessionManager {
       executionId,
       leaseId,
     });
+    return true;
+  }
+
+  /** Restart deterministic host playback only for its active session owner. */
+  async restartAudioPlayback(sessionId: string, executionId: string, leaseId: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
+      return false;
+    }
+    if (!session.audioPlaybackRestart) return false;
+    await session.audioPlaybackRestart();
+    logger.info(scopedLog(LogContext.SESSION, 'session audio playback restarted'), { sessionId, executionId });
     return true;
   }
 

@@ -36,6 +36,9 @@ const publicFields = {
   favicon_url: '/public-favicon.svg', theme_primary_color: '#654321', theme_background_color: '#eeeeee',
   canonical_base_url: 'https://canonical.example/base', support_chat_url: 'https://public-support.example',
   coming_soon_enabled: false, coming_soon_message: '',
+  // Business identity is deliberately public: it is shown in the footer, contact and legal pages.
+  support_email: 'hello@public.example', legal_name: 'Public Owner LLC', contact_address: '1 Main Street\nSpringfield',
+  privacy_policy_markdown: '# Privacy', terms_markdown: '# Terms', privacy_effective_date: '2026-09-16', terms_effective_date: '2026-09-01',
 };
 const publicResponse = () => fromJsonString(PublicBrandingResponseSchema, JSON.stringify({ branding: publicFields }));
 
@@ -75,7 +78,7 @@ describe('generated branding codec', () => {
 
   it('preserves the exact public subset and canonical authority, never private metadata', async () => {
     const response = publicResponse();
-    Object.assign(response.branding ?? {}, { smtpPassword: 'must-not-leak', supportEmail: 'private@example.test', defaultTitle: 'PRIVATE', id: 12n });
+    Object.assign(response.branding ?? {}, { smtpPassword: 'must-not-leak', smtpHost: 'smtp.private.test', defaultTitle: 'PRIVATE', id: 12n });
     client.getPublicBranding.mockResolvedValue(response);
     await expect(getPublicBranding()).resolves.toEqual(publicFields);
     expect(client.getBranding).not.toHaveBeenCalled();

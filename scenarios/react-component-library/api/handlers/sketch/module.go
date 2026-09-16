@@ -103,12 +103,15 @@ func buildModule(repoRoot string, logger *log.Logger, scanner reconcile.Scanner,
 		Name: "sketch",
 		Mount: func(router *mux.Router) {
 			referenceAssets := &referenceAssetHTTP{repoRoot: repoRoot, routes: routes}
+			referenceGeneration := newReferenceGenerationHTTP(repoRoot, logger)
 			router.HandleFunc("/reference-assets", referenceAssets.upload).Methods(http.MethodPost)
 			router.HandleFunc("/reference-assets/{scenario}/{page}/{name}", referenceAssets.serve).Methods(http.MethodGet)
+			router.HandleFunc("/reference-assets/generate", referenceGeneration.generate).Methods(http.MethodPost)
 			// REST callers resolve the conventional /api/v1 suffix; retain the
 			// short aliases for local tools and existing scenario conventions.
 			router.HandleFunc("/api/v1/reference-assets", referenceAssets.upload).Methods(http.MethodPost)
 			router.HandleFunc("/api/v1/reference-assets/{scenario}/{page}/{name}", referenceAssets.serve).Methods(http.MethodGet)
+			router.HandleFunc("/api/v1/reference-assets/generate", referenceGeneration.generate).Methods(http.MethodPost)
 			if deps.CapturesFor != nil {
 				captureH.MountTarget(router, deps.CapturesFor)
 			}

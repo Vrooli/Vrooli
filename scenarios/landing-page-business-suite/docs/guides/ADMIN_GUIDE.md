@@ -19,18 +19,25 @@ This guide covers the admin portal for the Landing Page Business Suite. It is gr
 - Admin home after login: `http://localhost:<port>/admin`
 - The admin portal is not linked from the public landing page.
 
-### Default Credentials
+### Admin Credentials
 
-```
-Email: admin@localhost
-Password: changeme123
-```
+There is no built-in password. The admin account is seeded on startup:
 
-Important: change these credentials immediately in production.
+- **Email:** `admin@localhost`, unless `ADMIN_DEFAULT_EMAIL` is set.
+- **Password:** the operator-provisioned `admin-default-password` credential. Set or reset it with:
 
-Options for changing credentials:
-1. Environment variables (recommended for deployments): set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` before starting the scenario.
-2. Admin portal: change via the Profile page (`/admin/profile`) after logging in.
+  ```bash
+  vrooli credentials provision --identity vrooli/landing-page-business-suite --field admin-default-password
+  vrooli scenario restart landing-page-business-suite
+  ```
+
+  The value is read from stdin. On restart, the credential is applied to the seeded admin only while
+  that account still uses the bootstrap email; after you change the email in `/admin/profile`, the
+  account is yours and restarts leave it alone.
+
+If the credential is not provisioned, development starts generate a random one-time password nobody
+knows, and production refuses to start. Two-factor sign-in applies only after you enroll it in
+`/admin/profile`.
 
 ## Admin Navigation Map
 

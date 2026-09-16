@@ -1,7 +1,19 @@
 {
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "schemaVersion": 5,
   "kind": "component",
-  "args": { "fields": [] },
+  "args": {
+    "fields": [
+      { "path": "regions.header", "region": "header", "kind": "structured" },
+      { "path": "regions.filters", "region": "filters", "kind": "structured" },
+      { "path": "regions.collection", "region": "collection", "kind": "structured" },
+      { "path": "regions.bulkActions", "region": "bulk-actions", "kind": "structured" },
+      { "path": "regions.inspector", "region": "inspector", "kind": "structured" },
+      { "path": "regions.inspectorActions", "region": "inspector-actions", "kind": "structured" },
+      { "path": "regions.inspectorNotice", "region": "inspector-notice", "kind": "structured" },
+      { "path": "regions.overlays", "region": "overlays", "kind": "structured" }
+    ]
+  },
   "environment": { "fixtures": [] },
   "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
 }

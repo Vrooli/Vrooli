@@ -45,7 +45,15 @@ describe('auth API', () => {
 
         await adminLogin('admin@example.com', 'password123');
 
-        expect(adminAuthClient.login).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'password123' });
+        expect(adminAuthClient.login).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'password123', totpCode: '' });
+      });
+
+      it('forwards an authenticator code as the second factor', async () => {
+        adminAuthClient.login.mockResolvedValue({ authenticated: true, email: 'admin@example.com', resetEnabled: false });
+
+        await adminLogin('admin@example.com', 'password123', '123456');
+
+        expect(adminAuthClient.login).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'password123', totpCode: '123456' });
       });
 
       it('returns session response on success', async () => {
@@ -234,13 +242,9 @@ describe('auth API', () => {
     });
 
     describe('verifyMagicLink', () => {
-      it('sends GET request with token', async () => {
+      it('sends the token and browser binding in a POST body, never the URL', async () => {
         const response: VerifyMagicLinkResponse = {
-          user: {
-            id: '123',
-            email: 'user@example.com',
-            email_verified: true,
-          },
+          user: { id: '123', email: 'user@example.com', email_verified: true },
           access_token: 'access_token_value',
           refresh_token: 'refresh_token_value',
           expires_at: '2025-01-01T00:00:00Z',
@@ -248,31 +252,13 @@ describe('auth API', () => {
         };
         fetchMock.mockResolvedValue(mockResponses.success(response));
 
-        await verifyMagicLink('valid_token_123');
+        await verifyMagicLink('token+with=special&chars', 'binding-value');
 
-        const [url] = getFetchCall(fetchMock);
+        const [url, init] = getFetchCall(fetchMock);
         expect(url).toContain('/auth/verify');
-        expect(url).toContain('token=valid_token_123');
-      });
-
-      it('URL encodes the token', async () => {
-        const response: VerifyMagicLinkResponse = {
-          user: {
-            id: '123',
-            email: 'user@example.com',
-            email_verified: true,
-          },
-          access_token: 'access',
-          refresh_token: 'refresh',
-          expires_at: '2025-01-01T00:00:00Z',
-          token_type: 'Bearer',
-        };
-        fetchMock.mockResolvedValue(mockResponses.success(response));
-
-        await verifyMagicLink('token+with=special&chars');
-
-        const [url] = getFetchCall(fetchMock);
-        expect(url).toContain(encodeURIComponent('token+with=special&chars'));
+        expect(url).not.toContain('token');
+        expect(init.method).toBe('POST');
+        expect(parseJsonBody(init.body)).toEqual({ token: 'token+with=special&chars', browser_binding: 'binding-value' });
       });
 
       it('returns user and tokens on success', async () => {

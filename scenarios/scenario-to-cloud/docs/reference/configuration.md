@@ -94,14 +94,14 @@ Each VPS deployment step can have per-step execution parameters via `StepConfig`
 | `data.inventory` | 30s | 0 | - |
 | `release.verify` | 1m | 0 | - |
 | `release.stage` | 2m | 0 | - |
-| `release.activate` | 2m | 0 | - |
+| `release.activate` | 5m | 0 | - |
 | `install_vrooli` (sub-step of `release.activate`) | 2m | 0 | - |
 | `config.apply` | 5m | 0 | - |
 | `workload.stop` | 30s | 0 | - |
 | `edge.route.apply` | 1m | 0 | - |
 | `credentials.provision` | 30s | 0 | - |
 | `runtime.start_dependencies` | 2m | 1 | 5s |
-| `workload.start` | 2m | 0 | - |
+| `workload.start` | 5m | 0 | - |
 | `verify.readiness` | 20s | 0 | - |
 | `release.retain_predecessor` | 15s | 0 | - |
 

@@ -9,6 +9,14 @@
   },
   "claims": [
     {
+      "id": "request-present",
+      "type": "element-present",
+      "statement": "The approval prompt exposes its request surface.",
+      "elements": ["request"],
+      "states": ["default", "success", "denied", "interactive", "expired", "request-error", "retry", "permission-denied"],
+      "tier": "machine"
+    },
+    {
       "id": "decision-integrity",
       "statement": "Only an acknowledged decision becomes approved or declined; missing handlers never approve.",
       "states": ["default", "success", "denied", "interactive"],

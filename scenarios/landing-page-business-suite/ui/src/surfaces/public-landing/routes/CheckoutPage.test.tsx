@@ -82,7 +82,7 @@ describe('CheckoutPage', () => {
     getPlans.mockResolvedValue({ ...pricing, bundle: { ...pricing.bundle, name } });
     renderCheckout();
     return waitFor(() => {
-      expect(screen.getByText(`By continuing you agree to the terms and acknowledge this subscription is for ${name || 'the selected plan'}.`)).toBeVisible();
+      expect(screen.getByText((_, element) => element?.classList.contains('site-checkout-fine') === true && element.textContent === `By continuing you agree to the terms and acknowledge this subscription is for ${name || 'the selected plan'}. See our privacy policy.`)).toBeVisible();
       expect(screen.queryByText(/Aquila/)).toBeNull();
       expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ price_id: 'price_solo' }));
     });
@@ -103,9 +103,9 @@ describe('CheckoutPage', () => {
     getPlans.mockRejectedValue(new Error('Catalog unavailable'));
     renderCheckout();
 
-    expect(await screen.findByText('Unable to Load Checkout')).toBeInTheDocument();
+    expect(await screen.findByText('Unable to load checkout')).toBeInTheDocument();
     expect(screen.getByText('Catalog unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('uses the generic message for an unknown catalog failure', async () => {
@@ -143,9 +143,9 @@ describe('CheckoutPage', () => {
       .mockResolvedValueOnce(pricing);
     renderCheckout();
 
-    expect(await screen.findByRole('heading', { name: 'Connection Issue' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Connection issue' })).toBeInTheDocument();
     expect(screen.getByText('Unable to connect. Please check your internet connection.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('heading', { name: 'Solo Monthly', level: 2 })).toBeInTheDocument();
   });
 
@@ -160,9 +160,9 @@ describe('CheckoutPage', () => {
 
     expect(await screen.findByText(message)).toBeInTheDocument();
     if (retryable) {
-      expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     } else {
-      expect(screen.queryByRole('button', { name: 'Try Again' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
     }
   });
 
@@ -177,9 +177,9 @@ describe('CheckoutPage', () => {
     createCheckoutSession.mockResolvedValue({} as Awaited<ReturnType<typeof api.createCheckoutSession>>);
     renderCheckout();
 
-    expect(await screen.findByText('Checkout Failed')).toBeInTheDocument();
+    expect(await screen.findByText('Checkout failed')).toBeInTheDocument();
     expect(screen.getByText('Stripe did not return a checkout URL. Try again or contact support.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry Checkout' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry checkout' }));
     await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
 
@@ -234,8 +234,8 @@ describe('CheckoutPage', () => {
     renderCheckout();
 
     expect(await screen.findByText('Intro $5 for 1 month')).toBeInTheDocument();
-    expect(await screen.findByText('Connection Issue')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry Checkout' }));
+    expect(await screen.findByText('Connection issue')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry checkout' }));
     await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
 
@@ -258,7 +258,7 @@ describe('CheckoutPage', () => {
     expect(await screen.findByRole('heading', { name: 'Enterprise annual', level: 2 })).toBeInTheDocument();
     expect(screen.getByText('Custom / year')).toBeInTheDocument();
     expect(await screen.findByText('Choose a supported billing option')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Retry Checkout' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry checkout' })).toBeNull();
   });
 
   it('handles a catalog with non-array plan collections without selecting a plan', async () => {
@@ -273,7 +273,7 @@ describe('CheckoutPage', () => {
     getPlans.mockResolvedValue({ ...pricing, monthly: [], yearly: [] });
     renderCheckout('/checkout');
 
-    expect(await screen.findByRole('heading', { name: 'Plan details' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Plan details' })).toBeInTheDocument();
     expect(screen.getByText('No active plans are available right now.')).toBeInTheDocument();
     expect(createCheckoutSession).not.toHaveBeenCalled();
   });

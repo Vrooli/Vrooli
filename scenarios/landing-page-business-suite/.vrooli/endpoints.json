@@ -27,6 +27,14 @@
       "category": "admin"
     },
     {
+      "id": "get-api-v1-admin-auth-delivery",
+      "path": "/api/v1/admin/auth/delivery",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/auth/delivery",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
       "id": "post-api-v1-admin-bundles-bundle-key-prices",
       "path": "/api/v1/admin/bundles/{bundle_key}/prices",
       "method": "POST",
@@ -475,6 +483,14 @@
       "category": "auth"
     },
     {
+      "id": "post-api-v1-auth-authorize",
+      "path": "/api/v1/auth/authorize",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/authorize",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
       "id": "post-api-v1-auth-logout",
       "path": "/api/v1/auth/logout",
       "method": "POST",
@@ -487,6 +503,14 @@
       "path": "/api/v1/auth/magic-link",
       "method": "POST",
       "summary": "POST /api/v1/auth/magic-link",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-auth-magic-link-preview",
+      "path": "/api/v1/auth/magic-link/preview",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/magic-link/preview",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "auth"
     },
@@ -515,10 +539,18 @@
       "category": "auth"
     },
     {
-      "id": "get-api-v1-auth-verify",
+      "id": "post-api-v1-auth-verify",
       "path": "/api/v1/auth/verify",
-      "method": "GET",
-      "summary": "GET /api/v1/auth/verify",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/verify",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-auth-verify-code",
+      "path": "/api/v1/auth/verify-code",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/verify-code",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "auth"
     },

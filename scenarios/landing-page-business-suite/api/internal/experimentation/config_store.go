@@ -566,6 +566,24 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 	if branding.ComingSoonMessage != nil {
 		fileData["coming_soon_message"] = *branding.ComingSoonMessage
 	}
+	if branding.LegalName != nil {
+		fileData["legal_name"] = *branding.LegalName
+	}
+	if branding.ContactAddress != nil {
+		fileData["contact_address"] = *branding.ContactAddress
+	}
+	if branding.PrivacyPolicyMarkdown != nil {
+		fileData["privacy_policy_markdown"] = *branding.PrivacyPolicyMarkdown
+	}
+	if branding.TermsMarkdown != nil {
+		fileData["terms_markdown"] = *branding.TermsMarkdown
+	}
+	if branding.PrivacyEffectiveDate != nil {
+		fileData["privacy_effective_date"] = *branding.PrivacyEffectiveDate
+	}
+	if branding.TermsEffectiveDate != nil {
+		fileData["terms_effective_date"] = *branding.TermsEffectiveDate
+	}
 
 	data, err := json.MarshalIndent(fileData, "", "  ")
 	if err != nil {
@@ -665,6 +683,24 @@ func (cs *ConfigStore) UpdateBranding(req *BrandingUpdateRequest) (*SiteBranding
 	if req.ComingSoonMessage != nil {
 		current.ComingSoonMessage = req.ComingSoonMessage
 	}
+	if req.LegalName != nil {
+		current.LegalName = req.LegalName
+	}
+	if req.ContactAddress != nil {
+		current.ContactAddress = req.ContactAddress
+	}
+	if req.PrivacyPolicyMarkdown != nil {
+		current.PrivacyPolicyMarkdown = req.PrivacyPolicyMarkdown
+	}
+	if req.TermsMarkdown != nil {
+		current.TermsMarkdown = req.TermsMarkdown
+	}
+	if req.PrivacyEffectiveDate != nil {
+		current.PrivacyEffectiveDate = req.PrivacyEffectiveDate
+	}
+	if req.TermsEffectiveDate != nil {
+		current.TermsEffectiveDate = req.TermsEffectiveDate
+	}
 
 	cs.branding = current
 	cs.mu.Unlock()
@@ -733,6 +769,18 @@ func (cs *ConfigStore) ClearBrandingField(field string) error {
 		cs.branding.ComingSoonEnabled = nil
 	case "coming_soon_message":
 		cs.branding.ComingSoonMessage = nil
+	case "legal_name":
+		cs.branding.LegalName = nil
+	case "contact_address":
+		cs.branding.ContactAddress = nil
+	case "privacy_policy_markdown":
+		cs.branding.PrivacyPolicyMarkdown = nil
+	case "terms_markdown":
+		cs.branding.TermsMarkdown = nil
+	case "privacy_effective_date":
+		cs.branding.PrivacyEffectiveDate = nil
+	case "terms_effective_date":
+		cs.branding.TermsEffectiveDate = nil
 	default:
 		return nil // Unknown field, ignore
 	}
@@ -812,6 +860,24 @@ func (cs *ConfigStore) saveBrandingLocked() error {
 	}
 	if cs.branding.ComingSoonMessage != nil {
 		fileData["coming_soon_message"] = *cs.branding.ComingSoonMessage
+	}
+	if cs.branding.LegalName != nil {
+		fileData["legal_name"] = *cs.branding.LegalName
+	}
+	if cs.branding.ContactAddress != nil {
+		fileData["contact_address"] = *cs.branding.ContactAddress
+	}
+	if cs.branding.PrivacyPolicyMarkdown != nil {
+		fileData["privacy_policy_markdown"] = *cs.branding.PrivacyPolicyMarkdown
+	}
+	if cs.branding.TermsMarkdown != nil {
+		fileData["terms_markdown"] = *cs.branding.TermsMarkdown
+	}
+	if cs.branding.PrivacyEffectiveDate != nil {
+		fileData["privacy_effective_date"] = *cs.branding.PrivacyEffectiveDate
+	}
+	if cs.branding.TermsEffectiveDate != nil {
+		fileData["terms_effective_date"] = *cs.branding.TermsEffectiveDate
 	}
 
 	data, err := json.MarshalIndent(fileData, "", "  ")

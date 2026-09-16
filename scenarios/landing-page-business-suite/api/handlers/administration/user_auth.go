@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,8 +15,9 @@ import (
 
 // UserAuthService is the application boundary for browser authentication.
 type UserAuthService interface {
-	RequestMagicLink(context.Context, string, string, string) error
-	VerifyMagicLink(context.Context, string, string, string) (*admin.TokenPair, *admin.User, error)
+	RequestSignIn(context.Context, admin.SignInRequest) (*admin.SignInStarted, error)
+	PreviewSignIn(context.Context, string, string) (*admin.SignInPreview, error)
+	VerifySignIn(context.Context, admin.SignInVerification) (*admin.SignInResult, error)
 	RefreshTokens(context.Context, string) (*admin.TokenPair, error)
 	Logout(context.Context, string) error
 	GetUserByID(context.Context, string) (*admin.User, error)
@@ -25,9 +27,15 @@ type UserAuthService interface {
 // particular rate-limiting implementation.
 type EmailRateLimiter interface{ Allow(string) bool }
 
+// SignInThrottle bounds sign-in requests and code guesses durably.
+type SignInThrottle interface {
+	Allow(context.Context, string, admin.ThrottleRule) (bool, error)
+}
+
 type UserAuthDependencies struct {
 	Service       UserAuthService
 	RateLimiter   EmailRateLimiter
+	Throttle      SignInThrottle
 	ClientIP      func(*http.Request) string
 	SessionID     func(context.Context) string
 	UserID        func(context.Context) string
@@ -41,63 +49,220 @@ type UserAuthDependencies struct {
 
 type (
 	MagicLinkRequest struct {
-		Email string `json:"email"`
+		Email          string          `json:"email"`
+		BrowserBinding string          `json:"browser_binding,omitempty"`
+		Context        json.RawMessage `json:"context,omitempty"`
 	}
 	MagicLinkResponse struct {
-		Message string `json:"message"`
+		Message   string `json:"message"`
+		ExpiresAt string `json:"expires_at,omitempty"`
+	}
+	SignInTokenRequest struct {
+		Token          string `json:"token"`
+		BrowserBinding string `json:"browser_binding,omitempty"`
+	}
+	SignInCodeRequest struct {
+		Email          string `json:"email"`
+		Code           string `json:"code"`
+		BrowserBinding string `json:"browser_binding"`
 	}
 	TokenRefreshRequest struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 )
 
+// Code guesses are bounded per address so the six-digit space cannot be
+// searched: five wrong codes per fifteen minutes.
+var signInCodeGuesses = admin.ThrottleRule{Limit: 5, Window: 15 * time.Minute}
+
+// Machine-readable reasons carried beside the shared error_type vocabulary.
+const (
+	reasonTokenExpired        = "token_expired"
+	reasonTokenUsed           = "token_used"
+	reasonTokenInvalid        = "token_invalid"
+	reasonCodeInvalid         = "code_invalid"
+	reasonRateLimited         = "rate_limited"
+	reasonDeliveryUnavailable = "delivery_unavailable"
+)
+
+// RequestMagicLink starts passwordless sign-in. Every well-formed address may
+// sign up, so the response truthfully reports delivery failures instead of
+// pretending an email is on its way.
 func RequestMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request MagicLinkRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		if err := json.NewDecoder(io.LimitReader(r.Body, 16<<10)).Decode(&request); err != nil {
 			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
 			return
 		}
-		email := strings.TrimSpace(strings.ToLower(request.Email))
-		if email == "" || !strings.Contains(email, "@") {
+		email := admin.NormalizeEmail(request.Email)
+		if !admin.LooksLikeEmail(email) {
 			deps.WriteError(w, http.StatusBadRequest, "Valid email address is required", "validation")
 			return
 		}
-		if deps.RateLimiter != nil && !deps.RateLimiter.Allow(email) {
+		ip := deps.ClientIP(r)
+		if !allowSignIn(r.Context(), deps, email, ip) {
 			deps.Log("magic_link_rate_limited", map[string]any{"level": "warn", "email": email})
-			deps.WriteError(w, http.StatusTooManyRequests, "Too many login attempts. Please try again later.", "rate_limited")
+			writeAuthError(w, http.StatusTooManyRequests, "Too many sign-in requests. Please wait a few minutes and try again.", "rate_limited", reasonRateLimited, 15*time.Minute)
 			return
 		}
-		if err := deps.Service.RequestMagicLink(r.Context(), email, deps.ClientIP(r), r.Header.Get("User-Agent")); err != nil {
-			// Deliberately return success below: this endpoint must not enumerate users.
+		started, err := deps.Service.RequestSignIn(r.Context(), admin.SignInRequest{
+			Email: email, IPAddress: ip, UserAgent: r.Header.Get("User-Agent"),
+			BrowserBinding: request.BrowserBinding, Context: request.Context,
+		})
+		switch {
+		case err == nil:
+		case errors.Is(err, admin.ErrContextInvalid):
+			deps.WriteError(w, http.StatusBadRequest, "This sign-in request came from an unsupported app. Start again from the app.", "validation")
+			return
+		case errors.Is(err, admin.ErrDeliveryUnavailable):
+			deps.LogError("magic_link_delivery_unavailable", map[string]any{"error": err.Error(), "email": email})
+			writeAuthError(w, http.StatusServiceUnavailable, "We couldn't send your sign-in email right now. Please try again in a few minutes.", "server_error", reasonDeliveryUnavailable, time.Minute)
+			return
+		default:
 			deps.LogError("magic_link_request_failed", map[string]any{"error": err.Error(), "email": email})
+			deps.WriteError(w, http.StatusInternalServerError, "We couldn't start sign-in. Please try again.", "server_error")
+			return
 		}
-		// Keep the response non-enumerating without claiming that an email was
-		// delivered. Delivery failures are retained in the service/logging
-		// boundary, while this response remains safe for unknown accounts.
-		writeJSON(w, MagicLinkResponse{Message: "If the address is eligible, the sign-in request was processed"}, deps, "encode_response_failed")
+		writeJSON(w, MagicLinkResponse{Message: "Check your email for a sign-in code and link", ExpiresAt: started.ExpiresAt.UTC().Format(time.RFC3339)}, deps, "encode_response_failed")
 	}
 }
 
+// PreviewSignIn describes a link without consuming it so the page can ask the
+// person to confirm; automated link scanners never complete a sign-in.
+func PreviewSignIn(deps UserAuthDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request SignInTokenRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&request); err != nil || strings.TrimSpace(request.Token) == "" {
+			writeAuthError(w, http.StatusBadRequest, "This sign-in link is incomplete. Request a new one.", "validation", reasonTokenInvalid, 0)
+			return
+		}
+		preview, err := deps.Service.PreviewSignIn(r.Context(), request.Token, request.BrowserBinding)
+		if err != nil {
+			writeSignInFailure(w, deps, err, "sign_in_preview_failed")
+			return
+		}
+		writeJSON(w, preview, deps, "encode_response_failed")
+	}
+}
+
+// VerifyMagicLink consumes a link token after the person confirms.
 func VerifyMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get("token")
-		if token == "" {
-			deps.WriteError(w, http.StatusBadRequest, "Token is required", "validation")
+		var request SignInTokenRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&request); err != nil || strings.TrimSpace(request.Token) == "" {
+			writeAuthError(w, http.StatusBadRequest, "This sign-in link is incomplete. Request a new one.", "validation", reasonTokenInvalid, 0)
 			return
 		}
-		pair, user, err := deps.Service.VerifyMagicLink(r.Context(), token, deps.ClientIP(r), r.Header.Get("User-Agent"))
+		result, err := deps.Service.VerifySignIn(r.Context(), admin.SignInVerification{
+			Token: request.Token, BrowserBinding: request.BrowserBinding,
+			IPAddress: deps.ClientIP(r), UserAgent: r.Header.Get("User-Agent"),
+		})
 		if err != nil {
-			message, status := authError(err, "This login link has expired. Please request a new one.", "This login link has already been used. Please request a new one.", "Invalid login link. Please request a new one.", "Failed to verify login link. Please try again.")
-			if status == http.StatusInternalServerError {
-				deps.LogError("magic_link_verify_failed", map[string]any{"error": err.Error()})
-			}
-			deps.WriteError(w, status, message, "unauthorized")
+			writeSignInFailure(w, deps, err, "magic_link_verify_failed")
 			return
 		}
-		SetAuthCookies(w, pair, deps.SecureCookies(), deps.Now())
-		writeJSON(w, tokenResponse(pair, user), deps, "encode_response_failed")
+		SetAuthCookies(w, result.Tokens, deps.SecureCookies(), deps.Now())
+		writeJSON(w, signInResponse(result), deps, "encode_response_failed")
 	}
+}
+
+// VerifySignInCode completes sign-in with the emailed code from the browser
+// that requested it.
+func VerifySignInCode(deps UserAuthDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request SignInCodeRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&request); err != nil {
+			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
+			return
+		}
+		email := admin.NormalizeEmail(request.Email)
+		code := strings.Map(func(r rune) rune {
+			if r >= '0' && r <= '9' {
+				return r
+			}
+			return -1
+		}, request.Code)
+		if !admin.LooksLikeEmail(email) || len(code) != 6 || strings.TrimSpace(request.BrowserBinding) == "" {
+			writeAuthError(w, http.StatusBadRequest, "Enter the 6-digit code from your email.", "validation", reasonCodeInvalid, 0)
+			return
+		}
+		if !allowThrottle(r.Context(), deps, admin.ThrottleBucket("sign-in-code", email), signInCodeGuesses) {
+			writeAuthError(w, http.StatusTooManyRequests, "Too many incorrect codes. Request a new code in a few minutes.", "rate_limited", reasonRateLimited, signInCodeGuesses.Window)
+			return
+		}
+		result, err := deps.Service.VerifySignIn(r.Context(), admin.SignInVerification{
+			Email: email, Code: code, BrowserBinding: request.BrowserBinding,
+			IPAddress: deps.ClientIP(r), UserAgent: r.Header.Get("User-Agent"),
+		})
+		if err != nil {
+			writeSignInFailure(w, deps, err, "sign_in_code_verify_failed")
+			return
+		}
+		SetAuthCookies(w, result.Tokens, deps.SecureCookies(), deps.Now())
+		writeJSON(w, signInResponse(result), deps, "encode_response_failed")
+	}
+}
+
+func allowSignIn(ctx context.Context, deps UserAuthDependencies, email, ip string) bool {
+	if deps.RateLimiter != nil && !deps.RateLimiter.Allow(email) {
+		return false
+	}
+	if !allowThrottle(ctx, deps, admin.ThrottleBucket("sign-in-email", email), admin.SignInPerEmail) {
+		return false
+	}
+	if ip != "" && !allowThrottle(ctx, deps, admin.ThrottleBucket("sign-in-ip", ip), admin.SignInPerIP) {
+		return false
+	}
+	return true
+}
+
+func allowThrottle(ctx context.Context, deps UserAuthDependencies, bucket string, rule admin.ThrottleRule) bool {
+	if deps.Throttle == nil {
+		return true
+	}
+	allowed, err := deps.Throttle.Allow(ctx, bucket, rule)
+	if err != nil && deps.LogError != nil {
+		deps.LogError("auth_throttle_degraded", map[string]any{"error": err.Error()})
+	}
+	return allowed
+}
+
+func writeSignInFailure(w http.ResponseWriter, deps UserAuthDependencies, err error, event string) {
+	switch {
+	case errors.Is(err, admin.ErrTokenExpired):
+		writeAuthError(w, http.StatusUnauthorized, "This sign-in link has expired. Request a new one.", "unauthorized", reasonTokenExpired, 0)
+	case errors.Is(err, admin.ErrTokenUsed):
+		writeAuthError(w, http.StatusUnauthorized, "This sign-in link was already used. Request a new one if you're not signed in.", "unauthorized", reasonTokenUsed, 0)
+	case errors.Is(err, admin.ErrTokenInvalid):
+		writeAuthError(w, http.StatusUnauthorized, "This sign-in link isn't valid. Request a new one.", "unauthorized", reasonTokenInvalid, 0)
+	case errors.Is(err, admin.ErrCodeInvalid):
+		writeAuthError(w, http.StatusUnauthorized, "That code isn't right or has expired. Check the latest email and try again.", "unauthorized", reasonCodeInvalid, 0)
+	default:
+		deps.LogError(event, map[string]any{"error": err.Error()})
+		deps.WriteError(w, http.StatusInternalServerError, "We couldn't finish signing you in. Please try again.", "server_error")
+	}
+}
+
+// writeAuthError keeps the shared error envelope and adds a stable reason the
+// sign-in pages use to choose recovery actions.
+func writeAuthError(w http.ResponseWriter, status int, message, errorType, reason string, retryAfter time.Duration) {
+	if retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter/time.Second)))
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	retryable := errorType == "rate_limited" || errorType == "server_error"
+	_ = json.NewEncoder(w).Encode(map[string]any{"error": message, "error_type": errorType, "reason": reason, "retryable": retryable})
+}
+
+func signInResponse(result *admin.SignInResult) map[string]any {
+	out := tokenResponse(result.Tokens, result.User)
+	out["same_browser"] = result.SameBrowser
+	if len(result.Context) > 0 {
+		out["context"] = result.Context
+	}
+	return out
 }
 
 func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {

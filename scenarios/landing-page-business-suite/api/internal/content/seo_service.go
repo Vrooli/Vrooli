@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 
@@ -160,6 +161,8 @@ func (s *SEOService) SitemapXMLContext(ctx context.Context, fallbackBase string)
 		priority := "0.8"
 		if index == 0 && path == "/" {
 			priority = "1.0"
+		} else if slices.Contains(SitePagePaths, path) {
+			priority = "0.3"
 		}
 		appendSitemapURL(&sb, joinCanonicalPath(baseURL, path), priority)
 	}
@@ -203,6 +206,7 @@ func (s *SEOService) sitemapPaths(ctx context.Context) ([]string, error) {
 				paths = append(paths, "/")
 			}
 			paths = append(paths, routes.AppDetailPaths...)
+			paths = append(paths, SitePagePaths...)
 			return stablePublicPaths(paths), nil
 		}
 	}
@@ -224,8 +228,13 @@ func (s *SEOService) sitemapPaths(ctx context.Context) ([]string, error) {
 			}
 		}
 	}
+	paths = append(paths, SitePagePaths...)
 	return stablePublicPaths(paths), nil
 }
+
+// SitePagePaths are the indexable site-owned pages every deployment serves
+// alongside its published presentation routes.
+var SitePagePaths = []string{"/contact", "/privacy", "/terms"}
 
 func trustedCanonicalBaseURL(branding SEOBranding) (string, error) {
 	if branding.CanonicalBaseURL == nil {

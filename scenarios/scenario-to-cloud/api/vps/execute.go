@@ -421,6 +421,10 @@ type verbReply struct {
 	Receipt *struct {
 		Outcome string         `json:"outcome"`
 		Details map[string]any `json:"details"`
+		Error   *struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
 	} `json:"receipt"`
 	Replayed bool `json:"replayed"`
 	Error    *struct {
@@ -470,7 +474,11 @@ func (e *executor) invoke(ctx context.Context, tc TargetCommand) (verbReply, rea
 			return reply, res, targetError(reply.Error.Code, reply.Error.Message)
 		}
 		if reply.Receipt != nil && reply.Receipt.Outcome == "failed" {
-			return reply, res, targetError("", tc.Command.Verb+" recorded a failed receipt")
+			message := tc.Command.Verb + " recorded a failed receipt"
+			if reply.Receipt.Error != nil && strings.TrimSpace(reply.Receipt.Error.Message) != "" {
+				message += ": " + strings.TrimSpace(reply.Receipt.Error.Message)
+			}
+			return reply, res, targetError("", message)
 		}
 		if res.ExitCode != 0 {
 			return reply, res, targetError("", fmt.Sprintf("%s exited %d", tc.Command.Verb, res.ExitCode))

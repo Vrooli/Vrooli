@@ -112,6 +112,7 @@ export async function handleSessionStart(
       browser_profile: request.browser_profile,
       fake_media: request.fake_media,
       audio_playback_pause_ms: request.audio_playback_pause_ms,
+      audio_playback_start_delay_ms: request.audio_playback_start_delay_ms,
       audio_device_evidence: request.audio_device_evidence,
       app_target: request.app_target,
       validation_context: request.validation_context,

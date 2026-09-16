@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -45,6 +46,18 @@ func Run(client *Client, deploymentClient *deployment.Client, args []string) err
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\nRun 'scenario-to-cloud secrets help' for usage", args[0])
 	}
+}
+
+func readSecret(r io.Reader) (string, error) {
+	raw, err := io.ReadAll(io.LimitReader(r, 64*1024))
+	if err != nil {
+		return "", fmt.Errorf("read standard input: %w", err)
+	}
+	value := strings.TrimRight(string(raw), "\r\n")
+	if value == "" {
+		return "", apierr.Refused("standard input carried no value")
+	}
+	return value, nil
 }
 
 func printUsage() error {
@@ -118,6 +131,7 @@ func (s selectorFlags) selector() (selector.Selector, error) {
 func runSet(client *Client, deploymentClient *deployment.Client, args []string) error {
 	fs := flag.NewFlagSet("secrets set", flag.ContinueOnError)
 	value := fs.String("value", "", "Secret value")
+	valueStdin := fs.Bool("value-stdin", false, "Read the secret value from standard input")
 	generate := fs.String("generate", "", "Generate value (hex:<n>, base64:<n>, alnum:<n>, uuid)")
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after secret update")
@@ -132,6 +146,16 @@ func runSet(client *Client, deploymentClient *deployment.Client, args []string) 
 		return fmt.Errorf("usage: scenario-to-cloud secrets set <KEY> [flags]")
 	}
 	key := strings.TrimSpace(fs.Arg(0))
+	if *valueStdin && (strings.TrimSpace(*value) != "" || strings.TrimSpace(*generate) != "") {
+		return fmt.Errorf("--value-stdin cannot be combined with --value or --generate")
+	}
+	if *valueStdin {
+		stdinValue, readErr := readSecret(os.Stdin)
+		if readErr != nil {
+			return readErr
+		}
+		*value = stdinValue
+	}
 	if strings.TrimSpace(*value) == "" && strings.TrimSpace(*generate) == "" {
 		return fmt.Errorf("either --value or --generate is required")
 	}

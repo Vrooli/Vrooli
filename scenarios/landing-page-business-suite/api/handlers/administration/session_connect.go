@@ -26,10 +26,14 @@ func (h *SessionConnectHandler) Login(ctx context.Context, request *connect.Requ
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("login request is required"))
 	}
-	r, w := connectHTTP(ctx, request.Header())
-	result, err := LoginSession(r, w, LoginRequest{Email: request.Msg.GetEmail(), Password: request.Msg.GetPassword()}, h.deps)
+	r, w := connectHTTP(ctx, request.Header(), request.Peer().Addr)
+	result, err := LoginSession(r, w, LoginRequest{Email: request.Msg.GetEmail(), Password: request.Msg.GetPassword(), TOTPCode: request.Msg.GetTotpCode()}, h.deps)
 	if err != nil {
-		return nil, connect.NewError(connectCode(err.Status), errors.New(err.Message))
+		connectErr := connect.NewError(connectCode(err.Status), errors.New(err.Message))
+		// The kind travels as a header so clients can branch without parsing
+		// human-readable messages.
+		connectErr.Meta().Set("X-Lpbs-Auth-Reason", err.Kind)
+		return nil, connectErr
 	}
 	return connectSessionResponse(result, w), nil
 }
@@ -38,7 +42,7 @@ func (h *SessionConnectHandler) Logout(ctx context.Context, request *connect.Req
 	if request == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("logout request is required"))
 	}
-	r, w := connectHTTP(ctx, request.Header())
+	r, w := connectHTTP(ctx, request.Header(), request.Peer().Addr)
 	LogoutSession(r, w, h.deps)
 	response := connect.NewResponse(&lpbsv1.LogoutResponse{Success: true})
 	copyHeaders(response.Header(), w.Header())
@@ -49,7 +53,7 @@ func (h *SessionConnectHandler) Session(ctx context.Context, request *connect.Re
 	if request == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session request is required"))
 	}
-	r, w := connectHTTP(ctx, request.Header())
+	r, w := connectHTTP(ctx, request.Header(), request.Peer().Addr)
 	result, authenticated := ReadSession(r, w, h.deps)
 	if !authenticated {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("admin session is not authenticated"))
@@ -71,14 +75,17 @@ func (h *ResetConnectHandler) ResetDemoData(ctx context.Context, _ *connect.Requ
 	return connect.NewResponse(&lpbsv1.ResetDemoDataResponse{Reset_: true, Timestamp: h.deps.Now().UTC().Format(time.RFC3339)}), nil
 }
 
-func connectHTTP(ctx context.Context, headers http.Header) (*http.Request, *headerRecorder) {
-	// Session helpers require an HTTP request only for its context and headers.
+func connectHTTP(ctx context.Context, headers http.Header, peerAddr string) (*http.Request, *headerRecorder) {
+	// Session helpers require an HTTP request only for its context, headers,
+	// and peer address. The peer address keeps per-client throttling and
+	// session audit fields real; without it every caller shares one bucket.
 	// Constructing the synthetic URL structurally keeps this transport adapter
 	// independent of any deployment endpoint.
 	r := &http.Request{
-		Method: http.MethodPost,
-		URL:    &url.URL{Scheme: "http", Host: "connect.local", Path: "/"},
-		Header: headers.Clone(),
+		Method:     http.MethodPost,
+		URL:        &url.URL{Scheme: "http", Host: "connect.local", Path: "/"},
+		Header:     headers.Clone(),
+		RemoteAddr: peerAddr,
 	}
 	r = r.WithContext(ctx)
 	return r, &headerRecorder{header: make(http.Header)}
@@ -114,6 +121,12 @@ func connectCode(status int) connect.Code {
 		return connect.CodeInvalidArgument
 	case http.StatusUnauthorized:
 		return connect.CodeUnauthenticated
+	case http.StatusPreconditionRequired:
+		return connect.CodeFailedPrecondition
+	case http.StatusTooManyRequests:
+		return connect.CodeResourceExhausted
+	case http.StatusServiceUnavailable:
+		return connect.CodeUnavailable
 	default:
 		return connect.CodeInternal
 	}

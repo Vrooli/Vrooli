@@ -20,7 +20,10 @@ subscription, credit, customer, download, and admin-operations service.
 - [CODE: ui/src/app/routes/userAuthRoutes.tsx] - User-auth surface route table
 - [CODE: api/internal/landing/landing_config_service.go] - Landing page configuration orchestration service
 - [CODE: api/internal/intelligence/metered_inference_service.go] - metered inference request routing + credit accounting
-- [CODE: api/internal/administration/user_auth_service.go] - End-user magic-link / JWT auth
+- [CODE: api/internal/administration/user_auth_service.go] - End-user JWT sessions
+- [CODE: api/internal/administration/user_auth_signin.go] - End-user sign-in by emailed code or one-use link
+- [CODE: api/internal/administration/auth_throttle.go] - Durable authentication throttles
+- [CODE: api/internal/administration/admin_mfa.go] - Admin TOTP two-factor authentication and recovery codes
 - [CODE: api/internal/administration/remote_profile_service.go] - Remote profile storage + proxy service
 - [CODE: api/internal/commerce/plan_store.go] - File-based plan catalog (pricing source of truth)
 - [CODE: cli/main.go] - Operator CLI surface
@@ -175,7 +178,7 @@ ui/src/
 │   │   ├── routes/          # Admin pages
 │   │   ├── components/      # Admin UI components (incl. ProtectedRoute)
 │   │   └── controllers/     # Thin orchestration layer
-│   └── user-auth/           # End-user magic-link login + verify surface
+│   └── user-auth/           # End-user code/link sign-in, link confirmation, desktop consent
 │       ├── routes/          # UserLogin, VerifyMagicLink
 │       └── index.ts         # Surface barrel
 └── shared/
@@ -206,7 +209,9 @@ api/
 ├── main.go                  # Server composition and lifecycle wiring only
 ├── routes.go                # Per-domain register*Routes() calls — single composer
 ├── auth.go                  # Admin session middleware (requireAdmin, requireAdminOrService)
-├── user_auth_*.go           # End-user magic-link + JWT auth (handlers, middleware, service)
+├── user_auth_*.go           # End-user sign-in + JWT auth (middleware, client IP resolution)
+├── csrf_guard.go            # Same-origin check for cookie-authenticated writes
+├── auth_janitor.go          # Hourly purge of dead sign-in requests
 ├── account_*.go             # Subscription / credits / entitlements for end users
 ├── handlers/intelligence/   # Metered Inference transport plus commerce-usage adapter
 ├── billing_*.go             # Stripe checkout + portal + webhook

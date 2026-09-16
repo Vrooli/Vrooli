@@ -21,6 +21,7 @@ import {
   DEFAULT_BRANDING_FORM,
   type BrandingFormState,
 } from './branding.service';
+import { DEFAULT_PRIVACY_MARKDOWN, DEFAULT_TERMS_MARKDOWN } from '../../public-landing/site/legalTemplates';
 
 // Mock the API module
 type GetBrandingFn = typeof getBranding;
@@ -261,8 +262,9 @@ describe('branding.service', () => {
       expect(health.checks.favicon).toBe(false);
       expect(health.checks.seo).toBe(false);
       expect(health.checks.ogImage).toBe(false);
+      expect(health.checks.business).toBe(false);
       expect(health.configured).toBe(0);
-      expect(health.total).toBe(4);
+      expect(health.total).toBe(5);
       expect(health.percentage).toBe(0);
     });
 
@@ -277,7 +279,7 @@ describe('branding.service', () => {
 
       expect(health.checks.identity).toBe(true);
       expect(health.configured).toBe(1);
-      expect(health.percentage).toBe(25);
+      expect(health.percentage).toBe(20);
     });
 
     it('returns favicon true when favicon_url is set', () => {
@@ -334,12 +336,40 @@ describe('branding.service', () => {
         default_title: 'Title',
         default_description: 'Description',
         default_og_image_url: 'https://example.com/og.png',
+        legal_name: 'Test Studio LLC',
+        support_email: 'hello@example.com',
+        contact_address: '100 Main Street\nSpringfield',
       };
 
       const health = computeBrandingHealth(form);
 
-      expect(health.configured).toBe(4);
+      expect(health.configured).toBe(5);
       expect(health.percentage).toBe(100);
+    });
+  });
+
+  describe('business contact health', () => {
+    it('requires a legal name, a contact email, and a postal address', () => {
+      const complete: BrandingFormState = { ...DEFAULT_BRANDING_FORM, legal_name: 'Test Studio LLC', support_email: 'hello@example.com', contact_address: '100 Main Street' };
+      expect(computeBrandingHealth(complete).checks.business).toBe(true);
+      for (const field of ['legal_name', 'support_email', 'contact_address'] as const) {
+        expect(computeBrandingHealth({ ...complete, [field]: '   ' }).checks.business).toBe(false);
+      }
+    });
+  });
+
+  describe('legal documents', () => {
+    it('starts unset documents from the default template and never saves unchanged template text', () => {
+      const form = brandingToForm({ id: 1, site_name: 'Test' });
+      expect(form.privacy_policy_markdown).toBe(DEFAULT_PRIVACY_MARKDOWN);
+      expect(form.terms_markdown).toBe(DEFAULT_TERMS_MARKDOWN);
+      expect(formToBrandingPayload(form, form)).toEqual({});
+      const edited = { ...form, terms_markdown: '# Our terms' };
+      expect(formToBrandingPayload(edited, form)).toEqual({ terms_markdown: '# Our terms' });
+    });
+
+    it('keeps an operator-authored document instead of the template', () => {
+      expect(brandingToForm({ id: 1, site_name: 'Test', privacy_policy_markdown: '# Ours' }).privacy_policy_markdown).toBe('# Ours');
     });
   });
 

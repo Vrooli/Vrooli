@@ -17,9 +17,15 @@ export interface PipeWireQualificationDevice {
   startWavLoop(
     path: string,
     pauseMs?: number,
+    startDelayMs?: number,
     onFailure?: (error: Error) => void
-  ): () => Promise<void>;
+  ): PlaybackHandle;
   close(): Promise<void>;
+}
+
+export interface PlaybackHandle {
+  stop: () => Promise<void>;
+  ready: Promise<void>;
 }
 
 export interface BrowserCaptureDeviceEvidence {
@@ -178,7 +184,7 @@ export async function createPipeWireQualificationDevice(): Promise<PipeWireQuali
       '--channels',
       '1',
       '--latency',
-      '100',
+      '20',
       // pw-loopback's capture side is the injected playback endpoint and its
       // playback side is the browser-visible capture endpoint. Reversing these
       // media classes is what makes pw-cat audio arrive at getUserMedia.
@@ -225,52 +231,112 @@ export async function createPipeWireQualificationDevice(): Promise<PipeWireQuali
         sourceVisible: status.includes(SOURCE_NODE),
         sinkVisible: status.includes(SINK_NODE),
       },
-      startWavLoop: (path: string, pauseMs = 0, onFailure?: (error: Error) => void) => {
+      startWavLoop: (path: string, pauseMs = 0, startDelayMs = 0, onFailure?: (error: Error) => void): PlaybackHandle => {
         const pcm = wavPcmPayload(path);
         const silence =
           pauseMs > 0 ? Buffer.alloc(Math.round((16000 * pauseMs) / 1000) * 2) : undefined;
         let stopped = false;
+        let player: ReturnType<typeof spawn> | undefined;
+        let startTimer: ReturnType<typeof setTimeout> | undefined;
         let stopResolve: (() => void) | undefined;
         const stopSignal = new Promise<void>((resolve) => {
           stopResolve = resolve;
         });
-        const player = spawn(
-          'pw-cat',
-          [
-            '--playback',
-            '--target',
-            SINK_NODE_NAME,
-            '--rate',
-            '16000',
-            '--channels',
-            '1',
-            '--format',
-            's16',
-            '-',
-          ],
-          { stdio: ['pipe', 'ignore', 'pipe'] }
-        );
         let playerError = '';
         let playbackFailure: Error | undefined;
-        player.stderr?.on('data', (chunk: Buffer) => {
-          playerError += chunk.toString();
+        let readyResolve: (() => void) | undefined;
+        let readyReject: ((error: Error) => void) | undefined;
+        const ready = new Promise<void>((resolve, reject) => {
+          readyResolve = resolve;
+          readyReject = reject;
         });
-        const exitPromise = new Promise<void>((resolve, reject) => {
-          player.once('error', reject);
-          player.once('exit', (code) => {
-            if (code === 0 || stopped) resolve();
-            else reject(new Error(`pw-cat exited ${code}: ${playerError}`));
+        let exitPromise: Promise<void> = Promise.resolve();
+        let loopPromise: Promise<void> = Promise.resolve();
+        const begin = (): void => {
+          if (stopped) return;
+          player = spawn(
+            'pw-cat',
+            [
+              '--playback',
+              '--target',
+              SINK_NODE_NAME,
+              '--rate',
+              '16000',
+              '--channels',
+              '1',
+              '--format',
+              's16',
+              '-',
+            ],
+            { stdio: ['pipe', 'ignore', 'pipe'] }
+          );
+          player.once('spawn', () => {
+            // The first write is the readiness boundary: spawn alone only
+            // proves that pw-cat exists, not that the PipeWire playback path
+            // has accepted audio for the browser capture graph.
           });
-        });
-        const write = async (payload: Buffer): Promise<void> => {
-          if (stopped || !player.stdin) return;
-          if (player.stdin.write(payload)) return;
-          await Promise.race([once(player.stdin, 'drain').then(() => undefined), stopSignal]);
+          player.stderr?.on('data', (chunk: Buffer) => {
+            playerError += chunk.toString();
+          });
+          exitPromise = new Promise<void>((resolve, reject) => {
+            player?.once('error', reject);
+            player?.once('exit', (code) => {
+              if (code === 0 || stopped) resolve();
+              else reject(new Error(`pw-cat exited ${code}: ${playerError}`));
+            });
+          });
         };
-        const loopPromise = (async () => {
+        const write = async (payload: Buffer): Promise<void> => {
+          const stdin = player?.stdin;
+          if (stopped || !stdin) return;
+          if (stdin.write(payload)) return;
+          await Promise.race([once(stdin, 'drain').then(() => undefined), stopSignal]);
+        };
+        const writeRealtime = async (payload: Buffer): Promise<void> => {
+          // Do not hand the complete clip to pw-cat in one write. PipeWire
+          // may accept that payload into its user-space buffers and deliver
+          // it to getUserMedia in a burst after the graph is connected. That
+          // makes host-device qualification look like a three-second server
+          // batch even though the fixture itself is realtime. Keep the
+          // qualification source paced at one 20 ms audio quantum; backpressure
+          // still participates when the graph is slower than realtime.
+          const quantumBytes = 16000 * 2 * 20 / 1000;
+          let nextAt = Date.now();
+          for (let offset = 0; offset < payload.length && !stopped; offset += quantumBytes) {
+            await write(payload.subarray(offset, Math.min(offset + quantumBytes, payload.length)));
+            nextAt += 20;
+            const waitMs = nextAt - Date.now();
+            if (waitMs > 0) {
+              await Promise.race([
+                new Promise<void>((resolve) => setTimeout(resolve, waitMs)),
+                stopSignal,
+              ]);
+            }
+          }
+        };
+        loopPromise = (async () => {
+          if (startDelayMs > 0) {
+            await Promise.race([
+              new Promise<void>((resolve) => {
+                startTimer = setTimeout(() => {
+                  startTimer = undefined;
+                  resolve();
+                }, startDelayMs);
+              }),
+              stopSignal,
+            ]);
+          }
+          if (stopped) return;
+          begin();
+          if (!player) return;
+          let firstQuantum = true;
           while (!stopped) {
-            await write(pcm);
-            if (silence) await write(silence);
+            await writeRealtime(pcm);
+            if (firstQuantum) {
+              firstQuantum = false;
+              readyResolve?.();
+            }
+            if (silence) await writeRealtime(silence);
           }
           player.stdin?.end();
           await exitPromise;
@@ -281,19 +347,21 @@ export async function createPipeWireQualificationDevice(): Promise<PipeWireQuali
             error instanceof Error
               ? error
               : new Error(`qualification playback failed: ${String(error)}`);
+          readyReject?.(playbackFailure);
           onFailure?.(playbackFailure);
           stopped = true;
           stopResolve?.();
-          player.stdin?.destroy();
-          player.kill('SIGTERM');
+          player?.stdin?.destroy();
+          player?.kill('SIGTERM');
         });
 
-        return async () => {
+        const stop = async (): Promise<void> => {
+          if (startTimer) clearTimeout(startTimer);
           if (!stopped) {
             stopped = true;
             stopResolve?.();
-            player.stdin?.destroy();
-            player.kill('SIGTERM');
+            player?.stdin?.destroy();
+            player?.kill('SIGTERM');
           }
           await Promise.race([
             loopPromise.catch(() => undefined),
@@ -301,6 +369,7 @@ export async function createPipeWireQualificationDevice(): Promise<PipeWireQuali
           ]);
           if (playbackFailure) throw playbackFailure;
         };
+        return { stop, ready };
       },
       close: async () => {
         if (closed) return;

@@ -20,7 +20,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/design/:scenario/:page",
+          "scenario_path": "/design/switchboard/dashboard",
           "timeout_ms": 30000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },

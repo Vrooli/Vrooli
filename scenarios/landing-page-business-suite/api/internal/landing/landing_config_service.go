@@ -27,6 +27,7 @@ type LandingConfigService struct {
 	downloadService              *delivery.CatalogService
 	configStore                  *experimentation.ConfigStore
 	presentationOwnerJoin        func(context.Context, string) (*commerce.PricingOverview, []delivery.App, error)
+	presentationDownloadJoin     func(context.Context, string) ([]delivery.App, error)
 	presentationExposureRecorder interface {
 		RecordPresentationExposure(context.Context, string, string, string, string, string, string, string) (bool, error)
 	}
@@ -54,7 +55,8 @@ type PresentationExposureRequest struct {
 
 func (s *LandingConfigService) UsePresentationExposureRecorder(recorder interface {
 	RecordPresentationExposure(context.Context, string, string, string, string, string, string, string) (bool, error)
-}) {
+},
+) {
 	s.presentationExposureRecorder = recorder
 }
 
@@ -78,6 +80,7 @@ func NewLandingConfigServiceWithConfigStore(
 		downloadService: downloadService,
 	}
 	service.presentationOwnerJoin = service.joinPresentationOwners
+	service.presentationDownloadJoin = service.joinPresentationDownloads
 	return service
 }
 
@@ -118,6 +121,7 @@ func (s *LandingConfigService) GetLandingConfigForRequest(ctx context.Context, v
 	}
 	pricing, downloads, ownerErr := s.presentationOwners(ctx, loaded.Document.Bundle.Key)
 	if ownerErr == nil {
+		alignResolvedOwnerBundle(&resolved, pricing, downloads)
 		// Bundle validation above is intentionally performed against the raw
 		// owner response. The typed presentation path then narrows commerce to
 		// its immutable public facts before snapshots, action joins, or wire
@@ -126,7 +130,23 @@ func (s *LandingConfigService) GetLandingConfigForRequest(ctx context.Context, v
 		downloads = filterPresentationDownloads(resolved, downloads)
 		resolved.Diagnostics.CommerceSnapshotRef = publicOwnerSnapshotRef(pricing, downloads)
 	} else {
+		// Pricing is optional for a free download. Keep the public installer
+		// catalog available when the payment owner is not configured, while
+		// preserving strict bundle and app ownership validation.
 		pricing, downloads = nil, nil
+		if s.planService != nil {
+			if candidate, pricingErr := s.planService.GetPricingOverview(); pricingErr == nil && candidate != nil && candidate.Bundle != nil && equivalentBundleKey(candidate.Bundle.BundleKey, loaded.Document.Bundle.Key) {
+				pricing = candidate
+				alignResolvedOwnerBundle(&resolved, pricing, nil)
+			}
+		}
+		if s.presentationDownloadJoin != nil {
+			if candidate, downloadErr := s.presentationDownloadJoin(ctx, loaded.Document.Bundle.Key); downloadErr == nil && validatePresentationDownloads(loaded.Document.Bundle.Key, candidate) == nil {
+				alignResolvedOwnerBundle(&resolved, nil, candidate)
+				downloads = filterPresentationDownloads(resolved, candidate)
+				resolved.Diagnostics.CommerceSnapshotRef = publicOwnerSnapshotRef(nil, downloads)
+			}
+		}
 	}
 	resolved.Actions = presentation.ResolveActions(resolved)
 	presentation.JoinActionOwners(&resolved, presentationOwnerObservations(resolved, pricing, downloads))
@@ -227,7 +247,7 @@ func filterPresentationDownloads(result presentation.ResolveResult, downloads []
 	}
 	filtered := make([]delivery.App, 0, len(downloads))
 	for _, app := range downloads {
-		if app.BundleKey == result.Diagnostics.BundleKey && allowed[app.AppKey] {
+		if equivalentBundleKey(app.BundleKey, result.Diagnostics.BundleKey) && allowed[app.AppKey] {
 			filtered = append(filtered, sanitizePresentationDownload(app))
 		}
 	}
@@ -293,7 +313,13 @@ func (s *LandingConfigService) presentationOwners(ctx context.Context, bundleKey
 		return nil, nil, err
 	}
 	if err := validatePresentationOwnerBundle(bundleKey, pricing, downloads); err != nil {
-		return nil, nil, err
+		ownerKey := ownerBundleKey(bundleKey)
+		if ownerKey == bundleKey {
+			return nil, nil, err
+		}
+		if aliasErr := validatePresentationOwnerBundle(ownerKey, pricing, downloads); aliasErr != nil {
+			return nil, nil, err
+		}
 	}
 	return pricing, downloads, nil
 }
@@ -302,11 +328,18 @@ func (s *LandingConfigService) joinPresentationOwners(ctx context.Context, bundl
 	if s.planService == nil || s.downloadService == nil {
 		return nil, nil, fmt.Errorf("%w: commerce and delivery owner join is unavailable", presentation.ErrUnavailable)
 	}
-	pricing, err := s.planService.GetPricingOverviewForBundle(ctx, bundleKey)
+	ownerKey := ownerBundleKey(bundleKey)
+	pricing, err := s.planService.GetPricingOverviewForBundle(ctx, ownerKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: pricing owner unavailable", presentation.ErrUnavailable)
+		// Production pricing is already loaded by the commerce owner. Keep a
+		// request-scoped bundle read as the first choice, but do not make a
+		// valid production catalog disappear when its routed snapshot is absent.
+		pricing, err = s.planService.GetPricingOverview()
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: pricing owner unavailable", presentation.ErrUnavailable)
+		}
 	}
-	downloads, err := s.downloadService.ListAppsContext(ctx, bundleKey)
+	downloads, err := s.downloadService.ListAppsContext(ctx, ownerKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: delivery owner unavailable", presentation.ErrUnavailable)
 	}
@@ -314,6 +347,58 @@ func (s *LandingConfigService) joinPresentationOwners(ctx context.Context, bundl
 		return nil, nil, err
 	}
 	return pricing, downloads, nil
+}
+
+func (s *LandingConfigService) joinPresentationDownloads(ctx context.Context, bundleKey string) ([]delivery.App, error) {
+	if s.downloadService == nil {
+		return nil, fmt.Errorf("%w: delivery owner is unavailable", presentation.ErrUnavailable)
+	}
+	return s.downloadService.ListAppsContext(ctx, ownerBundleKey(bundleKey))
+}
+
+func validatePresentationDownloads(bundleKey string, downloads []delivery.App) error {
+	expected := strings.TrimSpace(bundleKey)
+	if expected == "" {
+		return fmt.Errorf("%w: resolved presentation bundle is empty", presentation.ErrUnavailable)
+	}
+	for _, app := range downloads {
+		if !equivalentBundleKey(app.BundleKey, expected) {
+			return fmt.Errorf("%w: delivery app %q belongs to bundle %q, want %q", presentation.ErrUnavailable, app.AppKey, app.BundleKey, expected)
+		}
+		for _, asset := range app.Platforms {
+			if !equivalentBundleKey(asset.BundleKey, expected) || asset.AppKey != app.AppKey {
+				return fmt.Errorf("%w: delivery platform does not belong to its resolved bundle/app", presentation.ErrUnavailable)
+			}
+		}
+	}
+	return nil
+}
+
+func ownerBundleKey(bundleKey string) string {
+	if strings.TrimSpace(bundleKey) == "business-suite" {
+		return "business_suite"
+	}
+	return bundleKey
+}
+
+func equivalentBundleKey(left, right string) bool {
+	return strings.TrimSpace(left) == strings.TrimSpace(right) || ownerBundleKey(left) == ownerBundleKey(right)
+}
+
+func alignResolvedOwnerBundle(result *presentation.ResolveResult, pricing *commerce.PricingOverview, downloads []delivery.App) {
+	if result == nil {
+		return
+	}
+	if pricing != nil && pricing.Bundle != nil && equivalentBundleKey(pricing.Bundle.BundleKey, result.Diagnostics.BundleKey) {
+		result.Diagnostics.BundleKey = pricing.Bundle.BundleKey
+		return
+	}
+	for _, app := range downloads {
+		if equivalentBundleKey(app.BundleKey, result.Diagnostics.BundleKey) {
+			result.Diagnostics.BundleKey = app.BundleKey
+			return
+		}
+	}
 }
 
 func validatePresentationOwnerBundle(bundleKey string, pricing *commerce.PricingOverview, downloads []delivery.App) error {

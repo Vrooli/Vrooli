@@ -5,6 +5,7 @@ import { renderBlock } from './registry';
 import { assertRendererContract } from './contract';
 import { resolveResources } from './resolvedResources';
 import './presentation.css';
+import '../site/site.css';
 import { safeHref } from './links';
 import { presentationSystemUi } from './systemUi';
 import { StarField } from './ConstellationSky';
@@ -39,10 +40,20 @@ export interface PresentationPageProps {
    * path. Omitted in the admin preview, which must not link out of the editor.
    */
   authHref?: string;
+  /**
+   * Site-owned legal and contact links for the footer, supplied by the routed
+   * surface from Branding. Omitted in the admin preview.
+   */
+  siteLinks?: SiteFooterLinks;
+}
+
+export interface SiteFooterLinks {
+  privacyHref: string; termsHref: string; contactHref: string;
+  contactEmail?: string; address?: string;
 }
 
 /** Pure integration boundary. The parent owns transport, SEO and commerce joins. */
-export function PresentationPage({ presentation, resolvedActions, resolvedPricing, authHref }: PresentationPageProps) {
+export function PresentationPage({ presentation, resolvedActions, resolvedPricing, authHref, siteLinks }: PresentationPageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-boolean-literal-compare -- Capture boundary emits literal booleans even for malformed runtime input.
   const pace = useIntroPace(presentation.diagnostics.preview === true);
@@ -70,6 +81,6 @@ export function PresentationPage({ presentation, resolvedActions, resolvedPricin
       <nav id={`${id}-nav`} aria-label={page.navigation.label} onClick={() => { setMenuOpen(false); }}>{page.navigation.items.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}{authHref && <a className="nav-signin" href={safeHref(authHref)}>{presentationSystemUi.signIn}</a>}{shell.header_action && <ActionLink action={shell.header_action} resolvedActions={resolvedActions} reason={shell.unavailable_reason} className="button-nav" />}</nav>
     </header>
     <Content id={`${id}-main`} tabIndex={-1}>{page.blocks.map(block => <Fragment key={block.id}>{renderBlock(block, { presentation, resources, resolvedActions, resolvedPricing })}</Fragment>)}</Content>
-    <footer className="site-footer wrap" aria-label={page.footer.label}><div><a className="brand" href={safeHref(shell.footer_brand_target)}><BrandLogo kind={shell.footer_brand_mark} logo={shell.footer_brand_logo} /><span>{shell.footer_brand_name}</span></a><p>{shell.footer_tagline}</p></div><div className="footer-links">{page.footer.links.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}</div><div className="footer-fine"><span>{shell.copyright}</span><span>{shell.footer_note}</span></div></footer>
+    <footer className="site-footer wrap" aria-label={page.footer.label}><div><a className="brand" href={safeHref(shell.footer_brand_target)}><BrandLogo kind={shell.footer_brand_mark} logo={shell.footer_brand_logo} /><span>{shell.footer_brand_name}</span></a><p>{shell.footer_tagline}</p></div><div className="footer-links">{page.footer.links.map((item, index) => <a key={index} href={safeHref(item.target)} aria-label={item.accessible_label}>{item.label}</a>)}</div>{siteLinks && <nav className="site-legal-links" aria-label={presentationSystemUi.legalNav}><a href={safeHref(siteLinks.contactHref)}>{presentationSystemUi.contact}</a><a href={safeHref(siteLinks.privacyHref)}>{presentationSystemUi.privacy}</a><a href={safeHref(siteLinks.termsHref)}>{presentationSystemUi.terms}</a>{siteLinks.contactEmail && <a href={`mailto:${siteLinks.contactEmail}`}>{siteLinks.contactEmail}</a>}{siteLinks.address && <address>{siteLinks.address}</address>}</nav>}<div className="footer-fine"><span>{shell.copyright}</span><span>{shell.footer_note}</span></div></footer>
   </div>;
 }

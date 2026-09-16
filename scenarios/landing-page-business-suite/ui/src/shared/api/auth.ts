@@ -35,8 +35,8 @@ export interface AdminProfileUpdatePayload {
   new_password?: string;
 }
 
-export async function adminLogin(email: string, password: string) {
-  return adminAuthClient.login({ email, password }).then((resp) => {
+export async function adminLogin(email: string, password: string, totpCode = '') {
+  return adminAuthClient.login({ email, password, totpCode }).then((resp) => {
     const validated = parseOrNull(AdminSessionResponseSchema, {
       authenticated: resp.authenticated,
       ...(resp.email ? { email: resp.email } : {}),
@@ -106,6 +106,40 @@ export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
   });
 }
 
+// ===== Admin Two-Factor =====
+
+export interface AdminMFAStatus {
+  enabled: boolean;
+  enabled_at?: string;
+  recovery_codes_left: number;
+  enrollment_in_progress: boolean;
+}
+
+export interface AdminMFAEnrollment {
+  secret: string;
+  otpauth_uri: string;
+}
+
+export async function getAdminMFAStatus(): Promise<AdminMFAStatus> {
+  return apiGet<AdminMFAStatus>('/admin/mfa');
+}
+
+export async function beginAdminMFAEnrollment(): Promise<AdminMFAEnrollment> {
+  return apiPost<AdminMFAEnrollment>('/admin/mfa/enroll', {});
+}
+
+export async function confirmAdminMFAEnrollment(code: string): Promise<{ recovery_codes: string[] }> {
+  return apiPost<{ recovery_codes: string[] }>('/admin/mfa/confirm', { code });
+}
+
+export async function disableAdminMFA(code: string): Promise<void> {
+  await apiPost<unknown>('/admin/mfa/disable', { code });
+}
+
+export async function regenerateAdminRecoveryCodes(code: string): Promise<{ recovery_codes: string[] }> {
+  return apiPost<{ recovery_codes: string[] }>('/admin/mfa/recovery-codes', { code });
+}
+
 // ===== User Auth Types =====
 
 export interface UserAuthUser {
@@ -165,32 +199,110 @@ export interface BusinessAccount {
 
 // ===== User Auth Functions =====
 
-/**
- * Request a magic link to be sent to the user's email.
- * Always returns success to prevent email enumeration.
- */
-export async function requestMagicLink(email: string): Promise<MagicLinkResponse> {
-  return apiPost<MagicLinkResponse>('/auth/magic-link', { email }).then((resp) => {
-    const validated = parseOrNull(MagicLinkResponseSchema, resp, 'MagicLinkResponse');
-    if (!validated) {
-      return { message: 'Request sent' };
-    }
-    return validated;
-  });
-}
+/** How a pending sign-in should finish once the address is proven. */
+export type SignInFlow = 'browser' | 'native_app' | 'desktop_link';
 
 /**
- * Verify a magic link token and get authentication tokens.
- * Returns tokens in response body (for JSON clients) or redirects (handled server-side).
+ * App parameters captured on the sign-in page. They are stored server-side
+ * with the request so a link opened in another tab can resume the same flow.
  */
-export async function verifyMagicLink(token: string): Promise<VerifyMagicLinkResponse> {
-  return apiGet<VerifyMagicLinkResponse>(`/auth/verify?token=${encodeURIComponent(token)}`).then((resp) => {
-    const validated = parseOrNull(VerifyMagicLinkResponseSchema, resp, 'VerifyMagicLinkResponse');
-    if (!validated) {
-      throw new Error('Invalid verify magic link response from API');
-    }
-    return validated;
+export interface SignInContext {
+  redirect_uri?: string;
+  app?: string;
+  state?: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
+  desktop_link?: boolean;
+  installation_id?: string;
+  resource?: string;
+  audience?: string;
+  scopes?: string[];
+  business_account_id?: string;
+}
+
+export interface SignInStarted {
+  message: string;
+  expires_at?: string;
+}
+
+export interface SignInPreview {
+  email_hint: string;
+  expires_at: string;
+  flow: SignInFlow;
+  same_browser: boolean;
+  context?: SignInContext;
+}
+
+export interface SignInResult extends VerifyMagicLinkResponse {
+  same_browser?: boolean;
+  context?: SignInContext;
+}
+
+/** Start sign-in: emails a 6-digit code and a one-use link. */
+export async function requestMagicLink(email: string, options: { browserBinding?: string; context?: SignInContext } = {}): Promise<SignInStarted> {
+  const resp = await apiPost<SignInStarted>('/auth/magic-link', {
+    email,
+    ...(options.browserBinding ? { browser_binding: options.browserBinding } : {}),
+    ...(options.context ? { context: options.context } : {}),
   });
+  const validated = parseOrNull(MagicLinkResponseSchema, resp, 'MagicLinkResponse');
+  return validated ? { ...resp, message: validated.message } : { message: 'Request sent' };
+}
+
+/** Describe a sign-in link without using it up. */
+export async function previewSignIn(token: string, browserBinding?: string): Promise<SignInPreview> {
+  return apiPost<SignInPreview>('/auth/magic-link/preview', { token, ...(browserBinding ? { browser_binding: browserBinding } : {}) });
+}
+
+/** Complete sign-in with the emailed link after the person confirms. */
+export async function verifyMagicLink(token: string, browserBinding?: string): Promise<SignInResult> {
+  const resp = await apiPost<SignInResult>('/auth/verify', { token, ...(browserBinding ? { browser_binding: browserBinding } : {}) });
+  const validated = parseOrNull(VerifyMagicLinkResponseSchema, resp, 'VerifyMagicLinkResponse');
+  if (!validated) {
+    throw new Error('Invalid verify magic link response from API');
+  }
+  return { ...resp, ...validated };
+}
+
+/** Complete sign-in with the emailed code from the requesting browser. */
+export async function verifySignInCode(email: string, code: string, browserBinding: string): Promise<SignInResult> {
+  const resp = await apiPost<SignInResult>('/auth/verify-code', { email, code, browser_binding: browserBinding });
+  const validated = parseOrNull(VerifyMagicLinkResponseSchema, resp, 'VerifyMagicLinkResponse');
+  if (!validated) {
+    throw new Error('Invalid verify code response from API');
+  }
+  return { ...resp, ...validated };
+}
+
+/** Proof accepted by the native-app authorization endpoint. */
+export type NativeSignInProof =
+  | { token: string; browserBinding?: string }
+  | { email: string; code: string; browserBinding: string };
+
+/**
+ * Exchange a link or code for a one-use PKCE authorization code and return the
+ * loopback URL to hand back to the native app. Tokens never enter the URL.
+ */
+export async function authorizeNativeApp(proof: NativeSignInProof, context: SignInContext): Promise<string> {
+  const body: Record<string, string> = {
+    code_challenge: context.code_challenge ?? '',
+    code_challenge_method: context.code_challenge_method ?? '',
+    redirect_uri: context.redirect_uri ?? '',
+    state: context.state ?? '',
+  };
+  if ('token' in proof) {
+    body.token = proof.token;
+    if (proof.browserBinding) body.browser_binding = proof.browserBinding;
+  } else {
+    body.email = proof.email;
+    body.code = proof.code;
+    body.browser_binding = proof.browserBinding;
+  }
+  const resp = await apiPost<{ redirect_url?: string }>('/auth/authorize', body);
+  if (typeof resp.redirect_url !== 'string' || !resp.redirect_url) {
+    throw new Error('Invalid native authorization response from API');
+  }
+  return resp.redirect_url;
 }
 
 /**

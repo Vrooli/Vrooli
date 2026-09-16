@@ -30,13 +30,18 @@ export class ApiError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
   readonly userMessage: string;
+  /** Stable machine-readable cause, when the endpoint provides one. */
+  readonly reason?: string;
+  /** Seconds the server asked the client to wait before retrying. */
+  readonly retryAfterSeconds?: number;
 
   constructor(
     message: string,
     type: ApiErrorType,
     status?: number,
     userMessage?: string,
-    retryableOverride?: boolean
+    retryableOverride?: boolean,
+    details?: { reason?: string; retryAfterSeconds?: number }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -47,6 +52,8 @@ export class ApiError extends Error {
       ? retryableOverride
       : ['network', 'timeout', 'server_error', 'rate_limited'].includes(type);
     this.userMessage = userMessage ?? getDefaultUserMessage(type);
+    this.reason = details?.reason;
+    this.retryAfterSeconds = details?.retryAfterSeconds;
   }
 }
 
@@ -140,6 +147,8 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
       let userMessage: string | undefined;
       let errorTypeOverride: ApiErrorType | undefined;
       let retryableOverride: boolean | undefined;
+      let reason: string | undefined;
+      const retryAfterHeader = Number.parseInt((res.headers as Headers | undefined)?.get('Retry-After') ?? '', 10);
       const parsed = safeParseJson(errorText);
       if (isRecord(parsed)) {
         const errorValue = parsed.error;
@@ -157,6 +166,9 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
         if (typeof parsed.retryable === 'boolean') {
           retryableOverride = parsed.retryable;
         }
+        if (typeof parsed.reason === 'string' && parsed.reason) {
+          reason = parsed.reason;
+        }
       }
 
       throw new ApiError(
@@ -164,7 +176,8 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
         errorTypeOverride ?? errorType,
         res.status,
         userMessage,
-        retryableOverride
+        retryableOverride,
+        { reason, retryAfterSeconds: Number.isFinite(retryAfterHeader) ? retryAfterHeader : undefined }
       );
     }
 

@@ -11,6 +11,15 @@ export default defineConfig(({ mode }) => {
     base: './',
     resolve: {
       alias: {
+        // Keep bundling aligned with tsconfig "paths": these generated
+        // modules resolve to the proto source, not the installed copy, so a
+        // field the type checker accepts is never silently dropped at runtime.
+        ...Object.fromEntries(
+          ["variant_pb", "variant_section_pb", "waitlist_pb", "admin_pb", "branding_pb"].map((module) => [
+            `@vrooli/proto-types/landing-page-business-suite/v1/${module}`,
+            path.resolve(__dirname, `../../../packages/proto/gen/typescript/landing-page-business-suite/v1/${module}.ts`),
+          ]),
+        ),
         ...(isProfile
           ? {
               "react-dom/client": "react-dom/profiling",

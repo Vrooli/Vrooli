@@ -64,6 +64,10 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 			app_bundle_key TEXT NOT NULL DEFAULT 'unattributed',
 			model TEXT NOT NULL DEFAULT 'unknown',
 			credits INTEGER NOT NULL,
+			cost_micros INTEGER NOT NULL DEFAULT 0,
+			prompt_tokens INTEGER NOT NULL DEFAULT 0,
+			completion_tokens INTEGER NOT NULL DEFAULT 0,
+			provider TEXT NOT NULL DEFAULT 'local',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 

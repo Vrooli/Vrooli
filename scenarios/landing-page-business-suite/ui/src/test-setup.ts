@@ -16,6 +16,13 @@ vi.mock('./app/providers/useLandingVariant', () => ({
   }),
 }));
 
+// Site chrome reads public branding once per page load. Tests render site pages
+// without an API; they get "nothing configured" unless they override this mock.
+vi.mock('./surfaces/public-landing/site/siteBrandingSource', () => ({
+  loadSiteBranding: vi.fn(() => Promise.resolve(null)),
+  resetSiteBrandingCache: vi.fn(),
+}));
+
 // Global mock for useToast hook - prevents "must be used within ToastProvider" errors
 vi.mock('./shared/ui/useToast', () => ({
   useToast: () => ({

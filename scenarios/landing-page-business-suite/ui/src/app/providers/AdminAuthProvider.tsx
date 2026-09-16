@@ -51,8 +51,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const response = await adminLogin(email, password);
+  const login = async (email: string, password: string, totpCode?: string) => {
+    const response = await adminLogin(email, password, totpCode);
     setIsAuthenticated(response.authenticated);
     setUser(response.authenticated && response.email ? { email: response.email } : { email });
     setIsSessionLoading(false);

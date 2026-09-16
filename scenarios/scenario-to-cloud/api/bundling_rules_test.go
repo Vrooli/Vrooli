@@ -477,6 +477,9 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	if !manifest.Contains(entries, ".vrooli/plans.json") {
 		t.Fatalf("expected root deployment pricing catalog, entries=%v", entries)
 	}
+	if !manifest.Contains(entries, "templates/.keep") {
+		t.Fatalf("expected mini-repo root marker directory, entries=%v", entries)
+	}
 	for _, name := range entries {
 		if strings.HasPrefix(name, "cli/") {
 			t.Fatalf("did not expect top-level cli tree in bundle, found %q", name)

@@ -214,7 +214,12 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	extra := map[string][]byte{
 		".vrooli/cloud/manifest.json":        manifestBytes,
 		".vrooli/cloud/bundle-metadata.json": metaBytes,
-		"go.work":                            []byte(goWork),
+		// Mini bundles intentionally omit the developer template tree, but the
+		// repo contract still requires its root marker for source-root
+		// resolution. Keep the release a valid contract root without shipping
+		// the full template payload.
+		"templates/.keep": []byte{},
+		"go.work":         []byte(goWork),
 	}
 	if len(serviceJSON) > 0 {
 		extra[".vrooli/service.json"] = serviceJSON

@@ -100,6 +100,9 @@ type Server struct {
 	desktopLinkService    *desktoplink.Service
 	desktopLinkVerifier   authn.TokenVerifier
 	magicLinkLimiter      *RateLimiter
+	authThrottle          *administration.AuthThrottle
+	adminMFA              *administration.AdminMFA
+	stopAuthJanitor       func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -203,6 +206,13 @@ func NewServer() (*Server, error) {
 			return ring.Marshal()
 		}},
 		{"LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", func() (string, error) {
+			ring, err := securevalue.NewRing()
+			if err != nil {
+				return "", err
+			}
+			return ring.Marshal()
+		}},
+		{"LPBS_ADMIN_MFA_ENCRYPTION_KEY", func() (string, error) {
 			ring, err := securevalue.NewRing()
 			if err != nil {
 				return "", err
@@ -319,6 +329,7 @@ func NewServer() (*Server, error) {
 	seoService := NewSEOService(configStore)
 	feedbackService := domainmetrics.NewFeedbackService(routedDB)
 	emailService := NewEmailService()
+	emailService.UseBrandingSource(configStore.GetBranding)
 	// Waitlist is the first request-context-aware domain migrated to RoutedDB.
 	// Test-mode requests reach the lease-owned pool while all other services
 	// continue their explicit, staged migration from the primary pool.
@@ -474,6 +485,8 @@ func NewServer() (*Server, error) {
 		desktopLinkService:    desktopLinkService,
 		desktopLinkVerifier:   desktopLinkVerifier,
 		magicLinkLimiter:      magicLinkLimiter,
+		authThrottle:          administration.NewAuthThrottle(routedDB),
+		adminMFA:              administration.NewAdminMFA(routedDB, resolveAdminMFARing, adminMFAIssuer(configStore)),
 		// AI MeteredInferenceProvider service
 		meteredInferenceService: meteredInferenceService,
 		meteredInferenceHandler: meteredInferenceHandler,
@@ -607,11 +620,14 @@ func runtimeStoragePaths(variantsDir, uploadDir string) corestorage.Paths {
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(apihttp.TestModeMiddleware(s.router))
+	return handlers.RecoveryHandler()(apihttp.TestModeMiddleware(sameOriginGuard(s.router)))
 }
 
 // Cleanup releases resources when the server shuts down
 func (s *Server) Cleanup() error {
+	if s.stopAuthJanitor != nil {
+		s.stopAuthJanitor()
+	}
 	if s.routedDB != nil {
 		return s.routedDB.Close()
 	}
@@ -701,6 +717,7 @@ func main() {
 	if err != nil {
 		logx.Fatalf("failed to initialize server: %v", err)
 	}
+	srv.stopAuthJanitor = srv.startAuthJanitor()
 
 	if err := server.Run(server.Config{
 		Handler: apihttp.TestModeMiddleware(srv.Router()),

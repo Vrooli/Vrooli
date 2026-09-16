@@ -32,5 +32,10 @@
         "inline-search"
       ]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-rcl-filter-bar]" }
+    }
+  }
 }

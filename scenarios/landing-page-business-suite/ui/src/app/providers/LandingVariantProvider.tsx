@@ -47,7 +47,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
   const locale = params.get('locale') || '';
   const download = /^\/apps\/[a-z0-9][a-z0-9-]*\/download$/.test(location.pathname);
   const detail = download || /^\/apps\/[a-z0-9][a-z0-9-]*$/.test(location.pathname);
-  const active = location.pathname === '/' || detail || ['/checkout', '/feedback'].includes(location.pathname);
+  const active = location.pathname === '/' || detail || ['/checkout', '/feedback', '/contact', '/privacy', '/terms', '/thank-you'].includes(location.pathname);
   // Download is a noindex workflow over the canonical detail document, not a new page mode.
   const route = download ? location.pathname.slice(0, -9) : detail ? location.pathname : '/';
   const key = JSON.stringify([location.pathname, variant, locale]);

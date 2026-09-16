@@ -98,14 +98,9 @@ Responses are cached for up to 60 seconds.
 
 Navigate to `/admin` on your landing page URL. It's not linked from the public page for security.
 
-### What are the default admin credentials?
+### What are the admin credentials?
 
-```
-Email: admin@localhost
-Password: changeme123
-```
-
-**Change these immediately in production via `/admin/profile`.**
+There is no default password. The email is `admin@localhost`, and the password is the `admin-default-password` credential you provision. See [Admin Credentials](ADMIN_GUIDE.md#admin-credentials) for how to set or reset it.
 
 ### Can I have multiple admin users?
 

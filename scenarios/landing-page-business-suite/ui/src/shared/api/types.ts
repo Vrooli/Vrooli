@@ -490,6 +490,12 @@ export interface SiteBranding {
   coming_soon_message?: string | null;
   created_at?: string;
   updated_at?: string;
+  legal_name?: string | null;
+  contact_address?: string | null;
+  privacy_policy_markdown?: string | null;
+  terms_markdown?: string | null;
+  privacy_effective_date?: string | null;
+  terms_effective_date?: string | null;
 }
 
 export interface SiteBrandingUpdate {
@@ -516,6 +522,12 @@ export interface SiteBrandingUpdate {
   smtp_from?: string;
   coming_soon_enabled?: boolean;
   coming_soon_message?: string;
+  legal_name?: string;
+  contact_address?: string;
+  privacy_policy_markdown?: string;
+  terms_markdown?: string;
+  privacy_effective_date?: string;
+  terms_effective_date?: string;
 }
 
 export interface WaitlistEmail {
@@ -537,6 +549,13 @@ export interface PublicBranding {
   support_chat_url?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;
+  support_email?: string | null;
+  legal_name?: string | null;
+  contact_address?: string | null;
+  privacy_policy_markdown?: string | null;
+  terms_markdown?: string | null;
+  privacy_effective_date?: string | null;
+  terms_effective_date?: string | null;
 }
 
 // Uploaded asset

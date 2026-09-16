@@ -138,7 +138,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     await userEvent.setup().click(loginBtn);
 
     await waitFor(() => {
-      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
+      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password', undefined);
     });
 
     await waitFor(() => {
@@ -191,7 +191,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
 
     // Wait for fetch to be called with login endpoint
     await waitFor(() => {
-      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
+      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password', undefined);
     });
 
     // Should remain unauthenticated after failed login

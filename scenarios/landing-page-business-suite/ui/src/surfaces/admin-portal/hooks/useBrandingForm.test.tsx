@@ -36,6 +36,8 @@ const mockBranding: SiteBranding = {
   default_title: 'Test Site | Home',
   default_description: 'This is a test site description',
   default_og_image_url: 'https://example.com/og.png',
+  legal_name: 'Test Studio LLC',
+  contact_address: '100 Main Street\nSpringfield',
   theme_primary_color: '#3B82F6',
   theme_background_color: '#07090F',
   canonical_base_url: 'https://example.com',

@@ -431,6 +431,31 @@ func TestGetLandingConfigForRequestKeepsPageReadableWhenOwnerIsUnavailable(t *te
 	}
 }
 
+func TestGetLandingConfigForRequestKeepsDownloadsWhenPricingOwnerIsUnavailable(t *testing.T) {
+	artifactID := int64(42)
+	store := publishedPresentationLandingFixture(t, presentationLandingDocument(&presentation.Action{Kind: presentation.ActionDownload, Label: "Get Aquila", AccessibleLabel: "Get Aquila", AppKey: "web-console"}))
+	service := &LandingConfigService{
+		configStore: store,
+		presentationOwnerJoin: func(context.Context, string) (*commerce.PricingOverview, []delivery.App, error) {
+			return nil, nil, errors.New("pricing catalog unavailable")
+		},
+		presentationDownloadJoin: func(context.Context, string) ([]delivery.App, error) {
+			return []delivery.App{{BundleKey: "business-suite", AppKey: "web-console", Name: "Aquila", Platforms: []delivery.Asset{{BundleKey: "business-suite", AppKey: "web-console", Platform: "linux", ReleaseVersion: "0.0.1", ArtifactID: &artifactID}}}}, nil
+		},
+	}
+
+	response, err := service.GetLandingConfigForRequest(context.Background(), "control", "/", "en", "")
+	if err != nil || response == nil || len(response.Downloads) != 1 {
+		t.Fatalf("download owner was discarded with pricing outage: response=%#v error=%v", response, err)
+	}
+	if response.Pricing != nil {
+		t.Fatalf("pricing should remain unavailable: %#v", response.Pricing)
+	}
+	if response.Presentation.Actions[0].Status != presentation.ResolvedActionReady {
+		t.Fatalf("download action = %#v, want ready", response.Presentation.Actions[0])
+	}
+}
+
 func TestGetLandingConfigForRequestDoesNotExposeEmptyVisitor(t *testing.T) { // [REQ:LP-PRES-011]
 	store := publishedPresentationLandingFixture(t, presentationLandingDocument(nil))
 	service := &LandingConfigService{configStore: store, presentationOwnerJoin: testPresentationOwnerJoin}

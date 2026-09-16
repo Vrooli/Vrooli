@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,8 +120,16 @@ func TestSEOServiceSitemapIsWellFormedAndEscapesLocations(t *testing.T) {
 	if err := xml.Unmarshal([]byte(sitemap), &document); err != nil {
 		t.Fatalf("sitemap is not valid XML: %v\n%s", err, sitemap)
 	}
-	if len(document.URLs) != 2 || document.URLs[1].Location != "https://example.test/offers/a&b" {
-		t.Fatalf("decoded sitemap URLs = %#v", document.URLs)
+	locations := make([]string, 0, len(document.URLs))
+	for _, entry := range document.URLs {
+		locations = append(locations, entry.Location)
+	}
+	want := []string{"https://example.test/", "https://example.test/contact", "https://example.test/offers/a&b", "https://example.test/privacy", "https://example.test/terms"}
+	if !slices.Equal(locations, want) {
+		t.Fatalf("decoded sitemap URLs = %#v, want %#v", locations, want)
+	}
+	if !strings.Contains(sitemap, "<loc>https://example.test/privacy</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.3</priority>") {
+		t.Fatalf("site pages must be listed below product routes in priority:\n%s", sitemap)
 	}
 	if strings.Contains(sitemap, `\\n`) || strings.Contains(sitemap, `\\\"`) {
 		t.Fatalf("sitemap retained literal escapes: %q", sitemap)

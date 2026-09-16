@@ -7,6 +7,7 @@ import { inputClassName } from '../components/formFieldClasses';
 import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useProfileForm } from '../hooks/useProfileForm';
+import { TwoFactorSettings } from '../components/TwoFactorSettings';
 
 export function ProfileSettings() {
   const {
@@ -200,6 +201,7 @@ export function ProfileSettings() {
             </FormSection>
           </div>
         )}
+        {!loading && !loadError && <TwoFactorSettings />}
       </div>
     </AdminLayout>
   );

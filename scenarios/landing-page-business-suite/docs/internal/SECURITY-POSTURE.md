@@ -22,7 +22,7 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
                   │   FeedbackService.CreateFeedback
                   │   (NO auth — rate-limited only at infra)
                   │
-                  ├── /api/v1/auth/*           (public; internal rate limiter, 5 / 15 min)
+                  ├── /api/v1/auth/*           (public; durable per-email, per-IP and per-code-guess throttles)
                   │
                   ├── /api/v1/me/*, /api/v1/ai/*, /api/v1/downloads,
                   │   /api/v1/billing/portal-url, /api/v1/usage/{summary,check}
@@ -45,12 +45,20 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 
 | Mechanism | Used for | Storage | Rotation |
 |-----------|----------|---------|----------|
-| **bcrypt password + cookie session** | Admin (operator) | `admin_sessions` row + `Set-Cookie` HttpOnly | Manual via admin profile page |
-| **Magic-link → JWT (access + refresh)** | End users | `auth_tokens`, `user_sessions`; refresh token rotates on use | Refresh-on-use; revocation flips `user_sessions.revoked` |
+| **bcrypt password + optional TOTP + cookie session** | Admin (operator) | `admin_sessions` row + `Set-Cookie` HttpOnly; TOTP secret sealed with the `admin-mfa-encryption-key` ring; recovery codes bcrypt-hashed | Manual via admin profile page; `admin-mfa-reset` CLI (service credential) for a lost authenticator |
+| **Emailed 6-digit code or one-use link → JWT (access + refresh)** | End users | `auth_tokens` (hashed token, hashed code, browser-binding hash, stored app context, delivery status), `user_sessions`; refresh token rotates on use | Refresh-on-use; revocation flips `user_sessions.revoked` |
 | **Service bearer token** | s2s (CLI, sister scenarios) | Authority-backed shared secret resolved in process | Manual; rotate through the credential authority |
 | **Stripe webhook signature** | Stripe → us | n/a (header-based) | Per Stripe key rotation |
 
-The password/cookie and magic-link/JWT rows describe the current LPBS
+Customer sign-in rules:
+
+- A sign-in request creates no `users` row; the account is created only when the link or code is proven.
+- The verify page previews a link (`POST /auth/magic-link/preview`) and consumes it only after the person confirms (`POST /auth/verify`), so mail scanners that open or render links cannot use them. There is no consuming `GET`.
+- A code is accepted only from the browser that requested it (`browser_binding`), and app callback context is returned only to that browser.
+- Completing sign-in retires every other outstanding link and code for the address.
+- A request whose email could not be delivered is retired and reported as `503 delivery_unavailable`; every well-formed address may sign up, so there is no account-existence oracle to protect. `sign_in_email` in `/health` degrades when the latest delivery failed, and `GET /api/v1/admin/auth/delivery` reports 24-hour outcomes. SendGrid is primary; the site SMTP relay is the fallback.
+
+The password/cookie and code/link/JWT rows describe the current LPBS
 compatibility implementation. The target platform boundary moves person
 identity, MFA, sessions, and coarse capabilities to
 `scenario-authenticator`; LPBS retains product and commercial authority.
@@ -81,15 +89,20 @@ authorization remains in the authenticator.
 
 ## Abuse resistance
 
-- Magic-link request rate limiter: 5 / 15 min per normalized email (`magicLinkLimiter`).
+- Sign-in throttles live in `auth_rate_events` (Postgres), so they hold across restarts and replicas and degrade to a process-local window if the database is unavailable: 5 requests / 15 min per email, 20 requests / hour per client IP, 5 wrong codes / 15 min per email.
+- Admin sign-in: 5 failures / 15 min per email and 20 / 15 min per client IP lock further attempts; unknown emails spend the same bcrypt work as real ones; a TOTP time step is never accepted twice.
+- Client IP: `X-Forwarded-For` is walked right-to-left through trusted proxies (loopback by default, because browsers reach the API through the scenario's own UI server; `TRUSTED_PROXY_CIDRS` overrides). Client-supplied entries left of the first untrusted hop are ignored.
+- Cross-site request forgery: state-changing requests that carry `admin_session`, `access_token`, or `refresh_token` cookies must be same-origin (`Sec-Fetch-Site`, falling back to `Origin`/`Referer`); see `api/csrf_guard.go`.
 - Stripe webhook signature is verified before any body parsing.
 - Idempotent webhook + idempotent credit reservation prevent replay-based credit inflation.
 - Anomaly dispatcher emits an alert + audit row when intro-coupon usage, refund cadence, or other heuristics breach threshold (`payment_anomaly_log`).
 
 ## Known gaps (acknowledged, not "broken")
 
-- No CSRF token on cookie-authenticated endpoints — admin portal is same-origin and uses a `SameSite=Lax` cookie. If an admin-portal subdomain is ever served separately, this needs to change.
-- No 2FA on admin login.
+- Cross-site protection relies on fetch metadata and `SameSite=Lax` rather than a synchronizer token. If an admin portal is ever served from a different origin, allow that origin explicitly in `csrf_guard.go`.
+- Admin two-factor authentication is available but not required; enforcement is the operator's choice.
+- Native-app authorization codes (`AuthorizationCodeStore`) are held in process memory for 60 seconds; an API restart between the browser redirect and the app's token exchange fails that sign-in and the app must retry. Multi-replica deployments need a shared store.
+- Social sign-in (Google, Apple) and passkeys are not implemented; the platform plan assigns them to `scenario-authenticator`.
 - Service bearer is HMAC of a static secret, not a JWT — fine for a small s2s mesh, would not scale to many callers.
 - The UI uses `BrowserRouter` and does not use React Router's unstable RSC APIs. GHSA-qwww-vcr4-c8h2 is therefore tracked as a dependency warning rather than a shipped attack path; introducing an RSC router, RSC package, or unstable RSC API requires upgrading React Router to a patched release first.
 - Security Health currently reports residual lockfile advisories from transitive build and test tooling, plus the `x/crypto/openpgp` advisory. OpenTelemetry was upgraded through Scenario Dependency Analyzer to `v1.42.0`, clearing GO-2026-5158. The UI directly pins `picomatch` 4.0.5 through Scenario Dependency Analyzer, which removed the vulnerable 4.x resolver path without weakening coverage policy. The remaining old `minimatch`, `brace-expansion`, `flatted`, and `picomatch` 2.x paths are held by ESLint, Tailwind, and test-tooling dependency graphs; `monaco-editor@0.56.0` similarly owns the residual `dompurify@3.4.8` path. Governed requests for the current Monaco packages resolve to those already-installed versions, so these paths cannot be safely overridden by hand. `golang.org/x/crypto@0.54.0` is also already current; GO-2026-5932 concerns its intentionally unmaintained `openpgp` package and has no named patched upstream release. Treat every new production dependency path as a trigger to re-run Security Health, and re-evaluate these residuals when their upstream owners publish a compatible release.

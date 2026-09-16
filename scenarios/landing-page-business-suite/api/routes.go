@@ -240,7 +240,7 @@ func registerDeployReadinessRoute(s *Server) {
 
 func registerHealthRoutes(s *Server) {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Handler()
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(s.signInDeliveryCheck(), health.Optional).Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
@@ -271,10 +271,17 @@ func registerAuthRoutes(s *Server) {
 	}).Methods("GET")
 	// User Authentication endpoints (magic link + JWT)
 	// Public auth endpoints (no auth required)
-	deps := userAuthHandlerDependencies(s.userAuthService, s.magicLinkLimiter)
+	// Durable throttles replace the process-local limiter so limits survive
+	// restarts and hold across replicas.
+	deps := userAuthHandlerDependencies(s.userAuthService, nil)
+	deps.Throttle = s.authThrottle
 	s.router.HandleFunc("/api/v1/auth/magic-link", adminhttp.RequestMagicLink(deps)).Methods("POST")
-	s.router.HandleFunc("/api/v1/auth/verify", adminhttp.VerifyMagicLink(deps)).Methods("GET")
-	s.router.HandleFunc("/api/v1/auth/authorize", adminhttp.AuthorizeWithPKCE(deps, s.authorizationCodes)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/magic-link/preview", adminhttp.PreviewSignIn(deps)).Methods("POST")
+	// Verification consumes a credential, so it is POST-only: a GET that
+	// signs in would let link scanners and prefetchers burn the link.
+	s.router.HandleFunc("/api/v1/auth/verify", adminhttp.VerifyMagicLink(deps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/verify-code", adminhttp.VerifySignInCode(deps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/authorize", adminhttp.AuthorizeWithPKCE(deps, s.authorizationCodes)).Methods("GET", "POST")
 	s.router.HandleFunc("/api/v1/auth/token", adminhttp.ExchangeAuthorizationCode(deps, s.authorizationCodes)).Methods("POST")
 	s.router.HandleFunc("/api/v1/auth/refresh", adminhttp.RefreshTokens(deps)).Methods("POST")
 	// Protected auth endpoints (require user auth)
@@ -340,6 +347,8 @@ func registerAdminCoreRoutes(s *Server) {
 	// remain response headers and never enter protobuf payloads.
 	landinghttp.RegisterPresentationAdminRoutes(s.router, s.configStore, s.requireAdmin)
 	adminhttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logx.Error}, s.requireAdmin)
+	registerAdminMFARoutes(s)
+	s.router.HandleFunc("/api/v1/admin/auth/delivery", s.requireMetricsReader(s.signInDeliveryReport)).Methods("GET")
 	profileDeps := s.adminProfileDependencies()
 	adminhttp.RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdmin)
 	billinghttp.RegisterStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdmin)

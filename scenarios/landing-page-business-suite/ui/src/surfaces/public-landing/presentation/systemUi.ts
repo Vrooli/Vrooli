@@ -4,7 +4,7 @@ export const presentationSystemUi = {
   unavailableDetail: 'Published presentation content could not be loaded. Please try again later.',
   notFound: 'Page not found', notFoundDetail: 'This page is not available at this address.',
   retry: 'Try again', leave: 'Discard unsaved presentation changes and leave this page?',
-  signIn: 'Sign in',
+  signIn: 'Sign in', legalNav: 'Legal and contact', contact: 'Contact', privacy: 'Privacy', terms: 'Terms',
 };
 
 /** Neutral download/commerce UI vocabulary; product claims remain page-owned. */

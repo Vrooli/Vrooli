@@ -26,10 +26,10 @@ beforeEach(() => { mocks.request.mockReset(); vi.mocked(auth.refreshSession).moc
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const select = (index = '0') => fireEvent.change(screen.getByRole('combobox'), { target: { value: index } });
 describe('configured authorized download workflow', () => {
-  it('shows all platform/release choices without choosing the first or copying delivery marketing', () => {
-    mount(); expect(screen.getByRole('combobox')).toHaveValue('');
+  it('shows all platform/release choices and preselects the detected platform without copying delivery marketing', () => {
+    mount(); expect(screen.getByRole('combobox')).toHaveValue('0');
     expect(screen.getByRole('option', { name: /Linux · 2.4.1/ })).toBeInTheDocument(); expect(screen.getByRole('option', { name: /macOS · 2.4.0/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Prepare download' })).toBeDisabled(); expect(mocks.request).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Prepare download' })).toBeEnabled(); expect(mocks.request).not.toHaveBeenCalled();
     expect(document.body).not.toHaveTextContent(/DO NOT COPY|private@example|Aquila/);
     expect(screen.getByRole('link', { name: 'Back to app' })).toHaveAttribute('href', '/proxy/apps/example');
     expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');

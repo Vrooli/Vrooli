@@ -5,7 +5,7 @@
 // App.tsx is a thin composer: it wires the providers and delegates the
 // route table to per-surface modules under app/routes/.
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
 import { UserAuthProvider } from './app/providers/UserAuthProvider';
@@ -15,6 +15,7 @@ import { ToastProvider } from './shared/ui/Toast';
 import { publicRoutes } from './app/routes/publicRoutes';
 import { adminRoutes } from './app/routes/adminRoutes';
 import { userAuthRoutes } from './app/routes/userAuthRoutes';
+import { PublicPresentationState } from './surfaces/public-landing/presentation/PublicPresentationState';
 
 export default function App() {
   // INTEROP-CRITICAL: BrowserRouter must retain the proxy path when this UI is
@@ -34,7 +35,6 @@ export default function App() {
                     {publicRoutes}
                     {userAuthRoutes}
                     {adminRoutes}
-                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Suspense>
               </LandingVariantProvider>
@@ -47,9 +47,8 @@ export default function App() {
 }
 
 function RouteLoadingFallback() {
-  return (
-    <div className="min-h-full bg-bg-base flex items-center justify-center">
-      <div className="animate-pulse text-slate-400">Loading...</div>
-    </div>
-  );
+  // Admin screens keep their own surface; public pages load over the night canvas.
+  return window.location.pathname.includes('/admin')
+    ? <div className="min-h-full bg-bg-base flex items-center justify-center"><div className="animate-pulse text-slate-400">Loading...</div></div>
+    : <PublicPresentationState state="loading" />;
 }

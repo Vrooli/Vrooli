@@ -377,31 +377,31 @@
       "id": "coverage-page",
       "path": "components/coverage-page.json",
       "title": "Catalog coverage",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "capabilities-page",
       "path": "components/capabilities-page.json",
       "title": "Capability readiness",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "settings-page",
       "path": "components/settings-page.json",
       "title": "Preferences",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "design-page",
       "path": "components/design-page.json",
       "title": "Design workspaces",
-      "status": "active"
+      "status": "draft"
     },
     {
       "id": "preview-popout-page",
       "path": "components/preview-popout-page.json",
       "title": "Preview popout",
-      "status": "active"
+      "status": "draft"
     }
   ]
 }

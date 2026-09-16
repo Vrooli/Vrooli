@@ -94,6 +94,26 @@ func TestRefreshManifestFromClosureBindsDigest(t *testing.T) {
 	}
 }
 
+func TestRefreshManifestPreservesLocalHandoffSecretPlan(t *testing.T) {
+	source := &fakeClosureSource{closure: fixtureClosure()}
+	refresher := NewManifestRefresher(ManifestRefresherConfig{
+		Closure:      source,
+		PortsFetcher: fakePortsFetcher{},
+	})
+	base := domain.CloudManifest{
+		Scenario:                domain.ManifestScenario{ID: "app"},
+		Secrets:                 &domain.ManifestSecrets{BundleSecrets: []domain.BundleSecretPlan{{ID: "service-secret", Class: "per_install_generated"}}},
+		LocalCredentialHandoffs: []domain.LocalCredentialHandoff{{SecretID: "service-secret"}},
+	}
+	refreshed, err := refresher.RefreshManifest(context.Background(), base)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if refreshed.Secrets == nil || len(refreshed.Secrets.BundleSecrets) != 1 || refreshed.Secrets.BundleSecrets[0].ID != "service-secret" {
+		t.Fatalf("local handoff secret plan was discarded: %+v", refreshed.Secrets)
+	}
+}
+
 // TestRefreshManifestRefusesWhenClosureUnavailable proves a typed closure
 // failure stops the refresh instead of rebuilding from stale dependencies.
 // [REQ:STC-P0-021]

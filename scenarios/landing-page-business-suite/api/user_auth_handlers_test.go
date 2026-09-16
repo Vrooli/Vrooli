@@ -424,7 +424,7 @@ func TestMagicLinkVerifyHandler_Success(t *testing.T) {
 	handler := handleMagicLinkVerify(authService)
 
 	// Make verification request
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token="+capturedToken, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{"token":"`+capturedToken+`"}`))
 	w := httptest.NewRecorder()
 
 	handler(w, req)
@@ -494,7 +494,7 @@ func TestMagicLinkVerifyHandler_ExpiredToken(t *testing.T) {
 
 	handler := handleMagicLinkVerify(authService)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token="+capturedToken, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{"token":"`+capturedToken+`"}`))
 	w := httptest.NewRecorder()
 
 	handler(w, req)
@@ -532,7 +532,7 @@ func TestMagicLinkVerifyHandler_UsedToken(t *testing.T) {
 	handler := handleMagicLinkVerify(authService)
 
 	// First request should succeed
-	req1 := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token="+capturedToken, nil)
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{"token":"`+capturedToken+`"}`))
 	w1 := httptest.NewRecorder()
 	handler(w1, req1)
 
@@ -541,7 +541,7 @@ func TestMagicLinkVerifyHandler_UsedToken(t *testing.T) {
 	}
 
 	// Second request should fail
-	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token="+capturedToken, nil)
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{"token":"`+capturedToken+`"}`))
 	w2 := httptest.NewRecorder()
 	handler(w2, req2)
 
@@ -558,7 +558,7 @@ func TestMagicLinkVerifyHandler_InvalidToken(t *testing.T) {
 
 	handler := handleMagicLinkVerify(authService)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token=invalid-token-12345", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{"token":"invalid-token-12345"}`))
 	w := httptest.NewRecorder()
 
 	handler(w, req)
@@ -576,7 +576,7 @@ func TestMagicLinkVerifyHandler_MissingToken(t *testing.T) {
 
 	handler := handleMagicLinkVerify(authService)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/verify", strings.NewReader(`{}`))
 	w := httptest.NewRecorder()
 
 	handler(w, req)

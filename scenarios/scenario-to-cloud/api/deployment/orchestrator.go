@@ -145,7 +145,7 @@ func (o *Orchestrator) ensureSecretsAvailable(
 	// explicitly empty secrets object as unhydrated too: older manifests and
 	// hand-authored manifests commonly carry `{secrets:{bundle_secrets:[]}}`,
 	// which must not suppress the current declaration-derived secret plan.
-	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
+	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 || len(manifest.LocalCredentialHandoffs) > 0 {
 		resources := manifest.Dependencies.Resources
 		if manifest.Edge.Caddy.Enabled {
 			resources = append(resources, "edge-dns")
@@ -180,7 +180,27 @@ func (o *Orchestrator) ensureSecretsAvailable(
 			return err
 		}
 
-		manifest.Secrets = secrets.BuildManifestSecrets(secretsResp)
+		hydrated := secrets.BuildManifestSecrets(secretsResp)
+		// Merge explicit handoff plans retained from the cloud manifest into
+		// the declaration-derived plans. They are scenario-owned credentials,
+		// so secrets-manager cannot discover them from resource rows.
+		if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
+			seen := make(map[string]struct{}, len(hydrated.BundleSecrets))
+			for _, plan := range hydrated.BundleSecrets {
+				seen[strings.TrimSpace(plan.ID)] = struct{}{}
+			}
+			for _, plan := range manifest.Secrets.BundleSecrets {
+				id := strings.TrimSpace(plan.ID)
+				if id != "" {
+					if _, ok := seen[id]; ok {
+						continue
+					}
+					seen[id] = struct{}{}
+				}
+				hydrated.BundleSecrets = append(hydrated.BundleSecrets, plan)
+			}
+		}
+		manifest.Secrets = hydrated
 		o.log("fetched secrets manifest", map[string]interface{}{
 			"scenario_id":   manifest.Scenario.ID,
 			"total_secrets": len(secretsResp.BundleSecrets),

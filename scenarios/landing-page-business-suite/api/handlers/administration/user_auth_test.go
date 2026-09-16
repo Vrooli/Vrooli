@@ -50,7 +50,7 @@ func TestFormatNullableTime(t *testing.T) {
 func TestRequestMagicLinkRejectsInvalidEmailBeforeService(t *testing.T) {
 	called, status := false, 0
 	deps := testUserAuthDependencies()
-	deps.Service = userAuthStub{request: func(context.Context, string, string, string) error { called = true; return nil }}
+	deps.Service = userAuthStub{request: func(admin.SignInRequest) error { called = true; return nil }}
 	deps.WriteError = func(_ http.ResponseWriter, got int, _, _ string) { status = got }
 	RequestMagicLink(deps).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(`{"email":"bad"}`)))
 	if status != http.StatusBadRequest || called {
@@ -59,23 +59,88 @@ func TestRequestMagicLinkRejectsInvalidEmailBeforeService(t *testing.T) {
 }
 
 func TestRequestMagicLinkRateLimitsBeforeService(t *testing.T) {
-	called, status := false, 0
+	called := false
 	deps := testUserAuthDependencies()
-	deps.Service = userAuthStub{request: func(context.Context, string, string, string) error { called = true; return nil }}
-	deps.RateLimiter = rateLimiterStub(false)
-	deps.WriteError = func(_ http.ResponseWriter, got int, _, _ string) { status = got }
-	RequestMagicLink(deps).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(`{"email":"user@example.test"}`)))
-	if status != http.StatusTooManyRequests || called {
-		t.Fatalf("status=%d called=%t", status, called)
+	deps.Service = userAuthStub{request: func(admin.SignInRequest) error { called = true; return nil }}
+	deps.Throttle = throttleStub(false)
+	recorder := httptest.NewRecorder()
+	RequestMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(`{"email":"user@example.test"}`)))
+	if recorder.Code != http.StatusTooManyRequests || called {
+		t.Fatalf("status=%d called=%t", recorder.Code, called)
+	}
+	if recorder.Header().Get("Retry-After") == "" || !strings.Contains(recorder.Body.String(), `"reason":"rate_limited"`) {
+		t.Fatalf("rate-limit response lacks retry guidance: headers=%v body=%s", recorder.Header(), recorder.Body.String())
 	}
 }
 
-func TestRequestMagicLinkDoesNotExposeServiceFailure(t *testing.T) {
+func TestRequestMagicLinkReportsDeliveryFailureTruthfully(t *testing.T) {
 	deps := testUserAuthDependencies()
-	deps.Service = userAuthStub{request: func(context.Context, string, string, string) error { return errors.New("mail provider unavailable") }}
+	deps.Service = userAuthStub{request: func(admin.SignInRequest) error {
+		return errors.Join(admin.ErrDeliveryUnavailable, errors.New("provider down"))
+	}}
 	recorder := httptest.NewRecorder()
 	RequestMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(`{"email":"USER@example.test"}`)))
-	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "sign-in request was processed") {
+	if recorder.Code != http.StatusServiceUnavailable || !strings.Contains(recorder.Body.String(), `"reason":"delivery_unavailable"`) {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "provider down") {
+		t.Fatalf("provider detail leaked: %s", recorder.Body.String())
+	}
+}
+
+func TestRequestMagicLinkForwardsNormalizedEmailBindingAndContext(t *testing.T) {
+	var got admin.SignInRequest
+	deps := testUserAuthDependencies()
+	deps.Service = userAuthStub{request: func(request admin.SignInRequest) error { got = request; return nil }}
+	recorder := httptest.NewRecorder()
+	body := `{"email":" User@Example.test ","browser_binding":"binding-binding-binding","context":{"redirect_uri":"http://127.0.0.1:4000/cb"}}`
+	RequestMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(body)))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got.Email != "user@example.test" || got.BrowserBinding != "binding-binding-binding" || !strings.Contains(string(got.Context), "127.0.0.1:4000") {
+		t.Fatalf("forwarded request = %#v", got)
+	}
+}
+
+func TestVerifySignInCodeThrottlesGuessesBeforeService(t *testing.T) {
+	called := false
+	deps := testUserAuthDependencies()
+	deps.Service = userAuthStub{verify: func(admin.SignInVerification) (*admin.SignInResult, error) { called = true; return nil, nil }}
+	deps.Throttle = throttleStub(false)
+	recorder := httptest.NewRecorder()
+	VerifySignInCode(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/verify-code", strings.NewReader(`{"email":"user@example.test","code":"123456","browser_binding":"binding-binding-binding"}`)))
+	if recorder.Code != http.StatusTooManyRequests || called {
+		t.Fatalf("status=%d called=%t", recorder.Code, called)
+	}
+}
+
+func TestVerifySignInCodeMapsWrongCodeToRecoverableReason(t *testing.T) {
+	deps := testUserAuthDependencies()
+	deps.Service = userAuthStub{verify: func(admin.SignInVerification) (*admin.SignInResult, error) { return nil, admin.ErrCodeInvalid }}
+	recorder := httptest.NewRecorder()
+	VerifySignInCode(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/verify-code", strings.NewReader(`{"email":"user@example.test","code":"123 456","browser_binding":"binding-binding-binding"}`)))
+	if recorder.Code != http.StatusUnauthorized || !strings.Contains(recorder.Body.String(), `"reason":"code_invalid"`) {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestVerifyMagicLinkReturnsContextOnlyWithResult(t *testing.T) {
+	deps := testUserAuthDependencies()
+	deps.SecureCookies = func() bool { return true }
+	deps.Now = time.Now
+	deps.Service = userAuthStub{verify: func(v admin.SignInVerification) (*admin.SignInResult, error) {
+		if v.Token != "tok" || v.BrowserBinding != "binding-binding-binding" {
+			t.Fatalf("verification = %#v", v)
+		}
+		return &admin.SignInResult{
+			Tokens: &admin.TokenPair{AccessToken: "a", RefreshToken: "r", ExpiresAt: time.Now().Add(time.Minute), TokenType: "Bearer"},
+			User:   &admin.User{ID: "u", Email: "user@example.test"}, SameBrowser: true, Context: []byte(`{"app":"x"}`),
+		}, nil
+	}}
+	recorder := httptest.NewRecorder()
+	VerifyMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/verify", strings.NewReader(`{"token":"tok","browser_binding":"binding-binding-binding"}`)))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"context":{"app":"x"}`) || len(recorder.Result().Cookies()) != 2 {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
@@ -83,29 +148,41 @@ func TestRequestMagicLinkDoesNotExposeServiceFailure(t *testing.T) {
 func testUserAuthDependencies() UserAuthDependencies {
 	return UserAuthDependencies{
 		ClientIP:   func(*http.Request) string { return "127.0.0.1" },
-		WriteError: func(http.ResponseWriter, int, string, string) {},
+		WriteError: func(w http.ResponseWriter, status int, _, _ string) { w.WriteHeader(status) },
 		Log:        func(string, map[string]any) {},
 		LogError:   func(string, map[string]any) {},
 	}
 }
 
-type rateLimiterStub bool
+type throttleStub bool
 
-func (r rateLimiterStub) Allow(string) bool { return bool(r) }
+func (t throttleStub) Allow(context.Context, string, admin.ThrottleRule) (bool, error) {
+	return bool(t), nil
+}
 
 type userAuthStub struct {
-	request func(context.Context, string, string, string) error
+	request func(admin.SignInRequest) error
+	verify  func(admin.SignInVerification) (*admin.SignInResult, error)
 }
 
-func (s userAuthStub) RequestMagicLink(ctx context.Context, email, ip, userAgent string) error {
-	if s.request == nil {
-		return nil
+func (s userAuthStub) RequestSignIn(_ context.Context, request admin.SignInRequest) (*admin.SignInStarted, error) {
+	if s.request != nil {
+		if err := s.request(request); err != nil {
+			return nil, err
+		}
 	}
-	return s.request(ctx, email, ip, userAgent)
+	return &admin.SignInStarted{ExpiresAt: time.Now().Add(15 * time.Minute)}, nil
 }
 
-func (userAuthStub) VerifyMagicLink(context.Context, string, string, string) (*admin.TokenPair, *admin.User, error) {
-	return nil, nil, nil
+func (userAuthStub) PreviewSignIn(context.Context, string, string) (*admin.SignInPreview, error) {
+	return &admin.SignInPreview{}, nil
+}
+
+func (s userAuthStub) VerifySignIn(_ context.Context, v admin.SignInVerification) (*admin.SignInResult, error) {
+	if s.verify == nil {
+		return nil, admin.ErrTokenInvalid
+	}
+	return s.verify(v)
 }
 func (userAuthStub) RefreshTokens(context.Context, string) (*admin.TokenPair, error) { return nil, nil }
 func (userAuthStub) Logout(context.Context, string) error                            { return nil }

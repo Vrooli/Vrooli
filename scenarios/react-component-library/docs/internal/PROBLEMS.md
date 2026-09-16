@@ -31,6 +31,38 @@ they appear.
 
 ## Work ladder — RCL Prompt Manager UX campaign (2026-09-16)
 
+### Guided workspace navigation replay — 2026-09-16
+
+- Rung: W3, scoped implementation and behavior-evidence repair under the existing
+  executable page-design target.
+- Evidence: persisted BAS replay found that Review and Adoption anchors resolved
+  against the app root and that Adoption preceded Review in DOM order. The repair
+  uses scenario/page route-preserving hashes, a real Review target wrapper, and the
+  intended Brief → Compose → Review → Adopt order.
+- Validation: DesignPage tests 22/22; TypeScript clean; managed RCL build/start
+  healthy; BAS workflow `d93816dd-75ec-443a-846a-e4ad91bc386c@4` completed
+  execution `efaf11f8-618b-487a-950b-d825c752935c` with all nine steps passing.
+- Limitation: this proves seeded navigation and capture only. Full authoring,
+  render, critique, import/adoption mutation, state breadth, and full-corpus
+  experience acceptance remain open.
+- Measured: 2026-09-16.
+
+### Durable preview artifacts for seeded candidate corpus — 2026-09-16
+
+- Rung: W3, scoped implementation/evidence repair under the existing catalog and
+  preview targets.
+- Evidence: the seeded replay initially exposed missing preview responses for
+  `CollectionPage` 1.7.1 and `CopyIconButton` 1.0.1. The existing capture tool
+  generated story-backed `preview.png` artifacts; the valid manifest shape was
+  restored after confirming `CollectionPage` is inferred from its authored root.
+- Validation: managed restart re-indexed `CollectionPage` as
+  `react-component-library:CollectionPage` with `catalogId=templates.collection-page`;
+  both exact preview URLs returned HTTP 200; unrelated startup warnings remain for
+  `AmbientDisplayShell` and `CycleController` historical versions.
+- Limitation: this repairs preview evidence for the two observed assets, not the
+  broader 553-finding experience corpus or full campaign acceptance.
+- Measured: 2026-09-16.
+
 - Rung: W3, scoped implementation repair under the existing executable page-design
   target.
 - Evidence: live captures showed the design route reading as a long technical
@@ -439,3 +471,76 @@ reported swap pressure; the experience phase recorded 609 findings (513 errors, 
 warnings) from its pre-repair snapshot. This receipt is retained as terminal
 evidence, but it is not interpreted as a product assertion failure or a completion
 gate. A scoped rerun is required after the current metadata and mobile-shell repairs.
+
+## 2026-09-16 — Historical multi-file versions needed explicit catalog entries
+
+The managed restart after the seeded preview repair exposed two genuine startup
+index warnings: `AmbientDisplayShell/0.1.2` and `CycleController/0.1.2` each contain
+two TSX files, so filename inference could not select an entry file. The authored
+files were already identifiable by their preserved library headers
+(`AmbientShell.tsx` and `BoardController.tsx`). Adding explicit manifest entries
+removed the warnings without changing the component source. A managed stop/start
+re-indexed both assets at `0.1.2`; the focused indexer tests for walking, entry plus
+companion files, and legacy component resolution pass. The full indexer package still
+has a pre-existing `DrawerShell` dependency-version expectation failure, which is
+recorded as separate validation debt.
+
+## 2026-09-16 — Design workspace short-viewport chrome exceeded the floor
+
+The current experience report identified two active DesignPage defects: the `sm`-
+breakpoint sticky header could pin a workflow block below a short landscape viewport,
+and the measured `Brief` workflow target was below the 44px interaction floor. The
+workspace now pins its header only at the `lg` breakpoint and gives each workflow card
+an explicit touch-height minimum. DesignPage tests pass 23/23 with TypeScript clean.
+The independent experience validator could not produce a post-change receipt: both
+scenario and `--path` invocations entered a repeated `GetReadinessProfile` HTTP 400
+loop and were stopped. This tooling failure is retained separately from the product
+repair.
+
+## 2026-09-16 — Reference generation was available but not bound to RCL
+
+The placeholder editor previously recorded image-tools / AI Gateway generation as
+unavailable without checking the host. On the current managed host, image-tools exposes
+`text_to_image` and reports `sd-1.5` installed. RCL now resolves that scenario through
+discovery, submits a local-only generation, waits once on the durable job, stores the
+returned PNG using the existing reference-asset store, and returns job/model/tier/
+warning provenance to the UI. The live proving request completed as job
+`c2f8ee71-ab74-4979-bc7f-7962984ade65`; the stored 512x512 PNG returned HTTP 200.
+The adapter preserves an honest unavailable/error state when the provider or model is
+not available. The broader candidate approval and independent-review gates remain open.
+## Experience readiness compiler rejected orphaned component bindings
+
+- **Status:** repaired; canonical validation completed with inherited corpus debt
+- **Observed:** the experience-manager readiness compiler rejected the RCL corpus
+  before it could assess the browser surfaces because `collection-list` and
+  `filter-bar` declared `surface` elements without bindings. The previous campaign
+  record incorrectly described this as a validator outage.
+- **Remedy:** bound `collection-list.surface` to
+  `[data-rcl-collection-container]` and `filter-bar.surface` to
+  `[data-rcl-filter-bar]`, matching the authored component DOM and story contracts.
+- **Evidence:** direct managed `GetReadinessProfile` now returns a compiled
+  `experience-readiness-profile/v1` for the RCL scenario. The latest canonical
+  validator completed and reports 421 errors, 96 warnings, and 18
+  capture-unavailable informational findings; the orphaned binding findings are
+  absent from that result.
+- **Remaining:** do not claim corpus readiness. The remaining required findings
+  are broad capture-join and floor debt outside the campaign-owned proving path.
+
+## Local page compositions were registered as reusable component harnesses
+
+- **Status:** repaired; canonical validation completed
+- **Observed:** `capabilities-page`, `settings-page`, `design-page`, and
+  `preview-popout-page` are route-owned local compositions, but the experience
+  index marked them `active` components. Reconciliation therefore attempted to
+  render them through the reusable library component harness and produced false
+  `capture_bindings_unjoined` findings.
+- **Remedy:** classified those local compositions as `draft` component entries;
+  their owning page contracts remain active and continue to carry the page-level
+  validation target. Added concrete `runtimeRoutes` for the design workspace and
+  replaced the placeholder BAS route with the seeded `switchboard/dashboard` route.
+- **Evidence:** the scoped design fixture no longer reports unresolved references
+  or local-composition capture-binding findings; only capture-unavailable info
+  remains because the temporary target has no live BAS observer registration.
+- **Remaining:** the canonical validator still reports inherited capture/floor debt;
+  route-owned page composition findings are no longer being counted as reusable
+  component-harness failures.

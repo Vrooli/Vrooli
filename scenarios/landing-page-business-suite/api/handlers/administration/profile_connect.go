@@ -27,7 +27,7 @@ func (h *ProfileConnectHandler) GetAdminProfile(ctx context.Context, request *co
 	if request == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("profile request is required"))
 	}
-	r, _ := connectHTTP(ctx, request.Header())
+	r, _ := connectHTTP(ctx, request.Header(), request.Peer().Addr)
 	email, ok := profileSessionEmail(h.deps, r)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("admin session is not authenticated"))
@@ -47,7 +47,7 @@ func (h *ProfileConnectHandler) UpdateAdminProfile(ctx context.Context, request 
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("profile update request is required"))
 	}
-	r, w := connectHTTP(ctx, request.Header())
+	r, w := connectHTTP(ctx, request.Header(), request.Peer().Addr)
 	currentEmail, ok := profileSessionEmail(h.deps, r)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("admin session is not authenticated"))

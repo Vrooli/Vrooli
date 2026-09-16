@@ -2,6 +2,7 @@ package sketch
 
 import (
 	"fmt"
+
 	"react-component-library/internal/preview"
 )
 
@@ -42,6 +43,7 @@ func PrepareRender(snapshot Snapshot, missingLabel, failedLabel string) (preview
 	}
 	c := preview.Composition{Revision: snapshot.ContentHash, Template: preview.CompositionAsset{CatalogID: doc.Template.Asset, Version: doc.Template.Version, Export: doc.Render.TemplateExport}}
 	regions := map[string]bool{}
+	templatePorts := map[string]bool{}
 	for _, list := range [][]Region{snapshot.DeclaredRegions, doc.Regions} {
 		for _, r := range list {
 			// Template placeholders are catalog structure, not semantic page
@@ -49,6 +51,7 @@ func PrepareRender(snapshot Snapshot, missingLabel, failedLabel string) (preview
 			// slots selected for this candidate; keeping placeholders here would
 			// make unused ports look like unmapped authored regions.
 			if r.Origin == "template" {
+				templatePorts[r.ID] = true
 				continue
 			}
 			regions[r.ID] = true
@@ -64,7 +67,7 @@ func PrepareRender(snapshot Snapshot, missingLabel, failedLabel string) (preview
 	}
 	mapped := map[string]bool{}
 	for _, r := range doc.Render.Regions {
-		if !regions[r.ID] || mapped[r.ID] {
+		if (!regions[r.ID] && !templatePorts[r.ID]) || mapped[r.ID] {
 			return preview.PreparedComposition{}, fmt.Errorf("unknown or duplicate rendering region %s", r.ID)
 		}
 		mapped[r.ID] = true

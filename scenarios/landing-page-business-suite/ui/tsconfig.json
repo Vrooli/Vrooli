@@ -18,6 +18,7 @@
       "@vrooli/proto-types/landing-page-business-suite/v1/variant_section_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/variant_section_pb"],
       "@vrooli/proto-types/landing-page-business-suite/v1/waitlist_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/waitlist_pb"],
       "@vrooli/proto-types/landing-page-business-suite/v1/admin_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/admin_pb"],
+      "@vrooli/proto-types/landing-page-business-suite/v1/branding_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/branding_pb"],
       "@vrooli/proto-types/landing-page-business-suite/v1/*": ["node_modules/@vrooli/proto-types/landing-page-business-suite/v1/*"],
       "@bufbuild/protobuf": ["node_modules/@bufbuild/protobuf/dist/esm/index.d.ts"],
       "@bufbuild/protobuf/codegenv2": ["node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.d.ts"],

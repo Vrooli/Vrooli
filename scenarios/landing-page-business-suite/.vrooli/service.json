@@ -31,6 +31,7 @@
   "environment": {
     "PUBLIC_BASE_URL": "https://vrooli.com",
     "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify",
+    "CONSUMER_AUTH_KEY_ID": "lpbs-consumer-v1",
     "STRIPE_MODE": "test",
     "STRIPE_PLANS_PATH": ".vrooli/plans.json"
   },
@@ -66,7 +67,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000
+      "startup_grace_period": 300000
     },
     "version": "2.0.0"
   },
@@ -80,6 +81,37 @@
       "description": "React UI",
       "env_var": "UI_PORT",
       "range": "20000-24999"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "go_module",
+        "dir": "ui",
+        "output": "ui/landing-page-business-suite-ui"
+      },
+      "run": {
+        "argv": [
+          "{{bin.ui}}"
+        ],
+        "port": "ui",
+        "cwd": "ui"
+      }
     }
   },
   "deployment": {
@@ -244,6 +276,15 @@
       "tier-1-local",
       "tier-4-saas"
         ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-mfa-encryption-key",
+        "label": "Admin two-factor encryption key",
+        "description": "Versioned encryption ring minted by LPBS that seals administrator authenticator-app secrets. Losing it disables two-factor sign-in until an operator resets it; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": ["tier-1-local", "tier-4-saas"]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -531,9 +572,10 @@
       {"logical_id":"vrooli/landing-page-business-suite","field":"api-key-encryption-key","kind":"generated","consumer":"provider-key encryption ring","source_ref":"api/main.go:209","required":true},
       {"logical_id":"vrooli/openrouter","field":"api-key","kind":"authority","consumer":"LPBS metered inference provider","source_ref":"api/internal/intelligence/credential_authority_api_key_service.go:25","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"remote-profile-encryption-key","kind":"generated","consumer":"remote-profile encryption ring","source_ref":"api/main.go:209","required":true},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"admin-mfa-encryption-key","kind":"generated","consumer":"admin two-factor secret encryption ring","source_ref":"api/admin_mfa_composition.go:12","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"consumer-auth-private-key","kind":"generated","consumer":"customer token signer","source_ref":"api/main.go:464","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"admin-default-password","kind":"authority","consumer":"seeded administrator bootstrap","source_ref":"api/auth.go:79","required":true},
-      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"magic-link mail delivery","source_ref":"api/email_service.go:70","required":false},
+      {"logical_id":"vrooli/landing-page-business-suite","field":"sendgrid-api-key","kind":"authority","consumer":"sign-in code and link mail delivery","source_ref":"api/email_service.go:70","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"smtp-password","kind":"authority","consumer":"feedback SMTP delivery","source_ref":"api/email_service.go:197","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-secret-key","kind":"authority","consumer":"Stripe API migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:100","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},
       {"logical_id":"vrooli/landing-page-business-suite","field":"stripe-webhook-secret","kind":"authority","consumer":"Stripe webhook migration fallback","source_ref":"api/internal/commerce/payment_settings_service.go:103","required":false,"reason":"Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."},

@@ -71,6 +71,7 @@ type EmailService struct {
 	smtpSender                SMTPSenderFunc
 	smtpPasswordResolver      func() (string, error)
 	allowUnconfiguredDelivery bool
+	brandingSource            func() *experimentation.SiteBranding
 }
 
 const defaultSendGridEndpoint = "https://api.sendgrid.com/v3/mail/send"

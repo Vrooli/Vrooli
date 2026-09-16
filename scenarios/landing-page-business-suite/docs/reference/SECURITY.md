@@ -29,8 +29,8 @@ This document covers security architecture, configuration, and best practices fo
 ### Project identity and LPBS ownership
 
 This guide describes the current LPBS website compatibility boundary. LPBS
-currently authenticates its website users with its local magic-link/JWT
-compatibility flow, while the target platform contract assigns person
+currently authenticates its website users with its local emailed-code or
+one-use-link/JWT compatibility flow, while the target platform contract assigns person
 identity, MFA, machine bindings, and local authorization to
 `scenario-authenticator`. LPBS remains the authority for business accounts,
 subscriptions, commercial entitlements, usage, and signed entitlement leases.
@@ -51,6 +51,24 @@ addresses, copied website tokens, and request-body identity fields are never
 enough to establish an account link. See the project-level [Identity and
 Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 
+### Customer sign-in endpoints
+
+All are public and throttled durably (see `docs/internal/SECURITY-POSTURE.md`).
+
+| Method | Path | Body | Result |
+|--------|------|------|--------|
+| POST | `/api/v1/auth/magic-link` | `email`, `browser_binding`, optional app `context` | Emails a 6-digit code and a one-use link; `200 {expires_at}`, or `503` with `reason: delivery_unavailable` |
+| POST | `/api/v1/auth/magic-link/preview` | `token`, `browser_binding` | Masked email, expiry, flow, and (same browser only) app context. Does not consume the link |
+| POST | `/api/v1/auth/verify` | `token`, `browser_binding` | Consumes the link; sets HttpOnly cookies |
+| POST | `/api/v1/auth/verify-code` | `email`, `code`, `browser_binding` | Consumes the newest matching request from the same browser; sets HttpOnly cookies |
+| GET/POST | `/api/v1/auth/authorize` | PKCE parameters plus `token` or `email`+`code` | Native apps: one-use authorization code to a loopback redirect. `GET` with no credential redirects to `/auth/login` |
+
+`browser_binding` is a random value the sign-in pages keep in the browser's
+local storage. It never authenticates on its own; it limits code entry and app
+context to the browser that started sign-in. Failures carry a stable `reason`
+(`token_expired`, `token_used`, `token_invalid`, `code_invalid`,
+`rate_limited`, `delivery_unavailable`).
+
 ### Desktop account-link endpoints
 
 The desktop link protocol is separate from the compatibility
@@ -61,7 +79,7 @@ clients. The desktop protocol is:
    installation, resource, audience, scopes, S256 challenge, and loopback
    redirect. The login page displays the requested capability set before the
    user continues.
-2. After the magic link establishes the browser's HttpOnly same-origin session,
+2. After the emailed code or link establishes the browser's HttpOnly same-origin session,
    the browser lists the user's LPBS business accounts. If more than one is
    available, the user must select one; LPBS verifies membership server-side.
    The browser then `POST`s `/api/v1/desktop/links` with the selected account,
@@ -145,7 +163,13 @@ The admin portal uses session-based authentication with bcrypt password hashing:
 │     │ WHERE email = $1                                │         │
 │     │                                                 │         │
 │     │ bcrypt.CompareHashAndPassword(hash, password)   │         │
+│     │ (unknown email: same bcrypt work; failures are  │         │
+│     │  throttled per email and per client IP)         │         │
 │     └─────────────────────────────────────────────────┘         │
+│                                                    │             │
+│  2b. If two-factor is on and totp_code is empty:   ▼             │
+│      failed_precondition → client asks for the code; │           │
+│      verify TOTP (no step reuse) or a recovery code  │           │
 │                                                    │             │
 │  3. Create session                                 ▼             │
 │     ┌─────────────────────────────────────────────────┐         │

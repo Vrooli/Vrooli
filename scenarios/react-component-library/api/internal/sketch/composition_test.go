@@ -11,6 +11,7 @@ import (
 func renderSnapshot() Snapshot {
 	return Snapshot{ContentHash: "exact-page-hash", DeclaredRegions: []Region{{ID: "inspector"}}, Document: Document{Template: &AssetRef{Asset: "templates.collection-page", Version: "1.0.7"}, Placements: []Placement{{Region: "inspector", Fills: Fill{Asset: "controls.button", Version: "2.2.9"}}}, Render: &RenderSettings{TemplateExport: "CollectionPage", Regions: []RenderRegion{{ID: "inspector", Export: "Button", Slot: []string{"data", "inspector"}}}, Bindings: map[string]any{"$template": map[string]any{}, "inspector": map[string]any{"children": "Inspect"}}}}}
 }
+
 func TestPrepareRenderUsesAuthoredAssetIdentitiesAndRevision(t *testing.T) {
 	s := renderSnapshot()
 	got, err := PrepareRender(s, "Missing", "Failed")
@@ -29,6 +30,7 @@ func TestPrepareRenderUsesAuthoredAssetIdentitiesAndRevision(t *testing.T) {
 		t.Fatal("localized runtime labels mutated saved bindings")
 	}
 }
+
 func TestPrepareRenderCannotSilentlyOmitDeclaredRegions(t *testing.T) {
 	s := renderSnapshot()
 	s.DeclaredRegions = append(s.DeclaredRegions, Region{ID: "unmapped"})
@@ -51,6 +53,22 @@ func TestPrepareRenderTreatsOccupiedTemplatePlaceholdersAsSlots(t *testing.T) {
 		t.Fatalf("occupied template placeholder was treated as an unmapped semantic region: %v", err)
 	}
 }
+
+func TestPrepareRenderAllowsMappedTemplatePortsWithoutTreatingPlaceholdersAsObligations(t *testing.T) {
+	s := Snapshot{
+		ContentHash:     "mapped-port-revision",
+		DeclaredRegions: []Region{{ID: "attention-region", Note: "Authored attention"}},
+		Document: Document{
+			Template: &AssetRef{Asset: "templates.collection-page", Version: "1.7.1"},
+			Regions:  []Region{{ID: "header", Origin: "template"}, {ID: "attention-region", Note: "Authored attention"}},
+			Render:   &RenderSettings{TemplateExport: "CollectionPage", Regions: []RenderRegion{{ID: "attention-region", TemplateRegion: "header", Slot: []string{"regions", "header"}}}, Bindings: map[string]any{"$template": map[string]any{}}},
+		},
+	}
+	if _, err := PrepareRender(s, "Missing", "Failed"); err != nil {
+		t.Fatalf("mapped authored region should be renderable: %v", err)
+	}
+}
+
 func TestPrepareRenderRetainsEmptyRegionsAndMissingFixtures(t *testing.T) {
 	s := renderSnapshot()
 	s.Document.Placements = nil
@@ -69,10 +87,10 @@ func TestPrepareRenderRetainsEmptyRegionsAndMissingFixtures(t *testing.T) {
 func TestRenderSettingsAreRevisionedAndRemovable(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"sketch":{}}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(root)
@@ -98,6 +116,7 @@ func TestRenderSettingsAreRevisionedAndRemovable(t *testing.T) {
 		t.Fatal("stale render revision accepted")
 	}
 }
+
 func TestTemplateChangeInvalidatesOldRenderPorts(t *testing.T) {
 	doc := renderSnapshot().Document
 	got, err := ChangeTemplate(doc, AssetRef{Asset: "templates.other", Version: "1.0.0"}, []string{"inspector"}, nil)

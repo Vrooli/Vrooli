@@ -115,8 +115,8 @@ describe('isAllowedCallbackUrl [REQ:AUTH-SECURITY]', () => {
   });
 
   describe('edge cases', () => {
-    it('rejects IPv6 localhost (::1)', () => {
-      expect(isAllowedCallbackUrl('http://[::1]:3000/callback')).toBe(false);
+    it('allows IPv6 loopback, matching the server and native client loopback rules', () => {
+      expect(isAllowedCallbackUrl('http://[::1]:3000/callback')).toBe(true);
     });
 
     it('allows encoded localhost (URL constructor normalizes it)', () => {

@@ -21,6 +21,14 @@
   ],
   "claims": [
     {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The experience surface exposes a stable rendered region.",
+      "elements": ["surface"],
+      "states": ["loading", "ready", "empty", "partial", "error", "static"],
+      "tier": "machine"
+    },
+    {
       "id": "stable-surface-identity",
       "type": "manual-review",
       "statement": "Every example exposes its stable surface identity and lifecycle state through data-experience-surface and data-experience-state.",

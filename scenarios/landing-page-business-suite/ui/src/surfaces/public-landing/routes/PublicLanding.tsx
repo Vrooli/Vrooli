@@ -8,6 +8,8 @@ import { canonicalPresentationHref, publicHref, resolvePublicPresentation } from
 import { PublicPresentationState } from '../presentation/PublicPresentationState';
 import { resolvePricing } from '../presentation/commerce';
 import { usePresentationExposure } from '../presentation/usePresentationExposure';
+import { useSiteIdentity } from '../site/useSiteIdentity';
+import { socialImageUrl } from '../site/siteMeta';
 import type { PresentationDiagnostics } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/product_presentation_pb';
 
 export const PRESENTATION_READY_TIMEOUT_MS = 15000;
@@ -31,6 +33,7 @@ export function PublicLanding() {
   const { config, loading, notFound, refresh, refreshable, request, canonicalBaseUrl } = useLandingVariant();
   const location = useLocation();
   const base = useHref('/');
+  const identity = useSiteIdentity();
   const resolved = useMemo(() => {
     if (!config?.presentation || !request) return undefined;
     try { return resolvePublicPresentation(config.presentation, request, base, config.downloads); }
@@ -41,12 +44,13 @@ export function PublicLanding() {
       return undefined;
     }
   }, [config, request, base]);
+  const siteLinks = { privacyHref: publicHref('/privacy', base), termsHref: publicHref('/terms', base), contactHref: publicHref('/contact', base), contactEmail: identity.contactEmail, address: identity.addressLines.join(', ') || undefined };
   if (location.pathname !== '/' && !/^\/apps\/[a-z0-9][a-z0-9-]*$/.test(location.pathname)) return <PublicPresentationState state="not-found" />;
   if (loading) return <PublicPresentationState state="loading" />;
   if (notFound) return <PublicPresentationState state="not-found" />;
   const diagnostics = config?.presentation.diagnostics;
   if (!resolved || !diagnostics) return <PublicPresentationState state="unavailable" retry={refreshable === false ? undefined : () => { void refresh(); }} />;
-  return <ReadyPresentation key={`${location.pathname}:${diagnostics.resolvedVariant}:${diagnostics.resolvedRevision}:${diagnostics.locale}`} {...resolved} authHref={publicHref('/auth/login', base)} resolvedPricing={resolvePricing(resolved.presentation, config.pricing)} diagnostics={diagnostics} canonicalBaseUrl={canonicalBaseUrl} />;
+  return <ReadyPresentation key={`${location.pathname}:${diagnostics.resolvedVariant}:${diagnostics.resolvedRevision}:${diagnostics.locale}`} {...resolved} authHref={publicHref('/auth/login', base)} siteLinks={siteLinks} resolvedPricing={resolvePricing(resolved.presentation, config.pricing)} diagnostics={diagnostics} canonicalBaseUrl={canonicalBaseUrl} />;
 }
 
 function ReadyPresentation({ diagnostics: d, canonicalBaseUrl, ...props }: PresentationPageProps & { diagnostics: PresentationDiagnostics; canonicalBaseUrl?: string }) {
@@ -63,7 +67,7 @@ function ReadyPresentation({ diagnostics: d, canonicalBaseUrl, ...props }: Prese
     const authority = canonicalBaseUrl ?? document.querySelector<HTMLMetaElement>('meta[name="presentation-canonical-base"]')?.content;
     const canonical = canonicalPresentationHref(authority, d.resolvedRoute);
     if (!canonical) document.querySelector('link[rel="canonical"]')?.remove();
-    updateMetaTags({ title: page.title, description: page.description, canonical, noindex: d.noindex || Boolean(d.requestedVariant), twitterCard: 'summary' });
+    updateMetaTags({ title: page.title, description: page.description, canonical, noindex: d.noindex || Boolean(d.requestedVariant), ogImage: socialImageUrl(authority), twitterCard: 'summary_large_image' });
     let ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
     if (canonical) {
       if (!ogUrl) { ogUrl = document.createElement('meta'); ogUrl.setAttribute('property', 'og:url'); document.head.append(ogUrl); }

@@ -36,7 +36,11 @@ const api = vi.hoisted(() => ({
   verifySketch: vi.fn(),
 }));
 vi.mock("../api/catalog", () => ({ searchDesignAssets: api.searchDesignAssets }));
-vi.mock("../api/sketch", () => ({ sketchClient: api }));
+vi.mock("../api/sketch", () => ({
+  sketchClient: api,
+  generateReferenceAsset: vi.fn(),
+  uploadReferenceAsset: vi.fn(),
+}));
 const sketch = {
   regions: [{ id: "body", note: "Main task", elements: [] }],
   placements: [],
@@ -73,14 +77,42 @@ describe("Design workspace", () => {
   it("reopens an archived candidate without selecting it as the current page", async () => {
     setup();
     const candidate = { scenario: "demo", designId: "design-one", hash: "saved-revision" };
-    api.listCandidates.mockResolvedValue({ candidates: [{ candidate, parentHash: "parent-revision", templateAsset: "templates.page", templateVersion: "1.0.0" }] });
-    api.getCandidate.mockResolvedValue({ candidate, page: "page", baseHash: "older-base", parentHash: "parent-revision", sketch, declaredRegions: [], refinement: { round: 1, budget: 3, reason: "Clarify recovery", changedRegions: ["body"] } });
+    api.listCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate,
+          parentHash: "parent-revision",
+          templateAsset: "templates.page",
+          templateVersion: "1.0.0",
+        },
+      ],
+    });
+    api.getCandidate.mockResolvedValue({
+      candidate,
+      page: "page",
+      baseHash: "older-base",
+      parentHash: "parent-revision",
+      sketch,
+      declaredRegions: [],
+      refinement: { round: 1, budget: 3, reason: "Clarify recovery", changedRegions: ["body"] },
+    });
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "design-one", revision: "saved-revision".slice(0, 12) }) }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: i18n.t("design.openCandidate", {
+          design: "design-one",
+          revision: "saved-revision".slice(0, 12),
+        }),
+      }),
+    );
     await waitFor(() => expect(api.getCandidate).toHaveBeenCalledWith(candidate));
-    await waitFor(() => expect(document.querySelector('[data-candidate-hash="saved-revision"]')).toBeTruthy());
+    await waitFor(() =>
+      expect(document.querySelector('[data-candidate-hash="saved-revision"]')).toBeTruthy(),
+    );
     expect(await screen.findByText("Clarify recovery")).toBeInTheDocument();
-    expect(screen.getByText(i18n.t("design.refinementRound", { round: 1, budget: 3 }))).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("design.refinementRound", { round: 1, budget: 3 })),
+    ).toBeInTheDocument();
     expect(api.putSketch).not.toHaveBeenCalled();
     expect(api.saveCandidate).not.toHaveBeenCalled();
   });
@@ -90,35 +122,119 @@ describe("Design workspace", () => {
     const workspace = await screen.findByRole("region", { name: i18n.t("design.workspace") });
     const brief = document.querySelector("#design-brief");
     const canvas = document.querySelector("#design-canvas");
+    const review = document.querySelector("#design-review");
+    const adoption = document.querySelector("#design-adoption");
     expect(brief).toBeTruthy();
     expect(canvas).toBeTruthy();
+    expect(review).toBeTruthy();
+    expect(adoption).toBeTruthy();
     expect(brief!.compareDocumentPosition(canvas!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(canvas!.compareDocumentPosition(review!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(review!.compareDocumentPosition(adoption!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const workflow = document.querySelector('nav[aria-label="Design workflow"]');
-    expect(workflow?.querySelector('a[href="#design-brief"]')).toBeTruthy();
-    expect(workflow?.querySelector('a[href="#design-canvas"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href$="#design-brief"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href$="#design-canvas"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href$="#design-review"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href$="#design-adoption"]')).toBeTruthy();
+    expect(workflow?.querySelector('a[href$="#design-brief"]')?.className).not.toContain(
+      "border-emerald",
+    );
     expect(workspace).toBeInTheDocument();
+  });
+
+  it("keeps workflow chrome usable at short landscape heights", async () => {
+    setup();
+    renderPage();
+    const header = await screen.findByTestId("design-workspace-header");
+    expect(header.className).toContain("lg:sticky");
+    expect(header.className).not.toContain("sm:sticky");
+
+    const workflow = screen.getByRole("navigation", { name: "Design workflow" });
+    const links = workflow.querySelectorAll("a");
+    expect(links).toHaveLength(4);
+    for (const link of links) expect(link.className).toContain("min-h-touch");
   });
 
   it("keeps image-less reference revisions visible for honest comparison", async () => {
     const current = {
       ...sketch,
-      placements: [{
-        region: "body",
-        fills: { placeholder: "brief-only-v2", intent: "A readable responsive work surface." },
-        note: "reference-source=generated; provenance=unavailable: no image-tools binding; visual-contract=preserve hierarchy; replacement-owner=page implementation",
-      }],
+      placements: [
+        {
+          region: "body",
+          fills: { placeholder: "brief-only-v2", intent: "A readable responsive work surface." },
+          note: "reference-source=generated; provenance=unavailable: no image-tools binding; visual-contract=preserve hierarchy; replacement-owner=page implementation",
+        },
+      ],
     };
     api.getSketch.mockResolvedValue({ sketch: current, contentHash: "current-hash" });
-    api.getHistory.mockResolvedValue({ revisions: [
-      { contentHash: "current-hash", createdAt: "2026-01-02", sketch: current, current: true },
-      { contentHash: "old-hash", createdAt: "2026-01-01", sketch: { ...current, placements: [{ ...current.placements[0], fills: { placeholder: "uploaded-v1" }, note: "reference-source=uploaded; asset-url=/api/v1/reference-assets/demo.png; visual-contract=preserve hierarchy" }] }, current: false },
-    ] });
+    api.getHistory.mockResolvedValue({
+      revisions: [
+        { contentHash: "current-hash", createdAt: "2026-01-02", sketch: current, current: true },
+        {
+          contentHash: "old-hash",
+          createdAt: "2026-01-01",
+          sketch: {
+            ...current,
+            placements: [
+              {
+                ...current.placements[0],
+                fills: { placeholder: "uploaded-v1" },
+                note: "reference-source=uploaded; asset-url=/api/v1/reference-assets/demo.png; visual-contract=preserve hierarchy",
+              },
+            ],
+          },
+          current: false,
+        },
+      ],
+    });
     renderPage();
     expect(await screen.findByText(/No reference bytes attached/)).toBeInTheDocument();
     expect(screen.getByText("body · generated")).toBeInTheDocument();
     expect(screen.getByText("brief-only-v2")).toBeInTheDocument();
     expect(screen.getByText(/body · uploaded/)).toBeInTheDocument();
   });
+
+  it("restores the saved brief and writes a durable brief revision", async () => {
+    const current = {
+      ...sketch,
+      intent: {
+        intent: "Operate a clear work surface",
+        users: ["Operator"],
+        primaryTasks: ["Review the next action"],
+        target: "react-vite",
+        kit: "vrooli-default",
+        viewports: ["phone", "desktop"],
+        constraints: {
+          designSource: "DESIGN.md",
+          preserveRoutes: true,
+          preserveBusinessBehavior: true,
+        },
+      },
+    };
+    api.getSketch.mockResolvedValue({ sketch: current, contentHash: "current-hash" });
+    api.putSketch.mockResolvedValue({ contentHash: "brief-revision" });
+    renderPage();
+    expect(await screen.findByDisplayValue("Operate a clear work surface")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(i18n.t("design.proposeIntent")), {
+      target: { value: "Operate a calmer work surface" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save brief revision" }));
+    await waitFor(() =>
+      expect(api.putSketch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedContentHash: "current-hash",
+          sketch: expect.objectContaining({
+            intent: expect.objectContaining({
+              intent: "Operate a calmer work surface",
+              users: ["Operator"],
+              primaryTasks: ["Review the next action"],
+            }),
+          }),
+        }),
+      ),
+    );
+  });
+
   it("requires confirmation for displaced occupants after template preview", async () => {
     setup();
     api.searchDesignAssets.mockResolvedValue({
@@ -144,7 +260,9 @@ describe("Design workspace", () => {
     fireEvent(details, new Event("toggle"));
     fireEvent.click(screen.getByRole("button", { name: /Choose a template/ }));
     await screen.findByRole("option", { name: /New template/ });
-    fireEvent.change(screen.getByLabelText(i18n.t("design.template")), { target: { value: "templates.new" } });
+    fireEvent.change(screen.getByLabelText(i18n.t("design.template")), {
+      target: { value: "templates.new" },
+    });
     fireEvent.click(screen.getByRole("button", { name: i18n.t("design.previewRemap") }));
     const apply = await screen.findByRole("button", { name: i18n.t("design.applyTemplate") });
     expect(apply).toBeDisabled();
@@ -238,16 +356,25 @@ describe("Design workspace", () => {
     );
   });
   it("ranks declared work first and makes empty scenarios available on request", async () => {
-    api.listDesignPages.mockResolvedValue({ scenarios: [
-      { scenario: "aaa-empty", pageCount: 0 },
-      { scenario: "small", pageCount: 1 },
-      { scenario: "useful", pageCount: 8 },
-    ], pages: [], issues: [] });
+    api.listDesignPages.mockResolvedValue({
+      scenarios: [
+        { scenario: "aaa-empty", pageCount: 0 },
+        { scenario: "small", pageCount: 1 },
+        { scenario: "useful", pageCount: 8 },
+      ],
+      pages: [],
+      issues: [],
+    });
     renderPage("/design");
     await screen.findByRole("link", { name: /useful/ });
     expect(screen.queryByRole("link", { name: /aaa-empty/ })).not.toBeInTheDocument();
-    const links = screen.getAllByRole("link").filter(link => link.getAttribute("href")?.startsWith("/design/"));
-    expect(links.map(link => link.getAttribute("href"))).toEqual(["/design/useful", "/design/small"]);
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href")?.startsWith("/design/"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/design/useful",
+      "/design/small",
+    ]);
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getByRole("link", { name: /aaa-empty/ })).toBeInTheDocument();
   });
@@ -280,7 +407,7 @@ describe("Design workspace", () => {
     expect(screen.getByRole("button", { name: i18n.t("design.verify") })).toBeDisabled();
     expect(screen.getByLabelText(i18n.t("design.note", { region: "body" }))).toBeDisabled();
   });
-it("does not present source verification as visual acceptance", async () => {
+  it("does not present source verification as visual acceptance", async () => {
     setup();
     api.verifySketch.mockResolvedValue({
       passes: false,
@@ -293,30 +420,69 @@ it("does not present source verification as visual acceptance", async () => {
       await screen.findByText(i18n.t("design.coverage", { built: 0, total: 2 })),
     ).toBeInTheDocument();
     expect(screen.getByText(i18n.t("design.verificationNeedsWork"))).toBeInTheDocument();
-    expect(screen.getByText(i18n.t("design.sourceCoverage", { resolved: 1, total: 2, custom: 1 }))).toBeInTheDocument();
-    expect(screen.getByText(i18n.t("design.declaredCoverage", { library: 1, local: 1 }))).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("design.sourceCoverage", { resolved: 1, total: 2, custom: 1 })),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("design.declaredCoverage", { library: 1, local: 1 })),
+    ).toBeInTheDocument();
   });
 });
 
 it("renders the exact revision and hides stale appearance evidence", async () => {
   setup();
-  api.getSketch.mockResolvedValue({ sketch: { ...sketch, render: { templateExport: "Page" } }, contentHash: "current-hash" });
-  api.renderSketch.mockResolvedValue({ html: "<html><head></head><body>Fixture</body></html>", renderHash: "render-hash", bundle: { gaps: [] } });
+  api.getSketch.mockResolvedValue({
+    sketch: { ...sketch, render: { templateExport: "Page" } },
+    contentHash: "current-hash",
+  });
+  api.renderSketch.mockResolvedValue({
+    html: "<html><head></head><body>Fixture</body></html>",
+    renderHash: "render-hash",
+    bundle: { gaps: [] },
+  });
   renderPage();
   const frame = await screen.findByTitle(i18n.t("design.canvas"));
   expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-forms");
   expect(frame).toHaveAttribute("data-render-hash", "render-hash");
   expect(screen.queryByText(i18n.t("design.canvasEvidence"))).not.toBeInTheDocument();
-  fireEvent(window, new MessageEvent("message", { source: (frame as HTMLIFrameElement).contentWindow,
-    data: { type: "preview-ready", sha256: "wrong-hash" } }));
+  fireEvent(
+    window,
+    new MessageEvent("message", {
+      source: (frame as HTMLIFrameElement).contentWindow,
+      data: { type: "preview-ready", sha256: "wrong-hash" },
+    }),
+  );
   expect(screen.queryByText(i18n.t("design.canvasEvidence"))).not.toBeInTheDocument();
-  fireEvent(window, new MessageEvent("message", { source: (frame as HTMLIFrameElement).contentWindow,
-    data: { type: "preview-ready", sha256: "render-hash" } }));
+  fireEvent(
+    window,
+    new MessageEvent("message", {
+      source: (frame as HTMLIFrameElement).contentWindow,
+      data: { type: "preview-ready", sha256: "render-hash" },
+    }),
+  );
   expect(await screen.findByText(i18n.t("design.canvasEvidence"))).toBeInTheDocument();
-  fireEvent(window, new MessageEvent("message", { source: (frame as HTMLIFrameElement).contentWindow,
-    data: { type: "preview-error", sha256: "render-hash", message: "region header has no template slot mapping" } }));
-  expect(await screen.findByRole("link", { name: "Review port mapping" })).toHaveAttribute("href", "#candidate-port-mapping");
-  expect(api.renderSketch).toHaveBeenCalledWith(expect.objectContaining({ expectedContentHash: "current-hash", theme: "light", direction: "ltr" }));
+  fireEvent(
+    window,
+    new MessageEvent("message", {
+      source: (frame as HTMLIFrameElement).contentWindow,
+      data: {
+        type: "preview-error",
+        sha256: "render-hash",
+        message: "region header has no template slot mapping",
+      },
+    }),
+  );
+  expect(await screen.findByRole("link", { name: "Review port mapping" })).toHaveAttribute(
+    "href",
+    "/design/demo/page#candidate-port-mapping",
+  );
+  expect(api.renderSketch).toHaveBeenCalledWith(
+    expect.objectContaining({
+      expectedContentHash: "current-hash",
+      theme: "light",
+      direction: "ltr",
+    }),
+  );
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasTheme") }));
   fireEvent.click(await screen.findByRole("option", { name: i18n.t("design.canvasDark") }));
   expect(screen.queryByTitle(i18n.t("design.canvas"))).not.toBeInTheDocument();
@@ -325,46 +491,125 @@ it("renders the exact revision and hides stale appearance evidence", async () =>
 
 it("proposes from typed intent and only writes after draft selection", async () => {
   setup();
-  api.proposeSketch.mockResolvedValue({ contentHash: "current-hash", retrievalMode: "lexical", designSource: { path: "DESIGN.md", contentHash: "source-hash", content: "# Source requirements\nPreserve density. <script>unsafe()</script>" }, diagnostics: [], candidates: [{ title: "Collection", sketch: { ...sketch, template: { asset: "templates.collection-page", version: "1.0.7" } }, obligations: ["Configure ports"] }] });
+  api.proposeSketch.mockResolvedValue({
+    contentHash: "current-hash",
+    retrievalMode: "lexical",
+    designSource: {
+      path: "DESIGN.md",
+      contentHash: "source-hash",
+      content: "# Source requirements\nPreserve density. <script>unsafe()</script>",
+    },
+    diagnostics: [],
+    candidates: [
+      {
+        title: "Collection",
+        sketch: { ...sketch, template: { asset: "templates.collection-page", version: "1.0.7" } },
+        obligations: ["Configure ports"],
+      },
+    ],
+  });
   api.putSketch.mockResolvedValue({});
-  api.saveCandidate.mockImplementation((request: { sketch: unknown; expectedContentHash: string }) => Promise.resolve({ sketch: request.sketch, baseHash: request.expectedContentHash }));
+  api.saveCandidate.mockImplementation(
+    (request: { sketch: unknown; expectedContentHash: string }) =>
+      Promise.resolve({ sketch: request.sketch, baseHash: request.expectedContentHash }),
+  );
   renderPage();
   fireEvent.click(await screen.findByText(i18n.t("design.proposeTitle")));
-  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeIntent")), { target: { value: "Browse records" } });
-  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeUsers")), { target: { value: "Operator" } });
-  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeTasks")), { target: { value: "Find a record\nInspect context" } });
+  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeIntent")), {
+    target: { value: "Browse records" },
+  });
+  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeUsers")), {
+    target: { value: "Operator" },
+  });
+  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeTasks")), {
+    target: { value: "Find a record\nInspect context" },
+  });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
   await screen.findByRole("button", { name: i18n.t("design.proposeChoose") });
-  expect(api.proposeSketch).toHaveBeenCalledWith(expect.objectContaining({ expectedContentHash: "current-hash", candidateLimit: 3,
-    intent: expect.objectContaining({ primaryTasks: ["Find a record", "Inspect context"], users: ["Operator"], constraints: { designSource: "", preserveRoutes: true, preserveBusinessBehavior: true } }) }));
+  expect(api.proposeSketch).toHaveBeenCalledWith(
+    expect.objectContaining({
+      expectedContentHash: "current-hash",
+      candidateLimit: 3,
+      intent: expect.objectContaining({
+        primaryTasks: ["Find a record", "Inspect context"],
+        users: ["Operator"],
+        constraints: expect.objectContaining({ designSource: "", preserveRoutes: true, preserveBusinessBehavior: true }),
+      }),
+    }),
+  );
   expect(api.putSketch).not.toHaveBeenCalled();
   expect(api.saveCandidate).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeDesignSource")), { target: { value: "DESIGN.md" } });
+  fireEvent.change(screen.getByLabelText(i18n.t("design.proposeDesignSource")), {
+    target: { value: "DESIGN.md" },
+  });
   fireEvent.click(screen.getByLabelText(i18n.t("design.proposePreserveRoutes")));
-  expect(screen.queryByRole("button", { name: i18n.t("design.proposeChoose") })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: i18n.t("design.proposeChoose") }),
+  ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
   const revisedChoose = await screen.findByRole("button", { name: i18n.t("design.proposeChoose") });
-  expect(screen.getByText(i18n.t("design.proposeSourceSnapshot", { path: "DESIGN.md" }))).toBeInTheDocument();
+  expect(
+    screen.getByText(i18n.t("design.proposeSourceSnapshot", { path: "DESIGN.md" })),
+  ).toBeInTheDocument();
   expect(screen.getByText(/Preserve density/).tagName).toBe("PRE");
   expect(screen.getByText(/Preserve density/).querySelector("script")).toBeNull();
-  expect(api.proposeSketch).toHaveBeenLastCalledWith(expect.objectContaining({ intent: expect.objectContaining({
-    constraints: { designSource: "DESIGN.md", preserveRoutes: false, preserveBusinessBehavior: true },
-  }) }));
+  expect(api.proposeSketch).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      intent: expect.objectContaining({
+        constraints: expect.objectContaining({
+          designSource: "DESIGN.md",
+          preserveRoutes: false,
+          preserveBusinessBehavior: true,
+        }),
+      }),
+    }),
+  );
   fireEvent.click(revisedChoose);
-  await waitFor(() => expect(api.saveCandidate).toHaveBeenCalledWith(expect.objectContaining({ designId: "page-intent", expectedContentHash: "current-hash" })));
-  await waitFor(() => expect(api.putSketch).toHaveBeenCalledWith(expect.objectContaining({ expectedContentHash: "current-hash", sketch: expect.objectContaining({ template: { asset: "templates.collection-page", version: "1.0.7" } }) })));
+  await waitFor(() =>
+    expect(api.saveCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({ designId: "page-intent", expectedContentHash: "current-hash" }),
+    ),
+  );
+  await waitFor(() =>
+    expect(api.putSketch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedContentHash: "current-hash",
+        sketch: expect.objectContaining({
+          template: { asset: "templates.collection-page", version: "1.0.7" },
+        }),
+      }),
+    ),
+  );
 });
 
 it("previews an immutable candidate without selecting the current draft", async () => {
   setup();
   const candidate = { scenario: "demo", designId: "page-intent", hash: "candidate-hash" };
   const candidateSketch = { ...sketch, render: { templateExport: "Page" } };
-  api.proposeSketch.mockResolvedValue({ contentHash: "current-hash", diagnostics: [], candidates: [{ title: "Page", sketch: candidateSketch, obligations: [] }] });
-  api.saveCandidate.mockResolvedValue({ candidate, sketch: candidateSketch, declaredRegions: [], baseHash: "current-hash" });
-  api.renderCandidate.mockResolvedValue({ html: "<html><body>Candidate</body></html>", renderHash: "candidate-render", target: { renderHash: "candidate-render" }, bundle: { gaps: [] } });
+  api.proposeSketch.mockResolvedValue({
+    contentHash: "current-hash",
+    diagnostics: [],
+    candidates: [{ title: "Page", sketch: candidateSketch, obligations: [] }],
+  });
+  api.saveCandidate.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  api.renderCandidate.mockResolvedValue({
+    html: "<html><body>Candidate</body></html>",
+    renderHash: "candidate-render",
+    target: { renderHash: "candidate-render" },
+    bundle: { gaps: [] },
+  });
   renderPage();
   fireEvent.click(await screen.findByText(i18n.t("design.proposeTitle")));
-  for (const [key, value] of [["design.proposeIntent", "Browse records"], ["design.proposeUsers", "Operator"], ["design.proposeTasks", "Inspect a record"]] as const) {
+  for (const [key, value] of [
+    ["design.proposeIntent", "Browse records"],
+    ["design.proposeUsers", "Operator"],
+    ["design.proposeTasks", "Inspect a record"],
+  ] as const) {
     fireEvent.change(screen.getByLabelText(i18n.t(key)), { target: { value } });
   }
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
@@ -374,17 +619,39 @@ it("previews an immutable candidate without selecting the current draft", async 
   expect(api.renderCandidate).toHaveBeenCalledWith(expect.objectContaining({ candidate }));
   expect(api.putSketch).not.toHaveBeenCalled();
   expect(api.renderSketch).not.toHaveBeenCalled();
-  const operation = { id: "capture-one", state: "running", producerId: "bas-one", width: 1440, height: 900, artifacts: [] };
-  api.captureCandidate.mockRejectedValueOnce(new ConnectError("attachment timed out", Code.DeadlineExceeded)).mockResolvedValue(operation);
+  const operation = {
+    id: "capture-one",
+    state: "running",
+    producerId: "bas-one",
+    width: 1440,
+    height: 900,
+    artifacts: [],
+  };
+  api.captureCandidate
+    .mockRejectedValueOnce(new ConnectError("attachment timed out", Code.DeadlineExceeded))
+    .mockResolvedValue(operation);
   api.getCapture.mockResolvedValue(operation);
-  api.attachCapture.mockResolvedValue({ ...operation, state: "completed", artifacts: [{ kind: "screenshot", reference: "bas:one:screenshot" }] });
+  api.attachCapture.mockResolvedValue({
+    ...operation,
+    state: "completed",
+    artifacts: [{ kind: "screenshot", reference: "bas:one:screenshot" }],
+  });
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureStart") }));
   await screen.findByText(/attachment timed out/);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureStart") }));
   await screen.findByText(i18n.t("design.captureRunning"));
   expect(api.captureCandidate).toHaveBeenCalledTimes(2);
-  expect(api.captureCandidate.mock.calls[0]?.[0].idempotencyKey).toBe(api.captureCandidate.mock.calls[1]?.[0].idempotencyKey);
-  expect(api.captureCandidate).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRenderHash: "candidate-render", width: 1440, height: 900, render: expect.objectContaining({ candidate }) }));
+  expect(api.captureCandidate.mock.calls[0]?.[0].idempotencyKey).toBe(
+    api.captureCandidate.mock.calls[1]?.[0].idempotencyKey,
+  );
+  expect(api.captureCandidate).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      expectedRenderHash: "candidate-render",
+      width: 1440,
+      height: 900,
+      render: expect.objectContaining({ candidate }),
+    }),
+  );
   api.cancelCapture.mockResolvedValue({ ...operation, state: "cancel_requested" });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureCancel") }));
   await screen.findByText(i18n.t("design.captureCancelRequested"));
@@ -394,18 +661,110 @@ it("previews an immutable candidate without selecting the current draft", async 
   await screen.findByText(i18n.t("design.captureCompleted"));
   expect(api.attachCapture).toHaveBeenCalledWith({ id: "capture-one" });
   expect(api.getCaptureScreenshot).not.toHaveBeenCalled();
-  api.getCaptureScreenshot.mockResolvedValue({ reference: "bas:one:screenshot", url: "http://bas.local/captured.png", width: 2880, height: 1800 });
+  api.getCaptureScreenshot.mockResolvedValue({
+    reference: "bas:one:screenshot",
+    url: "http://bas.local/captured.png",
+    width: 2880,
+    height: 1800,
+  });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureViewScreenshot") }));
   const image = await screen.findByAltText(i18n.t("design.captureScreenshotAlt"));
-  expect(api.getCaptureScreenshot).toHaveBeenCalledWith({ id: "capture-one", reference: "bas:one:screenshot" });
+  expect(api.getCaptureScreenshot).toHaveBeenCalledWith({
+    id: "capture-one",
+    reference: "bas:one:screenshot",
+  });
   expect(image).toHaveAttribute("src", "http://bas.local/captured.png");
   expect(image).toHaveAttribute("width", "1440");
   expect(image).toHaveAttribute("height", "900");
   fireEvent.error(image);
   await screen.findByText(i18n.t("design.captureImageUnavailable"));
 
-  expect(screen.queryByRole("button", { name: i18n.t("design.captureStart") })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: i18n.t("design.captureStart") }),
+  ).not.toBeInTheDocument();
   expect(api.putSketch).not.toHaveBeenCalled();
+});
+
+it("lets an unconfigured proposal enter candidate review with an honest render boundary", async () => {
+  setup();
+  const candidate = { scenario: "demo", designId: "page-intent", hash: "candidate-unconfigured" };
+  api.proposeSketch.mockResolvedValue({
+    contentHash: "current-hash",
+    diagnostics: [],
+    candidates: [{ title: "Page", sketch: { ...sketch, template: { asset: "templates.page", version: "1.0.0" } }, obligations: ["Configure ports"] }],
+  });
+  api.saveCandidate.mockResolvedValue({
+    candidate,
+    sketch: { ...sketch, template: { asset: "templates.page", version: "1.0.0" } },
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  renderPage();
+  fireEvent.click(await screen.findByText(i18n.t("design.proposeTitle")));
+  for (const [key, value] of [
+    ["design.proposeIntent", "Browse records"],
+    ["design.proposeUsers", "Operator"],
+    ["design.proposeTasks", "Inspect a record"],
+  ] as const) {
+    fireEvent.change(screen.getByLabelText(i18n.t(key)), { target: { value } });
+  }
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
+  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.proposePreview") }));
+  await waitFor(() => expect(api.saveCandidate).toHaveBeenCalled());
+  expect(await screen.findByText(/Configure its template ports/)).toBeInTheDocument();
+  expect(document.querySelector('[data-candidate-hash="candidate-unconfigured"]')).toBeTruthy();
+});
+
+it("surfaces authored regions for explicit candidate port mapping", async () => {
+  setup();
+  const candidate = { scenario: "demo", designId: "page-intent", hash: "candidate-mapping" };
+  const candidateSketch = {
+    ...sketch,
+    template: { asset: "templates.collection-page", version: "1.7.1" },
+    regions: [
+      { id: "header", origin: "template" },
+      { id: "filters", origin: "template" },
+      { id: "attention-region", note: "Operator attention" },
+    ],
+    render: {
+      templateExport: "CollectionPage",
+      regions: [
+        { id: "header", templateRegion: "header", slot: ["regions", "header"] },
+        { id: "filters", templateRegion: "filters", slot: ["regions", "filters"] },
+      ],
+    },
+  };
+  api.proposeSketch.mockResolvedValue({
+    contentHash: "current-hash",
+    diagnostics: [],
+    candidates: [{ title: "Collection", sketch: candidateSketch, obligations: ["Map ports"] }],
+  });
+  api.saveCandidate.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [{ id: "attention-region", note: "Operator attention" }],
+    baseHash: "current-hash",
+  });
+  api.mapCandidateRegions.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [{ id: "attention-region", note: "Operator attention" }],
+    baseHash: "current-hash",
+  });
+  renderPage();
+  fireEvent.click(await screen.findByText(i18n.t("design.proposeTitle")));
+  for (const [key, value] of [
+    ["design.proposeIntent", "Browse records"],
+    ["design.proposeUsers", "Operator"],
+    ["design.proposeTasks", "Inspect a record"],
+  ] as const) {
+    fireEvent.change(screen.getByLabelText(i18n.t(key)), { target: { value } });
+  }
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
+  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.proposePreview") }));
+  await waitFor(() => expect(api.saveCandidate).toHaveBeenCalled());
+  expect((await screen.findAllByText(/attention-region/)).length).toBeGreaterThan(0);
+  expect(screen.getByText(/Map authored regions to template slots/)).toBeInTheDocument();
 });
 
 it("restores a capture receipt when reopening the same rendered candidate", async () => {
@@ -413,13 +772,37 @@ it("restores a capture receipt when reopening the same rendered candidate", asyn
   const candidate = { scenario: "demo", designId: "saved-design", hash: "saved-hash" };
   const candidateSketch = { ...sketch, render: { templateExport: "Page" } };
   api.listCandidates.mockResolvedValue({ candidates: [{ candidate }] });
-  api.getCandidate.mockResolvedValue({ candidate, sketch: candidateSketch, declaredRegions: [], baseHash: "current-hash" });
-  api.renderCandidate.mockResolvedValue({ html: "<html><body>Candidate</body></html>", renderHash: "saved-render", target: { renderHash: "saved-render" }, bundle: { gaps: [] } });
-  sessionStorage.setItem("rcl:capture:saved-render:1440x900", JSON.stringify({ key: "saved-intent", id: "capture-saved" }));
-  api.getCapture.mockResolvedValue({ id: "capture-saved", state: "completed", producerId: "bas-saved", artifacts: [] });
+  api.getCandidate.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  api.renderCandidate.mockResolvedValue({
+    html: "<html><body>Candidate</body></html>",
+    renderHash: "saved-render",
+    target: { renderHash: "saved-render" },
+    bundle: { gaps: [] },
+  });
+  sessionStorage.setItem(
+    "rcl:capture:saved-render:1440x900",
+    JSON.stringify({ key: "saved-intent", id: "capture-saved" }),
+  );
+  api.getCapture.mockResolvedValue({
+    id: "capture-saved",
+    state: "completed",
+    producerId: "bas-saved",
+    artifacts: [],
+  });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }) }));
-  await waitFor(() => expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy());
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }),
+    }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy(),
+  );
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   const enabled = buttons.find((button) => !(button as HTMLButtonElement).disabled);
   expect(enabled).toBeTruthy();
@@ -430,21 +813,53 @@ it("restores a capture receipt when reopening the same rendered candidate", asyn
   expect(api.attachCapture).not.toHaveBeenCalled();
 });
 
-
 it("creates a new linked capture intent and reuses it after a lost acknowledgement", async () => {
   setup();
   const candidate = { scenario: "demo", designId: "saved-design", hash: "saved-hash" };
   const candidateSketch = { ...sketch, render: { templateExport: "Page" } };
   api.listCandidates.mockResolvedValue({ candidates: [{ candidate }] });
-  api.getCandidate.mockResolvedValue({ candidate, sketch: candidateSketch, declaredRegions: [], baseHash: "current-hash" });
-  api.renderCandidate.mockResolvedValue({ html: "<html><body>Candidate</body></html>", renderHash: "saved-render", target: { renderHash: "saved-render" }, bundle: { gaps: [] } });
-  sessionStorage.setItem("rcl:capture:saved-render:1440x900", JSON.stringify({ key: "original-intent", id: "capture-original" }));
-  api.getCapture.mockImplementation(({ id }: { id: string }) => Promise.resolve({ id, state: id === "capture-original" ? "cancelled" : "running", producerId: "bas-" + id, artifacts: [] }));
-  api.retryCapture.mockRejectedValueOnce(new ConnectError("retry acknowledgement lost", Code.DeadlineExceeded))
-    .mockResolvedValue({ id: "capture-new", previousId: "capture-original", state: "running", producerId: "bas-new", artifacts: [] });
+  api.getCandidate.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  api.renderCandidate.mockResolvedValue({
+    html: "<html><body>Candidate</body></html>",
+    renderHash: "saved-render",
+    target: { renderHash: "saved-render" },
+    bundle: { gaps: [] },
+  });
+  sessionStorage.setItem(
+    "rcl:capture:saved-render:1440x900",
+    JSON.stringify({ key: "original-intent", id: "capture-original" }),
+  );
+  api.getCapture.mockImplementation(({ id }: { id: string }) =>
+    Promise.resolve({
+      id,
+      state: id === "capture-original" ? "cancelled" : "running",
+      producerId: "bas-" + id,
+      artifacts: [],
+    }),
+  );
+  api.retryCapture
+    .mockRejectedValueOnce(new ConnectError("retry acknowledgement lost", Code.DeadlineExceeded))
+    .mockResolvedValue({
+      id: "capture-new",
+      previousId: "capture-original",
+      state: "running",
+      producerId: "bas-new",
+      artifacts: [],
+    });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }) }));
-  await waitFor(() => expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy());
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }),
+    }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy(),
+  );
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   fireEvent.click(buttons.find((button) => !(button as HTMLButtonElement).disabled)!);
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureAgain") }));
@@ -457,59 +872,169 @@ it("creates a new linked capture intent and reuses it after a lost acknowledgeme
   expect(intent.idempotencyKey).not.toBe("original-intent");
   expect(api.retryCapture.mock.calls[1]?.[0]).toEqual(intent);
   expect(api.captureCandidate).not.toHaveBeenCalled();
-  expect(screen.queryByRole("button", { name: i18n.t("design.captureAgain") })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: i18n.t("design.captureAgain") }),
+  ).not.toBeInTheDocument();
   fireEvent.click(screen.getByText(i18n.t("design.capturePrevious", { id: "capture-original" })));
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.capturePreviousRead") }));
   await waitFor(() => expect(api.getCapture).toHaveBeenLastCalledWith({ id: "capture-original" }));
 });
 
-
 it("lists exact-render reviews and rejects mismatched review detail", async () => {
   setup();
   const candidate = { scenario: "demo", designId: "saved-design", hash: "saved-hash" };
-  const target = { scenario: "demo", designId: "saved-design", revision: "saved-hash", renderHash: "saved-render" };
+  const target = {
+    scenario: "demo",
+    designId: "saved-design",
+    revision: "saved-hash",
+    renderHash: "saved-render",
+  };
   const candidateSketch = { ...sketch, render: { templateExport: "Page" } };
   api.listCandidates.mockResolvedValue({ candidates: [{ candidate }] });
-  api.getCandidate.mockResolvedValue({ candidate, sketch: candidateSketch, declaredRegions: [], baseHash: "current-hash" });
-  api.renderCandidate.mockResolvedValue({ html: "<html><body>Candidate</body></html>", renderHash: "saved-render", target: { renderHash: "saved-render" }, bundle: { gaps: [] } });
-  const summary = { id: "review-one", hash: "review-hash", critic: { id: "critic-one" }, recordedAt: "2026-09-05", assessment: { visualFloorMet: false } };
-  api.listCritiques.mockImplementation(({ beforeId }: { beforeId: string }) => Promise.resolve(beforeId ? { reviews: [{ ...summary, id: "review-two", critic: { id: "critic-two" } }], nextBeforeId: "" } : { reviews: [summary], nextBeforeId: "review-one" }));
+  api.getCandidate.mockResolvedValue({
+    candidate,
+    sketch: candidateSketch,
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  api.renderCandidate.mockResolvedValue({
+    html: "<html><body>Candidate</body></html>",
+    renderHash: "saved-render",
+    target: { renderHash: "saved-render" },
+    bundle: { gaps: [] },
+  });
+  const summary = {
+    id: "review-one",
+    hash: "review-hash",
+    critic: { id: "critic-one" },
+    recordedAt: "2026-09-05",
+    assessment: { visualFloorMet: false },
+  };
+  api.listCritiques.mockImplementation(({ beforeId }: { beforeId: string }) =>
+    Promise.resolve(
+      beforeId
+        ? {
+            reviews: [{ ...summary, id: "review-two", critic: { id: "critic-two" } }],
+            nextBeforeId: "",
+          }
+        : { reviews: [summary], nextBeforeId: "review-one" },
+    ),
+  );
   const rationale = "No recovery action is visible.";
-  const review = { target, rubricVersion: "visual-design/1", policyVersion: "visual-floor/1", critic: { id: "critic-one", version: "1", model: "fixture", profile: "test" },
-    ratings: [{ dimension: "state_recovery", score: 2, rationale, evidence: [{ captureId: "alternate-capture", artifact: "bas:alternate:image", region: "$page", state: "detail", width: 390, height: 844, renderHash: "alternate-render" }] }],
-    findings: [{ dimension: "state_recovery", severity: "major", rationale: "The user cannot retry.", correction: "Add an explicit retry action." }] };
-  api.getCritique.mockResolvedValueOnce({ id: "review-one", hash: "review-hash", review, assessment: { minimumScore: 2 } })
-    .mockResolvedValueOnce({ id: "review-two", hash: "review-hash", review: { ...review, target: { ...target, revision: "other-revision" } } });
+  const review = {
+    target,
+    rubricVersion: "visual-design/1",
+    policyVersion: "visual-floor/1",
+    critic: { id: "critic-one", version: "1", model: "fixture", profile: "test" },
+    ratings: [
+      {
+        dimension: "state_recovery",
+        score: 2,
+        rationale,
+        evidence: [
+          {
+            captureId: "alternate-capture",
+            artifact: "bas:alternate:image",
+            region: "$page",
+            state: "detail",
+            width: 390,
+            height: 844,
+            renderHash: "alternate-render",
+          },
+        ],
+      },
+    ],
+    findings: [
+      {
+        dimension: "state_recovery",
+        severity: "major",
+        rationale: "The user cannot retry.",
+        correction: "Add an explicit retry action.",
+      },
+    ],
+  };
+  api.getCritique
+    .mockResolvedValueOnce({
+      id: "review-one",
+      hash: "review-hash",
+      review,
+      assessment: { minimumScore: 2 },
+    })
+    .mockResolvedValueOnce({
+      id: "review-two",
+      hash: "review-hash",
+      review: { ...review, target: { ...target, revision: "other-revision" } },
+    });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }) }));
-  await waitFor(() => expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy());
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.openCandidate", { design: "saved-design", revision: "saved-hash" }),
+    }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[data-candidate-hash="saved-hash"]')).toBeTruthy(),
+  );
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   fireEvent.click(buttons.find((button) => !(button as HTMLButtonElement).disabled)!);
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.reviewOpen", { critic: "critic-one", date: "2026-09-05" }) }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.reviewOpen", { critic: "critic-one", date: "2026-09-05" }),
+    }),
+  );
   await screen.findByText(rationale);
   expect(screen.getByText("alternate-render")).toBeInTheDocument();
-  api.checkCandidateAcceptance.mockResolvedValue({ ready: true, acceptanceEstablished: false, requirements: [{ code: "rubric_calibration", status: "unavailable", detail: "Reviewed calibration examples are required." }] });
+  api.checkCandidateAcceptance.mockResolvedValue({
+    ready: true,
+    acceptanceEstablished: false,
+    requirements: [
+      {
+        code: "rubric_calibration",
+        status: "unavailable",
+        detail: "Reviewed calibration examples are required.",
+      },
+    ],
+  });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceCheck") }));
   await screen.findByText("Reviewed calibration examples are required.");
-  expect(api.checkCandidateAcceptance).toHaveBeenCalledWith({ render: expect.objectContaining({ candidate }), expectedRenderHash: "saved-render", critiqueIds: ["review-one"] });
+  expect(api.checkCandidateAcceptance).toHaveBeenCalledWith({
+    render: expect.objectContaining({ candidate }),
+    expectedRenderHash: "saved-render",
+    critiqueIds: ["review-one"],
+  });
   expect(screen.getByText(i18n.t("design.acceptanceReady"))).toBeInTheDocument();
-  expect(screen.getByText(i18n.t("design.acceptanceRequirementSummary", { passed: 0, total: 1 }))).toBeInTheDocument();
-  api.acceptCandidate.mockRejectedValueOnce(new Error("response lost")).mockResolvedValue({ id: "acceptance-one", hash: "decision-hash", state: "needs_evidence", intent: { candidateHash: candidate.hash, expectedRenderHash: "saved-render" } });
-  fireEvent.change(screen.getByLabelText(i18n.t("design.acceptanceActor")), { target: { value: "test-agent" } });
+  expect(
+    screen.getByText(i18n.t("design.acceptanceRequirementSummary", { passed: 0, total: 1 })),
+  ).toBeInTheDocument();
+  api.acceptCandidate
+    .mockRejectedValueOnce(new Error("response lost"))
+    .mockResolvedValue({
+      id: "acceptance-one",
+      hash: "decision-hash",
+      state: "needs_evidence",
+      intent: { candidateHash: candidate.hash, expectedRenderHash: "saved-render" },
+    });
+  fireEvent.change(screen.getByLabelText(i18n.t("design.acceptanceActor")), {
+    target: { value: "test-agent" },
+  });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceRecord") }));
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.acceptanceRetry") }));
   await screen.findByText(i18n.t("design.acceptanceDecision_needs_evidence"));
   expect(api.acceptCandidate.mock.calls[0]?.[0]).toEqual(api.acceptCandidate.mock.calls[1]?.[0]);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceNewAttempt") }));
   await waitFor(() => expect(api.acceptCandidate).toHaveBeenCalledTimes(3));
-  expect(api.acceptCandidate.mock.calls[2]?.[0].idempotencyKey).not.toBe(api.acceptCandidate.mock.calls[1]?.[0].idempotencyKey);
-
+  expect(api.acceptCandidate.mock.calls[2]?.[0].idempotencyKey).not.toBe(
+    api.acceptCandidate.mock.calls[1]?.[0].idempotencyKey,
+  );
 
   expect(api.listCritiques).toHaveBeenCalledWith({ target, beforeId: "" });
   expect(screen.getByText(i18n.t("design.reviewMinimum", { score: 2 }))).toBeInTheDocument();
   expect(screen.getByText(i18n.t("design.reviewNotAcceptance"))).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.reviewMore") }));
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.reviewOpen", { critic: "critic-two", date: "2026-09-05" }) }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.reviewOpen", { critic: "critic-two", date: "2026-09-05" }),
+    }),
+  );
   await screen.findByText(i18n.t("design.reviewMismatch"));
   expect(screen.queryByText(rationale)).not.toBeInTheDocument();
   expect(screen.queryByText("Reviewed calibration examples are required.")).not.toBeInTheDocument();
@@ -520,65 +1045,133 @@ it("renders and captures the selected declared preview state", async () => {
   setup();
   const candidate = { scenario: "demo", designId: "states", hash: "state-hash" };
   api.listCandidates.mockResolvedValue({ candidates: [{ candidate }] });
-  api.getCandidate.mockResolvedValue({ candidate, sketch: { ...sketch, render: {
-    templateExport: "Page", bindings: { $preview: { initial: "list", states: { list: {}, detail: {} } } },
-  } }, declaredRegions: [], baseHash: "current-hash" });
-  api.renderCandidate.mockResolvedValue({ html: "<html><body>Detail</body></html>", renderHash: "detail-render", target: { renderHash: "detail-render" }, bundle: { gaps: [] } });
+  api.getCandidate.mockResolvedValue({
+    candidate,
+    sketch: {
+      ...sketch,
+      render: {
+        templateExport: "Page",
+        bindings: { $preview: { initial: "list", states: { list: {}, detail: {} } } },
+      },
+    },
+    declaredRegions: [],
+    baseHash: "current-hash",
+  });
+  api.renderCandidate.mockResolvedValue({
+    html: "<html><body>Detail</body></html>",
+    renderHash: "detail-render",
+    target: { renderHash: "detail-render" },
+    bundle: { gaps: [] },
+  });
   api.captureCandidate.mockResolvedValue({ id: "detail-capture", state: "running", artifacts: [] });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "states", revision: "state-hash" }) }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.openCandidate", { design: "states", revision: "state-hash" }),
+    }),
+  );
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.canvasState") }));
   fireEvent.click(await screen.findByRole("option", { name: "detail" }));
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   const enabled = buttons.find((button) => !(button as HTMLButtonElement).disabled)!;
   fireEvent.click(enabled);
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureStart") }));
-  await waitFor(() => expect(api.captureCandidate).toHaveBeenCalledWith(expect.objectContaining({
-    expectedRenderHash: "detail-render", render: expect.objectContaining({ candidate, previewState: "detail" }),
-  })));
-  expect(api.renderCandidate).toHaveBeenCalledWith(expect.objectContaining({ candidate, previewState: "detail" }));
+  await waitFor(() =>
+    expect(api.captureCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedRenderHash: "detail-render",
+        render: expect.objectContaining({ candidate, previewState: "detail" }),
+      }),
+    ),
+  );
+  expect(api.renderCandidate).toHaveBeenCalledWith(
+    expect.objectContaining({ candidate, previewState: "detail" }),
+  );
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.canvasState") }));
   fireEvent.click(await screen.findByRole("option", { name: "list" }));
-  await waitFor(() => expect(api.renderCandidate).toHaveBeenLastCalledWith(expect.objectContaining({ candidate, previewState: "list" })));
-  expect(await screen.findByRole("button", { name: i18n.t("design.captureStart") })).toBeInTheDocument();
+  await waitFor(() =>
+    expect(api.renderCandidate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ candidate, previewState: "list" }),
+    ),
+  );
+  expect(
+    await screen.findByRole("button", { name: i18n.t("design.captureStart") }),
+  ).toBeInTheDocument();
 });
 
 it("locks and separately unlocks a region against the current revision", async () => {
   setup();
-  const locked = { ...sketch, regions: sketch.regions.map((region) => ({ ...region, locked: true })) };
-  api.getSketch.mockResolvedValueOnce({ sketch, contentHash: "current-hash" })
+  const locked = {
+    ...sketch,
+    regions: sketch.regions.map((region) => ({ ...region, locked: true })),
+  };
+  api.getSketch
+    .mockResolvedValueOnce({ sketch, contentHash: "current-hash" })
     .mockResolvedValue({ sketch: locked, contentHash: "locked-hash" });
   api.putSketch.mockResolvedValue({});
   renderPage();
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.lockRegion") }));
-  await waitFor(() => expect(api.putSketch).toHaveBeenCalledWith(expect.objectContaining({
-    expectedContentHash: "current-hash", sketch: expect.objectContaining({
-      regions: [expect.objectContaining({ id: "body", locked: true, note: "Main task" })],
-    }),
-  })));
+  await waitFor(() =>
+    expect(api.putSketch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedContentHash: "current-hash",
+        sketch: expect.objectContaining({
+          regions: [expect.objectContaining({ id: "body", locked: true, note: "Main task" })],
+        }),
+      }),
+    ),
+  );
   fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.unlockRegion") }));
-  await waitFor(() => expect(api.putSketch).toHaveBeenLastCalledWith(expect.objectContaining({
-    expectedContentHash: "locked-hash", sketch: expect.objectContaining({
-      regions: [expect.objectContaining({ id: "body", locked: false, note: "Main task" })],
-    }),
-  })));
+  await waitFor(() =>
+    expect(api.putSketch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedContentHash: "locked-hash",
+        sketch: expect.objectContaining({
+          regions: [expect.objectContaining({ id: "body", locked: false, note: "Main task" })],
+        }),
+      }),
+    ),
+  );
 });
 
 it("compares two exact candidates without changing the open candidate or page", async () => {
   setup();
   const refs = ["a", "b", "c"].map((hash) => ({ scenario: "demo", designId: "comparison", hash }));
   api.listCandidates.mockResolvedValue({ candidates: refs.map((candidate) => ({ candidate })) });
-  api.getCandidate.mockImplementation(async (candidate) => ({ candidate, page: "page", baseHash: "current-hash",
-    sketch: { ...sketch, render: { templateExport: "Page" } }, declaredRegions: [] }));
-  api.renderCandidate.mockImplementation(async ({ candidate }) => ({ html: "<html><body>" + candidate.hash + "</body></html>", renderHash: candidate.hash, bundle: { gaps: [] } }));
+  api.getCandidate.mockImplementation(async (candidate) => ({
+    candidate,
+    page: "page",
+    baseHash: "current-hash",
+    sketch: { ...sketch, render: { templateExport: "Page" } },
+    declaredRegions: [],
+  }));
+  api.renderCandidate.mockImplementation(async ({ candidate }) => ({
+    html: "<html><body>" + candidate.hash + "</body></html>",
+    renderHash: candidate.hash,
+    bundle: { gaps: [] },
+  }));
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.openCandidate", { design: "comparison", revision: "a" }) }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.openCandidate", { design: "comparison", revision: "a" }),
+    }),
+  );
   await waitFor(() => expect(document.querySelector('[data-candidate-hash="a"]')).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }) }));
-  await waitFor(() => expect(document.querySelector('[data-comparison-candidate="a"]')).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "b" }) }));
-  await waitFor(() => expect(document.querySelector('[data-comparison-candidate="b"]')).toBeTruthy());
-  expect(screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "c" }) })).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }) }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[data-comparison-candidate="a"]')).toBeTruthy(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "b" }) }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[data-comparison-candidate="b"]')).toBeTruthy(),
+  );
+  expect(
+    screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "c" }) }),
+  ).toBeDisabled();
   const left = document.querySelector('[data-comparison-candidate="a"]')!;
   const right = document.querySelector('[data-comparison-candidate="b"]')!;
   fireEvent.click(left.querySelector('[data-action="render-design"]')!);
@@ -590,7 +1183,9 @@ it("compares two exact candidates without changing the open candidate or page", 
   fireEvent.change(right.querySelector("select")!, { target: { value: "390px" } });
   expect(frame.style.width).toBe("390px");
   expect(frame.style.height).toBe("844px");
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }) }));
+  fireEvent.click(
+    screen.getByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }) }),
+  );
   expect(document.querySelector('[data-comparison-candidate="a"]')).toBeNull();
   expect(right.querySelector("iframe")).toBe(frame);
   expect(document.querySelector('[data-candidate-hash="a"]')).toBeTruthy();
@@ -602,9 +1197,17 @@ it("rejects a comparison response for another candidate", async () => {
   setup();
   const candidate = { scenario: "demo", designId: "comparison", hash: "a" };
   api.listCandidates.mockResolvedValue({ candidates: [{ candidate }] });
-  api.getCandidate.mockResolvedValue({ candidate: { ...candidate, hash: "other" }, page: "page", sketch });
+  api.getCandidate.mockResolvedValue({
+    candidate: { ...candidate, hash: "other" },
+    page: "page",
+    sketch,
+  });
   renderPage();
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }) }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: i18n.t("design.compareCandidate", { revision: "a" }),
+    }),
+  );
   expect(await screen.findByText(i18n.t("design.compareMismatch"))).toBeInTheDocument();
-  expect(document.querySelector('[data-comparison-candidate]')).toBeNull();
+  expect(document.querySelector("[data-comparison-candidate]")).toBeNull();
 });

@@ -1,193 +1,139 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders } from '@vrooli/api-base/testing';
 import { VerifyMagicLink } from './VerifyMagicLink';
 import * as api from '../../../shared/api';
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
-  return { ...actual, verifyMagicLink: vi.fn(), issueDesktopLink: vi.fn(), listBusinessAccounts: vi.fn() };
+  return {
+    ...actual,
+    previewSignIn: vi.fn(),
+    verifyMagicLink: vi.fn(),
+    authorizeNativeApp: vi.fn(),
+    issueDesktopLink: vi.fn(),
+    listBusinessAccounts: vi.fn(),
+  };
 });
 
+const previewSignIn = vi.mocked(api.previewSignIn);
 const verifyMagicLink = vi.mocked(api.verifyMagicLink);
+const authorizeNativeApp = vi.mocked(api.authorizeNativeApp);
 const issueDesktopLink = vi.mocked(api.issueDesktopLink);
 const listBusinessAccounts = vi.mocked(api.listBusinessAccounts);
-const validResponse: api.VerifyMagicLinkResponse = {
-  access_token: 'access-token',
-  refresh_token: 'refresh-token',
-  expires_at: '2026-12-31T00:00:00Z',
-  token_type: 'Bearer',
+
+const signedIn: api.SignInResult = {
+  access_token: 'access-token', refresh_token: 'refresh-token', expires_at: '2030-01-01T00:00:00Z', token_type: 'Bearer',
   user: { id: 'user-1', email: 'buyer@example.com', email_verified: true },
 };
 
-function renderVerify(token = 'valid-token', redirectTo?: (url: string) => void) {
-  return renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=${token}`]}><VerifyMagicLink redirectTo={redirectTo} /></MemoryRouter>);
+const browserPreview: api.SignInPreview = { email_hint: 'bu•••@example.com', expires_at: '2030-01-01T00:15:00Z', flow: 'browser', same_browser: true };
+
+const desktopContext: api.SignInContext = {
+  desktop_link: true, app: 'Desktop', resource: 'demo', audience: 'scenario:demo', installation_id: 'inst', scopes: ['demo:read'],
+  redirect_uri: 'http://127.0.0.1:43111/cb', code_challenge: 'abc', code_challenge_method: 'S256', state: 's1',
+};
+
+function renderVerify(token = 'valid-token', redirectTo = vi.fn()) {
+  renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=${token}`]}><VerifyMagicLink redirectTo={redirectTo} /></MemoryRouter>);
+  return redirectTo;
 }
 
 describe('VerifyMagicLink', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
-  it('rejects an absent verification token before network access', async () => {
+  it('rejects an absent token before any network access', async () => {
     renderVerify('');
-    expect(await screen.findByText('No verification token provided')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'This link doesn’t work' })).toBeInTheDocument();
+    expect(previewSignIn).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: /get a new code/i })).toHaveAttribute('href', '/auth/login');
+  });
+
+  it('never consumes the link until the person confirms, so link scanners cannot burn it', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockResolvedValue(signedIn);
+    renderVerify();
+
+    expect(await screen.findByText('bu•••@example.com')).toBeInTheDocument();
     expect(verifyMagicLink).not.toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: /request new link/i })).toHaveAttribute('href', '/auth/login');
+
+    fireEvent.click(screen.getByTestId('confirm-sign-in'));
+    await waitFor(() => { expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', expect.any(String)); });
+    expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
   });
 
-  it('does not redirect authentication tokens to an untrusted callback URL', async () => {
-    verifyMagicLink.mockResolvedValue(validResponse);
-    listBusinessAccounts.mockResolvedValue([{ id: 'account-1', display_name: 'Personal account', role: 'owner' }]);
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({ redirect_uri: 'https://attacker.example/callback', app: 'Untrusted', state: 'nonce' }));
-    renderVerify();
+  it('resumes a native app from server-held context and sends only a one-use code to the callback', async () => {
+    const context: api.SignInContext = { app: 'Desktop', redirect_uri: 'http://127.0.0.1:43111/callback', code_challenge: 'abc', code_challenge_method: 'S256', state: 'nonce' };
+    previewSignIn.mockResolvedValue({ ...browserPreview, flow: 'native_app', context });
+    authorizeNativeApp.mockResolvedValue('http://127.0.0.1:43111/callback?code=one-use&state=nonce');
+    const redirect = renderVerify();
 
-    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
-    expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
-    expect(window.location.href).not.toContain('access-token');
-  });
-
-  it('recovers safely from malformed persisted callback state', async () => {
-    verifyMagicLink.mockResolvedValue(validResponse);
-    sessionStorage.setItem('auth_callback_params', '{not-json');
-    renderVerify();
-
-    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
-    expect(window.location.href).not.toContain('access-token');
-  });
-
-  it('recovers safely when persisted callback state lacks required fields', async () => {
-    verifyMagicLink.mockResolvedValue(validResponse);
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({ app: 'Desktop' }));
-    renderVerify();
-
-    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
-    expect(window.location.href).not.toContain('access-token');
-  });
-
-  it('sends a one-use PKCE authorization request instead of tokens through the callback', async () => {
-    const redirectTo = vi.fn();
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({
-      redirect_uri: 'http://127.0.0.1:43123/callback',
-      app: 'Desktop',
-      state: 'nonce',
-      code_challenge: 'challenge',
-      code_challenge_method: 'S256',
-    }));
-    renderVerify('valid-token', redirectTo);
-
-    expect(await screen.findByText('Signed in!')).toBeInTheDocument();
-    expect(screen.getByText('Redirecting you back to the app...')).toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    await waitFor(() => { expect(redirect).toHaveBeenCalledWith('http://127.0.0.1:43111/callback?code=one-use&state=nonce'); });
+    expect(authorizeNativeApp).toHaveBeenCalledWith({ token: 'valid-token', browserBinding: expect.any(String) as string }, context);
     expect(verifyMagicLink).not.toHaveBeenCalled();
-    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/authorize'));
-    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('code_challenge=challenge'));
-    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('access-token'));
-    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('refresh-token'));
-    expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
   });
 
-  it('uses the browser session to issue a scoped desktop-link code without returning website tokens', async () => {
-    const redirectTo = vi.fn();
-    verifyMagicLink.mockResolvedValue(validResponse);
-    listBusinessAccounts.mockResolvedValue([{ id: 'account-1', display_name: 'Personal account', role: 'owner' }]);
-    issueDesktopLink.mockResolvedValue({
-      code: 'desktop-link-code',
-      expires_at: '2026-12-31T00:02:00Z',
-      installation_id: 'install-1',
-      resource: 'demo',
-      audience: 'scenario:demo',
-      scopes: ['demo:read'],
-    });
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({
-      redirect_uri: 'http://127.0.0.1:43123/callback',
-      app: 'Desktop',
-      state: 'nonce',
-      code_challenge: 'challenge',
-      code_challenge_method: 'S256',
-      desktop_link: true,
-      installation_id: 'install-1',
-      resource: 'demo',
-      audience: 'scenario:demo',
-      scopes: ['demo:read'],
-    }));
+  it('refuses a server-held callback that leaves this computer', async () => {
+    const context: api.SignInContext = { app: 'Evil', redirect_uri: 'https://attacker.example/cb', code_challenge: 'abc', code_challenge_method: 'S256' };
+    previewSignIn.mockResolvedValue({ ...browserPreview, flow: 'native_app', context });
+    const redirect = renderVerify();
 
-    renderVerify('valid-token', redirectTo);
-
-    expect(await screen.findByText('Signed in!')).toBeInTheDocument();
-    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token');
-    expect(issueDesktopLink).toHaveBeenCalledWith(expect.objectContaining({
-      business_account_id: 'account-1',
-      installation_id: 'install-1',
-      resource: 'demo',
-      audience: 'scenario:demo',
-      scopes: ['demo:read'],
-      code_challenge: 'challenge',
-    }));
-    expect(redirectTo).toHaveBeenCalledWith('http://127.0.0.1:43123/callback?code=desktop-link-code&state=nonce');
-    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('access-token'));
-    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('refresh-token'));
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    expect(await screen.findByText(/not on this computer/)).toBeInTheDocument();
+    expect(authorizeNativeApp).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('requires an explicit account when the signed-in user has multiple accounts', async () => {
-    const redirectTo = vi.fn();
-    verifyMagicLink.mockResolvedValue(validResponse);
+  it('explains how to finish an app sign-in started in another browser and offers the website instead', async () => {
+    previewSignIn.mockResolvedValue({ ...browserPreview, flow: 'desktop_link', same_browser: false });
+    verifyMagicLink.mockResolvedValue(signedIn);
+    renderVerify();
+
+    expect(await screen.findByText(/type the 6-digit code from the email into that window/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /sign in to the website/i }));
+    await waitFor(() => { expect(verifyMagicLink).toHaveBeenCalled(); });
+    expect(listBusinessAccounts).not.toHaveBeenCalled();
+  });
+
+  it('asks which account to connect when the person has several', async () => {
+    previewSignIn.mockResolvedValue({ ...browserPreview, flow: 'desktop_link', context: desktopContext });
+    verifyMagicLink.mockResolvedValue(signedIn);
     listBusinessAccounts.mockResolvedValue([
-      { id: 'account-1', display_name: 'Personal account', role: 'owner' },
-      { id: 'account-2', display_name: 'Acme', role: 'owner' },
+      { id: 'acct-1', display_name: 'Personal', role: 'owner' },
+      { id: 'acct-2', display_name: 'Studio', role: 'member' },
     ]);
-    issueDesktopLink.mockResolvedValue({
-      code: 'desktop-link-code',
-      expires_at: '2026-12-31T00:02:00Z',
-      installation_id: 'install-1',
-      resource: 'demo',
-      audience: 'scenario:demo',
-      scopes: ['demo:read'],
-    });
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({
-      redirect_uri: 'http://127.0.0.1:43123/callback', app: 'Desktop', state: 'nonce',
-      code_challenge: 'challenge', code_challenge_method: 'S256', desktop_link: true,
-      installation_id: 'install-1', resource: 'demo', audience: 'scenario:demo', scopes: ['demo:read'],
-    }));
+    issueDesktopLink.mockResolvedValue({ code: 'link-code', expires_at: '', installation_id: 'inst', resource: 'demo', audience: 'scenario:demo', scopes: ['demo:read'] });
+    const redirect = renderVerify();
 
-    renderVerify('valid-token', redirectTo);
-
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
     expect(await screen.findByTestId('desktop-account-selection')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /acme/i }));
-    await waitFor(() => expect(issueDesktopLink).toHaveBeenCalledWith(expect.objectContaining({ business_account_id: 'account-2' })));
-    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('code=desktop-link-code'));
+    fireEvent.click(screen.getByRole('button', { name: /Personal/ }));
+    await waitFor(() => { expect(redirect).toHaveBeenCalledWith('http://127.0.0.1:43111/cb?code=link-code&state=s1'); });
+    expect(redirect.mock.calls[0]?.[0]).not.toContain('access-token');
   });
 
-  it('offers a retry path for network failures and completes after recovery', async () => {
-    verifyMagicLink.mockRejectedValueOnce(new api.ApiError('offline', 'network'));
+  it('retries a network failure and then completes', async () => {
+    previewSignIn.mockRejectedValueOnce(new api.ApiError('offline', 'network')).mockResolvedValue(browserPreview);
     renderVerify();
-    expect(await screen.findByText('Unable to reach the server. Please check your connection.')).toBeInTheDocument();
 
-    verifyMagicLink.mockResolvedValueOnce(validResponse);
-    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
-    await waitFor(() => {
-      expect(verifyMagicLink).toHaveBeenCalledTimes(2);
-    });
-    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /try again/i }));
+    expect(await screen.findByTestId('confirm-sign-in')).toBeInTheDocument();
   });
 
   it.each([
-    ['expired', 'This link has expired', 'Request new link'],
-    ['already used', 'This link was already used', 'Request new link'],
-    ['invalid', 'This link is invalid', 'Request new link'],
-    ['unexpected failure', 'An unexpected failure occurred', null],
-  ] as const)('classifies %s verification failures without exposing credentials', async (message, userMessage, expectedAction) => {
-    const error = new api.ApiError(message, 'unknown', undefined, userMessage);
-    verifyMagicLink.mockRejectedValue(error);
+    ['token_expired', 'This link has expired'],
+    ['token_used', 'This link was already used'],
+    ['token_invalid', 'This link doesn’t work'],
+  ] as const)('explains %s without exposing credentials', async (reason, heading) => {
+    previewSignIn.mockRejectedValue(new api.ApiError('secret-detail', 'unauthorized', 401, 'x', false, { reason }));
     renderVerify();
-
-    expect(await screen.findByText(userMessage)).toBeInTheDocument();
-    if (expectedAction) {
-      expect(screen.getByRole('link', { name: expectedAction })).toHaveAttribute('href', '/auth/login');
-    } else {
-      expect(screen.queryByRole('link', { name: /request new link/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
-    }
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+    expect(screen.queryByText(/secret-detail|valid-token/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /get a new code/i })).toBeInTheDocument();
   });
 });

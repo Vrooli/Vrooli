@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -39,7 +41,7 @@ func BrandingProto(value *experimentation.SiteBranding) *lpbsv1.SiteBranding {
 	// field present for schema compatibility, but never project its value back
 	// to a browser or API caller, including when a test/in-process store returns
 	// a legacy populated model.
-	return &lpbsv1.SiteBranding{Id: value.ID, SiteName: value.SiteName, Tagline: value.Tagline, LogoUrl: value.LogoURL, LogoIconUrl: value.LogoIconURL, FaviconUrl: value.FaviconURL, AppleTouchIconUrl: value.AppleTouchIconURL, DefaultTitle: value.DefaultTitle, DefaultDescription: value.DefaultDescription, DefaultOgImageUrl: value.DefaultOGImageURL, ThemePrimaryColor: value.ThemePrimaryColor, ThemeBackgroundColor: value.ThemeBackgroundColor, CanonicalBaseUrl: value.CanonicalBaseURL, GoogleSiteVerification: value.GoogleSiteVerification, RobotsTxt: value.RobotsTxt, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), SupportChatUrl: value.SupportChatURL, SupportEmail: value.SupportEmail, SmtpHost: value.SMTPHost, SmtpPort: port(value.SMTPPort), SmtpUsername: value.SMTPUsername, SmtpPassword: nil, SmtpFrom: value.SMTPFrom, ComingSoonEnabled: value.ComingSoonEnabled, ComingSoonMessage: value.ComingSoonMessage}
+	return &lpbsv1.SiteBranding{Id: value.ID, SiteName: value.SiteName, Tagline: value.Tagline, LogoUrl: value.LogoURL, LogoIconUrl: value.LogoIconURL, FaviconUrl: value.FaviconURL, AppleTouchIconUrl: value.AppleTouchIconURL, DefaultTitle: value.DefaultTitle, DefaultDescription: value.DefaultDescription, DefaultOgImageUrl: value.DefaultOGImageURL, ThemePrimaryColor: value.ThemePrimaryColor, ThemeBackgroundColor: value.ThemeBackgroundColor, CanonicalBaseUrl: value.CanonicalBaseURL, GoogleSiteVerification: value.GoogleSiteVerification, RobotsTxt: value.RobotsTxt, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), SupportChatUrl: value.SupportChatURL, SupportEmail: value.SupportEmail, SmtpHost: value.SMTPHost, SmtpPort: port(value.SMTPPort), SmtpUsername: value.SMTPUsername, SmtpPassword: nil, SmtpFrom: value.SMTPFrom, ComingSoonEnabled: value.ComingSoonEnabled, ComingSoonMessage: value.ComingSoonMessage, LegalName: value.LegalName, ContactAddress: value.ContactAddress, PrivacyPolicyMarkdown: value.PrivacyPolicyMarkdown, TermsMarkdown: value.TermsMarkdown, PrivacyEffectiveDate: value.PrivacyEffectiveDate, TermsEffectiveDate: value.TermsEffectiveDate}
 }
 
 func brandingUpdate(input *lpbsv1.UpdateBrandingRequest) *experimentation.BrandingUpdateRequest {
@@ -50,7 +52,7 @@ func brandingUpdate(input *lpbsv1.UpdateBrandingRequest) *experimentation.Brandi
 		result := int(*v)
 		return &result
 	}
-	return &experimentation.BrandingUpdateRequest{SiteName: input.SiteName, Tagline: input.Tagline, LogoURL: input.LogoUrl, LogoIconURL: input.LogoIconUrl, FaviconURL: input.FaviconUrl, AppleTouchIconURL: input.AppleTouchIconUrl, DefaultTitle: input.DefaultTitle, DefaultDescription: input.DefaultDescription, DefaultOGImageURL: input.DefaultOgImageUrl, ThemePrimaryColor: input.ThemePrimaryColor, ThemeBackgroundColor: input.ThemeBackgroundColor, CanonicalBaseURL: input.CanonicalBaseUrl, GoogleSiteVerification: input.GoogleSiteVerification, RobotsTxt: input.RobotsTxt, SupportChatURL: input.SupportChatUrl, SupportEmail: input.SupportEmail, SMTPHost: input.SmtpHost, SMTPPort: port(input.SmtpPort), SMTPUsername: input.SmtpUsername, SMTPPassword: input.SmtpPassword, SMTPFrom: input.SmtpFrom, ComingSoonEnabled: input.ComingSoonEnabled, ComingSoonMessage: input.ComingSoonMessage}
+	return &experimentation.BrandingUpdateRequest{SiteName: input.SiteName, Tagline: input.Tagline, LogoURL: input.LogoUrl, LogoIconURL: input.LogoIconUrl, FaviconURL: input.FaviconUrl, AppleTouchIconURL: input.AppleTouchIconUrl, DefaultTitle: input.DefaultTitle, DefaultDescription: input.DefaultDescription, DefaultOGImageURL: input.DefaultOgImageUrl, ThemePrimaryColor: input.ThemePrimaryColor, ThemeBackgroundColor: input.ThemeBackgroundColor, CanonicalBaseURL: input.CanonicalBaseUrl, GoogleSiteVerification: input.GoogleSiteVerification, RobotsTxt: input.RobotsTxt, SupportChatURL: input.SupportChatUrl, SupportEmail: input.SupportEmail, SMTPHost: input.SmtpHost, SMTPPort: port(input.SmtpPort), SMTPUsername: input.SmtpUsername, SMTPPassword: input.SmtpPassword, SMTPFrom: input.SmtpFrom, ComingSoonEnabled: input.ComingSoonEnabled, ComingSoonMessage: input.ComingSoonMessage, LegalName: input.LegalName, ContactAddress: input.ContactAddress, PrivacyPolicyMarkdown: input.PrivacyPolicyMarkdown, TermsMarkdown: input.TermsMarkdown, PrivacyEffectiveDate: input.PrivacyEffectiveDate, TermsEffectiveDate: input.TermsEffectiveDate}
 }
 
 func (h BrandingConnectHandler) GetBranding(context.Context, *connect.Request[lpbsv1.GetBrandingRequest]) (*connect.Response[lpbsv1.BrandingResponse], error) {
@@ -62,6 +64,9 @@ func (h BrandingConnectHandler) UpdateBranding(_ context.Context, request *conne
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("branding update request is required"))
 	}
 	input := request.Msg
+	if err := validateBusinessIdentity(input); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if input.SmtpPassword != nil {
 		var err error
 		if strings.TrimSpace(input.GetSmtpPassword()) == "" {
@@ -103,7 +108,36 @@ func (h BrandingConnectHandler) GetPublicBranding(context.Context, *connect.Requ
 	if b == nil {
 		return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{}}), nil
 	}
-	return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{SiteName: b.SiteName, Tagline: derefString(b.Tagline), LogoUrl: derefString(b.LogoURL), LogoIconUrl: derefString(b.LogoIconURL), FaviconUrl: derefString(b.FaviconURL), ThemePrimaryColor: derefString(b.ThemePrimaryColor), ThemeBackgroundColor: derefString(b.ThemeBackgroundColor), SupportChatUrl: derefString(b.SupportChatURL), ComingSoonEnabled: derefBool(b.ComingSoonEnabled), ComingSoonMessage: derefString(b.ComingSoonMessage), CanonicalBaseUrl: derefString(b.CanonicalBaseURL)}}), nil
+	return connect.NewResponse(&lpbsv1.PublicBrandingResponse{Branding: &lpbsv1.PublicBranding{SiteName: b.SiteName, Tagline: derefString(b.Tagline), LogoUrl: derefString(b.LogoURL), LogoIconUrl: derefString(b.LogoIconURL), FaviconUrl: derefString(b.FaviconURL), ThemePrimaryColor: derefString(b.ThemePrimaryColor), ThemeBackgroundColor: derefString(b.ThemeBackgroundColor), SupportChatUrl: derefString(b.SupportChatURL), ComingSoonEnabled: derefBool(b.ComingSoonEnabled), ComingSoonMessage: derefString(b.ComingSoonMessage), CanonicalBaseUrl: derefString(b.CanonicalBaseURL), SupportEmail: derefString(b.SupportEmail), LegalName: derefString(b.LegalName), ContactAddress: derefString(b.ContactAddress), PrivacyPolicyMarkdown: derefString(b.PrivacyPolicyMarkdown), TermsMarkdown: derefString(b.TermsMarkdown), PrivacyEffectiveDate: derefString(b.PrivacyEffectiveDate), TermsEffectiveDate: derefString(b.TermsEffectiveDate)}}), nil
+}
+
+// maxLegalDocumentBytes bounds operator-authored legal Markdown so a public
+// branding read can never balloon into an unbounded payload.
+const maxLegalDocumentBytes = 100_000
+
+// validateBusinessIdentity rejects malformed public identity fields before they
+// reach the footer and legal pages every visitor sees. Empty strings are allowed
+// and mean "not configured".
+func validateBusinessIdentity(input *lpbsv1.UpdateBrandingRequest) error {
+	for name, value := range map[string]*string{"privacy_effective_date": input.PrivacyEffectiveDate, "terms_effective_date": input.TermsEffectiveDate} {
+		if value == nil || strings.TrimSpace(*value) == "" {
+			continue
+		}
+		if _, err := time.Parse(time.DateOnly, strings.TrimSpace(*value)); err != nil {
+			return fmt.Errorf("%s must be a date in YYYY-MM-DD form", name)
+		}
+	}
+	if value := input.SupportEmail; value != nil && strings.TrimSpace(*value) != "" {
+		if _, err := mail.ParseAddress(strings.TrimSpace(*value)); err != nil || strings.ContainsAny(strings.TrimSpace(*value), " <>") {
+			return fmt.Errorf("support_email must be a plain email address")
+		}
+	}
+	for name, value := range map[string]*string{"privacy_policy_markdown": input.PrivacyPolicyMarkdown, "terms_markdown": input.TermsMarkdown} {
+		if value != nil && len(*value) > maxLegalDocumentBytes {
+			return fmt.Errorf("%s exceeds %d bytes", name, maxLegalDocumentBytes)
+		}
+	}
+	return nil
 }
 
 func derefString(value *string) string {

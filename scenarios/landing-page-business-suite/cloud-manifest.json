@@ -39,13 +39,42 @@
   },
   "secrets": {
     "summary": {
-      "total_secrets": 0,
-      "per_install_generated": 0,
-      "user_prompt": 0,
+      "total_secrets": 2,
+      "per_install_generated": 1,
+      "user_prompt": 1,
       "remote_fetch": 0,
       "infrastructure": 0
     },
-    "bundle_secrets": []
+    "bundle_secrets": [
+      {
+        "id": "service-secret",
+        "class": "per_install_generated",
+        "required": true,
+        "description": "Service identity used by LPBS and its local release handoff.",
+        "target": {
+          "type": "env",
+          "name": "LPBS_SERVICE_SECRET"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "service-secret"
+        }
+      },
+      {
+        "id": "smtp-password",
+        "class": "user_prompt",
+        "required": false,
+        "description": "SMTP provider password for transactional sign-in email delivery.",
+        "target": {
+          "type": "env",
+          "name": "SMTP_PASSWORD"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "smtp-password"
+        }
+      }
+    ]
   },
   "local_credential_handoffs": [
     {

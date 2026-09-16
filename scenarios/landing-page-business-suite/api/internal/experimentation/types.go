@@ -86,6 +86,12 @@ type SiteBranding struct {
 	SMTPFrom               *string   `json:"smtp_from,omitempty"`
 	ComingSoonEnabled      *bool     `json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage      *string   `json:"coming_soon_message,omitempty"`
+	LegalName              *string   `json:"legal_name,omitempty"`
+	ContactAddress         *string   `json:"contact_address,omitempty"`
+	PrivacyPolicyMarkdown  *string   `json:"privacy_policy_markdown,omitempty"`
+	TermsMarkdown          *string   `json:"terms_markdown,omitempty"`
+	PrivacyEffectiveDate   *string   `json:"privacy_effective_date,omitempty"`
+	TermsEffectiveDate     *string   `json:"terms_effective_date,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -115,4 +121,10 @@ type BrandingUpdateRequest struct {
 	SMTPFrom               *string `json:"smtp_from,omitempty"`
 	ComingSoonEnabled      *bool   `json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage      *string `json:"coming_soon_message,omitempty"`
+	LegalName              *string `json:"legal_name,omitempty"`
+	ContactAddress         *string `json:"contact_address,omitempty"`
+	PrivacyPolicyMarkdown  *string `json:"privacy_policy_markdown,omitempty"`
+	TermsMarkdown          *string `json:"terms_markdown,omitempty"`
+	PrivacyEffectiveDate   *string `json:"privacy_effective_date,omitempty"`
+	TermsEffectiveDate     *string `json:"terms_effective_date,omitempty"`
 }

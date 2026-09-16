@@ -46,6 +46,7 @@ func DefaultRolePolicies() map[string]RolePolicy {
 	pricing := DefaultModelPricing()
 	return map[string]RolePolicy{
 		"chat.default":       {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
+		"audio.summarize":    {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
 		"classify.fast":      {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
 		"vision.default":     {Model: "google/gemini-flash-1.5", Pricing: pricing["google/gemini-flash-1.5"]},
 		"extract.structured": {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},

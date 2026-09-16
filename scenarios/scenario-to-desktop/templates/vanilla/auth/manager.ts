@@ -72,22 +72,17 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             await storage.ensureDir(parentDir);
         }
 
-        // Persist only the signed lease. Website access and refresh tokens are
-        // process-memory compatibility state and never cross this durable
-        // storage boundary.
-        const persisted = tokens.entitlementLease ? JSON.stringify({ entitlementLease: tokens.entitlementLease }) : "";
+        // Persist the website session only inside Electron safeStorage. This
+        // keeps relaunches signed in without creating a plaintext token file.
+        const persisted = JSON.stringify({
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresAt: tokens.expiresAt,
+            ...(tokens.entitlementLease ? { entitlementLease: tokens.entitlementLease } : {}),
+        });
         if (safeStorage.isEncryptionAvailable()) {
-            if (persisted) {
-                const encrypted = safeStorage.encryptString(persisted);
-                await storage.writeFile(config.tokensFile, encrypted);
-            } else {
-                try {
-                    await storage.deleteFile(config.tokensFile);
-                } catch (error: unknown) {
-                    const code = error instanceof Error && "code" in error ? error.code : undefined;
-                    if (code !== "ENOENT") throw error;
-                }
-            }
+            const encrypted = safeStorage.encryptString(persisted);
+            await storage.writeFile(config.tokensFile, encrypted);
         } else {
             // The platform credential authority is the secure fallback. Never
             // place a lease, access token, or refresh token in an unencrypted file.
@@ -132,20 +127,14 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             if (!fileContent) return leaseOnlyTokens(await getAuthorityLease());
 
             const decrypted = safeStorage.decryptString(fileContent);
-            const parsed = JSON.parse(decrypted) as {
-                entitlementLease?: unknown;
-                accessToken?: unknown;
-                refreshToken?: unknown;
-            };
-            if (typeof parsed.accessToken === "string" || typeof parsed.refreshToken === "string") {
-                // A previous version persisted website credentials. Refuse to
-                // import them and recover only a separately stored lease.
-                try {
-                    await storage.deleteFile(config.tokensFile);
-                } catch {
-                    // The old credential is unusable even if cleanup fails.
-                }
-                return leaseOnlyTokens(await getAuthorityLease());
+            const parsed = JSON.parse(decrypted) as Partial<StoredTokens>;
+            if (typeof parsed.accessToken === "string" && typeof parsed.refreshToken === "string" && typeof parsed.expiresAt === "string") {
+                return {
+                    accessToken: parsed.accessToken,
+                    refreshToken: parsed.refreshToken,
+                    expiresAt: parsed.expiresAt,
+                    ...(typeof parsed.entitlementLease === "string" ? { entitlementLease: parsed.entitlementLease } : {}),
+                };
             }
             return leaseOnlyTokens(
                 typeof parsed.entitlementLease === "string"

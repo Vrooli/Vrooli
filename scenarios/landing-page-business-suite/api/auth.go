@@ -30,7 +30,7 @@ func isSecureCookiesEnabled() bool {
 	// Default to secure in production
 	if val == "" {
 		// Check if we're in a production environment
-		env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+		env := runtimeEnvironment()
 		return env == "production" || env == "prod"
 	}
 	return val != "false" && val != "0" && val != "no"
@@ -197,7 +197,7 @@ func RotateSessionSecret() error {
 }
 
 func isProductionSecurityEnvironment() bool {
-	environment := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+	environment := runtimeEnvironment()
 	return environment == "production" || environment == "prod"
 }
 
@@ -232,6 +232,8 @@ func validateProductionCredentials() error {
 func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
 	return adminhttp.Dependencies{
 		Auth:          s.adminAuth(),
+		Throttle:      s.authThrottleOrNil(),
+		MFA:           s.adminSecondFactor(),
 		Sessions:      s.sessionManager,
 		GenerateID:    generateSessionID,
 		Now:           time.Now,

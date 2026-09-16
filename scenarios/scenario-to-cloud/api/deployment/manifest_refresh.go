@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"scenario-to-cloud/bundle"
@@ -119,6 +120,24 @@ func (r *manifestRefresher) refreshFromClosure(ctx context.Context, refreshed *d
 
 func (r *manifestRefresher) refreshPortsAndSecrets(ctx context.Context, refreshed domain.CloudManifest) (domain.CloudManifest, error) {
 	scenarioID := refreshed.Scenario.ID
+	// A cloud manifest may declare a locally generated credential for a
+	// same-host handoff. Closure refresh must invalidate dependency-derived
+	// secrets, but it must not discard that explicit handoff contract; doing so
+	// makes the later credentials.provision step unable to materialize it.
+	var handoffPlans []domain.BundleSecretPlan
+	if refreshed.Secrets != nil && len(refreshed.LocalCredentialHandoffs) > 0 {
+		handoffIDs := make(map[string]struct{}, len(refreshed.LocalCredentialHandoffs))
+		for _, handoff := range refreshed.LocalCredentialHandoffs {
+			if id := strings.TrimSpace(handoff.SecretID); id != "" {
+				handoffIDs[id] = struct{}{}
+			}
+		}
+		for _, plan := range refreshed.Secrets.BundleSecrets {
+			if _, ok := handoffIDs[strings.TrimSpace(plan.ID)]; ok {
+				handoffPlans = append(handoffPlans, plan)
+			}
+		}
+	}
 
 	// Re-fetch ports from service.json
 	ports, err := r.portsFetcher.FetchPorts(ctx, scenarioID)
@@ -136,9 +155,13 @@ func (r *manifestRefresher) refreshPortsAndSecrets(ctx context.Context, refreshe
 		refreshed.Ports = ports
 	}
 
-	// Clear secrets so they get re-fetched during deployment
-	// This ensures any new secrets from updated dependencies are included
-	refreshed.Secrets = nil
+	// Clear dependency-derived secrets so they get re-fetched during
+	// deployment, while retaining explicit local-handoff plans.
+	if len(handoffPlans) == 0 {
+		refreshed.Secrets = nil
+	} else {
+		refreshed.Secrets = &domain.ManifestSecrets{BundleSecrets: handoffPlans}
+	}
 
 	return refreshed, nil
 }

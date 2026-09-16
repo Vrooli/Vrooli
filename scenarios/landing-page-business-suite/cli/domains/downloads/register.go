@@ -236,11 +236,19 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 		return fmt.Errorf("open artifact file: %w", err)
 	}
 	defer artifactFile.Close()
+	artifactInfo, err := artifactFile.Stat()
+	if err != nil {
+		return fmt.Errorf("stat artifact file: %w", err)
+	}
 
 	uploadReq, err := http.NewRequest("PUT", presignResp.UploadURL, artifactFile)
 	if err != nil {
 		return fmt.Errorf("create upload request: %w", err)
 	}
+	// S3-compatible presigned endpoints commonly reject chunked uploads. The
+	// file-backed body has a stable size, so declare it explicitly and preserve
+	// the presign contract's non-chunked PUT semantics.
+	uploadReq.ContentLength = artifactInfo.Size()
 	for key, value := range presignResp.RequiredHeaders {
 		if strings.EqualFold(key, "host") || strings.TrimSpace(value) == "" {
 			continue

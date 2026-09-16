@@ -277,6 +277,18 @@ func TestSecurity_APIKeyEncryption_ProductionRequiresKey(t *testing.T) {
 	}
 }
 
+func TestSecurity_ControlPlaneProductionEnvironmentIsAuthoritativeFallback(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "")
+	t.Setenv("VROOLI_ENVIRONMENT", "production")
+
+	if !isProductionEnvironment() {
+		t.Fatal("expected VROOLI_ENVIRONMENT=production to select production security")
+	}
+	if !isSecureCookiesEnabled() {
+		t.Fatal("expected control-plane production environment to enable secure cookies")
+	}
+}
+
 // ============================================================================
 // IP Address Validation Tests
 // ============================================================================
@@ -363,4 +375,38 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func TestSecurity_XFFSpoofing_ForgedLeftmostEntryThroughLocalProxy(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	// A client sends a forged header; the scenario's UI proxy on loopback
+	// appends the real peer. The forged value must not become the client IP.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/magic-link", nil)
+	req.RemoteAddr = "127.0.0.1:50000"
+	req.Header.Set("X-Forwarded-For", "6.6.6.6, 203.0.113.50")
+
+	if ip := getClientIP(req); ip != "203.0.113.50" {
+		t.Fatalf("client IP = %s, want the proxy-observed peer 203.0.113.50", ip)
+	}
+}
+
+func TestSecurity_DefaultTrustsOnlyLoopbackProxy(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	proxied := httptest.NewRequest(http.MethodGet, "/", nil)
+	proxied.RemoteAddr = "[::1]:41000"
+	proxied.Header.Set("X-Forwarded-For", "198.51.100.4")
+	if ip := getClientIP(proxied); ip != "198.51.100.4" {
+		t.Fatalf("visitors behind the local UI proxy collapse to one address: %s", ip)
+	}
+
+	remote := httptest.NewRequest(http.MethodGet, "/", nil)
+	remote.RemoteAddr = "192.0.2.9:41000"
+	remote.Header.Set("X-Forwarded-For", "198.51.100.4")
+	if ip := getClientIP(remote); ip != "192.0.2.9" {
+		t.Fatalf("a remote peer's forwarding header was trusted: %s", ip)
+	}
 }

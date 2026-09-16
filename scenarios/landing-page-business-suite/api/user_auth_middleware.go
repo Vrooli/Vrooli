@@ -30,12 +30,16 @@ func initTrustedProxies() {
 	trustedProxiesOnce.Do(func() {
 		cidrsEnv := strings.TrimSpace(envx.Get("TRUSTED_PROXY_CIDRS"))
 		if cidrsEnv == "" {
-			// No trusted proxies configured - this is the secure default
-			logx.Info("trusted_proxies_not_configured", map[string]interface{}{
+			// Browsers reach this API through the scenario's own UI server on
+			// the loopback interface, which appends the real peer to
+			// X-Forwarded-For. Without trusting loopback every visitor would
+			// share one address and per-client limits would become global.
+			// Remote peers are still never trusted.
+			cidrsEnv = "127.0.0.0/8,::1/128"
+			logx.Info("trusted_proxies_default_loopback", map[string]interface{}{
 				"level":   "info",
-				"message": "TRUSTED_PROXY_CIDRS not set; X-Forwarded-For headers will be ignored",
+				"message": "TRUSTED_PROXY_CIDRS not set; trusting only the local UI proxy on loopback",
 			})
-			return
 		}
 
 		cidrs := strings.Split(cidrsEnv, ",")
@@ -219,80 +223,58 @@ func getSessionID(ctx context.Context) string {
 }
 
 // getClientIP extracts the client IP address from the request.
-// It validates X-Forwarded-For headers only when the direct connection is from a trusted proxy.
-// This prevents IP spoofing attacks where malicious clients send fake X-Forwarded-For headers.
+//
+// X-Forwarded-For is walked from the right: each trusted proxy appends the
+// peer it saw, so the first untrusted address from the right is the client.
+// Entries to its left were supplied by that client and are never trusted.
+// Headers are only consulted when the direct connection is a trusted proxy.
 func getClientIP(r *http.Request) string {
 	initTrustedProxies()
 
-	// Extract the direct connection IP (RemoteAddr, without port)
 	directIP := extractIPFromRemoteAddr(r.RemoteAddr)
-
-	// Only trust X-Forwarded-For and X-Real-IP if the direct connection is from a trusted proxy
-	if isIPFromTrustedProxy(directIP) {
-		// Check X-Forwarded-For header (for proxied requests)
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			// Take the first IP in the chain (original client)
-			var clientIP string
-			for i := 0; i < len(xff); i++ {
-				if xff[i] == ',' {
-					clientIP = strings.TrimSpace(xff[:i])
-					break
-				}
-			}
-			if clientIP == "" {
-				clientIP = strings.TrimSpace(xff)
-			}
-
-			// Validate the extracted IP format
-			if validateIPFormat(clientIP) {
-				return clientIP
-			}
-			// Invalid IP format in X-Forwarded-For, log and fall through
-			logx.Info("xff_invalid_ip_format", map[string]interface{}{
-				"level":        "warn",
-				"xff_header":   xff,
-				"extracted_ip": clientIP,
-				"direct_ip":    directIP,
-				"security":     true,
-			})
-		}
-
-		// Check X-Real-IP header
-		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			xri = strings.TrimSpace(xri)
-			if validateIPFormat(xri) {
-				return xri
-			}
-			// Invalid IP format in X-Real-IP, log and fall through
-			logx.Info("xrealip_invalid_ip_format", map[string]interface{}{
-				"level":     "warn",
-				"xrealip":   xri,
-				"direct_ip": directIP,
-				"security":  true,
-			})
-		}
-	} else {
-		// Direct connection is NOT from a trusted proxy - log if they're trying to spoof
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+	if !isIPFromTrustedProxy(directIP) {
+		if r.Header.Get("X-Forwarded-For") != "" || r.Header.Get("X-Real-IP") != "" {
 			logx.Info("xff_untrusted_proxy_ignored", map[string]interface{}{
-				"level":      "warn",
-				"xff_header": xff,
-				"direct_ip":  directIP,
-				"message":    "X-Forwarded-For header ignored - connection not from trusted proxy",
-				"security":   true,
-			})
-		}
-		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			logx.Info("xrealip_untrusted_proxy_ignored", map[string]interface{}{
 				"level":     "warn",
-				"xrealip":   xri,
 				"direct_ip": directIP,
-				"message":   "X-Real-IP header ignored - connection not from trusted proxy",
+				"message":   "forwarding headers ignored - connection not from trusted proxy",
 				"security":  true,
 			})
+		}
+		return directIP
+	}
+
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		hops := strings.Split(xff, ",")
+		origin, wellFormed := "", true
+		for index := len(hops) - 1; index >= 0; index-- {
+			hop := strings.TrimSpace(hops[index])
+			if !validateIPFormat(hop) {
+				wellFormed = false
+				logx.Info("xff_invalid_ip_format", map[string]interface{}{"level": "warn", "direct_ip": directIP, "security": true})
+				break
+			}
+			if !isIPFromTrustedProxy(hop) {
+				return hop
+			}
+			origin = hop
+		}
+		// Every hop was a trusted proxy, so the leftmost one is the origin.
+		if wellFormed && origin != "" {
+			return origin
 		}
 	}
 
-	// Fall back to RemoteAddr
+	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+		if validateIPFormat(xri) {
+			return xri
+		}
+		logx.Info("xrealip_invalid_ip_format", map[string]interface{}{
+			"level":     "warn",
+			"direct_ip": directIP,
+			"security":  true,
+		})
+	}
+
 	return directIP
 }

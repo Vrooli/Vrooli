@@ -53,6 +53,9 @@ func TestVrooliCommand(t *testing.T) {
 			if !contains(result, `export PATH=`) {
 				t.Errorf("VrooliCommand missing PATH setup: %s", result)
 			}
+			if !contains(result, `VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT:=5m`) {
+				t.Errorf("VrooliCommand missing cold-start readiness default: %s", result)
+			}
 			if !contains(result, "export VROOLI_ROOT="+QuoteSingle(tt.workdir)) {
 				t.Errorf("VrooliCommand missing deployment root: %s", result)
 			}

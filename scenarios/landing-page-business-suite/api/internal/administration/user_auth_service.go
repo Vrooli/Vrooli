@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -22,6 +21,13 @@ import (
 // policy to a particular mail provider.
 type MagicLinkSender interface {
 	SendMagicLink(email, magicLink, appName string) error
+}
+
+// SignInMessageSender delivers a sign-in email that carries both the one-use
+// link and the short code. Senders that implement it are preferred over
+// MagicLinkSender so the code reaches the user.
+type SignInMessageSender interface {
+	SendSignIn(message SignInMessage) error
 }
 
 // MagicLinkTokenCallback receives generated token details. It is a narrow
@@ -52,15 +58,21 @@ type UserAuthService struct {
 	baseURL        string // For magic link URLs
 	appName        string // For email subject lines
 	// Test hook for capturing generated tokens
-	onMagicLinkGenerated MagicLinkTokenCallback
-	log                  func(string, map[string]interface{})
-	logError             func(string, map[string]interface{})
+	onMagicLinkGenerated  MagicLinkTokenCallback
+	onSignInCodeGenerated func(email, code string)
+	log                   func(string, map[string]interface{})
+	logError              func(string, map[string]interface{})
 }
 
 // UseTokenCallback sets a callback that will be invoked when a magic link is generated.
 // This follows the Use*() injection pattern for test seams.
 func (s *UserAuthService) UseTokenCallback(callback MagicLinkTokenCallback) {
 	s.onMagicLinkGenerated = callback
+}
+
+// UseCodeCallback captures generated sign-in codes in tests.
+func (s *UserAuthService) UseCodeCallback(callback func(email, code string)) {
+	s.onSignInCodeGenerated = callback
 }
 
 // User represents an authenticated user.
@@ -203,165 +215,6 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 		log:            log,
 		logError:       logError,
 	}
-}
-
-// RequestMagicLink generates and sends a magic link to the user's email.
-func (s *UserAuthService) RequestMagicLink(ctx context.Context, email, ipAddress, userAgent string) error {
-	email = strings.TrimSpace(strings.ToLower(email))
-	if email == "" || !strings.Contains(email, "@") {
-		return errors.New("valid email address is required")
-	}
-	if strings.TrimSpace(s.baseURL) == "" {
-		return errors.New("AUTH_MAGIC_LINK_BASE_URL must be configured before requesting a magic link")
-	}
-
-	// Get or create user
-	user, err := s.GetOrCreateUser(ctx, email)
-	if err != nil {
-		return fmt.Errorf("get or create user: %w", err)
-	}
-
-	// Generate secure random token
-	tokenBytes := make([]byte, 32)
-	if _, err := rand.Read(tokenBytes); err != nil {
-		return fmt.Errorf("generate token: %w", err)
-	}
-	token := hex.EncodeToString(tokenBytes)
-
-	// Hash the token for storage
-	tokenHash := HashToken(token)
-
-	// Store token in database (use UTC for consistent timezone handling with PostgreSQL)
-	expiresAt := time.Now().UTC().Add(s.magicLinkTTL)
-	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO auth_tokens (user_id, token_hash, token_type, expires_at, ip_address, user_agent)
-		VALUES ($1, $2, 'magic_link', $3, $4::inet, $5)
-	`, user.ID, tokenHash, expiresAt, toNullableParam(ipAddress), toNullableParam(userAgent))
-	if err != nil {
-		return fmt.Errorf("store auth token: %w", err)
-	}
-
-	// Build magic link URL
-	magicLink := fmt.Sprintf("%s?token=%s", s.baseURL, url.QueryEscape(token))
-
-	// Call test hook if configured (for capturing tokens in tests)
-	if s.onMagicLinkGenerated != nil {
-		s.onMagicLinkGenerated(email, token, magicLink)
-	}
-
-	// Send email. The transport may still return a generic response to avoid
-	// account enumeration, but this service must not report a successful
-	// request when the delivery authority rejected the message.
-	if s.emailService == nil {
-		return errors.New("magic-link email provider is unavailable")
-	}
-	if err := s.emailService.SendMagicLink(email, magicLink, s.appName); err != nil {
-		s.logError("send_magic_link_failed", map[string]interface{}{
-			"error": err.Error(),
-			"email": email,
-		})
-		return fmt.Errorf("send magic link: %w", err)
-	}
-
-	s.log("magic_link_requested", map[string]interface{}{
-		"level":   "info",
-		"user_id": user.ID,
-		"email":   email,
-	})
-
-	return nil
-}
-
-// VerifyMagicLink validates a magic link token and returns tokens for the user.
-func (s *UserAuthService) VerifyMagicLink(ctx context.Context, token, ipAddress, userAgent string) (*TokenPair, *User, error) {
-	token = strings.TrimSpace(token)
-	if token == "" {
-		return nil, nil, ErrTokenInvalid
-	}
-
-	tokenHash := HashToken(token)
-
-	// Find and validate token
-	var tokenID, userID string
-	var expiresAt time.Time
-	var usedAt sql.NullTime
-
-	err := s.db.QueryRowContext(ctx, `
-		SELECT id, user_id, expires_at, used_at
-		FROM auth_tokens
-		WHERE token_hash = $1 AND token_type = 'magic_link'
-	`, tokenHash).Scan(&tokenID, &userID, &expiresAt, &usedAt)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, ErrTokenInvalid
-	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("query auth token: %w", err)
-	}
-
-	// Check if token was already used
-	if usedAt.Valid {
-		return nil, nil, ErrTokenUsed
-	}
-
-	// Check if token has expired (use UTC for consistent timezone handling)
-	if time.Now().UTC().After(expiresAt) {
-		return nil, nil, ErrTokenExpired
-	}
-
-	// Mark token as used (atomic)
-	result, err := s.db.ExecContext(ctx, `
-		UPDATE auth_tokens
-		SET used_at = NOW()
-		WHERE id = $1 AND used_at IS NULL
-	`, tokenID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("mark token used: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		// Token was used between our check and update (race condition)
-		return nil, nil, ErrTokenUsed
-	}
-
-	// Get user
-	user, err := s.GetUserByID(ctx, userID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("get user: %w", err)
-	}
-
-	// Mark email as verified and update last login
-	now := time.Now().UTC()
-	_, err = s.db.ExecContext(ctx, `
-		UPDATE users
-		SET email_verified = TRUE, last_login_at = NOW(), updated_at = NOW()
-		WHERE id = $1
-	`, userID)
-	if err != nil {
-		s.logError("update_user_after_magic_link_failed", map[string]interface{}{
-			"error":   err.Error(),
-			"user_id": userID,
-		})
-	} else {
-		// Update the user object to reflect the database changes
-		user.EmailVerified = true
-		user.LastLoginAt = &now
-	}
-
-	// Create session and generate tokens
-	tokenPair, err := s.CreateSession(ctx, user, ipAddress, userAgent)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create session: %w", err)
-	}
-
-	s.log("magic_link_verified", map[string]interface{}{
-		"level":   "info",
-		"user_id": userID,
-		"email":   user.Email,
-	})
-
-	return tokenPair, user, nil
 }
 
 // GetOrCreateUser returns an existing user by email or creates a new one.

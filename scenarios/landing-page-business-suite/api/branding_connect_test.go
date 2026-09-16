@@ -119,3 +119,55 @@ func TestBrandingConnectRoutesProtectAdminProceduresOnly(t *testing.T) {
 		t.Fatalf("public procedure status = %d, want %d: %s", publicResponse.Code, http.StatusOK, publicResponse.Body.String())
 	}
 }
+
+func TestBrandingConnectPublishesBusinessIdentityAcrossReload(t *testing.T) {
+	store := newBrandingConnectTestStore(t)
+	handler := varianthttp.NewBrandingConnectHandler(store)
+	email, legalName, address := "hello@example.test", "Example Studio LLC", "100 Main Street\nSuite 4\nSpringfield, ST 00000"
+	privacy, terms, privacyDate, termsDate := "# Privacy\n\nOwned by {{legal_name}}.", "# Terms", "2026-09-16", "2026-09-01"
+	if _, err := handler.UpdateBranding(context.Background(), connect.NewRequest(&lpbsv1.UpdateBrandingRequest{
+		SupportEmail: &email, LegalName: &legalName, ContactAddress: &address,
+		PrivacyPolicyMarkdown: &privacy, TermsMarkdown: &terms, PrivacyEffectiveDate: &privacyDate, TermsEffectiveDate: &termsDate,
+	})); err != nil {
+		t.Fatalf("UpdateBranding() error = %v", err)
+	}
+
+	reloaded := experimentation.NewConfigStore("", store.GetBrandingPath(), nil)
+	if err := reloaded.LoadAll(); err != nil {
+		t.Fatalf("reload branding: %v", err)
+	}
+	response, err := varianthttp.NewBrandingConnectHandler(reloaded).GetPublicBranding(context.Background(), connect.NewRequest(&lpbsv1.GetPublicBrandingRequest{}))
+	if err != nil {
+		t.Fatalf("GetPublicBranding() error = %v", err)
+	}
+	public := response.Msg.GetBranding()
+	if public.GetSupportEmail() != email || public.GetLegalName() != legalName || public.GetContactAddress() != address ||
+		public.GetPrivacyPolicyMarkdown() != privacy || public.GetTermsMarkdown() != terms ||
+		public.GetPrivacyEffectiveDate() != privacyDate || public.GetTermsEffectiveDate() != termsDate {
+		t.Fatalf("public business identity after reload = %#v", public)
+	}
+
+	if _, err := handler.ClearBrandingField(context.Background(), connect.NewRequest(&lpbsv1.ClearBrandingFieldRequest{Field: "privacy_policy_markdown"})); err != nil {
+		t.Fatalf("ClearBrandingField() error = %v", err)
+	}
+	if got := store.GetBranding().PrivacyPolicyMarkdown; got != nil {
+		t.Fatalf("cleared privacy policy = %q, want nil so the default template applies", *got)
+	}
+}
+
+func TestBrandingConnectRejectsMalformedBusinessIdentity(t *testing.T) {
+	handler := varianthttp.NewBrandingConnectHandler(newBrandingConnectTestStore(t))
+	badDate, badEmail, oversized, empty := "16/09/2026", "Support <help@example.test>", strings.Repeat("x", 100_001), ""
+	for name, request := range map[string]*lpbsv1.UpdateBrandingRequest{
+		"date":      {TermsEffectiveDate: &badDate},
+		"email":     {SupportEmail: &badEmail},
+		"oversized": {PrivacyPolicyMarkdown: &oversized},
+	} {
+		if _, err := handler.UpdateBranding(context.Background(), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("%s: UpdateBranding() error = %v, want InvalidArgument", name, err)
+		}
+	}
+	if _, err := handler.UpdateBranding(context.Background(), connect.NewRequest(&lpbsv1.UpdateBrandingRequest{SupportEmail: &empty, TermsEffectiveDate: &empty})); err != nil {
+		t.Fatalf("empty identity fields must be accepted as unconfigured: %v", err)
+	}
+}

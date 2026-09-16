@@ -35,7 +35,7 @@ func VrooliCommand(workdir, cmd string) string {
 	// and the managed source closure under the durable deployment root. Point
 	// both root variables there so setup and target-owner verbs resolve the same
 	// delivered project while artifact mode suppresses development rebuilds.
-	pathSetup := fmt.Sprintf(`export VROOLI_PRIVILEGE_BROKER_SOCKET=/run/vrooli/privilege-broker.sock; export VROOLI_CLI_ARTIFACT_MODE=1; export VROOLI_ENVIRONMENT=production; export VROOLI_ROOT=%s; export VROOLI_SOURCE_ROOT=%s; export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`, QuoteSingle(workdir), QuoteSingle(workdir))
+	pathSetup := fmt.Sprintf(`export VROOLI_PRIVILEGE_BROKER_SOCKET=/run/vrooli/privilege-broker.sock; export VROOLI_CLI_ARTIFACT_MODE=1; export VROOLI_ENVIRONMENT=production; export VROOLI_ROOT=%s; export VROOLI_SOURCE_ROOT=%s; : "${VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT:=5m}"; export VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT; export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`, QuoteSingle(workdir), QuoteSingle(workdir))
 	trimmed := strings.TrimSpace(cmd)
 	switch {
 	case trimmed == "vrooli":

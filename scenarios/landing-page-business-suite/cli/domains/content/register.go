@@ -23,9 +23,6 @@ import (
 func Register(deps support.Dependencies) cliapp.CommandGroup {
 	commands := deps.EndpointCommands([]support.EndpointDef{
 		{Name: "branding", Method: "GET", Path: "/branding", Description: "Get public branding"},
-		{Name: "admin-branding-get", Method: "GET", Path: "/admin/branding", Description: "Get branding (admin)"},
-		{Name: "admin-branding-update", Method: "PUT", Path: "/admin/branding", Description: "Update branding (admin)"},
-		{Name: "admin-branding-clear-field", Method: "POST", Path: "/admin/branding/clear-field", Description: "Clear branding field (admin)"},
 		{Name: "admin-assets-list", Method: "GET", Path: "/admin/assets", Description: "List assets (admin)"},
 		{Name: "admin-assets-get", Method: "GET", Path: "/admin/assets/{id}", Description: "Get asset (admin)"},
 		{Name: "admin-assets-delete", Method: "DELETE", Path: "/admin/assets/{id}", Description: "Delete asset (admin)"},
@@ -33,13 +30,84 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "sitemap", Method: "GET", Path: "/sitemap.xml", Description: "Fetch sitemap", Root: true},
 		{Name: "robots", Method: "GET", Path: "/robots.txt", Description: "Fetch robots.txt", Root: true},
 	})
-	commands = append(commands, seoCommand(deps), updateVariantSEOCommand(deps), cliapp.Command{
+	commands = append(commands, adminBrandingGetCommand(deps), adminBrandingUpdateCommand(deps), adminBrandingClearFieldCommand(deps), seoCommand(deps), updateVariantSEOCommand(deps), cliapp.Command{
 		Name:        "admin-assets-upload",
 		NeedsAPI:    true,
 		Description: "Upload asset (admin)",
 		Run:         func(args []string) error { return runAssetsUpload(deps, args) },
 	})
 	return cliapp.CommandGroup{Title: "Content", Commands: commands}
+}
+
+func brandingClient(deps support.Dependencies) (lpbsconnect.BrandingServiceClient, error) {
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return lpbsconnect.NewBrandingServiceClient(httpClient, baseURL), nil
+}
+
+func adminBrandingGetCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoList(func(cliapp.OperationContext) (*lpbsv1.BrandingResponse, error) {
+		service, err := brandingClient(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.GetBranding(context.Background(), connect.NewRequest(&lpbsv1.GetBrandingRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("get branding", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.BrandingResponse) cliapp.ListReport {
+		return cliapp.ListReport{Summary: []string{"Administrator branding."}, ResultsHeading: "Branding"}
+	})
+	return (cliapp.Command{Name: "admin-branding-get", NeedsAPI: true, Description: "Get branding through the generated Connect contract", Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoList}}).WithPrimitive(op)
+}
+
+func adminBrandingUpdateCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*lpbsv1.BrandingResponse, error) {
+		payload, err := support.ParseBody(ctx.Flag("body"))
+		if err != nil {
+			return nil, err
+		}
+		request := &lpbsv1.UpdateBrandingRequest{}
+		if err := protojson.Unmarshal(payload, request); err != nil {
+			return nil, fmt.Errorf("decode branding update: %w", err)
+		}
+		service, err := brandingClient(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.UpdateBranding(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("update branding", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.BrandingResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{"Branding updated."}}
+	})
+	return (cliapp.Command{Name: "admin-branding-update", NeedsAPI: true, Description: "Update branding through the generated Connect contract (--body JSON)", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "body", Description: "Partial branding JSON payload or @file.json", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(op)
+}
+
+func adminBrandingClearFieldCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*lpbsv1.BrandingResponse, error) {
+		field := strings.TrimSpace(ctx.Positional("field"))
+		if field == "" {
+			return nil, fmt.Errorf("field is required")
+		}
+		service, err := brandingClient(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.ClearBrandingField(context.Background(), connect.NewRequest(&lpbsv1.ClearBrandingFieldRequest{Field: field}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("clear branding field", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.BrandingResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{"Branding field cleared."}}
+	})
+	return (cliapp.Command{Name: "admin-branding-clear-field", NeedsAPI: true, Description: "Clear branding field through the generated Connect contract (FIELD)", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "field", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(op)
 }
 
 func seoClient(deps support.Dependencies) (lpbsconnect.SeoServiceClient, error) {

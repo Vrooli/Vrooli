@@ -30,3 +30,13 @@ func TestEstimateTokensHonorsExplicitCompletionLimit(t *testing.T) {
 		t.Fatalf("explicit completion estimate = %d, want 321", estimate.Completion)
 	}
 }
+
+func TestDefaultRolePoliciesIncludesAudioSummarization(t *testing.T) {
+	policy, ok := DefaultRolePolicies()["audio.summarize"]
+	if !ok {
+		t.Fatal("audio.summarize role is not registered")
+	}
+	if policy.Model == "" || policy.Pricing.PromptCostPer1K <= 0 || policy.Pricing.CompletionCostPer1K <= 0 {
+		t.Fatalf("audio.summarize policy is incomplete: %+v", policy)
+	}
+}
