@@ -50,11 +50,9 @@ func Authorize(deps Dependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusBadRequest, "Platform is required.", "validation")
 			return
 		}
+		// Anonymous requests proceed with an empty identity; the authorizer
+		// fails closed and rejects gated assets without one.
 		user := deps.UserEmail(r.Context())
-		if user == "" {
-			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
-			return
-		}
 
 		asset, err := deps.Authorize(r.Context(), appKey, platform, user)
 		if err != nil {
@@ -67,7 +65,7 @@ func Authorize(deps Dependencies) http.HandlerFunc {
 			case ErrorSubscriptionRequired:
 				deps.WriteError(w, http.StatusForbidden, "An active subscription is required to download this content.", "forbidden")
 			case ErrorIdentityRequired:
-				deps.WriteError(w, http.StatusBadRequest, "Please provide your email to download.", "validation")
+				deps.WriteError(w, http.StatusUnauthorized, "Sign in to download this content.", "unauthorized")
 			case ErrorPlatformRequired:
 				deps.WriteError(w, http.StatusBadRequest, "Please select a platform.", "validation")
 			case ErrorEntitlementsUnavailable:

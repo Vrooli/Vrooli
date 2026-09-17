@@ -121,6 +121,13 @@ func Resolve(document Document, request ResolveRequest) (ResolveResult, error) {
 	}
 
 	profileKeys := pageAppKeys(resolvedPage, selected)
+	// An app-detail surface (and its download page) lets a visitor switch to
+	// the other suite apps, so every eligible profile resolves there, in the
+	// bundle's configured order. Capabilities stay scoped to the page's apps.
+	spotlightKeys := profileKeys
+	if mode == ModeAppDetail {
+		spotlightKeys = appendMissingKeys(copyStrings(eligibleKeys), profileKeys)
+	}
 	result := ResolveResult{
 		SchemaVersion:   SchemaVersion,
 		Mode:            mode,
@@ -128,7 +135,7 @@ func Resolve(document Document, request ResolveRequest) (ResolveResult, error) {
 		AppKey:          appKey,
 		Page:            resolvedPage,
 		SelectedAppKeys: copyStrings(selected),
-		Spotlights:      resolvedSpotlights(profileKeys, appsByKey),
+		Spotlights:      resolvedSpotlights(spotlightKeys, appsByKey),
 		Capabilities:    resolvedCapabilities(pageCapabilityKeys(resolvedPage, profileKeys, eligible), mode, appsByKey, resolvedPage.Locale),
 		Assets:          resolvedAssets(document.Assets, resolvedPage, publicFixtures),
 		Fixtures:        publicFixtures,
@@ -435,6 +442,20 @@ func publicActions(actions []Action, eligible map[string]bool, publicSlugs map[s
 		result = append(result, action)
 	}
 	return result
+}
+
+func appendMissingKeys(keys []string, extra []string) []string {
+	seen := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		seen[key] = true
+	}
+	for _, key := range extra {
+		if !seen[key] {
+			keys = append(keys, key)
+			seen[key] = true
+		}
+	}
+	return keys
 }
 
 func resolvedSpotlights(keys []string, apps map[string]App) []ResolvedAppSpotlight {

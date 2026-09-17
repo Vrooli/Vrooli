@@ -9,6 +9,9 @@ import { updateMetaTags } from '../../../shared/lib/seo';
 import { actionsOf, canonicalPresentationHref, publicHref, resolvePublicPresentation, safeOwnerHref, scopedPresentationHref } from './publicIntegration';
 import { PublicPresentationState } from './PublicPresentationState';
 import { DownloadChooser, type DownloadState } from './DownloadChooser';
+import { ConstellationFigure, StarField } from './ConstellationSky';
+import { constellationForMark } from './constellations';
+import { BrandLogo } from './primitives';
 import { downloadSystemUi as ui } from './systemUi';
 import { actionKey, type Presentation, type ResolvedActions } from './types';
 import './presentation.css';
@@ -60,7 +63,10 @@ function DownloadSession({ presentation, resolvedActions, options, appMetadata, 
   const invalidId = asset && (asset.id === undefined || !Number.isSafeInteger(asset.id) || asset.id <= 0);
   const duplicateId = asset && options.filter(option => option.id === asset.id).length !== 1;
   const disabledReason = invalidId ? ui.invalidId : duplicateId ? ui.duplicateId : auth.isSessionLoading ? ui.checking : asset?.requires_entitlement && !auth.isAuthenticated ? ui.signInRequired : undefined;
-  useEffect(() => { if (options.length > 0) void refreshSession(); }, [refreshSession, options.length]);
+  // Session state only matters when a release is entitlement-gated; free
+  // downloads stay anonymous end to end.
+  const hasGatedOption = options.some(option => option.requires_entitlement);
+  useEffect(() => { if (hasGatedOption) void refreshSession(); }, [refreshSession, hasGatedOption]);
   useEffect(() => () => { operation.current++; }, []);
   useEffect(() => {
     const authority = canonicalBaseUrl ?? document.querySelector<HTMLMetaElement>('meta[name="presentation-canonical-base"]')?.content;
@@ -95,15 +101,29 @@ function DownloadSession({ presentation, resolvedActions, options, appMetadata, 
     } finally { if (operation.current === op) pending.current = false; }
   };
   const launchActions = [...new Map(actionsOf(presentation).filter(action => action.kind === 'open' && action.app_key === presentation.app_key).map(action => [actionKey(action), action])).values()];
+  const shell = presentation.page.display.shell;
+  // Decorative: the app's own star figure behind the chooser, same identity as
+  // its landing hero, compressed to the returning-viewer intro pace.
+  const figure = constellationForMark(shell.brand_mark);
   const theme = { '--ink': presentation.page.theme.primary, '--paper': presentation.page.theme.background, '--accent': presentation.page.theme.accent } as CSSProperties;
+  const suiteApps = (presentation.spotlights ?? []).filter(spotlight => spotlight.slug && spotlight.detail_route);
   return <main className={`presentation-page download-page theme-${presentation.page.theme.variant}`} lang={presentation.page.locale} style={theme} data-presentation-revision={presentation.diagnostics.resolved_revision} data-document-route={detailRoute}>
-    <div className="wrap"><header className="download-header"><a href={scopedPresentationHref(detailRoute, base, request)}>{ui.back}</a>{options.length > 0 && <div>
-      <span role="status">{auth.isSessionLoading ? ui.checking : auth.isAuthenticated ? ui.signedIn : ui.signInRequired}</span>
-      {!auth.isAuthenticated && <a href={publicHref('/auth/login', base)}>{ui.signIn}</a>}
-      <button type="button" disabled={auth.isSessionLoading} onClick={() => { void auth.refreshSession(); }}>{ui.recheck}</button>
-    </div>}</header>
-    {options.length > 0 && !auth.isAuthenticated && <p className="commerce-note">{ui.returnNote}</p>}
-    <DownloadChooser title={presentation.page.title} description={presentation.page.description} options={options} selected={selected} onSelect={choose} onPrepare={() => { void prepare(); }} state={stateValue} disabledReason={disabledReason} unavailableReason={presentation.page.display.shell.unavailable_reason} appMetadata={appMetadata} launchActions={launchActions} resolvedActions={resolvedActions} />
+    <StarField />
+    {figure && <div className="download-sky" aria-hidden="true"><ConstellationFigure chart={figure} /></div>}
+    <div className="wrap"><header className="download-header">
+      <div className="download-brand"><a className="download-back" href={scopedPresentationHref(detailRoute, base, request)}><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5m6 6-6-6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>{ui.back}</a>
+        <span className="download-brand-lockup"><BrandLogo kind={shell.brand_mark} logo={shell.brand_logo} alt={shell.brand_logo_alt} /><b>{shell.brand_name}</b></span>
+        {suiteApps.length > 1 && <nav className="download-apps" aria-label={ui.suite}>{suiteApps.map(spotlight => spotlight.app_key === presentation.app_key
+          ? <span key={spotlight.app_key} className="download-app-pill" aria-current="page">{spotlight.name}</span>
+          : <a key={spotlight.app_key} className="download-app-pill" href={scopedPresentationHref(`${spotlight.detail_route}/download`, base, request)}>{spotlight.name}</a>)}</nav>}</div>
+      {hasGatedOption && <div className="download-session">
+        <span role="status" className="session-pill" data-session={auth.isSessionLoading ? 'checking' : auth.isAuthenticated ? 'signed-in' : 'signed-out'}>{auth.isSessionLoading ? ui.checking : auth.isAuthenticated ? ui.signedIn : ui.signInRequired}</span>
+        {!auth.isAuthenticated && <a href={publicHref('/auth/login', base)}>{ui.signIn}</a>}
+        <button type="button" disabled={auth.isSessionLoading} onClick={() => { void auth.refreshSession(); }}>{ui.recheck}</button>
+      </div>}
+    </header>
+    {hasGatedOption && !auth.isAuthenticated && <p className="commerce-note download-return-note">{ui.returnNote}</p>}
+    <DownloadChooser title={presentation.page.title} description={presentation.page.description} options={options} selected={selected} onSelect={choose} onPrepare={() => { void prepare(); }} state={stateValue} disabledReason={disabledReason} unavailableReason={presentation.page.display.shell.unavailable_reason} appMetadata={appMetadata} launchActions={launchActions} resolvedActions={resolvedActions} detectedPlatform={detectedDownloadPlatform()} />
     </div>
   </main>;
 }

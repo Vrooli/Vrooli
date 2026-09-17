@@ -103,7 +103,7 @@ func composePresentationQualification(
 // Owner reads use the caller's context and resolve each owner endpoint at the
 // point of the read. The generated clients expose only read methods through
 // the adapters; no write-capable owner operation is invoked here.
-func (c *PresentationQualificationComposition) VerifyPublication(ctx context.Context, document presentation.Document) error {
+func (c *PresentationQualificationComposition) VerifyPublication(ctx context.Context, document presentation.Document, active *presentation.Document) error {
 	if c == nil {
 		return fmt.Errorf("presentation qualification composition is unavailable")
 	}
@@ -118,7 +118,7 @@ func (c *PresentationQualificationComposition) VerifyPublication(ctx context.Con
 		Bindings:    c.bindings,
 		Assets:      c.assets,
 	}
-	return verifier.VerifyPublication(ctx, document)
+	return verifier.VerifyPublication(ctx, document, active)
 }
 
 type requestValidationReader struct {

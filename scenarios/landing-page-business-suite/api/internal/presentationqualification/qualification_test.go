@@ -42,7 +42,7 @@ func (f fakeReleaseReader) ReadRelease(context.Context, string) (*releasesv1.Rel
 
 type fakeAssetVerifier struct{ calls int }
 
-func (f *fakeAssetVerifier) VerifyPublication(context.Context, presentation.Document) error {
+func (f *fakeAssetVerifier) VerifyPublication(context.Context, presentation.Document, *presentation.Document) error {
 	f.calls++
 	return nil
 }
@@ -103,7 +103,7 @@ func TestAvailableCapabilityRequiresAuthoritativeMatchingEvidence(t *testing.T) 
 	}
 	verifier, err := NewVerifier(fakeValidationReader{receipt: receipt}, fakeReleaseReader{release: release}, NewStaticBindings(map[string]CapabilityBinding{bindingKey(app.Key, capability.ID): binding}), &fakeAssetVerifier{})
 	require.NoError(t, err)
-	require.NoError(t, verifier.VerifyPublication(context.Background(), document))
+	require.NoError(t, verifier.VerifyPublication(context.Background(), document, nil))
 
 	for name, mutate := range map[string]func(*validationv1.ValidationReceipt){
 		"wrong intent":     func(value *validationv1.ValidationReceipt) { value.IntentId = "other-intent" },
@@ -119,21 +119,32 @@ func TestAvailableCapabilityRequiresAuthoritativeMatchingEvidence(t *testing.T) 
 			mutate(copy)
 			bad := *verifier
 			bad.Validations = fakeValidationReader{receipt: copy}
-			require.ErrorIs(t, bad.VerifyPublication(context.Background(), document), ErrUnqualified)
+			require.ErrorIs(t, bad.VerifyPublication(context.Background(), document, nil), ErrUnqualified)
 		})
 	}
 }
 
 func TestAvailableCapabilityFailsClosedWithoutServerBindingOrReaders(t *testing.T) {
 	document := seedDocument(t)
-	privateApp := &document.Apps[1]
-	privateApp.Capabilities = []presentation.Capability{{
+	// Target an app that is actually private; positional picks rot as apps
+	// launch (system-monitor went public with the Vega launch).
+	var privateApp *presentation.App
+	for i := range document.Apps {
+		if !publicApp(document.Apps[i]) {
+			privateApp = &document.Apps[i]
+			break
+		}
+	}
+	require.NotNil(t, privateApp, "seed no longer declares a private app")
+	// Keep the seed's declared capabilities so page references stay valid;
+	// only the appended private capability carries the available status.
+	privateApp.Capabilities = append(privateApp.Capabilities, presentation.Capability{
 		ID: "private-capability", Label: "Private capability", Benefits: []string{"Private benefit"}, Status: presentation.CapabilityAvailable,
 		EvidenceRefs: []string{"private-owner-ref"}, OwnerQualification: &presentation.OwnerQualification{Owner: "private-owner", EvidenceRef: "private-owner-ref", ReleaseRef: "private-release", Qualified: true},
-	}}
-	verifier, err := NewVerifier(fakeValidationReader{err: errors.New("private capability must not trigger Test Genie read")}, fakeReleaseReader{err: errors.New("private capability must not trigger Deployment Manager read")}, nil, nil)
+	})
+	verifier, err := NewVerifier(fakeValidationReader{err: errors.New("private capability must not trigger Test Genie read")}, fakeReleaseReader{err: errors.New("private capability must not trigger Deployment Manager read")}, nil, &fakeAssetVerifier{})
 	require.NoError(t, err)
-	err = verifier.VerifyPublication(context.Background(), document)
+	err = verifier.VerifyPublication(context.Background(), document, nil)
 	require.NoError(t, err)
 }
 
@@ -142,7 +153,7 @@ func TestPublicAssetsRequireAssetVerifier(t *testing.T) {
 	document.Apps[0].Publication = presentation.PublicationPublished
 	verifier, err := NewVerifier(nil, nil, nil, nil)
 	require.NoError(t, err)
-	err = verifier.VerifyPublication(context.Background(), document)
+	err = verifier.VerifyPublication(context.Background(), document, nil)
 	require.ErrorIs(t, err, ErrUnqualified)
 	require.Contains(t, err.Error(), "asset verifier")
 }
@@ -156,15 +167,16 @@ func TestAvailableCapabilityRequiresReaders(t *testing.T) {
 	capability.OwnerQualification = &presentation.OwnerQualification{Owner: "owner", EvidenceRef: validationRef("receipt-1"), ReleaseRef: releaseRef("release-1"), Qualified: true}
 	verifier, err := NewVerifier(nil, nil, nil, &fakeAssetVerifier{})
 	require.NoError(t, err)
-	err = verifier.VerifyPublication(context.Background(), document)
+	err = verifier.VerifyPublication(context.Background(), document, nil)
 	require.ErrorIs(t, err, ErrUnqualified)
 }
 
 func TestNonAvailableStatusesDoNotRequireQualificationReaders(t *testing.T) {
 	document := seedDocument(t)
-	verifier, err := NewVerifier(nil, nil, nil, nil)
+	// Asset verification is a separate owner concern; readers stay nil here.
+	verifier, err := NewVerifier(nil, nil, nil, &fakeAssetVerifier{})
 	require.NoError(t, err)
-	require.NoError(t, verifier.VerifyPublication(context.Background(), document))
+	require.NoError(t, verifier.VerifyPublication(context.Background(), document, nil))
 }
 
 func TestStaticBindingsAreCopiedAndUnknownCapabilityFailsClosed(t *testing.T) {

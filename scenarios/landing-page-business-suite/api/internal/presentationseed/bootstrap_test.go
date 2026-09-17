@@ -35,7 +35,7 @@ func TestSeedOnlyInitializesMissingDraftAndPreservesEditorWork(t *testing.T) { /
 	if err != nil {
 		t.Fatal(err)
 	}
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error { return nil }) // isolated receipt fixture only
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error { return nil }) // isolated receipt fixture only
 	published, err := store.PublishPresentation(ctx, "control", custom.DraftRevision, custom.Generation)
 	if err != nil {
 		t.Fatal(err)

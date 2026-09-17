@@ -455,6 +455,7 @@ export interface EntitlementPayload {
   features?: string[];
   credits?: CreditInfo;
   subscription?: SubscriptionInfo;
+  billing_cycle_start?: number;
 }
 
 export interface BundleCatalogEntry {

@@ -5,24 +5,85 @@
 .presentation-page .commerce-price{font:600 38px/1.15 var(--display);letter-spacing:-1px}
 .presentation-page .commerce-note{font-size:14px;color:var(--muted);max-width:65ch}
 .presentation-page .commerce-actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:auto;padding-top:16px}
-.presentation-page.download-page{min-height:100vh;padding-bottom:80px}
-.presentation-page .download-header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding-block:24px;border-bottom:1px solid var(--line);margin-bottom:24px}
-.presentation-page .download-header>div{display:flex;align-items:center;flex-wrap:wrap;gap:16px}
-.presentation-page .download-header a,.presentation-page .download-header button{min-height:44px;display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:4px;background:none}
-.presentation-page .download-chooser{padding-top:48px}
-.presentation-page .download-chooser h1{font:600 clamp(32px,5vw,56px)/1.1 var(--display);letter-spacing:-1px;margin-block:18px}
-.presentation-page .download-panel{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:36px;border:1px solid var(--line);border-radius:20px;padding:32px;margin-top:32px;background:var(--paper)}
-.presentation-page .download-panel label{display:block;font-weight:600;margin-bottom:12px}
-.presentation-page .download-panel select{width:100%;min-height:48px;border:1px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);padding:10px;white-space:nowrap;text-overflow:ellipsis}
+/* ── download surface: the same night sky, focused on one decision ───────── */
+.presentation-page.download-page{position:relative;min-height:100vh;padding-bottom:96px;overflow-x:clip}
+.presentation-page.download-page .download-sky{position:absolute;left:0;right:0;top:0;height:min(118svh,1000px);z-index:0;pointer-events:none}
+/* The intro belongs to the landing pages. Here the figure hangs at rest,
+   larger and fully drawn — a chart on the wall, not a performance. */
+.presentation-page.download-page .hero-sky{animation:none;opacity:.26;transform:none;height:100%}
+.presentation-page.download-page .hero-chart{width:min(1280px,104vw)}
+.presentation-page.download-page .chart-edge{animation:none;stroke-dashoffset:0;opacity:.55}
+.presentation-page.download-page .chart-halo{animation:none;opacity:.34}
+.presentation-page.download-page .chart-core{animation:none;opacity:1}
+.presentation-page.download-page .hero-chart text{animation:none;opacity:.55}
+.presentation-page .download-apps{display:flex;align-items:center;gap:8px;padding:5px;border:1px solid var(--line);border-radius:999px;background:rgb(255 255 255 / .03)}
+.presentation-page .download-app-pill{display:inline-flex;align-items:center;min-height:34px;padding:4px 16px;border-radius:999px;font-size:13.5px;color:var(--muted);transition:color .18s,background .18s}
+.presentation-page a.download-app-pill:hover{color:var(--ink);background:rgb(255 255 255 / .06)}
+.presentation-page .download-app-pill[aria-current="page"]{color:var(--ink);background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.presentation-page .download-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;padding-block:22px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.presentation-page .download-brand{display:flex;align-items:center;gap:22px;min-width:0}
+.presentation-page .download-back{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 16px 0 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--muted);transition:color .18s,border-color .18s,background .18s}
+.presentation-page .download-back svg{width:17px;height:17px;transition:transform .18s}
+.presentation-page .download-back:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:rgb(255 255 255 / .04)}
+.presentation-page .download-back:hover svg{transform:translateX(-3px)}
+.presentation-page .download-brand-lockup{display:inline-flex;align-items:center;gap:12px;font:600 16px/1.2 var(--display);letter-spacing:-.2px}
+.presentation-page .download-brand-lockup .product-mark{width:30px;height:30px}
+.presentation-page .download-session{display:flex;align-items:center;flex-wrap:wrap;gap:14px;font-size:14px}
+.presentation-page .download-session a,.presentation-page .download-session button{min-height:44px;display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:4px;background:none;color:var(--muted)}
+.presentation-page .download-session a:hover,.presentation-page .download-session button:hover:not(:disabled){color:var(--ink)}
+.presentation-page .download-session button:disabled{opacity:.6;cursor:default}
+.presentation-page .session-pill{display:inline-flex;align-items:center;gap:9px;min-height:34px;padding:4px 15px;border:1px solid var(--line);border-radius:999px;font:12px/1.4 var(--mono);letter-spacing:.4px;color:var(--muted);background:rgb(255 255 255 / .03)}
+.presentation-page .session-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.7}
+.presentation-page .session-pill[data-session="signed-in"]{color:var(--ink)}
+.presentation-page .session-pill[data-session="signed-in"]::before{background:var(--accent);opacity:1;box-shadow:0 0 8px color-mix(in srgb,var(--accent) 75%,transparent)}
+.presentation-page .download-return-note{margin-top:14px}
+.presentation-page .download-chooser{position:relative;padding-top:min(11vh,110px)}
+.presentation-page .download-chooser .section-intro{max-width:720px}
+.presentation-page .download-chooser h1{font:600 clamp(38px,5.4vw,64px)/1.06 var(--display);letter-spacing:-1.4px;margin-block:20px 16px}
+.presentation-page .download-chooser .hero-description{font-size:17px;line-height:1.7;color:var(--muted);max-width:58ch}
+.presentation-page .download-launch{margin-top:26px;padding-top:0}
+/* the decision panel */
+.presentation-page .download-panel{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0;border:1px solid var(--line);border-radius:22px;margin-top:44px;overflow:hidden;background:linear-gradient(165deg,rgb(255 255 255 / .045),rgb(255 255 255 / .015) 55%);box-shadow:0 0 0 1px rgb(120 170 210 / .06),0 46px 110px -48px rgb(2 8 18 / .95)}
+.presentation-page .download-configure{padding:34px 36px 38px;min-width:0}
+.presentation-page .platform-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin-bottom:28px}
+.presentation-page .platform-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:96px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:rgb(255 255 255 / .025);text-align:left;transition:border-color .18s,background .18s,box-shadow .18s,transform .18s}
+.presentation-page .platform-card:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:rgb(255 255 255 / .05);transform:translateY(-2px)}
+.presentation-page .platform-card[aria-pressed="true"]{border-color:color-mix(in srgb,var(--accent) 70%,transparent);background:color-mix(in srgb,var(--accent) 9%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent),0 10px 34px -18px color-mix(in srgb,var(--accent) 60%,transparent)}
+.presentation-page .platform-glyph{font:600 19px/1 var(--mono);color:var(--accent)}
+.presentation-page .platform-name{font:600 15px/1.3 var(--display)}
+.presentation-page .platform-detected{position:absolute;top:12px;right:12px;font:10px/1.4 var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:2px 8px}
+.presentation-page .download-panel label{display:block;font:11px/1.5 var(--mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.presentation-page .download-panel select{width:100%;min-height:50px;border:1px solid var(--line);border-radius:10px;background:rgb(255 255 255 / .04);color:var(--ink);padding:10px 14px;white-space:nowrap;text-overflow:ellipsis;transition:border-color .18s}
+.presentation-page .download-panel select:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .presentation-page .download-panel select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-.presentation-page .download-facts{display:grid;gap:16px;margin-block:28px}
-.presentation-page .download-facts>div{display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px}
-.presentation-page .download-facts dt{color:var(--muted)}
-.presentation-page .download-facts dd{margin:0;overflow-wrap:anywhere}
-.presentation-page .download-next{display:flex;flex-direction:column;align-items:flex-start;gap:20px;border-left:1px solid var(--line);padding-left:32px}
-.presentation-page .download-next button:disabled{opacity:.65;cursor:not-allowed}
-.presentation-page .download-panel summary{cursor:pointer;min-height:44px}
-@media(max-width:640px){.presentation-page .download-header{align-items:flex-start;flex-direction:column;gap:12px}.presentation-page .download-panel{grid-template-columns:1fr;padding:20px;gap:24px}.presentation-page .download-next{border-left:0;border-top:1px solid var(--line);padding:24px 0 0}.presentation-page .download-next .button{width:100%}.presentation-page .commerce-card{padding:24px}}
+.presentation-page .download-panel option,.presentation-page .download-panel optgroup{background:var(--paper);color:var(--ink)}
+.presentation-page .download-facts{display:grid;gap:0;margin-block:26px 0;border-top:1px solid var(--line)}
+.presentation-page .download-facts>div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;padding-block:13px;border-bottom:1px solid var(--line);align-items:baseline}
+.presentation-page .download-facts dt{font:11px/1.6 var(--mono);letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.presentation-page .download-facts dd{margin:0;overflow-wrap:anywhere;font-size:14.5px}
+.presentation-page .download-facts code{font:12px/1.6 var(--mono);color:var(--muted)}
+.presentation-page .download-panel details{margin-top:18px}
+.presentation-page .download-panel summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--muted);font-size:14px}
+.presentation-page .download-panel summary:hover{color:var(--ink)}
+/* the action rail */
+.presentation-page .download-next{display:flex;flex-direction:column;align-items:flex-start;gap:18px;padding:34px 36px 38px;border-left:1px solid var(--line);background:rgb(255 255 255 / .022)}
+.presentation-page .download-next .exhibit-kicker{font:11px/1.5 var(--mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--accent)}
+.presentation-page .download-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.presentation-page .download-steps li{display:flex;align-items:baseline;gap:14px;font-size:14.5px;color:var(--ink)}
+.presentation-page .download-steps li span{font:11px/1.6 var(--mono);letter-spacing:1px;color:var(--muted)}
+.presentation-page .download-access{font-size:13.5px;color:var(--muted);border-left:2px solid color-mix(in srgb,var(--accent) 55%,transparent);padding-left:14px}
+.presentation-page .download-next .button{align-self:stretch}
+.presentation-page .download-next button:disabled{opacity:.6;cursor:not-allowed}
+.presentation-page .download-status{font-size:13.5px;color:var(--muted);min-height:1.4em}
+.presentation-page .download-status:empty{display:none}
+/* no installers yet: an honest, composed state, not a bare line */
+.presentation-page .download-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;border:1px dashed color-mix(in srgb,var(--ink) 22%,transparent);border-radius:22px;padding:58px 32px 54px;margin-top:44px;background:rgb(255 255 255 / .02)}
+.presentation-page .download-empty-glyph{display:grid;place-items:center;width:58px;height:58px;border:1px solid var(--line);border-radius:50%;color:var(--accent);margin-bottom:12px;background:color-mix(in srgb,var(--accent) 7%,transparent);box-shadow:0 0 34px -8px color-mix(in srgb,var(--accent) 45%,transparent)}
+.presentation-page .download-empty-glyph svg{width:24px;height:24px}
+.presentation-page .download-empty p[role="status"]{font:600 19px/1.45 var(--display);max-width:34ch}
+.presentation-page .download-empty-detail{font-size:14.5px;color:var(--muted);max-width:52ch}
+@media(max-width:900px){.presentation-page .download-panel{grid-template-columns:1fr}.presentation-page .download-next{border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:640px){.presentation-page .download-header{align-items:flex-start;flex-direction:column;gap:14px}.presentation-page .download-brand{flex-wrap:wrap;gap:14px}.presentation-page .download-chooser{padding-top:48px}.presentation-page .download-configure,.presentation-page .download-next{padding:24px 20px 28px}.presentation-page .download-next .button{width:100%}.presentation-page .commerce-card{padding:24px}}
 @font-face{font-family:PresentationArchivo;src:url('../../../../public/presentation/archivo.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
 @font-face{font-family:PresentationSans;src:url('../../../../public/presentation/plex-sans.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:Presentation Mono;src:url('../../../../public/presentation/jetbrains-mono.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
@@ -869,3 +930,43 @@
   .presentation-page .monitor-body{grid-template-columns:minmax(0,1fr)}
   .presentation-page .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* ============================================================================
+   Commerce: the plans exhibit. Same midnight canvas as the rest of the line —
+   cards are constellations of facts, the recommended tier carries the accent.
+   ========================================================================== */
+.presentation-page .pricing .intro{max-width:640px}
+.presentation-page .commerce{display:flex;flex-direction:column;gap:30px;margin-top:36px}
+.presentation-page .commerce-toggle{display:inline-flex;align-self:center;align-items:center;gap:4px;padding:5px;border:1px solid var(--line);border-radius:999px;background:rgb(255 255 255 / .03)}
+.presentation-page .commerce-toggle button{display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:8px 20px;border-radius:999px;background:transparent;color:var(--muted);font-size:14px;transition:background .18s,color .18s}
+.presentation-page .commerce-toggle button:hover{color:var(--ink)}
+.presentation-page .commerce-toggle button[aria-pressed="true"]{color:var(--ink);background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.presentation-page .commerce-save{font:11px/1.4 var(--mono);letter-spacing:.6px;padding:3px 9px;border-radius:999px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent);white-space:nowrap}
+.presentation-page .commerce-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));gap:18px;margin-top:0;align-items:stretch}
+.presentation-page .commerce-card{position:relative;min-width:0;border:1px solid var(--line);border-radius:16px;padding:28px 26px;display:flex;flex-direction:column;gap:18px;background:linear-gradient(172deg,rgb(255 255 255 / .045),rgb(255 255 255 / .015) 60%);box-shadow:0 22px 45px -38px rgb(3 9 18 / .9)}
+.presentation-page .commerce-card[data-highlight]{border-color:transparent;box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 52%,transparent),0 26px 60px -34px color-mix(in srgb,var(--accent) 38%,transparent);background:linear-gradient(172deg,color-mix(in srgb,var(--accent) 9%,transparent),rgb(255 255 255 / .02) 62%)}
+.presentation-page .commerce-badge{position:absolute;top:-13px;left:24px;font:11px/1.4 var(--mono);letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:999px;color:var(--paper);background:var(--accent);box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 40%,transparent)}
+.presentation-page .commerce-card-head{display:flex;flex-direction:column;gap:6px}
+.presentation-page .commerce-card h3{font:600 23px/1.3 var(--display);letter-spacing:-.5px}
+.presentation-page .commerce-subtitle{font-size:13.5px;line-height:1.55;color:var(--muted)}
+.presentation-page .commerce-price{font:600 40px/1.1 var(--display);letter-spacing:-1.5px}
+.presentation-page .commerce-interval{font:400 15px/1 var(--sans);letter-spacing:0;color:var(--muted);margin-left:6px}
+.presentation-page .commerce-billing{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:-8px}
+.presentation-page .commerce-features{list-style:none;margin:0;padding:16px 0 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:11px;font-size:14px;line-height:1.5}
+.presentation-page .commerce-features li{display:flex;gap:11px;align-items:flex-start}
+.presentation-page .commerce-features svg{width:16px;height:16px;flex:0 0 auto;margin-top:3px;color:var(--accent)}
+.presentation-page .commerce-actions{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:6px}
+.presentation-page .commerce-actions .button{width:100%;gap:14px}
+.presentation-page .button-secondary{background:rgb(255 255 255 / .05);color:var(--ink);border:1px solid var(--line)}
+.presentation-page .button-secondary:hover{transform:translateY(-2px);background:rgb(255 255 255 / .09);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.presentation-page .commerce-topups{border:1px dashed var(--line);border-radius:14px;padding:24px 26px;display:flex;flex-direction:column;gap:10px}
+.presentation-page .commerce-topups-title{font:600 16px/1.4 var(--display)}
+.presentation-page .commerce-topups-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px}
+.presentation-page .commerce-topup{display:inline-flex;align-items:center;gap:14px;padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:rgb(255 255 255 / .03)}
+.presentation-page .commerce-topup b{font:600 17px/1.2 var(--display)}
+.presentation-page .commerce-topup small{font-size:12px;color:var(--muted);max-width:180px}
+.presentation-page .commerce-topup .button{min-height:38px;padding:8px 14px;font-size:13px}
+.presentation-page .commerce-trust{align-self:center;font:12px/1.6 var(--mono);letter-spacing:.4px;color:var(--muted);display:flex;align-items:center;gap:9px}
+.presentation-page .commerce-trust:before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
+@media (max-width: 900px){.presentation-page .commerce-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}}
+@media (max-width: 640px){.presentation-page .commerce-card{padding:24px 20px}.presentation-page .commerce-toggle{align-self:stretch;justify-content:center}.presentation-page .commerce-topups{padding:20px}}

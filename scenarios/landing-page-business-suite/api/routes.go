@@ -388,7 +388,7 @@ func registerHealthRoutes(s *Server) {
 		}
 		return nil
 	})
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Handler()
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Check(adminMFAPolicyCheck, health.Optional).Check(s.signInDeliveryCheck(), health.Optional).Check(s.signInEmailDNSCheck(), health.Optional).Check(s.paymentsCheck(), health.Optional).Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
@@ -516,8 +516,11 @@ func registerAccountRoutes(s *Server) {
 	}
 	accountsecurityhttp.RegisterRoutes(s.router, securityDeps, s.requireUserAuth)
 	registerEntitlementRoute(s)
-	downloadhttp.RegisterConnectAuthorizationRoute(s.router, s.planService.BundleKey, s.downloadService, downloadConnectAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db), s.requireUserAuth)
-	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(downloadhttp.Authorize(downloadAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db)))).Methods("GET")
+	// Downloads are open to anonymous visitors; the delivery authorizer fails
+	// closed and demands an identity plus an active subscription only when the
+	// selected asset is entitlement-gated.
+	downloadhttp.RegisterConnectAuthorizationRoute(s.router, s.planService.BundleKey, s.downloadService, downloadConnectAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db), s.optionalUserAuth)
+	s.router.HandleFunc("/api/v1/downloads", s.optionalUserAuth(downloadhttp.Authorize(downloadAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService, s.db)))).Methods("GET")
 }
 
 func registerEntitlementRoute(s *Server) {

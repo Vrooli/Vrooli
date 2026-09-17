@@ -6,13 +6,13 @@ const paymentsClient = vi.hoisted(() => ({ createCheckoutSession: vi.fn(), getBi
 const stripeSettingsClient = vi.hoisted(() => ({ getStripeSettings: vi.fn(), updateStripeSettings: vi.fn(), revealStripeSecret: vi.fn() }));
 const bundleAdminClient = vi.hoisted(() => ({ listBundleCatalog: vi.fn(), updateBundlePrice: vi.fn() }));
 const couponAdminClient = vi.hoisted(() => ({ listCoupons: vi.fn(), createCoupon: vi.fn(), getCoupon: vi.fn(), updateCoupon: vi.fn(), deleteCoupon: vi.fn(), listCouponUsage: vi.fn(), getCouponMappings: vi.fn(), setCouponForPlan: vi.fn(), removeCouponFromPlan: vi.fn(), getCouponImportPreview: vi.fn() }));
-vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn((service: { typeName?: string }) => {
+vi.mock('@connectrpc/connect', async importOriginal => ({ ...await importOriginal<typeof import('@connectrpc/connect')>(), createClient: vi.fn((service: { typeName?: string }) => {
   if (service.typeName === 'landing_page_business_suite.v1.StripeSettingsService') return stripeSettingsClient;
   if (service.typeName === 'landing_page_business_suite.v1.BundleAdminService') return bundleAdminClient;
   if (service.typeName === 'landing_page_business_suite.v1.CouponAdminService') return couponAdminClient;
   return paymentsClient;
 }) }));
-vi.mock('./common', () => ({ apiCall: vi.fn(), CONNECT_API_BASE: 'http://api.example.test' }));
+vi.mock('./common', async importOriginal => ({ ...await importOriginal<typeof import('./common')>(), apiCall: vi.fn(), CONNECT_API_BASE: 'http://api.example.test' }));
 const mockApiCall = vi.mocked(apiCall);
 
 describe('billing API transport', () => {

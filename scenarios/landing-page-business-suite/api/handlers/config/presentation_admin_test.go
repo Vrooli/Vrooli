@@ -39,7 +39,7 @@ func presentationAdminFixture(t *testing.T) (*experimentation.ConfigStore, Prese
 	}}); err != nil {
 		t.Fatalf("seed known preview variant: %v", err)
 	}
-	store.SetPresentationStorage(filerouting.New(storage.Paths{ConfigDir: t.TempDir()}), func(context.Context, presentation.Document) error { return nil })
+	store.SetPresentationStorage(filerouting.New(storage.Paths{ConfigDir: t.TempDir()}), func(context.Context, presentation.Document, *presentation.Document) error { return nil })
 	document := presentation.Document{
 		SchemaVersion: 1,
 		Bundle:        presentation.Bundle{Key: "business-suite", Name: "Business Suite", AppOrder: []string{}, MaxAppSlides: 0, PageID: "empty", EmptyPageID: "empty", DefaultLocale: "en", Locales: []string{"en"}},
@@ -323,7 +323,7 @@ func TestPresentationAdminEphemeralPreviewRequiresActiveTestLease(t *testing.T) 
 		t.Fatalf("seed known preview variant: %v", err)
 	}
 	roots := filerouting.New(storage.Paths{ConfigDir: primaryDir})
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error { return nil })
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error { return nil })
 	handler := NewPresentationAdminHandler(store)
 	document := presentationAdminDocumentForLeaseTest()
 	wire, err := PresentationDocumentProto(document)

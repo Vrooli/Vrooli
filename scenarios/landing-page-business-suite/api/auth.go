@@ -311,11 +311,16 @@ func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// requireMetricsReader accepts an admin session or a narrowly scoped LPBS
-// reader token. The broad service secret is intentionally not accepted here.
+// requireMetricsReader accepts an admin session, a narrowly scoped LPBS reader
+// token, or the server-to-server service principal. The latter is used only
+// by the local remote-profile relay for deployment-owned read projections.
 func (s *Server) requireMetricsReader(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if token := strings.TrimSpace(extractBearerToken(r)); token != "" {
+			if expected, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET"); err == nil && len(token) == len(expected) && subtle.ConstantTimeCompare([]byte(token), []byte(expected)) == 1 {
+				next(w, r)
+				return
+			}
 			if s.readerTokens == nil || s.readerTokens.Authenticate(r.Context(), token, administration.ScopeMetricsRead) != nil {
 				writeJSONError(w, http.StatusUnauthorized, "reader_token_rejected", ApiErrorTypeUnauthorized)
 				return

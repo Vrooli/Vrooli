@@ -35,7 +35,10 @@ const maxPresentationBytes = 8 << 20
 // PresentationPublicationVerifier qualifies owner evidence and referenced asset
 // bytes, not merely the syntax of references. A nil verifier refuses publication.
 // It must be read-only: publication retries must not repeat external effects.
-type PresentationPublicationVerifier func(context.Context, presentation.Document) error
+// The second document is the currently active published revision (nil when no
+// revision is active); verifiers may inherit qualification for content that is
+// unchanged from it, since that content already passed publication once.
+type PresentationPublicationVerifier func(context.Context, presentation.Document, *presentation.Document) error
 
 // PresentationState is the only mutable pointer. Generation is the editor's
 // compare-and-swap token; revision IDs are hashes of immutable document bytes.
@@ -194,7 +197,16 @@ func (cs *ConfigStore) activatePresentation(ctx context.Context, variant, revisi
 	if err := presentation.Validate(loaded.Document); err != nil {
 		return nil, err
 	}
-	if err := verifier(ctx, loaded.Document); err != nil {
+	// The active published revision is the trust anchor for carry-forward:
+	// content identical to it already passed this exact gate once.
+	var active *presentation.Document
+	if initial.ActiveRevision != "" && initial.ActiveRevision != revision {
+		current, err := cs.GetPresentationRevision(ctx, variant, initial.ActiveRevision)
+		if err == nil {
+			active = &current.Document
+		}
+	}
+	if err := verifier(ctx, loaded.Document, active); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrPresentationUnqualified, err)
 	}
 	cs.mu.Lock()

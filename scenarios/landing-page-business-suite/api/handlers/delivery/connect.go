@@ -64,10 +64,9 @@ func (h *ConnectHandler) AuthorizeDownload(ctx context.Context, request *connect
 	if platform == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("platform is required"))
 	}
+	// Anonymous requests proceed with an empty identity; the authorizer
+	// fails closed and rejects gated assets without one.
 	user := h.authorization.UserEmail(ctx)
-	if user == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("authentication required"))
-	}
 	authorize := h.authorization.Authorize
 	if request.Msg.AssetId != nil {
 		if h.authorization.AuthorizeSelected == nil {
@@ -114,7 +113,9 @@ func connectAuthorizationError(kind ErrorKind, err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case ErrorSubscriptionRequired:
 		return connect.NewError(connect.CodePermissionDenied, err)
-	case ErrorIdentityRequired, ErrorPlatformRequired:
+	case ErrorIdentityRequired:
+		return connect.NewError(connect.CodeUnauthenticated, err)
+	case ErrorPlatformRequired:
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case ErrorEntitlementsUnavailable:
 		return connect.NewError(connect.CodeUnavailable, err)

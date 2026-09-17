@@ -95,6 +95,41 @@ func TestConnectAuthorizeDownloadReturnsGeneratedAsset(t *testing.T) {
 	}
 }
 
+func TestConnectAuthorizeDownloadAllowsAnonymousUngatedAsset(t *testing.T) {
+	var identity string
+	h := NewConnectHandler(func() string { return "bundle" }, &connectCatalogStub{}).WithAuthorization(ConnectAuthorizationDependencies{
+		UserEmail: func(context.Context) string { return "" },
+		Authorize: func(_ context.Context, _, _, user string) (*internal.Asset, error) {
+			identity = user
+			return &internal.Asset{AppKey: "desktop", Platform: "mac", ArtifactURL: "https://downloads.example.test/app.dmg", ArtifactSource: "direct"}, nil
+		},
+		ClassifyError: func(error) ErrorKind { return "" },
+		Log:           func(string, map[string]any) {},
+	})
+
+	response, err := h.AuthorizeDownload(context.Background(), connect.NewRequest(&lpbsv1.AuthorizeDownloadRequest{App: "desktop", Platform: "mac"}))
+	if err != nil || response.Msg.GetAsset().GetArtifactUrl() != "https://downloads.example.test/app.dmg" {
+		t.Fatalf("response=%v err=%v", response, err)
+	}
+	if identity != "" {
+		t.Fatalf("anonymous request must pass an empty identity, got %q", identity)
+	}
+}
+
+func TestConnectAuthorizeDownloadMapsAnonymousGatedAssetToUnauthenticated(t *testing.T) {
+	h := NewConnectHandler(func() string { return "bundle" }, &connectCatalogStub{}).WithAuthorization(ConnectAuthorizationDependencies{
+		UserEmail:     func(context.Context) string { return "" },
+		Authorize:     func(context.Context, string, string, string) (*internal.Asset, error) { return nil, internal.ErrIdentityRequired },
+		ClassifyError: func(error) ErrorKind { return ErrorIdentityRequired },
+		Log:           func(string, map[string]any) {},
+	})
+
+	_, err := h.AuthorizeDownload(context.Background(), connect.NewRequest(&lpbsv1.AuthorizeDownloadRequest{App: "desktop", Platform: "mac"}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated || !errors.Is(err, internal.ErrIdentityRequired) {
+		t.Fatalf("code=%s err=%v", connect.CodeOf(err), err)
+	}
+}
+
 func TestConnectAuthorizeDownloadSelectedUsesExactIDAndManagedResolutionContext(t *testing.T) {
 	requestCtx := context.WithValue(context.Background(), struct{}{}, "request-context")
 	var selectedID int64

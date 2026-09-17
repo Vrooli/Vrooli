@@ -20,7 +20,7 @@ func presentationStoreFixture(t *testing.T) (*ConfigStore, *filerouting.RoutedRo
 	dir := t.TempDir()
 	roots := filerouting.New(storage.Paths{ConfigDir: dir})
 	store := NewConfigStore(filepath.Join(dir, "variants"), "", nil)
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error { return nil })
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error { return nil })
 	return store, roots
 }
 
@@ -103,7 +103,7 @@ func TestPresentationMutationConflictAndVerification(t *testing.T) { // [REQ:LP-
 	if _, err := store.PublishPresentation(ctx, "control", first.DraftRevision, first.Generation); !errors.Is(err, ErrPresentationUnqualified) {
 		t.Fatalf("missing publication verifier accepted: %v", err)
 	}
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error { return errors.New("released asset bytes missing") })
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error { return errors.New("released asset bytes missing") })
 	if _, err := store.PublishPresentation(ctx, "control", first.DraftRevision, first.Generation); !errors.Is(err, ErrPresentationUnqualified) {
 		t.Fatalf("failed asset verification accepted: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestPresentationPublicationRacesDraftEdit(t *testing.T) { // [REQ:LP-PRES-0
 		t.Fatal(err)
 	}
 	verifying, release := make(chan struct{}), make(chan struct{})
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error {
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error {
 		close(verifying)
 		<-release
 		return nil

@@ -12,6 +12,7 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/presentation"
 )
 
@@ -50,6 +51,11 @@ func (h PresentationAdminHandler) SaveDraft(ctx context.Context, request *connec
 func (h PresentationAdminHandler) Publish(ctx context.Context, request *connect.Request[lpbsv1.ActivatePresentationRequest]) (*connect.Response[lpbsv1.PresentationEditorResponse], error) {
 	state, err := h.store.PublishPresentation(ctx, request.Msg.GetVariantSlug(), request.Msg.GetRevision(), request.Msg.GetExpectedGeneration())
 	if err != nil {
+		// The wire error stays generic (owner evidence may name private
+		// paths); the operator log carries the owner's reason.
+		if errors.Is(err, experimentation.ErrPresentationUnqualified) {
+			logx.Error("presentation_publish_unqualified", map[string]interface{}{"variant": request.Msg.GetVariantSlug(), "revision": request.Msg.GetRevision(), "error": err.Error()})
+		}
 		return nil, presentationConnectError(err)
 	}
 	return h.editorResponse(ctx, request.Msg.GetVariantSlug(), state.ActiveRevision, state)

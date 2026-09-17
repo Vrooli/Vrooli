@@ -382,14 +382,12 @@ func setupTestConfigStore(t *testing.T) *experimentation.ConfigStore {
 }
 
 // setupTestServer creates a complete test server instance with all services initialized
-//
-//nolint:unused // helper retained for future handler tests
 func setupTestServer(t *testing.T) (*Server, func()) {
 	db := setupTestDB(t)
 
 	// Clean up any existing test data BEFORE creating the server
 	// This prevents duplicate key violations from previous test runs
-	if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')"); err != nil {
+	if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_email LIKE '%@test.com'"); err != nil {
 		t.Fatalf("failed to cleanup admin sessions: %v", err)
 	}
 	if _, err := db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'"); err != nil {
@@ -433,7 +431,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	cleanup := func() {
 		// Clean up test data after test completes
-		if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')"); err != nil {
+		if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_email LIKE '%@test.com'"); err != nil {
 			t.Fatalf("failed to cleanup admin sessions: %v", err)
 		}
 		if _, err := db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'"); err != nil {

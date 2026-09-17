@@ -33,6 +33,7 @@
   "edge": {
     "domain": "vrooli.com",
     "dns_policy": "warn",
+    "health_path": "/api/v1/health",
     "caddy": {
       "enabled": true
     }
@@ -65,6 +66,7 @@
         "class": "user_prompt",
         "required": false,
         "description": "SMTP provider password for transactional sign-in email delivery.",
+        "capability": "customer sign-in email (SMTP fallback)",
         "target": {
           "type": "env",
           "name": "SMTP_PASSWORD"
@@ -79,6 +81,7 @@
         "class": "user_prompt",
         "required": false,
         "description": "Restricted SendGrid API key for transactional sign-in email delivery.",
+        "capability": "customer sign-in email",
         "target": { "type": "env", "name": "SENDGRID_API_KEY" },
         "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-api-key" }
       },
@@ -87,6 +90,7 @@
         "class": "user_prompt",
         "required": false,
         "description": "Public key used to verify SendGrid Signed Event Webhook requests.",
+        "capability": "sign-in email delivery tracking",
         "target": { "type": "env", "name": "SENDGRID_WEBHOOK_PUBLIC_KEY" },
         "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-webhook-public-key" }
       }

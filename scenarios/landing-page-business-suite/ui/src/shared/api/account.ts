@@ -53,7 +53,7 @@ export function getCreditInfo() {
     const balance = resp.balance ?? {};
     const credits: CreditInfo = {
       customer_email: balance.customerEmail ?? '',
-      balance_credits: balance.balanceCredits ?? 0,
+      balance_credits: Number(balance.balanceCredits ?? 0),
       bonus_credits: 0,
       display_credits_label: resp.displayCreditsLabel ?? 'credits',
       display_credits_multiplier: resp.displayCreditsMultiplier ?? 1,
@@ -68,13 +68,41 @@ export function getCreditInfo() {
 
 export function getEntitlements() {
   return accountClient.getEntitlements({}).then((resp: GetEntitlementsResponse) => {
+    const mapState = (state?: SubscriptionState) => {
+      switch (state) {
+        case SubscriptionState.ACTIVE: return 'active';
+        case SubscriptionState.TRIALING: return 'trialing';
+        case SubscriptionState.PAST_DUE: return 'past_due';
+        case SubscriptionState.CANCELED: return 'canceled';
+        default: return 'inactive';
+      }
+    };
+    // The wire carries generated proto messages; project them onto the UI's
+    // snake_case types before validation. Entitlement credits are the raw
+    // internal balance without display facts, so display fields default and
+    // balance displays belong to getCreditInfo().
+    const subscription = resp.subscription ? {
+      status: mapState(resp.subscription.state),
+      subscription_id: resp.subscription.subscriptionId,
+      customer_email: resp.subscription.userIdentity,
+      plan_tier: resp.subscription.planTier,
+      price_id: resp.subscription.stripePriceId,
+      bundle_key: resp.subscription.bundleKey,
+    } : undefined;
+    const credits = resp.credits ? {
+      customer_email: resp.credits.customerEmail ?? '',
+      balance_credits: Number(resp.credits.balanceCredits ?? 0),
+      bonus_credits: 0,
+      display_credits_label: 'credits',
+      display_credits_multiplier: 1,
+    } : undefined;
     const validated = parseOrNull(EntitlementPayloadSchema, {
       status: resp.status,
       plan_tier: resp.planTier,
       price_id: resp.priceId,
       features: resp.features,
-      credits: resp.credits,
-      subscription: resp.subscription,
+      credits,
+      subscription,
       billing_cycle_start: resp.billingCycleStart,
     }, 'EntitlementPayload');
     if (!validated) {

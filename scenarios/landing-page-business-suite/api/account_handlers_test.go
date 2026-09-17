@@ -117,8 +117,25 @@ func TestHandleDownloads_MissingPlatform(t *testing.T) {
 	}
 }
 
-func TestHandleDownloads_Unauthenticated(t *testing.T) {
+func TestHandleDownloads_Anonymous(t *testing.T) {
 	db := setupTestDB(t)
+	resetStripeTestData(t, db)
+
+	_, err := db.Exec(`
+		INSERT INTO download_apps (bundle_key, app_key, name)
+		VALUES ('business_suite', 'test_app', 'Test App')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert download app: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement)
+		VALUES ('business_suite', 'test_app', 'windows', 'https://example.com/download.exe', '1.0.0', '', '', FALSE),
+		       ('business_suite', 'test_app', 'mac', 'https://example.com/download.dmg', '1.0.0', '', '', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert download assets: %v", err)
+	}
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -126,16 +143,22 @@ func TestHandleDownloads_Unauthenticated(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-		handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService, nil))
 
+	// Ungated assets are downloadable without any session.
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=windows", nil)
-	// No user context
 	rr := httptest.NewRecorder()
-
 	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for anonymous ungated download, got %d: %s", rr.Code, rr.Body.String())
+	}
 
+	// Gated assets still fail closed without an identity.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=mac", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
+		t.Errorf("Expected status 401 for anonymous gated download, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
 

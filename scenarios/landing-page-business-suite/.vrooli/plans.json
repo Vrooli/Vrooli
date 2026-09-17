@@ -17,7 +17,7 @@
   "plans": [
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVHi3meCO1",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Business",
       "plan_tier": "business",
       "billing_interval": "year",
       "amount_cents": 418800,
@@ -30,11 +30,21 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For a company running the suite at scale",
+        "cta_label": "Scale with Business",
+        "features": [
+          "Everything in Studio",
+          "Highest usage limits across the suite",
+          "Priority support with onboarding help",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVuCPj0ioB",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Studio",
       "plan_tier": "studio",
       "billing_interval": "year",
       "amount_cents": 166800,
@@ -47,11 +57,21 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For teams shipping client work every week",
+        "cta_label": "Choose Studio",
+        "features": [
+          "Everything in Pro",
+          "Studio-scale usage limits",
+          "Priority support",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVXWz0IHKP",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Pro",
       "plan_tier": "pro",
       "billing_interval": "year",
       "amount_cents": 64800,
@@ -64,11 +84,23 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For founders running real daily volume",
+        "badge": "Most popular",
+        "highlight": true,
+        "cta_label": "Choose Pro",
+        "features": [
+          "Everything in Solo",
+          "Usage limits sized for production work",
+          "Priority support",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElZJq1sLW02CVSpEpIr8D",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Solo",
       "plan_tier": "solo",
       "billing_interval": "year",
       "amount_cents": 23900,
@@ -81,11 +113,21 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For one founder shipping alone",
+        "cta_label": "Start with Solo",
+        "features": [
+          "Every suite app on desktop and web",
+          "Linux, macOS, and Windows installers",
+          "All releases and updates included",
+          "Email support"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVhS3vyDQp",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Pro",
       "plan_tier": "pro",
       "billing_interval": "month",
       "amount_cents": 7900,
@@ -98,11 +140,23 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For founders running real daily volume",
+        "badge": "Most popular",
+        "highlight": true,
+        "cta_label": "Choose Pro",
+        "features": [
+          "Everything in Solo",
+          "Usage limits sized for production work",
+          "Priority support",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVwIwxJoZO",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Business",
       "plan_tier": "business",
       "billing_interval": "month",
       "amount_cents": 49900,
@@ -115,11 +169,21 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For a company running the suite at scale",
+        "cta_label": "Scale with Business",
+        "features": [
+          "Everything in Studio",
+          "Highest usage limits across the suite",
+          "Priority support with onboarding help",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVuQhSGL3F",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Solo",
       "plan_tier": "solo",
       "billing_interval": "month",
       "amount_cents": 2900,
@@ -132,11 +196,21 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For one founder shipping alone",
+        "cta_label": "Start with Solo",
+        "features": [
+          "Every suite app on desktop and web",
+          "Linux, macOS, and Windows installers",
+          "All releases and updates included",
+          "Email support"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElYJq1sLW02CVBG1HEXGo",
-      "plan_name": "Vrooli Business Suite",
+      "plan_name": "Studio",
       "plan_tier": "studio",
       "billing_interval": "month",
       "amount_cents": 19900,
@@ -149,7 +223,17 @@
       "bonus_type": "",
       "kind": "subscription",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "For teams shipping client work every week",
+        "cta_label": "Choose Studio",
+        "features": [
+          "Everything in Pro",
+          "Studio-scale usage limits",
+          "Priority support",
+          "Cancel anytime"
+        ]
+      }
     },
     {
       "stripe_price_id": "price_1UGElZJq1sLW02CVtNvussYj",
@@ -166,7 +250,10 @@
       "bonus_type": "",
       "kind": "credits_topup",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "One-time purchase. Credits never expire."
+      }
     },
     {
       "stripe_price_id": "price_1UGElaJq1sLW02CVdouUXDqF",
@@ -183,7 +270,10 @@
       "bonus_type": "",
       "kind": "credits_topup",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "One-time purchase. Credits never expire."
+      }
     },
     {
       "stripe_price_id": "price_1UGElaJq1sLW02CV7hgWmmVw",
@@ -200,9 +290,12 @@
       "bonus_type": "",
       "kind": "credits_topup",
       "intro_enabled": false,
-      "is_variable_amount": false
+      "is_variable_amount": false,
+      "metadata": {
+        "subtitle": "One-time purchase. Credits never expire."
+      }
     }
   ],
   "coupon_mappings": {},
-  "updated_at": "2026-01-29T20:25:12Z"
+  "updated_at": "2026-09-17T00:00:00Z"
 }

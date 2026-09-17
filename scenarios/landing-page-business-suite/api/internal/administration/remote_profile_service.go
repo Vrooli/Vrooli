@@ -94,6 +94,13 @@ var remoteProfileProxyAllowlist = []string{
 	"/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive",
 	"/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
 	"/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+	// Read-only metrics are allowed through the service-authenticated deployment
+	// relay. Keep these exact procedures; do not turn the proxy into a general
+	// metrics or admin tunnel.
+	"/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary",
+	"/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown",
+	"/landing_page_business_suite.v1.AdminRevenueService/GetRevenueSummary",
+	"/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest",
 }
 
 var remoteProfileProxyAllowedHeaders = map[string]bool{

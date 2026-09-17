@@ -285,7 +285,11 @@ func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
 	cleanupDownloadStorageSettings(t, db)
 
-	service := NewDownloadHostingService(db)
+	// An installed-but-empty authority models a fresh deployment; a service
+	// without any credential boundary reports "unavailable" instead.
+	service := NewDownloadHostingService(db).WithCredentialIO(delivery.CredentialIO{
+		Read: func(context.Context, string) (string, error) { return "", nil },
+	})
 	ctx := context.Background()
 
 	snapshot, err := service.SettingsSnapshot(ctx, "unconfigured_bundle")

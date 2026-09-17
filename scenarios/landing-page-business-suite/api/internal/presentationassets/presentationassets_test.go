@@ -579,8 +579,20 @@ func TestPublicAssetClosureDoesNotIncludePrivateProfileCandidates(t *testing.T) 
 	privateAsset := document.Assets[0]
 	privateAsset.ID = "private-only"
 	document.Assets = append(document.Assets, privateAsset)
+	// Target an app that is actually private in the seed; positional picks
+	// rot as apps launch (system-monitor went public with the Vega launch).
+	var privatePageID string
+	for _, app := range document.Apps {
+		if !app.Enabled || app.Visibility != presentation.VisibilityPublic || app.Publication != presentation.PublicationPublished {
+			privatePageID = app.PageID
+			break
+		}
+	}
+	if privatePageID == "" {
+		t.Fatal("seed no longer declares a private app")
+	}
 	for i := range document.Pages {
-		if document.Pages[i].ID != document.Apps[1].PageID {
+		if document.Pages[i].ID != privatePageID {
 			continue
 		}
 		for blockIndex := range document.Pages[i].Blocks {
@@ -631,7 +643,7 @@ func TestVerifyPublicationEnforcesDocumentURLMeasurementAndProvenance(t *testing
 	asset := testAsset(hash)
 	asset.PrivateEvidenceRefs = []string{"controlled-proof"}
 	asset.PublicURL = "/not-generated.png"
-	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset)); err == nil || !strings.Contains(err.Error(), "public URL") {
+	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset), nil); err == nil || !strings.Contains(err.Error(), "public URL") {
 		t.Fatalf("publication accepted a stale URL: %v", err)
 	}
 	proof, err := verifier.ResolveAsset(context.Background(), testAsset(hash))
@@ -640,17 +652,17 @@ func TestVerifyPublicationEnforcesDocumentURLMeasurementAndProvenance(t *testing
 	}
 	asset.PublicURL = proof.PublicURL
 	asset.OverlayRegions[0].Measurement.Threshold = 3
-	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset)); err == nil || !strings.Contains(err.Error(), "measured region") {
+	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset), nil); err == nil || !strings.Contains(err.Error(), "measured region") {
 		t.Fatalf("publication accepted stale measurement: %v", err)
 	}
 	asset = testAsset(hash)
 	asset.PrivateEvidenceRefs = []string{"controlled-proof"}
 	asset.PublicURL = proof.PublicURL
-	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset)); err != nil {
+	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset), nil); err != nil {
 		t.Fatalf("publication rejected strict real proof: %v", err)
 	}
 	asset.Provenance.JobRef = "forged-job"
-	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset)); err == nil || !strings.Contains(err.Error(), "provenance") {
+	if err := verifier.VerifyPublication(context.Background(), publicationDocument(asset), nil); err == nil || !strings.Contains(err.Error(), "provenance") {
 		t.Fatalf("publication accepted forged job provenance: %v", err)
 	}
 }

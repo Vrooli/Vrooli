@@ -11,6 +11,10 @@ export const presentationSystemUi = {
 export const downloadSystemUi = {
   title: 'Downloads', back: 'Back to app', platform: 'Platform', release: 'Release',
   noInstallers: 'No installers are currently available for this app.',
+  noInstallersDetail: 'New releases land on this page the moment they are published. Check back soon.',
+  launchNote: 'You can open the app in your browser today with the option above.',
+  detected: 'Detected', nextTitle: 'Get the app', suite: 'Suite apps',
+  steps: ['Pick your platform and release', 'Verify download access', 'Run the installer on your machine'],
   choose: 'Choose a release', prepare: 'Prepare download', preparing: 'Preparing download…',
   ready: 'Your authorized download link is ready.', open: 'Download file',
   unavailable: 'Downloads are currently unavailable.', failed: 'Unable to authorize this download. Please try again.',
@@ -25,5 +29,10 @@ export const downloadSystemUi = {
   checksum: 'Checksum', notes: 'Release notes', file: 'File',
   signingNotice: { summary: 'Release trust', linkFallback: 'Learn more' },
   billing: { month: 'Billed monthly', year: 'Billed yearly', one_time: 'One-time payment' },
+  perInterval: { month: '/ month', year: '/ year', one_time: '' },
   standardPrice: 'Standard price shown. Any applicable introductory terms are confirmed at checkout.',
+  billingIntervalLabel: 'Billing interval', monthly: 'Monthly', yearly: 'Yearly', save: 'Save',
+  topupsTitle: 'Pay-as-you-go credits',
+  topupsNote: 'Credits cover metered AI usage across the suite. They are a one-time purchase and never expire.',
+  trust: 'Secure checkout through Stripe. Cancel anytime from the billing portal.',
 };

@@ -664,7 +664,21 @@ func validateContentShapes(kind BlockKind, variant string, content map[string]an
 	case BlockCapabilityRoadmap:
 		validateStringArray(content["capability_ids"], path+".capability_ids", issues, false)
 	case BlockPricing:
-		validateStringArray(content["plan_refs"], path+".plan_refs", issues, false)
+		// Plan refs are owner price identifiers (Stripe price IDs), not
+		// document-local ids, so they validate as opaque references.
+		if values, ok := content["plan_refs"].([]any); ok {
+			seenRefs := map[string]bool{}
+			for i, raw := range values {
+				ref := stringValue(raw)
+				validateOpaqueRef(ref, fmt.Sprintf("%s.plan_refs[%d]", path, i), issues)
+				if seenRefs[ref] {
+					issues.add(fmt.Sprintf("%s.plan_refs[%d]", path, i), "duplicate_plan_ref", "plan refs must be unique")
+				}
+				seenRefs[ref] = true
+			}
+		} else if content["plan_refs"] != nil {
+			issues.add(path+".plan_refs", "invalid_array", "must be an array")
+		}
 	case BlockFAQ:
 		for i, raw := range arrayValue(content["items"]) {
 			validateFAQItem(raw, fmt.Sprintf("%s.items[%d]", path, i), issues)
@@ -946,6 +960,7 @@ func validateActions(value any, path string, issues *ValidationError) {
 		return
 	}
 	seen := map[ActionKind]bool{}
+	seenPurchaseRefs := map[string]bool{}
 	for i, raw := range items {
 		item, ok := raw.(map[string]any)
 		if !ok {
@@ -958,10 +973,20 @@ func validateActions(value any, path string, issues *ValidationError) {
 		if !validActionKinds[actionKind] {
 			issues.add(p+".kind", "invalid_action_kind", "action kind is not supported")
 		}
-		if seen[actionKind] {
-			issues.add(p+".kind", "duplicate_action_kind", "an action kind may appear only once per block")
+		// A purchase action targets one plan, so a block offering several
+		// plans repeats the kind; each plan may carry only one purchase CTA.
+		if actionKind == ActionPurchase {
+			planRef := stringValue(item["plan_ref"])
+			if seenPurchaseRefs[planRef] {
+				issues.add(p+".plan_ref", "duplicate_purchase_plan", "each plan may carry only one purchase action per block")
+			}
+			seenPurchaseRefs[planRef] = true
+		} else {
+			if seen[actionKind] {
+				issues.add(p+".kind", "duplicate_action_kind", "an action kind may appear only once per block")
+			}
+			seen[actionKind] = true
 		}
-		seen[actionKind] = true
 		validateTextValue(item["label"], p+".label", issues, true)
 		validateTextValue(item["accessible_label"], p+".accessible_label", issues, true)
 		for _, key := range []string{"target", "plan_ref", "app_key", "reason"} {

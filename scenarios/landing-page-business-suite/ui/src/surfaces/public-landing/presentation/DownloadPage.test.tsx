@@ -40,6 +40,18 @@ describe('configured authorized download workflow', () => {
     expect(await screen.findByRole('link', { name: 'Download file' })).toHaveAttribute('href', '/proxy/authorized/file?token=opaque');
     expect(document.body).not.toHaveTextContent('Download started');
   });
+  it('authorizes an anonymous visitor for a free release without any session UI', async () => {
+    const free = downloadOptions.filter(option => !option.requires_entitlement);
+    mocks.request.mockResolvedValue({ ...free[0]!, artifact_url: '/authorized/free' });
+    mount(free, { ...auth, user: null, isAuthenticated: false }); select();
+    expect(screen.queryByRole('button', { name: 'Recheck session' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Prepare download' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare download' }));
+    expect(mocks.request).toHaveBeenCalledExactlyOnceWith('example-app', 'linux', undefined, { assetId: 11 });
+    expect(await screen.findByRole('link', { name: 'Download file' })).toHaveAttribute('href', '/proxy/authorized/free');
+  });
   it('uses the existing sign-in state and proxy-safe login, without authorizing a gated guest', () => {
     mount(downloadOptions, { ...auth, user: null, isAuthenticated: false }); select('1');
     expect(screen.getByRole('button', { name: 'Prepare download' })).toBeDisabled();

@@ -19,9 +19,11 @@ var ErrUnqualified = errors.New("presentation capability is not publication-qual
 
 // AssetPublicationVerifier is intentionally structural. The existing
 // presentationassets.Verifier remains the owner of released asset bytes;
-// capability qualification does not duplicate that authority.
+// capability qualification does not duplicate that authority. The second
+// document is the active published revision (nil when none), which lets the
+// asset owner inherit qualification for assets unchanged since that revision.
 type AssetPublicationVerifier interface {
-	VerifyPublication(context.Context, presentation.Document) error
+	VerifyPublication(context.Context, presentation.Document, *presentation.Document) error
 }
 
 // ValidationReader is the read-only Test Genie authority for terminal
@@ -173,7 +175,7 @@ func NewVerifier(validations ValidationReader, releases ReleaseReader, bindings 
 // available capability from owner readbacks. OwnerQualification.Qualified is
 // ignored as authority. Delivery availability, deployment status, and asset
 // publication are separate concerns.
-func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.Document) error {
+func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.Document, active *presentation.Document) error {
 	if v == nil {
 		return fmt.Errorf("%w: verifier is unavailable", ErrUnqualified)
 	}
@@ -202,7 +204,7 @@ func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.
 		return fmt.Errorf("%w: public views contain assets but no asset verifier is configured", ErrUnqualified)
 	}
 	if v.Assets != nil && publicViewsHaveAssets(views) {
-		if err := v.Assets.VerifyPublication(ctx, document); err != nil {
+		if err := v.Assets.VerifyPublication(ctx, document, active); err != nil {
 			return fmt.Errorf("%w: asset publication: %v", ErrUnqualified, err)
 		}
 	}

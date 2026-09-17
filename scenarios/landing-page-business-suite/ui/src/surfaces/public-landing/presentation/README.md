@@ -1,5 +1,29 @@
 # Native Signal / Studio integration checkpoint
 
+## Download surface redesigned to the night canvas — 2026-09-17
+
+`/apps/<slug>/download` now shares the presentation's identity instead of a
+bare utility page. `DownloadPage` renders `StarField` plus the app's own
+constellation (`constellationForMark(shell.brand_mark)`, compressed
+`intro-replay` pace), a branded top bar (back pill, `BrandLogo` + brand name
+lockup, session pill with accent dot), and themes per app as before.
+`DownloadChooser` stays a controlled, effect-free view with the same fail-closed
+contract (combobox semantics, delivery-ID checks, honest system strings) and
+adds: platform quick-pick cards (finite glyph vocabulary `⊞ ⌘ ❯_`, a
+`Detected` chip driven by a `detectedPlatform` prop the page owner supplies),
+mono-label fact rows, a `Get the app` action rail with numbered steps, and a
+composed empty state around the unchanged `noInstallers` string. The
+constellation intro belongs to the landing pages: on the download surface the
+figure renders larger, fully drawn and static (`.download-page` overrides kill
+the draw/converge animations). The header also carries a suite switcher —
+`presentation.spotlights` pills linking to each sibling app's
+`/apps/<slug>/download`, current app `aria-current` — backed by a resolver
+change (`resolve.go`): app-detail scope resolves every eligible profile into
+`Spotlights` in bundle order, not just the page's own app. Styles live
+under `/* ── download surface ── */` in `presentation.css`; the isolated
+commerce review (`preview.html?commerce=1`) preselects a release and passes
+`detectedPlatform="linux"` so the populated panel is what visual-check audits.
+
 ## Vega joins the bundle — monitor fixture, Lyra figure, hero deck — 2026-09-17
 
 The suite now sells two apps. `system-monitor` ships as **Vega** (`/apps/vega`,
@@ -1380,3 +1404,46 @@ Server-side vocabulary: `PresentationShellDisplay.brand_logo`,
 Seed and every committed presentation revision carry the new fields. Adding a
 scenario to the bundle resolves its name and icon through
 `scripts/sync-bundle-catalog.mjs`.
+
+## Monetization surfaces: pricing blocks, plan narrative, account hub — 2026-09-17
+
+The pricing block is now live on all seven variants' homepage, Aquila and Vega
+pages (revision `06aba65b…`, block id `plans`, nav anchor "Pricing"). The
+redesigned `PricingCards` renders the night-canvas plan exhibit: a
+monthly/yearly toggle whose yearly control carries the best real pair saving
+(computed by `yearlySavingsPercent`, never synthetic), four tier cards with the
+highlighted tier on the accent ring and a floating badge, per-tier feature
+lists, one-time credit top-up rails, and a Stripe/cancel-anytime trust line.
+
+Plan narrative now comes from the owner catalog's admin-curated display
+metadata (`plan_name`, `metadata.subtitle/badge/highlight/cta_label/features`
+in `.vrooli/plans.json`, curated by the admin Plan Display Manager and already
+rendered publicly by `/checkout`). `commerce.ts` projects only those curated
+fields (`OwnerPlanDisplay`), so unknown metadata keys never reach the page; the
+old "no owner narrative" pin in `commerce.test.tsx` became "curated display
+fields only". Purchase actions resolve server-side to `/checkout?price_id=…`;
+the Go validator now accepts Stripe price ids as pricing `plan_refs` (opaque
+refs, unique) and repeated `purchase` actions with distinct plan refs.
+
+Publication was unblocked by a carry-forward rule in the qualification chain:
+assets byte-identical to ones publicly served by the active published revision
+inherit that revision's qualification (`presentationassets.VerifyPublication`
+now receives the active document). New or changed assets still verify fully
+against Backdrop Studio. This was required because the three review-fixture
+assets pin a backdrop release that no longer exists in the owner.
+
+`/account` is the authenticated customer hub (SiteShell chrome): plan card with
+status chip and Stripe billing portal entry, credits card fed by
+`getCreditInfo` (display multiplier/label), suite app cards from the homepage
+spotlights fetched without a visitor identity (account views never join
+experiments), security and profile cards. Post-sign-in default destination is
+now `/account`; the Go UI server treats `/account` and `/account/security` as
+known SPA routes. Anonymous downloads: delivery transports use
+`optionalUserAuth`; the authorizer alone gates entitlement-required assets
+(anonymous + gated → Unauthenticated → sign-in prompt).
+
+Evidence: `visual-check.mjs` 12/12 audits with zero axe violations
+(CommerceReview now exercises the full four-tier catalog with metadata and
+top-ups), vitest 2671 passed, Go API 55/55 packages, zero-console-error live
+captures in `/home/matthalloran8/lpbs-vega-launch-videos/` (07-pricing,
+08-account-hub, plus PNG stills).

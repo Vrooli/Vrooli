@@ -13,6 +13,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +71,7 @@ func NewVerifier(cfg Config) (*Verifier, error) {
 // reachable from public profiles/pages. Private profiles remain structurally
 // validated but their candidate assets are not made public or required to be
 // available.
-func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.Document) error {
+func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.Document, active *presentation.Document) error {
 	if v == nil {
 		return errors.New("presentation assets: verifier is nil")
 	}
@@ -81,8 +82,16 @@ func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.
 	if err != nil {
 		return fmt.Errorf("presentation assets: resolve public asset closure: %w", err)
 	}
+	carried := carryForwardAssets(active)
 	for _, asset := range document.Assets {
 		if !used[asset.ID] {
+			continue
+		}
+		// An asset identical to one publicly served by the active published
+		// revision inherits that revision's qualification: its bytes and
+		// evidence already passed this gate, and re-reading the owner would
+		// make every unrelated content edit hostage to owner retention.
+		if prior, ok := carried[asset.ID]; ok && reflect.DeepEqual(asset, prior) {
 			continue
 		}
 		proof, err := v.ResolveAsset(ctx, asset)
@@ -94,6 +103,26 @@ func (v *Verifier) VerifyPublication(ctx context.Context, document presentation.
 		}
 	}
 	return nil
+}
+
+// carryForwardAssets indexes the assets the active published revision serves
+// on its public views. Assets that were merely declared but never publicly
+// used do not inherit qualification.
+func carryForwardAssets(active *presentation.Document) map[string]presentation.Asset {
+	if active == nil {
+		return nil
+	}
+	used, err := publicAssetIDs(*active)
+	if err != nil {
+		return nil
+	}
+	carried := make(map[string]presentation.Asset, len(used))
+	for _, asset := range active.Assets {
+		if used[asset.ID] {
+			carried[asset.ID] = asset
+		}
+	}
+	return carried
 }
 
 // ResolveAsset returns the actual owner-derived proof and writes its verified

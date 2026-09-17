@@ -62,9 +62,10 @@ export function contextProblem(context: SignInContext): string | null {
   return null;
 }
 
-/** Only same-site paths are honored as a post-sign-in destination. */
+/** Only same-site paths are honored as a post-sign-in destination. A visitor
+ * with no destination lands on their account hub, not the marketing homepage. */
 export function safeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return '/';
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return '/account';
   return raw;
 }
 

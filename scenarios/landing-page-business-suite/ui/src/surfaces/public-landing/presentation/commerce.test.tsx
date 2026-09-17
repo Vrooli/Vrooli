@@ -1,10 +1,10 @@
 // provider-free-exception: tests pure owner-fact projection and prop-fed pricing rendering, with no commerce/API/provider effects.
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { decodeProductPresentation } from './decode';
 import { publicConfig } from './publicTestFixtures';
 import { ownerPlan, ownerPricing } from './commerceFixtures';
-import { resolvePricing } from './commerce';
+import { resolvePricing, yearlySavingsPercent } from './commerce';
 import { PresentationPage } from './PresentationPage';
 import { actionKey, type Block } from './types';
 import { resolvePublicActions } from './publicIntegration';
@@ -12,14 +12,17 @@ afterEach(cleanup);
 const block: Block<'pricing'> = { id: 'plans', kind: 'pricing', variant: 'compact', version: 1, content: { heading: 'Configured plans', description: 'Configured terms', plan_refs: ['price-year', 'price-month'], actions: [{ kind: 'purchase', label: 'Choose monthly', accessible_label: 'Choose monthly', plan_ref: 'price-month' }] } };
 function fixture() { const wire = publicConfig().presentation; if (!wire) throw new Error('fixture'); const p = decodeProductPresentation(wire); p.page.blocks = [structuredClone(block)]; return p; }
 describe('owner-fed pricing', () => {
-  it('takes narrative only from configured presentation actions, never owner marketing metadata or plan names', () => {
+  it('renders only the curated display fields of a plan, never raw catalog metadata', () => {
     const p = fixture(); const pricing = structuredClone(ownerPricing);
-    pricing.monthly = [{ ...ownerPlan, plan_name: 'PRIVATE-OWNER-NAME', metadata: { subtitle: 'PRIVATE-SUBTITLE', features: ['PRIVATE-FEATURE'] } }];
+    pricing.monthly = [{ ...ownerPlan, plan_name: 'Solo', metadata: { subtitle: 'Curated subtitle', badge: 'Most popular', highlight: true, cta_label: 'ignored here', features: ['Curated feature'], internal_note: 'PRIVATE-INTERNAL', credit_policy: 'PRIVATE-POLICY' } }];
     const resolved = resolvePricing(p, pricing);
-    expect(resolved['price-month']).toEqual({ status: 'ready', plan: { stripe_price_id: 'price-month', amount_cents: 1234, currency: 'usd', billing_interval: 'month', intro_enabled: false } });
     render(<PresentationPage presentation={p} resolvedPricing={resolved} />);
-    expect(screen.getByRole('heading', { name: 'Choose monthly' })).toBeInTheDocument();
-    expect(document.body).not.toHaveTextContent(/PRIVATE-OWNER-NAME|PRIVATE-SUBTITLE|PRIVATE-FEATURE|Configured yearly plan/);
+    expect(screen.getByRole('heading', { name: 'Solo' })).toBeInTheDocument();
+    expect(screen.getByText('Curated subtitle')).toBeInTheDocument();
+    expect(screen.getByText('Most popular')).toBeInTheDocument();
+    expect(screen.getByText('Curated feature')).toBeInTheDocument();
+    expect(document.querySelector('[data-price-ref="price-month"]')).toHaveAttribute('data-highlight');
+    expect(document.body).not.toHaveTextContent(/PRIVATE-INTERNAL|PRIVATE-POLICY|ignored here/);
   });
   it('routes repeated configured download CTAs through the unique owner observation', () => {
     const wire = publicConfig().presentation; if (!wire) throw new Error('fixture');
@@ -32,12 +35,22 @@ describe('owner-fed pricing', () => {
     const links = screen.getAllByRole('link', { name: 'Configured download' }); expect(links).toHaveLength(3);
     for (const link of links) expect(link).toHaveAttribute('href', '/proxy/apps/example/download');
   });
-  it('shows exact source amounts and intervals in configured order with owner-only actions', () => {
+  it('shows exact source amounts per interval with a real-pair savings toggle and owner-only actions', () => {
     const p = fixture(); const { container } = render(<PresentationPage presentation={p} resolvedPricing={resolvePricing(p, ownerPricing)} resolvedActions={{ [actionKey(block.content.actions[0]!)]: { status: 'ready', href: '/owner-checkout' } }} />);
-    expect([...container.querySelectorAll('[data-price-ref]')].map(node => node.getAttribute('data-price-ref'))).toEqual(['price-year', 'price-month']);
-    expect(screen.getByText('$123.45')).toBeInTheDocument(); expect(screen.getByText('$12.34')).toBeInTheDocument();
-    expect(screen.getByText('Billed yearly')).toBeInTheDocument(); expect(screen.getByText('Billed monthly')).toBeInTheDocument();
+    // Both intervals resolve for the same tier, so the toggle opens on monthly.
+    expect(screen.getByText('$12.34')).toBeInTheDocument();
+    expect(screen.getByText('Billed monthly')).toBeInTheDocument();
+    expect(screen.queryByText('$123.45')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Choose monthly' })).toHaveAttribute('href', '/owner-checkout');
+    // 12345 vs 12 × 1234 is a real 17% pair saving, shown on the yearly control.
+    expect(yearlySavingsPercent({ amount_cents: 12345 }, { amount_cents: 1234 })).toBe(17);
+    const yearlyToggle = screen.getByRole('button', { name: /Yearly/ });
+    expect(yearlyToggle).toHaveTextContent('Save 17%');
+    fireEvent.click(yearlyToggle);
+    expect(screen.getByText('$123.45')).toBeInTheDocument();
+    expect(screen.getByText('Billed yearly')).toBeInTheDocument();
+    expect(screen.queryByText('$12.34')).not.toBeInTheDocument();
+    expect([...container.querySelectorAll('.commerce-grid [data-price-ref]')].map(node => node.getAttribute('data-price-ref'))).toEqual(['price-year']);
   });
   it.each(['missing', 'hidden', 'duplicate', 'invalid', 'wrong-bundle', 'variable'])('keeps %s owner prices unavailable without inventing plans', kind => {
     const p = fixture(); const pricing = structuredClone(ownerPricing);
@@ -55,6 +68,10 @@ describe('owner-fed pricing', () => {
     const p = fixture(); p.page.locale = 'de'; const pricing = structuredClone(ownerPricing);
     pricing.monthly = [{ ...ownerPlan, amount_cents: 0, currency: 'eur' }];
     render(<PresentationPage presentation={p} resolvedPricing={resolvePricing(p, pricing)} />);
-    expect(screen.getByText('0,00 €')).toBeInTheDocument(); expect(screen.getByText('123,45 $')).toBeInTheDocument();
+    expect(screen.getByText('0,00 €')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Yearly/ }));
+    expect(screen.getByText('123,45 $')).toBeInTheDocument();
+    // A zero-amount pair never produces a savings claim.
+    expect(yearlySavingsPercent({ amount_cents: 12345 }, { amount_cents: 0 })).toBe(0);
   });
 });

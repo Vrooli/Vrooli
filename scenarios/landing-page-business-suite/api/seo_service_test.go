@@ -145,7 +145,7 @@ func newSEOTestConfigStore(t *testing.T) *experimentation.ConfigStore {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	store.SetPresentationStorage(filerouting.New(storage.Paths{ConfigDir: t.TempDir()}), func(context.Context, presentation.Document) error { return nil })
+	store.SetPresentationStorage(filerouting.New(storage.Paths{ConfigDir: t.TempDir()}), func(context.Context, presentation.Document, *presentation.Document) error { return nil })
 	return store
 }
 

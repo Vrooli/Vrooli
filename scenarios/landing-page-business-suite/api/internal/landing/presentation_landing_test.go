@@ -62,7 +62,7 @@ func publishedPresentationLandingFixtureWithRoots(t *testing.T, document present
 		t.Fatalf("SaveVariant() error = %v", err)
 	}
 	roots := filerouting.New(storage.Paths{ConfigDir: t.TempDir()})
-	store.SetPresentationStorage(roots, func(context.Context, presentation.Document) error { return nil })
+	store.SetPresentationStorage(roots, func(context.Context, presentation.Document, *presentation.Document) error { return nil })
 	state, err := store.SavePresentationDraft(context.Background(), "control", document, 0)
 	if err != nil {
 		t.Fatalf("SavePresentationDraft() error = %v", err)

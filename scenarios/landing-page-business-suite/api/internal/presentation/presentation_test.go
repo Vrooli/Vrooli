@@ -78,19 +78,22 @@ func TestLP_PRES_003_005_006_007_008_012_014_015_ResolutionMatrix(t *testing.T) 
 	private := testApp("browser-automation-studio", "browser-automation-studio", "bas-page", VisibilityPrivate, PublicationDraft, false)
 
 	tests := []struct {
-		name     string
-		document Document
-		request  ResolveRequest
-		mode     Mode
-		scope    Scope
-		appKey   string
-		selected []string
+		name       string
+		document   Document
+		request    ResolveRequest
+		mode       Mode
+		scope      Scope
+		appKey     string
+		selected   []string
+		spotlights []string
 	}{
-		{"zero public apps", testDocument(testApp("web-console", "aquila", "aquila-page", VisibilityPrivate, PublicationDraft, false)), ResolveRequest{Route: "/"}, ModeEmpty, ScopeBundle, "", []string{}},
-		{"one public app", testDocument(appA), ResolveRequest{Route: "/"}, ModeSingleApp, ScopeApp, "web-console", []string{"web-console"}},
-		{"bundle preserves configured order and cap", testDocument(appB, appA, private), ResolveRequest{Route: "/"}, ModeBundle, ScopeBundle, "", []string{"backdrop-studio", "web-console"}},
-		{"zero spotlight cap remains bundle", func() Document { d := testDocument(appB, appA); d.Bundle.MaxAppSlides = 0; return d }(), ResolveRequest{Route: "/"}, ModeBundle, ScopeBundle, "", []string{}},
-		{"detail is app scope", testDocument(appA, appB), ResolveRequest{Route: "/apps/aquila"}, ModeAppDetail, ScopeApp, "web-console", []string{"web-console"}},
+		{"zero public apps", testDocument(testApp("web-console", "aquila", "aquila-page", VisibilityPrivate, PublicationDraft, false)), ResolveRequest{Route: "/"}, ModeEmpty, ScopeBundle, "", []string{}, []string{}},
+		{"one public app", testDocument(appA), ResolveRequest{Route: "/"}, ModeSingleApp, ScopeApp, "web-console", []string{"web-console"}, []string{"web-console"}},
+		{"bundle preserves configured order and cap", testDocument(appB, appA, private), ResolveRequest{Route: "/"}, ModeBundle, ScopeBundle, "", []string{"backdrop-studio", "web-console"}, []string{"backdrop-studio", "web-console"}},
+		{"zero spotlight cap remains bundle", func() Document { d := testDocument(appB, appA); d.Bundle.MaxAppSlides = 0; return d }(), ResolveRequest{Route: "/"}, ModeBundle, ScopeBundle, "", []string{}, []string{}},
+		// Detail scope resolves every eligible suite profile (bundle order) so
+		// the page and its download surface can offer app switching.
+		{"detail is app scope", testDocument(appA, appB), ResolveRequest{Route: "/apps/aquila"}, ModeAppDetail, ScopeApp, "web-console", []string{"web-console"}, []string{"web-console", "backdrop-studio"}},
 	}
 
 	for _, tt := range tests {
@@ -105,8 +108,12 @@ func TestLP_PRES_003_005_006_007_008_012_014_015_ResolutionMatrix(t *testing.T) 
 			if !reflect.DeepEqual(result.SelectedAppKeys, tt.selected) {
 				t.Fatalf("selected = %#v, want %#v", result.SelectedAppKeys, tt.selected)
 			}
-			if len(result.Spotlights) != len(tt.selected) || len(result.Spotlights) > tt.document.Bundle.MaxAppSlides && result.Mode == ModeBundle {
-				t.Fatalf("spotlights = %d, selected = %#v", len(result.Spotlights), tt.selected)
+			spotlightKeys := make([]string, 0, len(result.Spotlights))
+			for _, spotlight := range result.Spotlights {
+				spotlightKeys = append(spotlightKeys, spotlight.AppKey)
+			}
+			if !reflect.DeepEqual(spotlightKeys, tt.spotlights) || len(result.Spotlights) > tt.document.Bundle.MaxAppSlides && result.Mode == ModeBundle {
+				t.Fatalf("spotlights = %#v, want %#v", spotlightKeys, tt.spotlights)
 			}
 			if result.Diagnostics.EligibleAppKeys == nil {
 				t.Fatal("eligible app keys must be present in diagnostics")
@@ -418,6 +425,39 @@ func TestLP_PRES_003_004_008_009_012_014_015_ValidationRejectsUnsafeOrUnqualifie
 				t.Fatalf("Validate() error = %v, want code %q", err, tt.code)
 			}
 		})
+	}
+}
+
+func TestPricingBlockAcceptsOwnerPriceRefsAndPerPlanPurchases(t *testing.T) {
+	document := richDocument()
+	document.Pages[2].Blocks = append(document.Pages[2].Blocks, Block{
+		ID: "plans", Kind: BlockPricing, Version: 1, Variant: "compact",
+		Content: PricingContent{
+			Heading: "Plans", Description: "Terms",
+			PlanRefs: []string{"price_1UGElYJq1sLW02CVuQhSGL3F", "price_1UGElYJq1sLW02CVhS3vyDQp"},
+			Actions: []Action{
+				{Kind: ActionPurchase, Label: "Start with Solo", AccessibleLabel: "Start with Solo", PlanRef: "price_1UGElYJq1sLW02CVuQhSGL3F"},
+				{Kind: ActionPurchase, Label: "Choose Pro", AccessibleLabel: "Choose Pro", PlanRef: "price_1UGElYJq1sLW02CVhS3vyDQp"},
+			},
+		},
+	})
+	if err := Validate(document); err != nil {
+		t.Fatalf("Validate() rejected stripe price refs with per-plan purchases: %v", err)
+	}
+
+	block := &document.Pages[2].Blocks[len(document.Pages[2].Blocks)-1]
+	content := block.Content.(PricingContent)
+	content.Actions[1].PlanRef = content.Actions[0].PlanRef
+	block.Content = content
+	if err := Validate(document); !hasIssueCode(err, "duplicate_purchase_plan") {
+		t.Fatalf("Validate() error = %v, want code duplicate_purchase_plan", err)
+	}
+
+	content.Actions[1].PlanRef = "price_1UGElYJq1sLW02CVhS3vyDQp"
+	content.PlanRefs = []string{"price_1UGElYJq1sLW02CVuQhSGL3F", "price_1UGElYJq1sLW02CVuQhSGL3F"}
+	block.Content = content
+	if err := Validate(document); !hasIssueCode(err, "duplicate_plan_ref") {
+		t.Fatalf("Validate() error = %v, want code duplicate_plan_ref", err)
 	}
 }
 

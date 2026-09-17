@@ -29,7 +29,7 @@ export const UserAuthUserSchema = z.object({
   id: z.string(),
   email: z.string(),
   email_verified: z.boolean(),
-  stripe_customer_id: z.string().optional(),
+  stripe_customer_id: z.string().nullable().optional(),
   created_at: FlexibleTimestampSchema,
   last_login_at: z.string().nullable().optional(),
 });

@@ -217,7 +217,7 @@ func browserEvidenceStore(t *testing.T, ctx context.Context) (*experimentation.C
 		assetBytes[assetID] = data
 	}
 
-	fixtureVerifier := func(verifyContext context.Context, document presentation.Document) error {
+	fixtureVerifier := func(verifyContext context.Context, document presentation.Document, _ *presentation.Document) error {
 		// Explicitly fixture-only publication owner. This is not an owner receipt,
 		// release qualification, Backdrop release, or public-cutover authority.
 		if err := presentation.Validate(document); err != nil {

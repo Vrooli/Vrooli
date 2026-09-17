@@ -19,7 +19,7 @@ import (
 
 type compositionAssetVerifier struct{}
 
-func (compositionAssetVerifier) VerifyPublication(context.Context, presentation.Document) error {
+func (compositionAssetVerifier) VerifyPublication(context.Context, presentation.Document, *presentation.Document) error {
 	return nil
 }
 
@@ -51,7 +51,7 @@ func TestPresentationQualificationCompositionPreviewUsesInjectedAssetOwnerWithou
 			return "", nil
 		},
 	})
-	if err := composition.VerifyPublication(context.Background(), document); err != nil {
+	if err := composition.VerifyPublication(context.Background(), document, nil); err != nil {
 		t.Fatalf("VerifyPublication: %v", err)
 	}
 }
@@ -62,7 +62,7 @@ func TestPresentationQualificationCompositionRejectsNilContext(t *testing.T) {
 		t.Fatalf("Recommended: %v", err)
 	}
 	composition := composePresentationQualification(compositionAssetVerifier{}, nil)
-	if err := composition.VerifyPublication(nil, document); err == nil {
+	if err := composition.VerifyPublication(nil, document, nil); err == nil {
 		t.Fatal("nil context unexpectedly accepted")
 	}
 }
@@ -82,7 +82,7 @@ func TestComposePresentationQualificationFailsClosedWithoutAvailableProof(t *tes
 		Qualified:   true,
 	}
 	composition := composePresentationQualification(compositionAssetVerifier{}, nil)
-	if err := composition.VerifyPublication(context.Background(), document); err == nil {
+	if err := composition.VerifyPublication(context.Background(), document, nil); err == nil {
 		t.Fatal("available capability without server-owned bindings unexpectedly qualified")
 	}
 }
@@ -136,7 +136,7 @@ func TestPresentationQualificationCompositionDiscoversOwnersPerRead(t *testing.T
 		},
 	})
 	ctx := database.WithTestMode(context.WithValue(context.Background(), compositionContextKey{}, "request"))
-	if err := composition.VerifyPublication(ctx, document); err == nil {
+	if err := composition.VerifyPublication(ctx, document, nil); err == nil {
 		t.Fatal("VerifyPublication unexpectedly succeeded with unavailable Test Genie")
 	}
 	mu.Lock()
@@ -166,7 +166,7 @@ func TestPresentationQualificationCompositionHonorsCancellation(t *testing.T) {
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := composition.VerifyPublication(ctx, document); err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+	if err := composition.VerifyPublication(ctx, document, nil); err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
 }
@@ -183,7 +183,7 @@ func TestPresentationQualificationCompositionBoundsOwnerTimeout(t *testing.T) {
 		},
 	})
 	started := time.Now()
-	err := composition.VerifyPublication(context.Background(), document)
+	err := composition.VerifyPublication(context.Background(), document, nil)
 	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "deadline") {
 		t.Fatalf("error = %v, want bounded deadline error", err)
 	}
