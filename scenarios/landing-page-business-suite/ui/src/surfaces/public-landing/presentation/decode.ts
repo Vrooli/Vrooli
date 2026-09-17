@@ -3,7 +3,7 @@ import { ResolvedProductPresentationSchema } from '@vrooli/proto-types/landing-p
 import type * as Wire from '@vrooli/proto-types/landing-page-business-suite/v1/shared/product_presentation_pb';
 import type { Presentation, Block, ContentByKind, Action, ArtifactExample, HeroItem, NavigationItem, Footer, Capability, Spotlight } from './types';
 import type { PresentationDisplay, Mark } from './resources';
-import type { ConfiguredFixture, CanonicalWorkspace, CanonicalBackdrop, CanonicalWorkflow, ResolvedAsset } from './resolvedResources';
+import type { ConfiguredFixture, CanonicalWorkspace, CanonicalBackdrop, CanonicalWorkflow, CanonicalMonitor, ResolvedAsset } from './resolvedResources';
 import { assertRendererContract } from './contract';
 import { resolveResources } from './resolvedResources';
 
@@ -25,7 +25,7 @@ function rejectUnknown(value: unknown): void {
   if ('$unknown' in value && Array.isArray(value.$unknown) && value.$unknown.length) throw new Error('Unknown presentation fields');
   for (const child of Object.values(value)) rejectUnknown(child);
 }
-const mark = (value: string): Mark => oneOf<Mark>(value, ['letter-a', 'landscape', 'suite', 'play']);
+const mark = (value: string): Mark => oneOf<Mark>(value, ['letter-a', 'landscape', 'suite', 'play', 'pulse']);
 const mapValues = <T, U>(values: Record<string, T>, map: (value: T) => U): Record<string, U> =>
   Object.fromEntries(Object.entries(values).map(([key, value]) => [key, map(value)]));
 
@@ -349,6 +349,34 @@ function workflow(v: Wire.PresentationWorkflowFixture): CanonicalWorkflow {
   };
 }
 
+function monitorMetric(v: Wire.PresentationMonitorMetric) {
+  return {
+    id: v.id,
+    label: v.label,
+    value: v.value,
+    unit: v.unit,
+    detail: v.detail,
+    status: v.status,
+    trend: [...v.trend],
+  };
+}
+
+function monitor(v: Wire.PresentationMonitorFixture): CanonicalMonitor {
+  return {
+    title: v.title,
+    host: v.host,
+    metrics_label: v.metricsLabel,
+    metrics: v.metrics.map(monitorMetric),
+    investigation_label: v.investigationLabel,
+    investigation_title: v.investigationTitle,
+    investigation_body: v.investigationBody,
+    findings: [...v.findings],
+    action_note: v.actionNote,
+    status: v.status,
+    uptime: v.uptime,
+  };
+}
+
 function assetVariant(v: Wire.PresentationAssetVariant) {
   return {
     surface: v.surface,
@@ -471,6 +499,7 @@ function fixture(v: Wire.PresentationFixture): ConfiguredFixture {
     case 'workspace': return { id: v.id, kind: v.data.case, workspace: workspace(v.data.value) };
     case 'backdrop': return { id: v.id, kind: v.data.case, backdrop: backdrop(v.data.value) };
     case 'workflow': return { id: v.id, kind: v.data.case, workflow: workflow(v.data.value) };
+    case 'monitor': return { id: v.id, kind: v.data.case, monitor: monitor(v.data.value) };
     default: return unreachable(v.data);
   }
 }

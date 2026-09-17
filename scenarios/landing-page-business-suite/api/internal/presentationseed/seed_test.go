@@ -12,7 +12,7 @@ import (
 func TestRecommendedSignalStudioSeedDecodesAndValidates(t *testing.T) {
 	document, err := Recommended()
 	require.NoError(t, err)
-	require.Equal(t, []string{"web-console", "browser-automation-studio", "backdrop-studio"}, document.Bundle.AppOrder)
+	require.Equal(t, []string{"web-console", "system-monitor", "browser-automation-studio", "backdrop-studio"}, document.Bundle.AppOrder)
 
 	apps := make(map[string]struct {
 		enabled     bool
@@ -35,6 +35,11 @@ func TestRecommendedSignalStudioSeedDecodesAndValidates(t *testing.T) {
 		enabled     bool
 		visibility  string
 		publication string
+	}{true, "public", "published"}, apps["system-monitor"])
+	require.Equal(t, struct {
+		enabled     bool
+		visibility  string
+		publication string
 	}{false, "private", "draft"}, apps["browser-automation-studio"])
 	require.Equal(t, struct {
 		enabled     bool
@@ -46,7 +51,13 @@ func TestRecommendedSignalStudioSeedDecodesAndValidates(t *testing.T) {
 	require.Equal(t, "bas-disabled-profile-migration-v1", document.Strings["en"]["bas.preservation.inventory_id"])
 	require.Equal(t, "11411b7923ceb2564935ea09710fc0c9c3655471efcaf89a41899b237d827c6e", document.Strings["en"]["bas.preservation.profile_digest_sha256"])
 	require.Contains(t, document.Strings["en"]["bas.preservation.fallback_source_ref"], "fallback/fallback.json#browser-automation-studio")
-	require.Equal(t, "bas-disabled-profile-migration-v1", document.Apps[1].PreservationRef)
+	preservationRef := ""
+	for _, app := range document.Apps {
+		if app.Key == "browser-automation-studio" {
+			preservationRef = app.PreservationRef
+		}
+	}
+	require.Equal(t, "bas-disabled-profile-migration-v1", preservationRef)
 	require.Contains(t, document.Strings["en"]["bas.preservation.asset_ledger_ref"], "inventory.json#assetLedger")
 	require.Contains(t, document.Strings["en"]["bas.preservation.unlocated_artifacts_ref"], "inventory.json#unlocatedArtifacts")
 	require.Contains(t, document.Strings["en"]["bas.preservation.platforms"], "downloads.vrooli.local")
@@ -146,16 +157,25 @@ func seedPage(t *testing.T, document presentation.Document, id string) *presenta
 	return nil
 }
 
-func TestRecommendedSignalStudioSeedResolvesAfterExplicitAquilaPromotion(t *testing.T) {
+func TestRecommendedSignalStudioSeedResolvesAquilaAndVega(t *testing.T) {
 	document := loadSeed(t)
-	document.Apps[0].Publication = presentation.PublicationPublished
 	require.NoError(t, document.Validate())
 
+	// Two published headliners: the root is the bundle page.
 	result, err := presentation.Resolve(document, presentation.ResolveRequest{Route: "/"})
 	require.NoError(t, err)
-	require.Equal(t, presentation.ModeSingleApp, result.Diagnostics.Mode)
-	require.Equal(t, "web-console", result.AppKey)
-	require.Equal(t, []string{"web-console"}, result.Diagnostics.EligibleAppKeys)
+	require.Equal(t, presentation.ModeBundle, result.Diagnostics.Mode)
+	require.Equal(t, "studio-bundle", result.Page.ID)
+	require.Equal(t, []string{"web-console", "system-monitor"}, result.Diagnostics.EligibleAppKeys)
+
+	// Each headliner keeps a full detail page at its own route.
+	for route, appKey := range map[string]string{"/apps/aquila": "web-console", "/apps/vega": "system-monitor"} {
+		detail, err := presentation.Resolve(document, presentation.ResolveRequest{Route: route})
+		require.NoError(t, err)
+		require.Equal(t, presentation.ModeAppDetail, detail.Diagnostics.Mode)
+		require.Equal(t, appKey, detail.AppKey)
+		require.NotEmpty(t, detail.Page.Blocks)
+	}
 }
 
 func TestRecommendedSignalStudioSeedPrivateDetailPreviewRoundTrips(t *testing.T) {

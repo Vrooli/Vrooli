@@ -350,11 +350,11 @@ func validateLegibilityMeasurement(measurement LegibilityMeasurement, path strin
 
 func validateFixture(fixture Fixture, path string, issues *ValidationError) {
 	validateID(fixture.ID, path+".id", issues)
-	if fixture.Kind != FixtureWorkspace && fixture.Kind != FixtureBackdrop && fixture.Kind != FixtureWorkflow {
+	if fixture.Kind != FixtureWorkspace && fixture.Kind != FixtureBackdrop && fixture.Kind != FixtureWorkflow && fixture.Kind != FixtureMonitor {
 		issues.add(path+".kind", "unsupported_fixture_kind", "fixture kind is not registered")
 		return
 	}
-	if fixture.Kind == FixtureWorkspace && fixture.Workspace == nil || fixture.Kind == FixtureBackdrop && fixture.Backdrop == nil || fixture.Kind == FixtureWorkflow && fixture.Workflow == nil {
+	if fixture.Kind == FixtureWorkspace && fixture.Workspace == nil || fixture.Kind == FixtureBackdrop && fixture.Backdrop == nil || fixture.Kind == FixtureWorkflow && fixture.Workflow == nil || fixture.Kind == FixtureMonitor && fixture.Monitor == nil {
 		issues.add(path, "missing_fixture_data", "the selected fixture kind requires its typed data")
 	}
 	if fixture.Workspace != nil {
@@ -366,6 +366,40 @@ func validateFixture(fixture Fixture, path string, issues *ValidationError) {
 	if fixture.Workflow != nil {
 		validateWorkflowFixture(*fixture.Workflow, path+".workflow", issues)
 	}
+	if fixture.Monitor != nil {
+		validateMonitorFixture(*fixture.Monitor, path+".monitor", issues)
+	}
+}
+
+func validateMonitorFixture(fixture MonitorFixture, path string, issues *ValidationError) {
+	for key, value := range map[string]string{"title": fixture.Title, "host": fixture.Host, "metrics_label": fixture.MetricsLabel, "investigation_label": fixture.InvestigationLabel, "investigation_title": fixture.InvestigationTitle, "investigation_body": fixture.InvestigationBody, "action_note": fixture.ActionNote, "status": fixture.Status, "uptime": fixture.Uptime} {
+		validateText(value, path+"."+key, issues, true)
+	}
+	if len(fixture.Metrics) == 0 {
+		issues.add(path+".metrics", "empty_fixture_data", "must contain at least one metric")
+	}
+	for i, metric := range fixture.Metrics {
+		p := fmt.Sprintf("%s.metrics[%d]", path, i)
+		validateID(metric.ID, p+".id", issues)
+		for key, value := range map[string]string{"label": metric.Label, "value": metric.Value, "status": metric.Status} {
+			validateText(value, p+"."+key, issues, true)
+		}
+		for key, value := range map[string]string{"unit": metric.Unit, "detail": metric.Detail} {
+			validateText(value, p+"."+key, issues, false)
+		}
+		if len(metric.Trend) == 0 {
+			issues.add(p+".trend", "empty_fixture_data", "must contain at least one trend sample")
+		}
+		for j, sample := range metric.Trend {
+			if math.IsNaN(sample) || math.IsInf(sample, 0) || sample < 0 || sample > 1 {
+				issues.add(fmt.Sprintf("%s.trend[%d]", p, j), "invalid_fixture_data", "trend samples must be normalized between 0 and 1")
+			}
+		}
+	}
+	if len(fixture.Findings) == 0 {
+		issues.add(path+".findings", "empty_fixture_data", "must contain at least one finding")
+	}
+	validateTextList(fixture.Findings, path+".findings", issues)
 }
 
 func validateWorkspaceFixture(fixture WorkspaceFixture, path string, issues *ValidationError) {

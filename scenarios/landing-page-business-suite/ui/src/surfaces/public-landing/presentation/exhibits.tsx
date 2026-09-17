@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ArtStudiesFixture, PresentationResources, WorkspaceFixture } from './resources';
+import type { ArtStudiesFixture, MonitorVisualFixture, PresentationResources, WorkspaceFixture } from './resources';
 import { AssetImage, ProductMark } from './primitives';
 
 export function Workspace({ fixture: w, interactive = true }: { fixture: WorkspaceFixture; interactive?: boolean }) {
@@ -46,6 +46,43 @@ export function ArtStudies({ fixture, resources, interactive = true, eager = fal
   </div>;
 }
 
+/** Deterministic sparkline: normalized samples drawn as one phosphor trace. */
+function Sparkline({ trend }: { trend: number[] }) {
+  const step = trend.length > 1 ? 100 / (trend.length - 1) : 100;
+  const points = trend.map((sample, index) => `${(index * step).toFixed(2)},${(30 - Math.max(0, Math.min(1, sample)) * 26).toFixed(2)}`);
+  return <svg className="metric-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+    <polygon className="metric-spark-fill" points={`0,32 ${points.join(' ')} 100,32`} />
+    <polyline className="metric-spark-line" points={points.join(' ')} />
+  </svg>;
+}
+
+export function Monitor({ fixture: m }: { fixture: MonitorVisualFixture }) {
+  return <div className="monitor" data-capture-landmark="product">
+    <div className="window-bar"><span className="traffic" aria-hidden="true"><i /><i /><i /></span><span className="window-title"><ProductMark kind={m.mark} />{m.title}</span><span className="window-meta">{m.host}</span><span className="window-controls" aria-hidden="true">⌘ K</span></div>
+    <div className="monitor-body">
+      <div className="monitor-metrics">
+        <div className="monitor-side-title">{m.metrics_label}</div>
+        <div className="metric-grid">
+          {m.metrics.map(metric => <div key={metric.id} className="metric-tile" data-metric-id={metric.id}>
+            <div className="metric-head"><span>{metric.label}</span><span className="metric-state">{metric.status}</span></div>
+            <div className="metric-readout"><b>{metric.value}</b>{metric.unit && <small>{metric.unit}</small>}</div>
+            <Sparkline trend={metric.trend} />
+            {metric.detail && <div className="metric-detail">{metric.detail}</div>}
+          </div>)}
+        </div>
+      </div>
+      <aside className="monitor-investigation">
+        <div className="monitor-side-title">{m.investigation_label}</div>
+        <p className="investigation-title">{m.investigation_title}</p>
+        <p className="investigation-body">{m.investigation_body}</p>
+        <div className="investigation-findings">{m.findings.map((finding, index) => <div key={index}>{finding}</div>)}</div>
+        <div className="investigation-action"><span aria-hidden="true">↳</span>{m.action_note}</div>
+      </aside>
+    </div>
+    <div className="monitor-status"><span><i className="monitor-dot" aria-hidden="true" />{m.status}</span><span>{m.uptime}</span></div>
+  </div>;
+}
+
 export function Visual({ visualRef, resources, interactive = true, eager = false }: {
   visualRef: string; resources: PresentationResources; interactive?: boolean; eager?: boolean;
 }) {
@@ -55,6 +92,7 @@ export function Visual({ visualRef, resources, interactive = true, eager = false
     case 'workflow': return <div className="workflow-exhibit"><p className="eyebrow">{fixture.label}</p><h3>{fixture.title}</h3><ol>{fixture.steps.map(step => <li key={step.number}><span>{step.number}</span><h4>{step.title}</h4><p>{step.description}</p></li>)}</ol><div className="workflow-browser"><h4>{fixture.browser_title}</h4>{fixture.browser_rows.map((row, index) => <p key={index}>{row}</p>)}</div><p>{fixture.note}</p></div>;
     case 'workspace': return <Workspace fixture={fixture} interactive={interactive} />;
     case 'backdrop': return <ArtStudies fixture={fixture} resources={resources} interactive={interactive} eager={eager} />;
+    case 'monitor': return <Monitor fixture={fixture} />;
   }
 }
 

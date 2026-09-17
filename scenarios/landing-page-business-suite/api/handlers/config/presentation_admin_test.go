@@ -106,8 +106,14 @@ func TestPresentationLegacyRecoveryPersistsPrivatelyWithoutPublication(t *testin
 	document.Strings["en"][prefix+"source.0000"] = encoded[:64]
 	document.Strings["en"][prefix+"source.0001"] = encoded[64:]
 	document.Strings["en"][prefix+"receipt"] = "PRIVATE-MIGRATION-RECEIPT"
+	recoveryPageID := ""
+	for _, app := range document.Apps {
+		if app.Key == "browser-automation-studio" {
+			recoveryPageID = app.PageID
+		}
+	}
 	for i := range document.Pages {
-		if document.Pages[i].ID == document.Apps[1].PageID {
+		if document.Pages[i].ID == recoveryPageID {
 			document.Pages[i].Blocks = append(document.Pages[i].Blocks, presentation.Block{
 				ID: "legacy-recovery", Kind: presentation.BlockProductStory, Version: 1, Variant: "three-column",
 				Content: presentation.ProductStoryContent{Heading: "Private recovered narrative", Body: "Imported text awaiting review", Items: []presentation.StoryItem{}},

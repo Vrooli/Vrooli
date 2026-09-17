@@ -3,8 +3,8 @@
  * No fixture content, asset URLs, membership selection, or commerce policy.
  */
 import type { Action } from './types';
-import type { CanonicalWorkspace, CanonicalBackdrop, CanonicalWorkflow } from './resolvedResources';
-export type Mark = 'letter-a' | 'landscape' | 'suite' | 'play';
+import type { CanonicalWorkspace, CanonicalBackdrop, CanonicalWorkflow, CanonicalMonitor } from './resolvedResources';
+export type Mark = 'letter-a' | 'landscape' | 'suite' | 'play' | 'pulse';
 export type CropPolicy = 'center' | 'contain' | 'cover';
 export interface MediaAsset {
   src: string; width: number; height: number; alt: string;
@@ -17,7 +17,8 @@ export interface WorkspaceDisplay {
 }
 export type WorkspaceFixture = CanonicalWorkspace & WorkspaceDisplay & { kind: 'workspace' };
 export type ArtStudiesFixture = CanonicalBackdrop & { kind: 'backdrop'; mark: Mark };
-export type VisualFixture = WorkspaceFixture | ArtStudiesFixture | (CanonicalWorkflow & { kind: 'workflow' });
+export type MonitorVisualFixture = CanonicalMonitor & { kind: 'monitor'; mark: Mark };
+export type VisualFixture = WorkspaceFixture | ArtStudiesFixture | MonitorVisualFixture | (CanonicalWorkflow & { kind: 'workflow' });
 export interface BlockDisplay {
   eyebrow?: string; description?: string; note?: string; accessibility_label?: string;
   badge?: string; mark?: Mark; formats?: string[]; anchors?: Record<string, string>;

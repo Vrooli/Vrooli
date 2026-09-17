@@ -41,6 +41,20 @@ export const URSA_MAJOR: Constellation = {
   edges: [['dubhe', 'merak'], ['merak', 'phecda'], ['phecda', 'megrez'], ['megrez', 'dubhe'], ['megrez', 'alioth'], ['alioth', 'mizar'], ['mizar', 'alkaid']],
 };
 
+/** Lyra — the lyre. Vega, the system monitor product's namesake, leads it. */
+export const LYRA: Constellation = {
+  viewBox: '0 0 1000 640',
+  stars: [
+    { id: 'vega', bayer: 'α Lyr', mag: 0.03, x: 647.5, y: 147.0, r: 9.19 },
+    { id: 'epsilon', bayer: 'ε Lyr', mag: 3.9, x: 551.6, y: 90.0, r: 3.19 },
+    { id: 'zeta', bayer: 'ζ Lyr', mag: 4.34, x: 547.2, y: 226.8, r: 3.0 },
+    { id: 'delta', bayer: 'δ Lyr', mag: 4.3, x: 419.1, y: 272.9, r: 3.0 },
+    { id: 'gamma', bayer: 'γ Lyr', mag: 3.25, x: 352.5, y: 550.0, r: 4.19 },
+    { id: 'sheliak', bayer: 'β Lyr', mag: 3.52, x: 476.2, y: 507.3, r: 3.77 },
+  ],
+  edges: [['vega', 'epsilon'], ['vega', 'zeta'], ['epsilon', 'zeta'], ['zeta', 'delta'], ['delta', 'gamma'], ['gamma', 'sheliak'], ['sheliak', 'zeta']],
+};
+
 /**
  * A figure is drawn only where the page's own brand mark identifies one. Other
  * marks get the star field without a figure rather than a borrowed one.
@@ -48,5 +62,6 @@ export const URSA_MAJOR: Constellation = {
 export function constellationForMark(mark: Mark): Constellation | undefined {
   if (mark === 'letter-a') return AQUILA;
   if (mark === 'suite') return URSA_MAJOR;
+  if (mark === 'pulse') return LYRA;
   return undefined;
 }

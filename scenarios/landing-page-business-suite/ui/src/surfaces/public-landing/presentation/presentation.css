@@ -744,3 +744,128 @@
     -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
   }
 }
+
+/* ============================================================================
+   The bundle deck and the monitor exhibit.
+   With two or more product views the hero holds its apps like photographs in
+   one hand: tilted, overlapping, each card lifting toward the viewer on
+   attention and scrolling to its own spotlight below. The monitor exhibit is
+   the suite's green room — a phosphor trace on graphite, bright and calm.
+   ========================================================================== */
+
+/* The figure's glow follows the page's own accent, so a green product page
+   ignites green. The defaults reproduce the shipped cyan exactly. */
+.presentation-page{--accent-glow:var(--accent)}
+.presentation-page .chart-core{filter:drop-shadow(0 0 5px var(--accent))}
+.presentation-page .eyebrow>span{box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent)}
+
+/* ── the deck ────────────────────────────────────────────────────────────── */
+.presentation-page .bundle-art-deck{height:570px;min-height:0;display:block;position:relative;isolation:isolate}
+.presentation-page .bundle-art-deck .hero-app-group{display:block;position:absolute;min-width:0}
+.presentation-page .deck-card{width:min(430px,66%);border-radius:11px;text-decoration:none;color:inherit;
+  transform:rotate(var(--deck-tilt,0deg));transform-origin:50% 86%;
+  z-index:var(--deck-z,1);filter:saturate(.94) brightness(.97)}
+.presentation-page .deck-card:nth-child(1){--deck-tilt:-6.5deg;--deck-z:3;left:0;top:5%}
+.presentation-page .deck-card:nth-child(2){--deck-tilt:5.5deg;--deck-z:2;right:0;top:22%}
+.presentation-page .deck-card:nth-child(3){--deck-tilt:1.5deg;--deck-z:1;left:22%;top:0}
+.presentation-page .bundle-art-deck[data-deck-count='3'] .deck-card{width:min(390px,58%)}
+.presentation-page .deck-card .bundle-terminal{position:relative;transform:none;bottom:auto;left:auto;right:auto;
+  pointer-events:none;border-radius:10px;
+  box-shadow:0 18px 30px -18px rgb(2 8 18 / .9), 0 45px 95px -40px rgb(2 8 18 / .95)}
+.presentation-page .deck-card:hover,
+.presentation-page .deck-card:focus-visible{z-index:6;filter:none}
+.presentation-page .deck-card:hover .bundle-terminal .workspace,
+.presentation-page .deck-card:focus-visible .bundle-terminal .workspace,
+.presentation-page .deck-card:hover .bundle-terminal .monitor,
+.presentation-page .deck-card:focus-visible .bundle-terminal .monitor{
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgb(255 255 255 / .07),
+             0 40px 90px -42px rgb(2 8 18 / .95), 0 0 55px -8px color-mix(in srgb, var(--accent) 34%, transparent)}
+.presentation-page .deck-card-label{position:absolute;left:14px;bottom:-16px;z-index:4;
+  display:flex;align-items:center;gap:9px;max-width:calc(100% - 28px);
+  padding:7px 13px 7px 8px;border-radius:8px;background:var(--night-raised);
+  border:1px solid rgb(255 255 255 / .12);box-shadow:0 10px 26px -14px rgb(2 8 18 / .9);
+  font-family:var(--display);font-size:13px;letter-spacing:-.2px;white-space:nowrap}
+.presentation-page .deck-card-label .product-mark{width:24px;height:24px;color:var(--accent)}
+.presentation-page .deck-card-label b{font-weight:600;color:var(--ink)}
+.presentation-page .deck-card-label small{font:10.5px var(--mono);letter-spacing:.4px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis}
+.presentation-page .deck-card:hover .deck-card-label,
+.presentation-page .deck-card:focus-visible .deck-card-label{border-color:color-mix(in srgb, var(--accent) 55%, transparent)}
+.presentation-page .product-card{scroll-margin-top:90px}
+@media (prefers-reduced-motion: no-preference){
+  .presentation-page .deck-card{transition:transform .5s var(--ease-out),filter .5s var(--ease-out)}
+  .presentation-page .deck-card .bundle-terminal .workspace,
+  .presentation-page .deck-card .bundle-terminal .monitor{transition:box-shadow .5s var(--ease-out)}
+  .presentation-page .deck-card:hover,
+  .presentation-page .deck-card:focus-visible{transform:rotate(calc(var(--deck-tilt,0deg) * .22)) translateY(-20px) scale(1.025)}
+  /* The fan opens as the constellation gives way to the exhibit. */
+  .presentation-page.intro-first .deck-card{animation:presentation-deck-fan calc(.9s * var(--intro)) var(--ease-out) backwards}
+  .presentation-page.intro-first .deck-card:nth-child(1){animation-delay:calc(2.62s * var(--intro))}
+  .presentation-page.intro-first .deck-card:nth-child(2){animation-delay:calc(2.74s * var(--intro))}
+  .presentation-page.intro-first .deck-card:nth-child(3){animation-delay:calc(2.68s * var(--intro))}
+}
+@keyframes presentation-deck-fan{from{opacity:0;transform:rotate(0deg) translateY(26px)}}
+@media (max-width: 760px){
+  .presentation-page .bundle-art-deck{height:auto;display:grid;gap:34px;padding-bottom:10px}
+  .presentation-page .bundle-art-deck .hero-app-group{position:relative;inset:auto}
+  .presentation-page .deck-card,
+  .presentation-page .bundle-art-deck[data-deck-count='3'] .deck-card{width:100%;--deck-tilt:0deg}
+  .presentation-page .bundle-art-deck .art-seal{display:none}
+}
+
+/* ── the monitor ─────────────────────────────────────────────────────────── */
+.presentation-page .monitor{
+  --phos:#4ff2a4;--phos-soft:#a5fcd3;--phos-dim:#4fae7f;--mon-line:rgb(110 240 175 / .15);
+  position:relative;background:linear-gradient(168deg,#0c1b15,#071310 72%);color:#d9fbe9;
+  border:1px solid #1d4634;border-radius:10px;overflow:hidden;text-align:left;
+  font-family:var(--sans);font-size:13px;line-height:1.55}
+.presentation-page .monitor .window-bar{background:#0d1d16;border-bottom:1px solid var(--mon-line);color:#7fcfa8}
+.presentation-page .monitor .window-title{color:#e9fff3}
+.presentation-page .monitor .window-title .product-mark{color:var(--phos)}
+.presentation-page .monitor .window-meta{margin-left:auto;font:10.5px var(--mono);letter-spacing:.5px;color:var(--phos-dim)}
+.presentation-page .monitor .window-controls{color:#3f6f57}
+.presentation-page .monitor-body{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:1px;background:var(--mon-line)}
+.presentation-page .monitor-metrics,
+.presentation-page .monitor-investigation{background:#0a1712;padding:15px 17px;min-width:0}
+.presentation-page .monitor-side-title{font:9.5px var(--mono);letter-spacing:1.6px;color:var(--phos-dim);margin-bottom:11px}
+.presentation-page .metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.presentation-page .metric-tile{border:1px solid var(--mon-line);border-radius:8px;padding:10px 12px 11px;
+  background:rgb(12 32 23 / .55);min-width:0}
+.presentation-page .metric-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font:10px var(--mono);letter-spacing:1px;color:#8ce8bd}
+.presentation-page .metric-state{color:var(--phos-dim);letter-spacing:.4px;white-space:nowrap}
+.presentation-page .metric-readout{margin-top:7px;display:flex;align-items:baseline}
+.presentation-page .metric-readout b{font:600 27px/1 var(--display);letter-spacing:-.8px;color:var(--phos-soft);
+  text-shadow:0 0 14px rgb(80 240 165 / .4)}
+.presentation-page .metric-readout small{font:11px var(--mono);color:var(--phos-dim);margin-left:4px}
+.presentation-page .metric-spark{display:block;width:100%;height:34px;margin-top:9px;color:var(--phos)}
+.presentation-page .metric-spark-line{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;
+  filter:drop-shadow(0 0 3px rgb(80 240 165 / .65))}
+.presentation-page .metric-spark-fill{fill:currentColor;opacity:.11}
+.presentation-page .metric-detail{margin-top:7px;font:10px var(--mono);letter-spacing:.3px;color:var(--phos-dim)}
+.presentation-page .monitor-investigation{display:flex;flex-direction:column}
+.presentation-page .investigation-title{font:600 17px/1.3 var(--display);letter-spacing:-.3px;color:#eefff5;margin-bottom:6px}
+.presentation-page .investigation-body{font-size:11.5px;color:#a9dcc3;margin-bottom:11px}
+.presentation-page .investigation-findings{display:grid;gap:4px;margin-bottom:12px}
+.presentation-page .investigation-findings>div{font:11px var(--mono);color:var(--phos)}
+.presentation-page .investigation-action{margin-top:auto;display:flex;gap:8px;align-items:baseline;
+  border-top:1px dashed var(--mon-line);padding-top:10px;font-size:11.5px;color:#8ce8bd}
+.presentation-page .investigation-action span{color:var(--phos)}
+.presentation-page .monitor-status{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:8px 15px;border-top:1px solid var(--mon-line);background:#081310;
+  font:10.5px var(--mono);letter-spacing:.4px;color:var(--phos-dim)}
+.presentation-page .monitor-status>span{display:inline-flex;align-items:center}
+.presentation-page .monitor-dot{width:7px;height:7px;border-radius:50%;background:var(--phos);
+  box-shadow:0 0 9px var(--phos);margin-right:8px}
+.presentation-page .hero-stage .monitor{
+  box-shadow:0 0 0 1px rgb(110 240 175 / .17), inset 0 1px 0 rgb(255 255 255 / .06),
+             0 40px 90px -42px rgb(2 14 8 / .95)}
+.presentation-page .bundle-terminal .monitor{border-radius:7px}
+.presentation-page .bundle-terminal .monitor .window-bar{height:35px;padding:0 10px;gap:7px}
+.presentation-page .bundle-terminal .monitor .metric-readout b{font-size:22px}
+.presentation-page .bundle-terminal .monitor-metrics,
+.presentation-page .bundle-terminal .monitor-investigation{padding:12px 13px}
+@media (max-width: 700px){
+  .presentation-page .monitor-body{grid-template-columns:minmax(0,1fr)}
+  .presentation-page .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

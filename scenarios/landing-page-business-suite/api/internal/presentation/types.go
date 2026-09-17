@@ -609,6 +609,7 @@ const (
 	FixtureWorkspace FixtureKind = "workspace"
 	FixtureBackdrop  FixtureKind = "backdrop"
 	FixtureWorkflow  FixtureKind = "workflow"
+	FixtureMonitor   FixtureKind = "monitor"
 )
 
 // Fixture is public illustrative data selected by a finite renderer. It is
@@ -620,6 +621,7 @@ type Fixture struct {
 	Workspace *WorkspaceFixture `json:"workspace,omitempty"`
 	Backdrop  *BackdropFixture  `json:"backdrop,omitempty"`
 	Workflow  *WorkflowFixture  `json:"workflow,omitempty"`
+	Monitor   *MonitorFixture   `json:"monitor,omitempty"`
 }
 
 type WorkspaceFixture struct {
@@ -666,6 +668,32 @@ type BackdropFixture struct {
 	Options   []string `json:"options"`
 	Badge     string   `json:"badge"`
 	AssetRefs []string `json:"asset_refs"`
+}
+
+// MonitorMetric is one illustrative readout in a monitor fixture. Trend points
+// are normalized 0..1 sparkline samples; every label remains configured copy.
+type MonitorMetric struct {
+	ID     string    `json:"id"`
+	Label  string    `json:"label"`
+	Value  string    `json:"value"`
+	Unit   string    `json:"unit"`
+	Detail string    `json:"detail"`
+	Status string    `json:"status"`
+	Trend  []float64 `json:"trend"`
+}
+
+type MonitorFixture struct {
+	Title              string          `json:"title"`
+	Host               string          `json:"host"`
+	MetricsLabel       string          `json:"metrics_label"`
+	Metrics            []MonitorMetric `json:"metrics"`
+	InvestigationLabel string          `json:"investigation_label"`
+	InvestigationTitle string          `json:"investigation_title"`
+	InvestigationBody  string          `json:"investigation_body"`
+	Findings           []string        `json:"findings"`
+	ActionNote         string          `json:"action_note"`
+	Status             string          `json:"status"`
+	Uptime             string          `json:"uptime"`
 }
 
 type WorkflowStep struct {

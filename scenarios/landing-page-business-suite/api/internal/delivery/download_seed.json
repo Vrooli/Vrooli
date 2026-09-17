@@ -364,21 +364,22 @@
   {
     "bundle_key": "business_suite",
     "app_key": "system-monitor",
-    "name": "System Monitor",
-    "tagline": "Know what your local stack is doing",
-    "description": "A calm operational view of local resources, scenario health, and the signals that keep work moving.",
+    "name": "Vega",
+    "tagline": "Your system, in plain sight.",
+    "description": "Live vitals for CPU, memory, GPU, and storage — with AI investigations that explain what changed in plain words, for you and for your agents.",
     "install_overview": "Hosted capability; desktop and local deployment links are configured after qualification.",
     "install_steps": [],
     "storefronts": [],
     "metadata": {
-      "enabled": false,
-      "catalog_status": "planned",
+      "enabled": true,
+      "catalog_status": "active",
       "source": "offer-desk",
       "feature_gates": [
         "subscription"
       ]
     },
-    "platforms": []
+    "platforms": [],
+    "icon_url": "/public/apps/vega.png"
   },
   {
     "bundle_key": "business_suite",
@@ -420,4 +421,3 @@
     "platforms": []
   }
 ]
-

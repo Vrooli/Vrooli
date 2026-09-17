@@ -80,7 +80,7 @@ type AppDisplay struct {
 	LogoAlt string `json:"logo_alt,omitempty"`
 }
 
-var displayMarks = map[string]bool{"letter-a": true, "landscape": true, "suite": true, "play": true}
+var displayMarks = map[string]bool{"letter-a": true, "landscape": true, "suite": true, "play": true, "pulse": true}
 
 func validateDisplay(page Page, path string, apps map[string]App, capabilities map[string]Capability, assets map[string]Asset, fixtures map[string]Fixture, issues *ValidationError) {
 	display := page.Display

@@ -1,5 +1,41 @@
 # Native Signal / Studio integration checkpoint
 
+## Vega joins the bundle — monitor fixture, Lyra figure, hero deck — 2026-09-17
+
+The suite now sells two apps. `system-monitor` ships as **Vega** (`/apps/vega`,
+page `vega-pulse`, green accent `#3ff2a2`), and the root presentation resolves
+in `bundle` mode with Aquila.
+
+- **`monitor` fixture kind** (fourth finite renderer): proto
+  `PresentationMonitorFixture`/`PresentationMonitorMetric` in
+  `product_presentation.proto`, mirrored in Go (`types.go`, `validation.go`)
+  and TS (`decode.ts`, `resolvedResources.ts`, `resources.ts`). Rendered by
+  `Monitor` in `exhibits.tsx`: phosphor-green window with metric tiles,
+  deterministic SVG sparklines (normalized 0..1 `trend` samples), an AI
+  investigation pane, and a status bar. Styles under `/* ── the monitor ── */`
+  in `presentation.css`. Fixture display needs only `{ mark }`, like backdrop.
+- **`pulse` mark + Lyra**: new finite mark in `productMarks.js`, `resources.ts`,
+  `decode.ts` and Go `displayMarks`; `constellations.ts` adds `LYRA` (real
+  J2000 tangent-plane projection, Vega brightest) dispatched by
+  `constellationForMark('pulse')`. The hero figure's glow now follows the
+  page accent (`--accent`) instead of hard-coded cyan, so Vega's figure
+  ignites green while Aquila stays cyan.
+- **Bundle hero deck**: when every `bundle-hero` item is a `product-view` and
+  there are 2–3 of them, `registry.tsx` renders `bundle-art-deck` — tilted,
+  overlapping cards (like photographs held in one hand). Hover/focus lifts and
+  straightens a card with an accent glow; each card is an anchor to its
+  spotlight (`#app-<key>`, spotlight articles now carry that id). Reduced
+  motion gets the settled fan; the intro fans the cards after the
+  constellation resolves. Artwork exhibits and single-item heroes keep the
+  previous rendering.
+- **Catalog/branding**: `sync-bundle-catalog.mjs --write` adopted the Vega
+  brand icon to `/public/apps/vega.png` and renamed the delivery row; the
+  presentation revision pins it as `display.apps["system-monitor"].logo` and
+  the vega page `shell.brand_logo`.
+- Seed (`recommended-signal-studio.json`) now carries both published
+  headliners; `seed_test.go` asserts bundle mode at `/` plus app_detail at
+  `/apps/aquila` and `/apps/vega`.
+
 ## Phase-six decoder / priority font-readiness checkpoint — 2026-09-15
 
 Bounded W3 repair for finding 236d4d2c and the parent's live-browser font report.

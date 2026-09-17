@@ -30,20 +30,32 @@ function Hero({ block, context }: { block: Block<'product-hero' | 'bundle-hero'>
     <div className="hero-copy"><p className="eyebrow"><span />{content.eyebrow}</p><Heading level={1} text={content.title} breaks={display.heading_breaks} /><p className="hero-description">{content.description}</p><Actions actions={content.actions} context={context} />{display.note && <p className="hero-note">{display.note}</p>}</div>
     <figure className="hero-stage" aria-label={content.accessibility_label}>
       {block.kind === 'product-hero' ? <Visual visualRef={block.content.fixture_ref || block.content.visual_ref} resources={resources} eager /> : <>
-        <div className={`bundle-art ${block.content.hero_items.length !== 2 ? 'bundle-art-grid' : ''}`}>
-          {block.content.hero_items.map(item => {
-            const app = presentation.spotlights?.find(app => app.app_key === item.app_key);
-            const fixtureRef = display.hero_fixture_refs?.[item.app_key];
-            const visual = fixtureRef ? resources.visuals[fixtureRef] : undefined;
-            if (!app) throw new Error(`Unresolved hero app: ${item.app_key}`);
-            return <div className="hero-app-group" key={item.app_key} data-hero-app-key={item.app_key} role="group" aria-label={app.name}>
-              {item.exhibit_kind === 'artwork' && visual?.kind === 'backdrop'
-                ? visual.asset_refs.map((asset_ref, index) => <div key={asset_ref} className={`art-print ${index === 0 ? 'print-front' : 'print-back'}`}><AssetImage assetRef={asset_ref} resources={resources} eager />{index === 0 && <div className="hero-print-label"><BrandLogo kind={visual.mark} logo={resources.apps[item.app_key]?.logo} alt={resources.apps[item.app_key]?.logo_alt} />{app.name}</div>}</div>)
-                : <div className="bundle-terminal"><Visual visualRef={fixtureRef ?? item.visual_ref} resources={resources} interactive={false} eager /></div>}
-            </div>;
-          })}
-          {block.content.hero_items.length > 0 && <div className="art-seal" aria-hidden="true"><BrandLogo kind={resources.shell.brand_mark} logo={resources.shell.brand_logo} /></div>}
-        </div>
+        {(() => {
+          // Two or more product views compose as a hand-held fan of cards; a
+          // card scrolls to its app's spotlight, where the full story waits.
+          const deck = block.content.hero_items.length > 1 && block.content.hero_items.every(item => item.exhibit_kind === 'product-view');
+          return <div className={`bundle-art ${deck ? 'bundle-art-deck' : block.content.hero_items.length !== 2 ? 'bundle-art-grid' : ''}`} data-deck-count={deck ? block.content.hero_items.length : undefined}>
+            {block.content.hero_items.map((item, index) => {
+              const app = presentation.spotlights?.find(app => app.app_key === item.app_key);
+              const fixtureRef = display.hero_fixture_refs?.[item.app_key];
+              const visual = fixtureRef ? resources.visuals[fixtureRef] : undefined;
+              if (!app) throw new Error(`Unresolved hero app: ${item.app_key}`);
+              if (deck) {
+                const style = resources.apps[item.app_key];
+                return <a className="hero-app-group deck-card" key={item.app_key} data-hero-app-key={item.app_key} data-deck-index={index} href={`#app-${item.app_key}`} aria-label={`${app.name} — ${item.detail_label}`}>
+                  <div className="bundle-terminal"><Visual visualRef={fixtureRef ?? item.visual_ref} resources={resources} interactive={false} eager /></div>
+                  <span className="deck-card-label"><BrandLogo kind={style?.mark ?? resources.shell.brand_mark} logo={style?.logo} alt={style?.logo_alt} /><b>{app.name}</b><small>{item.detail_label}</small></span>
+                </a>;
+              }
+              return <div className="hero-app-group" key={item.app_key} data-hero-app-key={item.app_key} role="group" aria-label={app.name}>
+                {item.exhibit_kind === 'artwork' && visual?.kind === 'backdrop'
+                  ? visual.asset_refs.map((asset_ref, index) => <div key={asset_ref} className={`art-print ${index === 0 ? 'print-front' : 'print-back'}`}><AssetImage assetRef={asset_ref} resources={resources} eager />{index === 0 && <div className="hero-print-label"><BrandLogo kind={visual.mark} logo={resources.apps[item.app_key]?.logo} alt={resources.apps[item.app_key]?.logo_alt} />{app.name}</div>}</div>)
+                  : <div className="bundle-terminal"><Visual visualRef={fixtureRef ?? item.visual_ref} resources={resources} interactive={false} eager /></div>}
+              </div>;
+            })}
+            {block.content.hero_items.length > 0 && <div className="art-seal" aria-hidden="true"><BrandLogo kind={resources.shell.brand_mark} logo={resources.shell.brand_logo} /></div>}
+          </div>;
+        })()}
         <nav className="hero-product-key" aria-label={block.content.accessibility_label}>{block.content.hero_items.map(item => {
           const app = presentation.spotlights?.find(app => app.app_key === item.app_key);
           const style = resources.apps[item.app_key];
@@ -87,7 +99,7 @@ export const rendererRegistry: Registry = {
     const app = presentation.spotlights?.find(app => app.app_key === key);
     const style = resources.apps[key];
     if (!app || !style || !safeHref(app.detail_route)) throw new Error(`Unresolved app spotlight: ${key}`);
-    return <article key={key} className={`product-card ${style.tone}`} data-app-key={key}><a className="product-card-visual" href={app.detail_route} aria-label={style.detail_label}><Visual visualRef={style.fixture_ref ?? style.visual_ref ?? ''} resources={resources} interactive={false} /><span className="visual-arrow" aria-hidden="true">↗</span></a><div className="product-card-copy"><div className="product-name"><BrandLogo kind={style.mark} logo={style.logo} alt={style.logo_alt} /><h3>{app.name}</h3><span className="product-number">{String(index + 1).padStart(2, '0')}</span></div><h4>{app.tagline}</h4><p>{app.description}</p><a className="detail-link" href={app.detail_route}>{style.detail_label}<Arrow /></a></div></article>;
+    return <article key={key} id={`app-${key}`} className={`product-card ${style.tone}`} data-app-key={key}><a className="product-card-visual" href={app.detail_route} aria-label={style.detail_label}><Visual visualRef={style.fixture_ref ?? style.visual_ref ?? ''} resources={resources} interactive={false} /><span className="visual-arrow" aria-hidden="true">↗</span></a><div className="product-card-copy"><div className="product-name"><BrandLogo kind={style.mark} logo={style.logo} alt={style.logo_alt} /><h3>{app.name}</h3><span className="product-number">{String(index + 1).padStart(2, '0')}</span></div><h4>{app.tagline}</h4><p>{app.description}</p><a className="detail-link" href={app.detail_route}>{style.detail_label}<Arrow /></a></div></article>;
   })}</div></section>,
   'closing-action': (block, context) => <section id={block.id} data-block={block.kind} data-capture-landmark="closing" className="closing wrap">{block.content.visual_ref && <div className="closing-art" aria-hidden="true"><AssetImage assetRef={block.content.visual_ref} resources={context.resources} alt="" /></div>}<div className="closing-content"><p className="eyebrow">{context.resources.blocks[block.id]?.eyebrow}</p><Heading text={block.content.heading} breaks={context.resources.blocks[block.id]?.heading_breaks} /><p>{block.content.description}</p><Actions actions={block.content.actions} context={context} /></div></section>,
   'pricing': (block, context) => <section id={block.id} data-block={block.kind} className="pricing wrap"><Intro heading={block.content.heading} body={block.content.description} /><PricingCards block={block} prices={context.resolvedPricing} actions={context.resolvedActions} reason={context.resources.shell.unavailable_reason} locale={context.presentation.page.locale} /><Actions actions={block.content.actions.filter(action => action.kind !== 'purchase' || !block.content.plan_refs.includes(action.plan_ref ?? ''))} context={context} /></section>,

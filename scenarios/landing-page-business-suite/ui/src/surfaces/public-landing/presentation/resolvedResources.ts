@@ -18,10 +18,19 @@ export interface CanonicalWorkflow {
   title: string; label: string; steps: { number: string; title: string; description: string }[];
   browser_title: string; browser_rows: string[]; note: string;
 }
+export interface CanonicalMonitorMetric {
+  id: string; label: string; value: string; unit: string; detail: string; status: string; trend: number[];
+}
+export interface CanonicalMonitor {
+  title: string; host: string; metrics_label: string; metrics: CanonicalMonitorMetric[];
+  investigation_label: string; investigation_title: string; investigation_body: string;
+  findings: string[]; action_note: string; status: string; uptime: string;
+}
 export type ConfiguredFixture =
   | { id: string; kind: 'workspace'; workspace: CanonicalWorkspace }
   | { id: string; kind: 'backdrop'; backdrop: CanonicalBackdrop }
-  | { id: string; kind: 'workflow'; workflow: CanonicalWorkflow };
+  | { id: string; kind: 'workflow'; workflow: CanonicalWorkflow }
+  | { id: string; kind: 'monitor'; monitor: CanonicalMonitor };
 export interface ResolvedAsset {
   id: string; public_url?: string; width: number; height: number; release_ref: string; content_hash: string;
   mime: string; surface: string; responsive_alternatives?: { surface: string; asset_id: string }[];
@@ -59,6 +68,11 @@ export function resolveResources(presentation: Presentation): PresentationResour
         visuals[fixture.id] = { ...fixture.backdrop, mark: decoration.mark, kind: 'backdrop' };
         break;
       case 'workflow': visuals[fixture.id] = { ...fixture.workflow, kind: 'workflow' }; break;
+      case 'monitor':
+        if (!decoration) throw new Error(`Missing monitor display mark: ${fixture.id}`);
+        if (fixture.monitor.metrics.some(metric => metric.trend.some(sample => !Number.isFinite(sample) || sample < 0 || sample > 1))) throw new Error('Invalid monitor trend sample');
+        visuals[fixture.id] = { ...fixture.monitor, mark: decoration.mark, kind: 'monitor' };
+        break;
     }
   }
   for (const asset of presentation.assets ?? []) {

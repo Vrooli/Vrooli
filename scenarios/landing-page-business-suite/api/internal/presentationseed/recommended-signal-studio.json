@@ -5,6 +5,7 @@
     "name": "Vrooli Business Suite",
     "app_order": [
       "web-console",
+      "system-monitor",
       "browser-automation-studio",
       "backdrop-studio"
     ],
@@ -103,6 +104,103 @@
       ]
     },
     {
+      "key": "system-monitor",
+      "slug": "vega",
+      "name": "Vega",
+      "enabled": true,
+      "visibility": "public",
+      "publication": "published",
+      "page_id": "vega-pulse",
+      "tagline": "Your system, in plain sight.",
+      "description": "Live vitals for CPU, memory, GPU, and storage — with AI investigations that explain what changed in plain words, for you and for your agents.",
+      "capabilities": [
+        {
+          "id": "signals",
+          "label": "See every vital at once",
+          "benefits": [
+            "Watch CPU, memory, GPU, storage, network, and thermals live in one calm view."
+          ],
+          "status": "preview",
+          "evidence_refs": [
+            "vega-fixture-signals"
+          ],
+          "status_label": "Design preview"
+        },
+        {
+          "id": "investigations",
+          "label": "Anomalies, explained",
+          "benefits": [
+            "When a signal drifts, an AI investigation turns the spike into a plain-language diagnosis."
+          ],
+          "status": "preview",
+          "evidence_refs": [
+            "vega-fixture-investigation"
+          ],
+          "status_label": "Design preview"
+        },
+        {
+          "id": "storage-triage",
+          "label": "Catch runaway storage",
+          "benefits": [
+            "Find what is filling the disk — and what is safe to clear — before it hurts."
+          ],
+          "status": "preview",
+          "evidence_refs": [
+            "vega-fixture-signals"
+          ],
+          "status_label": "Design preview"
+        },
+        {
+          "id": "agent-skills",
+          "label": "Instruments for your agents",
+          "benefits": [
+            "Vega ships skills your agents use to check health, triage slowdowns, and cite real numbers."
+          ],
+          "status": "preview",
+          "evidence_refs": [
+            "vega-fixture-investigation"
+          ],
+          "status_label": "Design preview"
+        },
+        {
+          "id": "fleet-view",
+          "label": "Every machine you care about",
+          "benefits": [
+            "Bring your other computers into the same calm view."
+          ],
+          "status": "coming-soon",
+          "evidence_refs": [
+            "vega-roadmap-copy"
+          ],
+          "status_label": "COMING SOON"
+        },
+        {
+          "id": "alerts",
+          "label": "Alerts that find you",
+          "benefits": [
+            "Get told when a signal drifts — before you go looking."
+          ],
+          "status": "coming-soon",
+          "evidence_refs": [
+            "vega-roadmap-copy"
+          ],
+          "status_label": "COMING SOON"
+        },
+        {
+          "id": "timelines",
+          "label": "The long view",
+          "benefits": [
+            "Keep history long enough to see slow leaks and gradual drift."
+          ],
+          "status": "coming-soon",
+          "evidence_refs": [
+            "vega-roadmap-copy"
+          ],
+          "status_label": "COMING SOON"
+        }
+      ]
+    },
+    {
       "key": "browser-automation-studio",
       "slug": "browser-automation-studio",
       "name": "Browser Automation Studio",
@@ -128,6 +226,129 @@
   ],
   "pages": [
     {
+      "display": {
+        "shell": {
+          "brand_name": "Aquila",
+          "brand_mark": "letter-a",
+          "brand_target": "/apps/aquila",
+          "skip_label": "Skip to content",
+          "menu_label": "Toggle navigation",
+          "footer_brand_name": "Vrooli",
+          "footer_brand_mark": "suite",
+          "footer_brand_target": "/",
+          "footer_tagline": "Tools for people with things to make.",
+          "copyright": "Vrooli © 2026",
+          "footer_note": "Tools for people with things to make.",
+          "unavailable_reason": "Release availability is not connected in this preview.",
+          "preview_label": "Design fixture · illustrative product views; release actions are unavailable.",
+          "header_action": {
+            "kind": "download",
+            "label": "Get Aquila",
+            "accessible_label": "Get Aquila",
+            "app_key": "web-console"
+          },
+          "brand_logo": "/public/apps/aquila.png",
+          "brand_logo_alt": "Aquila",
+          "footer_brand_logo": "/public/logo.webp"
+        },
+        "asset_labels": {
+          "pale-moon": {
+            "alt": "pale moon abstract art study"
+          },
+          "survey-relief": {
+            "alt": "survey relief abstract art study"
+          },
+          "tidal-halftone": {
+            "alt": "tidal halftone abstract art study"
+          }
+        },
+        "fixture_display": {
+          "workspace": {
+            "mark": "letter-a",
+            "avatar": "M",
+            "time": "9:41",
+            "tabs_label": "Explore the workspace",
+            "terminal_label": "Terminal",
+            "messages_label": "Conversation",
+            "file_changes": {
+              "Hero.tsx": "+24",
+              "ProductStory.tsx": "+48",
+              "design-tokens.css": "+16"
+            }
+          }
+        },
+        "blocks": {
+          "artifacts": {
+            "eyebrow": "THE CONVERSATION IS ONLY HALF THE WORK",
+            "description": "The plan. The diagram. The page. The proof. Open the files your agents create and stay close to the work, without a trail of extra windows.",
+            "note": "Illustrative artifacts · choose a file to explore",
+            "accessibility_label": "Explore example agent output",
+            "badge": "AQUILA · FILE VIEWER",
+            "mark": "letter-a",
+            "formats": [
+              "Markdown + Mermaid",
+              "HTML previews",
+              "Images + video",
+              "PDFs, audio, code & more"
+            ],
+            "heading_breaks": [
+              27
+            ]
+          },
+          "details": {
+            "eyebrow": "ROOM TO DO YOUR BEST WORK",
+            "heading_breaks": [
+              22
+            ]
+          },
+          "get-started": {
+            "eyebrow": "YOUR NEXT GOOD IDEA NEEDS A PLACE"
+          },
+          "hero": {
+            "note": "Your agents. Your voice. Your work, all together.",
+            "accessibility_label": "Illustrative product view · design concept",
+            "heading_breaks": [
+              17
+            ]
+          },
+          "mobile": {
+            "eyebrow": "A CHANGE OF SCENERY, NOT CONTEXT",
+            "note": "A focused mobile view, with terminal controls within reach.",
+            "heading_breaks": [
+              11
+            ],
+            "fixture_ref": "workspace"
+          },
+          "principles": {
+            "anchors": {
+              "artifacts": "#artifacts",
+              "sessions": "#details",
+              "voice": "#voice"
+            }
+          },
+          "roadmap": {
+            "eyebrow": "A LITTLE FURTHER ON THE HORIZON",
+            "heading_breaks": [
+              16
+            ]
+          },
+          "voice": {
+            "heading_breaks": [
+              17
+            ]
+          }
+        },
+        "apps": {
+          "web-console": {
+            "fixture_ref": "workspace",
+            "mark": "letter-a",
+            "tone": "amber",
+            "detail_label": "Explore Aquila",
+            "logo": "/public/apps/aquila.png",
+            "logo_alt": "Aquila"
+          }
+        }
+      },
       "id": "aquila-signal",
       "locale": "en",
       "title": "Aquila",
@@ -165,6 +386,7 @@
             "title": "All your agents. One clear view.",
             "description": "Organize your agent sessions. Talk, listen, and catch up. Explore the plans, pages, and evidence they create—all in one workspace.",
             "visual_ref": "",
+            "fixture_ref": "workspace",
             "accessibility_label": "Illustrative product view · design concept",
             "actions": [
               {
@@ -179,8 +401,7 @@
                 "accessible_label": "Explore what’s possible",
                 "target": "#artifacts"
               }
-            ],
-            "fixture_ref": "workspace"
+            ]
           }
         },
         {
@@ -221,12 +442,9 @@
               {
                 "id": "plan",
                 "kind": "plan",
+                "label": "The plan",
                 "filename": "launch-plan.md",
-                "caption": "Read the plan and its Mermaid diagrams, together.",
-                "alt_text": "A clearer path to launch.",
-                "width": 1440,
-                "height": 720,
-                "source_ref": "plan",
+                "type": "MARKDOWN + MERMAID",
                 "title": "A clearer path to launch.",
                 "body": "A focused refresh, from the first impression to the final review.",
                 "steps": [
@@ -239,9 +457,12 @@
                   "A considered mobile experience",
                   "Evidence attached to the handoff"
                 ],
-                "type": "MARKDOWN + MERMAID",
-                "label": "The plan",
+                "caption": "Read the plan and its Mermaid diagrams, together.",
+                "alt_text": "A clearer path to launch.",
                 "icon": "↳",
+                "width": 1440,
+                "height": 720,
+                "source_ref": "plan",
                 "source": {
                   "ref": "plan",
                   "isolation": "plain"
@@ -250,59 +471,65 @@
               {
                 "id": "image",
                 "kind": "image",
+                "label": "The screenshot",
                 "filename": "homepage-desktop.png",
+                "type": "SCREENSHOT EVIDENCE",
+                "title": "The first impression.",
+                "body": "A visual direction, ready for review.",
                 "caption": "Inspect screenshots and visual evidence without leaving the session.",
                 "alt_text": "The first impression.",
+                "icon": "◫",
                 "width": 1440,
                 "height": 720,
                 "source_ref": "image",
-                "preview_ref": "survey-relief",
-                "title": "The first impression.",
-                "body": "A visual direction, ready for review.",
-                "asset_ref": "survey-relief",
-                "type": "SCREENSHOT EVIDENCE",
-                "label": "The screenshot",
-                "icon": "◫",
                 "source": {
                   "ref": "image",
                   "isolation": "plain"
-                }
+                },
+                "asset_ref": "survey-relief",
+                "preview_ref": "survey-relief"
               },
               {
                 "id": "html",
                 "kind": "html-preview",
+                "label": "The HTML",
                 "filename": "homepage-concept.html",
+                "type": "HTML PREVIEW",
+                "title": "A little room",
+                "body": "An agent-generated page, brought into view.",
                 "caption": "Preview an HTML file as a page, not just a wall of source.",
                 "alt_text": "A little room",
+                "icon": "‹›",
                 "width": 1440,
                 "height": 720,
                 "source_ref": "html",
-                "preview_ref": "pale-moon",
-                "title": "A little room",
-                "body": "An agent-generated page, brought into view.",
-                "asset_ref": "pale-moon",
-                "accent": "for possibility.",
-                "brand": "STUDIO / 01",
-                "type": "HTML PREVIEW",
-                "label": "The HTML",
-                "icon": "‹›",
                 "source": {
                   "ref": "html",
                   "isolation": "sandbox"
-                }
+                },
+                "asset_ref": "pale-moon",
+                "brand": "STUDIO / 01",
+                "accent": "for possibility.",
+                "preview_ref": "pale-moon"
               },
               {
                 "id": "video",
                 "kind": "video",
+                "label": "The recording",
                 "filename": "review-walkthrough.mp4",
+                "type": "VIDEO EVIDENCE",
+                "title": "The work, in motion.",
+                "body": "Screen recordings belong beside the work they document.",
                 "caption": "Illustrative video storyboard. Aquila’s viewer supports video playback.",
                 "alt_text": "The work, in motion.",
+                "icon": "▷",
                 "width": 1440,
                 "height": 720,
                 "source_ref": "video",
-                "preview_ref": "survey-relief",
-                "title": "The work, in motion.",
-                "body": "Screen recordings belong beside the work they document.",
+                "source": {
+                  "ref": "video",
+                  "isolation": "plain"
+                },
                 "frames": [
                   {
                     "asset_ref": "survey-relief",
@@ -320,13 +547,7 @@
                     "label": "The final details"
                   }
                 ],
-                "type": "VIDEO EVIDENCE",
-                "label": "The recording",
-                "icon": "▷",
-                "source": {
-                  "ref": "video",
-                  "isolation": "plain"
-                }
+                "preview_ref": "survey-relief"
               },
               {
                 "id": "pdf",
@@ -379,8 +600,38 @@
           "version": 1,
           "variant": "waveform",
           "content": {
+            "eyebrow": "A LITTLE LESS TYPING. A LITTLE MORE FLOW.",
             "heading": "Speak your mind. Hear the useful part.",
+            "body": "Dictate your next instruction, listen to a response, or let AI shorten a long reply before it is read aloud. Work with your agents in the way that suits the moment.",
+            "features": [
+              {
+                "title": "Local speech-to-text",
+                "description": "Turn a spoken thought into the next instruction.",
+                "capability_id": "voice"
+              },
+              {
+                "title": "Local text-to-speech",
+                "description": "Listen to replies with a local voice.",
+                "capability_id": "voice"
+              },
+              {
+                "title": "AI summarization",
+                "description": "Get a shorter version of a longer response.",
+                "capability_id": "voice"
+              }
+            ],
+            "note": "Local speech options. AI summaries use your configured model and provider.",
+            "input_label": "YOUR VOICE → YOUR NEXT INSTRUCTION",
             "transcript": "“Walk me through the changes, then tell me what needs a closer look.”",
+            "summary_label": "AI RESPONSE SUMMARY",
+            "summary_title": "The short version.",
+            "summary_items": [
+              "The new hero puts the product first.",
+              "The mobile layout has room to breathe.",
+              "The updated preview is ready for your review."
+            ],
+            "output_label": "TEXT-TO-SPEECH · LOCAL VOICE",
+            "demo_note": "Illustrative voice and summary view · no microphone is used",
             "provider_qualification": "Local speech options. AI summaries use your configured model and provider.",
             "waveform": [
               0.125,
@@ -418,37 +669,7 @@
             ],
             "capability_ids": [
               "voice"
-            ],
-            "eyebrow": "A LITTLE LESS TYPING. A LITTLE MORE FLOW.",
-            "body": "Dictate your next instruction, listen to a response, or let AI shorten a long reply before it is read aloud. Work with your agents in the way that suits the moment.",
-            "features": [
-              {
-                "title": "Local speech-to-text",
-                "description": "Turn a spoken thought into the next instruction.",
-                "capability_id": "voice"
-              },
-              {
-                "title": "Local text-to-speech",
-                "description": "Listen to replies with a local voice.",
-                "capability_id": "voice"
-              },
-              {
-                "title": "AI summarization",
-                "description": "Get a shorter version of a longer response.",
-                "capability_id": "voice"
-              }
-            ],
-            "note": "Local speech options. AI summaries use your configured model and provider.",
-            "input_label": "YOUR VOICE → YOUR NEXT INSTRUCTION",
-            "summary_label": "AI RESPONSE SUMMARY",
-            "summary_title": "The short version.",
-            "summary_items": [
-              "The new hero puts the product first.",
-              "The mobile layout has room to breathe.",
-              "The updated preview is ready for your review."
-            ],
-            "output_label": "TEXT-TO-SPEECH · LOCAL VOICE",
-            "demo_note": "Illustrative voice and summary view · no microphone is used"
+            ]
           }
         },
         {
@@ -536,14 +757,21 @@
             "label": "Aquila",
             "accessible_label": "Explore Aquila",
             "target": "/apps/aquila"
+          },
+          {
+            "label": "Vega",
+            "accessible_label": "Explore Vega",
+            "target": "/apps/vega"
           }
         ]
-      },
+      }
+    },
+    {
       "display": {
         "shell": {
-          "brand_name": "Aquila",
-          "brand_mark": "letter-a",
-          "brand_target": "/apps/aquila",
+          "brand_name": "Vega",
+          "brand_mark": "pulse",
+          "brand_target": "/apps/vega",
           "skip_label": "Skip to content",
           "menu_label": "Toggle navigation",
           "footer_brand_name": "Vrooli",
@@ -556,20 +784,280 @@
           "preview_label": "Design fixture · illustrative product views; release actions are unavailable.",
           "header_action": {
             "kind": "download",
-            "label": "Get Aquila",
-            "accessible_label": "Get Aquila",
-            "app_key": "web-console"
+            "label": "Get Vega",
+            "accessible_label": "Get Vega",
+            "app_key": "system-monitor"
           },
-          "brand_logo": "/public/apps/aquila.png",
-          "brand_logo_alt": "Aquila",
+          "brand_logo": "/public/apps/vega.png",
+          "brand_logo_alt": "Vega",
+          "footer_brand_logo": "/public/logo.webp"
+        },
+        "asset_labels": {},
+        "fixture_display": {
+          "vega-monitor": {
+            "mark": "pulse"
+          }
+        },
+        "blocks": {
+          "hero": {
+            "note": "Your machine. Your agents. The same instruments.",
+            "accessibility_label": "Illustrative product view · design concept",
+            "heading_breaks": [
+              13
+            ]
+          },
+          "principles": {
+            "anchors": {
+              "signals": "#vitals",
+              "investigations": "#vitals",
+              "agent-skills": "#agents"
+            }
+          },
+          "vitals": {
+            "eyebrow": "THE VITALS, WITHOUT THE VIGIL"
+          },
+          "agents": {
+            "eyebrow": "YOUR AGENTS READ THE SAME DIALS"
+          },
+          "roadmap": {
+            "eyebrow": "A LITTLE FURTHER ON THE HORIZON",
+            "heading_breaks": [
+              18
+            ]
+          },
+          "get-started": {
+            "eyebrow": "GIVE YOUR MACHINE A VOICE"
+          }
+        },
+        "apps": {
+          "system-monitor": {
+            "fixture_ref": "vega-monitor",
+            "mark": "pulse",
+            "tone": "sage",
+            "detail_label": "Explore Vega",
+            "logo": "/public/apps/vega.png",
+            "logo_alt": "Vega"
+          }
+        }
+      },
+      "id": "vega-pulse",
+      "locale": "en",
+      "title": "Vega",
+      "description": "Watch CPU, memory, GPU, and storage in real time. When something drifts, Vega investigates and explains it in plain words — for you and for your agents.",
+      "theme": {
+        "variant": "signal",
+        "primary": "#eafbf2",
+        "background": "#0b1728",
+        "accent": "#3ff2a2"
+      },
+      "navigation": {
+        "label": "Main navigation",
+        "items": [
+          {
+            "label": "The dashboard",
+            "accessible_label": "The dashboard",
+            "target": "#hero"
+          },
+          {
+            "label": "What it watches",
+            "accessible_label": "What it watches",
+            "target": "#vitals"
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "id": "hero",
+          "kind": "product-hero",
+          "version": 1,
+          "variant": "centered",
+          "content": {
+            "app_key": "system-monitor",
+            "eyebrow": "EVERY SIGNAL. ONE CALM VIEW",
+            "title": "Your system, in plain sight.",
+            "description": "Watch CPU, memory, GPU, and storage in real time. When something drifts, Vega investigates and explains it — in plain words, with the numbers to back them up.",
+            "visual_ref": "",
+            "fixture_ref": "vega-monitor",
+            "accessibility_label": "Illustrative product view · design concept",
+            "actions": [
+              {
+                "kind": "download",
+                "label": "Get Vega",
+                "accessible_label": "Get Vega",
+                "app_key": "system-monitor"
+              },
+              {
+                "kind": "anchor",
+                "label": "See what it watches",
+                "accessible_label": "See what it watches",
+                "target": "#vitals"
+              }
+            ]
+          }
+        },
+        {
+          "id": "principles",
+          "kind": "capability-strip",
+          "version": 1,
+          "variant": "inline",
+          "content": {
+            "heading": "Monitoring capabilities",
+            "items": [
+              {
+                "capability_id": "signals",
+                "label": "See every vital at once",
+                "description": "Watch CPU, memory, GPU, storage, network, and thermals live in one calm view."
+              },
+              {
+                "capability_id": "investigations",
+                "label": "Anomalies, explained",
+                "description": "When a signal drifts, an AI investigation turns the spike into a plain-language diagnosis."
+              },
+              {
+                "capability_id": "agent-skills",
+                "label": "Instruments for your agents",
+                "description": "Vega ships skills your agents use to check health, triage slowdowns, and cite real numbers."
+              }
+            ]
+          }
+        },
+        {
+          "id": "vitals",
+          "kind": "product-story",
+          "version": 1,
+          "variant": "three-column",
+          "content": {
+            "heading": "The vitals, without the vigil.",
+            "body": "Vega keeps watch so you can keep making. Live charts when you want to look — plain answers when you don’t.",
+            "items": [
+              {
+                "title": "Watch the pressure.",
+                "description": "CPU spikes, memory climbs, GPU load, and thermals — traced live, with the process names that explain them."
+              },
+              {
+                "title": "Find the space.",
+                "description": "See what is filling the disk, how fast it is growing, and what is safe to clear."
+              },
+              {
+                "title": "Keep the receipts.",
+                "description": "Every investigation ends in a report you can read, share, or hand to an agent."
+              }
+            ]
+          }
+        },
+        {
+          "id": "agents",
+          "kind": "product-story",
+          "version": 1,
+          "variant": "three-column",
+          "content": {
+            "heading": "Built for your agents, too.",
+            "body": "Vega deploys with skills any agent can pick up. The same instruments you read are the ones they cite.",
+            "items": [
+              {
+                "title": "Skills included.",
+                "description": "Health checks, triage, and storage sweeps ship as ready-to-use agent skills."
+              },
+              {
+                "title": "Triage on tap.",
+                "description": "An agent can ask why the machine is slow and get the same diagnosis you see."
+              },
+              {
+                "title": "Numbers, not vibes.",
+                "description": "Agents answer with measured values and trends, never guesses."
+              }
+            ]
+          }
+        },
+        {
+          "id": "roadmap",
+          "kind": "capability-roadmap",
+          "version": 1,
+          "variant": "roadmap",
+          "content": {
+            "heading": "One machine today. Your world next.",
+            "capability_ids": [
+              "fleet-view",
+              "alerts",
+              "timelines"
+            ],
+            "status_label": "COMING SOON",
+            "description": "The next chapter watches more than one machine — and comes to find you when something needs a look. These capabilities are coming soon, not available today."
+          }
+        },
+        {
+          "id": "get-started",
+          "kind": "closing-action",
+          "version": 1,
+          "variant": "plain",
+          "content": {
+            "heading": "Give your machine a voice.",
+            "description": "Vega watches, explains, and hands you the receipt.",
+            "actions": [
+              {
+                "kind": "download",
+                "label": "Get Vega",
+                "accessible_label": "Get Vega",
+                "app_key": "system-monitor"
+              }
+            ]
+          }
+        }
+      ],
+      "footer": {
+        "label": "Footer",
+        "links": [
+          {
+            "label": "Explore the suite",
+            "accessible_label": "Explore the suite",
+            "target": "/"
+          },
+          {
+            "label": "Aquila",
+            "accessible_label": "Explore Aquila",
+            "target": "/apps/aquila"
+          },
+          {
+            "label": "Vega",
+            "accessible_label": "Explore Vega",
+            "target": "/apps/vega"
+          }
+        ]
+      }
+    },
+    {
+      "display": {
+        "shell": {
+          "brand_name": "Vrooli",
+          "brand_mark": "suite",
+          "brand_target": "/",
+          "brand_subtitle": "THE BUSINESS SUITE",
+          "skip_label": "Skip to content",
+          "menu_label": "Toggle navigation",
+          "footer_brand_name": "Vrooli",
+          "footer_brand_mark": "suite",
+          "footer_brand_target": "/",
+          "footer_tagline": "Tools for people with things to make.",
+          "copyright": "Vrooli © 2026",
+          "footer_note": "Tools for people with things to make.",
+          "unavailable_reason": "Release availability is not connected in this preview.",
+          "preview_label": "Design fixture · illustrative bundle membership; Backdrop Studio is not published.",
+          "header_action": {
+            "kind": "anchor",
+            "label": "Explore the apps",
+            "accessible_label": "Explore the apps",
+            "target": "#apps"
+          },
+          "brand_logo": "/public/logo.webp",
+          "brand_logo_alt": "Vrooli",
           "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {
-          "survey-relief": {
-            "alt": "survey relief abstract art study"
-          },
           "pale-moon": {
             "alt": "pale moon abstract art study"
+          },
+          "survey-relief": {
+            "alt": "survey relief abstract art study"
           },
           "tidal-halftone": {
             "alt": "tidal halftone abstract art study"
@@ -588,86 +1076,55 @@
               "ProductStory.tsx": "+48",
               "design-tokens.css": "+16"
             }
+          },
+          "vega-monitor": {
+            "mark": "pulse"
           }
         },
         "blocks": {
-          "hero": {
-            "note": "Your agents. Your voice. Your work, all together.",
-            "accessibility_label": "Illustrative product view · design concept",
-            "heading_breaks": [
-              17
-            ]
-          },
-          "principles": {
-            "anchors": {
-              "sessions": "#details",
-              "voice": "#voice",
-              "artifacts": "#artifacts"
-            }
-          },
-          "artifacts": {
-            "eyebrow": "THE CONVERSATION IS ONLY HALF THE WORK",
-            "description": "The plan. The diagram. The page. The proof. Open the files your agents create and stay close to the work, without a trail of extra windows.",
-            "accessibility_label": "Explore example agent output",
-            "badge": "AQUILA · FILE VIEWER",
-            "note": "Illustrative artifacts · choose a file to explore",
-            "formats": [
-              "Markdown + Mermaid",
-              "HTML previews",
-              "Images + video",
-              "PDFs, audio, code & more"
-            ],
-            "mark": "letter-a",
-            "heading_breaks": [
-              27
-            ]
+          "apps": {
+            "eyebrow": "GOOD ON THEIR OWN. BETTER IN YOUR DAY"
           },
           "details": {
-            "eyebrow": "ROOM TO DO YOUR BEST WORK",
-            "heading_breaks": [
-              22
-            ]
-          },
-          "mobile": {
-            "eyebrow": "A CHANGE OF SCENERY, NOT CONTEXT",
-            "note": "A focused mobile view, with terminal controls within reach.",
+            "eyebrow": "BUILT AROUND THE WAY YOU MAKE",
             "heading_breaks": [
               11
-            ],
-            "fixture_ref": "workspace"
-          },
-          "roadmap": {
-            "eyebrow": "A LITTLE FURTHER ON THE HORIZON",
-            "heading_breaks": [
-              16
             ]
           },
           "get-started": {
-            "eyebrow": "YOUR NEXT GOOD IDEA NEEDS A PLACE"
+            "eyebrow": "WHAT WILL YOU MAKE NEXT?"
           },
-          "voice": {
-            "heading_breaks": [
-              17
-            ]
+          "hero": {
+            "eyebrow": "A SMALL SUITE FOR BIG IDEAS",
+            "hero_fixture_refs": {
+              "web-console": "workspace",
+              "system-monitor": "vega-monitor"
+            }
           }
         },
         "apps": {
           "web-console": {
+            "fixture_ref": "workspace",
             "mark": "letter-a",
             "tone": "amber",
             "detail_label": "Explore Aquila",
-            "fixture_ref": "workspace",
             "logo": "/public/apps/aquila.png",
             "logo_alt": "Aquila"
+          },
+          "system-monitor": {
+            "fixture_ref": "vega-monitor",
+            "mark": "pulse",
+            "tone": "sage",
+            "detail_label": "Explore Vega",
+            "logo": "/public/apps/vega.png",
+            "logo_alt": "Vega"
           }
         }
-      }
-    },
-    {
+      },
       "id": "studio-bundle",
       "locale": "en",
       "title": "Vrooli Business Suite",
-      "description": "A place for your AI work. A canvas for your ideas. Thoughtful apps for people who love to make things.",
+      "description": "A place for your AI work. A clear view of the machine it runs on. Thoughtful apps for people who love to make things.",
       "theme": {
         "variant": "studio",
         "primary": "#eef4fb",
@@ -698,13 +1155,20 @@
           "content": {
             "eyebrow": "A SMALL SUITE FOR BIG IDEAS",
             "title": "The tools. The possibilities.",
-            "description": "A place for your AI work. A canvas for your ideas. Thoughtful apps for people who love to make things.",
+            "description": "A place for your AI work. A clear view of the machine it runs on. Thoughtful apps for people who love to make things.",
             "accessibility_label": "Explore the apps in this composition",
             "hero_items": [
               {
                 "app_key": "web-console",
+                "visual_ref": "",
                 "exhibit_kind": "product-view",
                 "detail_label": "Your agent workspace"
+              },
+              {
+                "app_key": "system-monitor",
+                "visual_ref": "",
+                "exhibit_kind": "product-view",
+                "detail_label": "Your system, watched"
               }
             ],
             "actions": [
@@ -725,7 +1189,8 @@
           "content": {
             "heading": "Good on their own. Better in your day.",
             "app_keys": [
-              "web-console"
+              "web-console",
+              "system-monitor"
             ],
             "detail_link_label": "Explore"
           }
@@ -769,8 +1234,7 @@
                 "accessible_label": "Find your app",
                 "target": "#apps"
               }
-            ],
-            "visual_ref": ""
+            ]
           }
         }
       ],
@@ -786,9 +1250,16 @@
             "label": "Aquila",
             "accessible_label": "Explore Aquila",
             "target": "/apps/aquila"
+          },
+          {
+            "label": "Vega",
+            "accessible_label": "Explore Vega",
+            "target": "/apps/vega"
           }
         ]
-      },
+      }
+    },
+    {
       "display": {
         "shell": {
           "brand_name": "Vrooli",
@@ -802,78 +1273,18 @@
           "footer_brand_target": "/",
           "footer_tagline": "Tools for people with things to make.",
           "copyright": "Vrooli © 2026",
-          "footer_note": "Tools for people with things to make.",
-          "unavailable_reason": "Release availability is not connected in this preview.",
-          "preview_label": "Design fixture · illustrative bundle membership; Backdrop Studio is not published.",
-          "header_action": {
-            "kind": "anchor",
-            "label": "Explore the apps",
-            "accessible_label": "Explore the apps",
-            "target": "#apps"
-          },
+          "footer_note": "Design fixture. Product UI and release availability require owner validation.",
+          "unavailable_reason": "Release availability is not connected in this draft.",
+          "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
           "brand_logo": "/public/logo.webp",
           "brand_logo_alt": "Vrooli",
           "footer_brand_logo": "/public/logo.webp"
         },
-        "asset_labels": {
-          "survey-relief": {
-            "alt": "survey relief abstract art study"
-          },
-          "pale-moon": {
-            "alt": "pale moon abstract art study"
-          },
-          "tidal-halftone": {
-            "alt": "tidal halftone abstract art study"
-          }
-        },
-        "fixture_display": {
-          "workspace": {
-            "mark": "letter-a",
-            "avatar": "M",
-            "time": "9:41",
-            "tabs_label": "Explore the workspace",
-            "terminal_label": "Terminal",
-            "messages_label": "Conversation",
-            "file_changes": {
-              "Hero.tsx": "+24",
-              "ProductStory.tsx": "+48",
-              "design-tokens.css": "+16"
-            }
-          }
-        },
-        "blocks": {
-          "hero": {
-            "eyebrow": "A SMALL SUITE FOR BIG IDEAS",
-            "hero_fixture_refs": {
-              "web-console": "workspace"
-            }
-          },
-          "details": {
-            "eyebrow": "BUILT AROUND THE WAY YOU MAKE",
-            "heading_breaks": [
-              11
-            ]
-          },
-          "apps": {
-            "eyebrow": "GOOD ON THEIR OWN. BETTER IN YOUR DAY"
-          },
-          "get-started": {
-            "eyebrow": "WHAT WILL YOU MAKE NEXT?"
-          }
-        },
-        "apps": {
-          "web-console": {
-            "mark": "letter-a",
-            "tone": "amber",
-            "detail_label": "Explore Aquila",
-            "fixture_ref": "workspace",
-            "logo": "/public/apps/aquila.png",
-            "logo_alt": "Aquila"
-          }
-        }
-      }
-    },
-    {
+        "asset_labels": {},
+        "fixture_display": {},
+        "blocks": {},
+        "apps": {}
+      },
       "id": "studio-empty",
       "locale": "en",
       "title": "Vrooli Business Suite",
@@ -904,13 +1315,15 @@
             "target": "/"
           }
         ]
-      },
+      }
+    },
+    {
       "display": {
         "shell": {
-          "brand_name": "Vrooli",
-          "brand_mark": "suite",
-          "brand_target": "/",
-          "brand_subtitle": "THE BUSINESS SUITE",
+          "brand_name": "Browser Automation Studio",
+          "brand_mark": "play",
+          "brand_target": "/apps/browser-automation-studio",
+          "brand_subtitle": "PRIVATE STAGED PREVIEW",
           "skip_label": "Skip to content",
           "menu_label": "Toggle navigation",
           "footer_brand_name": "Vrooli",
@@ -921,17 +1334,45 @@
           "footer_note": "Design fixture. Product UI and release availability require owner validation.",
           "unavailable_reason": "Release availability is not connected in this draft.",
           "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
-          "brand_logo": "/public/logo.webp",
-          "brand_logo_alt": "Vrooli",
           "footer_brand_logo": "/public/logo.webp"
         },
         "asset_labels": {},
-        "fixture_display": {},
-        "blocks": {},
-        "apps": {}
-      }
-    },
-    {
+        "fixture_display": {
+          "bas-workspace": {
+            "mark": "play",
+            "avatar": "M",
+            "time": "9:41",
+            "tabs_label": "Explore the workspace",
+            "terminal_label": "Terminal",
+            "messages_label": "Conversation",
+            "file_changes": {
+              "Hero.tsx": "+24",
+              "ProductStory.tsx": "+48",
+              "design-tokens.css": "+16"
+            }
+          }
+        },
+        "blocks": {
+          "demo": {
+            "eyebrow": "FINITE WORKFLOW EXHIBIT",
+            "note": "Illustrative fixture data · release integration pending"
+          },
+          "details": {
+            "eyebrow": "REPLAY EVIDENCE"
+          },
+          "get-started": {
+            "eyebrow": "OWNER VERIFICATION REQUIRED"
+          }
+        },
+        "apps": {
+          "browser-automation-studio": {
+            "fixture_ref": "bas-workspace",
+            "mark": "play",
+            "tone": "sage",
+            "detail_label": "Preview the studio"
+          }
+        }
+      },
       "id": "browser-automation-studio",
       "locale": "en",
       "title": "Browser Automation Studio",
@@ -1046,12 +1487,14 @@
             "target": "/"
           }
         ]
-      },
+      }
+    },
+    {
       "display": {
         "shell": {
-          "brand_name": "Browser Automation Studio",
-          "brand_mark": "play",
-          "brand_target": "/apps/browser-automation-studio",
+          "brand_name": "Backdrop Studio",
+          "brand_mark": "landscape",
+          "brand_target": "/apps/backdrop-studio",
           "brand_subtitle": "PRIVATE STAGED PREVIEW",
           "skip_label": "Skip to content",
           "menu_label": "Toggle navigation",
@@ -1065,45 +1508,39 @@
           "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
           "footer_brand_logo": "/public/logo.webp"
         },
-        "asset_labels": {},
+        "asset_labels": {
+          "pale-moon": {
+            "alt": "pale moon abstract art study"
+          },
+          "survey-relief": {
+            "alt": "survey relief abstract art study"
+          },
+          "tidal-halftone": {
+            "alt": "tidal halftone abstract art study"
+          }
+        },
         "fixture_display": {
-          "bas-workspace": {
-            "mark": "play",
-            "avatar": "M",
-            "time": "9:41",
-            "tabs_label": "Explore the workspace",
-            "terminal_label": "Terminal",
-            "messages_label": "Conversation",
-            "file_changes": {
-              "Hero.tsx": "+24",
-              "ProductStory.tsx": "+48",
-              "design-tokens.css": "+16"
-            }
+          "backdrop-studies": {
+            "mark": "landscape"
           }
         },
         "blocks": {
           "details": {
-            "eyebrow": "REPLAY EVIDENCE"
-          },
-          "demo": {
-            "eyebrow": "FINITE WORKFLOW EXHIBIT",
-            "note": "Illustrative fixture data · release integration pending"
+            "eyebrow": "VISUAL SURFACES"
           },
           "get-started": {
             "eyebrow": "OWNER VERIFICATION REQUIRED"
           }
         },
         "apps": {
-          "browser-automation-studio": {
-            "mark": "play",
-            "tone": "sage",
-            "detail_label": "Preview the studio",
-            "fixture_ref": "bas-workspace"
+          "backdrop-studio": {
+            "fixture_ref": "backdrop-studies",
+            "mark": "landscape",
+            "tone": "amber",
+            "detail_label": "Preview the studio"
           }
         }
-      }
-    },
-    {
+      },
       "id": "backdrop-studio",
       "locale": "en",
       "title": "Backdrop Studio",
@@ -1205,70 +1642,18 @@
             "target": "/"
           }
         ]
-      },
-      "display": {
-        "shell": {
-          "brand_name": "Backdrop Studio",
-          "brand_mark": "landscape",
-          "brand_target": "/apps/backdrop-studio",
-          "brand_subtitle": "PRIVATE STAGED PREVIEW",
-          "skip_label": "Skip to content",
-          "menu_label": "Toggle navigation",
-          "footer_brand_name": "Vrooli",
-          "footer_brand_mark": "suite",
-          "footer_brand_target": "/",
-          "footer_tagline": "Tools for people with things to make.",
-          "copyright": "Vrooli © 2026",
-          "footer_note": "Design fixture. Product UI and release availability require owner validation.",
-          "unavailable_reason": "Release availability is not connected in this draft.",
-          "preview_label": "Draft fixture. Illustrative content is not a release receipt.",
-          "footer_brand_logo": "/public/logo.webp"
-        },
-        "asset_labels": {
-          "survey-relief": {
-            "alt": "survey relief abstract art study"
-          },
-          "pale-moon": {
-            "alt": "pale moon abstract art study"
-          },
-          "tidal-halftone": {
-            "alt": "tidal halftone abstract art study"
-          }
-        },
-        "fixture_display": {
-          "backdrop-studies": {
-            "mark": "landscape"
-          }
-        },
-        "blocks": {
-          "details": {
-            "eyebrow": "VISUAL SURFACES"
-          },
-          "get-started": {
-            "eyebrow": "OWNER VERIFICATION REQUIRED"
-          }
-        },
-        "apps": {
-          "backdrop-studio": {
-            "mark": "landscape",
-            "tone": "amber",
-            "detail_label": "Preview the studio",
-            "fixture_ref": "backdrop-studies"
-          }
-        }
       }
     }
   ],
   "assets": [
     {
       "id": "survey-relief",
-      "width": 1440,
-      "height": 720,
       "release_ref": "review-fixture-candidate-v2",
       "content_hash": "0f32434728ead47372779d04db03019b7370fbca3e9285fbd242083c8fb4d9ea",
+      "width": 1440,
+      "height": 720,
       "mime": "image/png",
       "surface": "illustration",
-      "responsive_alternatives": [],
       "focal_point": {
         "x": 0.5,
         "y": 0.5
@@ -1286,13 +1671,12 @@
     },
     {
       "id": "pale-moon",
-      "width": 1440,
-      "height": 720,
       "release_ref": "review-fixture-candidate-v2",
       "content_hash": "05384e483727b34a647013d752fd80e657f887ec100420403e445b1c0f07a299",
+      "width": 1440,
+      "height": 720,
       "mime": "image/png",
       "surface": "illustration",
-      "responsive_alternatives": [],
       "focal_point": {
         "x": 0.5,
         "y": 0.5
@@ -1310,13 +1694,12 @@
     },
     {
       "id": "tidal-halftone",
-      "width": 1440,
-      "height": 720,
       "release_ref": "review-fixture-candidate-v2",
       "content_hash": "ce4ba8c17a93fca4900dc38c443dfd743bd89631831cdfbf988298c4367639e4",
+      "width": 1440,
+      "height": 720,
       "mime": "image/png",
       "surface": "illustration",
-      "responsive_alternatives": [],
       "focal_point": {
         "x": 0.5,
         "y": 0.5
@@ -1359,6 +1742,11 @@
         "branch": "website / main",
         "prompt": "Let’s give the homepage a little more room to breathe.",
         "answer": "I’ll simplify the layout, keep the product in focus, and make the mobile experience feel just as considered.",
+        "files": [
+          "Hero.tsx",
+          "ProductStory.tsx",
+          "design-tokens.css"
+        ],
         "file_label": "CHANGES IN THIS SESSION",
         "diff": [
           "+  A clearer first impression",
@@ -1387,11 +1775,6 @@
           "↑",
           "↓",
           "↵"
-        ],
-        "files": [
-          "Hero.tsx",
-          "ProductStory.tsx",
-          "design-tokens.css"
         ]
       }
     },
@@ -1420,6 +1803,11 @@
         "branch": "browser-flow / main",
         "prompt": "Replay the checkout flow and keep the evidence close to the run.",
         "answer": "I’ll record the browser steps, keep the replay deterministic, and surface the evidence for review.",
+        "files": [
+          "checkout-flow.yaml",
+          "replay-summary.md",
+          "release-notes.md"
+        ],
         "file_label": "CHANGES IN THIS SESSION",
         "diff": [
           "+  A repeatable browser flow",
@@ -1448,11 +1836,6 @@
           "↑",
           "↓",
           "↵"
-        ],
-        "files": [
-          "checkout-flow.yaml",
-          "replay-summary.md",
-          "release-notes.md"
         ]
       }
     },
@@ -1517,29 +1900,147 @@
           "tidal-halftone"
         ]
       }
+    },
+    {
+      "id": "vega-monitor",
+      "kind": "monitor",
+      "monitor": {
+        "title": "Vega",
+        "host": "studio-workstation · linux",
+        "metrics_label": "LIVE SIGNALS",
+        "metrics": [
+          {
+            "id": "cpu",
+            "label": "CPU",
+            "value": "34",
+            "unit": "%",
+            "detail": "16 cores · 3.9 GHz",
+            "status": "steady",
+            "trend": [
+              0.32,
+              0.28,
+              0.41,
+              0.36,
+              0.3,
+              0.44,
+              0.38,
+              0.31,
+              0.35,
+              0.4,
+              0.33,
+              0.29,
+              0.37,
+              0.34
+            ]
+          },
+          {
+            "id": "memory",
+            "label": "MEMORY",
+            "value": "21.4",
+            "unit": "GB",
+            "detail": "of 64 GB · one process climbing",
+            "status": "watch",
+            "trend": [
+              0.3,
+              0.31,
+              0.33,
+              0.34,
+              0.38,
+              0.45,
+              0.52,
+              0.58,
+              0.55,
+              0.5,
+              0.42,
+              0.36,
+              0.34,
+              0.33
+            ]
+          },
+          {
+            "id": "gpu",
+            "label": "GPU",
+            "value": "62",
+            "unit": "%",
+            "detail": "61°C · fans quiet",
+            "status": "steady",
+            "trend": [
+              0.55,
+              0.6,
+              0.72,
+              0.66,
+              0.58,
+              0.64,
+              0.7,
+              0.61,
+              0.57,
+              0.63,
+              0.68,
+              0.6,
+              0.62,
+              0.65
+            ]
+          },
+          {
+            "id": "storage",
+            "label": "STORAGE",
+            "value": "1.2",
+            "unit": "TB free",
+            "detail": "cleanup found 84 GB",
+            "status": "steady",
+            "trend": [
+              0.62,
+              0.62,
+              0.61,
+              0.61,
+              0.6,
+              0.6,
+              0.59,
+              0.59,
+              0.58,
+              0.58,
+              0.57,
+              0.57,
+              0.56,
+              0.56
+            ]
+          }
+        ],
+        "investigation_label": "AI INVESTIGATION",
+        "investigation_title": "The memory climb, explained.",
+        "investigation_body": "A build cache grew for forty minutes while the afternoon jobs ran. Nothing is failing — but two more days at this pace would matter.",
+        "findings": [
+          "✓ Traced to one process group",
+          "✓ Growth rate estimated",
+          "✓ Safe cleanup identified"
+        ],
+        "action_note": "Report drafted — ready when you are.",
+        "status": "All signals healthy",
+        "uptime": "UPTIME 21 DAYS"
+      }
     }
   ],
   "strings": {
     "en": {
-      "bas.preservation.source_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#after.profile",
-      "bas.preservation.inventory_id": "bas-disabled-profile-migration-v1",
-      "bas.preservation.profile_digest_sha256": "11411b7923ceb2564935ea09710fc0c9c3655471efcaf89a41899b237d827c6e",
-      "bas.preservation.fallback_source_ref": "scenarios/landing-page-business-suite/.vrooli/fallback/fallback.json#browser-automation-studio",
-      "bas.preservation.asset_ledger_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#assetLedger",
-      "bas.preservation.unlocated_artifacts_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#unlocatedArtifacts",
-      "bas.preservation.bundle_key": "business_suite",
       "bas.preservation.app_key": "browser-automation-studio",
-      "bas.preservation.name": "Browser Automation Studio",
-      "bas.preservation.tagline": "Browser workflows and replay evidence",
+      "bas.preservation.asset_ledger_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#assetLedger",
+      "bas.preservation.asset_note": "The preserved source has no released BAS assets. Its .local artifact URLs are source placeholders only and are never public Asset.public_url values.",
+      "bas.preservation.assets": "[]",
+      "bas.preservation.bundle_key": "business_suite",
       "bas.preservation.description": "A separate staged product for visual browser workflows, testing, and replay evidence.",
+      "bas.preservation.fallback_source_ref": "scenarios/landing-page-business-suite/.vrooli/fallback/fallback.json#browser-automation-studio",
       "bas.preservation.install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
       "bas.preservation.install_steps": "[\"Download the installer for your OS\",\"Launch the setup wizard and finish the install\",\"Sign in with your subscription email to unlock the workspace\"]",
-      "bas.preservation.storefronts": "[]",
+      "bas.preservation.inventory_id": "bas-disabled-profile-migration-v1",
       "bas.preservation.metadata": "{\"enabled\":false,\"catalog_status\":\"planned\",\"source\":\"offer-desk\"}",
+      "bas.preservation.name": "Browser Automation Studio",
       "bas.preservation.platforms": "[{\"bundle_key\":\"business_suite\",\"app_key\":\"browser-automation-studio\",\"platform\":\"windows\",\"artifact_url\":\"https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe\",\"release_version\":\"1.0.0\",\"release_notes\":\"Initial Browser Automation Studio release.\",\"requires_entitlement\":true,\"metadata\":{\"size_mb\":210}},{\"bundle_key\":\"business_suite\",\"app_key\":\"browser-automation-studio\",\"platform\":\"mac\",\"artifact_url\":\"https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg\",\"release_version\":\"1.0.0\",\"release_notes\":\"Universal build for Apple Silicon and Intel.\",\"requires_entitlement\":true,\"metadata\":{\"size_mb\":190}},{\"bundle_key\":\"business_suite\",\"app_key\":\"browser-automation-studio\",\"platform\":\"linux\",\"artifact_url\":\"https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz\",\"release_version\":\"1.0.0\",\"release_notes\":\"AppImage bundle tested on Ubuntu/Debian.\",\"requires_entitlement\":true,\"metadata\":{\"size_mb\":205}}]",
-      "bas.preservation.assets": "[]",
-      "bas.preservation.asset_note": "The preserved source has no released BAS assets. Its .local artifact URLs are source placeholders only and are never public Asset.public_url values.",
-      "bas.preservation.testimonials": "No testimonials or customer endorsements are carried into this native draft; historical claims remain only in the immutable private preservation ledger."
+      "bas.preservation.profile_digest_sha256": "11411b7923ceb2564935ea09710fc0c9c3655471efcaf89a41899b237d827c6e",
+      "bas.preservation.source_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#after.profile",
+      "bas.preservation.storefronts": "[]",
+      "bas.preservation.tagline": "Browser workflows and replay evidence",
+      "bas.preservation.testimonials": "No testimonials or customer endorsements are carried into this native draft; historical claims remain only in the immutable private preservation ledger.",
+      "bas.preservation.unlocated_artifacts_ref": "scenarios/landing-page-business-suite/.vrooli/presentation-preservation/inventory.json#unlocatedArtifacts"
     }
   }
 }

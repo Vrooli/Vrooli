@@ -4,6 +4,7 @@ export const productMarkPaths = Object.freeze({
   landscape: 'M5 23V9h22v14H5Zm0-6 7-6 7 10 4-5 4 7M21 8v8',
   suite: 'm5 9 7 15 4-8 4 8 7-15',
   play: 'm11 8 12 8-12 8V8Z',
+  pulse: 'M4 17h5l3-7 5 13 3-9h8',
 });
 
 export const productMarkDrawing = Object.freeze({

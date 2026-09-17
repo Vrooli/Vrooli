@@ -80,7 +80,7 @@ func TestDefaultDownloadSeedPreservesExactFallbackCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(canonical)
-	if got, want := hex.EncodeToString(digest[:]), "da8085e16aeb4cfaf8bdda869a6236709a1cea27d82a63a1b1c0a178640b5c9b"; got != want {
+	if got, want := hex.EncodeToString(digest[:]), "156b8a792ca08672fb0d455cacd34d5f0dfefd9ac755308da1cf437ac656069c"; got != want {
 		t.Fatalf("embedded delivery seed digest = %s, want %s", got, want)
 	}
 }

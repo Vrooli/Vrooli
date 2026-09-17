@@ -100,10 +100,12 @@ export function ConstellationFigure({ chart }: { chart: Constellation }) {
   return <div className="hero-sky" aria-hidden="true">
     <svg className="hero-chart" viewBox={chart.viewBox} role="presentation" focusable="false">
       <defs>
+        {/* The glow follows the page's own accent so each product's figure
+            ignites in its brand color, not a borrowed one. */}
         <radialGradient id="presentation-star-glow">
-          <stop offset="0" stopColor="#22d3ee" stopOpacity=".62" />
-          <stop offset=".42" stopColor="#22d3ee" stopOpacity=".20" />
-          <stop offset="1" stopColor="#22d3ee" stopOpacity="0" />
+          <stop offset="0" style={{ stopColor: 'var(--accent, #22d3ee)' }} stopOpacity=".62" />
+          <stop offset=".42" style={{ stopColor: 'var(--accent, #22d3ee)' }} stopOpacity=".20" />
+          <stop offset="1" style={{ stopColor: 'var(--accent, #22d3ee)' }} stopOpacity="0" />
         </radialGradient>
       </defs>
       {chart.edges.map(([from, to], index) => {
