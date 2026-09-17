@@ -1,4 +1,8 @@
 {
+  "consumer_notes": [
+    "LPBS is a relying party for Google sign-in. scenario-authenticator owns the OAuth/OIDC callback, CSRF state, verified issuer/subject/audience, and explicit account-link consent; LPBS receives only a verified principal and retains business-account, subscription, entitlement, and product-session authority.",
+    "A matching email is never sufficient for linking. Store the external issuer and subject within the authenticator realm, require authenticated user approval, and do not pass provider refresh tokens or raw callbacks into LPBS."
+  ],
   "description": "Inbound social sign-in (Google, GitHub, Microsoft) with account linking and CSRF-protected callbacks, ported from the existing implementation.",
   "module_id": "MOD-P1-015",
   "prd_ref": "OT-P1-003",

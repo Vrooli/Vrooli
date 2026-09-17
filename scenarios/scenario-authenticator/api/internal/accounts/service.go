@@ -261,7 +261,7 @@ func (s *Service) RevokeMachineAccount(ctx context.Context, accessToken, machine
 // ExchangeMachinePrincipal issues a normal access/refresh pair after the
 // socket listener has authenticated the OS principal and binding resolution
 // returns exactly one default account.
-func (s *Service) ExchangeMachinePrincipal(ctx context.Context, machineID, localPrincipal string, meta RequestMeta) (AuthResult, error) {
+func (s *Service) ExchangeMachinePrincipal(ctx context.Context, machineID, localPrincipal, resource string, meta RequestMeta) (AuthResult, error) {
 	if s.machineBindings == nil {
 		return AuthResult{}, ErrMachineExchangeRefused
 	}
@@ -275,7 +275,7 @@ func (s *Service) ExchangeMachinePrincipal(ctx context.Context, machineID, local
 		s.logEvent(ctx, binding.AccountID, binding.RealmID, "machine.exchange.refused", meta, false, map[string]any{"reason": "account_binding_mismatch"})
 		return AuthResult{}, ErrMachineExchangeRefused
 	}
-	aud, err := s.repo.RealmAudience(ctx, acc.RealmID)
+	aud, err := s.resolveAudience(ctx, acc.RealmID, resource)
 	if err != nil {
 		return AuthResult{}, err
 	}

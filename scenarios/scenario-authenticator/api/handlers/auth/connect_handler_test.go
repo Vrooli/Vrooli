@@ -424,6 +424,13 @@ func TestMachinePrincipalExchangeBoundAndUnbound(t *testing.T) {
 	if exchanged.Msg.Account.Id != reg.Account.Id || exchanged.Msg.Tokens.AccessToken == "" {
 		t.Fatalf("unexpected exchange response: %+v", exchanged.Msg)
 	}
+	resourceExchanged, err := h.h.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID, Resource: "bridge"}))
+	if err != nil {
+		t.Fatalf("resource exchange: %v", err)
+	}
+	if got := resourceExchanged.Msg.Tokens.Audience; got != "scenario-authenticator:bridge" {
+		t.Fatalf("resource exchange audience = %q, want scenario-authenticator:bridge", got)
+	}
 	revoked, err := h.h.RevokeMachineAccount(context.Background(), connect.NewRequest(&accountsv1.RevokeMachineAccountRequest{
 		AccessToken: reg.Tokens.AccessToken, MachineId: machineID, LocalPrincipal: bound,
 	}))
@@ -436,7 +443,7 @@ func TestMachinePrincipalExchangeBoundAndUnbound(t *testing.T) {
 		t.Fatalf("unbound exchange code = %v, want unauthenticated", err)
 	}
 	accepted, err := h.audit.List(context.Background(), audit.Filter{Action: "machine.exchange.accepted"})
-	if err != nil || len(accepted) != 1 || !accepted[0].Success {
+	if err != nil || len(accepted) != 2 || !accepted[0].Success || !accepted[1].Success {
 		t.Fatalf("accepted exchange audit = %+v, err=%v", accepted, err)
 	}
 	refused, err := h.audit.List(context.Background(), audit.Filter{Action: "machine.exchange.refused"})

@@ -191,7 +191,7 @@ func (h *connectHandler) ExchangeMachinePrincipal(ctx context.Context, req *conn
 	if !ok {
 		return nil, h.toConnectErr("ExchangeMachinePrincipal", accounts.ErrMachineExchangeRefused)
 	}
-	res, err := h.deps.Service.ExchangeMachinePrincipal(ctx, req.Msg.GetMachineId(), principal.String(), metaFrom(req))
+	res, err := h.deps.Service.ExchangeMachinePrincipal(ctx, req.Msg.GetMachineId(), principal.String(), req.Msg.GetResource(), metaFrom(req))
 	if err != nil {
 		return nil, h.toConnectErr("ExchangeMachinePrincipal", err)
 	}

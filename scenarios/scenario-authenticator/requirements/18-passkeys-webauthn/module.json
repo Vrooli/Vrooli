@@ -1,4 +1,7 @@
 {
+  "consumer_notes": [
+    "LPBS is a relying party that stores portable customer and administrator passkey credentials under RP ID vrooli.com. LPBS owns its website ceremonies, browser binding, durable credential records, passkey audit events, and admin/customer step-up policy; scenario-authenticator remains the platform identity authority and may import a credential only through an explicit governed contract."
+  ],
   "description": "WebAuthn passkeys are a first-class credential and second factor.",
   "module_id": "MOD-P1-018",
   "prd_ref": "OT-P1-006",

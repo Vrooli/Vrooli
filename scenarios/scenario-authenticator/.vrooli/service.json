@@ -126,7 +126,9 @@
       }
     }
   },
-  "environment": {},
+  "environment": {
+    "VROOLI_AUTH_RESOURCE_AUDIENCES": "device-sync-hub=scenario-authenticator:device-sync-hub"
+  },
   "components": {
     "api": {
       "role": "api",
