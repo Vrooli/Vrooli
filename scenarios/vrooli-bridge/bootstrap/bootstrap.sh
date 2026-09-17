@@ -441,6 +441,17 @@ profile_hash() {
   fi
 }
 
+sha256_file() {
+  local file="$1"
+  if have sha256sum; then
+    sha256sum "$file" | awk '{print $1}'
+  elif have shasum; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  else
+    printf 'unavailable'
+  fi
+}
+
 # compose_setup_args — the SETUP_ARGS string threaded into `make setup`. Each value
 # was metachar-validated at parse time, so a plain space-join is safe (make word-
 # splits SETUP_ARGS into `vrooli setup` argv). Empty values are omitted, falling
@@ -681,6 +692,11 @@ step_build_project_binaries() {
 # the tree just installed, so the node runs what it reports.
 step_restart_stale() {
   step_start restart-stale "restart running scenarios left on older code"
+  local budget="${BRIDGE_RESTART_STALE_BUDGET:-0}"
+  if [ "$budget" -le 0 ] 2>/dev/null; then
+    step_skip "deferred; set BRIDGE_RESTART_STALE_BUDGET to a positive bounded budget for an explicit maintenance window"
+    return
+  fi
   if [ -z "$RUNTIME_VROOLI_BIN" ] || [ ! -x "$RUNTIME_VROOLI_BIN" ]; then
     step_skip "no runtime vrooli CLI to restart scenarios with"
     return
@@ -703,7 +719,7 @@ step_restart_stale() {
   # A change to a shared package makes nearly every scenario stale, and each
   # restart rebuilds; on a small node that ran past half an hour. Past the
   # budget, the rest are named instead of restarted.
-  local budget="${BRIDGE_RESTART_STALE_BUDGET:-900}" started="$SECONDS" deferred=""
+  local started="$SECONDS" deferred=""
   for name in $names; do
     if [ $((SECONDS - started)) -ge "$budget" ]; then
       deferred="${deferred} ${name}"
@@ -954,21 +970,60 @@ step_build_native_vrooli() {
   local install_dir="$HOME/.vrooli/bin"
   RUNTIME_VROOLI_BIN="${install_dir}/vrooli"
   mkdir -p "$install_dir"
-  # This executes on the Mac after bootstrap-only setup installed Go. The
-  # distribution primitive now runs natively, so CGO links the Security
-  # framework and emits the same fingerprint sidecar contract as releases.
+  # This executes on the Mac after bootstrap-only setup installed Go. Build the
+  # CLI entrypoint directly from the shipped compatibility view: vrooli-dist
+  # performs lifecycle artifact selection, which can replace that view with an
+  # older node-local snapshot before compiling.
   local goflags="${GOFLAGS:-}"
   case " $goflags " in
     *" -p="*) ;;
     *) goflags="${goflags:+${goflags} }-p=1" ;;
   esac
-  if ! ( cd "$CHECKOUT_DIR" && GOMAXPROCS="${GOMAXPROCS:-1}" GOFLAGS="$goflags" CGO_ENABLED=1 GOWORK=off go run ./cmd/vrooli-dist \
-      --root "$CHECKOUT_DIR" --goos "$OS" --goarch "$ARCH" \
-      --output "$RUNTIME_VROOLI_BIN" ) >&2; then
+  case " $goflags " in
+    *" -mod="*) ;;
+    *) goflags="${goflags:+${goflags} }-mod=mod" ;;
+  esac
+  if ! ( cd "$CHECKOUT_DIR" && GOMAXPROCS="${GOMAXPROCS:-1}" GOFLAGS="$goflags" CGO_ENABLED=1 GOWORK=off go build -trimpath -o "$RUNTIME_VROOLI_BIN" ./cmd/vrooli ) >&2; then
     fail 1 "native macOS Vrooli build failed; the final CLI must link the Keychain backend"
   fi
   [ -x "$RUNTIME_VROOLI_BIN" ] || fail 1 "native macOS Vrooli build produced no executable at ${RUNTIME_VROOLI_BIN}"
+  printf '%s\n' "${SOURCE_DIGEST:-${REVISION_SHA}}" >"${RUNTIME_VROOLI_BIN}.fp"
   step_ok "native CGO-enabled Vrooli CLI installed at ${RUNTIME_VROOLI_BIN}"
+}
+
+# step_refresh_proto — a shipped working tree may contain newer generated
+# contracts than the node's immutable proto artifact cache.  Native Darwin
+# compilation resolves the governed compatibility view, so refresh it from the
+# exact tree before compiling the final Keychain-enabled CLI.  This stays in
+# the Bridge bootstrap path rather than silently falling back to mutable
+# packages/proto/gen.
+step_refresh_proto() {
+  step_start proto-refresh "refresh the selected protobuf artifact from the shipped tree"
+  if [ "$PREBUILT_MODE" -eq 0 ] || [ "$OS" != "darwin" ]; then
+    step_skip "proto refresh is only required before the Darwin native bootstrap build"
+    return
+  fi
+  # The full publication pipeline also emits TypeScript, Python, and Pyi
+  # outputs. Those optional plugins are not required by the native CLI and are
+  # intentionally absent from a minimal headless target. Refresh the Go
+  # compatibility view with the checked-in Go-only template instead.
+  if ( cd "$CHECKOUT_DIR/packages/proto" && buf generate --template buf.gen.go.yaml ) >&2; then
+    step_ok "selected protobuf Go view refreshed from ${CHECKOUT_DIR}"
+    return
+  fi
+  if [ -z "$PROTO_SOURCE_GO_DIR" ] || [ ! -f "$PROTO_SOURCE_GO_DIR/cli/v1/runtime.pb.go" ]; then
+    fail 1 "protobuf refresh failed and the shipped Go contract snapshot is unavailable"
+  fi
+  rm -rf "$CHECKOUT_DIR/packages/proto/gen/go"
+  mkdir -p "$CHECKOUT_DIR/packages/proto/gen/go"
+  cp -R "$PROTO_SOURCE_GO_DIR/." "$CHECKOUT_DIR/packages/proto/gen/go/"
+  if ! grep -Eq 'DesktopSession' "$CHECKOUT_DIR/packages/proto/gen/go/cli/v1/runtime.pb.go" 2>/dev/null || ! grep -Eq 'DeviceSyncUrl' "$CHECKOUT_DIR/packages/proto/gen/go/vrooli-bridge/v1/channel/channel.pb.go" 2>/dev/null; then
+    fail 1 "shipped Go contract snapshot does not contain the required native CLI contracts"
+  fi
+  local snapshot_hash target_hash
+  snapshot_hash="$(sha256_file "$PROTO_SOURCE_GO_DIR/cli/v1/runtime.pb.go")"
+  target_hash="$(sha256_file "$CHECKOUT_DIR/packages/proto/gen/go/cli/v1/runtime.pb.go")"
+  step_ok "restored checked-in Go contracts from the shipped tree; optional proto plugins unavailable (runtime.pb.go snapshot=${snapshot_hash:0:16} target=${target_hash:0:16})"
 }
 
 step_finalize_setup() {
@@ -1384,6 +1439,41 @@ journal_channel_state() {
   fi
 }
 
+# launchd does not provide a user journal on headless Darwin hosts. The agent
+# service can therefore appear "running" while launchd is immediately
+# restarting a process that failed before opening its dial-out channel. The
+# agent owns these files and writes the same lifecycle markers used by the
+# journal-backed check on Linux.
+darwin_channel_state() {
+  local log_dir="${STATE_DIR:-}"
+  local logs=""
+  [ -n "$log_dir" ] || return 0
+  for log_file in "$log_dir/agent.stdout.log" "$log_dir/agent.stderr.log"; do
+    if [ -f "$log_file" ]; then
+      logs="${logs}$(tail -80 "$log_file" 2>/dev/null || true)\n"
+    fi
+  done
+  if printf '%b' "$logs" | grep -q "$CONNECTED_MARKER"; then
+    echo open
+  elif printf '%b' "$logs" | grep -Eq "channel: (session ended|open channel:|dial control plane|control plane .* failed)|vrooli-bridge-agent:"; then
+    echo down
+  else
+    echo ""
+  fi
+}
+
+darwin_channel_diagnostics() {
+  local log_dir="${STATE_DIR:-}"
+  local output=""
+  [ -n "$log_dir" ] || return 0
+  for log_file in "$log_dir/agent.stdout.log" "$log_dir/agent.stderr.log"; do
+    if [ -f "$log_file" ]; then
+      output="${output}--- ${log_file} ---\n$(tail -40 "$log_file" 2>/dev/null || true)\n"
+    fi
+  done
+  printf '%b' "$output"
+}
+
 step_verify_online() {
   step_start verify-online "confirm dial-out channel is live"
   local have_journal=0
@@ -1403,6 +1493,10 @@ step_verify_online() {
       case "$(journal_channel_state)" in
         open) step_ok "agent connected (dial-out stream open)"; return ;;
       esac
+    elif [ "$OS" = darwin ]; then
+      case "$(darwin_channel_state)" in
+        open) step_ok "agent connected (dial-out stream open)"; return ;;
+      esac
     else
       # Degraded check: no user journal on this host, so the channel log is not
       # observable here. Running service is the best available signal.
@@ -1413,6 +1507,13 @@ step_verify_online() {
     fi
 
     if [ "$(date +%s)" -ge "$deadline" ]; then
+      if [ "$OS" = darwin ]; then
+        local diagnostics
+        diagnostics="$(darwin_channel_diagnostics)"
+        if [ -n "$diagnostics" ]; then
+          fail 1 "agent did not report a live dial-out channel within ${VERIFY_TIMEOUT}s; recent agent logs:\n${diagnostics}"
+        fi
+      fi
       fail 1 "agent did not report a live dial-out channel within ${VERIFY_TIMEOUT}s — inspect: journalctl --user -u ${UNIT_NAME}"
     fi
     sleep 2
@@ -1425,6 +1526,7 @@ REVISION_SHA=""
 # Working-tree content digest folded into the setup sentinel key (empty in pinned
 # mode); step_clone sets it in working-tree source mode.
 SETUP_DIGEST_KEY=""
+PROTO_SOURCE_GO_DIR=""
 
 main() {
   marker run-start "" "vrooli-bridge node bootstrap"
@@ -1438,9 +1540,19 @@ main() {
   # control plane's pre-synced source directory.
   [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
   ensure_state_dir_access
+  # setup materializes the node's selected proto artifact over packages/proto/gen.
+  # Preserve the checked-in Go contracts from this exact shipment so a minimal
+  # Darwin host can still build the native CLI when codegen plugins are absent.
+  PROTO_SOURCE_GO_DIR="${BOOTSTRAP_STATE_DIR}/source-proto-go"
+  rm -rf "$PROTO_SOURCE_GO_DIR"
+  mkdir -p "$PROTO_SOURCE_GO_DIR"
+  if [ -d "$CHECKOUT_DIR/packages/proto/gen/go" ]; then
+    cp -R "$CHECKOUT_DIR/packages/proto/gen/go/." "$PROTO_SOURCE_GO_DIR/"
+  fi
   repair_identity_ownership
   step_setup
   step_toolchain_guard
+  step_refresh_proto
   step_build_native_vrooli
   step_finalize_setup
   step_build_agent

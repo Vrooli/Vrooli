@@ -5,13 +5,18 @@ import (
 	"net/url"
 	"strings"
 
+	userauthhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/logx"
 )
 
 // cookieAuthNames are the cookies that make a browser request carry ambient
 // authority. A cross-site page can make the browser send them, so state-
 // changing requests that carry them must come from this site.
-var cookieAuthNames = []string{"admin_session", "access_token", "refresh_token"}
+var cookieAuthNames = append([]string{"admin_session"}, func() []string {
+	access, refresh, _ := userauthhttp.AuthCookieNames(false)
+	secureAccess, secureRefresh, _ := userauthhttp.AuthCookieNames(true)
+	return []string{access, refresh, secureAccess, secureRefresh}
+}()...)
 
 // sameOriginGuard rejects cross-site, state-changing requests that would be
 // authenticated by cookies. SameSite=Lax already blocks most of these; this

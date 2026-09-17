@@ -7,9 +7,13 @@ import { inputClassName } from '../components/formFieldClasses';
 import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useProfileForm } from '../hooks/useProfileForm';
+import { useEffect, useState } from 'react';
+import { getAdminSecurityEvents, type AdminSecurityEvent } from '../../../shared/api';
 import { TwoFactorSettings } from '../components/TwoFactorSettings';
 
 export function ProfileSettings() {
+  const [securityEvents, setSecurityEvents] = useState<AdminSecurityEvent[]>([]);
+  useEffect(() => { void getAdminSecurityEvents().then((response) => { setSecurityEvents(response.events ?? []); }).catch(() => { setSecurityEvents([]); }); }, []);
   const {
     profile,
     loading,
@@ -202,6 +206,11 @@ export function ProfileSettings() {
           </div>
         )}
         {!loading && !loadError && <TwoFactorSettings />}
+        {!loading && !loadError && <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5" aria-label="Admin security events" data-testid="admin-security-events">
+          <h2 className="text-lg font-semibold text-white">Recent security events</h2>
+          <p className="mt-1 text-sm text-slate-400">Latest administrator sign-in and credential activity.</p>
+          {securityEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">No security events recorded.</p> : <ul className="mt-4 divide-y divide-white/10" aria-live="polite">{securityEvents.map((event, index) => <li className="flex flex-wrap justify-between gap-2 py-3 text-sm" key={`${event.created_at}-${event.event}-${index}`}><span className="font-medium text-slate-200">{event.event}</span><span className="text-slate-400">{new Date(event.created_at).toLocaleString()}{event.ip_hint ? ` · ${event.ip_hint}` : ''}</span></li>)}</ul>}
+        </section>}
       </div>
     </AdminLayout>
   );

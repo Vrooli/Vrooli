@@ -37,6 +37,25 @@ func TestFixtureRequestAllowedOnlyOnLoopbackDevelopmentAuthority(t *testing.T) {
 	}
 }
 
+func TestFixtureSignInCodeIsBoundedAndDevelopmentOnly(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	t.Setenv("LPBS_FIXTURE_MODE", "true")
+	fixtureSignInCodes.Lock()
+	fixtureSignInCodes.values = make(map[string]fixtureSignInCode)
+	fixtureSignInCodes.Unlock()
+	captureFixtureSignInCode("Case@Test.com", "123456")
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:1234/api/v1/dev/fixtures/sign-in-code", bytes.NewBufferString(`{"email":"case@test.com"}`))
+	response := httptest.NewRecorder()
+	(&Server{}).fixtureSignInCode(response, req)
+	if response.Code != http.StatusOK || !bytes.Contains(response.Body.Bytes(), []byte(`"code":"123456"`)) {
+		t.Fatalf("fixture sign-in code response = %d %s", response.Code, response.Body.String())
+	}
+	t.Setenv("LPBS_FIXTURE_MODE", "false")
+	if fixtureRequestAllowed(req) {
+		t.Fatal("fixture route remained available with LPBS_FIXTURE_MODE=false")
+	}
+}
+
 func TestFixtureSeedUsesLeaseDatabaseAndLeavesPrimaryUntouched(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	containerURL := startTestContainerDB(t)

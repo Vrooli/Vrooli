@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "667e1549ad27b64eb86a150b74164313f073dfb7d964ae0ae2e8fc688f899581",
+  "manifest_hash": "cbf77303c6b019065a150b0b0fbe18c423e0b07fadb3c7f904e972f207207887",
   "commands": [
     {
       "path": "build get",
@@ -112,6 +112,12 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "desktop validate-artifact",
+      "group": "desktop",
+      "command": "validate-artifact",
+      "observed_primitive": "action"
+    },
+    {
       "path": "docs manifest",
       "group": "docs",
       "command": "manifest",
@@ -129,7 +135,7 @@
       "path": "evidence journey",
       "group": "evidence",
       "command": "journey",
-      "binding": "EvidenceService.GetEvidenceCapture",
+      "binding": ".",
       "observed_primitive": "proto_list"
     },
     {
@@ -175,9 +181,21 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "matrix compare",
+      "group": "matrix",
+      "command": "compare",
+      "binding": "."
+    },
+    {
       "path": "matrix create",
       "group": "matrix",
       "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "matrix list",
+      "group": "matrix",
+      "command": "list",
       "binding": "."
     },
     {
@@ -353,6 +371,12 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "targets list",
+      "group": "targets",
+      "command": "list",
+      "binding": "."
+    },
+    {
       "path": "tasks list",
       "group": "tasks",
       "command": "list",
@@ -400,6 +424,18 @@
       "command": "tail",
       "binding": "TelemetryService.GetTelemetryTail",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "validation run",
+      "group": "validation",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "validation status",
+      "group": "validation",
+      "command": "status",
+      "binding": "."
     },
     {
       "path": "wine check",

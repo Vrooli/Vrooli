@@ -2,9 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/smtp"
 	"strings"
@@ -119,9 +125,9 @@ func NewEmailService() *EmailService {
 		sendGridConfig:   sgConfig,
 		sendGridEndpoint: defaultSendGridEndpoint,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 10 * time.Second,
 		},
-		smtpSender:                smtp.SendMail,
+		smtpSender:                secureSMTPSend,
 		smtpPasswordResolver:      func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
 		allowUnconfiguredDelivery: !isProductionSecurityEnvironment(),
 	}
@@ -131,7 +137,7 @@ func NewEmailService() *EmailService {
 func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	sender := opts.SMTPSender
 	if sender == nil {
-		sender = smtp.SendMail
+		sender = secureSMTPSend
 	}
 	passwordResolver := opts.SMTPPasswordResolver
 	if passwordResolver == nil {
@@ -140,7 +146,7 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
 
 	return &EmailService{
@@ -238,7 +244,7 @@ func (s *EmailService) Send(config *SMTPConfig, to, subject, body string) error 
 
 	sender := s.smtpSender
 	if sender == nil {
-		sender = smtp.SendMail
+		sender = secureSMTPSend
 	}
 
 	err := sender(addr, auth, config.From, []string{to}, []byte(msg))
@@ -256,6 +262,80 @@ func (s *EmailService) Send(config *SMTPConfig, to, subject, body string) error 
 	})
 
 	return nil
+}
+
+// secureSMTPSend bounds connection and protocol time, supports implicit TLS
+// on port 465, and refuses to authenticate to a clear-text relay.
+func secureSMTPSend(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("parse SMTP address: %w", err)
+	}
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	deadline := time.Now().Add(20 * time.Second)
+	var conn net.Conn
+	if port == "465" {
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+	} else {
+		conn, err = dialer.Dial("tcp", addr)
+	}
+	if err != nil {
+		return fmt.Errorf("dial SMTP server: %w", err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(deadline); err != nil {
+		return fmt.Errorf("set SMTP deadline: %w", err)
+	}
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return fmt.Errorf("create SMTP client: %w", err)
+	}
+	defer client.Close()
+	if port != "465" {
+		if ok, _ := client.Extension("STARTTLS"); !ok {
+			return errors.New("SMTP server does not offer STARTTLS; refusing clear-text authentication")
+		}
+		if err := client.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
+			return fmt.Errorf("start SMTP TLS: %w", err)
+		}
+	}
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("authenticate SMTP: %w", err)
+		}
+	}
+	if err := client.Mail(from); err != nil {
+		return fmt.Errorf("set SMTP sender: %w", err)
+	}
+	for _, recipient := range to {
+		if err := client.Rcpt(recipient); err != nil {
+			return fmt.Errorf("set SMTP recipient: %w", err)
+		}
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("open SMTP message: %w", err)
+	}
+	if _, err := writer.Write(msg); err != nil {
+		_ = writer.Close()
+		return fmt.Errorf("write SMTP message: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("complete SMTP message: %w", err)
+	}
+	return client.Quit()
+}
+
+func newMessageID(from string) string {
+	host := "localhost"
+	if at := strings.LastIndex(from, "@"); at >= 0 && strings.TrimSpace(from[at+1:]) != "" {
+		host = strings.TrimSpace(from[at+1:])
+	}
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("<%d@%s>", time.Now().UnixNano(), host)
+	}
+	return fmt.Sprintf("<%s@%s>", hex.EncodeToString(b), host)
 }
 
 func feedbackTypeLabel(t string) string {
@@ -295,13 +375,47 @@ func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 		return fmt.Errorf("magic-link email provider is not configured")
 	}
 
-	return s.sendViaSendGrid(to, subject, textContent, htmlContent)
+	_, err := s.sendViaSendGridWithMetadata(context.Background(), to, subject, textContent, htmlContent, "")
+	return err
 }
 
 // sendViaSendGrid sends an email via the SendGrid API
 func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent string) error {
+	_, err := s.sendViaSendGridWithMetadata(context.Background(), to, subject, textContent, htmlContent, "")
+	return err
+}
+
+func (s *EmailService) sendViaSendGridWithMetadata(ctx context.Context, to, subject, textContent, htmlContent, requestID string) (*administration.SignInDelivery, error) {
+	category := ""
+	if requestID != "" {
+		category = "lpbs-auth"
+	}
+	return s.sendViaSendGridCategory(ctx, to, subject, textContent, htmlContent, requestID, category)
+}
+
+// SendSecurityNotification sends a tracking-free administrator security
+// notice using a distinct provider category.
+func (s *EmailService) SendSecurityNotification(ctx context.Context, to, event, detail string) error {
+	_, err := s.sendViaSendGridCategory(ctx, to, "LPBS administrator security alert", fmt.Sprintf("Security event: %s\n\n%s", event, detail), fmt.Sprintf("<p>Security event: <strong>%s</strong></p><p>%s</p>", event, detail), "", "lpbs-admin-security")
+	return err
+}
+
+func (s *EmailService) SendPasskeyNotification(ctx context.Context, to, event, detail string) error {
+	return s.sendPasskeyNotification(ctx, to, event, detail)
+}
+
+func (s *EmailService) sendPasskeyNotification(ctx context.Context, to, event, detail string) error {
+	subject := "A passkey was added to your account"
+	if event == "passkey_removed" {
+		subject = "A passkey was removed from your account"
+	}
+	_, err := s.sendViaSendGridCategory(ctx, to, subject, fmt.Sprintf("%s\n\n%s\n\nReview your account security at /account/security.", subject, detail), fmt.Sprintf("<p>%s</p><p>%s</p><p>Review your account security at <a href=\"/account/security\">/account/security</a>.</p>", subject, detail), "", "lpbs-auth")
+	return err
+}
+
+func (s *EmailService) sendViaSendGridCategory(ctx context.Context, to, subject, textContent, htmlContent, requestID, category string) (*administration.SignInDelivery, error) {
 	if s.sendGridConfig == nil || !s.sendGridConfig.IsConfigured() {
-		return fmt.Errorf("SendGrid not configured")
+		return nil, fmt.Errorf("SendGrid not configured")
 	}
 
 	// Build SendGrid API request
@@ -323,10 +437,22 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 			{"type": "text/html", "value": htmlContent},
 		},
 	}
+	if category != "" {
+		payload["categories"] = []string{category}
+		payload["tracking_settings"] = map[string]any{
+			"click_tracking":        map[string]any{"enable": false, "enable_text": false},
+			"open_tracking":         map[string]any{"enable": false},
+			"subscription_tracking": map[string]any{"enable": false},
+			"ganalytics":            map[string]any{"enable": false},
+		}
+		if requestID != "" {
+			payload["custom_args"] = map[string]string{"lpbs_sign_in_request_id": requestID}
+		}
+	}
 
 	jsonBody, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("marshal SendGrid payload: %w", err)
+		return nil, fmt.Errorf("marshal SendGrid payload: %w", err)
 	}
 
 	endpoint := s.sendGridEndpoint
@@ -335,8 +461,14 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 	}
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(jsonBody))
 	if err != nil {
-		return fmt.Errorf("create SendGrid request: %w", err)
+		return nil, fmt.Errorf("create SendGrid request: %w", err)
 	}
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) > 10*time.Second {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+	req = req.WithContext(ctx)
 
 	req.Header.Set("Authorization", "Bearer "+s.sendGridConfig.APIKey)
 	req.Header.Set("Content-Type", "application/json")
@@ -347,7 +479,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 			"error": err.Error(),
 			"to":    to,
 		})
-		return fmt.Errorf("SendGrid request failed: %w", err)
+		return nil, fmt.Errorf("SendGrid request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -362,7 +494,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 			"body":   bodyStr,
 			"to":     to,
 		})
-		return fmt.Errorf("SendGrid API error: %d - %s", resp.StatusCode, bodyStr)
+		return nil, fmt.Errorf("SendGrid API error: %d - %s", resp.StatusCode, bodyStr)
 	}
 
 	logx.Info("magic_link_sent", map[string]interface{}{
@@ -370,7 +502,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		"to":    to,
 	})
 
-	return nil
+	return &administration.SignInDelivery{Provider: "sendgrid", ProviderMessageID: strings.TrimSpace(resp.Header.Get("X-Message-Id"))}, nil
 }
 
 // buildMagicLinkHTML creates an HTML email for magic link authentication

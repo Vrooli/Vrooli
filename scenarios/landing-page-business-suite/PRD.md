@@ -224,6 +224,12 @@ The following references, decisions, and evolution notes support the implementat
 
 **Design decisions**
 
+**Authentication hardening delivery**
+- [x] Durable browser-bound emailed-code and magic-link sign-in with one-use verification and native PKCE grants.
+- [x] Bounded customer and administrator sessions with server-side revocation, throttling, audit events, and step-up checks.
+- [x] Customer and administrator WebAuthn passkeys, including browser enrollment, login, and recent-authentication reauthentication.
+- [ ] Google/social sign-in remains a `scenario-authenticator` hand-off and is not an LPBS-local provider.
+
 **Why whole-page A/B testing instead of element-level?**
 - Simpler to implement and reason about
 - Avoids combinatorial explosion of variants

@@ -15,6 +15,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"CredentialGrantService.CreateGrant":    h.grant,
+		"CredentialGrantService.AnswerSecret":   h.answerSecret,
 		"CredentialGrantService.ListGrants":     h.list,
 		"CredentialGrantService.RevokeGrant":    h.revoke,
 		"CredentialGrantService.RotateAddress":  h.rotate,

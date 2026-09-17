@@ -45,7 +45,10 @@ describe('auth API', () => {
 
         await adminLogin('admin@example.com', 'password123');
 
-        expect(adminAuthClient.login).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'password123', totpCode: '' });
+        expect(adminAuthClient.login).toHaveBeenCalledWith(
+          { email: 'admin@example.com', password: 'password123', totpCode: '' },
+          { headers: { 'X-Lpbs-Browser-Binding': expect.any(String) } },
+        );
       });
 
       it('forwards an authenticator code as the second factor', async () => {
@@ -53,7 +56,10 @@ describe('auth API', () => {
 
         await adminLogin('admin@example.com', 'password123', '123456');
 
-        expect(adminAuthClient.login).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'password123', totpCode: '123456' });
+        expect(adminAuthClient.login).toHaveBeenCalledWith(
+          { email: 'admin@example.com', password: 'password123', totpCode: '123456' },
+          { headers: { 'X-Lpbs-Browser-Binding': expect.any(String) } },
+        );
       });
 
       it('returns session response on success', async () => {

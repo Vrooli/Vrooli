@@ -91,9 +91,29 @@ func (h *handler) AnswerSecret(ctx context.Context, req *connect.Request[grantv1
 	if req.Msg.GetValue() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("secret value is required"))
 	}
-	grant, err := h.service.Create(ctx, internalgrant.CreateInput{NodeID: req.Msg.GetNodeId(), LogicalID: req.Msg.GetLogicalId(), Field: req.Msg.GetField(), Class: internalgrant.Class(req.Msg.GetClass()), Retention: internalgrant.Retention(req.Msg.GetRetention()), Generation: 1})
+	grant, found, err := h.service.Active(ctx, req.Msg.GetNodeId(), req.Msg.GetLogicalId(), req.Msg.GetField())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if !found {
+		grant, found, err = h.service.ReactivateEphemeral(ctx, req.Msg.GetNodeId(), req.Msg.GetLogicalId(), req.Msg.GetField(), internalgrant.Class(req.Msg.GetClass()))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	if !found {
+		grant, err = h.service.Create(ctx, internalgrant.CreateInput{NodeID: req.Msg.GetNodeId(), LogicalID: req.Msg.GetLogicalId(), Field: req.Msg.GetField(), Class: internalgrant.Class(req.Msg.GetClass()), Retention: internalgrant.Retention(req.Msg.GetRetention()), Generation: 1})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	} else if grant.Retention == internalgrant.RetentionEphemeral {
+		// Ephemeral grants are one-shot. Re-answering the same address advances
+		// its generation in place; the address is unique and cannot have two
+		// active rows.
+		grant, err = h.service.RefreshEphemeral(ctx, grant)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("refresh ephemeral credential grant: %w", err))
+		}
 	}
 	value := req.Msg.GetValue()
 	defer func() { value = "" }()

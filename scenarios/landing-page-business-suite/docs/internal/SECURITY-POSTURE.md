@@ -57,6 +57,8 @@ Customer sign-in rules:
 - A code is accepted only from the browser that requested it (`browser_binding`), and app callback context is returned only to that browser.
 - Completing sign-in retires every other outstanding link and code for the address.
 - A request whose email could not be delivered is retired and reported as `503 delivery_unavailable`; every well-formed address may sign up, so there is no account-existence oracle to protect. `sign_in_email` in `/health` degrades when the latest delivery failed, and `GET /api/v1/admin/auth/delivery` reports 24-hour outcomes. SendGrid is primary; the site SMTP relay is the fallback.
+- Sign-in SendGrid messages use the `lpbs-auth` category, disable click/open/subscription/ganalytics tracking, and carry only the opaque `lpbs_sign_in_request_id` custom argument. Successful sends persist the provider and `X-Message-Id` in `auth_tokens`; SMTP fallback emits `Date` and `Message-ID` headers and requires TLS before authentication.
+- The hourly auth janitor purges sign-in requests older than one day, ended customer sessions after 30 days of inactivity, refresh-token history after 100 days, and administrator sessions one day after expiry. Active and recent rows remain.
 
 The password/cookie and code/link/JWT rows describe the current LPBS
 compatibility implementation. The target platform boundary moves person
@@ -100,11 +102,32 @@ authorization remains in the authenticator.
 ## Known gaps (acknowledged, not "broken")
 
 - Cross-site protection relies on fetch metadata and `SameSite=Lax` rather than a synchronizer token. If an admin portal is ever served from a different origin, allow that origin explicitly in `csrf_guard.go`.
-- Admin two-factor authentication is available but not required; enforcement is the operator's choice.
-- Native-app authorization codes (`AuthorizationCodeStore`) are held in process memory for 60 seconds; an API restart between the browser redirect and the app's token exchange fails that sign-in and the app must retry. Multi-replica deployments need a shared store.
-- Social sign-in (Google, Apple) and passkeys are not implemented; the platform plan assigns them to `scenario-authenticator`.
+- Admin two-factor authentication supports TOTP, recovery codes, and WebAuthn
+  passkeys. Production enforcement is operator-controlled through
+  `ADMIN_REQUIRE_MFA=true`; a production rollout must enroll the first admin
+  factor before exposing the portal.
+- Native-app authorization uses durable, hashed, one-use grants in `native_auth_grants`; the grant is burned before redirect or PKCE validation and is linked to the session created by a successful exchange.
+- Social sign-in (Google, Apple) remains a platform roadmap item owned by
+  `scenario-authenticator`; LPBS documents the relying-party hand-off and does
+  not store provider credentials. Customer and administrator WebAuthn
+  ceremonies, browser UX, durable credentials, and passkey step-up are now
+  delivered; production rollout still depends on operator MFA and RP-origin
+  configuration.
 - Service bearer is HMAC of a static secret, not a JWT — fine for a small s2s mesh, would not scale to many callers.
 - The UI uses `BrowserRouter` and does not use React Router's unstable RSC APIs. GHSA-qwww-vcr4-c8h2 is therefore tracked as a dependency warning rather than a shipped attack path; introducing an RSC router, RSC package, or unstable RSC API requires upgrading React Router to a patched release first.
 - Security Health currently reports residual lockfile advisories from transitive build and test tooling, plus the `x/crypto/openpgp` advisory. OpenTelemetry was upgraded through Scenario Dependency Analyzer to `v1.42.0`, clearing GO-2026-5158. The UI directly pins `picomatch` 4.0.5 through Scenario Dependency Analyzer, which removed the vulnerable 4.x resolver path without weakening coverage policy. The remaining old `minimatch`, `brace-expansion`, `flatted`, and `picomatch` 2.x paths are held by ESLint, Tailwind, and test-tooling dependency graphs; `monaco-editor@0.56.0` similarly owns the residual `dompurify@3.4.8` path. Governed requests for the current Monaco packages resolve to those already-installed versions, so these paths cannot be safely overridden by hand. `golang.org/x/crypto@0.54.0` is also already current; GO-2026-5932 concerns its intentionally unmaintained `openpgp` package and has no named patched upstream release. Treat every new production dependency path as a trigger to re-run Security Health, and re-evaluate these residuals when their upstream owners publish a compatible release.
 
 - `config/variants/agency-marketing-visionary.json` is a public content fixture. Its stable section identifiers trigger gitleaks' generic-key heuristic even though the file contains no credential fields. The scenario-local `.gitleaks.toml` suppresses only that exact fixture path while retaining every default rule for all other source and configuration files. Any future secret-bearing configuration must use the vault/env path and must never be added to this fixture allowlist.
+# Native grant posture
+
+Native-app authorization no longer stores token pairs or raw authorization codes
+in process memory. Postgres owns the grant, its PKCE challenge, exact loopback
+redirect, expiry, and eventual session linkage.
+
+# Sign-in delivery posture
+
+SendGrid event ingestion is ECDSA-verified against raw request bytes, freshness
+bounded, idempotent by provider event ID, and normalized before customer-facing
+status is returned. The delivery readiness report observes DNS and webhook
+health without changing operator state; alert dispatch is bounded by shared
+retry, timeout, backoff, and rate-limit transport.

@@ -827,6 +827,14 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 
 ---
 
+## Sign-in email deployment checklist
+
+- [ ] Configure `EMAIL_FROM_ADDRESS` on an authenticated sending subdomain and set `EMAIL_FROM_NAME`.
+- [ ] Publish SPF, SendGrid DKIM/return-path CNAMEs, and DMARC; begin DMARC at `p=none`.
+- [ ] Provision a Mail Send-only `sendgrid-api-key` and the Signed Event Webhook public key through the credential authority.
+- [ ] Enable SendGrid events `processed`, `delivered`, `deferred`, `bounce`, `dropped`, and `spamreport` for `/api/v1/webhooks/sendgrid`.
+- [ ] Run `admin-email-readiness` and resolve every fail before inviting customers. This command is read-only.
+
 ## See Also
 
  - [Quick Start](../QUICKSTART.md) - Initial setup

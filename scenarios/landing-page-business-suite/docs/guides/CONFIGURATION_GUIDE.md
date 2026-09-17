@@ -585,3 +585,34 @@ When customizing a generated landing page:
 6. **Configure resources** - Enable/disable in `service.json` > `dependencies.resources`
 
 Always validate changes against the schemas in `schemas/` before deploying.
+
+## Sign-in email
+
+Use a dedicated sending subdomain such as `mail.vrooli.com` for the From address.
+In SendGrid, authenticate that domain and publish the records it provides. A
+typical configuration is:
+
+```text
+mail.vrooli.com.                 TXT   "v=spf1 include:sendgrid.net -all"
+s1._domainkey.mail.vrooli.com.   CNAME s1.domainkey.uNNNN.wlNNN.sendgrid.net.
+s2._domainkey.mail.vrooli.com.   CNAME s2.domainkey.uNNNN.wlNNN.sendgrid.net.
+em1234.mail.vrooli.com.          CNAME uNNNN.wlNNN.sendgrid.net.
+_dmarc.vrooli.com.               TXT   "v=DMARC1; p=none; rua=mailto:dmarc@vrooli.com; adkim=r; aspf=r"
+```
+
+Set `EMAIL_FROM_ADDRESS=sign-in@mail.vrooli.com` and `EMAIL_FROM_NAME=Vrooli`.
+For SMTP fallback, also set `EMAIL_SMTP_DKIM_SELECTOR` to the selector supplied
+by the relay. Start DMARC at `p=none`, review aggregate reports for 2–4 weeks,
+then move to `p=quarantine` and eventually `p=reject` after all legitimate
+senders align.
+
+Provision a restricted SendGrid API key with only Mail Send permission and the
+SendGrid Signed Event Webhook public key through the credential authority. Enable
+events `processed`, `delivered`, `deferred`, `bounce`, `dropped`, and `spamreport`
+at `https://<domain>/api/v1/webhooks/sendgrid`. Disable account-level click
+tracking as defense in depth. `admin-email-readiness` performs read-only DNS and
+webhook checks; it never changes DNS or SendGrid settings.
+
+If a person loses access to the mailbox, support must recover the mailbox or
+change the verified account address through the approved account process. Admins
+must not issue sign-in links manually.

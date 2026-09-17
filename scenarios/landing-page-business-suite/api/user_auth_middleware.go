@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	userauthhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
@@ -128,7 +129,8 @@ func extractBearerToken(r *http.Request) string {
 	}
 
 	// Fall back to cookie
-	if cookie, err := r.Cookie("access_token"); err == nil {
+	accessName, _, _ := userauthhttp.AuthCookieNames(isSecureCookiesEnabled())
+	if cookie, err := r.Cookie(accessName); err == nil {
 		return cookie.Value
 	}
 
@@ -158,11 +160,41 @@ func (s *Server) requireUserAuth(next http.HandlerFunc) http.HandlerFunc {
 			writeJSONError(w, http.StatusUnauthorized, msg, ApiErrorTypeUnauthorized)
 			return
 		}
+		if err := s.userAuthService.ValidateSession(r.Context(), claims.SessionID); err != nil {
+			message := "Session has been revoked. Please log in again."
+			reason := "session_revoked"
+			if errors.Is(err, administration.ErrSessionExpired) {
+				message = "Session has expired. Please log in again."
+				reason = "session_expired"
+			}
+			writeJSONErrorReason(w, http.StatusUnauthorized, message, ApiErrorTypeUnauthorized, reason)
+			return
+		}
 
 		// Inject claims into context
 		ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// requireRecentUserAuth protects high-impact customer operations with a
+// recent sign-in or explicit reauthentication on the current session.
+func (s *Server) requireRecentUserAuth(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireUserAuth(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := getUserClaims(r.Context())
+		if !ok || claims == nil || s.accountSecurityService == nil {
+			w.Header().Set("X-Lpbs-Auth-Reason", "reauthentication_required")
+			writeJSONErrorReason(w, http.StatusForbidden, "Recent reauthentication is required", ApiErrorTypeForbidden, "reauthentication_required")
+			return
+		}
+		recent, err := s.accountSecurityService.IsRecent(r.Context(), claims.SessionID)
+		if err != nil || !recent {
+			w.Header().Set("X-Lpbs-Auth-Reason", "reauthentication_required")
+			writeJSONErrorReason(w, http.StatusForbidden, "Recent reauthentication is required", ApiErrorTypeForbidden, "reauthentication_required")
+			return
+		}
+		next(w, r)
+	})
 }
 
 // optionalUserAuth is middleware that extracts user claims if present but doesn't require them.
@@ -174,6 +206,10 @@ func (s *Server) optionalUserAuth(next http.HandlerFunc) http.HandlerFunc {
 		// If we have a token, try to validate it
 		if tokenString != "" {
 			if claims, err := s.userAuthService.ValidateAccessToken(tokenString); err == nil {
+				if err := s.userAuthService.ValidateSession(r.Context(), claims.SessionID); err != nil {
+					next(w, r)
+					return
+				}
 				ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 				next(w, r.WithContext(ctx))
 				return

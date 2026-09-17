@@ -8,6 +8,14 @@ audience: ["users", "developers"]
 
 # Troubleshooting
 
+## Everyone was signed out after upgrading
+
+LPBS uses `__Host-access_token`, `__Secure-refresh_token`, and
+`__Host-lpbs_session_hint` cookie names on HTTPS. The rename intentionally
+ends existing browser sessions once so that an old cookie name is never
+accepted as authority. Sign in again after the deployment; native and desktop
+clients that send tokens in request bodies are unaffected.
+
 Solutions for common issues with your landing page.
 
 ---
@@ -362,6 +370,13 @@ When reporting issues, include:
 4. **Relevant log snippets**
 
 ---
+
+## Sign-in email delivery
+
+- **Bounced or rejected:** run `admin-email-readiness`, confirm the address and From-domain alignment, then inspect the admin delivery report. Do not expose provider response text to the person signing in.
+- **Deferred:** the receiving mail server is delaying the message. Wait and retry delivery; if it persists, inspect provider status and mailbox quotas.
+- **No email:** confirm SendGrid or SMTP credentials, run readiness, and verify the Signed Event Webhook public key and event URL. `admin-sign-in-delivery` reports provider acceptance, while `admin-email-readiness` checks configuration.
+- **Lost mailbox access:** use the approved account recovery/address-change process. Never issue an admin-created sign-in link.
 
 ## See Also
 

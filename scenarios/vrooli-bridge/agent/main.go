@@ -345,6 +345,19 @@ func (s cliCredentialSink) Put(logicalID, field, value string) error {
 	return nil
 }
 
+// Resolve reads one durable credential through the node's authority. The
+// returned value is consumed immediately by the caller and is never placed in
+// a Bridge frame or log. Ephemeral grants are handled separately in memory.
+func (s cliCredentialSink) Resolve(logicalID, field string) (string, error) {
+	cmd := exec.Command(s.binary, "credentials", "resolve", "--identity", logicalID, "--field", field)
+	cmd.Dir = s.workDir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("node credential authority resolve: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // storeRefusal reads only metadata from the node authority before attempting a
 // write. The provision command intentionally discards its output, and some
 // store implementations report only a generic exit status; the status probe

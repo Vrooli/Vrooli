@@ -68,6 +68,7 @@ type Repository interface {
 type GenerationRepository interface {
 	BumpGeneration(context.Context, string, string) (int64, error)
 	SetGrantGeneration(context.Context, string, string, int64) error
+	ReactivateGrant(context.Context, string, string, int64) error
 }
 
 type ReceiptRepository interface {
@@ -143,6 +144,89 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Grant, error) {
 
 func (s *Service) List(ctx context.Context, nodeID string) ([]Grant, error) {
 	return s.repo.List(ctx, strings.TrimSpace(nodeID))
+}
+
+// Active returns the existing grant for an address on a node, when present.
+// Answering an existing grant is an owner-authorized re-delivery operation;
+// it must not create a second row because the node/address identity is unique.
+func (s *Service) Active(ctx context.Context, nodeID, logicalID, field string) (Grant, bool, error) {
+	grants, err := s.repo.List(ctx, strings.TrimSpace(nodeID))
+	if err != nil {
+		return Grant{}, false, err
+	}
+	logicalID, field = strings.TrimSpace(logicalID), strings.TrimSpace(field)
+	for _, grant := range grants {
+		if grant.LogicalID == logicalID && grant.Field == field && grant.RevokedAt.IsZero() {
+			return grant, true, nil
+		}
+	}
+	return Grant{}, false, nil
+}
+
+// RefreshEphemeral advances an existing one-shot grant in place. The grant
+// address is unique per node, so replacing it with a second row is invalid;
+// generation is the value-version boundary the node agent already uses to
+// replace a consumed in-memory secret.
+func (s *Service) RefreshEphemeral(ctx context.Context, grant Grant) (Grant, error) {
+	if grant.Retention != RetentionEphemeral {
+		return Grant{}, fmt.Errorf("credential grant %q is not ephemeral", grant.ID)
+	}
+	generations, ok := s.repo.(GenerationRepository)
+	if !ok {
+		return Grant{}, fmt.Errorf("credential generation repository is unavailable")
+	}
+	next := grant.Generation + 1
+	if next <= 0 {
+		next = 1
+	}
+	if err := generations.SetGrantGeneration(ctx, grant.ID, grant.NodeID, next); err != nil {
+		return Grant{}, err
+	}
+	grant.Generation = next
+	grant.AckedGeneration = 0
+	grant.ReceiptAt = time.Time{}
+	grant.ReceiptAccepted = false
+	grant.ReceiptReason = ""
+	return grant, nil
+}
+
+// ReactivateEphemeral reuses the unique durable row after a prior one-shot
+// grant was purged. The row identity is retained for audit continuity while
+// its generation and active status are reset for the new answered value.
+func (s *Service) ReactivateEphemeral(ctx context.Context, nodeID, logicalID, field string, class Class) (Grant, bool, error) {
+	revokedRepo, ok := s.repo.(RevokedRepository)
+	if !ok {
+		return Grant{}, false, nil
+	}
+	grants, err := revokedRepo.ListRevoked(ctx, strings.TrimSpace(nodeID))
+	if err != nil {
+		return Grant{}, false, err
+	}
+	for _, grant := range grants {
+		if grant.LogicalID != strings.TrimSpace(logicalID) || grant.Field != strings.TrimSpace(field) || grant.Retention != RetentionEphemeral {
+			continue
+		}
+		if class != "" && grant.Class != class {
+			continue
+		}
+		generations, ok := s.repo.(GenerationRepository)
+		if !ok {
+			return Grant{}, false, fmt.Errorf("credential generation repository is unavailable")
+		}
+		next := grant.Generation + 1
+		if err := generations.ReactivateGrant(ctx, grant.ID, grant.NodeID, next); err != nil {
+			return Grant{}, false, err
+		}
+		grant.Generation = next
+		grant.AckedGeneration = 0
+		grant.RevokedAt = time.Time{}
+		grant.PurgeState = ""
+		grant.PurgeAccepted = false
+		grant.PurgeReason = ""
+		grant.PurgeReceiptAt = time.Time{}
+		return grant, true, nil
+	}
+	return Grant{}, false, nil
 }
 
 // ActiveGrant reports metadata only. Dispatch uses it to authorize an

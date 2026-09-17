@@ -124,6 +124,19 @@ func TestAdminLoginRequiresSecondFactorWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestAdminLoginCreatesEnrollmentOnlySessionWhenPolicyRequiresMFA(t *testing.T) {
+	t.Setenv("ADMIN_REQUIRE_MFA", "true")
+	deps, _ := securityDeps(t, &fakeAuth{hash: hashFor(t, "correct-password")})
+	deps.MFA = fakeSecondFactor{enabled: false}
+	result, err := LoginSession(httptest.NewRequest(http.MethodPost, "/", nil), httptest.NewRecorder(), LoginRequest{Email: "admin@example.test", Password: "correct-password"}, deps)
+	if err != nil {
+		t.Fatalf("login = %+v", err)
+	}
+	if result.Assurance != "enrollment_only" {
+		t.Fatalf("assurance = %q", result.Assurance)
+	}
+}
+
 func TestAdminLoginWrongPasswordNeverRevealsSecondFactor(t *testing.T) {
 	deps, _ := securityDeps(t, &fakeAuth{hash: hashFor(t, "correct-password")})
 	deps.MFA = fakeSecondFactor{enabled: true, valid: "123456"}

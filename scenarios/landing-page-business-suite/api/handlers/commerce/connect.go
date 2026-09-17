@@ -43,6 +43,7 @@ type ConnectDependencies struct {
 	UserEmail              func(context.Context) string
 	UserID                 func(context.Context) string
 	ResolveBusinessAccount func(context.Context, string, string, string) (businessaccount.Account, error)
+	RequireRecentAuth      func(http.HandlerFunc) http.HandlerFunc
 }
 
 type ConnectHandler struct{ deps ConnectDependencies }
@@ -173,5 +174,9 @@ func RegisterConnectRoutes(router *mux.Router, deps ConnectDependencies, require
 	mount(lpbsconnect.LandingPagePaymentsServiceCreateCheckoutSessionProcedure, nil)
 	mount(lpbsconnect.LandingPagePaymentsServiceVerifySubscriptionProcedure, nil)
 	mount(lpbsconnect.LandingPagePaymentsServiceCancelSubscriptionProcedure, requireAdmin)
-	mount(lpbsconnect.LandingPagePaymentsServiceGetBillingPortalProcedure, requireUserAuth)
+	billingAuth := requireUserAuth
+	if deps.RequireRecentAuth != nil {
+		billingAuth = deps.RequireRecentAuth
+	}
+	mount(lpbsconnect.LandingPagePaymentsServiceGetBillingPortalProcedure, billingAuth)
 }

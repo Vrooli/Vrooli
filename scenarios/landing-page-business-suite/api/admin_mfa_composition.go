@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
+	adminpasskeyhttp "landing-page-business-suite-api/handlers/adminpasskeys"
 	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/adminsecurity"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/logx"
+	passkeyinternal "landing-page-business-suite-api/internal/passkeys"
 	"landing-page-business-suite-api/internal/securevalue"
 )
 
@@ -51,6 +56,12 @@ func (s *Server) adminSecondFactor() adminhttp.AdminSecondFactor {
 var _ adminhttp.AdminSecondFactor = (*administration.AdminMFA)(nil)
 
 func (s *Server) adminMFADependencies() adminhttp.AdminMFADependencies {
+	var store administration.AdminAuthStore
+	if s.routedDB != nil {
+		store = s.routedDB
+	} else {
+		store = s.db
+	}
 	return adminhttp.AdminMFADependencies{
 		MFA:        s.adminMFA,
 		AdminEmail: s.sessionAdminEmail,
@@ -58,9 +69,21 @@ func (s *Server) adminMFADependencies() adminhttp.AdminMFADependencies {
 			principal, _ := r.Context().Value(servicePrincipalContextKey).(string)
 			return principal != ""
 		},
-		WriteError: writeJSONError,
-		Log:        logx.Info,
-		LogError:   logx.Error,
+		WriteError:          writeJSONError,
+		Log:                 logx.Info,
+		LogError:            logx.Error,
+		RevokeOtherSessions: s.adminAuth().RevokeOtherSessions,
+		PromoteSession: func(ctx context.Context, oldID, email string) (string, error) {
+			return s.adminAuth().PromoteSession(ctx, oldID, email)
+		},
+		Sessions: s.sessionManager,
+		CurrentSessionID: func(r *http.Request) string {
+			session, _ := s.sessionManager.GetSession(r, "admin_session")
+			id, _ := session.Values["session_id"].(string)
+			return id
+		},
+		SecurityEvents: &adminsecurity.Repository{DB: store},
+		Notifier:       securityNotifier{s.emailService},
 	}
 }
 
@@ -69,7 +92,35 @@ func registerAdminMFARoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/mfa", s.requireAdmin(adminhttp.AdminMFAStatus(deps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/mfa/enroll", s.requireAdmin(adminhttp.BeginAdminMFAEnrollment(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/confirm", s.requireAdmin(adminhttp.ConfirmAdminMFAEnrollment(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/mfa/disable", s.requireAdmin(adminhttp.DisableAdminMFA(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/mfa/recovery-codes", s.requireAdmin(adminhttp.RegenerateAdminRecoveryCodes(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/mfa/disable", s.requireAdminStepUp(adminhttp.DisableAdminMFA(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/mfa/recovery-codes", s.requireAdminStepUp(adminhttp.RegenerateAdminRecoveryCodes(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/reset", s.requireAdminOrService(adminhttp.ResetAdminMFA(deps))).Methods("POST")
+	registerAdminPasskeyRoutes(s)
+}
+
+func registerAdminPasskeyRoutes(s *Server) {
+	store := s.primaryDB()
+	_, handler := lpbsconnect.NewAdminPasskeyServiceHandler(adminpasskeyhttp.New(adminpasskeyhttp.Dependencies{Service: s.passkeyService, Challenges: s.passkeyChallenges, Credentials: &passkeyinternal.AdminCredentials{DB: store}, PublicOrigin: resolvePublicBaseURL(), MFARequired: adminhttp.AdminMFARequired, SecurityEvents: &adminsecurity.Repository{DB: store}, Notifier: securityNotifier{s.emailService}}))
+	s.router.Handle(lpbsconnect.AdminPasskeyServiceBeginSecondFactorProcedure, http.HandlerFunc(handler.ServeHTTP)).Methods(http.MethodPost)
+	withEmail := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			email, ok := s.sessionAdminEmail(r)
+			if !ok {
+				writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+				return
+			}
+			r.Header.Set("X-Lpbs-Admin-Email", email)
+			next.ServeHTTP(w, r)
+		})
+	}
+	admin := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(s.requireAdmin(func(w http.ResponseWriter, r *http.Request) { withEmail(next).ServeHTTP(w, r) }))
+	}
+	stepup := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(s.requireAdminStepUp(func(w http.ResponseWriter, r *http.Request) { withEmail(next).ServeHTTP(w, r) }))
+	}
+	for _, path := range []string{lpbsconnect.AdminPasskeyServiceBeginRegistrationProcedure, lpbsconnect.AdminPasskeyServiceFinishRegistrationProcedure, lpbsconnect.AdminPasskeyServiceListPasskeysProcedure, lpbsconnect.AdminPasskeyServiceRenamePasskeyProcedure} {
+		s.router.Handle(path, admin(handler)).Methods(http.MethodPost)
+	}
+	s.router.Handle(lpbsconnect.AdminPasskeyServiceRevokePasskeyProcedure, stepup(handler)).Methods(http.MethodPost)
 }

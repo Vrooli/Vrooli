@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -22,7 +23,7 @@ func (s *EmailService) UseBrandingSource(source func() *experimentation.SiteBran
 // SendSignIn delivers the sign-in link and code. SendGrid is the primary
 // provider; the site's SMTP relay is a fallback so one provider outage does
 // not lock every customer out.
-func (s *EmailService) SendSignIn(message administration.SignInMessage) error {
+func (s *EmailService) SendSignIn(message administration.SignInMessage) (*administration.SignInDelivery, error) {
 	branding := s.currentBranding()
 	appName := strings.TrimSpace(message.AppName)
 	if branding != nil && strings.TrimSpace(branding.SiteName) != "" && (appName == "" || appName == "App") {
@@ -38,8 +39,8 @@ func (s *EmailService) SendSignIn(message administration.SignInMessage) error {
 
 	var failures []string
 	if s.IsSendGridConfigured() {
-		if err := s.sendViaSendGrid(message.To, subject, textBody, htmlBody); err == nil {
-			return nil
+		if delivery, err := s.sendViaSendGridWithMetadata(context.Background(), message.To, subject, textBody, htmlBody, message.RequestID); err == nil {
+			return delivery, nil
 		} else {
 			failures = append(failures, "sendgrid: "+err.Error())
 		}
@@ -51,14 +52,14 @@ func (s *EmailService) SendSignIn(message administration.SignInMessage) error {
 				if len(failures) > 0 {
 					logx.Info("sign_in_delivery_fell_back_to_smtp", map[string]interface{}{"level": "warn", "primary_error": strings.Join(failures, "; ")})
 				}
-				return nil
+				return &administration.SignInDelivery{Provider: "smtp"}, nil
 			} else {
 				failures = append(failures, "smtp: "+err.Error())
 			}
 		}
 	}
 	if len(failures) > 0 {
-		return errors.New(strings.Join(failures, "; "))
+		return nil, errors.New(strings.Join(failures, "; "))
 	}
 	if s.allowUnconfiguredDelivery {
 		logx.Info("magic_link_delivery_disabled", map[string]interface{}{
@@ -66,9 +67,9 @@ func (s *EmailService) SendSignIn(message administration.SignInMessage) error {
 			"to":      message.To,
 			"message": "sign-in delivery is disabled in the non-production composition; no provider is configured",
 		})
-		return nil
+		return &administration.SignInDelivery{Provider: "unconfigured"}, nil
 	}
-	return errors.New("no sign-in email provider is configured (SendGrid or site SMTP)")
+	return nil, errors.New("no sign-in email provider is configured (SendGrid or site SMTP)")
 }
 
 func (s *EmailService) currentBranding() *experimentation.SiteBranding {
@@ -81,7 +82,7 @@ func (s *EmailService) currentBranding() *experimentation.SiteBranding {
 func (s *EmailService) sendSMTPMultipart(config *SMTPConfig, to, subject, textBody, htmlBody string) error {
 	boundary := fmt.Sprintf("lpbs-%d", time.Now().UnixNano())
 	var body strings.Builder
-	fmt.Fprintf(&body, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\n", config.From, to, mime.QEncoding.Encode("utf-8", subject))
+	fmt.Fprintf(&body, "Date: %s\r\nMessage-ID: %s\r\nFrom: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\n", time.Now().UTC().Format(time.RFC1123Z), newMessageID(config.From), config.From, to, mime.QEncoding.Encode("utf-8", subject))
 	fmt.Fprintf(&body, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary)
 	fmt.Fprintf(&body, "--%s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n", boundary, textBody)
 	fmt.Fprintf(&body, "--%s\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s\r\n--%s--\r\n", boundary, htmlBody, boundary)

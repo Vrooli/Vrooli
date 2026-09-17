@@ -30,6 +30,7 @@ type Request struct {
 	ItemID          string
 	Name            string
 	DestinationPath string
+	Executable      bool
 }
 
 type Config struct {
@@ -117,6 +118,11 @@ func Deliver(ctx context.Context, client *http.Client, cfg Config, in Request) (
 	}
 	if err := os.Rename(tmpPath, destination); err != nil {
 		return Result{}, fmt.Errorf("install artifact at %q: %w", destination, err)
+	}
+	if in.Executable {
+		if err := os.Chmod(destination, 0o750); err != nil {
+			return Result{}, fmt.Errorf("mark artifact executable %q: %w", destination, err)
+		}
 	}
 	return Result{Path: destination, SizeBytes: written, SHA256: hex.EncodeToString(hash.Sum(nil))}, nil
 }

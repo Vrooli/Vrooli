@@ -14,6 +14,7 @@ vi.mock('../../../shared/api', async () => {
     authorizeNativeApp: vi.fn(),
     listBusinessAccounts: vi.fn(),
     issueDesktopLink: vi.fn(),
+    getSignInDeliveryStatus: vi.fn(),
   };
 });
 
@@ -22,6 +23,7 @@ const verifySignInCode = vi.mocked(api.verifySignInCode);
 const authorizeNativeApp = vi.mocked(api.authorizeNativeApp);
 const listBusinessAccounts = vi.mocked(api.listBusinessAccounts);
 const issueDesktopLink = vi.mocked(api.issueDesktopLink);
+const getSignInDeliveryStatus = vi.mocked(api.getSignInDeliveryStatus);
 
 const signedIn: api.SignInResult = {
   access_token: 'a', refresh_token: 'r', expires_at: '2030-01-01T00:00:00Z', token_type: 'Bearer',
@@ -44,6 +46,7 @@ describe('UserLogin', () => {
     vi.clearAllMocks();
     localStorage.clear();
     requestMagicLink.mockResolvedValue({ message: 'sent', expires_at: '2030-01-01T00:15:00Z' });
+    getSignInDeliveryStatus.mockResolvedValue({ status: 'pending', reasonClass: '', expiresAt: undefined } as any);
   });
 
   it('rejects blank and malformed addresses at the shared validation boundary', () => {
@@ -84,6 +87,15 @@ describe('UserLogin', () => {
 
     await waitFor(() => { expect(verifySignInCode).toHaveBeenCalledWith('buyer@example.com', '123456', expect.any(String)); });
     expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+  });
+
+  it('shows provider delivery feedback in the code step and polls with the browser binding', async () => {
+    getSignInDeliveryStatus.mockResolvedValue({ status: 'delivered', reasonClass: '', expiresAt: undefined } as any);
+    renderLogin();
+    await submitEmail();
+    expect(await screen.findByText('Delivered to your mail server')).toBeInTheDocument();
+    expect(getSignInDeliveryStatus).toHaveBeenCalledWith('buyer@example.com');
+    expect(screen.getByText('Delivered to your mail server').closest('[aria-live="polite"]')).not.toBeNull();
   });
 
   it('clears the code and explains a wrong code without leaving the step', async () => {

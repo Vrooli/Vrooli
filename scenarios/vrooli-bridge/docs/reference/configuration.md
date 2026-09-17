@@ -34,6 +34,7 @@ for the full policy.
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `BRIDGE_DESKTOP_OWNER_SOCKET` | unset | Optional absolute Unix socket for the node-local Device Control owner service. Desktop-bound Bridge sessions fail closed unless this explicit adapter path is configured. |
 | `BRIDGE_DEVICE_SYNC_URL` | (lifecycle discovery) | Optional device-sync-hub API base URL. When unset, Bridge resolves the live scenario through api-core discovery. |
+| `BRIDGE_DEVICE_SYNC_DELIVERY_URL` | (same as `BRIDGE_DEVICE_SYNC_URL`) | Optional target-reachable download URL placed in signed artifact instructions. The managed LAN deployment uses the narrow Bridge `/public/device-sync-hub` proxy when the target cannot route to the control-plane hub. |
 | `BRIDGE_DEVICE_SYNC_TOKEN` | unset | Compatibility fallback for the trusted device-sync-hub upload token. Bridge first resolves `vrooli/device-sync-hub:bridge-origin-device-token` from the credential authority; distribution fails closed when both are absent. |
 | `BRIDGE_DEVICE_SYNC_DEVICE_TOKEN` | unset | Node-agent-only device-sync-hub token used to pull a directed item after a signed placement instruction. It is never sent in Bridge channel frames or logged. |
 | `BRIDGE_DEVICE_SYNC_TARGETS` | unset | JSON object mapping Bridge registry node ids to device-sync-hub device ids, for example `{\"node-id\":\"hub-device-id\"}`. The ids are intentionally not conflated. |

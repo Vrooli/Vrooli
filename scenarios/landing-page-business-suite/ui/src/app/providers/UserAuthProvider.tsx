@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react';
-import { getUserMe, userLogout, refreshUserTokens, isApiError, type UserAuthUser } from '../../shared/api';
+import { getUserMe, userLogout, refreshSessionOnce, isApiError, type UserAuthUser } from '../../shared/api';
 import { UserAuthContext } from './UserAuthContext';
 
 export function UserAuthProvider({ children }: { children: ReactNode }) {
@@ -19,7 +19,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       if (isApiError(err, 'unauthorized')) {
         // Try to refresh the session
         try {
-          await refreshUserTokens(''); // Uses cookie
+          await refreshSessionOnce();
           const retryResponse = await getUserMe();
           setIsAuthenticated(true);
           setUser(retryResponse.user);
@@ -38,10 +38,13 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   // Lazy session check - only runs when explicitly called
   // or when needed by components
   useEffect(() => {
-    // Only check session if we have cookies set (access_token cookie exists)
+    // Only check session if the non-authoritative presence hint exists.
     // This avoids unnecessary 401 errors on initial page load
-    const hasAuthCookie = document.cookie.includes('access_token=');
-    if (hasAuthCookie) {
+	const hasSessionHint = document.cookie.split(';').some((cookie) => {
+		const name = cookie.trim().split('=', 1)[0];
+		return name === 'lpbs_session_hint' || name === '__Host-lpbs_session_hint';
+	});
+	if (hasSessionHint) {
       void checkSession();
     }
   }, [checkSession]);

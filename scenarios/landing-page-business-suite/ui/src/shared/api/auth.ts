@@ -1,8 +1,10 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { AdminAuthService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/v1/admin_pb';
-import { apiPost, apiGet, CONNECT_API_BASE } from './common';
+import { AdminAuthService, AdminPasskeyService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/v1/admin_pb';
+import { apiPost, apiGet, CONNECT_API_BASE, isApiError } from './common';
 import { parseOrNull } from './safeParse';
+import { withAdminReauthentication } from './adminReauthentication';
+import { getBrowserBinding } from '../../surfaces/user-auth/lib/browserBinding';
 import {
   AdminSessionResponseSchema,
   AdminProfileSchema,
@@ -13,6 +15,7 @@ import {
 } from './schemas/auth.schema';
 
 const adminAuthClient = createClient(AdminAuthService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
+const adminPasskeyClient = createClient(AdminPasskeyService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 const adminProfileClient = createClient(AdminProfileService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 // ===== Admin Auth Types =====
@@ -21,6 +24,7 @@ export interface AdminSessionResponse {
   authenticated: boolean;
   email?: string;
   reset_enabled?: boolean;
+  assurance?: 'full' | 'enrollment_only';
 }
 
 export interface AdminProfile {
@@ -35,18 +39,44 @@ export interface AdminProfileUpdatePayload {
   new_password?: string;
 }
 
-export async function adminLogin(email: string, password: string, totpCode = '') {
-  return adminAuthClient.login({ email, password, totpCode }).then((resp) => {
+export async function adminLogin(email: string, password: string, totpCode = '', passkeyAssertion?: Uint8Array, passkeyCeremonyId = '') {
+  const request = { email, password, totpCode, ...(passkeyAssertion ? { passkeyAssertion, passkeyCeremonyId } : {}) };
+  return adminAuthClient.login(request, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } }).then((resp) => {
     const validated = parseOrNull(AdminSessionResponseSchema, {
       authenticated: resp.authenticated,
       ...(resp.email ? { email: resp.email } : {}),
       reset_enabled: resp.resetEnabled,
+      ...(resp.assurance ? { assurance: resp.assurance === 'enrollment_only' ? 'enrollment_only' : 'full' } : {}),
     }, 'AdminSessionResponse');
     if (!validated) {
       throw new Error('Invalid admin login response from API');
     }
     return validated;
   });
+}
+
+export async function beginAdminSecondFactor(email: string) {
+  return adminPasskeyClient.beginSecondFactor({ email }, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+}
+
+export async function listAdminPasskeys() {
+  return adminPasskeyClient.listPasskeys({}, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+}
+
+export async function beginAdminPasskeyRegistration() {
+  return adminPasskeyClient.beginRegistration({}, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+}
+
+export async function finishAdminPasskeyRegistration(credentialJson: string, ceremonyId: string, nickname = '') {
+  return adminPasskeyClient.finishRegistration({ credentialJson, ceremonyId, nickname }, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+}
+
+export async function renameAdminPasskey(id: string, nickname: string) {
+  return adminPasskeyClient.renamePasskey({ id, nickname }, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+}
+
+export async function revokeAdminPasskey(id: string) {
+  return adminPasskeyClient.revokePasskey({ id }, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
 }
 
 export async function adminLogout() {
@@ -64,12 +94,20 @@ export async function checkAdminSession() {
       authenticated: resp.authenticated,
       ...(resp.email ? { email: resp.email } : {}),
       reset_enabled: resp.resetEnabled,
+      ...(resp.assurance ? { assurance: resp.assurance === 'enrollment_only' ? 'enrollment_only' : 'full' } : {}),
     }, 'AdminSessionResponse');
     if (!validated) {
       return { authenticated: false };
     }
     return validated;
   });
+}
+
+export async function reauthenticateAdmin(password: string, totpCode = '', recoveryCode = '', passkeyAssertion?: Uint8Array, passkeyCeremonyId = '') {
+  const request = { password, totpCode, recoveryCode, ...(passkeyAssertion ? { passkeyAssertion, passkeyCeremonyId } : {}) };
+  const response = await adminAuthClient.reauthenticate(request, { headers: { 'X-Lpbs-Browser-Binding': getBrowserBinding() } });
+  if (!response.reauthenticated) throw new Error('Administrator reauthentication was not accepted');
+  return response;
 }
 
 export async function getAdminProfile() {
@@ -88,11 +126,11 @@ export async function getAdminProfile() {
 }
 
 export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
-  return adminProfileClient.updateAdminProfile({
+  return withAdminReauthentication(() => adminProfileClient.updateAdminProfile({
     currentPassword: payload.current_password,
     newEmail: payload.new_email ?? '',
     newPassword: payload.new_password ?? '',
-  }).then((resp) => {
+  })).then((resp) => {
     const profile = resp.profile;
     const validated = parseOrNull(AdminProfileSchema, profile && {
       email: profile.email,
@@ -316,6 +354,29 @@ export async function refreshUserTokens(refreshToken: string): Promise<UserAuthT
     }
     return validated;
   });
+}
+
+let refreshFlight: Promise<UserAuthTokens | null> | null = null;
+
+/** Serialize browser refreshes across tabs when navigator.locks is available. */
+export function refreshSessionOnce(): Promise<UserAuthTokens | null> {
+  const refresh = async () => {
+    try {
+      await getUserMe();
+		return null;
+    } catch (error) {
+      if (!isApiError(error, 'unauthorized')) throw error;
+      return refreshUserTokens('');
+    }
+  };
+  if (!refreshFlight) {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+		refreshFlight = locks
+		  ? locks.request('lpbs-refresh', refresh) as Promise<UserAuthTokens | null>
+      : refresh();
+		void refreshFlight.then(() => { refreshFlight = null; }, () => { refreshFlight = null; });
+  }
+  return refreshFlight;
 }
 
 /** Issue a one-use, scoped desktop-link code for the authenticated browser. */

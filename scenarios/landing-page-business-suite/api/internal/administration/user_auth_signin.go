@@ -42,6 +42,7 @@ type SignInMessage struct {
 	Code      string
 	AppName   string
 	ExpiresIn time.Duration
+	RequestID string
 }
 
 // SignInRequest starts passwordless sign-in. No user row is created until the
@@ -59,6 +60,7 @@ type SignInRequest struct {
 
 // SignInStarted describes an accepted request without revealing secrets.
 type SignInStarted struct {
+	RequestID string
 	ExpiresAt time.Time
 }
 
@@ -76,10 +78,11 @@ type SignInVerification struct {
 // SignInResult is a completed sign-in. Context is returned only to the browser
 // that started the request.
 type SignInResult struct {
-	Tokens      *TokenPair
-	User        *User
-	Context     json.RawMessage
-	SameBrowser bool
+	Tokens          *TokenPair
+	User            *User
+	Context         json.RawMessage
+	SameBrowser     bool
+	AuthenticatedAt time.Time
 }
 
 // SignInPreview lets the verify page confirm intent before consuming a link,
@@ -143,7 +146,8 @@ func (s *UserAuthService) RequestSignIn(ctx context.Context, request SignInReque
 		s.onSignInCodeGenerated(email, code)
 	}
 
-	if sendErr := s.deliverSignIn(SignInMessage{To: email, Link: link, Code: code, AppName: s.appName, ExpiresIn: s.magicLinkTTL}); sendErr != nil {
+	delivery, sendErr := s.deliverSignIn(SignInMessage{To: email, Link: link, Code: code, AppName: s.appName, ExpiresIn: s.magicLinkTTL, RequestID: requestID})
+	if sendErr != nil {
 		// A request that was never delivered cannot be completed; retire it so
 		// it does not linger as a usable credential.
 		if _, markErr := s.db.ExecContext(ctx, `
@@ -154,22 +158,43 @@ func (s *UserAuthService) RequestSignIn(ctx context.Context, request SignInReque
 		s.logError("send_magic_link_failed", map[string]interface{}{"error": sendErr.Error(), "email": email})
 		return nil, fmt.Errorf("%w: %v", ErrDeliveryUnavailable, sendErr)
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE auth_tokens SET delivery_status = 'sent' WHERE id = $1`, requestID); err != nil {
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE auth_tokens
+		SET delivery_status = 'sent', provider = $2, provider_message_id = $3
+		WHERE id = $1
+	`, requestID, nullableDeliveryProvider(delivery), nullableDeliveryMessageID(delivery)); err != nil {
 		s.logError("sign_in_delivery_mark_failed", map[string]interface{}{"error": err.Error()})
 	}
 
 	s.log("magic_link_requested", map[string]interface{}{"level": "info", "email": email})
-	return &SignInStarted{ExpiresAt: expiresAt}, nil
+	return &SignInStarted{RequestID: requestID, ExpiresAt: expiresAt}, nil
 }
 
-func (s *UserAuthService) deliverSignIn(message SignInMessage) error {
+func nullableDeliveryProvider(delivery *SignInDelivery) any {
+	if delivery == nil || strings.TrimSpace(delivery.Provider) == "" {
+		return nil
+	}
+	return delivery.Provider
+}
+
+func nullableDeliveryMessageID(delivery *SignInDelivery) any {
+	if delivery == nil || strings.TrimSpace(delivery.ProviderMessageID) == "" {
+		return nil
+	}
+	return delivery.ProviderMessageID
+}
+
+func (s *UserAuthService) deliverSignIn(message SignInMessage) (*SignInDelivery, error) {
 	switch sender := s.emailService.(type) {
 	case nil:
-		return errors.New("magic-link email provider is unavailable")
+		return nil, errors.New("magic-link email provider is unavailable")
 	case SignInMessageSender:
 		return sender.SendSignIn(message)
 	default:
-		return sender.SendMagicLink(message.To, message.Link, message.AppName)
+		if err := sender.SendMagicLink(message.To, message.Link, message.AppName); err != nil {
+			return nil, err
+		}
+		return &SignInDelivery{Provider: "unknown"}, nil
 	}
 }
 
@@ -263,7 +288,79 @@ func (s *UserAuthService) VerifySignIn(ctx context.Context, verification SignInV
 	}
 	s.log("magic_link_verified", map[string]interface{}{"level": "info", "user_id": user.ID, "email": user.Email, "method": method})
 
-	out := &SignInResult{Tokens: tokens, User: user, SameBrowser: row.bindingMatches(verification.BrowserBinding)}
+	out := &SignInResult{Tokens: tokens, User: user, SameBrowser: row.bindingMatches(verification.BrowserBinding), AuthenticatedAt: now}
+	if out.SameBrowser && len(row.context) > 0 {
+		out.Context = row.context
+	}
+	return out, nil
+}
+
+// VerifySignInCodeWithoutSession consumes a reauthentication code and proves
+// the address without creating a second browser session. The caller owns the
+// session update after comparing the returned user with its current session.
+func (s *UserAuthService) VerifySignInCodeWithoutSession(ctx context.Context, verification SignInVerification) (*User, error) {
+	row, err := s.findPendingByCode(ctx, verification.Email, verification.Code, verification.BrowserBinding)
+	if err != nil {
+		return nil, err
+	}
+	if row.usedAt.Valid {
+		return nil, ErrTokenUsed
+	}
+	if time.Now().UTC().After(row.expiresAt) {
+		return nil, ErrTokenExpired
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE auth_tokens SET used_at = NOW() WHERE id = $1 AND used_at IS NULL`, row.id)
+	if err != nil {
+		return nil, fmt.Errorf("mark reauthentication code used: %w", err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return nil, ErrTokenUsed
+	}
+	return s.userForSignIn(ctx, row)
+}
+
+// VerifySignInWithoutSession consumes a browser proof for a native grant but
+// deliberately does not create user_sessions. The session is created only
+// after the native client proves its PKCE verifier.
+func (s *UserAuthService) VerifySignInWithoutSession(ctx context.Context, verification SignInVerification) (*SignInResult, error) {
+	var row *pendingSignIn
+	var err error
+	if strings.TrimSpace(verification.Code) == "" {
+		row, err = s.findPendingByToken(ctx, verification.Token)
+	} else {
+		row, err = s.findPendingByCode(ctx, verification.Email, verification.Code, verification.BrowserBinding)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if row.usedAt.Valid {
+		return nil, ErrTokenUsed
+	}
+	if time.Now().UTC().After(row.expiresAt) {
+		return nil, ErrTokenExpired
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE auth_tokens SET used_at = NOW() WHERE id = $1 AND used_at IS NULL`, row.id)
+	if err != nil {
+		return nil, fmt.Errorf("mark native sign-in used: %w", err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return nil, ErrTokenUsed
+	}
+	user, err := s.userForSignIn(ctx, row)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE auth_tokens SET used_at = NOW() WHERE token_type = $1 AND used_at IS NULL AND id <> $2 AND (email = $3 OR user_id = $4)`, signInTokenType, row.id, user.Email, user.ID); err != nil {
+		s.logError("retire_native_sibling_sign_ins_failed", map[string]interface{}{"error": err.Error()})
+	}
+	now := time.Now().UTC()
+	if _, err := s.db.ExecContext(ctx, `UPDATE users SET email_verified = TRUE, last_login_at = NOW(), updated_at = NOW() WHERE id = $1`, user.ID); err != nil {
+		s.logError("update_user_after_native_sign_in_failed", map[string]interface{}{"error": err.Error(), "user_id": user.ID})
+	} else {
+		user.EmailVerified = true
+		user.LastLoginAt = &now
+	}
+	out := &SignInResult{User: user, SameBrowser: row.bindingMatches(verification.BrowserBinding), AuthenticatedAt: now}
 	if out.SameBrowser && len(row.context) > 0 {
 		out.Context = row.context
 	}
@@ -275,6 +372,34 @@ func (s *UserAuthService) PurgeExpiredSignIns(ctx context.Context) (int64, error
 	result, err := s.db.ExecContext(ctx, `
 		DELETE FROM auth_tokens WHERE token_type = $1 AND expires_at < NOW() - INTERVAL '1 day'
 	`, signInTokenType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// PurgeEndedUserSessions removes sessions that ended at least 30 days ago.
+// The retention period preserves recent revocation evidence while ensuring
+// ended sessions do not grow without bound.
+func (s *UserAuthService) PurgeEndedUserSessions(ctx context.Context) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `
+		DELETE FROM user_sessions
+		WHERE (revoked = TRUE OR expires_at < NOW())
+		  AND last_used_at < NOW() - INTERVAL '30 days'
+	`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// PurgeRefreshHistory removes retired refresh tokens after the maximum
+// customer session lifetime plus a safety margin.
+func (s *UserAuthService) PurgeRefreshHistory(ctx context.Context) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `
+		DELETE FROM refresh_token_history
+		WHERE retired_at < NOW() - INTERVAL '100 days'
+	`)
 	if err != nil {
 		return 0, err
 	}

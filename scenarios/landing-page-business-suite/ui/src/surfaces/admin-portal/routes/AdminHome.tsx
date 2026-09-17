@@ -36,6 +36,9 @@ export function AdminHome() {
     healthLoading,
     stripeSettings,
     stripeLoading,
+    emailReadiness,
+    emailReadinessLoading,
+    deliveryReport,
     resettingDemoData,
     resetMessage,
     resetError,
@@ -93,6 +96,21 @@ export function AdminHome() {
             </Button>
           </div>
         </div>
+
+        <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-5" aria-label="Sign-in email readiness" data-testid="admin-email-readiness">
+          <div className="flex items-center justify-between gap-4">
+            <div><h2 className="text-lg font-semibold text-white">Sign-in email readiness</h2><p className="text-sm text-slate-400">Read-only DNS and webhook checks</p></div>
+            <span className="text-xs text-slate-500">{emailReadinessLoading ? 'Checking…' : `${emailReadiness?.Checks.filter((check) => check.Status === 'pass').length ?? 0} checks passing`}</span>
+          </div>
+          {!emailReadinessLoading && <div className="mt-4 flex flex-wrap gap-2">{emailReadiness?.Checks.map((check) => <span key={check.Name} className={`rounded-full px-3 py-1 text-xs ${check.Status === 'pass' ? 'bg-emerald-500/20 text-emerald-200' : check.Status === 'warn' ? 'bg-amber-500/20 text-amber-200' : 'bg-rose-500/20 text-rose-200'}`}>{check.Name}: {check.Status}</span>)}</div>}
+          {deliveryReport?.delivery_24h && <>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-6">{(['sent', 'failed', 'delivered', 'bounced', 'deferred', 'dropped'] as const).map((key) => <div key={key}><dt className="text-slate-500">{key}</dt><dd className="text-lg font-semibold text-white">{deliveryReport.delivery_24h?.[key] ?? 0}</dd></div>)}</dl>
+            <dl className="mt-4 grid gap-2 text-sm text-slate-400 md:grid-cols-2">
+              <div><dt className="text-slate-500">Last webhook event</dt><dd>{deliveryReport.delivery_24h.last_webhook_event ? new Date(deliveryReport.delivery_24h.last_webhook_event).toLocaleString() : 'None recorded'}</dd></div>
+              <div><dt className="text-slate-500">Last delivery error</dt><dd>{deliveryReport.delivery_24h.last_error || 'None recorded'}</dd></div>
+            </dl>
+          </>}
+        </section>
 
         {/* Quick Flows - One per dropdown group */}
         <div className="mb-8" data-testid="admin-quick-flows">

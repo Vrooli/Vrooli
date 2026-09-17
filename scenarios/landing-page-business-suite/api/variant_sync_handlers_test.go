@@ -89,7 +89,7 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
 	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
@@ -132,7 +132,7 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	t.Setenv("VARIANT_SNAPSHOT_DIR", filePath)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
 	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)

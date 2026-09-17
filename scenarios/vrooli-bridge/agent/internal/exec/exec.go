@@ -232,29 +232,30 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		_ = emit(statusEvent("error: " + runErr.Error()))
 		exitCode = startFailureExitCode
 	}
-	if exitCode == 0 {
-		for _, output := range outputs {
-			data, readErr := os.ReadFile(output.path)
-			if readErr != nil {
-				_ = emit(statusEvent("artifact upload failed: " + readErr.Error()))
-				return emit(exitEvent(startFailureExitCode))
-			}
-			if output.maxBytes > 0 && int64(len(data)) > output.maxBytes {
-				_ = emit(statusEvent(fmt.Sprintf("artifact %q exceeds its byte limit", output.name)))
-				return emit(exitEvent(rejectExitCode))
-			}
-			if r.uploader == nil {
-				_ = emit(statusEvent("artifact upload failed: no uploader configured"))
-				return emit(exitEvent(startFailureExitCode))
-			}
-			ref, uploadErr := r.uploader.Upload(runCtx, job.GetRunId(), output.name, output.mediaType, data)
-			if uploadErr != nil {
-				_ = emit(statusEvent("artifact upload failed: " + uploadErr.Error()))
-				return emit(exitEvent(startFailureExitCode))
-			}
-			if err := emit(&sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, ArtifactRef: ref}); err != nil {
-				return err
-			}
+	// Upload declared evidence even when the command exits non-zero. Validation
+	// evidence is intentionally diagnostic: a failed launch must still publish
+	// its digest, target facts, and failure trace for the release gate.
+	for _, output := range outputs {
+		data, readErr := os.ReadFile(output.path)
+		if readErr != nil {
+			_ = emit(statusEvent("artifact upload failed: " + readErr.Error()))
+			return emit(exitEvent(startFailureExitCode))
+		}
+		if output.maxBytes > 0 && int64(len(data)) > output.maxBytes {
+			_ = emit(statusEvent(fmt.Sprintf("artifact %q exceeds its byte limit", output.name)))
+			return emit(exitEvent(rejectExitCode))
+		}
+		if r.uploader == nil {
+			_ = emit(statusEvent("artifact upload failed: no uploader configured"))
+			return emit(exitEvent(startFailureExitCode))
+		}
+		ref, uploadErr := r.uploader.Upload(runCtx, job.GetRunId(), output.name, output.mediaType, data)
+		if uploadErr != nil {
+			_ = emit(statusEvent("artifact upload failed: " + uploadErr.Error()))
+			return emit(exitEvent(startFailureExitCode))
+		}
+		if err := emit(&sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, ArtifactRef: ref}); err != nil {
+			return err
 		}
 	}
 	return emit(exitEvent(exitCode))

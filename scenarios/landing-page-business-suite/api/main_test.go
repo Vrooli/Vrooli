@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"landing-page-business-suite-api/internal/emailreadiness"
 	"landing-page-business-suite-api/internal/logx"
 
 	"github.com/vrooli/api-core/health"
@@ -33,7 +35,7 @@ func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
 		"subscriptions", "subscription_schedules", "bundle_products", "bundle_prices",
 		"download_apps", "download_assets", "download_artifacts", "credit_wallets",
 		"credit_transactions", "payment_settings", "usage_records", "credit_reservations",
-		"api_keys", "users", "auth_tokens", "user_sessions", "payment_anomaly_log",
+		"api_keys", "users", "auth_tokens", "user_sessions", "native_auth_grants", "auth_email_events", "auth_alert_log", "payment_anomaly_log",
 		"business_accounts", "business_account_members", "desktop_link_authorizations",
 		"desktop_account_links", "desktop_link_audit", "business_account_credit_wallets",
 		"business_account_credit_transactions",
@@ -107,6 +109,21 @@ func TestHealthEndpoint(t *testing.T) {
 			t.Fatalf("expected database dependency marked disconnected")
 		}
 	})
+}
+
+// TestSignInEmailDNSCheckSkipsDeployedSendingGateOutsideProduction pins the
+// environment gate: a local instance serves on a loopback origin and cannot
+// align a real From domain or publish DKIM, so this deployed-sending check must
+// not degrade non-production health and drive recovery churn.
+func TestSignInEmailDNSCheckSkipsDeployedSendingGateOutsideProduction(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	t.Setenv("VROOLI_ENVIRONMENT", "")
+
+	srv := &Server{emailReadinessService: emailreadiness.New(nil)}
+	result := srv.signInEmailDNSCheck().Check(context.Background())
+	if !result.Connected || result.Error != nil {
+		t.Fatalf("non-production email DNS check must not fail health: connected=%v err=%v", result.Connected, result.Error)
+	}
 }
 
 // NOTE: TestParseEnvBool has been removed - parseEnvBool function was deleted

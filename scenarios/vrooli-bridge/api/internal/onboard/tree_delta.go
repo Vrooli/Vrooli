@@ -139,11 +139,21 @@ func planTreeDelta(files []string, entries map[string]string, prev shipRecord, h
 		return delta
 	}
 	for _, file := range files {
-		if fingerprint, ok := entries[file]; !ok || fingerprint != prev.Entries[file] {
+		if fingerprint, ok := entries[file]; !ok || fingerprint != prev.Entries[file] || mustRefreshOnEveryShip(file) {
 			delta.Transfer = append(delta.Transfer, file)
 		}
 	}
 	return delta
+}
+
+// setup materializes the selected Proto artifact over packages/proto/gen. That
+// node-owned mutation can make a previously delivered working-tree file stale
+// without changing the Bridge ship record. Re-send the Go contracts on every
+// working-tree ship so setup cannot hide the operator's dirty contract from the
+// next bootstrap/build.
+func mustRefreshOnEveryShip(file string) bool {
+	const prefix = "packages/proto/gen/go/"
+	return strings.HasPrefix(filepath.ToSlash(file), prefix)
 }
 
 // safeShipPath accepts only a clean relative path inside the checkout. Records
@@ -195,6 +205,30 @@ func buildTreeProbeCommand(destDir, targetOS string) string {
 		return windowsTreeCommand(destDir, `New-Item -ItemType Directory -Force -Path $dest | Out-Null; Get-ChildItem -Force -LiteralPath $parent -Directory -Filter ('.'+$base+'.bridge-*') | Remove-Item -Recurse -Force; [Console]::WriteLine('`+syncDestMarker+`'+$dest); if(Test-Path -LiteralPath $marker){[Console]::WriteLine('`+syncDigestMarker+`'+(Get-Content -Raw -LiteralPath $marker).Trim())}`)
 	}
 	return posixTreePrelude(destDir) + `; mkdir -p "$dest" && find "$parent" -maxdepth 1 -type d \( -name ".$base.bridge-sync-*" -o -name ".$base.bridge-old-*" \) -exec rm -rf {} + ; printf '` + syncDestMarker + `%s\n' "$dest"; if [ -f "$marker" ]; then printf '` + syncDigestMarker + `%s\n' "$(cat "$marker")"; fi`
+}
+
+// buildTreeCleanStaleCommand removes non-ignored files from a target checkout
+// before an authoritative working-tree ship. It first removes the old index
+// entries from Git's view; otherwise git clean cannot remove tracked files from
+// an older source layout. It deliberately never uses -x, so ignored node-owned
+// data is preserved.
+func buildTreeCleanStaleCommand(destDir, targetOS string) string {
+	if targetOS == "windows" {
+		return windowsTreeCommand(destDir, `if(Test-Path -LiteralPath (Join-Path $dest '.git')){ git -C $dest rm -r --cached --quiet . ':!.gitignore' ':!*/.gitignore'; git -C $dest clean -fd --quiet }`)
+	}
+	return posixTreePrelude(destDir) + `; if git -C "$dest" rev-parse --is-inside-work-tree >/dev/null 2>&1; then git -C "$dest" rm -r --cached --quiet . ':!.gitignore' ':!*/.gitignore'; git -C "$dest" clean -fd --quiet; fi`
+}
+
+// buildTreeReconcileStaleCommand removes tracked files from an older source
+// layout after the current full snapshot has been extracted. git clean alone
+// cannot remove those files because they are still tracked by the target's
+// previous index; staging the received tree first turns obsolete paths into
+// untracked files. Ignored node-owned files are never staged or cleaned.
+func buildTreeReconcileStaleCommand(destDir, targetOS string) string {
+	if targetOS == "windows" {
+		return windowsTreeCommand(destDir, `if(Test-Path -LiteralPath (Join-Path $dest '.git')){ git -C $dest add -A -- .; git -C $dest clean -fd --quiet }`)
+	}
+	return posixTreePrelude(destDir) + `; if git -C "$dest" rev-parse --is-inside-work-tree >/dev/null 2>&1; then git -C "$dest" add -A -- . && git -C "$dest" clean -fd --quiet; fi`
 }
 
 // buildTreeDeleteCommand removes the NUL-separated relative paths on stdin and

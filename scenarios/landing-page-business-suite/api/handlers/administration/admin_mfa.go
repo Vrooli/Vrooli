@@ -23,12 +23,18 @@ type AdminMFAService interface {
 }
 
 type AdminMFADependencies struct {
-	MFA        AdminMFAService
-	AdminEmail func(*http.Request) (string, bool)
-	IsService  func(*http.Request) bool
-	WriteError func(http.ResponseWriter, int, string, string)
-	Log        func(string, map[string]any)
-	LogError   func(string, map[string]any)
+	MFA                 AdminMFAService
+	AdminEmail          func(*http.Request) (string, bool)
+	IsService           func(*http.Request) bool
+	WriteError          func(http.ResponseWriter, int, string, string)
+	Log                 func(string, map[string]any)
+	LogError            func(string, map[string]any)
+	RevokeOtherSessions func(context.Context, string, string) (int64, error)
+	CurrentSessionID    func(*http.Request) string
+	PromoteSession      func(context.Context, string, string) (string, error)
+	Sessions            SessionManager
+	SecurityEvents      SecurityEvents
+	Notifier            SecurityNotifier
 }
 
 type mfaCodeRequest struct {
@@ -70,6 +76,27 @@ func ConfirmAdminMFAEnrollment(deps AdminMFADependencies) http.HandlerFunc {
 			return
 		}
 		deps.Log("admin_mfa_enabled", map[string]any{"email": email})
+		deps.recordSecurityEvent(r, "mfa_enrolled", email, nil)
+		deps.notify(r, email, "mfa_enrolled", "Two-factor authentication was enabled for your administrator account.")
+		if deps.PromoteSession != nil && deps.Sessions != nil {
+			current := ""
+			if deps.CurrentSessionID != nil {
+				current = deps.CurrentSessionID(r)
+			}
+			if current != "" {
+				rotated, rotateErr := deps.PromoteSession(r.Context(), current, email)
+				if rotateErr != nil {
+					deps.LogError("admin_session_rotation_after_mfa_failed", map[string]any{"error": rotateErr.Error()})
+					deps.WriteError(w, http.StatusServiceUnavailable, "Unable to complete administrator session upgrade.", "server_error")
+					return
+				}
+				session, _ := deps.Sessions.GetSession(r, sessionName)
+				session.Values["session_id"] = rotated
+				if saveErr := deps.Sessions.SaveSession(r, w, session); saveErr != nil {
+					deps.LogError("admin_session_save_after_mfa_failed", map[string]any{"error": saveErr.Error()})
+				}
+			}
+		}
 		writeMFAJSON(w, map[string]any{"enabled": true, "recovery_codes": codes})
 	})
 }
@@ -81,7 +108,19 @@ func DisableAdminMFA(deps AdminMFADependencies) http.HandlerFunc {
 			writeMFAError(w, deps, err, "admin_mfa_disable_failed")
 			return
 		}
+		if len(strings.TrimSpace(code)) != 6 {
+			deps.recordSecurityEvent(r, "recovery_code_used", email, nil)
+		}
 		deps.Log("admin_mfa_disabled", map[string]any{"level": "warn", "email": email})
+		deps.recordSecurityEvent(r, "mfa_disabled", email, nil)
+		deps.notify(r, email, "mfa_disabled", "Two-factor authentication was disabled for your administrator account.")
+		if deps.RevokeOtherSessions != nil {
+			current := ""
+			if deps.CurrentSessionID != nil {
+				current = deps.CurrentSessionID(r)
+			}
+			_, _ = deps.RevokeOtherSessions(r.Context(), email, current)
+		}
 		writeMFAJSON(w, map[string]any{"enabled": false})
 	})
 }
@@ -94,7 +133,19 @@ func RegenerateAdminRecoveryCodes(deps AdminMFADependencies) http.HandlerFunc {
 			writeMFAError(w, deps, err, "admin_mfa_recovery_regenerate_failed")
 			return
 		}
+		if len(strings.TrimSpace(code)) != 6 {
+			deps.recordSecurityEvent(r, "recovery_code_used", email, nil)
+		}
 		deps.Log("admin_mfa_recovery_codes_regenerated", map[string]any{"email": email})
+		deps.recordSecurityEvent(r, "recovery_codes_regenerated", email, nil)
+		deps.notify(r, email, "recovery_codes_regenerated", "Your administrator recovery codes were regenerated.")
+		if deps.RevokeOtherSessions != nil {
+			current := ""
+			if deps.CurrentSessionID != nil {
+				current = deps.CurrentSessionID(r)
+			}
+			_, _ = deps.RevokeOtherSessions(r.Context(), email, current)
+		}
 		writeMFAJSON(w, map[string]any{"recovery_codes": codes})
 	})
 }
@@ -121,7 +172,31 @@ func ResetAdminMFA(deps AdminMFADependencies) http.HandlerFunc {
 			return
 		}
 		deps.Log("admin_mfa_reset_by_operator", map[string]any{"level": "warn", "email": request.Email})
+		deps.recordSecurityEvent(r, "mfa_reset", strings.TrimSpace(request.Email), nil)
+		deps.notify(r, strings.TrimSpace(request.Email), "mfa_reset", "Two-factor authentication was reset by an operator.")
+		if deps.RevokeOtherSessions != nil {
+			_, _ = deps.RevokeOtherSessions(r.Context(), strings.TrimSpace(request.Email), "")
+		}
 		writeMFAJSON(w, map[string]any{"enabled": false})
+	}
+}
+
+func (deps AdminMFADependencies) recordSecurityEvent(r *http.Request, event, email string, detail map[string]any) {
+	if deps.SecurityEvents == nil {
+		return
+	}
+	id := ""
+	if deps.CurrentSessionID != nil {
+		id = deps.CurrentSessionID(r)
+	}
+	_ = deps.SecurityEvents.Record(r.Context(), event, email, id, r.RemoteAddr, r.UserAgent(), detail)
+}
+
+func (deps AdminMFADependencies) notify(r *http.Request, email, event, detail string) {
+	if deps.Notifier != nil {
+		if err := deps.Notifier.Notify(r.Context(), email, event, detail); err != nil {
+			deps.recordSecurityEvent(r, event, email, map[string]any{"notify_failed": err.Error()})
+		}
 	}
 }
 

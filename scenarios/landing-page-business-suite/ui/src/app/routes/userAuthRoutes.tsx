@@ -19,6 +19,7 @@ const VerifyMagicLink = lazy(() =>
     default: module.VerifyMagicLink,
   }))
 );
+const AccountSecurity = lazy(() => import('../../surfaces/account-security/AccountSecurity'));
 
 function AppRoute({ name, children }: { name: string; children: ReactNode }) {
   return (
@@ -35,5 +36,6 @@ export const userAuthRoutes = (
     <Route path="/admin/login" element={<AppRoute name="AdminLogin"><AdminLogin /></AppRoute>} />
     <Route path="/auth/login" element={<AppRoute name="UserLogin"><UserLogin /></AppRoute>} />
     <Route path="/auth/verify" element={<AppRoute name="VerifyMagicLink"><VerifyMagicLink /></AppRoute>} />
+    <Route path="/account/security" element={<AppRoute name="AccountSecurity"><AccountSecurity /></AppRoute>} />
   </>
 );

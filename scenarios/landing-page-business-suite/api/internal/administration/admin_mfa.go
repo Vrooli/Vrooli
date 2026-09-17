@@ -98,18 +98,19 @@ func (m *AdminMFA) Status(ctx context.Context, email string) (*AdminMFAStatus, e
 
 // Enabled reports whether an administrator must present a second factor.
 func (m *AdminMFA) Enabled(ctx context.Context, email string) (bool, error) {
-	var enabledAt sql.NullTime
-	err := m.store.QueryRowContext(ctx, `SELECT totp_enabled_at FROM admin_users WHERE email = $1`, email).Scan(&enabledAt)
+	var enabled bool
+	err := m.store.QueryRowContext(ctx, `SELECT (totp_enabled_at IS NOT NULL OR EXISTS (SELECT 1 FROM admin_passkeys p WHERE p.admin_id = admin_users.id AND p.revoked_at IS NULL)) FROM admin_users WHERE email = $1`, email).Scan(&enabled)
 	if err != nil {
 		return false, err
 	}
-	return enabledAt.Valid, nil
+	return enabled, nil
 }
 
 // BeginEnrollment creates a pending secret. It does not change login policy
 // until ConfirmEnrollment proves the authenticator app produces valid codes.
 func (m *AdminMFA) BeginEnrollment(ctx context.Context, email string) (*AdminMFAEnrollment, error) {
-	enabled, err := m.Enabled(ctx, email)
+	var enabled bool
+	err := m.store.QueryRowContext(ctx, `SELECT totp_enabled_at IS NOT NULL FROM admin_users WHERE email = $1`, email).Scan(&enabled)
 	if err != nil {
 		return nil, err
 	}

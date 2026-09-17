@@ -104,6 +104,9 @@ func TestApplySendsCapabilityDocumentWithoutArgvJSON(t *testing.T) {
 	if !strings.Contains(runner.command, `PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$PATH"`) {
 		t.Fatalf("command does not expose runtime bins to auto-start: %q", runner.command)
 	}
+	if strings.Contains(runner.command, "scenario restart vrooli-onboarding") {
+		t.Fatalf("apply command must not restart the target onboarding service before the durable commit: %q", runner.command)
+	}
 	if strings.Contains(runner.command, `"alpha"`) || strings.Contains(runner.command, "ollama") {
 		t.Fatalf("selection JSON leaked into command argv: %q", runner.command)
 	}

@@ -56,6 +56,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -338,6 +339,13 @@ func NewServer(port int) *Server {
 	systemBuildStore := &systemBuildStoreAdapter{store: buildStore}
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
 	configAnalyzer := generation.NewAnalyzer(vrooliRoot)
+	bridgeClient := validationmatrix.NewClient("", os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil,
+		validationmatrix.WithPlatform("desktop"),
+		validationmatrix.WithTokenProvider(operatorsession.LocalOwnerTokenProvider()))
+	if strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")) == "" {
+		logger.Warn("remote desktop validation uses local owner-session credentials; configure VROOLI_BRIDGE_API_TOKEN or enroll this host if unavailable")
+	}
+	validationMatrixHandler, validationMatrixService := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
 
 	pipelineDeps := pipelineInitDeps{
 		scenarioRoot:         scenarioRoot,
@@ -352,12 +360,15 @@ func NewServer(port int) *Server {
 		buildStore:           buildStore,
 		smokeTestService:     smokeTestService,
 		smokeTestStore:       smokeTestStore,
+		validationMatrix:     validationMatrixService,
+		validationTargets:    bridgeClient,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
 	stagingRoot, stagingErr := storePaths.StagingRoot()
 	if stagingErr == nil {
 		stagingErr = startStagingRetention(lifecycleCtx, filepath.Join(scenarioRoot, "scenario-to-desktop", ".vrooli", "service.json"), stagingRoot,
-			pipeline.StagingRetention{Status: pipelineOrchestrator.GetStatus, KeepLatest: 1,
+			pipeline.StagingRetention{
+				Status: pipelineOrchestrator.GetStatus, KeepLatest: 1,
 				InUse: func(app, path string) bool {
 					if smokeTestStore.HasActiveForScenario(app) {
 						return true
@@ -377,14 +388,13 @@ func NewServer(port int) *Server {
 						}
 					}
 					return false
-				}}, logger)
+				},
+			}, logger)
 	}
 	if stagingErr != nil {
 		logger.Error("desktop staging retention unavailable", "error", stagingErr)
 		return nil
 	}
-	bridgeClient := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("desktop"))
-	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
 	targetInventoryHandler := deliveryramp.NewTargetInventoryHandler(desktopprobe.Prober{}, bridgeClient)
 
 	// ===== Task Orchestration Service =====
@@ -467,6 +477,10 @@ type pipelineInitDeps struct {
 	buildStore           build.Store
 	smokeTestService     smoketest.Service
 	smokeTestStore       smoketest.Store
+	validationMatrix     *validationmatrix.Service
+	validationTargets    interface {
+		Discover(context.Context) ([]deliveryramp.Target, error)
+	}
 }
 
 // initPipelineStack wires up the pipeline orchestrator, manager, handler, and the
@@ -512,6 +526,8 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 		pipeline.NewSmokeTestStage(
 			pipeline.WithSmokeTestService(deps.smokeTestService),
 			pipeline.WithSmokeTestStore(deps.smokeTestStore),
+			pipeline.WithValidationMatrix(deps.validationMatrix),
+			pipeline.WithValidationTargetDiscovery(deps.validationTargets),
 		),
 		pipeline.NewDeployStage(
 			pipeline.WithDeployTargetRepo(deployTargetRepo),
@@ -563,16 +579,16 @@ func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger)
 	return store
 }
 
-func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.CellTransport, scenarioRoot string) *validationmatrix.Handler {
+func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.CellTransport, scenarioRoot string) (*validationmatrix.Handler, *validationmatrix.Service) {
 	dataDir, err := storePaths.EnsureValidationMatrixDir()
 	if err != nil {
 		logger.Warn("validation matrix storage directory unavailable", "error", err)
-		return nil
+		return nil, nil
 	}
 	store, err := validationmatrix.NewFileStore(dataDir)
 	if err != nil {
 		logger.Warn("validation matrix store unavailable", "error", err)
-		return nil
+		return nil, nil
 	}
 	var options []validationmatrix.ServiceOption
 	options = append(options, validationmatrix.WithCatalogResolver(validationcatalog.NewWorkflowHealthResolver()))
@@ -590,7 +606,7 @@ func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.L
 	if recovered := service.RecoverStale(); recovered > 0 {
 		logger.Info("recovered stale validation matrix runs", "count", recovered)
 	}
-	return validationmatrix.NewHandler(service)
+	return validationmatrix.NewHandler(service), service
 }
 
 func newPipelineIndexStore(storePaths *storagepaths.Locator, logger *slog.Logger) *pipeline.ScenarioIndexStore {

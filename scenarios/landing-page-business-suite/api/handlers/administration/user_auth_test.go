@@ -18,19 +18,29 @@ func TestSetAndClearAuthCookiesPreserveSecurityAttributes(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	SetAuthCookies(recorder, pair, true, now)
 	cookies := recorder.Result().Cookies()
-	if len(cookies) != 2 {
-		t.Fatalf("cookies = %d, want 2", len(cookies))
+	if len(cookies) != 3 {
+		t.Fatalf("cookies = %d, want 3", len(cookies))
 	}
-	if cookies[0].Name != "access_token" || !cookies[0].HttpOnly || !cookies[0].Secure || cookies[0].SameSite != http.SameSiteLaxMode {
+	if cookies[0].Name != "__Host-access_token" || !cookies[0].HttpOnly || !cookies[0].Secure || cookies[0].SameSite != http.SameSiteLaxMode {
 		t.Fatalf("access cookie = %#v", cookies[0])
 	}
-	if cookies[1].Name != "refresh_token" || cookies[1].Path != "/api/v1/auth" || !cookies[1].HttpOnly || !cookies[1].Secure {
+	if cookies[1].Name != "__Secure-refresh_token" || cookies[1].Path != "/api/v1/auth" || !cookies[1].HttpOnly || !cookies[1].Secure {
 		t.Fatalf("refresh cookie = %#v", cookies[1])
 	}
 
 	recorder = httptest.NewRecorder()
 	ClearAuthCookies(recorder, true)
-	for _, cookie := range recorder.Result().Cookies() {
+	cleared := recorder.Result().Cookies()
+	if len(cleared) != 3 {
+		t.Fatalf("cleared cookies = %d, want 3", len(cleared))
+	}
+	for _, cookie := range cleared {
+		if cookie.Name == "__Host-lpbs_session_hint" {
+			if cookie.MaxAge >= 0 || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+				t.Fatalf("cleared hint cookie = %#v", cookie)
+			}
+			continue
+		}
 		if cookie.MaxAge >= 0 || !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
 			t.Fatalf("cleared cookie = %#v", cookie)
 		}
@@ -140,7 +150,7 @@ func TestVerifyMagicLinkReturnsContextOnlyWithResult(t *testing.T) {
 	}}
 	recorder := httptest.NewRecorder()
 	VerifyMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/verify", strings.NewReader(`{"token":"tok","browser_binding":"binding-binding-binding"}`)))
-	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"context":{"app":"x"}`) || len(recorder.Result().Cookies()) != 2 {
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"context":{"app":"x"}`) || len(recorder.Result().Cookies()) != 3 {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
@@ -185,5 +195,8 @@ func (s userAuthStub) VerifySignIn(_ context.Context, v admin.SignInVerification
 	return s.verify(v)
 }
 func (userAuthStub) RefreshTokens(context.Context, string) (*admin.TokenPair, error) { return nil, nil }
-func (userAuthStub) Logout(context.Context, string) error                            { return nil }
-func (userAuthStub) GetUserByID(context.Context, string) (*admin.User, error)        { return nil, nil }
+func (userAuthStub) RefreshTokensFromSource(context.Context, string, admin.RefreshSource) (*admin.TokenPair, error) {
+	return nil, nil
+}
+func (userAuthStub) Logout(context.Context, string) error                     { return nil }
+func (userAuthStub) GetUserByID(context.Context, string) (*admin.User, error) { return nil, nil }

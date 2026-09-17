@@ -658,8 +658,8 @@ func TestSetAuthCookies_Attributes(t *testing.T) {
 	setAuthCookies(w, tokenPair)
 
 	cookies := w.Result().Cookies()
-	if len(cookies) != 2 {
-		t.Errorf("Expected 2 cookies, got %d", len(cookies))
+	if len(cookies) != 3 {
+		t.Errorf("Expected 3 cookies, got %d", len(cookies))
 	}
 
 	// Find access token cookie
@@ -711,8 +711,8 @@ func TestClearAuthCookies(t *testing.T) {
 	clearAuthCookies(w)
 
 	cookies := w.Result().Cookies()
-	if len(cookies) != 2 {
-		t.Errorf("Expected 2 cookies to be cleared, got %d", len(cookies))
+	if len(cookies) != 3 {
+		t.Errorf("Expected 3 cookies to be cleared, got %d", len(cookies))
 	}
 
 	for _, c := range cookies {

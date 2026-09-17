@@ -6,6 +6,8 @@ import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import { useAdminAuth } from '../../../app/providers/useAdminAuth';
 import { isApiError } from '../../../shared/api';
 import { CodeInput } from '../../user-auth/components/CodeInput';
+import { beginAdminSecondFactor } from '../../../shared/api';
+import { credentialToJSON, isPasskeySupported, toRequestOptions } from '../../user-auth/lib/webauthn';
 
 type LoginFailure = { message: string; kind: 'auth' | 'locked' | 'network' | 'server' };
 
@@ -57,13 +59,18 @@ export function AdminLogin() {
   const [recoveryCode, setRecoveryCode] = useState('');
   const [failure, setFailure] = useState<LoginFailure | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  const attempt = async (secondFactor = '') => {
+  const attempt = async (secondFactor = '', passkeyAssertion?: Uint8Array, passkeyCeremonyId = '') => {
     setFailure(null);
     setIsLoading(true);
     try {
-      await login(email.trim(), password, secondFactor);
+      if (passkeyAssertion && passkeyCeremonyId) {
+        await login(email.trim(), password, secondFactor, passkeyAssertion, passkeyCeremonyId);
+      } else {
+        await login(email.trim(), password, secondFactor);
+      }
       navigate('/admin');
     } catch (err) {
       const outcome = describeLoginError(err, secondFactor ? 'second-factor' : 'credentials');
@@ -76,6 +83,26 @@ export function AdminLogin() {
       if (secondFactor) setCode('');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const signInWithPasskey = async () => {
+    if (!isPasskeySupported()) {
+      setFailure({ kind: 'auth', message: 'This browser does not support passkeys.' });
+      return;
+    }
+    setFailure(null);
+    setPasskeyLoading(true);
+    try {
+      const started = await beginAdminSecondFactor(email.trim());
+      const credential = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialRequestOptions });
+      if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey assertion was returned.');
+      await attempt('', new TextEncoder().encode(JSON.stringify(credentialToJSON(credential))), started.ceremonyId);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') return;
+      setFailure({ kind: 'auth', message: 'That passkey was not accepted. Try again or use another second factor.' });
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -162,6 +189,11 @@ export function AdminLogin() {
           >
             {isLoading ? <><span className="site-spinner" aria-hidden="true" />Verifying…</> : <>Verify and sign in<ArrowRight aria-hidden="true" /></>}
           </button>
+          {isPasskeySupported() && !useRecovery && (
+            <button type="button" className="auth-link auth-toggle" onClick={() => { void signInWithPasskey(); }} disabled={isLoading || passkeyLoading} data-testid="admin-passkey-sign-in">
+              <KeyRound aria-hidden="true" />{passkeyLoading ? 'Checking passkey…' : 'Use a passkey instead'}
+            </button>
+          )}
           <button
             type="button"
             className="auth-link auth-toggle"

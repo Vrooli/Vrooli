@@ -22,7 +22,28 @@ This document covers security architecture, configuration, and best practices fo
 8. [Production Security Checklist](#production-security-checklist)
 9. [Common Vulnerabilities](#common-vulnerabilities)
 
+Sign-in mail is sent with SendGrid tracking disabled (`lpbs-auth` category and
+request correlation argument) and records the provider message ID. SMTP
+fallback uses a 10-second dial limit and a 20-second protocol deadline; it
+requires TLS before authenticating and supports implicit TLS on port 465.
+The hourly authentication janitor retains recent investigation data while
+purging expired sign-in requests, ended customer sessions, refresh history
+older than 100 days, and administrator sessions expired for more than one day.
+
 ---
+
+## SendGrid delivery event security
+
+`POST /api/v1/webhooks/sendgrid` is a provider-owned REST exception. LPBS caps
+the raw body at 1 MiB, verifies the recent ECDSA signature over the exact
+`timestamp || body` bytes before JSON parsing, rejects invalid requests with
+401, and stores event IDs idempotently. Browser delivery status is scoped to the
+email plus browser-binding hash and exposes only normalized statuses and reason
+classes; raw provider bounce text remains server-side.
+
+The webhook public key is an optional operator credential (`sendgrid-webhook-public-key`)
+resolved through the credential authority. DNS readiness is read-only and
+degrades health rather than preventing the API from serving.
 
 ## Authentication Architecture
 
@@ -68,6 +89,32 @@ local storage. It never authenticates on its own; it limits code entry and app
 context to the browser that started sign-in. Failures carry a stable `reason`
 (`token_expired`, `token_used`, `token_invalid`, `code_invalid`,
 `rate_limited`, `delivery_unavailable`).
+
+### Google sign-in hand-off
+
+Google sign-in is planned in `scenario-authenticator`, not implemented as an
+LPBS-local provider. When enabled, `scenario-authenticator` is the relying
+party for the OAuth/OIDC callback, CSRF state, verified provider identity, and
+external-account link. LPBS receives only the verified principal through the
+typed relying-party boundary and remains authoritative for business-account
+membership, subscriptions, entitlements, and product sessions.
+
+Linking is explicit and scoped: a matching email is only a candidate for user
+review, never proof of ownership; the user must approve the link while
+authenticated; provider subject plus issuer, realm, and audience are stored as
+the external identity; and unlinking or revocation must not delete the LPBS
+business account. LPBS must not store Google refresh tokens, provider
+passwords, or raw OAuth callbacks.
+
+### Passkeys and administrator second factors
+
+LPBS is the WebAuthn relying party for its website RP ID (`vrooli.com` in
+production). Customer passkeys support passwordless browser sign-in and
+recent-authentication step-up. Administrator passkeys are an additional
+second factor alongside TOTP and recovery codes; enrollment, login, and
+reauthentication use one-use, browser-bound ceremonies and durable credential
+records. Production rollout requires `ADMIN_REQUIRE_MFA=true` and a first
+administrator second-factor enrollment.
 
 ### Desktop account-link endpoints
 
@@ -686,3 +733,25 @@ landing-page-business-suite fixture-zero --email user@example.test
 
 The server also requires a loopback request host and refuses these routes in
 production. The CLI rejects non-loopback API bases before making a request.
+# Native authorization exchange
+
+`POST /api/v1/auth/token` accepts the unchanged `{code, code_verifier,
+redirect_uri}` shape. Codes are durable, hashed, one-use grants; exchanges are
+limited to 8 KiB and throttled per client IP. The code is burned before redirect
+or PKCE validation, so verifier mistakes cannot be guessed repeatedly.
+## Administrator session hardening
+
+Administrator cookies are only hints: every request must resolve a live
+server-side `admin_sessions` row and pass its absolute expiry, idle timeout and
+assurance policy. Production defaults `ADMIN_REQUIRE_MFA=true`; an unenrolled
+administrator receives an `enrollment_only` session that can reach only the
+explicit MFA enrollment allow-list. Sensitive credential, payment, API-key,
+remote-profile, download, pricing and MFA-management operations require a
+recent password plus TOTP or recovery-code proof through
+`AdminAuthService.Reauthenticate` (default 10 minutes, bounded to 5–30).
+Service-principal routes use their separate machine credential and do not use
+browser step-up.
+
+The `admin_security_events` table stores hashed session identifiers and is
+retained for 400 days. Security notifications are tracking-free and failures
+never block the security action.

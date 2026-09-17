@@ -15,9 +15,10 @@ import (
 )
 
 type Dependencies struct {
-	Repository domain.Repository
-	UserID     func(context.Context) string
-	UserEmail  func(context.Context) string
+	Repository        domain.Repository
+	UserID            func(context.Context) string
+	UserEmail         func(context.Context) string
+	RequireRecentAuth func(http.HandlerFunc) http.HandlerFunc
 }
 
 type createRequest struct {
@@ -26,7 +27,13 @@ type createRequest struct {
 
 func RegisterRoutes(router *mux.Router, deps Dependencies, requireUserAuth func(http.HandlerFunc) http.HandlerFunc) {
 	router.HandleFunc("/api/v1/business-accounts", requireUserAuth(list(deps))).Methods(http.MethodGet)
-	router.HandleFunc("/api/v1/business-accounts", requireUserAuth(create(deps))).Methods(http.MethodPost)
+	createHandler := create(deps)
+	if deps.RequireRecentAuth != nil {
+		createHandler = deps.RequireRecentAuth(createHandler)
+	} else {
+		createHandler = requireUserAuth(createHandler)
+	}
+	router.HandleFunc("/api/v1/business-accounts", createHandler).Methods(http.MethodPost)
 }
 
 func list(deps Dependencies) http.HandlerFunc {

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -20,15 +21,18 @@ const sessionName = "admin_session"
 
 type (
 	LoginRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		TOTPCode string `json:"totp_code,omitempty"`
+		Email             string `json:"email"`
+		Password          string `json:"password"`
+		TOTPCode          string `json:"totp_code,omitempty"`
+		PasskeyAssertion  []byte `json:"passkey_assertion,omitempty"`
+		PasskeyCeremonyID string `json:"passkey_ceremony_id,omitempty"`
 	}
 	SessionResponse struct {
 		Email         string `json:"email,omitempty"`
 		Authenticated bool   `json:"authenticated"`
 		ResetEnabled  bool   `json:"reset_enabled"`
 		SessionID     string `json:"session_id,omitempty"`
+		Assurance     string `json:"assurance,omitempty"`
 	}
 )
 
@@ -51,6 +55,18 @@ type AuthService interface {
 	SessionExpiry(context.Context, string, string) (time.Time, error)
 	TouchSession(context.Context, string) error
 }
+
+type AssuredSessionCreator interface {
+	CreateSessionWithAssurance(context.Context, string, string, time.Time, string, string, string) error
+}
+
+type SessionStateReader interface {
+	SessionState(context.Context, string, string) (admin.AdminSessionState, error)
+}
+
+type ReauthenticationMarker interface {
+	MarkReauthenticated(context.Context, string, string) error
+}
 type (
 	SessionManager interface {
 		GetSession(*http.Request, string) (*sessions.Session, error)
@@ -67,18 +83,34 @@ type (
 		Enabled(context.Context, string) (bool, error)
 		Verify(context.Context, string, string) error
 	}
+	AdminPasskeyVerifier interface {
+		VerifyLogin(context.Context, string, string, []byte, string, string) error
+	}
+	SecurityEvents interface {
+		Record(context.Context, string, string, string, string, string, map[string]any) error
+	}
+	DeviceDetector interface {
+		IsNewDevice(context.Context, string, string, string) (bool, error)
+	}
+	SecurityNotifier interface {
+		Notify(context.Context, string, string, string) error
+	}
 	Dependencies struct {
-		Auth          AuthService
-		Throttle      AdminThrottle
-		MFA           AdminSecondFactor
-		Sessions      SessionManager
-		GenerateID    func() (string, error)
-		Now           func() time.Time
-		ClientIP      func(*http.Request) string
-		SecureCookies func() bool
-		WriteError    func(http.ResponseWriter, int, string, string)
-		Log           func(string, map[string]any)
-		LogError      func(string, map[string]any)
+		Auth           AuthService
+		Throttle       AdminThrottle
+		MFA            AdminSecondFactor
+		Passkeys       AdminPasskeyVerifier
+		Sessions       SessionManager
+		GenerateID     func() (string, error)
+		Now            func() time.Time
+		ClientIP       func(*http.Request) string
+		SecureCookies  func() bool
+		WriteError     func(http.ResponseWriter, int, string, string)
+		Log            func(string, map[string]any)
+		LogError       func(string, map[string]any)
+		SecurityEvents SecurityEvents
+		DeviceDetector DeviceDetector
+		Notifier       SecurityNotifier
 	}
 )
 
@@ -155,12 +187,20 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 		}
 	}
 	invalid := &SessionError{Status: http.StatusUnauthorized, Message: "Invalid credentials", Kind: "unauthorized"}
+	recordEvent := func(event, sessionID string, detail map[string]any) {
+		if deps.SecurityEvents != nil {
+			if err := deps.SecurityEvents.Record(ctx, event, request.Email, sessionID, deps.ClientIP(r), r.UserAgent(), detail); err != nil && deps.LogError != nil {
+				deps.LogError("admin_security_event_record_failed", map[string]any{"event": event, "error": err.Error()})
+			}
+		}
+	}
 
 	hash, err := deps.Auth.PasswordHash(ctx, request.Email)
 	if errors.Is(err, sql.ErrNoRows) {
 		equalizeUnknownAdmin(request.Password)
 		recordFailure()
 		deps.Log("login_invalid_email", map[string]any{"level": "warn", "email": request.Email})
+		recordEvent("login_failure", "", map[string]any{"reason": "unknown_email"})
 		return SessionResponse{}, invalid
 	}
 	if err != nil {
@@ -170,26 +210,42 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(request.Password)); err != nil {
 		recordFailure()
 		deps.Log("login_invalid_password", map[string]any{"level": "warn", "email": request.Email})
+		recordEvent("login_failure", "", map[string]any{"reason": "password"})
 		return SessionResponse{}, invalid
 	}
+	assurance := "full"
 	if deps.MFA != nil {
 		enabled, err := deps.MFA.Enabled(ctx, request.Email)
 		if err != nil {
 			deps.LogError("admin_mfa_status_failed", map[string]any{"error": err.Error()})
 			return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Unable to verify credentials. Please try again.", Kind: "server_error"}
 		}
+		if !enabled && AdminMFARequired() {
+			assurance = "enrollment_only"
+		}
 		if enabled {
-			if strings.TrimSpace(request.TOTPCode) == "" {
-				return SessionResponse{}, &SessionError{Status: http.StatusPreconditionRequired, Message: "Enter the code from your authenticator app.", Kind: LoginKindMFARequired}
-			}
-			if err := deps.MFA.Verify(ctx, request.Email, request.TOTPCode); err != nil {
-				if errors.Is(err, admin.ErrMFAUnavailable) {
-					deps.LogError("admin_mfa_unavailable", map[string]any{"error": err.Error()})
-					return SessionResponse{}, &SessionError{Status: http.StatusServiceUnavailable, Message: "Two-factor verification is unavailable. Check the server's credential authority.", Kind: "server_error"}
+			if len(request.PasskeyAssertion) > 0 {
+				if deps.Passkeys == nil || strings.TrimSpace(request.PasskeyCeremonyID) == "" || deps.Passkeys.VerifyLogin(ctx, request.Email, request.PasskeyCeremonyID, request.PasskeyAssertion, r.Header.Get("X-Lpbs-Browser-Binding"), r.UserAgent()) != nil {
+					recordFailure()
+					return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "That passkey was not accepted.", Kind: LoginKindMFAInvalid}
 				}
-				recordFailure()
-				deps.Log("login_invalid_mfa", map[string]any{"level": "warn", "email": request.Email})
-				return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "That code isn't right. Try the current code from your app.", Kind: LoginKindMFAInvalid}
+			} else {
+				if strings.TrimSpace(request.TOTPCode) == "" {
+					return SessionResponse{}, &SessionError{Status: http.StatusPreconditionRequired, Message: "Enter the code from your authenticator app.", Kind: LoginKindMFARequired}
+				}
+				if err := deps.MFA.Verify(ctx, request.Email, request.TOTPCode); err != nil {
+					if errors.Is(err, admin.ErrMFAUnavailable) {
+						deps.LogError("admin_mfa_unavailable", map[string]any{"error": err.Error()})
+						return SessionResponse{}, &SessionError{Status: http.StatusServiceUnavailable, Message: "Two-factor verification is unavailable. Check the server's credential authority.", Kind: "server_error"}
+					}
+					recordFailure()
+					deps.Log("login_invalid_mfa", map[string]any{"level": "warn", "email": request.Email})
+					recordEvent("login_failure", "", map[string]any{"reason": "mfa"})
+					return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "That code isn't right. Try the current code from your app.", Kind: LoginKindMFAInvalid}
+				}
+				if len(strings.TrimSpace(request.TOTPCode)) != 6 {
+					recordEvent("recovery_code_used", "", nil)
+				}
 			}
 		}
 	}
@@ -206,8 +262,15 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 		deps.LogError("session_id_generation_failed", map[string]any{"error": err.Error()})
 		return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Failed to create session. Please try again.", Kind: "server_error"}
 	}
-	if err := deps.Auth.CreateSession(r.Context(), id, request.Email, deps.Now().Add(7*24*time.Hour), deps.ClientIP(r), r.UserAgent()); err != nil {
-		deps.LogError("admin_session_create_failed", map[string]any{"error": err.Error(), "email": request.Email})
+	absoluteTTL := adminSessionAbsoluteTTL()
+	var createErr error
+	if creator, ok := deps.Auth.(AssuredSessionCreator); ok {
+		createErr = creator.CreateSessionWithAssurance(r.Context(), id, request.Email, deps.Now().Add(absoluteTTL), deps.ClientIP(r), r.UserAgent(), assurance)
+	} else {
+		createErr = deps.Auth.CreateSession(r.Context(), id, request.Email, deps.Now().Add(absoluteTTL), deps.ClientIP(r), r.UserAgent())
+	}
+	if createErr != nil {
+		deps.LogError("admin_session_create_failed", map[string]any{"error": createErr.Error(), "email": request.Email})
 		return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Failed to create session. Please try again.", Kind: "server_error"}
 	}
 	session, _ := deps.Sessions.GetSession(r, sessionName)
@@ -215,7 +278,7 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 	session.Values["session_id"] = id
 	session.Options.HttpOnly = true
 	session.Options.Secure = deps.SecureCookies()
-	session.Options.MaxAge = 86400 * 7
+	session.Options.MaxAge = int(absoluteTTL / time.Second)
 	session.Options.Path = "/"
 	session.Options.SameSite = http.SameSiteLaxMode
 	if err := deps.Sessions.SaveSession(r, w, session); err != nil {
@@ -226,8 +289,72 @@ func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, 
 		return SessionResponse{}, &SessionError{Status: http.StatusInternalServerError, Message: "Failed to create session. Please try again.", Kind: "server_error"}
 	}
 	deps.Log("admin_login_success", map[string]any{"level": "info", "email": request.Email})
-	return response(request.Email, true, id), nil
+	if deps.DeviceDetector != nil {
+		if newDevice, detectErr := deps.DeviceDetector.IsNewDevice(ctx, request.Email, r.UserAgent(), deps.ClientIP(r)); detectErr == nil && newDevice {
+			recordEvent("new_device_login", id, nil)
+			if deps.Notifier != nil {
+				if notifyErr := deps.Notifier.Notify(ctx, request.Email, "new_device_login", "A new administrator login was detected."); notifyErr != nil {
+					recordEvent("new_device_login", id, map[string]any{"notify_failed": notifyErr.Error()})
+				}
+			}
+		}
+	}
+	recordEvent("login_success", id, nil)
+	result := response(request.Email, true, id)
+	result.Assurance = assurance
+	return result, nil
 }
+
+func AdminMFARequired() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_REQUIRE_MFA")))
+	if value == "" {
+		environment := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+		return environment == "production" || environment == "prod"
+	}
+	return value != "0" && value != "false" && value != "no"
+}
+
+func adminSessionAbsoluteTTL() time.Duration {
+	const fallback = 7 * 24 * time.Hour
+	raw := strings.TrimSpace(os.Getenv("LPBS_ADMIN_SESSION_ABSOLUTE_TTL"))
+	if raw == "" {
+		return fallback
+	}
+	ttl, err := time.ParseDuration(raw)
+	if err != nil {
+		return fallback
+	}
+	if ttl < time.Hour {
+		ttl = time.Hour
+	}
+	if ttl > 14*24*time.Hour {
+		ttl = 14 * 24 * time.Hour
+	}
+	return ttl
+}
+
+func adminSessionIdleTTL() time.Duration {
+	const fallback = 12 * time.Hour
+	raw := strings.TrimSpace(os.Getenv("LPBS_ADMIN_SESSION_IDLE_TTL"))
+	if raw == "" {
+		return fallback
+	}
+	ttl, err := time.ParseDuration(raw)
+	if err != nil {
+		return fallback
+	}
+	if ttl < time.Hour {
+		ttl = time.Hour
+	}
+	if ttl > 24*time.Hour {
+		ttl = 24 * time.Hour
+	}
+	return ttl
+}
+
+// AdminSessionIdleTTL exposes the bounded idle policy to the control-plane
+// middleware without duplicating environment parsing there.
+func AdminSessionIdleTTL() time.Duration { return adminSessionIdleTTL() }
 
 // LogoutSession revokes server state and expires the browser cookie.
 func LogoutSession(r *http.Request, w http.ResponseWriter, deps Dependencies) {
@@ -255,6 +382,23 @@ func ReadSession(r *http.Request, w http.ResponseWriter, deps Dependencies) (Ses
 	}
 	id, _ := session.Values["session_id"].(string)
 	if id != "" {
+		if reader, ok := deps.Auth.(SessionStateReader); ok {
+			state, err := reader.SessionState(r.Context(), id, email)
+			if errors.Is(err, sql.ErrNoRows) || (err == nil && (deps.Now().After(state.ExpiresAt) || deps.Now().After(state.LastActivity.Add(adminSessionIdleTTL())))) {
+				session.Options.MaxAge = -1
+				_ = deps.Sessions.SaveSession(r, w, session)
+				return response("", false, ""), false
+			}
+			if err != nil {
+				return response("", false, ""), false
+			}
+			result := response(email, true, id)
+			result.Assurance = state.Assurance
+			if time.Since(state.LastActivity) >= 60*time.Second {
+				_ = deps.Auth.TouchSession(r.Context(), id)
+			}
+			return result, true
+		}
 		expiry, err := deps.Auth.SessionExpiry(r.Context(), id, email)
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && deps.Now().After(expiry)) {
 			session.Options.MaxAge = -1

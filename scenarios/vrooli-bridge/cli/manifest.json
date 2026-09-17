@@ -935,6 +935,14 @@
               "bind": {
                 "field": "timeout_seconds"
               }
+            },
+            {
+              "name": "credential-injection",
+              "description": "Ephemeral credential injection as logical-id:field:ENV_NAME (repeatable)",
+              "repeatable": true,
+              "bind": {
+                "field": "credential_injections"
+              }
             }
           ],
           "binding": {
@@ -1863,6 +1871,7 @@
             { "name": "user", "description": "SSH user (default: root)" },
             { "name": "port", "description": "SSH port (default: 22)" },
             { "name": "name", "description": "Fleet node label" },
+            { "name": "capabilities", "aliases": ["scopes"], "description": "Comma-separated verb namespaces the node self-reports" },
             { "name": "revision", "default": "@cp", "description": "Git revision to bring the node to" },
             { "name": "repo-url", "description": "Source repo cloned on the node" },
             { "name": "checkout-dir", "description": "Node checkout location" },
@@ -2166,6 +2175,19 @@
             { "name": "retention", "required": true, "description": "durable or ephemeral" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "CreateGrant" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "answer-secret",
+          "description": "Answer a credential grant from stdin and deliver it sealed to the trusted node",
+          "flags": [
+            { "name": "node-id", "required": true, "description": "Trusted node id" },
+            { "name": "logical-id", "required": true, "description": "Credential logical identity" },
+            { "name": "field", "required": true, "description": "Credential field" },
+            { "name": "class", "required": true, "description": "Credential class" },
+            { "name": "retention", "required": true, "description": "durable or ephemeral" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "AnswerSecret" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
         },
         {

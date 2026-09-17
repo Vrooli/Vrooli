@@ -269,9 +269,13 @@ func Apply(ctx context.Context, runner Runner, target Target, selection Selectio
 		return Result{}, fmt.Errorf("encode onboarding selection: %w", err)
 	}
 	payload := base64.StdEncoding.EncodeToString(data)
+	// The target onboarding service is already installed and the CLI's
+	// --auto-start path owns any service convergence it needs. Restarting the
+	// scenario here is unsafe: the restart can include the very onboarding API
+	// that owns the durable apply, leaving this SSH request waiting before the
+	// actual commit starts. Keep the transport to one bounded typed operation.
 	command := "tmp=$(mktemp); trap 'rm -f \"$tmp\"' EXIT; printf '%s' " + shellQuote(payload) +
 		" | base64 --decode > \"$tmp\"; " +
-		`PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$PATH"; export PATH; if command -v vrooli >/dev/null 2>&1; then vrooli scenario restart vrooli-onboarding >/dev/null 2>&1 || true; fi; ` +
 		onboardingCLICommand("wizard commit --selection \"$tmp\" --json")
 	return runner.Run(ctx, target, command)
 }

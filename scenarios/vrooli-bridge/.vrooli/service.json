@@ -234,7 +234,9 @@
     }
   },
   "environment": {
-    "API_BIND_ADDRESS": "0.0.0.0"
+    "API_BIND_ADDRESS": "0.0.0.0",
+    "BRIDGE_DEVICE_SYNC_DELIVERY_URL": "https://vrooli-bridge-api.itsagitime.com/public/device-sync-hub",
+    "BRIDGE_DEVICE_SYNC_TARGETS": "{\"25c7e426-c76c-421a-8351-aaf964589802\":\"01e8f42e-a7a6-49e6-ad53-941e286b00b4\"}"
   },
   "skills": {
     "usage": {

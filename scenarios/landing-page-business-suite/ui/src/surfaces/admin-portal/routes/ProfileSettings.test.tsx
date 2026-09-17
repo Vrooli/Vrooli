@@ -6,9 +6,10 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { ProfileSettings } from './ProfileSettings';
 
-const { mockGetAdminProfile, mockUpdateAdminProfile } = vi.hoisted(() => ({
+const { mockGetAdminProfile, mockUpdateAdminProfile, mockGetAdminSecurityEvents } = vi.hoisted(() => ({
   mockGetAdminProfile: vi.fn(),
   mockUpdateAdminProfile: vi.fn(),
+  mockGetAdminSecurityEvents: vi.fn(),
 }));
 
 vi.mock('../components/RuntimeSignalStrip', () => ({
@@ -18,6 +19,8 @@ vi.mock('../components/RuntimeSignalStrip', () => ({
 vi.mock('../../../shared/api', () => ({
   getAdminProfile: mockGetAdminProfile,
   updateAdminProfile: mockUpdateAdminProfile,
+  getAdminSecurityEvents: mockGetAdminSecurityEvents,
+  getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   adminLogout: vi.fn(),
 }));
 
@@ -33,6 +36,7 @@ describe('ProfileSettings', () => {
       is_default_email: true,
       is_default_password: true,
     });
+    mockGetAdminSecurityEvents.mockResolvedValue({ events: [] });
     mockUpdateAdminProfile.mockResolvedValue({
       email: 'owner@test.com',
       is_default_email: false,

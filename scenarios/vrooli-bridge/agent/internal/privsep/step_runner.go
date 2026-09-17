@@ -44,7 +44,13 @@ func (osStepRunner) RunWithInput(ctx context.Context, argv []string, dir string,
 
 // RunAs runs the step as the checkout owner (see principal.go).
 func (osStepRunner) RunAs(ctx context.Context, argv []string, dir string, p *principal, onLog func(string)) (int, error) {
-	return runStep(ctx, argv, dir, nil, nil, p, onLog)
+	// The provisioning helper may be launched from its service directory rather
+	// than the checkout. The vrooli CLI intentionally refuses to guess a source
+	// root in that case; carry the already-authorized checkout path explicitly so
+	// `vrooli setup` and follow-up scenario restarts operate on the tree just
+	// provisioned. This is scoped to the owner-run provisioning path and cannot
+	// be supplied by an ordinary Bridge job.
+	return runStep(ctx, argv, dir, nil, []string{"VROOLI_SOURCE_ROOT=" + dir}, p, onLog)
 }
 
 func (osStepRunner) RunWithInputEnvironment(ctx context.Context, argv []string, dir string, input []byte, env []string, onLog func(string)) (int, error) {

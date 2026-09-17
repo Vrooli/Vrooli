@@ -12,7 +12,7 @@ func TestAuthorizeWithoutCredentialSendsBrowserToSignInWithPKCEParameters(t *tes
 	deps.Service = userAuthStub{}
 	query := "response_type=code&client_id=desktop&redirect_uri=http%3A%2F%2F127.0.0.1%3A43111%2Fcallback&code_challenge=abc&code_challenge_method=S256&state=xyz"
 	recorder := httptest.NewRecorder()
-	AuthorizeWithPKCE(deps, NewAuthorizationCodeStore()).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/auth/authorize?"+query, nil))
+	AuthorizeWithPKCE(deps, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/auth/authorize?"+query, nil))
 	if recorder.Code != http.StatusFound {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
@@ -26,7 +26,7 @@ func TestAuthorizeRejectsNonLoopbackRedirectBeforeSignIn(t *testing.T) {
 	deps := testUserAuthDependencies()
 	deps.Service = userAuthStub{}
 	recorder := httptest.NewRecorder()
-	AuthorizeWithPKCE(deps, NewAuthorizationCodeStore()).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/auth/authorize?redirect_uri=https%3A%2F%2Fevil.example%2Fcb&code_challenge=abc&code_challenge_method=S256", nil))
+	AuthorizeWithPKCE(deps, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/auth/authorize?redirect_uri=https%3A%2F%2Fevil.example%2Fcb&code_challenge=abc&code_challenge_method=S256", nil))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d", recorder.Code)
 	}

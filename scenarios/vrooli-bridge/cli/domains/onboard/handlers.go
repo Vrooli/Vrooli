@@ -129,7 +129,8 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		SshPassword: password, NodeName: ctx.Flag("name"), TargetRevision: revision,
 		RepoUrl: ctx.Flag("repo-url"), CheckoutDir: ctx.Flag("checkout-dir"), ControlPlaneUrl: ctx.Flag("control-plane-url"),
 		ReachabilityMode: strings.TrimSpace(ctx.Flag("reachability-mode")), VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
-		SkipSetup: ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
+		Capabilities: splitCSV(ctx.Flag("capabilities")),
+		SkipSetup:    ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
 		SetupPreset:          strings.TrimSpace(ctx.Flag("preset")),
 		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")), SourceMode: sourceMode,
 	}))

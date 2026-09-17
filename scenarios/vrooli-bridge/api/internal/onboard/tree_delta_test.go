@@ -116,7 +116,17 @@ func TestSyncTreeUpdatesInPlaceAndKeepsNodeOwnedPaths(t *testing.T) {
 	writeShipFile(t, filepath.Join(repo, "dir", "b.txt"), "two", 0o644)
 	writeShipFile(t, filepath.Join(repo, "run.sh"), "#!/bin/sh\n", 0o755)
 	writeShipFile(t, filepath.Join(dest, "scenarios", "app", "data", "app.db"), "node data", 0o600)
-	writeShipFile(t, filepath.Join(dest, ".git", "HEAD"), "ref: refs/heads/agi\n", 0o644)
+	writeShipFile(t, filepath.Join(dest, ".gitignore"), "scenarios/*/data/\n", 0o644)
+	writeShipFile(t, filepath.Join(dest, "stale-from-older-source.go"), "package stale\n", 0o644)
+	if err := exec.Command("git", "-C", dest, "init", "-q").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dest, "add", ".gitignore", "stale-from-older-source.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dest, "-c", "user.email=test@example.invalid", "-c", "user.name=test", "commit", "-qm", "base").Run(); err != nil {
+		t.Fatal(err)
+	}
 	// A leftover from the retired swap design is cleared by the probe.
 	writeShipFile(t, filepath.Join(home, ".vrooli.bridge-old-123", "stale"), "x", 0o644)
 
@@ -124,6 +134,9 @@ func TestSyncTreeUpdatesInPlaceAndKeepsNodeOwnedPaths(t *testing.T) {
 	first, files := shipOnce(t, d, repo)
 	if first.ResolvedDestDir != dest || first.Incremental || first.FilesTransferred != len(files) || first.FilesDeleted != 0 {
 		t.Fatalf("first ship = %+v, want a full ship of %d files into %s", first, len(files), dest)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "stale-from-older-source.go")); !os.IsNotExist(err) {
+		t.Fatalf("stale non-ignored source file was not cleaned: %v", err)
 	}
 	if got := readFile(t, filepath.Join(dest, "dir", "b.txt")); got != "two" {
 		t.Fatalf("dir/b.txt = %q", got)
@@ -140,9 +153,9 @@ func TestSyncTreeUpdatesInPlaceAndKeepsNodeOwnedPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeShipFile(t, filepath.Join(repo, "c.txt"), "three", 0o644)
-	second, _ := shipOnce(t, d, repo)
-	if !second.Incremental || second.FilesTransferred != 2 || second.FilesDeleted != 1 {
-		t.Fatalf("second ship = %+v, want incremental with 2 written and 1 removed", second)
+	second, files := shipOnce(t, d, repo)
+	if second.Incremental || second.FilesTransferred != len(files) || second.FilesDeleted != 1 {
+		t.Fatalf("second ship = %+v, want a complete resend of %d files and 1 removed", second, len(files))
 	}
 	if got := readFile(t, filepath.Join(dest, "a.txt")); got != "one, edited" {
 		t.Fatalf("a.txt = %q", got)
@@ -175,5 +188,22 @@ func TestPlanTreeDeltaNeverDeletesOutsideTheCheckout(t *testing.T) {
 	}
 	if !delta.Incremental || len(delta.Transfer) != 0 {
 		t.Fatalf("unchanged file should not be transferred: %+v", delta)
+	}
+}
+
+func TestPlanTreeDeltaRefreshesGeneratedProtoContracts(t *testing.T) {
+	prev := shipRecord{Digest: "d", Entries: map[string]string{
+		"packages/proto/gen/go/cli/v1/runtime.pb.go": "f-:same",
+		"ordinary.txt": "f-:same",
+	}}
+	delta := planTreeDelta(
+		[]string{"packages/proto/gen/go/cli/v1/runtime.pb.go", "ordinary.txt"},
+		map[string]string{
+			"packages/proto/gen/go/cli/v1/runtime.pb.go": "f-:same",
+			"ordinary.txt": "f-:same",
+		}, prev, true, "d",
+	)
+	if !delta.Incremental || len(delta.Transfer) != 1 || delta.Transfer[0] != "packages/proto/gen/go/cli/v1/runtime.pb.go" {
+		t.Fatalf("delta = %+v, want only the generated proto contract re-sent", delta)
 	}
 }

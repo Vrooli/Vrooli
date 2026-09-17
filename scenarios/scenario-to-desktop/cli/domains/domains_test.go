@@ -19,13 +19,13 @@ func TestRegisteredCommandSurface(t *testing.T) {
 	}
 	deps := support.Dependencies{Core: func() *cliapp.ScenarioApp { return app }}
 	commandGroups := CommandGroups(deps)
-	if len(commandGroups) != 4 {
-		t.Fatalf("CommandGroups() returned %d groups, want 4", len(commandGroups))
+	if len(commandGroups) != 5 {
+		t.Fatalf("CommandGroups() returned %d groups, want 5", len(commandGroups))
 	}
 
 	subcommandGroups := SubcommandGroups(deps)
-	if len(subcommandGroups) != 13 {
-		t.Fatalf("SubcommandGroups() returned %d groups, want 13", len(subcommandGroups))
+	if len(subcommandGroups) != 15 {
+		t.Fatalf("SubcommandGroups() returned %d groups, want 15", len(subcommandGroups))
 	}
 	for _, group := range subcommandGroups {
 		if len(group.Subcommands) == 0 {

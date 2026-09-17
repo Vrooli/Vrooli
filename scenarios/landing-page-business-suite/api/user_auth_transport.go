@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	userauthhttp "landing-page-business-suite-api/handlers/administration"
@@ -19,7 +18,7 @@ func userAuthHandlerDependencies(service userauthhttp.UserAuthService, limiter u
 		SessionID:     getSessionID,
 		UserID:        getUserID,
 		ResolveSecret: resolveSecret,
-		SecureCookies: func() bool { return strings.HasPrefix(resolveMagicLinkBaseURL(), "https://") },
+		SecureCookies: isSecureCookiesEnabled,
 		Now:           time.Now,
 		WriteError:    writeJSONError,
 		Log:           logx.Info,

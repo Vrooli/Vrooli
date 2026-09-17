@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/accountsecurity"
 )
 
 func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
@@ -65,6 +68,45 @@ func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
 
 	if receivedEmail != testEmail {
 		t.Errorf("Expected email %s, got %s", testEmail, receivedEmail)
+	}
+}
+
+func TestRequireRecentUserAuthRejectsStaleSessionAndAllowsFreshSession(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	authService := newUserAuthServiceForTest(db, NewEmailService())
+	user, err := authService.GetOrCreateUser(context.Background(), "test-recent-auth@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupUserTestData(t, db, user.Email)
+	pair, err := authService.CreateSession(context.Background(), user, "127.0.0.1", "Test-Agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sessionID string
+	if err := db.QueryRow(`SELECT id FROM user_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, user.ID).Scan(&sessionID); err != nil {
+		t.Fatal(err)
+	}
+	server := setupMinimalAuthServer(t, authService)
+	server.accountSecurityService = accountsecurity.NewService(accountsecurity.Options{Store: db, ReauthMaxAge: 15 * time.Minute})
+	handler := server.requireRecentUserAuth(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	request := httptest.NewRequest(http.MethodGet, "/sensitive", nil)
+	request.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	fresh := httptest.NewRecorder()
+	handler(fresh, request)
+	if fresh.Code != http.StatusOK {
+		t.Fatalf("fresh status=%d", fresh.Code)
+	}
+	if _, err := db.Exec(`UPDATE user_sessions SET authenticated_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, sessionID); err != nil {
+		t.Fatal(err)
+	}
+	staleRequest := httptest.NewRequest(http.MethodGet, "/sensitive", nil)
+	staleRequest.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	stale := httptest.NewRecorder()
+	handler(stale, staleRequest)
+	if stale.Code != http.StatusForbidden || stale.Header().Get("X-Lpbs-Auth-Reason") != "reauthentication_required" || !strings.Contains(stale.Body.String(), "reauthentication_required") {
+		t.Fatalf("stale response status=%d header=%q body=%s", stale.Code, stale.Header().Get("X-Lpbs-Auth-Reason"), stale.Body.String())
 	}
 }
 

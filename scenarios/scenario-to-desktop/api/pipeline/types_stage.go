@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
@@ -40,6 +41,8 @@ type StageInput struct {
 
 	// SmokeTestResult contains the output from the smoke test stage.
 	SmokeTestResult *smoketest.Status `json:"smoke_test_result,omitempty"`
+
+	ValidationMatrixResult *validationmatrix.MatrixRun `json:"validation_matrix_result,omitempty"`
 
 	// DeployResult contains the output from the deploy stage.
 	DeployResult *DeployResult `json:"deploy_result,omitempty"`

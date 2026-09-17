@@ -132,6 +132,15 @@ func TestCorrelatedRedemptionReusesActiveCredential(t *testing.T) {
 	require.Equal(t, first, second)
 	require.Len(t, registrar.nodes, 1)
 	require.Equal(t, []string{"demo:read"}, registrar.updates[first])
+
+	// A reconnect issued under the shared/presence-only posture has no pairing
+	// scopes. It must preserve the existing explicit grant rather than revoke it.
+	emptyCode, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-preserve")
+	require.NoError(t, err)
+	third, err := svc.Redeem(ctx, emptyCode.Code, key, pairing.NodeFacts{OS: "darwin", Arch: "amd64"})
+	require.NoError(t, err)
+	require.Equal(t, first, third)
+	require.Equal(t, []string{"demo:read"}, registrar.updates[first])
 	resolved, paired, err := svc.ResolveEnrollment(ctx, "attempt-reconcile")
 	require.NoError(t, err)
 	require.True(t, paired)

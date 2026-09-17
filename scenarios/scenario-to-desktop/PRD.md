@@ -25,7 +25,8 @@
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
 - [x] OT-P0-002 | Electron desktop scaffolding | Electron wrappers are generated with the supported template variants
-- [x] OT-P0-003 | Linux desktop packaging | A pipeline-produced Linux AppImage has been smoke-tested and installed, launched, used, and cleanly stopped under Xvfb evidence. Windows and macOS are compile-validated only.
+- [ ] OT-P0-003 | Desktop packaging validation | A pipeline-produced desktop artifact is smoke-tested, installed, launched, used, and cleanly stopped on a capable target with target-owned evidence. Linux is validated locally; macOS is routed to an available Apple node when its desktop capability is present. Windows and `arm64` macOS remain unavailable until matching nodes exist.
+- [ ] OT-P0-013 | Remote desktop artifact validation | When a macOS or Windows artifact is built, scenario-to-desktop shall route it to a capable Bridge target, verify the artifact digest on that target, and gate completion on a terminal validation disposition with target-owned runtime, target, machine-assertion, and workflow evidence.
 - [x] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
 - [x] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
 - [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
@@ -36,6 +37,18 @@
 
 - [ ] OT-P0-011 | Governed native extensions | When a scenario supplies a native extension, the desktop ramp shall validate its versioned contract, preserve vanilla generation, isolate remote content from host privileges, and package declared helpers through governed profiles.
 - [ ] OT-P0-012 | Verified portable native delivery | When a companion package is released for Windows, macOS, or a named Linux environment, the desktop ramp shall verify clean installation, update continuity, interrupted-update recovery, retention-aware uninstall, and the identity of the tested artifact.
+
+### Cross-platform coverage gaps
+
+The current fleet provides one Intel (`amd64`) Apple target and no Windows
+target. The Intel node can validate only Intel macOS artifacts; it cannot close
+the `arm64` macOS coverage gap. That gap closes when an Apple-Silicon (`arm64`)
+Mac with a managed graphical session and the desktop validation toolchain is
+registered as a capable Bridge target. The Windows gap closes when a Windows
+`amd64` target with an interactive graphical session, the packaged-app launch
+toolchain, and an authorized Bridge agent is registered. Until those hardware
+targets exist, the matrix records the corresponding platform as unavailable;
+it never treats compile success as desktop validation.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows

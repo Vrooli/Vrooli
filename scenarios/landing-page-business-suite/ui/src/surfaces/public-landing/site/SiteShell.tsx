@@ -63,6 +63,7 @@ export function SiteShell({ meta, children, width = 'default', identity: provide
       {chrome === 'full' ? <nav id={`${id}-nav`} aria-label={siteCopy.primaryNavLabel} onClick={() => { setMenuOpen(false); }}>
         <Link to="/">{siteCopy.home}</Link>
         <Link to="/contact">{siteCopy.contact}</Link>
+        <Link to="/account/security">Account</Link>
         <a className="nav-signin" href={signIn}>{siteCopy.signIn}</a>
         {identity.headerAction && <ActionLink action={identity.headerAction.action} resolvedActions={identity.headerAction.resolvedActions} reason={identity.headerAction.reason} className="button-nav" />}
       </nav> : <Link className="site-minimal-exit" to="/">{siteCopy.home}</Link>}

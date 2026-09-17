@@ -53,7 +53,7 @@ func TestDispatch_JobRoundTrip(t *testing.T) {
 
 	schema := cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "node-id"}},
-		Flags:       []cliapp.Flag{{Name: "verb"}, {Name: "scenario"}, {Name: "args"}, {Name: "timeout"}},
+		Flags:       []cliapp.Flag{{Name: "verb"}, {Name: "scenario"}, {Name: "args"}, {Name: "timeout"}, {Name: "credential-injection", Repeated: true}},
 	}
 	ctx, out := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"node-id": "n1"},

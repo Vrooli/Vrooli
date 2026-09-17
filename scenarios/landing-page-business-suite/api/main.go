@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -30,8 +31,8 @@ import (
 	corestorage "github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
-	authhandler "landing-page-business-suite-api/handlers/administration"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
+	accountsecurity "landing-page-business-suite-api/internal/accountsecurity"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/analytics"
 	"landing-page-business-suite-api/internal/businessaccount"
@@ -39,12 +40,15 @@ import (
 	"landing-page-business-suite-api/internal/content"
 	"landing-page-business-suite-api/internal/delivery"
 	desktoplink "landing-page-business-suite-api/internal/desktoplink"
+	"landing-page-business-suite-api/internal/emailreadiness"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/intelligence"
 	"landing-page-business-suite-api/internal/landing"
 	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
+	nativegrants "landing-page-business-suite-api/internal/nativegrants"
+	"landing-page-business-suite-api/internal/passkeys"
 	"landing-page-business-suite-api/internal/presentationseed"
 	runtimeschema "landing-page-business-suite-api/internal/schema"
 	"landing-page-business-suite-api/internal/securevalue"
@@ -93,16 +97,22 @@ type Server struct {
 	// Remote profile service (admin-managed remote connections)
 	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
-	userAuthService       *administration.UserAuthService
-	authorizationCodes    *authhandler.AuthorizationCodeStore
-	userManagementService *administration.UserManagementService
-	businessAccounts      businessaccount.Repository
-	desktopLinkService    *desktoplink.Service
-	desktopLinkVerifier   authn.TokenVerifier
-	magicLinkLimiter      *RateLimiter
-	authThrottle          *administration.AuthThrottle
-	adminMFA              *administration.AdminMFA
-	stopAuthJanitor       func()
+	userAuthService        *administration.UserAuthService
+	nativeGrants           *nativegrants.Repository
+	userManagementService  *administration.UserManagementService
+	accountSecurityService *accountsecurity.Service
+	passkeyService         *passkeys.Service
+	passkeyChallenges      *passkeys.Repository
+	passkeyCredentials     *passkeys.Credentials
+	emailReadinessService  *emailreadiness.Service
+	businessAccounts       businessaccount.Repository
+	desktopLinkService     *desktoplink.Service
+	desktopLinkVerifier    authn.TokenVerifier
+	magicLinkLimiter       *RateLimiter
+	authThrottle           *administration.AuthThrottle
+	adminMFA               *administration.AdminMFA
+	stopAuthJanitor        func()
+	stopAuthDeliveryAlerts func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -372,6 +382,10 @@ func NewServer() (*Server, error) {
 	if keyErr != nil {
 		return nil, fmt.Errorf("resolve previous consumer signing keys: %w", keyErr)
 	}
+	sessionConfig, sessionConfigErr := resolveUserSessionConfig()
+	if sessionConfigErr != nil {
+		return nil, sessionConfigErr
+	}
 	userAuthService := administration.NewUserAuthService(administration.UserAuthServiceOptions{
 		Store:                 routedDB,
 		EmailService:          emailService,
@@ -380,6 +394,11 @@ func NewServer() (*Server, error) {
 		ConsumerSigningKeyID:  consumerKeyID,
 		ConsumerPreviousKeys:  previousConsumerKeys,
 		ConsumerClockSkew:     30 * time.Second,
+		AccessTTL:             sessionConfig.AccessTTL,
+		IdleTTL:               sessionConfig.IdleTTL,
+		AbsoluteTTL:           sessionConfig.AbsoluteTTL,
+		ReauthMaxAge:          sessionConfig.ReauthMaxAge,
+		RefreshGrace:          sessionConfig.RefreshGrace,
 		BaseURL:               resolveMagicLinkBaseURL(),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
 		Log:                   logx.Info,
@@ -392,6 +411,18 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to publish consumer key set: %w", err)
 	}
 	userManagementService := administration.NewUserManagementService(routedDB)
+	accountSecurityService := accountsecurity.NewService(accountsecurity.Options{Store: routedDB, Auth: userAuthService, ReauthMaxAge: sessionConfig.ReauthMaxAge})
+	passkeyConfig, err := passkeys.LoadConfig(resolvePublicBaseURL(), resolveConfig("EMAIL_FROM_NAME"), runtimeEnvironment() == "production" || runtimeEnvironment() == "prod")
+	if err != nil {
+		return nil, fmt.Errorf("initialize WebAuthn configuration: %w", err)
+	}
+	passkeyService, err := passkeys.NewService(passkeyConfig)
+	if err != nil {
+		return nil, err
+	}
+	logx.Info("webauthn_rp_configured", map[string]interface{}{"rp_id": passkeyConfig.RPID, "origins": passkeyConfig.RPOrigins})
+	emailReadinessService := emailreadiness.New(net.DefaultResolver)
+	nativeGrantsRepository := nativegrants.NewRepository(routedDB)
 	businessAccounts := businessaccount.NewSQLRepository(routedDB)
 	desktopLinkService := desktoplink.NewService(desktoplink.NewSQLRepository(routedDB))
 	desktopLinkIssuer := resolveConfig("LPBS_DESKTOP_LINK_AUTH_ISSUER")
@@ -478,15 +509,20 @@ func NewServer() (*Server, error) {
 		// Remote profile service
 		remoteProfileService: remoteProfileService,
 		// User authentication services
-		userAuthService:       userAuthService,
-		authorizationCodes:    authhandler.NewAuthorizationCodeStore(),
-		userManagementService: userManagementService,
-		businessAccounts:      businessAccounts,
-		desktopLinkService:    desktopLinkService,
-		desktopLinkVerifier:   desktopLinkVerifier,
-		magicLinkLimiter:      magicLinkLimiter,
-		authThrottle:          administration.NewAuthThrottle(routedDB),
-		adminMFA:              administration.NewAdminMFA(routedDB, resolveAdminMFARing, adminMFAIssuer(configStore)),
+		userAuthService:        userAuthService,
+		userManagementService:  userManagementService,
+		accountSecurityService: accountSecurityService,
+		passkeyService:         passkeyService,
+		passkeyChallenges:      &passkeys.Repository{DB: routedDB},
+		passkeyCredentials:     &passkeys.Credentials{DB: routedDB},
+		emailReadinessService:  emailReadinessService,
+		nativeGrants:           nativeGrantsRepository,
+		businessAccounts:       businessAccounts,
+		desktopLinkService:     desktopLinkService,
+		desktopLinkVerifier:    desktopLinkVerifier,
+		magicLinkLimiter:       magicLinkLimiter,
+		authThrottle:           administration.NewAuthThrottle(routedDB),
+		adminMFA:               administration.NewAdminMFA(routedDB, resolveAdminMFARing, adminMFAIssuer(configStore)),
 		// AI MeteredInferenceProvider service
 		meteredInferenceService: meteredInferenceService,
 		meteredInferenceHandler: meteredInferenceHandler,
@@ -495,6 +531,7 @@ func NewServer() (*Server, error) {
 		sessionManager: initSessionManager(),
 	}
 	srv.landingConfigService.UsePresentationExposureRecorder(srv.metricsService)
+	userAuthService.UseCodeCallback(captureFixtureSignInCode)
 
 	srv.setupRoutes()
 	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {
@@ -503,6 +540,60 @@ func NewServer() (*Server, error) {
 	}
 	logx.Info("server_initialization_completed", nil)
 	return srv, nil
+}
+
+type userSessionConfig struct {
+	AccessTTL, IdleTTL, AbsoluteTTL, ReauthMaxAge, RefreshGrace time.Duration
+}
+
+func resolveUserSessionConfig() (userSessionConfig, error) {
+	config := userSessionConfig{AccessTTL: 15 * time.Minute, IdleTTL: 30 * 24 * time.Hour, AbsoluteTTL: 90 * 24 * time.Hour, ReauthMaxAge: 15 * time.Minute, RefreshGrace: 30 * time.Second}
+	settings := []struct {
+		name     string
+		value    *time.Duration
+		min, max time.Duration
+	}{
+		{"LPBS_USER_ACCESS_TTL", &config.AccessTTL, 5 * time.Minute, 30 * time.Minute},
+		{"LPBS_USER_SESSION_IDLE_TTL", &config.IdleTTL, 24 * time.Hour, 2160 * time.Hour},
+		{"LPBS_USER_SESSION_ABSOLUTE_TTL", &config.AbsoluteTTL, 0, 8760 * time.Hour},
+		{"LPBS_USER_REAUTH_MAX_AGE", &config.ReauthMaxAge, 5 * time.Minute, time.Hour},
+		{"LPBS_USER_REFRESH_GRACE", &config.RefreshGrace, 0, time.Minute},
+	}
+	for _, setting := range settings {
+		raw := strings.TrimSpace(resolveConfig(setting.name))
+		if raw == "" {
+			continue
+		}
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			if isProductionEnvironment() {
+				return userSessionConfig{}, fmt.Errorf("%s is invalid: %w", setting.name, err)
+			}
+			logx.Info("user_session_config_invalid", map[string]interface{}{"setting": setting.name, "value": raw, "error": err.Error()})
+			continue
+		}
+		invalid := parsed < setting.min || (setting.max > 0 && parsed > setting.max)
+		if setting.name == "LPBS_USER_SESSION_ABSOLUTE_TTL" && parsed < config.IdleTTL {
+			invalid = true
+		}
+		if invalid {
+			if isProductionEnvironment() {
+				return userSessionConfig{}, fmt.Errorf("%s is outside its allowed range", setting.name)
+			}
+			if parsed < setting.min {
+				parsed = setting.min
+			}
+			if setting.max > 0 && parsed > setting.max {
+				parsed = setting.max
+			}
+			if setting.name == "LPBS_USER_SESSION_ABSOLUTE_TTL" && parsed < config.IdleTTL {
+				parsed = config.IdleTTL
+			}
+			logx.Info("user_session_config_clamped", map[string]interface{}{"setting": setting.name, "value": parsed.String()})
+		}
+		*setting.value = parsed
+	}
+	return config, nil
 }
 
 // resolvePreviousConsumerKeys loads the public overlap set used during key
@@ -628,6 +719,9 @@ func (s *Server) Cleanup() error {
 	if s.stopAuthJanitor != nil {
 		s.stopAuthJanitor()
 	}
+	if s.stopAuthDeliveryAlerts != nil {
+		s.stopAuthDeliveryAlerts()
+	}
 	if s.routedDB != nil {
 		return s.routedDB.Close()
 	}
@@ -718,6 +812,7 @@ func main() {
 		logx.Fatalf("failed to initialize server: %v", err)
 	}
 	srv.stopAuthJanitor = srv.startAuthJanitor()
+	srv.stopAuthDeliveryAlerts = srv.startAuthDeliveryAlerts()
 
 	if err := server.Run(server.Config{
 		Handler: apihttp.TestModeMiddleware(srv.Router()),

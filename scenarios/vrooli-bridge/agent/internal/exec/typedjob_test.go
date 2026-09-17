@@ -370,6 +370,28 @@ func TestExecute_AppendsTypedOutputFlagAndUploadsProducedArtifact(t *testing.T) 
 	require.Equal(t, "bridge://run/run-1/screenshot.png", lastBeforeExit.ArtifactRef)
 }
 
+func TestExecute_UploadsEvidenceWhenCommandFails(t *testing.T) {
+	dir := t.TempDir()
+	uploader := &fakeUploader{}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "/work", rep,
+		exec.WithCommandRunner(commandFunc(func(_ context.Context, argv []string, _ string, _ func(string)) (int, error) {
+			if err := os.WriteFile(argv[len(argv)-1], []byte("failure-evidence"), 0o600); err != nil {
+				return 1, err
+			}
+			return 1, nil
+		})), exec.WithArtifactUploader(uploader), exec.WithArtifactDir(dir))
+
+	err := runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "run-failed", Verb: "scenario validate",
+		Outputs: []*channelv1.ArtifactOutput{{Name: "evidence-bundle.tar.gz", MediaType: "application/gzip", OutputFlag: "--evidence-output", MaxBytes: 1024}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "evidence-bundle.tar.gz", uploader.name)
+	require.Equal(t, []byte("failure-evidence"), uploader.data)
+	require.Equal(t, int32(1), rep.events[len(rep.events)-1].ExitCode)
+}
+
 type commandFunc func(context.Context, []string, string, func(string)) (int, error)
 
 func (f commandFunc) Run(ctx context.Context, argv []string, dir string, onLog func(string)) (int, error) {

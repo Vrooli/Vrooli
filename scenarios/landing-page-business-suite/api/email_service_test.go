@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"net/smtp"
 	"strings"
 	"testing"
+	"time"
 
 	"landing-page-business-suite-api/internal/experimentation"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
@@ -162,6 +165,89 @@ func TestSendViaSendGrid_Success(t *testing.T) {
 	}
 	if !strings.Contains(string(receivedBody), `"subject":"subject"`) {
 		t.Errorf("request body did not contain subject: %s", receivedBody)
+	}
+}
+
+func TestSendViaSendGrid_SignInDisablesTrackingAndReturnsMessageID(t *testing.T) {
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		w.Header().Set("X-Message-Id", "sg-message-123")
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SendGridConfig:   &SendGridConfig{APIKey: "SG.test", FromEmail: "from@example.com", FromName: "Test"},
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
+	})
+	delivery, err := svc.sendViaSendGridWithMetadata(context.Background(), "to@example.com", "subject", "text", "html", "request-123")
+	if err != nil {
+		t.Fatalf("sendViaSendGridWithMetadata failed: %v", err)
+	}
+	if delivery.Provider != "sendgrid" || delivery.ProviderMessageID != "sg-message-123" {
+		t.Fatalf("delivery = %+v", delivery)
+	}
+	if got := payload["categories"].([]any); len(got) != 1 || got[0] != "lpbs-auth" {
+		t.Fatalf("categories = %#v", payload["categories"])
+	}
+	tracking := payload["tracking_settings"].(map[string]any)
+	for _, name := range []string{"click_tracking", "open_tracking", "subscription_tracking", "ganalytics"} {
+		settings := tracking[name].(map[string]any)
+		if enabled, ok := settings["enable"]; ok && enabled != false {
+			t.Errorf("%s.enable = %#v", name, enabled)
+		}
+	}
+	if tracking["click_tracking"].(map[string]any)["enable_text"] != false {
+		t.Errorf("click tracking text was not disabled")
+	}
+	args := payload["custom_args"].(map[string]any)
+	if args["lpbs_sign_in_request_id"] != "request-123" {
+		t.Errorf("custom args = %#v", args)
+	}
+}
+
+func TestSendViaSendGrid_UsesContextTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			w.WriteHeader(http.StatusAccepted)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SendGridConfig:   &SendGridConfig{APIKey: "SG.test", FromEmail: "from@example.com"},
+		SendGridEndpoint: server.URL,
+		HTTPClient:       &http.Client{Timeout: 20 * time.Millisecond},
+	})
+	started := time.Now()
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err == nil {
+		t.Fatal("expected timeout")
+	} else if time.Since(started) > 150*time.Millisecond {
+		t.Fatalf("timeout was not bounded: %v", time.Since(started))
+	}
+}
+
+func TestSendSMTPMultipartAddsDateMessageIDAndBothParts(t *testing.T) {
+	var message []byte
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPSender: func(_ string, _ smtp.Auth, _ string, _ []string, msg []byte) error {
+			message = append([]byte(nil), msg...)
+			return nil
+		},
+	})
+	config := &SMTPConfig{Host: "smtp.example.com", Port: 587, Username: "user@example.com", Password: "secret", From: "noreply@example.com"}
+	if err := svc.sendSMTPMultipart(config, "to@example.com", "Sign in", "plain body", "<p>html body</p>"); err != nil {
+		t.Fatalf("sendSMTPMultipart failed: %v", err)
+	}
+	text := string(message)
+	for _, header := range []string{"Date: ", "Message-ID: <", "Content-Type: multipart/alternative", "plain body", "html body"} {
+		if !strings.Contains(text, header) {
+			t.Errorf("message missing %q: %s", header, text)
+		}
 	}
 }
 

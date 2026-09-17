@@ -12,6 +12,7 @@ export const AdminSessionResponseSchema = z.object({
   authenticated: z.boolean(),
   email: z.string().optional(),
   reset_enabled: z.boolean().optional(),
+  assurance: z.enum(['full', 'enrollment_only']).optional(),
 });
 
 // Admin profile schema

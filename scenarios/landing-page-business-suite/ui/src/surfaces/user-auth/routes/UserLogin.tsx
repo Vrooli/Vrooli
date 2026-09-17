@@ -4,9 +4,14 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, Laptop,
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import {
   authorizeNativeApp,
+  getSignInDeliveryStatus,
   isApiError,
   requestMagicLink,
   verifySignInCode,
+  beginPasskeyAuthentication,
+  finishPasskeyAuthentication,
+  beginPasskeyRegistration,
+  finishPasskeyRegistration,
   type BusinessAccount,
 } from '../../../shared/api';
 import { useSiteIdentity } from '../../public-landing/site/useSiteIdentity';
@@ -17,6 +22,7 @@ import { getBrowserBinding } from '../lib/browserBinding';
 import { contextProblem, describeScope, flowForContext, safeNextPath, signInContextFromSearch } from '../lib/signInContext';
 import { continueDesktopLink, finishDesktopLink, redirectBrowser, type Redirect } from '../lib/completeSignIn';
 import { mailShortcutFor } from '../lib/mailProviders';
+import { credentialToJSON, isConditionalAvailable, isPasskeySupported, toCreationOptions, toRequestOptions } from '../lib/webauthn';
 
 const RESEND_COOLDOWN_SECONDS = 45;
 
@@ -60,12 +66,69 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [savePasskeyPrompt, setSavePasskeyPrompt] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
+  const [deliveryStatus, setDeliveryStatus] = useState<{ status: string; reasonClass: string }>({ status: 'pending', reasonClass: '' });
   const [choosingId, setChoosingId] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const submittingCode = useRef(false);
+  const deliveryPollingStopped = useRef(false);
+  const conditionalAbort = useRef<AbortController | null>(null);
+
+  const offerSavePrompt = useCallback(() => {
+    if (flow !== 'browser' || !isPasskeySupported()) return false;
+    try {
+      const dismissedAt = Number(localStorage.getItem('lpbs.passkey.not-now-at') || '0');
+      return !dismissedAt || Date.now() - dismissedAt > 30 * 24 * 60 * 60 * 1000;
+    } catch { return false; }
+  }, [flow]);
+
+  const continueAfterEmailSignIn = useCallback(() => {
+    setStep('done');
+    if (offerSavePrompt()) { setSavePasskeyPrompt(true); return; }
+    window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 900);
+  }, [navigate, nextPath, offerSavePrompt]);
+
+  const signInWithPasskey = useCallback(async () => {
+    if (!isPasskeySupported()) {
+      setError('Passkeys are not available in this browser. Continue with email instead.');
+      return;
+    }
+    setPasskeyBusy(true);
+    conditionalAbort.current?.abort();
+    setError(null);
+    try {
+      const started = await beginPasskeyAuthentication(context ? JSON.stringify(context) : '');
+      const assertion = await navigator.credentials.get({ publicKey: toRequestOptions(JSON.parse(started.optionsJson)) });
+      if (!(assertion instanceof PublicKeyCredential)) throw new Error('No passkey assertion was returned.');
+      const finished = await finishPasskeyAuthentication(JSON.stringify(credentialToJSON(assertion)), started.ceremonyId, context ? JSON.stringify(context) : '');
+      if (!finished.authenticated) throw new Error('Passkey sign-in was not accepted.');
+      if (flow === 'native_app' && finished.redirectUrl) {
+        setStep('done');
+        redirectTo(finished.redirectUrl);
+        return;
+      }
+      if (flow === 'desktop_link' && context) {
+        await connectDesktop();
+        return;
+      }
+      setStep('done');
+      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 500);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('Passkey sign-in was cancelled. You can continue with email.');
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('We couldn’t finish passkey sign-in. Please try email instead.');
+      }
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }, [context, navigate, nextPath]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -82,6 +145,8 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
       setExpiresAt(started.expires_at ?? null);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setCode('');
+      setDeliveryStatus({ status: 'pending', reasonClass: '' });
+      deliveryPollingStopped.current = false;
       setStep('code');
       if (isResend) setNotice('We sent a new code. Earlier codes still work until they expire.');
     } catch (err) {
@@ -91,8 +156,52 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     }
   }, [context]);
 
+  useEffect(() => {
+    if (step !== 'code' || !email) return;
+    let stopped = false;
+    const poll = async () => {
+      if (deliveryPollingStopped.current) return;
+      try {
+        const result = await getSignInDeliveryStatus(email);
+        if (!stopped) setDeliveryStatus({ status: result.status, reasonClass: result.reasonClass });
+      } catch {
+        // Delivery feedback is advisory; code verification remains available.
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 5_000);
+    const timeout = window.setTimeout(() => { window.clearInterval(timer); }, 120_000);
+    return () => { stopped = true; window.clearInterval(timer); window.clearTimeout(timeout); };
+  }, [email, step]);
+
+  useEffect(() => {
+    if (step !== 'email' || !isPasskeySupported()) return;
+    let stopped = false;
+    const controller = new AbortController();
+    conditionalAbort.current = controller;
+    void isConditionalAvailable().then(async (available) => {
+      if (!available || stopped || /^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)) return;
+      try {
+        const started = await beginPasskeyAuthentication(context ? JSON.stringify(context) : '', controller.signal);
+        const options = { ...toRequestOptions(JSON.parse(started.optionsJson)), mediation: 'conditional', signal: controller.signal } as PublicKeyCredentialRequestOptions;
+        const assertion = await navigator.credentials.get({ publicKey: options });
+        if (stopped || !(assertion instanceof PublicKeyCredential)) return;
+        const finished = await finishPasskeyAuthentication(JSON.stringify(credentialToJSON(assertion)), started.ceremonyId, context ? JSON.stringify(context) : '');
+        if (!finished.authenticated || stopped) return;
+        if (flow === 'native_app' && finished.redirectUrl) { setStep('done'); redirectTo(finished.redirectUrl); return; }
+        if (flow === 'desktop_link' && context) { await connectDesktop(); return; }
+        setStep('done');
+        navigate(nextPath, { replace: true });
+      } catch (err) {
+        if (!(err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError'))) setError('Passkey sign-in was not accepted. Continue with email.');
+      }
+    });
+    return () => { stopped = true; controller.abort(); if (conditionalAbort.current === controller) conditionalAbort.current = null; };
+  }, [context, flow, navigate, nextPath, redirectTo, step]);
+
   const handleEmailSubmit = (event: FormEvent) => {
     event.preventDefault();
+    conditionalAbort.current?.abort();
     const address = email.trim().toLowerCase();
     if (!address) {
       setError('Email is required');
@@ -111,6 +220,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
   const submitCode = useCallback(async (value: string) => {
     if (submittingCode.current || value.length !== 6) return;
     submittingCode.current = true;
+    deliveryPollingStopped.current = true;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -127,8 +237,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         await connectDesktop();
         return;
       }
-      setStep('done');
-      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 900);
+      continueAfterEmailSignIn();
     } catch (err) {
       setCode('');
       if (isApiError(err) && err.reason === 'code_invalid') {
@@ -147,7 +256,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
       setBusy(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- connectDesktop reads the same context and redirect.
-  }, [context, email, flow, navigate, nextPath, redirectTo]);
+  }, [context, email, flow, continueAfterEmailSignIn, redirectTo]);
 
   // Runs after the browser is signed in; a failure here is retried without a
   // new code because the code has already been used.
@@ -181,6 +290,25 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     }
   };
 
+  const savePasskey = async () => {
+    setPasskeyBusy(true); setError(null);
+    try {
+      const started = await beginPasskeyRegistration();
+      const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialCreationOptions });
+      if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey was created');
+      await finishPasskeyRegistration(JSON.stringify(credentialToJSON(credential)), started.ceremonyId);
+      setSavePasskeyPrompt(false); setStep('done');
+      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 500);
+    } catch { setError('We couldn’t save a passkey right now. You can add one later in Account Security.'); }
+    finally { setPasskeyBusy(false); }
+  };
+
+  const dismissSavePasskey = () => {
+    try { localStorage.setItem('lpbs.passkey.not-now-at', String(Date.now())); } catch { /* optional browser storage */ }
+    setSavePasskeyPrompt(false); setStep('done');
+    window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 500);
+  };
+
   const expiryText = useMemo(() => {
     if (!expiresAt) return 'The code expires in 15 minutes.';
     const time = new Date(expiresAt);
@@ -210,7 +338,12 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         <div className="auth-step auth-status" role="status" aria-live="polite">
           <span className="auth-status-mark auth-status-success" aria-hidden="true"><CheckCircle2 /></span>
           <h1>You’re signed in</h1>
-          <p>{flow === 'browser' ? 'Taking you there now…' : `Returning you to ${appName}. You can close this tab once it opens.`}</p>
+          {savePasskeyPrompt ? <>
+            <p>Sign in faster next time with a passkey saved on this device.</p>
+            <button type="button" className="button button-primary" onClick={() => { void savePasskey(); }} disabled={passkeyBusy} data-testid="save-passkey-button">Save a passkey</button>
+            <button type="button" className="button button-quiet" onClick={dismissSavePasskey} disabled={passkeyBusy}>Not now</button>
+          </> : <p>{flow === 'browser' ? 'Taking you there now…' : `Returning you to ${appName}. You can close this tab once it opens.`}</p>}
+          {error && <p className="auth-alert" role="alert"><AlertCircle aria-hidden="true" />{error}</p>}
         </div>
       </AuthPageLayout>
     );
@@ -275,7 +408,13 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
               ? <p className="auth-alert" id="auth-code-error" role="alert"><AlertCircle aria-hidden="true" />{error}</p>
               : notice
                 ? <p className="auth-notice"><CheckCircle2 aria-hidden="true" />{notice}</p>
-                : <p className="auth-hint" id="auth-code-hint">{expiryText} You can also open the link in the email on this device.</p>}
+                : deliveryStatus.status === 'delivered'
+                  ? <p className="auth-notice"><CheckCircle2 aria-hidden="true" />Delivered to your mail server</p>
+                  : deliveryStatus.status === 'rejected'
+                    ? <p className="auth-alert" role="status"><AlertCircle aria-hidden="true" />Your mail server rejected this message. Check the address or try another email{deliveryStatus.reasonClass ? ` (${deliveryStatus.reasonClass})` : ''}.</p>
+                    : deliveryStatus.status === 'deferred'
+                      ? <p className="auth-alert" role="status"><AlertCircle aria-hidden="true" />Your mail server is delaying this message.</p>
+                      : <p className="auth-hint" id="auth-code-hint">{expiryText} You can also open the link in the email on this device.</p>}
           </div>
 
           <button type="submit" className="button button-primary auth-submit" disabled={busy || code.length !== 6} data-testid="verify-code-button">
@@ -349,7 +488,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
               onChange={(event) => { setEmail(event.target.value); if (error) setError(null); }}
               placeholder="you@example.com"
               disabled={busy}
-              autoComplete="email"
+                  autoComplete="email webauthn"
               inputMode="email"
               autoCapitalize="none"
               spellCheck={false}
@@ -365,6 +504,12 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         <button type="submit" disabled={busy} data-testid="submit-button" className="button button-primary auth-submit">
           {busy ? <><span className="site-spinner" aria-hidden="true" />Sending code…</> : <>Continue with email<ArrowRight aria-hidden="true" /></>}
         </button>
+
+        {isPasskeySupported() && (
+          <button type="button" disabled={busy || passkeyBusy} className="button button-secondary auth-submit" onClick={() => { void signInWithPasskey(); }} data-testid="passkey-sign-in-button">
+            {passkeyBusy ? <><span className="site-spinner" aria-hidden="true" />Checking passkey…</> : 'Continue with a passkey'}
+          </button>
+        )}
 
         <p className="auth-fineprint">
           By continuing you agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.

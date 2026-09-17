@@ -35,6 +35,22 @@
       "category": "admin"
     },
     {
+      "id": "post-api-v1-admin-auth-delivery-probe",
+      "path": "/api/v1/admin/auth/delivery-probe",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/auth/delivery-probe",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-auth-email-readiness",
+      "path": "/api/v1/admin/auth/email-readiness",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/auth/email-readiness",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
       "id": "post-api-v1-admin-bundles-bundle-key-prices",
       "path": "/api/v1/admin/bundles/{bundle_key}/prices",
       "method": "POST",
@@ -303,6 +319,14 @@
       "path": "/api/v1/admin/remote-profiles/{id}/test",
       "method": "POST",
       "summary": "POST /api/v1/admin/remote-profiles/{id}/test",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-security-events",
+      "path": "/api/v1/admin/security-events",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/security-events",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },
@@ -715,6 +739,14 @@
       "category": "variants"
     },
     {
+      "id": "post-api-v1-webhooks-sendgrid",
+      "path": "/api/v1/webhooks/sendgrid",
+      "method": "POST",
+      "summary": "POST /api/v1/webhooks/sendgrid",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-api-v1-webhooks-stripe",
       "path": "/api/v1/webhooks/stripe",
       "method": "POST",
@@ -775,6 +807,14 @@
       "path": "/landing_page_business_suite.v1.AdminAuthService/Logout",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.AdminAuthService/Logout",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-adminauthservice-reauthenticate",
+      "path": "/landing_page_business_suite.v1.AdminAuthService/Reauthenticate",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminAuthService/Reauthenticate",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },

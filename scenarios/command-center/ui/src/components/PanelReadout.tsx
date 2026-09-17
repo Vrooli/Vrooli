@@ -1,5 +1,5 @@
 import type { PanelRow, Reading } from "../lib/api";
-import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
+import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import { AutoScroll } from "./AutoScroll";
 import { qualify, resolveReading, figureValue } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { panelEmptyMessage } from "../lib/panelEmptyState";

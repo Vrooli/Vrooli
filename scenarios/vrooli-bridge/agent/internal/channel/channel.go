@@ -342,7 +342,12 @@ func (c *Client) SyncCredentialGrants(ctx context.Context) error {
 			}
 			if c.credentialSink != nil {
 				if err := c.credentialSink.Delete(grant.GetLogicalId(), grant.GetField()); err != nil {
-					return fmt.Errorf("purge remotely revoked credential: %w", err)
+					// Revocation of the local grant is the authorization boundary:
+					// the agent must not use the value again even when the host
+					// authority is temporarily locked or unavailable. Keep the
+					// channel alive so the node can report the condition and retry
+					// cleanup on a later sync.
+					c.logger.Printf("channel: purge remotely revoked credential logical_id=%q field=%q deferred: %v", grant.GetLogicalId(), grant.GetField(), err)
 				}
 			}
 			c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: grant.GetId(), NodeId: c.cfg.NodeID, LogicalId: grant.GetLogicalId(), Field: grant.GetField(), Generation: grant.GetGeneration(), Accepted: true, Operation: "purge"})
@@ -364,7 +369,10 @@ func (c *Client) SyncCredentialGrants(ctx context.Context) error {
 		}
 		if c.credentialSink != nil {
 			if err := c.credentialSink.Delete(local.LogicalID, local.Field); err != nil {
-				return fmt.Errorf("purge stale granted credential: %w", err)
+				// The grant is already revoked in local metadata. Treat authority
+				// cleanup as retryable maintenance instead of preventing the
+				// node from reconnecting after an offline period.
+				c.logger.Printf("channel: purge stale granted credential logical_id=%q field=%q deferred: %v", local.LogicalID, local.Field, err)
 			}
 		}
 	}
@@ -658,10 +666,16 @@ func (c *Client) handleServerFrame(payload string) {
 	}
 	if abort := frame.GetAbort(); abort != nil {
 		// A control-plane cancel (OT-P1-004): stop the in-flight run's process so
-		// it does not run to completion. Unknown/finished runs are a no-op.
+		// it does not run to completion. After an agent restart, the in-memory
+		// running-job map is empty even though the control plane may still hold a
+		// cancellation-requested run. In that case report a terminal exit
+		// acknowledgement: the restarted agent has authoritative evidence that
+		// the run is not executing in this process, and the report releases the
+		// durable per-node queue slot.
 		c.logger.Printf("channel: received abort run_id=%q reason=%q", abort.GetRunId(), abort.GetReason())
 		if !c.cancelJob(abort.GetRunId()) {
-			c.logger.Printf("channel: abort for unknown or already-finished run %q (ignored)", abort.GetRunId())
+			c.logger.Printf("channel: abort for unknown or already-finished run %q; acknowledging termination", abort.GetRunId())
+			c.reportUnknownAbort(abort.GetRunId(), abort.GetReason())
 		}
 	}
 	if push := frame.GetCredentialPush(); push != nil {
@@ -897,6 +911,31 @@ func (c *Client) cancelJob(runID string) bool {
 	return true
 }
 
+// reportUnknownAbort closes the cancellation loop after an agent restart.
+// runningJobs is intentionally process-local, so a reconnect cannot prove
+// that an old run is still alive by looking up its id. A signed terminal event
+// from the freshly started agent is the strongest available evidence that this
+// agent has no process for that run; the control plane then marks the run
+// aborted and promotes queued work.
+func (c *Client) reportUnknownAbort(runID, reason string) {
+	if strings.TrimSpace(runID) == "" || c.runsRPC == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.baseCtxOrBackground()), 10*time.Second)
+	defer cancel()
+	reporter := &runEventReporter{rpc: c.runsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	if err := reporter.Report(ctx, &sharedv1.RunEvent{
+		RunId:     runID,
+		Kind:      sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT,
+		Sequence:  1,
+		ExitCode:  130,
+		Status:    "aborted: no active job after agent restart",
+		EmittedAt: timestamppb.New(c.now().UTC()),
+	}); err != nil {
+		c.logger.Printf("channel: abort acknowledgement run_id=%q failed: %v", runID, err)
+	}
+}
+
 type relayState struct {
 	cancel context.CancelFunc
 	reason string
@@ -987,10 +1026,46 @@ func (c *Client) runArtifactDelivery(delivery *channelv1.ArtifactDelivery) {
 	if delivery == nil {
 		return
 	}
+	deviceToken := c.cfg.DeviceSyncToken
+	var ephemeralToken []byte
+	if strings.TrimSpace(deviceToken) == "" && c.ephemeral != nil {
+		ephemeralToken, _ = c.ephemeral.Take("vrooli/device-sync-hub", "bridge-target-device-token")
+		if len(ephemeralToken) == 0 {
+			// Compatibility with grants issued before the canonical credential
+			// field was renamed. The canonical address remains the first choice.
+			ephemeralToken, _ = c.ephemeral.Take("vrooli/device-sync-hub", "target-device-token")
+		}
+		deviceToken = string(ephemeralToken)
+	}
+	defer credentialpush.Zero(ephemeralToken)
+	if strings.TrimSpace(deviceToken) == "" {
+		if resolver, ok := c.credentialSink.(interface {
+			Resolve(logicalID, field string) (string, error)
+		}); ok {
+			// Durable authority reads are allowed only when the grant metadata
+			// still authorizes that exact field. A revoked grant may leave a
+			// value behind while a locked host authority defers physical purge.
+			for _, field := range []string{"bridge-target-device-token", "target-device-token"} {
+				if c.grantStore == nil {
+					break
+				}
+				if _, allowed := c.grantStore.Lookup("vrooli/device-sync-hub", field); !allowed {
+					continue
+				}
+				resolved, err := resolver.Resolve("vrooli/device-sync-hub", field)
+				if err == nil {
+					deviceToken = resolved
+				}
+				if strings.TrimSpace(deviceToken) != "" {
+					break
+				}
+			}
+		}
+	}
 	result, err := artifactdelivery.Deliver(c.baseCtxOrBackground(), c.httpClient, artifactdelivery.Config{
-		BaseURL: c.cfg.DeviceSyncURL, DeviceToken: c.cfg.DeviceSyncToken, WorkDir: c.cfg.WorkDir,
+		BaseURL: firstNonEmpty(delivery.GetDeviceSyncUrl(), c.cfg.DeviceSyncURL), DeviceToken: deviceToken, WorkDir: c.cfg.WorkDir,
 	}, artifactdelivery.Request{
-		ItemID: delivery.GetItemId(), Name: delivery.GetName(), DestinationPath: delivery.GetDestinationPath(),
+		ItemID: delivery.GetItemId(), Name: delivery.GetName(), DestinationPath: delivery.GetDestinationPath(), Executable: delivery.GetExecutable(),
 	})
 	if err != nil {
 		c.logger.Printf("channel: artifact delivery distribution_id=%q item_id=%q failed: %v", delivery.GetDistributionId(), delivery.GetItemId(), err)
@@ -1005,6 +1080,15 @@ func (c *Client) runArtifactDelivery(delivery *channelv1.ArtifactDelivery) {
 		DistributionId: delivery.GetDistributionId(), NodeId: c.cfg.NodeID, ItemId: delivery.GetItemId(),
 		DestinationPath: result.Path, Accepted: true, Sha256: result.SHA256, SizeBytes: result.SizeBytes,
 	})
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (c *Client) reportArtifactReceipt(receipt *sharedv1.ArtifactReceipt) {

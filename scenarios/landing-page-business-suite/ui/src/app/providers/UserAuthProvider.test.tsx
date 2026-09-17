@@ -5,17 +5,17 @@ import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { UserAuthProvider } from './UserAuthProvider';
 import { useUserAuth } from './useUserAuth';
 
-const { mockGetUserMe, mockIsApiError, mockRefreshUserTokens, mockUserLogout } = vi.hoisted(() => ({
+const { mockGetUserMe, mockIsApiError, mockRefreshSessionOnce, mockUserLogout } = vi.hoisted(() => ({
   mockGetUserMe: vi.fn(),
   mockIsApiError: vi.fn(),
-  mockRefreshUserTokens: vi.fn(),
+  mockRefreshSessionOnce: vi.fn(),
   mockUserLogout: vi.fn(),
 }));
 
 vi.mock('../../shared/api', () => ({
   getUserMe: mockGetUserMe,
   isApiError: mockIsApiError,
-  refreshUserTokens: mockRefreshUserTokens,
+  refreshSessionOnce: mockRefreshSessionOnce,
   userLogout: mockUserLogout,
 }));
 
@@ -48,7 +48,7 @@ describe('UserAuthProvider', () => {
     vi.clearAllMocks();
     mockGetUserMe.mockResolvedValue({ user });
     mockIsApiError.mockReturnValue(false);
-    mockRefreshUserTokens.mockResolvedValue(undefined);
+    mockRefreshSessionOnce.mockResolvedValue(undefined);
     mockUserLogout.mockResolvedValue(undefined);
     vi.spyOn(document, 'cookie', 'get').mockReturnValue('');
   });
@@ -66,7 +66,7 @@ describe('UserAuthProvider', () => {
     );
   }
 
-  it('does not make an unauthenticated request until an access-token cookie exists', () => {
+  it('does not make an unauthenticated request until a session hint exists', () => {
     renderProvider();
 
     expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
@@ -74,8 +74,8 @@ describe('UserAuthProvider', () => {
     expect(mockGetUserMe).not.toHaveBeenCalled();
   });
 
-  it('loads an existing user session when an access-token cookie exists', async () => {
-    vi.spyOn(document, 'cookie', 'get').mockReturnValue('access_token=session-token');
+  it('loads an existing user session when a session hint exists', async () => {
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
 
     renderProvider();
 
@@ -88,7 +88,7 @@ describe('UserAuthProvider', () => {
   });
 
   it('refreshes an expired authorized session before marking the user unauthenticated', async () => {
-    vi.spyOn(document, 'cookie', 'get').mockReturnValue('access_token=expired-token');
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
     mockGetUserMe.mockRejectedValueOnce(new Error('expired')).mockResolvedValueOnce({ user });
     mockIsApiError.mockReturnValue(true);
 
@@ -98,12 +98,12 @@ describe('UserAuthProvider', () => {
       expect(screen.getByTestId('authenticated')).toHaveTextContent('true');
     });
 
-    expect(mockRefreshUserTokens).toHaveBeenCalledWith('');
+    expect(mockRefreshSessionOnce).toHaveBeenCalledTimes(1);
     expect(mockGetUserMe).toHaveBeenCalledTimes(2);
   });
 
   it('marks the session unauthenticated when the existing cookie is not authorized', async () => {
-    vi.spyOn(document, 'cookie', 'get').mockReturnValue('access_token=invalid-token');
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
     mockGetUserMe.mockRejectedValueOnce(new Error('network unavailable'));
 
     renderProvider();
@@ -116,19 +116,19 @@ describe('UserAuthProvider', () => {
     });
 
     expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
-    expect(mockRefreshUserTokens).not.toHaveBeenCalled();
+    expect(mockRefreshSessionOnce).not.toHaveBeenCalled();
   });
 
   it('marks the session unauthenticated when token refresh fails', async () => {
-    vi.spyOn(document, 'cookie', 'get').mockReturnValue('access_token=expired-token');
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
     mockGetUserMe.mockRejectedValueOnce(new Error('expired'));
     mockIsApiError.mockReturnValue(true);
-    mockRefreshUserTokens.mockRejectedValueOnce(new Error('refresh rejected'));
+    mockRefreshSessionOnce.mockRejectedValueOnce(new Error('refresh rejected'));
 
     renderProvider();
 
     await waitFor(() => {
-      expect(mockRefreshUserTokens).toHaveBeenCalledWith('');
+      expect(mockRefreshSessionOnce).toHaveBeenCalledTimes(1);
     });
     await waitFor(() => {
       expect(screen.getByTestId('loading')).toHaveTextContent('false');

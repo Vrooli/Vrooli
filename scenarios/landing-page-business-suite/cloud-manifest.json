@@ -39,7 +39,7 @@
   },
   "secrets": {
     "summary": {
-      "total_secrets": 2,
+      "total_secrets": 4,
       "per_install_generated": 1,
       "user_prompt": 1,
       "remote_fetch": 0,
@@ -73,6 +73,22 @@
           "logical_id": "vrooli/landing-page-business-suite",
           "field": "smtp-password"
         }
+      },
+      {
+        "id": "sendgrid-api-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Restricted SendGrid API key for transactional sign-in email delivery.",
+        "target": { "type": "env", "name": "SENDGRID_API_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-api-key" }
+      },
+      {
+        "id": "sendgrid-webhook-public-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Public key used to verify SendGrid Signed Event Webhook requests.",
+        "target": { "type": "env", "name": "SENDGRID_WEBHOOK_PUBLIC_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-webhook-public-key" }
       }
     ]
   },

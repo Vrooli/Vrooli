@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
-import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
+import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import type { Constellation } from "../lib/api";
 import { displayFormat } from "../lib/format";
 import { tallySky } from "../lib/sky";

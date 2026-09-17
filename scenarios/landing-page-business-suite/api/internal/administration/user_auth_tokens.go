@@ -16,6 +16,12 @@ import (
 
 // RefreshTokens validates a refresh token and returns a new token pair.
 func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	return s.RefreshTokensFromSource(ctx, refreshToken, RefreshSourceBody)
+}
+
+// RefreshTokensFromSource applies the cookie-only grace policy. Body-token
+// clients retain strict single-use replay detection.
+func (s *UserAuthService) RefreshTokensFromSource(ctx context.Context, refreshToken string, source RefreshSource) (*TokenPair, error) {
 	refreshToken = strings.TrimSpace(refreshToken)
 	if refreshToken == "" {
 		return nil, ErrTokenInvalid
@@ -25,19 +31,38 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 
 	// Find session by refresh token hash
 	var sessionID, userID, familyID string
-	var expiresAt time.Time
+	var expiresAt, absoluteExpiresAt time.Time
 	var revoked bool
 
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, user_id, refresh_token_family_id, expires_at, revoked
+		SELECT id, user_id, refresh_token_family_id, expires_at, absolute_expires_at, revoked
 		FROM user_sessions
 		WHERE refresh_token_hash = $1
-	`, tokenHash).Scan(&sessionID, &userID, &familyID, &expiresAt, &revoked)
+	`, tokenHash).Scan(&sessionID, &userID, &familyID, &expiresAt, &absoluteExpiresAt, &revoked)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		var historyFamily string
-		if historyErr := s.db.QueryRowContext(ctx, `SELECT family_id FROM refresh_token_history WHERE refresh_token_hash = $1`, tokenHash).Scan(&historyFamily); historyErr == nil {
-			_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE WHERE refresh_token_family_id = $1`, historyFamily)
+		var historySession, historyUser, historyFamily string
+		var retiredAt, historyExpires, historyAbsolute time.Time
+		var historyRevoked bool
+		historyErr := s.db.QueryRowContext(ctx, `
+			SELECT h.session_id, s.user_id, h.family_id, h.retired_at, s.expires_at, s.absolute_expires_at, s.revoked
+			FROM refresh_token_history h JOIN user_sessions s ON s.id = h.session_id
+			WHERE h.refresh_token_hash = $1
+		`, tokenHash).Scan(&historySession, &historyUser, &historyFamily, &retiredAt, &historyExpires, &historyAbsolute, &historyRevoked)
+		if historyErr == nil {
+			now := time.Now().UTC()
+			if source == RefreshSourceCookie && !historyRevoked && now.Before(historyExpires) && now.Before(historyAbsolute) && now.Sub(retiredAt) <= s.refreshGrace {
+				user, userErr := s.GetUserByID(ctx, historyUser)
+				if userErr != nil {
+					return nil, fmt.Errorf("get user for refresh grace: %w", userErr)
+				}
+				accessToken, accessExpiresAt, tokenErr := s.GenerateAccessToken(user.ID, user.Email, historySession)
+				if tokenErr != nil {
+					return nil, tokenErr
+				}
+				return &TokenPair{AccessToken: accessToken, ExpiresAt: accessExpiresAt, TokenType: "Bearer", SessionExpiresAt: historyExpires, GraceResponse: true}, nil
+			}
+			_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE, revoked_at = NOW(), revoked_reason = 'reuse' WHERE refresh_token_family_id = $1`, historyFamily)
 			return nil, ErrSessionRevoked
 		}
 		return nil, ErrTokenInvalid
@@ -50,7 +75,12 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 		return nil, ErrSessionRevoked
 	}
 
-	if time.Now().After(expiresAt) {
+	now := time.Now().UTC()
+	if now.After(absoluteExpiresAt) {
+		_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE, revoked_at = NOW(), revoked_reason = 'expired' WHERE id = $1`, sessionID)
+		return nil, ErrSessionExpired
+	}
+	if now.After(expiresAt) {
 		return nil, ErrTokenExpired
 	}
 
@@ -72,7 +102,10 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 	}
 
 	// Update session with new refresh token and extend expiry (use UTC for consistent timezone handling)
-	newExpiresAt := time.Now().UTC().Add(s.refreshTTL)
+	newExpiresAt := time.Now().UTC().Add(s.idleTTL)
+	if newExpiresAt.After(absoluteExpiresAt) {
+		newExpiresAt = absoluteExpiresAt
+	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE user_sessions
 		SET refresh_token_hash = $1, expires_at = $2, last_used_at = NOW()
@@ -87,7 +120,16 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 		// Another request won the single-use rotation race. Treat the old
 		// credential as a replay and revoke the whole family, including the
 		// winner's newly-issued credential.
-		_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE WHERE refresh_token_family_id = $1`, familyID)
+		if source == RefreshSourceCookie {
+			var retiredAt time.Time
+			if graceErr := s.db.QueryRowContext(ctx, `SELECT retired_at FROM refresh_token_history WHERE refresh_token_hash = $1`, tokenHash).Scan(&retiredAt); graceErr == nil && time.Since(retiredAt) <= s.refreshGrace {
+				accessToken, accessExpiresAt, tokenErr := s.GenerateAccessToken(user.ID, user.Email, sessionID)
+				if tokenErr == nil {
+					return &TokenPair{AccessToken: accessToken, ExpiresAt: accessExpiresAt, TokenType: "Bearer", SessionExpiresAt: newExpiresAt, GraceResponse: true}, nil
+				}
+			}
+		}
+		_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE, revoked_at = NOW(), revoked_reason = 'reuse' WHERE refresh_token_family_id = $1`, familyID)
 		return nil, ErrSessionRevoked
 	}
 
@@ -98,10 +140,11 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 	}
 
 	return &TokenPair{
-		AccessToken:  accessToken,
-		RefreshToken: newRefreshToken,
-		ExpiresAt:    accessExpiresAt,
-		TokenType:    "Bearer",
+		AccessToken:      accessToken,
+		RefreshToken:     newRefreshToken,
+		ExpiresAt:        accessExpiresAt,
+		TokenType:        "Bearer",
+		SessionExpiresAt: newExpiresAt,
 	}, nil
 }
 

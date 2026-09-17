@@ -1439,7 +1439,7 @@
         },
         {
           "name": "auth-verify",
-          "description": "Legacy local command: auth-verify.",
+          "description": "Verify a magic link token.",
           "binding": {
             "kind": "local"
           },
@@ -1450,6 +1450,18 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "auth-verify-code",
+          "description": "Verify an emailed sign-in code.",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "auth-magic-link-preview",
+          "description": "Preview a magic link without consuming it.",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
         },
         {
           "name": "billing-checkout",

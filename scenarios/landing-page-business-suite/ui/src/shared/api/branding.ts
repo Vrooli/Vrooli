@@ -6,6 +6,7 @@ import { createScenarioConnectTransport } from '@vrooli/api-base';
 import { CONNECT_API_BASE } from './common';
 import type { SiteBranding, SiteBrandingUpdate, PublicBranding } from './types';
 import { parseOrThrow } from './safeParse';
+import { withAdminReauthentication } from './adminReauthentication';
 
 const brandingClient = createClient(BrandingService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
@@ -85,11 +86,11 @@ export function getBranding() {
 
 export function updateBranding(data: SiteBrandingUpdate) {
   const request = fromJsonString(UpdateBrandingRequestSchema, JSON.stringify(data), { ignoreUnknownFields: false });
-  return brandingClient.updateBranding(request).then(decodePrivateBranding);
+  return withAdminReauthentication(() => brandingClient.updateBranding(request)).then(decodePrivateBranding);
 }
 
 export function clearBrandingField(field: string) {
-  return brandingClient.clearBrandingField({ field }).then(decodePrivateBranding);
+  return withAdminReauthentication(() => brandingClient.clearBrandingField({ field })).then(decodePrivateBranding);
 }
 
 // Public endpoints (no auth required)

@@ -161,3 +161,18 @@ func TestSystemCommandGroupsCarryOnlyPrimitiveHandlers(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateArtifactRejectsDigestBeforeWritingEvidence(t *testing.T) {
+	artifact := filepath.Join(t.TempDir(), "demo.AppImage")
+	if err := os.WriteFile(artifact, []byte("artifact"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "evidence-bundle.tar.gz")
+	err := validateArtifact(artifact, "sha256:wrong", "demo", "smoke", "normal", output)
+	if err == nil || !strings.Contains(err.Error(), "artifact_digest_mismatch") {
+		t.Fatalf("validateArtifact error = %v, want named digest mismatch", err)
+	}
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("evidence output exists after digest mismatch: %v", statErr)
+	}
+}

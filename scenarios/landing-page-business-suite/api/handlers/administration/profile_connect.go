@@ -104,18 +104,48 @@ func (h *ProfileConnectHandler) UpdateAdminProfile(ctx context.Context, request 
 	}
 	session, _ := h.deps.Sessions.GetSession(r, sessionName)
 	currentSessionID, _ := session.Values["session_id"].(string)
-	if targetHash != profile.PasswordHash {
+	if targetHash != profile.PasswordHash || targetEmail != profile.Email {
 		if affected, err := h.deps.Auth.RevokeOtherSessions(ctx, currentEmail, currentSessionID); err != nil {
 			h.deps.LogError("admin_sessions_invalidation_failed", map[string]any{"error": err.Error(), "email": currentEmail})
 		} else if affected > 0 {
 			h.deps.Log("admin_sessions_invalidated_on_password_change", map[string]any{"level": "info", "email": currentEmail, "sessions_revoked": affected, "security": true})
 		}
 	}
+	if rotator, ok := h.deps.Auth.(SessionRotator); ok && currentSessionID != "" {
+		rotatedID, rotateErr := rotator.RotateSession(ctx, currentSessionID, currentEmail, targetEmail)
+		if rotateErr != nil {
+			h.deps.LogError("admin_session_rotation_failed", map[string]any{"error": rotateErr.Error()})
+			return nil, connect.NewError(connect.CodeInternal, errors.New("failed to rotate administrator session"))
+		}
+		session.Values["session_id"] = rotatedID
+	}
 	session.Values["email"] = targetEmail
 	if err := h.deps.Sessions.SaveSession(r, w, session); err != nil {
 		h.deps.LogError("session_save_after_profile_update_failed", map[string]any{"error": err.Error()})
 	}
 	h.deps.Log("admin_profile_updated", map[string]any{"level": "info", "changed_email": targetEmail != profile.Email, "changed_secret": targetHash != profile.PasswordHash})
+	currentSessionID, _ = session.Values["session_id"].(string)
+	event := "password_changed"
+	if targetEmail != profile.Email {
+		event = "email_changed"
+	}
+	if h.deps.SecurityEvents != nil {
+		_ = h.deps.SecurityEvents.Record(ctx, event, targetEmail, currentSessionID, r.RemoteAddr, r.UserAgent(), map[string]any{"old_email": profile.Email})
+	}
+	if h.deps.Notifier != nil {
+		detail := "The administrator credentials were changed."
+		if targetEmail != profile.Email {
+			detail = "The administrator email address was changed."
+		}
+		if err := h.deps.Notifier.Notify(ctx, targetEmail, "admin_profile_changed", detail); err != nil && h.deps.SecurityEvents != nil {
+			_ = h.deps.SecurityEvents.Record(ctx, "notify_failed", targetEmail, currentSessionID, r.RemoteAddr, r.UserAgent(), map[string]any{"event": event, "error": err.Error()})
+		}
+		if targetEmail != profile.Email {
+			if err := h.deps.Notifier.Notify(ctx, profile.Email, "admin_profile_changed", detail); err != nil && h.deps.SecurityEvents != nil {
+				_ = h.deps.SecurityEvents.Record(ctx, "notify_failed", profile.Email, currentSessionID, r.RemoteAddr, r.UserAgent(), map[string]any{"event": event, "error": err.Error()})
+			}
+		}
+	}
 	response := connect.NewResponse(&lpbsv1.UpdateAdminProfileResponse{Profile: profileMessage(profileResponse(h.deps, targetEmail, targetHash))})
 	copyHeaders(response.Header(), w.Header())
 	return response, nil

@@ -2,8 +2,10 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -24,6 +26,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-login", NeedsAPI: true, Description: "Admin login (stores session)", Run: func(args []string) error { return runLogin(deps, args) }},
 		{Name: "admin-logout", NeedsAPI: true, Description: "Admin logout (clears session)", Run: func(args []string) error { return runLogout(deps, args) }},
 		{Name: "admin-session", NeedsAPI: true, Description: "Admin session status", Run: func(args []string) error { return runSession(deps, args) }},
+		{Name: "admin-reauthenticate", NeedsAPI: true, Description: "Reauthenticate the stored administrator session for sensitive operations", Run: func(args []string) error { return runReauthenticate(deps, args) }},
 		{Name: "admin-mfa-reset", NeedsAPI: true, Description: "Turn off admin two-factor authentication (operator recovery; uses the service credential)", Run: func(args []string) error { return runMFAReset(deps, args) }},
 	}
 	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
@@ -31,11 +34,87 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-profile-update", Method: "PUT", Path: "/admin/profile", Description: "Update admin profile"},
 		{Name: "admin-mfa-status", Method: "GET", Path: "/admin/mfa", Description: "Admin two-factor authentication status"},
 		{Name: "admin-sign-in-delivery", Method: "GET", Path: "/admin/auth/delivery", Description: "Recent sign-in email delivery outcomes"},
+		{Name: "admin-email-readiness", Method: "GET", Path: "/admin/auth/email-readiness", Description: "Read-only sign-in email DNS and webhook readiness"},
 		{Name: "admin-stripe-verify-price", Method: "GET", Path: "/admin/stripe/verify-price", Description: "Verify Stripe price"},
 		{Name: "admin-reset-demo-data", Method: "POST", Path: "/admin/reset-demo-data", Description: "Reset demo data"},
 	})...)
 	commands = append(commands, stripeSettingsCommands(deps)...)
+	commands = append(commands, cliapp.Command{Name: "admin-sign-in-delivery-probe", NeedsAPI: true, Description: "Send a sign-in delivery probe and wait for provider feedback", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "to", Description: "Destination email address", Required: true}}}, Run: func(args []string) error { return runDeliveryProbe(deps, args) }})
 	return cliapp.CommandGroup{Title: "Admin Core", Commands: commands}
+}
+
+func runReauthenticate(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-reauthenticate", flag.ContinueOnError)
+	passwordStdin := fs.Bool("password-stdin", false, "Read the administrator password from stdin")
+	totp := fs.String("totp", "", "Current authenticator code")
+	recovery := fs.String("recovery-code", "", "Administrator recovery code")
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if !*passwordStdin || (strings.TrimSpace(*totp) == "" && strings.TrimSpace(*recovery) == "") {
+		return fmt.Errorf("usage: admin-reauthenticate --password-stdin --totp <code> | --recovery-code <code>")
+	}
+	passwordBytes, err := io.ReadAll(io.LimitReader(os.Stdin, 4<<10))
+	if err != nil {
+		return fmt.Errorf("read password: %w", err)
+	}
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return err
+	}
+	client := lpbsconnect.NewAdminAuthServiceClient(httpClient, baseURL)
+	response, err := client.Reauthenticate(context.Background(), connect.NewRequest(&lpbsv1.ReauthenticateRequest{Password: strings.TrimSpace(string(passwordBytes)), TotpCode: strings.TrimSpace(*totp), RecoveryCode: strings.TrimSpace(*recovery)}))
+	if err != nil {
+		return cliapp.WrapAPIError("admin reauthentication", err, nil)
+	}
+	if response == nil || !response.Msg.GetReauthenticated() {
+		return fmt.Errorf("admin reauthentication was not accepted")
+	}
+	fmt.Fprintln(os.Stdout, "administrator session reauthenticated")
+	return nil
+}
+
+func runDeliveryProbe(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("admin-sign-in-delivery-probe", flag.ContinueOnError)
+	to := fs.String("to", "", "Destination email address")
+	if err := support.ParseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*to) == "" {
+		return fmt.Errorf("--to is required")
+	}
+	body, _ := json.Marshal(map[string]string{"to": strings.TrimSpace(*to)})
+	data, err := deps.RequestAdmin(http.MethodPost, "/admin/auth/delivery-probe", nil, body)
+	if err != nil {
+		return err
+	}
+	var started struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(data, &started); err != nil {
+		return fmt.Errorf("decode probe response: %w", err)
+	}
+	fmt.Fprintf(os.Stdout, "request_id=%s\n", started.RequestID)
+	// The request is accepted before provider feedback arrives. Polling is
+	// intentionally bounded and reports the last normalized status only.
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return err
+	}
+	client := lpbsconnect.NewAccountSecurityServiceClient(httpClient, baseURL)
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
+		response, pollErr := client.GetSignInDeliveryStatus(context.Background(), connect.NewRequest(&lpbsv1.GetSignInDeliveryStatusRequest{Email: *to}))
+		if pollErr == nil && response != nil {
+			status := response.Msg.GetStatus()
+			fmt.Fprintf(os.Stdout, "status=%s reason_class=%s\n", status, response.Msg.GetReasonClass())
+			if status == "delivered" || status == "rejected" {
+				return nil
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+	return fmt.Errorf("delivery probe timed out; request_id=%s", started.RequestID)
 }
 
 func stripeSettingsClient(deps support.Dependencies) (lpbsconnect.StripeSettingsServiceClient, error) {

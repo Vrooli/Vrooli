@@ -239,6 +239,14 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 }
 
 func (s *Service) reconcileNodeScopes(ctx context.Context, registrar CorrelatedNodeRegistrar, nodeID string, scopes []string) error {
+	// An onboarding reconnect can be issued while the control plane is in the
+	// shared/presence-only posture, whose pairing code intentionally carries no
+	// grants. Empty scopes must not turn that posture into an implicit revocation
+	// of an operator-approved node; explicit grant changes belong to the node
+	// update API. Non-empty owner-issued scopes still replace the prior grant.
+	if len(scopes) == 0 {
+		return nil
+	}
 	updater, ok := registrar.(CorrelatedNodeScopeUpdater)
 	if !ok {
 		// Older test and embedded registrars may not expose the optional update

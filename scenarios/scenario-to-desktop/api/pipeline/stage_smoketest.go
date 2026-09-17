@@ -3,9 +3,17 @@ package pipeline
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-desktop-api/shared/errors"
 	"scenario-to-desktop-api/smoketest"
 )
@@ -16,6 +24,10 @@ type SmokeTestStage struct {
 	service      smoketest.Service
 	store        smoketest.Store
 	timeProvider TimeProvider
+	matrix       *validationmatrix.Service
+	discoverer   interface {
+		Discover(context.Context) ([]deliveryramp.Target, error)
+	}
 }
 
 // SmokeTestStageOption configures a SmokeTestStage.
@@ -40,6 +52,21 @@ func WithSmokeTestTimeProvider(tp TimeProvider) SmokeTestStageOption {
 	return func(s *SmokeTestStage) {
 		s.timeProvider = tp
 	}
+}
+
+// WithValidationMatrix makes the validation stage matrix-driven while
+// retaining the legacy smoke-test path when no matrix service is configured.
+func WithValidationMatrix(service *validationmatrix.Service) SmokeTestStageOption {
+	return func(s *SmokeTestStage) { s.matrix = service }
+}
+
+// WithValidationTargetDiscovery supplies the normalized local/Bridge target
+// inventory used to build one cell for every produced platform.
+func WithValidationTargetDiscovery(discoverer interface {
+	Discover(context.Context) ([]deliveryramp.Target, error)
+},
+) SmokeTestStageOption {
+	return func(s *SmokeTestStage) { s.discoverer = discoverer }
 }
 
 // NewSmokeTestStage creates a new smoke test stage.
@@ -103,6 +130,9 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 			}).
 			InDomain("smoketest"))
 		return result
+	}
+	if s.matrix != nil {
+		return s.executeValidationMatrix(ctx, input, result)
 	}
 
 	// Find an artifact to test (prefer current platform)
@@ -178,6 +208,133 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	return result
+}
+
+func (s *SmokeTestStage) executeValidationMatrix(ctx context.Context, input *StageInput, result *StageResult) *StageResult {
+	selection, err := s.buildValidationSelection(ctx, input)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.New(errors.CodeDependencyError, "build validation matrix selection: "+err.Error()).InDomain("validationmatrix"))
+		return result
+	}
+	run, err := s.matrix.Create(selection)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.New(errors.CodeDependencyError, "create validation matrix: "+err.Error()).InDomain("validationmatrix"))
+		return result
+	}
+	if _, err := s.matrix.Start(run.RunID); err != nil {
+		failStage(result, s.timeProvider, errors.New(errors.CodeServiceStartError, "start validation matrix: "+err.Error()).InDomain("validationmatrix"))
+		return result
+	}
+	completed, err := s.matrix.Wait(ctx, run.RunID)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.New(errors.CodeTimeout, "wait for validation matrix: "+err.Error()).InDomain("validationmatrix"))
+		return result
+	}
+	input.ValidationMatrixResult = completed
+	result.Details = completed
+	result.Logs = append(result.Logs, fmt.Sprintf("Validation matrix %s completed with state %s", completed.RunID, completed.State))
+	if completed.State != validationmatrix.RunCompleted || completed.Gate == nil || !completed.Gate.GetPassed() {
+		failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "validation matrix release gate did not pass").InDomain("validationmatrix"))
+		return result
+	}
+	completeStage(result, s.timeProvider, completed)
+	return result
+}
+
+func (s *SmokeTestStage) buildValidationSelection(ctx context.Context, input *StageInput) (validationmatrix.MatrixSelection, error) {
+	if input == nil || input.BuildResult == nil {
+		return validationmatrix.MatrixSelection{}, fmt.Errorf("build result is required")
+	}
+	selection := validationmatrix.MatrixSelection{ScenarioName: input.Config.ScenarioName, DeploymentMode: input.Config.GetDeploymentMode(), Journeys: []validationmatrix.JourneySelection{{JourneyID: input.Config.JourneyID, DisplayName: "Desktop validation", ExecutionMode: "platform", Required: true}}, EnvironmentProfiles: []domainv1.ValidationEnvironmentProfile{domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL}, MaxConcurrency: 1, Command: "scenario-to-desktop validate-artifact", ArtifactPaths: map[string]string{}, ArtifactDigests: map[string]string{}}
+	if strings.TrimSpace(selection.Journeys[0].JourneyID) == "" {
+		selection.Journeys[0].JourneyID = "desktop-smoke"
+	}
+	if s.discoverer == nil {
+		return validationmatrix.MatrixSelection{}, fmt.Errorf("validation target discovery is unavailable")
+	}
+	targets, discoveryErr := s.discoverer.Discover(ctx)
+	localOS := runtime.GOOS
+	for platform, artifact := range input.BuildResult.PlatformResults {
+		if artifact == nil || artifact.Status != BuildStatusReady || strings.TrimSpace(artifact.Artifact) == "" {
+			continue
+		}
+		data, readErr := os.ReadFile(artifact.Artifact)
+		if readErr != nil {
+			return validationmatrix.MatrixSelection{}, fmt.Errorf("read %s artifact: %w", platform, readErr)
+		}
+		sum := sha256.Sum256(data)
+		digest := "sha256:" + hex.EncodeToString(sum[:])
+		kind := validationmatrix.TargetBridge
+		descriptor := &domainv1.ValidationTargetDescriptor{TargetId: "bridge-unavailable-" + platform, DisplayName: platform + " target", Available: false}
+		if normalizeBuildPlatform(platform) == localOS {
+			kind = validationmatrix.TargetLocal
+			descriptor = &domainv1.ValidationTargetDescriptor{TargetId: "local-" + platform, DisplayName: "Local host", Available: true}
+		} else {
+			for _, target := range targets {
+				if target.OS == normalizeBuildPlatform(platform) && target.Available {
+					descriptor = &domainv1.ValidationTargetDescriptor{TargetId: target.ID, DisplayName: target.Label, Available: true, Reason: stringPtr(target.Reason)}
+					break
+				}
+			}
+			if !descriptor.Available {
+				reason := firstNonEmptyTargetReason(targets, platform)
+				if discoveryErr != nil {
+					reason = "bridge node discovery failed: " + discoveryErr.Error() + "; start or restore vrooli-bridge, then probe again"
+				}
+				descriptor.Reason = stringPtr("no capable target for " + platform + "; " + reason)
+			}
+		}
+		selection.Targets = append(selection.Targets, validationmatrix.TargetSelection{Kind: kind, Descriptor: descriptor})
+		selection.ArtifactPaths[descriptor.GetTargetId()] = artifact.Artifact
+		selection.ArtifactDigests[descriptor.GetTargetId()] = digest
+		if selection.ArtifactPath == "" {
+			selection.ArtifactPath, selection.ArtifactDigest = artifact.Artifact, digest
+		}
+	}
+	if len(selection.Targets) == 0 {
+		return validationmatrix.MatrixSelection{}, fmt.Errorf("no ready build artifacts")
+	}
+	selection.CommandArgs = []string{"--scenario", selection.ScenarioName, "--journey", selection.Journeys[0].JourneyID, "--profile", "normal", "--evidence-output", "/tmp/evidence-bundle.tar.gz"}
+	return selection, nil
+}
+
+func normalizeBuildPlatform(platform string) string {
+	normalized := strings.ToLower(strings.TrimSpace(platform))
+	switch {
+	case normalized == "mac" || normalized == "macos" || normalized == "darwin" || strings.HasPrefix(normalized, "macos-") || strings.HasPrefix(normalized, "darwin-"):
+		return "darwin"
+	case normalized == "win" || normalized == "windows" || normalized == "win32" || strings.HasPrefix(normalized, "windows-") || strings.HasPrefix(normalized, "win32-"):
+		return "windows"
+	case normalized == "linux" || strings.HasPrefix(normalized, "linux-"):
+		return "linux"
+	default:
+		return normalized
+	}
+}
+
+func firstNonEmptyTargetReason(targets []deliveryramp.Target, platform string) string {
+	for _, target := range targets {
+		if normalizeBuildPlatform(target.OS) == normalizeBuildPlatform(platform) {
+			if reason := actionableTargetReason(target); reason != "" {
+				return reason
+			}
+		}
+	}
+	return "install the target platform toolchain and graphical session, then probe again"
+}
+
+func actionableTargetReason(target deliveryramp.Target) string {
+	parts := make([]string, 0, 3)
+	if reason := strings.TrimSpace(target.Reason); reason != "" {
+		parts = append(parts, reason)
+	}
+	if missing := strings.TrimSpace(target.MissingCapability); missing != "" {
+		parts = append(parts, "missing capability: "+missing)
+	}
+	if nextAction := strings.TrimSpace(target.NextAction); nextAction != "" {
+		parts = append(parts, "next action: "+nextAction)
+	}
+	return strings.Join(parts, "; ")
 }
 
 // waitForSmokeTest polls for smoke test completion using the generic Poller.

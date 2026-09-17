@@ -16,13 +16,21 @@ import (
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 )
 
-func attachAdminSession(t *testing.T, manager SessionManager, req *http.Request, email string) {
+func attachAdminSession(t *testing.T, db *sql.DB, manager SessionManager, req *http.Request, email string) {
 	t.Helper()
 	session, err := manager.GetSession(req, "admin_session")
 	if err != nil {
 		t.Fatalf("get admin session: %v", err)
 	}
 	session.Values["email"] = email
+	sessionID, err := generateSessionID()
+	if err != nil {
+		t.Fatalf("generate admin session id: %v", err)
+	}
+	session.Values["session_id"] = sessionID
+	if _, err := db.Exec(`INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent) VALUES ($1, $2, NOW() + INTERVAL '7 days', '127.0.0.1', 'admin-profile-test')`, sessionID, email); err != nil {
+		t.Fatalf("insert admin session: %v", err)
+	}
 	rr := httptest.NewRecorder()
 	if err := session.Save(req, rr); err != nil {
 		t.Fatalf("failed to save admin session: %v", err)
@@ -90,7 +98,7 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 	server := &Server{db: db, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).GetAdminProfile(context.Background(), profileGetRequest(req))
 	if err != nil {
 		t.Fatalf("get profile: %v", err)
@@ -122,7 +130,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 		t.Fatalf("failed to cleanup admin user: %v", err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "changeme123", NewEmail: newEmail, NewPassword: "Sup3rSecurePass!"}))
 	if err != nil {
 		t.Fatalf("update profile: %v", err)
@@ -180,7 +188,7 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 	server := &Server{db: db, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	_, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "wrongpass", NewPassword: "Sup3rSecurePass!"}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("expected unauthenticated for invalid credentials, got %v", connect.CodeOf(err))
@@ -223,7 +231,7 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
+	attachAdminSession(t, db, sessionMgr, req, defaultAdminEmail)
 	_, err = adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "changeme123", NewEmail: takenEmail}))
 	if connect.CodeOf(err) != connect.CodeAlreadyExists {
 		t.Fatalf("expected already exists for email conflict, got %v", connect.CodeOf(err))

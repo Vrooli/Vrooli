@@ -36,6 +36,35 @@ func TestSessionConnectRejectsUnauthenticatedSession(t *testing.T) {
 	}
 }
 
+func TestSessionConnectReauthenticateRequiresPasswordAndSecondFactor(t *testing.T) {
+	auth := &fakeAuth{hash: connectTestPasswordHash(t)}
+	session := connectTestSession()
+	session.Values["email"] = "admin@example.test"
+	session.Values["session_id"] = "session-1"
+	manager := &headerSessions{fakeSessions: &fakeSessions{session: session}}
+	deps := testDependencies(auth, manager)
+	deps.MFA = fakeSecondFactor{enabled: true, valid: "123456"}
+	handler := NewSessionConnectHandler(deps)
+
+	response, err := handler.Reauthenticate(context.Background(), connect.NewRequest(&lpbsv1.ReauthenticateRequest{Password: "correct-password", TotpCode: "123456"}))
+	if err != nil || response == nil || !response.Msg.GetReauthenticated() || !auth.marked {
+		t.Fatalf("response=%v err=%v marked=%v", response, err, auth.marked)
+	}
+}
+
+func TestSessionConnectReauthenticateRejectsWrongFactor(t *testing.T) {
+	auth := &fakeAuth{hash: connectTestPasswordHash(t)}
+	session := connectTestSession()
+	session.Values["email"] = "admin@example.test"
+	session.Values["session_id"] = "session-1"
+	deps := testDependencies(auth, &headerSessions{fakeSessions: &fakeSessions{session: session}})
+	deps.MFA = fakeSecondFactor{enabled: true, valid: "123456"}
+	_, err := NewSessionConnectHandler(deps).Reauthenticate(context.Background(), connect.NewRequest(&lpbsv1.ReauthenticateRequest{Password: "correct-password", TotpCode: "000000"}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated || auth.marked {
+		t.Fatalf("err=%v marked=%v", err, auth.marked)
+	}
+}
+
 func TestResetConnectHandlerDoesNotLeakResetFailure(t *testing.T) {
 	handler := NewResetConnectHandler(ResetDependencies{Reset: func(context.Context) error { return errors.New("database credentials") }, LogError: func(string, map[string]any) {}, Now: func() time.Time { return time.Time{} }})
 	_, err := handler.ResetDemoData(context.Background(), connect.NewRequest(&lpbsv1.ResetDemoDataRequest{}))

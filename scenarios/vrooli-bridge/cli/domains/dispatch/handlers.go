@@ -33,11 +33,12 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) job(ctx cliapp.RunContext) error {
 	nodeID := ctx.Positional("node-id")
 	resp, err := h.client.DispatchJob(context.Background(), connect.NewRequest(&dispatchv1.DispatchJobRequest{
-		NodeId:         nodeID,
-		Verb:           ctx.Flag("verb"),
-		Scenario:       ctx.Flag("scenario"),
-		Args:           splitCSV(ctx.Flag("args")),
-		TimeoutSeconds: parseInt64(ctx.Flag("timeout")),
+		NodeId:               nodeID,
+		Verb:                 ctx.Flag("verb"),
+		Scenario:             ctx.Flag("scenario"),
+		Args:                 splitCSV(ctx.Flag("args")),
+		TimeoutSeconds:       parseInt64(ctx.Flag("timeout")),
+		CredentialInjections: parseCredentialInjections(ctx.FlagValues("credential-injection")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("dispatch job (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
@@ -65,6 +66,22 @@ func (h *handlers) job(ctx cliapp.RunContext) error {
 			fmt.Sprintf("`runs follow %s` — stream live output", msg.RunId),
 		},
 	})
+}
+
+func parseCredentialInjections(values []string) []*dispatchv1.CredentialInjection {
+	out := make([]*dispatchv1.CredentialInjection, 0, len(values))
+	for _, raw := range values {
+		parts := strings.Split(raw, ":")
+		if len(parts) != 3 {
+			continue
+		}
+		logicalID, field, envName := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
+		if logicalID == "" || field == "" || envName == "" {
+			continue
+		}
+		out = append(out, &dispatchv1.CredentialInjection{LogicalId: logicalID, Field: field, EnvName: envName})
+	}
+	return out
 }
 
 // splitCSV parses a comma-separated flag value into a trimmed, empty-free slice.

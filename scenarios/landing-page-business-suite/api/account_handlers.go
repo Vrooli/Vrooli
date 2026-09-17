@@ -187,6 +187,7 @@ const (
 type ApiErrorResponse struct {
 	Error     string `json:"error"`                // Human-readable error message
 	ErrorType string `json:"error_type,omitempty"` // Machine-readable error type
+	Reason    string `json:"reason,omitempty"`     // Stable machine-readable cause
 	Retryable bool   `json:"retryable,omitempty"`  // Whether the client should offer retry
 }
 
@@ -194,6 +195,10 @@ type ApiErrorResponse struct {
 // The errorType should be one of the ApiErrorType constants.
 // If errorType is empty, it will be inferred from the HTTP status code.
 func writeJSONError(w http.ResponseWriter, status int, message string, errorType string) {
+	writeJSONErrorReason(w, status, message, errorType, "")
+}
+
+func writeJSONErrorReason(w http.ResponseWriter, status int, message, errorType, reason string) {
 	// Infer error type from status if not provided
 	if errorType == "" {
 		errorType = inferErrorType(status)
@@ -208,6 +213,7 @@ func writeJSONError(w http.ResponseWriter, status int, message string, errorType
 	resp := ApiErrorResponse{
 		Error:     message,
 		ErrorType: errorType,
+		Reason:    reason,
 		Retryable: retryable,
 	}
 

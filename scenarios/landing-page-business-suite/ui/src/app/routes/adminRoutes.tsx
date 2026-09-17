@@ -4,6 +4,8 @@ import { Route } from 'react-router-dom';
 import { ErrorBoundary } from '../../shared/ui/ErrorBoundary';
 import { ProtectedRoute } from '../../surfaces/admin-portal/components/ProtectedRoute';
 import { onProfilerRender } from '../../lib/profiler';
+import { useAdminAuth } from '../providers/useAdminAuth';
+import { Navigate } from 'react-router-dom';
 
 const lazyRoute = <T extends Record<K, React.ComponentType>, K extends keyof T>(
   loader: () => Promise<T>,
@@ -41,8 +43,13 @@ const UserAccounts = lazyRoute(() => import('../../surfaces/admin-portal/routes/
 const LandingDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/LandingDashboard'), 'LandingDashboard');
 const BillingDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/BillingDashboard'), 'BillingDashboard');
 const UsersDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/UsersDashboard'), 'UsersDashboard');
+const AdminEnrollSecondFactor = lazyRoute(() => import('../../surfaces/admin-portal/routes/AdminEnrollSecondFactor'), 'AdminEnrollSecondFactor');
 
 function AdminRoute({ name, children }: { name: string; children: ReactNode }) {
+  const { assurance } = useAdminAuth();
+  if (assurance === 'enrollment_only' && name !== 'AdminEnrollSecondFactor') {
+    return <Navigate to="/admin/mfa-enroll" replace />;
+  }
   return (
     <ProtectedRoute>
       <ErrorBoundary level="route" name={name}>
@@ -57,6 +64,7 @@ function AdminRoute({ name, children }: { name: string; children: ReactNode }) {
 export const adminRoutes = (
   <>
     <Route path="/admin" element={<AdminRoute name="AdminHome"><AdminHome /></AdminRoute>} />
+    <Route path="/admin/mfa-enroll" element={<AdminRoute name="AdminEnrollSecondFactor"><AdminEnrollSecondFactor /></AdminRoute>} />
     <Route path="/admin/presentation" element={<AdminRoute name="PresentationEditor"><PresentationAdminPage /></AdminRoute>} />
     <Route path="/admin/presentation/:variantSlug" element={<AdminRoute name="PresentationEditorVariant"><PresentationAdminPage /></AdminRoute>} />
 

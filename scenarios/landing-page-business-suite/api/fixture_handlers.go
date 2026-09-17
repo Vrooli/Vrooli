@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -27,11 +29,47 @@ type fixtureEmailRequest struct {
 	Email string `json:"email"`
 }
 
+type fixtureSignInCode struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
+var fixtureSignInCodes = struct {
+	sync.Mutex
+	values map[string]fixtureSignInCode
+}{values: make(map[string]fixtureSignInCode)}
+
 func registerFixtureRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/dev/fixtures/seed", fixtureOnly(s, s.fixtureSeed)).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/dev/fixtures/token", fixtureOnly(s, s.fixtureToken)).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/dev/fixtures/balance", fixtureOnly(s, s.fixtureBalance)).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/dev/fixtures/zero", fixtureOnly(s, s.fixtureZero)).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/dev/fixtures/sign-in-code", fixtureOnly(s, s.fixtureSignInCode)).Methods(http.MethodPost)
+}
+
+func captureFixtureSignInCode(email, code string) {
+	if !fixtureRequestCaptureEnabled() {
+		return
+	}
+	fixtureSignInCodes.Lock()
+	defer fixtureSignInCodes.Unlock()
+	now := time.Now().UTC()
+	for key, value := range fixtureSignInCodes.values {
+		if value.ExpiresAt.Before(now) {
+			delete(fixtureSignInCodes.values, key)
+		}
+	}
+	if len(fixtureSignInCodes.values) >= 128 {
+		for key := range fixtureSignInCodes.values {
+			delete(fixtureSignInCodes.values, key)
+			break
+		}
+	}
+	fixtureSignInCodes.values[NormalizeEmail(email)] = fixtureSignInCode{Code: strings.TrimSpace(code), ExpiresAt: now.Add(15 * time.Minute)}
+}
+
+func fixtureRequestCaptureEnabled() bool {
+	return !isProductionEnvironment() && !strings.EqualFold(strings.TrimSpace(resolveConfig("LPBS_FIXTURE_MODE")), "false")
 }
 
 func fixtureOnly(s *Server, next http.HandlerFunc) http.HandlerFunc {
@@ -218,6 +256,27 @@ func (s *Server) fixtureZero(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"email": email, "credit_balance": 0})
+}
+
+func (s *Server) fixtureSignInCode(w http.ResponseWriter, r *http.Request) {
+	var request fixtureEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid fixture sign-in code payload", ApiErrorTypeValidation)
+		return
+	}
+	email := NormalizeEmail(request.Email)
+	fixtureSignInCodes.Lock()
+	entry, ok := fixtureSignInCodes.values[email]
+	if ok && entry.ExpiresAt.Before(time.Now().UTC()) {
+		delete(fixtureSignInCodes.values, email)
+		ok = false
+	}
+	fixtureSignInCodes.Unlock()
+	if !ok {
+		writeJSONError(w, http.StatusNotFound, "no current fixture sign-in code", ApiErrorTypeNotFound)
+		return
+	}
+	writeJSON(w, map[string]any{"email": email, "code": entry.Code, "expires_at": entry.ExpiresAt})
 }
 
 func fixtureTier(tier string) bool {

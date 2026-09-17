@@ -237,6 +237,20 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 	if dest == "" || !validRemotePath(dest, targetOS) {
 		return SyncResult{}, fmt.Errorf("remote sync did not report a destination directory")
 	}
+	// A working-tree ship is authoritative for the checkout's non-ignored
+	// source tree. Older checkouts can contain untracked files from a previous
+	// source layout that never appeared in the control-plane ship record, so the
+	// record-based delta alone cannot remove them. Git clean removes only
+	// non-ignored checkout files; scenario data, build output, node_modules, and
+	// other node-owned ignored paths remain untouched. The subsequent tar write
+	// restores every file in the current snapshot.
+	clean, err := d.runStreaming(ctx, cfg, buildTreeCleanStaleCommand(dest, targetOS), ssh.StreamOptions{Run: syncRunOptions()})
+	if err != nil {
+		return SyncResult{}, err
+	}
+	if clean.ExitCode != 0 {
+		return SyncResult{}, fmt.Errorf("remote stale-source cleanup failed (exit %d): %s", clean.ExitCode, clean.Stderr)
+	}
 
 	records := d.shipRecordStore()
 	key := shipRecordKey(p.Conn, dest)
@@ -249,6 +263,16 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 		}
 	}
 	delta := planTreeDelta(p.Files, p.Entries, prev, havePrev, nodeDigest)
+	// Cleanup may remove files that are absent from the previous ship record
+	// (for example, a tracked file from an older checkout). Once cleanup has
+	// run, an incremental tar cannot restore those files. Re-send the complete
+	// snapshot so the cleanup remains authoritative without risking a partial
+	// checkout. This is intentionally conservative until cleanup can carry a
+	// verified source-manifest boundary of its own.
+	if delta.Incremental {
+		delta.Incremental = false
+		delta.Transfer = append([]string(nil), p.Files...)
+	}
 	result := SyncResult{ResolvedDestDir: dest, Incremental: delta.Incremental}
 
 	if len(delta.Delete) > 0 {
@@ -281,6 +305,20 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 		}
 		result.BytesTransferred = counter.n
 		result.FilesTransferred = len(delta.Transfer)
+		// A target checkout can have tracked files from an older source layout.
+		// The pre-ship clean cannot remove those files because Git still owns
+		// them. After the complete snapshot is written, reconcile the index with
+		// the received tree and clean the now-untracked obsolete files. Ignored
+		// node-owned paths remain outside the index and are preserved.
+		if !delta.Incremental {
+			res, err := d.runStreaming(ctx, cfg, buildTreeReconcileStaleCommand(dest, targetOS), ssh.StreamOptions{Run: syncRunOptions()})
+			if err != nil {
+				return SyncResult{}, err
+			}
+			if res.ExitCode != 0 {
+				return SyncResult{}, fmt.Errorf("remote tracked-source cleanup failed (exit %d): %s", res.ExitCode, res.Stderr)
+			}
+		}
 	}
 
 	if digest := strings.TrimSpace(p.Digest); digest != "" {

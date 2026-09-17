@@ -3,6 +3,9 @@ package credentials
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -29,6 +32,26 @@ func (h *handlers) grant(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("create credential grant", err, nil)
 	}
 	return renderGrantMutation(ctx, resp, "Created credential grant")
+}
+
+func (h *handlers) answerSecret(ctx cliapp.RunContext) error {
+	value, err := io.ReadAll(io.LimitReader(os.Stdin, 4097))
+	if err != nil {
+		return fmt.Errorf("read secret from stdin: %w", err)
+	}
+	secret := strings.TrimSpace(string(value))
+	if secret == "" {
+		return fmt.Errorf("secret value is required on stdin")
+	}
+	defer func() { value = nil; secret = "" }()
+	resp, err := h.client.AnswerSecret(context.Background(), connect.NewRequest(&grantv1.AnswerSecretRequest{
+		NodeId: ctx.Flag("node-id"), LogicalId: ctx.Flag("logical-id"), Field: ctx.Flag("field"),
+		Class: ctx.Flag("class"), Retention: ctx.Flag("retention"), Value: secret,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("answer credential grant", err, nil)
+	}
+	return renderGrantMutation(ctx, resp, "Answered credential grant")
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {

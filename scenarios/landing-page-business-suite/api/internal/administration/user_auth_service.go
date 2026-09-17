@@ -27,7 +27,14 @@ type MagicLinkSender interface {
 // link and the short code. Senders that implement it are preferred over
 // MagicLinkSender so the code reaches the user.
 type SignInMessageSender interface {
-	SendSignIn(message SignInMessage) error
+	SendSignIn(message SignInMessage) (*SignInDelivery, error)
+}
+
+// SignInDelivery records the provider that accepted a sign-in message and
+// the provider's correlation identifier when one is available.
+type SignInDelivery struct {
+	Provider          string
+	ProviderMessageID string
 }
 
 // MagicLinkTokenCallback receives generated token details. It is a narrow
@@ -54,6 +61,9 @@ type UserAuthService struct {
 	accessTTL      time.Duration
 	consumerLeeway time.Duration
 	refreshTTL     time.Duration
+	idleTTL        time.Duration
+	absoluteTTL    time.Duration
+	refreshGrace   time.Duration
 	magicLinkTTL   time.Duration
 	baseURL        string // For magic link URLs
 	appName        string // For email subject lines
@@ -88,11 +98,21 @@ type User struct {
 
 // TokenPair contains access and refresh tokens.
 type TokenPair struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	TokenType    string    `json:"token_type"` // "Bearer"
+	AccessToken      string    `json:"access_token"`
+	RefreshToken     string    `json:"refresh_token"`
+	ExpiresAt        time.Time `json:"expires_at"`
+	TokenType        string    `json:"token_type"` // "Bearer"
+	SessionExpiresAt time.Time `json:"-"`
+	GraceResponse    bool      `json:"-"`
+	SessionID        string    `json:"-"`
 }
+
+type RefreshSource string
+
+const (
+	RefreshSourceBody   RefreshSource = "body"
+	RefreshSourceCookie RefreshSource = "cookie"
+)
 
 // UserClaims are the JWT claims for user authentication.
 type UserClaims struct {
@@ -114,6 +134,9 @@ var ErrTokenInvalid = errors.New("invalid token")
 // ErrSessionRevoked is returned when a session has been revoked.
 var ErrSessionRevoked = errors.New("session has been revoked")
 
+// ErrSessionExpired is returned when a session exceeded idle or absolute TTL.
+var ErrSessionExpired = errors.New("session has expired")
+
 // UserAuthServiceOptions supplies application-owned configuration at the
 // composition boundary. Identity policy does not read environment variables or
 // depend on a root-package mail implementation.
@@ -129,6 +152,10 @@ type UserAuthServiceOptions struct {
 	AccessTTL             time.Duration
 	ConsumerClockSkew     time.Duration
 	RefreshTTL            time.Duration
+	IdleTTL               time.Duration
+	AbsoluteTTL           time.Duration
+	ReauthMaxAge          time.Duration
+	RefreshGrace          time.Duration
 	MagicLinkTTL          time.Duration
 	Log                   func(string, map[string]interface{})
 	LogError              func(string, map[string]interface{})
@@ -166,6 +193,18 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 	refreshTTL := opts.RefreshTTL
 	if refreshTTL == 0 {
 		refreshTTL = 7 * 24 * time.Hour
+	}
+	idleTTL := opts.IdleTTL
+	if idleTTL == 0 {
+		idleTTL = 30 * 24 * time.Hour
+	}
+	absoluteTTL := opts.AbsoluteTTL
+	if absoluteTTL == 0 {
+		absoluteTTL = 90 * 24 * time.Hour
+	}
+	refreshGrace := opts.RefreshGrace
+	if refreshGrace == 0 {
+		refreshGrace = 30 * time.Second
 	}
 	magicLinkTTL := opts.MagicLinkTTL
 	if magicLinkTTL == 0 {
@@ -209,6 +248,9 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 		accessTTL:      accessTTL,
 		consumerLeeway: opts.ConsumerClockSkew,
 		refreshTTL:     refreshTTL,
+		idleTTL:        idleTTL,
+		absoluteTTL:    absoluteTTL,
+		refreshGrace:   refreshGrace,
 		magicLinkTTL:   magicLinkTTL,
 		baseURL:        baseURL,
 		appName:        appName,
@@ -341,6 +383,12 @@ func (s *UserAuthService) LinkStripeCustomer(ctx context.Context, email, custome
 
 // createSession creates a new session and returns a token pair.
 func (s *UserAuthService) CreateSession(ctx context.Context, user *User, ipAddress, userAgent string) (*TokenPair, error) {
+	return s.CreateSessionWithMetadata(ctx, user, ipAddress, userAgent, "email_code", time.Now().UTC())
+}
+
+// CreateSessionWithMetadata creates a session with an explicit authentication
+// method and proof time so absolute and recent-auth policy share one source.
+func (s *UserAuthService) CreateSessionWithMetadata(ctx context.Context, user *User, ipAddress, userAgent, authMethod string, authenticatedAt time.Time) (*TokenPair, error) {
 	// Generate refresh token
 	refreshBytes := make([]byte, 32)
 	if _, err := rand.Read(refreshBytes); err != nil {
@@ -351,13 +399,20 @@ func (s *UserAuthService) CreateSession(ctx context.Context, user *User, ipAddre
 
 	// Create session (use UTC for consistent timezone handling)
 	var sessionID string
-	expiresAt := time.Now().UTC().Add(s.refreshTTL)
+	if authenticatedAt.IsZero() {
+		authenticatedAt = time.Now().UTC()
+	}
+	absoluteExpiresAt := authenticatedAt.Add(s.absoluteTTL)
+	expiresAt := time.Now().UTC().Add(s.idleTTL)
+	if expiresAt.After(absoluteExpiresAt) {
+		expiresAt = absoluteExpiresAt
+	}
 
 	err := s.db.QueryRowContext(ctx, `
-		INSERT INTO user_sessions (user_id, refresh_token_hash, expires_at, ip_address, user_agent)
-		VALUES ($1, $2, $3, $4::inet, $5)
+		INSERT INTO user_sessions (user_id, refresh_token_hash, expires_at, absolute_expires_at, authenticated_at, auth_method, ip_address, user_agent)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::inet, $8)
 		RETURNING id
-	`, user.ID, refreshHash, expiresAt, toNullableParam(ipAddress), toNullableParam(userAgent)).Scan(&sessionID)
+	`, user.ID, refreshHash, expiresAt, absoluteExpiresAt, authenticatedAt, authMethod, toNullableParam(ipAddress), toNullableParam(userAgent)).Scan(&sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -369,10 +424,12 @@ func (s *UserAuthService) CreateSession(ctx context.Context, user *User, ipAddre
 	}
 
 	return &TokenPair{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    accessExpiresAt,
-		TokenType:    "Bearer",
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		ExpiresAt:        accessExpiresAt,
+		TokenType:        "Bearer",
+		SessionExpiresAt: expiresAt,
+		SessionID:        sessionID,
 	}, nil
 }
 
@@ -381,12 +438,41 @@ func (s *UserAuthService) GenerateAccessToken(userID, email, sessionID string) (
 	if s == nil || s.consumerSigner == nil {
 		return "", time.Time{}, errors.New("consumer signing key is unavailable")
 	}
-	return s.consumerSigner.Sign(consumeridentity.Claims{
+	claims := consumeridentity.Claims{
 		Subject:   userID,
 		UserID:    userID,
 		Email:     email,
 		SessionID: sessionID,
-	})
+	}
+	if s.db != nil && strings.TrimSpace(sessionID) != "" {
+		var authenticatedAt time.Time
+		if err := s.db.QueryRowContext(context.Background(), `SELECT authenticated_at FROM user_sessions WHERE id = $1`, sessionID).Scan(&authenticatedAt); err == nil {
+			claims.AuthTime = authenticatedAt.Unix()
+		}
+	}
+	return s.consumerSigner.Sign(claims)
+}
+
+// ValidateSession checks server-side revocation and both customer expiry
+// limits. JWT validity alone is not sufficient for an active session.
+func (s *UserAuthService) ValidateSession(ctx context.Context, sessionID string) error {
+	var revoked bool
+	var expiresAt, absoluteExpiresAt time.Time
+	err := s.db.QueryRowContext(ctx, `SELECT revoked, expires_at, absolute_expires_at FROM user_sessions WHERE id = $1`, sessionID).Scan(&revoked, &expiresAt, &absoluteExpiresAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrSessionRevoked
+	}
+	if err != nil {
+		return fmt.Errorf("validate session: %w", err)
+	}
+	if revoked {
+		return ErrSessionRevoked
+	}
+	now := time.Now().UTC()
+	if now.After(expiresAt) || now.After(absoluteExpiresAt) {
+		return ErrSessionExpired
+	}
+	return nil
 }
 
 // SignEntitlementLease signs the authority-owned entitlement snapshot. The

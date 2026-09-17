@@ -62,7 +62,7 @@ Browser                      API                              Email provider
 - Links and codes are single-use and expire after 15 minutes; finishing sign-in by either retires all outstanding requests for the address.
 - A resend keeps earlier codes valid until they expire, so a code the person is already typing still works.
 - `GET /auth/authorize` without a credential redirects to `/auth/login` with the same PKCE parameters; this is how native clients start.
-- An hourly janitor deletes sign-in requests that expired more than a day ago; throttle events older than a day are pruned on use.
+- An hourly authentication janitor deletes sign-in requests that expired more than a day ago, ended customer sessions after 30 days of inactivity, refresh-token history older than 100 days, and administrator sessions expired for more than one day; throttle events older than a day are pruned on use.
 - Refresh-token rotation: each `/auth/refresh` issues a new refresh token and revokes the prior one.
 
 ## Stripe checkout & webhook
@@ -123,3 +123,10 @@ This scenario currently has **no in-process scheduler**. Anything time-based run
 - **Out of band via the operator CLI** — bulk imports, remote-profile rotations.
 
 If a true scheduler is added, document its tick cadence here and in `assumptions.md`.
+# Native-app authorization grant lifecycle
+
+Native authorization codes are stored as SHA-256 hashes in `native_auth_grants` for
+60 seconds. Authorization consumes the browser sign-in proof without creating a
+session; the token exchange burns the grant, validates the exact loopback redirect
+and PKCE verifier, then creates the native session. A failed verifier cannot be
+retried. Reuse of a consumed grant revokes its attached session.

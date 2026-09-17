@@ -38,6 +38,10 @@ type manifestArtifact struct {
 			MaxBytes   int64  `json:"max_bytes"`
 		} `json:"entries"`
 	} `json:"outputs"`
+	Bindings []struct {
+		Verb   string   `json:"verb"`
+		Scopes []string `json:"scopes"`
+	} `json:"bindings"`
 }
 
 var defaultManifestCache struct {
@@ -102,6 +106,19 @@ func buildManifest() ([]string, map[string][]ArtifactOutput, error) {
 		result = append(result, encodeManifestEntry(verb, []string{scope.Value, required}))
 	}
 	result = append(result, bindings...)
+	for _, binding := range artifact.Bindings {
+		verb := strings.TrimSpace(binding.Verb)
+		if verb == "" {
+			continue
+		}
+		requirements := make([]string, 0, len(binding.Scopes))
+		for _, scope := range binding.Scopes {
+			if trimmed := strings.TrimSpace(scope); trimmed != "" {
+				requirements = append(requirements, trimmed)
+			}
+		}
+		result = append(result, encodeManifestEntry(verb, requirements))
+	}
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result, manifestOutputs(artifact), nil
 }

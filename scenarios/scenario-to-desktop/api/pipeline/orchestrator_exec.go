@@ -248,6 +248,7 @@ func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *Pipe
 	input.GenerationResult = parentStatus.ResumedInput.GenerationResult
 	input.BuildResult = parentStatus.ResumedInput.BuildResult
 	input.SmokeTestResult = parentStatus.ResumedInput.SmokeTestResult
+	input.ValidationMatrixResult = parentStatus.ResumedInput.ValidationMatrixResult
 	input.DeployResult = parentStatus.ResumedInput.DeployResult
 	input.ScenarioMetadata = parentStatus.ResumedInput.ScenarioMetadata
 	input.DesktopPath = parentStatus.ResumedInput.DesktopPath

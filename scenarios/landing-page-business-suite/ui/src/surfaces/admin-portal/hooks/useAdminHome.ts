@@ -7,6 +7,10 @@ import {
   getBranding,
   listDownloadAppsAdmin,
   type StripeSettingsResponse,
+  getEmailReadiness,
+  type EmailReadinessReport,
+  getSignInDeliveryAdminReport,
+  type SignInDeliveryAdminReport,
 } from '../../../shared/api';
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from '../../../shared/lib/adminExperience';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
@@ -47,6 +51,9 @@ export interface UseAdminHomeReturn {
   stripeError: string | null;
   /** Refresh stripe status */
   refreshStripeStatus: () => Promise<void>;
+  emailReadiness: EmailReadinessReport | null;
+  emailReadinessLoading: boolean;
+  deliveryReport: SignInDeliveryAdminReport | null;
 
   /** Branding health status */
   brandingHealth: BrandingHealthStatus | null;
@@ -104,6 +111,9 @@ export function useAdminHome(): UseAdminHomeReturn {
   const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
   const [stripeLoading, setStripeLoading] = useState(true);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const [emailReadiness, setEmailReadiness] = useState<EmailReadinessReport | null>(null);
+  const [emailReadinessLoading, setEmailReadinessLoading] = useState(true);
+  const [deliveryReport, setDeliveryReport] = useState<SignInDeliveryAdminReport | null>(null);
 
   // Branding health state
   const [brandingHealth, setBrandingHealth] = useState<BrandingHealthStatus | null>(null);
@@ -125,6 +135,10 @@ export function useAdminHome(): UseAdminHomeReturn {
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    void getSignInDeliveryAdminReport().then((report) => { if (mountedRef.current) setDeliveryReport(report); }).catch(() => { if (mountedRef.current) setDeliveryReport(null); });
   }, []);
 
   // Load experience snapshot on mount
@@ -210,6 +224,10 @@ export function useAdminHome(): UseAdminHomeReturn {
   useEffect(() => {
     void refreshStripeStatus();
   }, [refreshStripeStatus]);
+
+  useEffect(() => {
+    void getEmailReadiness().then((report) => { if (mountedRef.current) setEmailReadiness(report); }).catch(() => { if (mountedRef.current) setEmailReadiness(null); }).finally(() => { if (mountedRef.current) setEmailReadinessLoading(false); });
+  }, []);
 
   /**
    * Refresh branding health
@@ -335,6 +353,9 @@ export function useAdminHome(): UseAdminHomeReturn {
     stripeLoading,
     stripeError,
     refreshStripeStatus,
+    emailReadiness,
+    emailReadinessLoading,
+    deliveryReport,
     brandingHealth,
     brandingLoading,
     refreshBrandingHealth,

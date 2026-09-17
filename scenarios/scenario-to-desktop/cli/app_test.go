@@ -73,15 +73,16 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 	groups := domains.CommandGroups(app.dependencies())
 	// Domain groups exclude the standard status and configure commands, which are
 	// handled by cli-core directly (status is disabled via IncludeStatusCommand).
-	if len(groups) != 4 {
-		t.Errorf("NewApp command callback returned %d groups, want 4", len(groups))
+	if len(groups) != 5 {
+		t.Errorf("NewApp command callback returned %d groups, want 5", len(groups))
 	}
 
 	expectedTitles := map[string]bool{
-		"Templates": false,
-		"Records":   false,
-		"Download":  false,
-		"Scenarios": false,
+		"Templates":  false,
+		"Records":    false,
+		"Download":   false,
+		"Scenarios":  false,
+		"Validation": false,
 	}
 	for _, g := range groups {
 		if _, ok := expectedTitles[g.Title]; ok {
@@ -104,13 +105,13 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	subgroups := domains.SubcommandGroups(app.dependencies())
-	if len(subgroups) != 13 {
-		t.Errorf("NewApp subcommand callback returned %d groups, want 13", len(subgroups))
+	if len(subgroups) != 15 {
+		t.Errorf("NewApp subcommand callback returned %d groups, want 15", len(subgroups))
 	}
 
 	expectedNames := map[string]int{
 		"pipeline":      12,
-		"matrix":        4,
+		"matrix":        6,
 		"preflight":     1,
 		"build":         1,
 		"bundle":        1,
@@ -122,6 +123,8 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 		"tasks":         1,
 		"telemetry":     6,
 		"wine":          3,
+		"targets":       1,
+		"validation":    2,
 	}
 	for _, sg := range subgroups {
 		expectedCount, ok := expectedNames[sg.Name]

@@ -14,9 +14,12 @@ import (
 	"time"
 
 	adminhttp "landing-page-business-suite-api/handlers/administration"
+	adminpasskeyhttp "landing-page-business-suite-api/handlers/adminpasskeys"
 	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/adminsecurity"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
+	passkeyinternal "landing-page-business-suite-api/internal/passkeys"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"golang.org/x/crypto/bcrypt"
@@ -230,28 +233,47 @@ func validateProductionCredentials() error {
 }
 
 func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
+	var store administration.AdminAuthStore
+	if s.routedDB != nil {
+		store = s.routedDB
+	} else {
+		store = s.db
+	}
+	credentialStore := passkeyinternal.CredentialStore(s.primaryDB())
+	adminPasskeys := adminpasskeyhttp.New(adminpasskeyhttp.Dependencies{Service: s.passkeyService, Challenges: s.passkeyChallenges, Credentials: &passkeyinternal.AdminCredentials{DB: credentialStore}, PublicOrigin: resolvePublicBaseURL(), MFARequired: adminhttp.AdminMFARequired, SecurityEvents: &adminsecurity.Repository{DB: store}, Notifier: securityNotifier{s.emailService}})
 	return adminhttp.Dependencies{
-		Auth:          s.adminAuth(),
-		Throttle:      s.authThrottleOrNil(),
-		MFA:           s.adminSecondFactor(),
-		Sessions:      s.sessionManager,
-		GenerateID:    generateSessionID,
-		Now:           time.Now,
-		ClientIP:      getClientIP,
-		SecureCookies: isSecureCookiesEnabled,
-		WriteError:    writeJSONError,
-		Log:           logx.Info,
-		LogError:      logx.Error,
+		Auth:           s.adminAuth(),
+		Throttle:       s.authThrottleOrNil(),
+		MFA:            s.adminSecondFactor(),
+		Passkeys:       adminPasskeys,
+		Sessions:       s.sessionManager,
+		GenerateID:     generateSessionID,
+		Now:            time.Now,
+		ClientIP:       getClientIP,
+		SecureCookies:  isSecureCookiesEnabled,
+		WriteError:     writeJSONError,
+		Log:            logx.Info,
+		LogError:       logx.Error,
+		SecurityEvents: &adminsecurity.Repository{DB: store},
+		DeviceDetector: &adminsecurity.Repository{DB: store},
+		Notifier:       securityNotifier{s.emailService},
 	}
 }
 
 func (s *Server) adminProfileDependencies() adminhttp.ProfileDependencies {
+	var store administration.AdminAuthStore
+	if s.routedDB != nil {
+		store = s.routedDB
+	} else {
+		store = s.db
+	}
 	return adminhttp.ProfileDependencies{
 		Auth: s.adminAuth(), Sessions: s.sessionManager,
 		DefaultEmail:    func() string { email, _, _ := getAdminDefaults(); return email },
 		DefaultPassword: func() string { return resolveSecret("ADMIN_DEFAULT_PASSWORD") },
 		ValidateEmail:   func(email string) error { _, err := ValidateEmail(email); return err },
 		Log:             logx.Info, LogError: logx.Error,
+		SecurityEvents: &adminsecurity.Repository{DB: store}, Notifier: securityNotifier{s.emailService},
 	}
 }
 
@@ -323,28 +345,101 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 
 		// Validate server-side session
 		serverSessionID, _ := session.Values["session_id"].(string)
-		if serverSessionID != "" {
-			expiresAt, err := s.adminAuth().SessionExpiry(r.Context(), serverSessionID, email)
-
-			if errors.Is(err, sql.ErrNoRows) || (err == nil && time.Now().After(expiresAt)) {
-				// Session not found or expired
-				session.Options.MaxAge = -1
-				if saveErr := s.sessionManager.SaveSession(r, w, session); saveErr != nil {
-					logx.Error("middleware_session_save_failed", map[string]interface{}{
-						"error": saveErr.Error(),
-					})
-				}
-				writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
-				return
-			} else if err != nil {
-				logx.Error("middleware_session_lookup_failed", map[string]interface{}{
-					"error": err.Error(),
+		if serverSessionID == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+			return
+		}
+		state, err := s.adminAuth().SessionState(r.Context(), serverSessionID, email)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (time.Now().After(state.ExpiresAt) || time.Now().After(state.LastActivity.Add(adminhttp.AdminSessionIdleTTL())))) {
+			// Session not found or expired
+			session.Options.MaxAge = -1
+			if saveErr := s.sessionManager.SaveSession(r, w, session); saveErr != nil {
+				logx.Error("middleware_session_save_failed", map[string]interface{}{
+					"error": saveErr.Error(),
 				})
-				// Fall through on DB error (graceful degradation)
 			}
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+			return
+		} else if err != nil {
+			logx.Error("middleware_session_lookup_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+			writeJSONError(w, http.StatusServiceUnavailable, "Admin session unavailable.", ApiErrorTypeServerError)
+			return
+		}
+		if time.Since(state.LastActivity) >= 60*time.Second {
+			if touchErr := s.adminAuth().TouchSession(r.Context(), serverSessionID); touchErr != nil {
+				writeJSONError(w, http.StatusServiceUnavailable, "Admin session unavailable.", ApiErrorTypeServerError)
+				return
+			}
+		}
+		if state.Assurance == "enrollment_only" && !adminEnrollmentPath(r.URL.Path) {
+			writeJSONError(w, http.StatusForbidden, "Complete two-factor enrollment before using the administrator portal.", ApiErrorTypeForbidden)
+			return
 		}
 
 		next(w, r)
+	}
+}
+
+func adminEnrollmentPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/mfa") || strings.HasSuffix(path, "/AdminAuthService/Session") || strings.HasSuffix(path, "/AdminAuthService/Logout") || strings.HasSuffix(path, "/AdminPasskeyService/BeginRegistration") || strings.HasSuffix(path, "/AdminPasskeyService/FinishRegistration")
+}
+
+func adminStepUpMaxAge() time.Duration {
+	value := strings.TrimSpace(envx.Get("ADMIN_REAUTH_MAX_AGE"))
+	if value == "" {
+		return 10 * time.Minute
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil || d < 5*time.Minute {
+		return 5 * time.Minute
+	}
+	if d > 30*time.Minute {
+		return 30 * time.Minute
+	}
+	return d
+}
+
+// requireAdminStepUp protects high-impact administrator operations. A service
+// principal already has an independently scoped machine credential and is
+// allowed through without a browser reauthentication proof.
+func (s *Server) requireAdminStepUp(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		if principal, _ := r.Context().Value(servicePrincipalContextKey).(string); principal != "" {
+			next(w, r)
+			return
+		}
+		session, err := s.sessionManager.GetSession(r, "admin_session")
+		if err != nil || session == nil {
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+			return
+		}
+		id, _ := session.Values["session_id"].(string)
+		email, _ := session.Values["email"].(string)
+		state, stateErr := s.adminAuth().SessionState(r.Context(), id, email)
+		if stateErr != nil {
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+			return
+		}
+		if !state.ReauthenticatedAt.Valid || time.Since(state.ReauthenticatedAt.Time) > adminStepUpMaxAge() {
+			w.Header().Set("X-Lpbs-Auth-Reason", "admin_reauthentication_required")
+			writeJSONError(w, http.StatusForbidden, "Reauthentication is required for this administrator operation.", ApiErrorTypeForbidden)
+			return
+		}
+		next(w, r)
+	})
+}
+
+// requireAdminProfile keeps profile reads available to the authenticated
+// portal while requiring recent proof for password/email mutation.
+func (s *Server) requireAdminProfile(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/AdminProfileService/UpdateAdminProfile") {
+			s.requireAdminStepUp(next)(w, r)
+			return
+		}
+		s.requireAdmin(next)(w, r)
 	}
 }
 
@@ -355,6 +450,14 @@ func (s *Server) sessionAdminEmail(r *http.Request) (string, bool) {
 	}
 	email, ok := session.Values["email"].(string)
 	if !ok || strings.TrimSpace(email) == "" {
+		return "", false
+	}
+	id, _ := session.Values["session_id"].(string)
+	if strings.TrimSpace(id) == "" {
+		return "", false
+	}
+	state, err := s.adminAuth().SessionState(r.Context(), id, email)
+	if err != nil || time.Now().After(state.ExpiresAt) || time.Now().After(state.LastActivity.Add(adminhttp.AdminSessionIdleTTL())) {
 		return "", false
 	}
 	return email, true

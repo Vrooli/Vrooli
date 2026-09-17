@@ -1,4 +1,4 @@
-import { issueDesktopLink, listBusinessAccounts, type BusinessAccount, type SignInContext } from '../../../shared/api';
+import { issueDesktopLink, listBusinessAccounts, withReauthentication, type BusinessAccount, type Reauthenticate, type SignInContext } from '../../../shared/api';
 
 /** Sends the browser to a URL; injectable so tests never navigate. */
 export type Redirect = (url: string) => void;
@@ -33,12 +33,12 @@ export async function continueDesktopLink(context: SignInContext, redirect: Redi
   return { kind: 'redirected' };
 }
 
-export async function finishDesktopLink(context: SignInContext, accountId: string, redirect: Redirect): Promise<void> {
+export async function finishDesktopLink(context: SignInContext, accountId: string, redirect: Redirect, reauthenticate?: Reauthenticate): Promise<void> {
   const { installation_id, resource, audience, scopes, code_challenge, redirect_uri } = context;
   if (!installation_id || !resource || !audience || !scopes?.length || !code_challenge || !redirect_uri) {
     throw new Error('This desktop connection request is incomplete. Start again from the desktop app.');
   }
-  const issued = await issueDesktopLink({
+	const issued = await withReauthentication(() => issueDesktopLink({
     business_account_id: accountId,
     installation_id,
     resource,
@@ -47,7 +47,7 @@ export async function finishDesktopLink(context: SignInContext, accountId: strin
     code_challenge,
     code_challenge_method: 'S256',
     redirect_uri,
-  });
+	}), reauthenticate);
   const callback = new URL(redirect_uri);
   callback.searchParams.set('code', issued.code);
   if (context.state) callback.searchParams.set('state', context.state);

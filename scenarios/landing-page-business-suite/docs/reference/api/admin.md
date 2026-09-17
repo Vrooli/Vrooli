@@ -51,7 +51,13 @@ Sets session cookie for subsequent requests.
 
 ### Two-factor authentication
 
-All require an admin session except `reset`.
+All require an admin session except `reset`. Sensitive operations additionally
+require recent administrator reauthentication; clients should handle the
+stable `admin_reauthentication_required` reason by calling the reauthentication
+procedure and retrying once.
+
+`POST /landing_page_business_suite.v1.AdminAuthService/Reauthenticate` verifies
+the current password and TOTP or recovery code for the current admin session.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -70,9 +76,26 @@ recovery codes are stored as bcrypt hashes.
 ### GET /admin/auth/delivery
 
 Customer sign-in email outcomes for the last 24 hours:
-`{window_hours, delivery: {sent, failed, last_failure, last_error, last_success}}`.
+`{window_hours, delivery, delivery_24h: {sent, failed, delivered, bounced, deferred, dropped, last_error, last_webhook_event}}`.
 
 **Authentication:** Admin session or metrics reader token
+
+### GET /admin/auth/email-readiness
+
+Returns read-only From-domain, alignment, SPF, DKIM, DMARC, and signed-webhook
+readiness checks. Statuses are `pass`, `warn`, or `fail`; DNS and provider
+settings are never modified.
+
+**Authentication:** Admin session required. CLI: `landing-page-business-suite admin-email-readiness`.
+
+### POST /admin/auth/delivery-probe
+
+Accepts `{to}` and sends a sign-in email tagged with probe context. The CLI
+prints the request ID and polls normalized provider status for up to five
+minutes. This proves provider acceptance and mailbox-server delivery, not inbox
+placement.
+
+**Authentication:** Admin session required.
 
 ---
 

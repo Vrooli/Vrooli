@@ -102,12 +102,13 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (artifacts.
 // are separate by design: a Bridge registry node id is not silently treated as
 // a device-sync-hub device id.
 type deviceSyncDelivery struct {
-	endpoint   string
-	token      string
-	targets    map[string]string
-	pusher     ArtifactPlacementPusher
-	resolver   *discovery.Resolver
-	httpClient *http.Client
+	endpoint         string
+	deliveryEndpoint string
+	token            string
+	targets          map[string]string
+	pusher           ArtifactPlacementPusher
+	resolver         *discovery.Resolver
+	httpClient       *http.Client
 }
 
 var _ artifacts.DirectedDelivery = deviceSyncDelivery{}
@@ -118,12 +119,13 @@ func newDeviceSyncDelivery(pusher ArtifactPlacementPusher) deviceSyncDelivery {
 		_ = json.Unmarshal([]byte(raw), &targets)
 	}
 	return deviceSyncDelivery{
-		endpoint:   strings.TrimRight(strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_URL")), "/"),
-		token:      resolveDeviceSyncToken(),
-		targets:    targets,
-		pusher:     pusher,
-		resolver:   discovery.NewResolver(discovery.ResolverConfig{}),
-		httpClient: &http.Client{},
+		endpoint:         strings.TrimRight(strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_URL")), "/"),
+		deliveryEndpoint: strings.TrimRight(strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_DELIVERY_URL")), "/"),
+		token:            resolveDeviceSyncToken(),
+		targets:          targets,
+		pusher:           pusher,
+		resolver:         discovery.NewResolver(discovery.ResolverConfig{}),
+		httpClient:       &http.Client{},
 	}
 }
 
@@ -228,9 +230,21 @@ func (d deviceSyncDelivery) Deliver(ctx context.Context, req artifacts.DeliveryR
 		return artifacts.DeliveryResult{}, errors.New("device-sync-hub upload response did not contain an item id")
 	}
 	if d.pusher != nil {
-		if delivered, pushErr := d.pusher.PushArtifact(ctx, req.NodeID, req.DistributionID, uploaded.Item.Id, strings.TrimSpace(req.Name), req.DestinationPath); pushErr != nil {
+		var delivered int
+		var pushErr error
+		if endpointPusher, ok := d.pusher.(ArtifactPlacementEndpointPusher); ok {
+			deliveryEndpoint := strings.TrimSpace(d.deliveryEndpoint)
+			if deliveryEndpoint == "" {
+				deliveryEndpoint = endpoint
+			}
+			delivered, pushErr = endpointPusher.PushArtifactWithEndpoint(ctx, req.NodeID, req.DistributionID, uploaded.Item.Id, strings.TrimSpace(req.Name), req.DestinationPath, deliveryEndpoint)
+		} else {
+			delivered, pushErr = d.pusher.PushArtifact(ctx, req.NodeID, req.DistributionID, uploaded.Item.Id, strings.TrimSpace(req.Name), req.DestinationPath)
+		}
+		if pushErr != nil {
 			return artifacts.DeliveryResult{}, pushErr
-		} else if delivered == 0 {
+		}
+		if delivered == 0 {
 			return artifacts.DeliveryResult{}, fmt.Errorf("bridge node %q has no live channel for artifact placement", req.NodeID)
 		}
 	}
@@ -248,6 +262,14 @@ type ArtifactPlacementPusher interface {
 	PushArtifact(context.Context, string, string, string, string, string) (int, error)
 }
 
+// ArtifactPlacementEndpointPusher is the production extension that carries a
+// resolved, non-secret hub endpoint in the signed placement frame. Keeping it
+// optional preserves small test fakes and older in-process callers.
+type ArtifactPlacementEndpointPusher interface {
+	ArtifactPlacementPusher
+	PushArtifactWithEndpoint(context.Context, string, string, string, string, string, string) (int, error)
+}
+
 type channelArtifactPusher struct {
 	hub    *presence.Hub
 	signer channelsign.Signer
@@ -258,10 +280,19 @@ func NewArtifactPlacementPusher(hub *presence.Hub, signer channelsign.Signer) Ar
 }
 
 func (p channelArtifactPusher) PushArtifact(_ context.Context, nodeID, distributionID, itemID, name, destinationPath string) (int, error) {
+	return p.pushArtifact(nodeID, distributionID, itemID, name, destinationPath, "")
+}
+
+func (p channelArtifactPusher) PushArtifactWithEndpoint(_ context.Context, nodeID, distributionID, itemID, name, destinationPath, endpoint string) (int, error) {
+	return p.pushArtifact(nodeID, distributionID, itemID, name, destinationPath, endpoint)
+}
+
+func (p channelArtifactPusher) pushArtifact(nodeID, distributionID, itemID, name, destinationPath, endpoint string) (int, error) {
 	frame := &channelv1.ServerFrame{
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_ArtifactDelivery{ArtifactDelivery: &channelv1.ArtifactDelivery{
-			DistributionId: distributionID, ItemId: itemID, Name: name, DestinationPath: destinationPath,
+			DistributionId: distributionID, ItemId: itemID, Name: name, DestinationPath: destinationPath, DeviceSyncUrl: endpoint,
+			Executable: strings.Contains(destinationPath, "/.vrooli/bin/"),
 		}},
 	}
 	payload, err := channelsign.Marshal(p.signer, frame)

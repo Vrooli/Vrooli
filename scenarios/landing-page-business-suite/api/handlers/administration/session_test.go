@@ -41,7 +41,10 @@ func TestSessionReturnsUnauthenticatedResponseWhenCookieHasNoEmail(t *testing.T)
 	}
 }
 
-type fakeAuth struct{ hash, createdID string }
+type fakeAuth struct {
+	hash, createdID string
+	marked          bool
+}
 
 func (f *fakeAuth) PasswordHash(context.Context, string) (string, error) { return f.hash, nil }
 func (f *fakeAuth) UpdateLastLogin(context.Context, string) error        { return nil }
@@ -54,6 +57,10 @@ func (f *fakeAuth) SessionExpiry(context.Context, string, string) (time.Time, er
 	return time.Now().Add(time.Hour), nil
 }
 func (f *fakeAuth) TouchSession(context.Context, string) error { return nil }
+func (f *fakeAuth) MarkReauthenticated(context.Context, string, string) error {
+	f.marked = true
+	return nil
+}
 
 type fakeSessions struct{ session *sessions.Session }
 

@@ -12,8 +12,10 @@ import (
 	"scenario-to-desktop/cli/domains/signing"
 	"scenario-to-desktop/cli/domains/state"
 	"scenario-to-desktop/cli/domains/system"
+	"scenario-to-desktop/cli/domains/targets"
 	"scenario-to-desktop/cli/domains/tasks"
 	"scenario-to-desktop/cli/domains/telemetry"
+	"scenario-to-desktop/cli/domains/validation"
 	"scenario-to-desktop/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -37,6 +39,8 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		state.Register(deps),
 		tasks.Register(deps),
 		telemetry.Register(deps),
+		targets.Register(deps),
+		validation.Register(deps),
 		system.WineRegister(deps),
 	}
 }

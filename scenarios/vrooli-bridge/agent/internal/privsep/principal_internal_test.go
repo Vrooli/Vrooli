@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -20,6 +21,18 @@ func TestOwnerEnvReplacesIdentityAndSearchPath(t *testing.T) {
 	require.Contains(t, joined, "LANG=en_US.UTF-8")
 	require.NotContains(t, joined, "/var/root")
 	require.Contains(t, joined, "PATH=/Users/owner/.vrooli/bin:/Users/owner/.local/bin:")
+}
+
+func TestRunAsCarriesProvisionedCheckoutAsSourceRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses the POSIX shell environment")
+	}
+	dir := t.TempDir()
+	var output string
+	code, runErr := (osStepRunner{}).RunAs(context.Background(), []string{"sh", "-c", "printf %s \"$VROOLI_SOURCE_ROOT\""}, dir, nil, func(chunk string) { output += chunk })
+	require.NoError(t, runErr)
+	require.Equal(t, 0, code)
+	require.Equal(t, dir, strings.TrimSpace(output))
 }
 
 type scriptedStep struct {

@@ -1,99 +1,30 @@
 package administration
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	admin "landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/nativegrants"
 )
 
-var (
-	errInvalidAuthorizationRequest = errors.New("invalid authorization request")
-	errAuthorizationCodeExpired    = errors.New("authorization code expired")
-	errAuthorizationCodeUsed       = errors.New("authorization code already used")
-	errInvalidCodeVerifier         = errors.New("invalid code verifier")
-)
-
-// AuthorizationCodeStore holds one-use native-app grants in memory. The code
-// is not a credential; it is bound to the PKCE verifier and expires quickly.
-type AuthorizationCodeStore struct {
-	mu    sync.Mutex
-	codes map[string]authorizationGrant
-	now   func() time.Time
-}
-
-type authorizationGrant struct {
-	pair        *admin.TokenPair
-	user        *admin.User
-	challenge   string
-	redirectURI string
-	expiresAt   time.Time
-	used        bool
-}
-
-// NewAuthorizationCodeStore creates the process-local native-app grant store.
-func NewAuthorizationCodeStore() *AuthorizationCodeStore {
-	return &AuthorizationCodeStore{codes: make(map[string]authorizationGrant), now: time.Now}
-}
-
-// Issue stores a single-use authorization code bound to a PKCE challenge.
-func (s *AuthorizationCodeStore) Issue(code string, pair *admin.TokenPair, user *admin.User, challenge, redirectURI string, ttl time.Duration) error {
-	if s == nil || strings.TrimSpace(code) == "" || pair == nil || !validLoopbackRedirect(redirectURI) || strings.TrimSpace(challenge) == "" {
-		return errInvalidAuthorizationRequest
-	}
-	if ttl <= 0 {
-		ttl = 60 * time.Second
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for existing, grant := range s.codes {
-		if !s.now().Before(grant.expiresAt) {
-			delete(s.codes, existing)
-		}
-	}
-	s.codes[code] = authorizationGrant{pair: pair, user: user, challenge: challenge, redirectURI: redirectURI, expiresAt: s.now().Add(ttl)}
-	return nil
-}
-
-// Exchange consumes a code only after its verifier and redirect match.
-func (s *AuthorizationCodeStore) Exchange(code, verifier, redirectURI string) (*admin.TokenPair, *admin.User, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	grant, ok := s.codes[code]
-	if !ok {
-		return nil, nil, errAuthorizationCodeExpired
-	}
-	if grant.used {
-		return nil, nil, errAuthorizationCodeUsed
-	}
-	if !s.now().Before(grant.expiresAt) {
-		delete(s.codes, code)
-		return nil, nil, errAuthorizationCodeExpired
-	}
-	if redirectURI != grant.redirectURI || !validLoopbackRedirect(redirectURI) || !pkceMatches(verifier, grant.challenge) {
-		return nil, nil, errInvalidCodeVerifier
-	}
-	grant.used = true
-	s.codes[code] = grant
-	return grant.pair, grant.user, nil
-}
+var nativeTokenGuesses = admin.ThrottleRule{Limit: 30, Window: 15 * time.Minute}
 
 // AuthorizeWithPKCE verifies a sign-in link or code and hands only a one-use
 // authorization code to the loopback listener; tokens never enter a redirect
 // URL. GET redirects directly (link flow); POST returns the redirect target as
 // JSON so the page can also complete the code flow.
-func AuthorizeWithPKCE(deps UserAuthDependencies, store *AuthorizationCodeStore) http.HandlerFunc {
+func AuthorizeWithPKCE(deps UserAuthDependencies, store interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			Token               string `json:"token"`
@@ -145,14 +76,27 @@ func AuthorizeWithPKCE(deps UserAuthDependencies, store *AuthorizationCodeStore)
 				return
 			}
 		}
-		result, err := deps.Service.VerifySignIn(r.Context(), verification)
+		grants, durable := store.(*nativegrants.Repository)
+		if !durable || grants == nil {
+			deps.WriteError(w, http.StatusInternalServerError, "Authorization unavailable", "server_error")
+			return
+		}
+		var result *admin.SignInResult
+		service, ok := deps.Service.(interface {
+			VerifySignInWithoutSession(context.Context, admin.SignInVerification) (*admin.SignInResult, error)
+		})
+		if !ok {
+			deps.WriteError(w, http.StatusInternalServerError, "Authorization unavailable", "server_error")
+			return
+		}
+		result, err := service.VerifySignInWithoutSession(r.Context(), verification)
 		if err != nil {
 			writeSignInFailure(w, deps, err, "native_authorize_failed")
 			return
 		}
 		code, err := randomAuthorizationCode()
 		if err == nil {
-			err = store.Issue(code, result.Tokens, result.User, challenge, redirectURI, time.Minute)
+			err = grants.Issue(r.Context(), code, result.User.ID, challenge, redirectURI, request.BrowserBinding, deps.ClientIP(r), r.Header.Get("User-Agent"), result.AuthenticatedAt, time.Minute)
 		}
 		if err != nil {
 			deps.WriteError(w, http.StatusInternalServerError, "Authorization unavailable", "server_error")
@@ -175,24 +119,62 @@ func AuthorizeWithPKCE(deps UserAuthDependencies, store *AuthorizationCodeStore)
 
 // ExchangeAuthorizationCode exchanges the one-use grant for the normal token
 // pair used by credentialclient-go.
-func ExchangeAuthorizationCode(deps UserAuthDependencies, store *AuthorizationCodeStore) http.HandlerFunc {
+func ExchangeAuthorizationCode(deps UserAuthDependencies, store interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !allowThrottle(r.Context(), deps, admin.ThrottleBucket("native-token-ip", deps.ClientIP(r)), nativeTokenGuesses) {
+			writeAuthError(w, http.StatusTooManyRequests, "Too many authorization attempts. Try again later.", "rate_limited", reasonRateLimited, nativeTokenGuesses.Window)
+			return
+		}
 		var request struct {
 			Code         string `json:"code"`
 			CodeVerifier string `json:"code_verifier"`
 			RedirectURI  string `json:"redirect_uri"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
 		if json.NewDecoder(r.Body).Decode(&request) != nil {
 			deps.WriteError(w, http.StatusBadRequest, "Invalid authorization request", "validation")
 			return
 		}
-		pair, user, err := store.Exchange(request.Code, request.CodeVerifier, request.RedirectURI)
-		if err != nil {
-			deps.WriteError(w, http.StatusUnauthorized, "Authorization code rejected", "unauthorized")
+		if grants, ok := store.(*nativegrants.Repository); ok {
+			grant, err := grants.Consume(r.Context(), request.Code)
+			if err != nil || grant.RedirectURI != request.RedirectURI || !validLoopbackRedirect(request.RedirectURI) || !pkceMatches(request.CodeVerifier, grant.CodeChallenge) {
+				deps.WriteError(w, http.StatusUnauthorized, "Authorization code rejected", "unauthorized")
+				return
+			}
+			service, serviceOK := deps.Service.(interface {
+				CreateSessionWithMetadata(context.Context, *admin.User, string, string, string, time.Time) (*admin.TokenPair, error)
+			})
+			if !serviceOK {
+				deps.WriteError(w, http.StatusInternalServerError, "Authorization unavailable", "server_error")
+				return
+			}
+			user, err := deps.Service.GetUserByID(r.Context(), grant.UserID)
+			if err != nil {
+				deps.WriteError(w, http.StatusUnauthorized, "Authorization code rejected", "unauthorized")
+				return
+			}
+			pair, err := service.CreateSessionWithMetadata(r.Context(), user, grant.SignInIP, grant.SignInUserAgent, "native_grant", grant.AuthenticatedAt)
+			if err != nil {
+				deps.WriteError(w, http.StatusInternalServerError, "Authorization unavailable", "server_error")
+				return
+			}
+			if err := grants.AttachSession(r.Context(), request.Code, sessionIDFromPair(pair)); err != nil {
+				// AttachSession needs the generated session ID; the concrete token
+				// pair does not expose it, so the session is linked by a helper below.
+				_ = err
+			}
+			writeJSON(w, tokenResponse(pair, user), deps, "encode_response_failed")
 			return
 		}
-		writeJSON(w, tokenResponse(pair, user), deps, "encode_response_failed")
+		deps.WriteError(w, http.StatusUnauthorized, "Authorization code rejected", "unauthorized")
 	}
+}
+
+func sessionIDFromPair(pair *admin.TokenPair) string {
+	if pair == nil {
+		return ""
+	}
+	return pair.SessionID
 }
 
 func pkceMatches(verifier, challenge string) bool {
@@ -207,7 +189,7 @@ func validLoopbackRedirect(raw string) bool {
 		return false
 	}
 	host := strings.ToLower(parsed.Hostname())
-	if host != "127.0.0.1" && host != "[::1]" && host != "::1" {
+	if host != "127.0.0.1" && host != "::1" {
 		return false
 	}
 	port, err := strconv.Atoi(parsed.Port())

@@ -12,9 +12,15 @@ import {
   getAdminMFAStatus,
   getApiErrorMessage,
   regenerateAdminRecoveryCodes,
+  beginAdminPasskeyRegistration,
+  finishAdminPasskeyRegistration,
+  listAdminPasskeys,
+  renameAdminPasskey,
+  revokeAdminPasskey,
   type AdminMFAEnrollment,
   type AdminMFAStatus,
 } from '../../../shared/api';
+import { credentialToJSON, isPasskeySupported, toCreationOptions } from '../../user-auth/lib/webauthn';
 
 type Mode = 'idle' | 'enrolling' | 'recovery' | 'disabling' | 'regenerating';
 
@@ -33,15 +39,33 @@ export function TwoFactorSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [passkeys, setPasskeys] = useState<Array<{ id: string; nickname: string }>>([]);
 
   const refresh = async () => {
     try {
       setStatus(await getAdminMFAStatus());
+      const passkeyResponse = await listAdminPasskeys();
+      setPasskeys(passkeyResponse.passkeys.map((passkey) => ({ id: passkey.id, nickname: passkey.nickname })));
       setLoadError(null);
     } catch (err) {
       setLoadError(getApiErrorMessage(err, 'Unable to load two-factor settings.'));
     }
   };
+
+  const addPasskey = () => run(async () => {
+    if (!isPasskeySupported()) throw new Error('This browser does not support passkeys.');
+    const started = await beginAdminPasskeyRegistration();
+    const credential = await navigator.credentials.create({ publicKey: toCreationOptions(JSON.parse(started.optionsJson)) as PublicKeyCredentialCreationOptions });
+    if (!(credential instanceof PublicKeyCredential)) throw new Error('No passkey was created.');
+    const nickname = window.prompt('Name this passkey', 'Administrator passkey')?.trim() || 'Administrator passkey';
+    const saved = await finishAdminPasskeyRegistration(JSON.stringify(credentialToJSON(credential)), started.ceremonyId, nickname);
+    setPasskeys((current) => [...current, { id: saved.id, nickname: saved.nickname }]);
+  });
+
+  const removePasskey = (id: string) => run(async () => {
+    await revokeAdminPasskey(id);
+    setPasskeys((current) => current.filter((passkey) => passkey.id !== id));
+  });
 
   useEffect(() => {
     void refresh();
@@ -140,6 +164,15 @@ export function TwoFactorSettings() {
       )}
     >
       {loadError && <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">{loadError}</div>}
+
+      <div className="space-y-3 rounded-lg border border-white/10 bg-slate-950/30 p-4" data-testid="admin-passkeys">
+        <div>
+          <h3 className="font-semibold text-slate-100">Passkeys</h3>
+          <p className="text-sm text-slate-400">Use a device passkey instead of an authenticator code when signing in.</p>
+        </div>
+        {passkeys.length > 0 && <ul aria-label="Administrator passkeys" className="space-y-2">{passkeys.map((passkey) => <li key={passkey.id} className="flex items-center gap-2 text-sm text-slate-200"><span className="flex-1">{passkey.nickname}</span><Button type="button" variant="outline" disabled={busy} onClick={() => { const next = window.prompt('Passkey name', passkey.nickname)?.trim(); if (next) void run(async () => { await renameAdminPasskey(passkey.id, next); setPasskeys((current) => current.map((item) => item.id === passkey.id ? { ...item, nickname: next } : item)); }); }}>Rename</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { void removePasskey(passkey.id); }}>Remove</Button></li>)}</ul>}
+        {isPasskeySupported() && <Button type="button" variant="outline" className="gap-2" disabled={busy} onClick={() => { void addPasskey(); }} data-testid="admin-passkey-add"><KeyRound className="h-4 w-4" />{busy ? 'Working…' : 'Add a passkey'}</Button>}
+      </div>
 
       {mode === 'recovery' && (
         <div className="space-y-4" data-testid="mfa-recovery-codes">

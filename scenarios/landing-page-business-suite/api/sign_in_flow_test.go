@@ -161,8 +161,32 @@ func (failingSignInSender) SendMagicLink(string, string, string) error {
 	return errors.New("provider down")
 }
 
-func (failingSignInSender) SendSignIn(administration.SignInMessage) error {
-	return errors.New("provider down")
+func (failingSignInSender) SendSignIn(administration.SignInMessage) (*administration.SignInDelivery, error) {
+	return nil, errors.New("provider down")
+}
+
+type recordingSignInSender struct{}
+
+func (recordingSignInSender) SendMagicLink(string, string, string) error { return nil }
+func (recordingSignInSender) SendSignIn(administration.SignInMessage) (*administration.SignInDelivery, error) {
+	return &administration.SignInDelivery{Provider: "sendgrid", ProviderMessageID: "provider-message-id"}, nil
+}
+
+func TestSignInRequestStoresDeliveryProviderMetadata(t *testing.T) {
+	email := "signin-delivery-metadata@example.com"
+	db := setupTestDB(t)
+	defer cleanupUserTestData(t, db, email)
+	service, _ := signInServiceWithCapture(t, db, recordingSignInSender{})
+	if _, err := service.RequestSignIn(context.Background(), administration.SignInRequest{Email: email, BrowserBinding: testBinding}); err != nil {
+		t.Fatal(err)
+	}
+	var provider, messageID, status string
+	if err := db.QueryRow(`SELECT provider, provider_message_id, delivery_status FROM auth_tokens WHERE email = $1 ORDER BY created_at DESC LIMIT 1`, email).Scan(&provider, &messageID, &status); err != nil {
+		t.Fatal(err)
+	}
+	if provider != "sendgrid" || messageID != "provider-message-id" || status != "sent" {
+		t.Fatalf("provider=%q messageID=%q status=%q", provider, messageID, status)
+	}
 }
 
 func TestUndeliveredSignInIsReportedRetiredAndVisibleInHealth(t *testing.T) {

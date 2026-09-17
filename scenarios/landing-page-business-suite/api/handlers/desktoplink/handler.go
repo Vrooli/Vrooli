@@ -24,6 +24,7 @@ type Dependencies struct {
 	VerifyLocalIdentity      LocalIdentityVerifier
 	IssueLease               func(context.Context, link.Link) (link.EntitlementLease, error)
 	WriteAudit               func(string, map[string]interface{})
+	RequireRecentAuth        func(http.HandlerFunc) http.HandlerFunc
 }
 
 type authorizationRequest struct {
@@ -53,7 +54,13 @@ type revokeRequest struct {
 // issue/revoke route is wrapped by the caller's user-auth middleware; redeem
 // and local revoke verify a scenario-authenticator proof independently.
 func RegisterRoutes(router *mux.Router, deps Dependencies, requireLPBSAuth func(http.HandlerFunc) http.HandlerFunc) {
-	router.HandleFunc("/api/v1/desktop/links", requireLPBSAuth(issue(deps))).Methods(http.MethodPost)
+	issueHandler := issue(deps)
+	if deps.RequireRecentAuth != nil {
+		issueHandler = deps.RequireRecentAuth(issueHandler)
+	} else {
+		issueHandler = requireLPBSAuth(issueHandler)
+	}
+	router.HandleFunc("/api/v1/desktop/links", issueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/desktop/links/redeem", redeem(deps)).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/desktop/links/local", statusLocal(deps)).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/desktop/links", requireLPBSAuth(revokeLPBS(deps))).Methods(http.MethodDelete)

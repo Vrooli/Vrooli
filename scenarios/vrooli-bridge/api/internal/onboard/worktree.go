@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,6 +129,12 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 	digest, entries, err := digestFileEntries(root, files)
 	if err != nil {
 		return WorkingTreeSnapshot{}, err
+	}
+	for _, rel := range files {
+		if rel == "packages/proto/gen/go/cli/v1/runtime.pb.go" {
+			log.Printf("working-tree snapshot root=%s runtime.pb.go=%s", root, entries[rel])
+			break
+		}
 	}
 
 	return WorkingTreeSnapshot{

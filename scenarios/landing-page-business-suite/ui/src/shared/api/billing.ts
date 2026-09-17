@@ -11,6 +11,8 @@ import { BundleAdminService, type ListBundleCatalogResponse, type UpdateBundlePr
 import { CouponAdminService, CouponDuration, type Coupon, type CouponImportPreviewItem as GeneratedCouponImportPreviewItem } from '@vrooli/proto-types/landing-page-business-suite/v1/coupons_pb';
 import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 import { apiCall, CONNECT_API_BASE } from './common';
+import { withReauthentication, type Reauthenticate } from './reauthentication';
+import { withAdminReauthentication } from './adminReauthentication';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
@@ -246,7 +248,7 @@ export function getStripeSettings() {
 }
 
 export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
-  return stripeSettingsClient.updateStripeSettings({
+  return withAdminReauthentication(() => stripeSettingsClient.updateStripeSettings({
     publishableKey: payload.publishable_key,
     secretKey: payload.secret_key,
     webhookSecret: payload.webhook_secret,
@@ -254,7 +256,7 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
     anomalyWebhookUrl: payload.anomaly_webhook_url,
     anomalyWebhookEnabled: payload.anomaly_webhook_enabled,
     anomalyRateLimits: payload.anomaly_rate_limits,
-  }).then((message) => flattenStripeSettings(message.snapshot, message.settings));
+  })).then((message) => flattenStripeSettings(message.snapshot, message.settings));
 }
 
 export type RevealStripeSecretField = 'secret_key' | 'webhook_secret' | 'publishable_key' | 'anomaly_webhook_url';
@@ -265,7 +267,7 @@ export interface RevealStripeSecretResponse {
 }
 
 export function revealStripeSecret(field: RevealStripeSecretField): Promise<RevealStripeSecretResponse> {
-  return stripeSettingsClient.revealStripeSecret({ field }).then((response) => ({ field: response.field as RevealStripeSecretField, value: response.value }));
+  return withAdminReauthentication(() => stripeSettingsClient.revealStripeSecret({ field })).then((response) => ({ field: response.field as RevealStripeSecretField, value: response.value }));
 }
 
 export function getBundleCatalog(): Promise<BundleCatalogResponse> {
@@ -280,12 +282,12 @@ export function getBundleCatalog(): Promise<BundleCatalogResponse> {
 }
 
 export function updateBundlePrice(bundleKey: string, priceId: string, payload: UpdateBundlePricePayload) {
-  return bundleAdminClient.updateBundlePrice({
+  return withAdminReauthentication(() => bundleAdminClient.updateBundlePrice({
     bundleKey, priceId, stripePriceId: payload.stripe_price_id, planName: payload.plan_name,
     displayWeight: payload.display_weight, displayEnabled: payload.display_enabled, subtitle: payload.subtitle,
     badge: payload.badge, ctaLabel: payload.cta_label, highlight: payload.highlight,
     features: payload.features, featuresPresent: payload.features !== undefined,
-  }).then((response: UpdateBundlePriceResponse) => {
+  })).then((response: UpdateBundlePriceResponse) => {
     if (!response.price) {
       throw new Error('Invalid plan response from update');
     }
@@ -355,15 +357,15 @@ export function createCreditsCheckoutSession(payload: { price_id: string; custom
   });
 }
 
-export function createBillingPortalSession(returnUrl?: string, userEmail?: string) {
+export function createBillingPortalSession(returnUrl?: string, userEmail?: string, reauthenticate?: Reauthenticate) {
 	void userEmail;
-	return paymentsClient.getBillingPortal({ returnUrl: returnUrl ?? '' }).then((resp) => {
+	return withReauthentication(() => paymentsClient.getBillingPortal({ returnUrl: returnUrl ?? '' }).then((resp) => {
 		const validated = parseOrNull(BillingPortalResponseSchema, { url: resp.url }, 'BillingPortalResponse');
     if (!validated) {
       throw new Error('Invalid billing portal response');
     }
     return validated;
-  });
+	  }), reauthenticate);
 }
 
 // Stripe Import Types
@@ -432,10 +434,10 @@ export function getStripeImportPreview(): Promise<StripeImportPreview> {
  * Import selected prices from Stripe into the local plan store.
  */
 export function importStripePlans(request: StripeImportRequest): Promise<StripeImportResult> {
-  return apiCall<StripeImportResult>('/admin/stripe/import', {
+  return withAdminReauthentication(() => apiCall<StripeImportResult>('/admin/stripe/import', {
     method: 'POST',
     body: JSON.stringify(request),
-  }).then((resp) => {
+  })).then((resp) => {
     const validated = parseOrNull(StripeImportResultSchema, resp, 'StripeImportResult');
     if (!validated) {
       throw new Error('Invalid Stripe import result');
@@ -466,10 +468,10 @@ export interface CreateBundlePricePayload {
  * Create a new plan in the plan store.
  */
 export function createBundlePrice(bundleKey: string, payload: CreateBundlePricePayload) {
-  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices`, {
+  return withAdminReauthentication(() => apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices`, {
     method: 'POST',
     body: JSON.stringify(payload),
-  }).then((resp) => {
+  })).then((resp) => {
     const validated = parseOrNull(PlanOptionSchema, resp, 'PlanOption');
     if (!validated) {
       throw new Error('Invalid plan response from create');
@@ -482,9 +484,9 @@ export function createBundlePrice(bundleKey: string, payload: CreateBundlePriceP
  * Delete a plan from the plan store.
  */
 export function deleteBundlePrice(bundleKey: string, priceId: string) {
-  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
+  return withAdminReauthentication(() => apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
     method: 'DELETE',
-  });
+  }));
 }
 
 // Coupon Management Types

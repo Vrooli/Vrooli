@@ -15,6 +15,8 @@ needed for compatibility with an existing external caller.
 
 Deliberate REST exceptions:
 
+- `POST /api/v1/webhooks/sendgrid` — provider-owned Signed Event Webhook callback; the raw body and provider headers are not a Connect contract.
+
 - Stripe webhooks require the signed callback shape supplied by Stripe.
 - JWKS is a standard discovery document consumed by generic clients.
 - Sitemap and robots are crawler documents, not application RPCs.

@@ -87,7 +87,21 @@ import (
 	runsH "vrooli-bridge/handlers/runs"
 	scenarioH "vrooli-bridge/handlers/scenario"
 	internalfollow "vrooli-bridge/internal/follow"
+	"vrooli-bridge/publicproxy"
 )
+
+func controlPlaneRepoDir() string {
+	if dir := strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")); dir != "" {
+		log.Printf("onboard working-tree source root: %s (BRIDGE_CP_REPO_DIR)", dir)
+		return dir
+	}
+	// Lifecycle supplies VROOLI_ROOT even when the API process cwd is the
+	// scenario module directory. Working-tree onboarding must snapshot that
+	// authoritative checkout, including uncommitted generated contracts.
+	dir := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	log.Printf("onboard working-tree source root: %s (VROOLI_ROOT)", dir)
+	return dir
+}
 
 // registrarAdapter bridges the registry service to the pairing domain's
 // NodeRegistrar seam so pairing can create durable node records on redeem/
@@ -875,7 +889,7 @@ func main() {
 		internalonboard.WithCredentialStoreEscrow(onboardH.NewCredentialStoreEscrow()),
 		internalonboard.WithNodeStoreGrant(onboardH.NewNodeStoreGrantEnsurer(grantSvc, grantHandler.SyncNode)),
 		internalonboard.WithDefaultScopes(postureDefaults.NodeExecutionScopes),
-		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
+		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(controlPlaneRepoDir())),
 		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder(sshStateDir)),
 		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
 		internalonboard.WithEndpointResolver(func(ctx context.Context) (string, string, error) {
@@ -1044,6 +1058,22 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	// Device Sync Hub remains the byte store. This narrow public edge is for
+	// targets that cannot route to the control-plane LAN address; the target's
+	// hub device token is still required and is forwarded unchanged.
+	rootMux.Handle("/public/device-sync-hub/api/v1/transfer/items/", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/public/device-sync-hub/api/v1/transfer/items", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	// Cloudflare's /public Access bypass may strip the prefix before proxying
+	// to the origin. The origin alias remains token-gated and equally narrow.
+	rootMux.Handle("/device-sync-hub/api/v1/transfer/items/", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/device-sync-hub/api/v1/transfer/items", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/api/v1/transfer/items/", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/api/v1/transfer/items", publicproxy.DeviceSyncContent(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/public/device-sync-hub/vrooli.device_sync_hub.v1.transfer.TransferService/", publicproxy.DeviceSyncRPC(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/device-sync-hub/vrooli.device_sync_hub.v1.transfer.TransferService/", publicproxy.DeviceSyncRPC(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/vrooli.device_sync_hub.v1.transfer.TransferService/", publicproxy.DeviceSyncRPC(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/public/device-sync-hub/health", publicproxy.DeviceSyncHealth(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
+	rootMux.Handle("/device-sync-hub/health", publicproxy.DeviceSyncHealth(os.Getenv("BRIDGE_DEVICE_SYNC_URL"), nil))
 
 	// auth.Middleware best-effort-injects the owner Identity when a valid
 	// bearer token is present; owner-gated RPCs fail closed via RequireOwner.

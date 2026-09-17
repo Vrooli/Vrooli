@@ -19,6 +19,7 @@ type UserAuthService interface {
 	PreviewSignIn(context.Context, string, string) (*admin.SignInPreview, error)
 	VerifySignIn(context.Context, admin.SignInVerification) (*admin.SignInResult, error)
 	RefreshTokens(context.Context, string) (*admin.TokenPair, error)
+	RefreshTokensFromSource(context.Context, string, admin.RefreshSource) (*admin.TokenPair, error)
 	Logout(context.Context, string) error
 	GetUserByID(context.Context, string) (*admin.User, error)
 }
@@ -55,6 +56,7 @@ type (
 	}
 	MagicLinkResponse struct {
 		Message   string `json:"message"`
+		RequestID string `json:"request_id,omitempty"`
 		ExpiresAt string `json:"expires_at,omitempty"`
 	}
 	SignInTokenRequest struct {
@@ -124,7 +126,7 @@ func RequestMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusInternalServerError, "We couldn't start sign-in. Please try again.", "server_error")
 			return
 		}
-		writeJSON(w, MagicLinkResponse{Message: "Check your email for a sign-in code and link", ExpiresAt: started.ExpiresAt.UTC().Format(time.RFC3339)}, deps, "encode_response_failed")
+		writeJSON(w, MagicLinkResponse{Message: "Check your email for a sign-in code and link", RequestID: started.RequestID, ExpiresAt: started.ExpiresAt.UTC().Format(time.RFC3339)}, deps, "encode_response_failed")
 	}
 }
 
@@ -274,7 +276,7 @@ func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {
 		}
 		refreshToken := request.RefreshToken
 		if refreshToken == "" {
-			if cookie, err := r.Cookie("refresh_token"); err == nil {
+			if cookie, err := r.Cookie(authCookieNames(deps.SecureCookies()).Refresh); err == nil {
 				refreshToken = cookie.Value
 			}
 		}
@@ -282,7 +284,11 @@ func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusBadRequest, "Refresh token is required", "validation")
 			return
 		}
-		pair, err := deps.Service.RefreshTokens(r.Context(), refreshToken)
+		source := admin.RefreshSourceBody
+		if request.RefreshToken == "" {
+			source = admin.RefreshSourceCookie
+		}
+		pair, err := deps.Service.RefreshTokensFromSource(r.Context(), refreshToken, source)
 		if err != nil {
 			message, status := authError(err, "Session has expired. Please log in again.", "Session has been revoked. Please log in again.", "Invalid refresh token. Please log in again.", "Failed to refresh session. Please log in again.")
 			if status == http.StatusInternalServerError {
@@ -293,7 +299,12 @@ func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {
 			return
 		}
 		SetAuthCookies(w, pair, deps.SecureCookies(), deps.Now())
-		writeJSON(w, tokenResponse(pair, nil), deps, "encode_response_failed")
+		response := tokenResponse(pair, nil)
+		if pair.GraceResponse {
+			delete(response, "refresh_token")
+			delete(response, "token_type")
+		}
+		writeJSON(w, response, deps, "encode_response_failed")
 	}
 }
 
@@ -333,18 +344,41 @@ func Me(deps UserAuthDependencies) http.HandlerFunc {
 }
 
 func SetAuthCookies(w http.ResponseWriter, pair *admin.TokenPair, secure bool, now time.Time) {
+	names := authCookieNames(secure)
+	sessionExpiresAt := pair.SessionExpiresAt
+	if sessionExpiresAt.IsZero() {
+		sessionExpiresAt = pair.ExpiresAt
+	}
 	// #nosec G124 -- secure is explicitly derived from the deployment's HTTPS policy;
 	// forcing it in local HTTP development would make the authentication flow unusable.
-	http.SetCookie(w, &http.Cookie{Name: "access_token", Value: pair.AccessToken, Path: "/", Expires: pair.ExpiresAt, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Access, Value: pair.AccessToken, Path: "/", Expires: pair.ExpiresAt, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
 	// #nosec G124 -- see the deployment-policy rationale above.
-	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: pair.RefreshToken, Path: "/api/v1/auth", Expires: now.Add(7 * 24 * time.Hour), HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Refresh, Value: pair.RefreshToken, Path: "/api/v1/auth", Expires: sessionExpiresAt, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Hint, Value: "1", Path: "/", Expires: sessionExpiresAt, Secure: secure, SameSite: http.SameSiteLaxMode})
 }
 
 func ClearAuthCookies(w http.ResponseWriter, secure bool) {
+	names := authCookieNames(secure)
 	// #nosec G124 -- deletion must exactly match the deployment-selected Secure attribute.
-	http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Access, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
 	// #nosec G124 -- deletion must exactly match the deployment-selected Secure attribute.
-	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/api/v1/auth", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Refresh, Value: "", Path: "/api/v1/auth", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: names.Hint, Value: "", Path: "/", MaxAge: -1, Secure: secure, SameSite: http.SameSiteLaxMode})
+}
+
+type authCookies struct{ Access, Refresh, Hint string }
+
+func authCookieNames(secure bool) authCookies {
+	if secure {
+		return authCookies{Access: "__Host-access_token", Refresh: "__Secure-refresh_token", Hint: "__Host-lpbs_session_hint"}
+	}
+	return authCookies{Access: "access_token", Refresh: "refresh_token", Hint: "lpbs_session_hint"}
+}
+
+// AuthCookieNames exposes the canonical names to root middleware and CSRF.
+func AuthCookieNames(secure bool) (access, refresh, hint string) {
+	names := authCookieNames(secure)
+	return names.Access, names.Refresh, names.Hint
 }
 
 func FormatNullableTime(value *time.Time) any {

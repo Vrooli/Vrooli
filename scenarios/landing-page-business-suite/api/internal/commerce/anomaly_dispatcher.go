@@ -3,15 +3,15 @@
 package commerce
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"landing-page-business-suite-api/internal/opsalert"
 )
 
 const AnomalyDispatchUserAgent = "lpbs-anomaly-dispatcher/1"
@@ -95,6 +95,7 @@ type AnomalyAlertDispatcher struct {
 	maxAttempts int
 	perAttempt  time.Duration
 	backoffs    []time.Duration
+	transport   *opsalert.Transport
 }
 
 func NewAnomalyAlertDispatcher(db PaymentAnomalyStore, runtime DispatcherRuntime) *AnomalyAlertDispatcher {
@@ -107,6 +108,7 @@ func NewAnomalyAlertDispatcher(db PaymentAnomalyStore, runtime DispatcherRuntime
 		maxAttempts: 3,
 		perAttempt:  5 * time.Second,
 		backoffs:    []time.Duration{time.Second, 2 * time.Second, 4 * time.Second},
+		transport:   opsalert.New(),
 	}
 }
 
@@ -114,6 +116,7 @@ func (d *AnomalyAlertDispatcher) UseHTTPClient(client httpDoer) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.httpClient = client
+	d.transport.UseHTTPClient(client)
 }
 
 func (d *AnomalyAlertDispatcher) UseBackoff(backoffs []time.Duration) {
@@ -132,6 +135,7 @@ func (d *AnomalyAlertDispatcher) UsePerAttempt(timeout time.Duration) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.perAttempt = timeout
+	d.transport.SetTimeout(timeout)
 }
 
 func (d *AnomalyAlertDispatcher) Dispatch(ctx context.Context, p AnomalyDispatchPayload) {
@@ -213,27 +217,9 @@ func (d *AnomalyAlertDispatcher) Allow(anomalyType string, limits map[string]Ano
 
 func (d *AnomalyAlertDispatcher) sendOnce(ctx context.Context, url string, body []byte) (int, string, bool) {
 	d.mu.Lock()
-	perAttempt, client := d.perAttempt, d.httpClient
+	transport := d.transport
 	d.mu.Unlock()
-	attemptCtx, cancel := context.WithTimeout(ctx, perAttempt)
-	defer cancel()
-	req, err := http.NewRequestWithContext(attemptCtx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return 0, err.Error(), false
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", AnomalyDispatchUserAgent)
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, err.Error(), true
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return resp.StatusCode, "", false
-	}
-	snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-	return resp.StatusCode, fmt.Sprintf("http %d: %s", resp.StatusCode, string(snippet)), resp.StatusCode >= 500
+	return transport.SendOnce(ctx, url, body, AnomalyDispatchUserAgent)
 }
 
 func (d *AnomalyAlertDispatcher) recordSuccess(ctx context.Context, rowID int64, attempts int) {

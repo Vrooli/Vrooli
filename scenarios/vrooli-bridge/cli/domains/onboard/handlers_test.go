@@ -256,10 +256,11 @@ func TestConnect_TrustedReconnectDoesNotPrompt(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(svc))
 	h := newHandlers(core)
 	h.password = passwordSource{lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return true }, readSecret: func() ([]byte, error) { t.Fatal("trusted reconnect must not prompt"); return nil, nil }, prompt: io.Discard}
-	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "swarminator", "user": "matthalloran8"}})
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "swarminator", "user": "matthalloran8", "capabilities": "host inventory,scenario-to-desktop"}})
 	require.NoError(t, h.preflightConnect(ctx))
 	require.Equal(t, "machine-trusted", svc.startReq.MachineId)
 	require.Empty(t, svc.startReq.SshPassword)
+	require.Equal(t, []string{"host inventory", "scenario-to-desktop"}, svc.startReq.Capabilities)
 }
 
 func TestConnect_EmitsProgressBeforeTheLongWait(t *testing.T) {

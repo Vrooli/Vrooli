@@ -4,7 +4,7 @@ import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-co
 import { AmbientShell } from "../components/AmbientShell";
 import { useBoardController } from "../lib/boardContext";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
-import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
+import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import { fetchOpenLoop, type Reading } from "../lib/api";
 
 const MAX_AGE_DAYS = 90;

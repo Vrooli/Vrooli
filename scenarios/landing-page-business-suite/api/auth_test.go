@@ -18,6 +18,21 @@ import (
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 )
 
+func TestAdminStepUpMaxAgeIsBounded(t *testing.T) {
+	t.Setenv("ADMIN_REAUTH_MAX_AGE", "1m")
+	if got := adminStepUpMaxAge(); got != 5*time.Minute {
+		t.Fatalf("minimum age=%s", got)
+	}
+	t.Setenv("ADMIN_REAUTH_MAX_AGE", "45m")
+	if got := adminStepUpMaxAge(); got != 30*time.Minute {
+		t.Fatalf("maximum age=%s", got)
+	}
+	t.Setenv("ADMIN_REAUTH_MAX_AGE", "15m")
+	if got := adminStepUpMaxAge(); got != 15*time.Minute {
+		t.Fatalf("configured age=%s", got)
+	}
+}
+
 func TestHandleAdminLogin_Success(t *testing.T) {
 	db := setupTestDB(t)
 	cleanupAdminUsers(t, db)
@@ -356,11 +371,16 @@ func TestRequireAdminOrService_RejectsMalformedAuthorization(t *testing.T) {
 }
 
 func TestRequireAdminOrService_AllowsValidAdminSessionFallback(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupAdminSessions(t, db)
 	mockSession := NewMockSessionManager()
 	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{
-		"email": "admin@test.com",
+		"email": "admin@test.com", "session_id": "session-fallback",
 	})
-	server := &Server{sessionManager: mockSession}
+	if _, err := db.Exec(`INSERT INTO admin_sessions (id, admin_email, expires_at) VALUES ('session-fallback', 'admin@test.com', NOW() + INTERVAL '1 hour')`); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{db: db, sessionManager: mockSession}
 	called := false
 	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
 		called = true
@@ -403,14 +423,14 @@ func TestSessionAdminEmail_RejectsInvalidSessions(t *testing.T) {
 		{name: "session manager error", manager: &MockSessionManager{GetError: os.ErrPermission}},
 		{name: "empty email", manager: NewMockSessionManager()},
 		{name: "whitespace email", manager: NewMockSessionManager()},
-		{name: "valid email", manager: NewMockSessionManager(), want: "admin@example.com", ok: true},
+		{name: "email without server session", manager: NewMockSessionManager(), want: "", ok: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.name == "whitespace email" {
 				tc.manager.SetSessionValues("admin_session", map[interface{}]interface{}{"email": "  \t"})
 			}
-			if tc.name == "valid email" {
-				tc.manager.SetSessionValues("admin_session", map[interface{}]interface{}{"email": tc.want})
+			if tc.name == "email without server session" {
+				tc.manager.SetSessionValues("admin_session", map[interface{}]interface{}{"email": "admin@example.com"})
 			}
 			server := &Server{sessionManager: tc.manager}
 
@@ -772,8 +792,11 @@ func TestHandleAdminProfile_Success(t *testing.T) {
 
 	mockSession := NewMockSessionManager()
 	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{
-		"email": "profile@test.com",
+		"email": "profile@test.com", "session_id": "profile-session",
 	})
+	if _, err := db.Exec(`INSERT INTO admin_sessions (id, admin_email, expires_at) VALUES ('profile-session', 'profile@test.com', NOW() + INTERVAL '1 hour')`); err != nil {
+		t.Fatalf("Failed to insert profile session: %v", err)
+	}
 
 	server := &Server{
 		db:             db,
@@ -844,13 +867,18 @@ func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 		t.Errorf("Expected 1 session remaining (current), got %d", count)
 	}
 
-	// Verify current session still exists
+	// Verify the current session was rotated, while one session remains.
+	rotated, _ := mockSession.GetSession(req, "admin_session")
+	rotatedID, _ := rotated.Values["session_id"].(string)
+	if rotatedID == "" || rotatedID == "current_session" {
+		t.Fatalf("expected a new current session id, got %q", rotatedID)
+	}
 	var exists bool
-	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM admin_sessions WHERE id = 'current_session')`).Scan(&exists); err != nil {
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM admin_sessions WHERE id = $1)`, rotatedID).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check current session: %v", err)
 	}
 	if !exists {
-		t.Error("Current session should not have been invalidated")
+		t.Error("rotated current session should exist")
 	}
 }
 
