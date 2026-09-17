@@ -43,12 +43,14 @@ export function InfoTab({ agent }: InfoTabProps) {
   const [membershipReadState, setMembershipReadState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [heartbeatUnavailableCount, setHeartbeatUnavailableCount] = useState(0)
   const [agentRuns, setAgentRuns] = useState<RunDetails[]>([])
-  const [runReadState, setRunReadState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
+  const [runReadState, setRunReadState] = useState<'loading' | 'ready' | 'partial' | 'unavailable'>('loading')
 
   useEffect(() => {
     let cancelled = false
     setMembershipReadState('loading')
     setHeartbeatUnavailableCount(0)
+    setRunReadState('loading')
+    setAgentRuns([])
     void getAgentTeams(agent.id).then(async (result) => {
       if (cancelled) return
       setMemberships(result)
@@ -66,29 +68,49 @@ export function InfoTab({ agent }: InfoTabProps) {
       if (cancelled) return
       setHeartbeatByTeam(new Map(entries.map(({ teamId, config }) => [teamId, config])))
       setHeartbeatUnavailableCount(entries.filter((entry) => entry.unavailable).length)
+
+      // Agent IDs in Prompt Manager are scenario-owned slugs. Agent Manager's
+      // run owner is a reconciled profile, so scope the read through the
+      // canonical profile keys returned by the heartbeat owner instead of
+      // sending the Prompt Manager agent slug as an AM UUID.
+      const profileKeys = [...new Set(
+        entries
+          .map((entry) => entry.config?.profileKey?.trim())
+          .filter((profileKey): profileKey is string => Boolean(profileKey)),
+      )]
+      if (profileKeys.length === 0) {
+        setAgentRuns([])
+        setRunReadState('ready')
+        return
+      }
+
+      const runReads = await Promise.allSettled(
+        profileKeys.map((profileKey) => heartbeatService.listRuns({ profileKey, limit: 100 })),
+      )
+      if (cancelled) return
+      const successfulReads = runReads.filter(
+        (read): read is PromiseFulfilledResult<Awaited<ReturnType<typeof heartbeatService.listRuns>>> => read.status === 'fulfilled',
+      )
+      if (successfulReads.length === 0) {
+        setAgentRuns([])
+        setRunReadState('unavailable')
+        return
+      }
+      const runsById = new Map(successfulReads.flatMap((read) => read.value.runs).map((run) => [run.id, run]))
+      setAgentRuns([...runsById.values()].sort((left, right) => {
+        const leftTime = left.startedAt ? new Date(left.startedAt).getTime() : 0
+        const rightTime = right.startedAt ? new Date(right.startedAt).getTime() : 0
+        return rightTime - leftTime
+      }))
+      setRunReadState(successfulReads.length === profileKeys.length ? 'ready' : 'partial')
     }).catch(() => {
       if (cancelled) return
       setMembershipReadState('unavailable')
       setMemberships([])
       setHeartbeatByTeam(new Map())
+      setAgentRuns([])
+      setRunReadState('unavailable')
     })
-    return () => { cancelled = true }
-  }, [agent.id])
-
-  useEffect(() => {
-    let cancelled = false
-    setRunReadState('loading')
-    setAgentRuns([])
-    void heartbeatService.listRuns({ agentId: agent.id, limit: 100 })
-      .then((result) => {
-        if (cancelled) return
-        setAgentRuns(result.runs)
-        setRunReadState('ready')
-      })
-      .catch(() => {
-        if (cancelled) return
-        setRunReadState('unavailable')
-      })
     return () => { cancelled = true }
   }, [agent.id])
 
@@ -115,6 +137,8 @@ export function InfoTab({ agent }: InfoTabProps) {
     ? { label: 'Loading', detail: 'Reading owner run history for this agent.' }
     : runReadState === 'unavailable'
       ? { label: 'Unavailable', detail: 'The owner run source did not return an agent-scoped response.' }
+      : runReadState === 'partial'
+        ? { label: 'Partial', detail: `${agentRuns.length} owner runs observed, but one or more owned profile reads were unavailable.` }
       : agentRuns.length === 0
         ? { label: 'Empty history', detail: 'The owner returned no runs for this agent.' }
       : { label: 'Observed', detail: `${agentRuns.length} owner runs observed; ${runSuccessRate}% completed successfully${failedRuns > 0 ? `, ${failedRuns} failed` : ''}.` }
@@ -137,6 +161,8 @@ export function InfoTab({ agent }: InfoTabProps) {
     ? { label: 'Loading', detail: 'Reading owner-observed activity for this agent.' }
     : runReadState === 'unavailable'
       ? { label: 'Unavailable', detail: 'The owner run source did not return agent-scoped activity.' }
+      : runReadState === 'partial'
+        ? { label: 'Partial', detail: `${agentRuns.length} owner runs observed; one or more profile sources were unavailable.` }
       : agentRuns.length === 0
         ? { label: 'Empty history', detail: 'The owner returned no runs for this agent.' }
         : staleRuns === agentRuns.length

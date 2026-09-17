@@ -1,37 +1,452 @@
 {
   "metadata": {
     "name": "RCL authoring to adoption",
-    "description": "Proves durable brief authoring, proposal generation, candidate review, draft selection, verification, and import preview in one session.",
+    "description": "Proves durable brief authoring, proposal generation, candidate review, draft selection, verification, import preview, and explicit adoption in one session.",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "fixture_only": "true"
+    },
+    "requirement": "UX-CAMPAIGN-004",
     "execution_mode": "EXECUTION_MODE_MUTATING"
   },
-  "settings": { "viewport_width": 1440, "viewport_height": 1000 },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 1000
+  },
   "nodes": [
-    { "id": "open", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/design/switchboard/dashboard", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 } } },
-    { "id": "ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"design-workspace-header\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
-    { "id": "fill", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(async()=>{await new Promise(r=>setTimeout(r,1000));const stamp=Date.now();const v=[`A calm operational dashboard that makes the next safe action obvious. Proof ${stamp}.`,`Operations lead\\nDesign reviewer`,`Understand current state\\nReview retained evidence`];const xs=[...document.querySelectorAll('#design-brief textarea')];if(xs.length<3)throw Error('Required brief fields not found');xs.forEach((x,i)=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(x,v[i]);x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));});return xs.length;})()" } } },
-    { "id": "save", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "button:has-text(\"Save brief revision\")" } } },
-    { "id": "saved", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "text=Brief revision saved. It will be restored when this workspace is reopened.", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
-    { "id": "propose", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "button:has-text(\"Find alternatives\")" } } },
-    { "id": "proposed", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-brief button:has-text(\"Save candidate for preview\")", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "preview", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "#design-brief button:has-text(\"Save candidate for preview\")" } } },
-    { "id": "candidate", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-candidate-hash]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
-    { "id": "mapping", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#candidate-port-mapping", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
-    { "id": "map-fill", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{const values=['header','filters','collection'];const xs=[...document.querySelectorAll('#candidate-port-mapping select')];if(xs.length<values.length)throw Error('Candidate port controls missing');xs.slice(0,values.length).forEach((x,i)=>{x.value=values[i];x.dispatchEvent(new Event('change',{bubbles:true}));});return xs.length;})()" } } },
-    { "id": "map-apply", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "#candidate-port-mapping button:has-text(\"Save port mappings\")" } } },
-    { "id": "mapped", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#candidate-port-mapping", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "choose", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-candidate-hash] button:has-text(\"Use as draft\")" } } },
-    { "id": "canvas", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-canvas iframe[data-runtime-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "phone", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{const s=document.querySelector('#design-canvas-width');if(!s)throw Error('Canvas width control missing');s.value='390px';s.dispatchEvent(new Event('change',{bubbles:true}));return s.value;})()" } } },
-    { "id": "phone-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-canvas iframe[data-viewport-width=\"390\"][data-runtime-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "dark", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{const s=document.querySelector('#design-canvas-theme');if(!s)throw Error('Canvas theme control missing');s.value='dark';s.dispatchEvent(new Event('change',{bubbles:true}));return s.value;})()" } } },
-    { "id": "dark-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-canvas iframe[data-viewport-width=\"390\"][data-runtime-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "verify", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "button:has-text(\"Verify implementation\")" } } },
-    { "id": "review", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-review", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "import", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "#design-adoption button:has-text(\"Import existing page\")" } } },
-    { "id": "import-preview", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "#design-adoption button:has-text(\"Apply import\")", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 } } },
-    { "id": "assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "#design-adoption button:has-text(\"Apply import\")", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Import preview did not produce an explicit apply action." } } }
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/design/switchboard/dashboard",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"design-workspace\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "assert-workspace",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"design-workspace\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Design workspace region is not visible"
+        }
+      }
+    },
+    {
+      "id": "assert-workspace-terminal",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"design-workspace\"][data-experience-state=\"ready\"], [data-experience-surface=\"design-workspace\"][data-experience-state=\"empty\"], [data-experience-surface=\"design-workspace\"][data-experience-state=\"error\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Design workspace terminal state is not declared"
+        }
+      }
+    },
+    {
+      "id": "fill",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{await new Promise(r=>setTimeout(r,1000));const stamp=Date.now();const v=[`A calm operational dashboard that makes the next safe action obvious. Proof ${stamp}.`,`Operations lead\\nDesign reviewer`,`Understand current state\\nReview retained evidence`];const xs=[...document.querySelectorAll('#design-brief textarea')];if(xs.length<3)throw Error('Required brief fields not found');xs.forEach((x,i)=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(x,v[i]);x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));});return xs.length;})()"
+        }
+      }
+    },
+    {
+      "id": "save",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Save brief revision\")"
+        }
+      }
+    },
+    {
+      "id": "saved",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "text=Brief revision saved. It will be restored when this workspace is reopened.",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "propose",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Find alternatives\")"
+        }
+      }
+    },
+    {
+      "id": "proposed",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-brief button:has-text(\"Save candidate for preview\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "preview",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#design-brief button:has-text(\"Save candidate for preview\")"
+        }
+      }
+    },
+    {
+      "id": "candidate",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-candidate-hash]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "mapping",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#candidate-port-mapping",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "map-fill",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const values=['header','filters','collection'];const xs=[...document.querySelectorAll('#candidate-port-mapping select')];if(xs.length<values.length)throw Error('Candidate port controls missing');xs.slice(0,values.length).forEach((x,i)=>{x.value=values[i];x.dispatchEvent(new Event('change',{bubbles:true}));});return xs.length;})()"
+        }
+      }
+    },
+    {
+      "id": "map-apply",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#candidate-port-mapping button:has-text(\"Save port mappings\")"
+        }
+      }
+    },
+    {
+      "id": "mapped",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#candidate-port-mapping",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "choose",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-candidate-hash] button:has-text(\"Use as draft\")"
+        }
+      }
+    },
+    {
+      "id": "canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-canvas iframe[data-runtime-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "phone",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const s=document.querySelector('#design-canvas-width');if(!s)throw Error('Canvas width control missing');s.value='390px';s.dispatchEvent(new Event('change',{bubbles:true}));return s.value;})()"
+        }
+      }
+    },
+    {
+      "id": "phone-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-canvas iframe[data-viewport-width=\"390\"][data-runtime-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "dark",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const s=document.querySelector('#design-canvas-theme');if(!s)throw Error('Canvas theme control missing');s.value='dark';s.dispatchEvent(new Event('change',{bubbles:true}));return s.value;})()"
+        }
+      }
+    },
+    {
+      "id": "dark-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-canvas iframe[data-viewport-width=\"390\"][data-runtime-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "verify",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Verify implementation\")"
+        }
+      }
+    },
+    {
+      "id": "review",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-review",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "import",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#design-adoption button:has-text(\"Import existing page\")"
+        }
+      }
+    },
+    {
+      "id": "import-preview",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-adoption button:has-text(\"Apply import\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "assert",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "#design-adoption button:has-text(\"Apply import\")",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Import preview did not produce an explicit apply action."
+        }
+      }
+    },
+    {
+      "id": "apply",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#design-adoption button:has-text(\"Apply import\")"
+        },
+        "metadata": {
+          "label": "Apply the reviewed adoption"
+        }
+      }
+    },
+    {
+      "id": "adopted",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "#design-adoption button:has-text(\"Import applied\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Adoption acknowledged"
+        }
+      }
+    }
   ],
   "edges": [
-    { "id": "e1", "source": "open", "target": "ready" }, { "id": "e2", "source": "ready", "target": "fill" }, { "id": "e3", "source": "fill", "target": "save" }, { "id": "e4", "source": "save", "target": "saved" }, { "id": "e5", "source": "saved", "target": "propose" }, { "id": "e6", "source": "propose", "target": "proposed" }, { "id": "e7", "source": "proposed", "target": "preview" }, { "id": "e8", "source": "preview", "target": "candidate" }, { "id": "e9", "source": "candidate", "target": "mapping" }, { "id": "e10", "source": "mapping", "target": "map-fill" }, { "id": "e11", "source": "map-fill", "target": "map-apply" }, { "id": "e12", "source": "map-apply", "target": "mapped" }, { "id": "e13", "source": "mapped", "target": "choose" }, { "id": "e14", "source": "choose", "target": "canvas" }, { "id": "e15", "source": "canvas", "target": "phone" }, { "id": "e16", "source": "phone", "target": "phone-ready" }, { "id": "e17", "source": "phone-ready", "target": "dark" }, { "id": "e18", "source": "dark", "target": "dark-ready" }, { "id": "e19", "source": "dark-ready", "target": "verify" }, { "id": "e20", "source": "verify", "target": "review" }, { "id": "e21", "source": "review", "target": "import" }, { "id": "e22", "source": "import", "target": "import-preview" }, { "id": "e23", "source": "import-preview", "target": "assert" }
+    {
+      "id": "e1",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "e2",
+      "source": "ready",
+      "target": "assert-workspace"
+    },
+    {
+      "id": "e27",
+      "source": "assert-workspace",
+      "target": "assert-workspace-terminal"
+    },
+    {
+      "id": "e28",
+      "source": "assert-workspace-terminal",
+      "target": "fill"
+    },
+    {
+      "id": "e3",
+      "source": "fill",
+      "target": "save"
+    },
+    {
+      "id": "e4",
+      "source": "save",
+      "target": "saved"
+    },
+    {
+      "id": "e5",
+      "source": "saved",
+      "target": "propose"
+    },
+    {
+      "id": "e6",
+      "source": "propose",
+      "target": "proposed"
+    },
+    {
+      "id": "e7",
+      "source": "proposed",
+      "target": "preview"
+    },
+    {
+      "id": "e8",
+      "source": "preview",
+      "target": "candidate"
+    },
+    {
+      "id": "e9",
+      "source": "candidate",
+      "target": "mapping"
+    },
+    {
+      "id": "e10",
+      "source": "mapping",
+      "target": "map-fill"
+    },
+    {
+      "id": "e11",
+      "source": "map-fill",
+      "target": "map-apply"
+    },
+    {
+      "id": "e12",
+      "source": "map-apply",
+      "target": "mapped"
+    },
+    {
+      "id": "e13",
+      "source": "mapped",
+      "target": "choose"
+    },
+    {
+      "id": "e14",
+      "source": "choose",
+      "target": "canvas"
+    },
+    {
+      "id": "e15",
+      "source": "canvas",
+      "target": "phone"
+    },
+    {
+      "id": "e16",
+      "source": "phone",
+      "target": "phone-ready"
+    },
+    {
+      "id": "e17",
+      "source": "phone-ready",
+      "target": "dark"
+    },
+    {
+      "id": "e18",
+      "source": "dark",
+      "target": "dark-ready"
+    },
+    {
+      "id": "e19",
+      "source": "dark-ready",
+      "target": "verify"
+    },
+    {
+      "id": "e20",
+      "source": "verify",
+      "target": "review"
+    },
+    {
+      "id": "e21",
+      "source": "review",
+      "target": "import"
+    },
+    {
+      "id": "e22",
+      "source": "import",
+      "target": "import-preview"
+    },
+    {
+      "id": "e23",
+      "source": "import-preview",
+      "target": "assert"
+    },
+    {
+      "id": "e24",
+      "source": "assert",
+      "target": "apply"
+    },
+    {
+      "id": "e25",
+      "source": "apply",
+      "target": "adopted"
+    }
   ]
 }

@@ -212,6 +212,20 @@ describe("AppShell", () => {
     expect(screen.getByText("Integration readiness and recovery guidance")).toBeInTheDocument();
   });
 
+  it("does not place the catalog mutation launcher on preferences", () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/settings" element={<div data-testid="settings-destination">settings</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/settings"] },
+    );
+
+    expect(screen.getByTestId("settings-destination")).toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-open")).not.toBeInTheDocument();
+  });
+
   it("submits catalog search and opens create from the single action launcher", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("matchMedia", (query: string) => ({

@@ -35,12 +35,26 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/design-workspace",
+          "selector": "[data-experience-surface=\"design-workspace\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-design-workspace-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Design workspace region asserted"
+        },
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/designWorkspace",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-design-workspace-region"
     }
   ],
   "settings": {

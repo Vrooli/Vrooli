@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { componentsClient } from "../api/components";
 import { ComponentEditor } from "../features/components/ComponentEditor";
+import { selectors } from "../consts/selectors";
 
 /** Full-viewport preview surface used by pop-out and deep-link workflows. */
 export function PreviewPopoutPage() {
@@ -15,10 +16,19 @@ export function PreviewPopoutPage() {
     enabled: Boolean(id),
   });
   const libraryId = componentQuery.data?.component?.libraryId || id;
+  const experienceState = !id
+    ? "empty"
+    : componentQuery.isLoading
+      ? "loading"
+      : componentQuery.isError
+        ? "error"
+        : "ready";
 
   return (
     <main
-      data-testid="preview-popout"
+      data-testid={selectors.previewPopout}
+      data-experience-surface="preview-popout"
+      data-experience-state={experienceState}
       aria-label={`Preview ${libraryId}`}
       data-preview-story={searchParams.get("story") || ""}
       data-preview-view="sheet"

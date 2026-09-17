@@ -9,11 +9,11 @@
     }
   ],
   "draft": "",
+  "entry": "BoardController.tsx",
   "evictedVersions": [
     "0.1.0",
     "0.1.1"
   ],
   "latest": "0.1.2",
-  "libraryId": "react-component-library:CycleController",
-  "entry": "BoardController.tsx"
+  "libraryId": "react-component-library:CycleController"
 }

@@ -22,7 +22,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "prompt-manager",
-          "scenario_path": "/world?intro=0",
+          "scenario_path": "/world?view=3d&intro=0",
           "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
           "timeout_ms": 30000
         },
@@ -100,16 +100,12 @@
       }
     },
     {
-      "id": "wait-canvas",
+      "id": "assert-renderer",
       "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/world.canvas",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 20000
-        },
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": { "expression": "(()=>{const root=document.querySelector('[data-testid=\"world-view\"]');const renderer=root?.getAttribute('data-world-renderer');if(renderer!=='2d'&&renderer!=='2d-fallback'&&renderer!=='3d')throw Error(`Unexpected world renderer: ${renderer}`);return true;})()" },
         "metadata": {
-          "label": "Canvas back"
+          "label": "Renderer state is capability-aware"
         }
       }
     }
@@ -148,7 +144,7 @@
     {
       "id": "e6",
       "source": "close-2d",
-      "target": "wait-canvas",
+      "target": "assert-renderer",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

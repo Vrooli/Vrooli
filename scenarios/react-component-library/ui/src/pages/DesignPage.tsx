@@ -21,10 +21,16 @@ import {
 } from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
 import { listComponentStories } from "../api/components";
 import { API_BASE } from "../api/client";
-import { generateReferenceAsset, sketchClient, uploadReferenceAsset } from "../api/sketch";
+import {
+  generateReferenceAsset,
+  importSketchPage,
+  sketchClient,
+  uploadReferenceAsset,
+} from "../api/sketch";
 import { strings } from "../consts/strings";
 import { designPath } from "../routes";
 import { useTranslation } from "../i18n";
+import { useIsMobile } from "../hooks/useMediaQuery";
 
 function Failure({
   error,
@@ -70,9 +76,18 @@ function DesignOverview({ scenario }: { scenario?: string }) {
     queryKey: ["design-inventory", scenario],
     queryFn: ({ signal }) => sketchClient.listDesignPages({ scenario: scenario ?? "" }, { signal }),
   });
+  const experienceState = inventory.isPending
+    ? "loading"
+    : inventory.error
+      ? "error"
+      : inventory.data?.pages.length === 0
+        ? "empty"
+        : "ready";
   return (
     <section
       data-experience-surface="design-overview"
+      data-testid={scenario ? "design-scenario" : "design"}
+      data-experience-state={experienceState}
       className="grid gap-space-sm"
       aria-label={t("design.title")}
     >
@@ -189,6 +204,13 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
     queryKey: key,
     queryFn: ({ signal }) => sketchClient.getSketch({ target }, { signal }),
   });
+  const experienceState = current.isPending
+    ? "loading"
+    : current.error
+      ? "error"
+      : current.data
+        ? "ready"
+        : "empty";
   useEffect(() => {
     if (!current.data) return;
     const resetScroll = () => {
@@ -207,6 +229,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const [selected, setSelected] = useState("");
   const [note, setNote] = useState("");
   const [panel, setPanel] = useState("structure");
+  const [adoptionAcknowledged, setAdoptionAcknowledged] = useState(false);
   const selectedRevision = history.data?.revisions.find((item) => item.contentHash === revision);
   const doc = revision ? selectedRevision?.sketch : current.data?.sketch;
   const hash = revision || current.data?.contentHash || "";
@@ -267,14 +290,22 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   });
   const importPage = useMutation({
     mutationFn: (write: boolean) =>
-      sketchClient.importPage({
-        target,
-        write,
-        expectedContentHash: current.data?.contentHash ?? "",
-      }),
-    onSuccess: async (result) => {
-      if (result.written) await refresh();
+      write
+        ? importSketchPage(
+            target,
+            true,
+            current.data?.contentHash ?? "",
+            () => setAdoptionAcknowledged(true),
+          )
+        : importSketchPage(target, false, current.data?.contentHash ?? ""),
+    onSuccess: (result) => {
+      // Publish the mutation result immediately so the operator gets a truthful
+      // adoption acknowledgement. Revalidation can be slower than the write
+      // (especially while the catalog decomposes a large page) and must not hold
+      // the mutation in a perpetual "Preparing import…" state.
+      if (result.written) void refresh();
     },
+    onError: () => setAdoptionAcknowledged(false),
   });
   const verify = useMutation({
     mutationFn: async () => ({
@@ -322,6 +353,8 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   return (
     <section
       data-experience-surface="design-workspace"
+      data-testid="design-workspace"
+      data-experience-state={experienceState}
       className="grid min-w-0 grid-cols-1 gap-space-md"
       aria-label={t("design.workspace")}
     >
@@ -351,11 +384,11 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
               Design studio
             </p>
             <h1 className="mt-1 break-words text-title font-semibold">{page}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-app-muted-foreground">
+            <p data-testid="design-workspace-description" className="mt-1 max-w-2xl text-sm text-app-muted-foreground">
               Turn a brief into a reviewable, evidence-backed candidate. Technical details stay
               available when you need them.
             </p>
-            <p className="mt-2 break-all text-label text-app-muted-foreground">
+            <p data-testid="design-workspace-meta" className="mt-2 break-all text-label text-app-muted-foreground">
               {scenario} ·{" "}
               {current.data
                 ? `revision ${current.data.contentHash.slice(0, 12)} · ${readOnly ? t("design.readOnly") : t("design.saved")}`
@@ -375,7 +408,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
             </Button>
           </div>
         </div>
-        <nav aria-label="Design workflow" className="grid gap-2 sm:grid-cols-4">
+        <nav aria-label="Design workflow" className="design-workflow-nav grid grid-cols-2 gap-2 sm:grid-cols-4">
           {workflowSteps.map((step, index) => (
             <a
               key={step.id}
@@ -390,10 +423,10 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
                   {step.label}
                 </span>
                 {step.complete && (
-                  <span className="ml-auto text-label text-emerald-600">Ready</span>
+                  <span className="design-workflow-status ml-auto text-label text-emerald-600">Ready</span>
                 )}
               </div>
-              <p className="mt-1 pl-8 text-label text-app-muted-foreground">{step.detail}</p>
+              <p className="design-workflow-step-detail mt-1 pl-8 text-label text-app-muted-foreground">{step.detail}</p>
             </a>
           ))}
         </nav>
@@ -401,7 +434,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           <span className="font-medium">Next best action</span>
           <a
             href={`${designPath(scenario, page)}#${nextStep.anchor}`}
-            className="font-semibold text-app-primary underline-offset-2 hover:underline"
+            className="inline-flex min-h-touch items-center font-semibold text-app-primary underline-offset-2 hover:underline"
           >
             {nextStep.label}
           </a>
@@ -653,12 +686,15 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
               variant="secondary"
               className="justify-self-start"
               disabled={readOnly || importPage.isPending}
-              onClick={() => importPage.mutate(false)}
+              onClick={() => {
+                setAdoptionAcknowledged(false);
+                importPage.mutate(false);
+              }}
             >
               {importPage.isPending ? t("design.importing") : t("design.previewImport")}
             </Button>
             {importPage.error && <Failure error={importPage.error} retry={() => void refresh()} />}
-            {importPage.data && (
+            {(importPage.data || adoptionAcknowledged) && (
               <Card>
                 <CardHeader>
                   <CardTitle>{t("design.importReview")}</CardTitle>
@@ -666,7 +702,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
                 <CardContent className="grid gap-space-sm">
                   <p>{t("design.importHelp")}</p>
                   <ul>
-                    {importPage.data.items.map((item) => (
+                    {(importPage.data?.items ?? []).map((item) => (
                       <li key={item.component}>
                         <strong>{item.component}</strong>:{" "}
                         {t(`design.importState.${item.state}`, { defaultValue: item.state })}
@@ -684,12 +720,15 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
                   <Button
                     disabled={
                       readOnly ||
-                      importPage.data.written ||
-                      importPage.data.contentHash !== current.data.contentHash
+                      importPage.data?.written ||
+                      adoptionAcknowledged ||
+                      importPage.data?.contentHash !== current.data?.contentHash
                     }
                     onClick={() => importPage.mutate(true)}
                   >
-                    {importPage.data.written ? t("design.imported") : t("design.applyImport")}
+                    {importPage.data?.written || adoptionAcknowledged
+                      ? t("design.imported")
+                      : t("design.applyImport")}
                   </Button>
                 </CardContent>
               </Card>
@@ -1743,6 +1782,7 @@ function IntentProposals({
   onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const [intent, setIntent] = useState("");
   const [users, setUsers] = useState("");
   const [tasks, setTasks] = useState("");
@@ -1862,7 +1902,7 @@ function IntentProposals({
   return (
     <details
       id="design-brief"
-      open
+      open={!isMobile}
       className="scroll-mt-24 rounded-control border border-app-border p-space-sm"
     >
       <summary>{t("design.proposeTitle")}</summary>

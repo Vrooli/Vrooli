@@ -14,6 +14,18 @@
   "nodes": [
     {
       "action": {
+        "metadata": { "label": "Coverage report region asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "selector": "[data-testid=\"coverage-page\"][data-experience-state=\"loading\"], [data-testid=\"coverage-page\"][data-experience-state=\"ready\"], [data-testid=\"coverage-page\"][data-experience-state=\"empty\"], [data-testid=\"coverage-page\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-coverage-report-region"
+    },
+    {
+      "action": {
         "metadata": {
           "label": "Open Catalog coverage"
         },
@@ -42,6 +54,10 @@
       },
       "id": "wait-coverage-primary-binding"
     }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-coverage", "target": "wait-coverage-primary-binding" },
+    { "id": "e2", "source": "wait-coverage-primary-binding", "target": "assert-coverage-report-region" }
   ],
   "settings": {
     "viewport_height": 800,

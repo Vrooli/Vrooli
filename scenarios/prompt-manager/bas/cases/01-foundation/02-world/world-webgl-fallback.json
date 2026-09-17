@@ -35,7 +35,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/world.webgl-banner",
+          "selector": "@selector/world.webglBanner",
           "mode": "ASSERTION_MODE_NOT_EXISTS",
           "timeout_ms": 5000,
           "failure_message": "WebGL fallback banner appeared even though the canvas mounted"

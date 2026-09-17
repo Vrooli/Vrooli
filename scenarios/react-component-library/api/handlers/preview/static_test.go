@@ -268,6 +268,22 @@ func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {
 	require.False(t, strings.Contains(html, `/preview/runtime/npm/some-lib@*`))
 }
 
+func TestRenderHarnessHTMLDoesNotTreatCatalogDependenciesAsRuntimePackages(t *testing.T) {
+	withPackageRuntimeCandidates(t, func(string) []string { return nil })
+	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+		Dependencies: []internaldeps.Declaration{
+			{DepName: "react-component-library:StyleSheet", VersionRange: "^1.0.0"},
+			{DepName: "@vrooli/react-component-library/useLocale/1", VersionRange: "^1.1.0"},
+		},
+	}, harnessStory{}, testPreviewCSS)
+	require.NotContains(t, html, "catalog source unavailable")
+	require.NotContains(t, html, "react-component-library:StyleSheet")
+	require.NotContains(t, html, "@vrooli/react-component-library/useLocale/1")
+}
+
 func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
 	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
 		JS:         "export default function Demo() { return null }",

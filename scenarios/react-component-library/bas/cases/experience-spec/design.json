@@ -14,6 +14,18 @@
   "nodes": [
     {
       "action": {
+        "metadata": { "label": "Design overview region asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "selector": "[data-experience-surface=\"design-overview\"][data-experience-state=\"loading\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"ready\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"empty\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-design-overview-region"
+    },
+    {
+      "action": {
         "metadata": {
           "label": "Open Choose a scenario"
         },
@@ -42,6 +54,10 @@
       },
       "id": "wait-design-primary-binding"
     }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-design", "target": "wait-design-primary-binding" },
+    { "id": "e2", "source": "wait-design-primary-binding", "target": "assert-design-overview-region" }
   ],
   "settings": {
     "viewport_height": 800,

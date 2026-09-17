@@ -14,6 +14,18 @@
   "nodes": [
     {
       "action": {
+        "metadata": { "label": "Scenario design overview region asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "selector": "[data-experience-surface=\"design-overview\"][data-experience-state=\"loading\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"ready\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"empty\"], [data-experience-surface=\"design-overview\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-design-scenario-region"
+    },
+    {
+      "action": {
         "metadata": {
           "label": "Open Choose a page"
         },
@@ -35,13 +47,17 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/design-scenario",
+          "selector": "@selector/designScenario",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-design-scenario-primary-binding"
     }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-design-scenario", "target": "wait-design-scenario-primary-binding" },
+    { "id": "e2", "source": "wait-design-scenario-primary-binding", "target": "assert-design-scenario-region" }
   ],
   "settings": {
     "viewport_height": 800,

@@ -31,6 +31,48 @@ body {
   padding-right: 2.25rem;
 }
 
+/* Landscape phones have enough width for the desktop shell but not enough
+   height for every piece of workflow chrome. Keep the journey visible while
+   giving the actual page surface the viewport instead of pinning a tall header. */
+@media (orientation: landscape) and (max-height: 30rem) {
+  [data-testid="design-workspace-header"] {
+    gap: var(--space-xs);
+    padding: var(--space-xs);
+  }
+
+  [data-testid="design-workspace-description"],
+  [data-testid="design-workspace-meta"],
+  .design-workflow-step-detail,
+  .design-workflow-status {
+    display: none;
+  }
+
+  .design-workflow-nav {
+    gap: var(--space-3xs);
+  }
+
+  .design-workflow-nav > a {
+    padding: var(--space-2xs);
+  }
+}
+
+/* Product surfaces opt into the comfortable touch floor even when a shared
+ * control's default rung is intentionally dense. Keeping this boundary at the
+ * page surface preserves the library's documented size scale while preventing
+ * the design studio and settings actions from becoming 40px targets on
+ * touch-sized viewports. */
+[data-experience-surface="design-overview"] [data-rcl-control],
+[data-experience-surface="design-workspace"] [data-rcl-control],
+[data-testid="settings-page"] [data-rcl-control] {
+  min-block-size: var(--tap-target-min);
+}
+
+[data-experience-surface="design-overview"] [data-rcl-control][data-control-size="icon"],
+[data-experience-surface="design-workspace"] [data-rcl-control][data-control-size="icon"],
+[data-testid="settings-page"] [data-rcl-control][data-control-size="icon"] {
+  min-inline-size: var(--tap-target-min);
+}
+
 /* Application scrollbar and utility styling, formerly mixed into tokens. */
 
 * {

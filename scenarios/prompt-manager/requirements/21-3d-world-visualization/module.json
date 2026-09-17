@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-15T01:15:46-04:00"
+    "last_validated_at": "2026-09-16T22:38:53-04:00"
   },
   "requirements": [
     {
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "ui/scripts/world-smoke/run.mjs",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "pnpm world:smoke: draw-call and triangle budgets from world.tuning.json, first-frame clearance, goldens under ui/src/world/__goldens__"
         }
       ]
@@ -299,7 +299,7 @@
     {
       "id": "REQ-P2-036",
       "title": "Render cost is measured, attributed and reproducible",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "performance",
       "description": "When diagnostics or smoke validation requests measurement, the system shall report CPU and GPU percentiles, attribute direct calls and triangles by group, require an actor count, and record renderer provenance for reproducible sweeps.",
@@ -308,7 +308,7 @@
           "type": "test",
           "ref": "ui/scripts/world-smoke/run.mjs",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The initial hardware matrices ran on Mesa AMD iGPU and NVIDIA dGPU; final post-change capture is blocked before navigation because Chrome cannot create host threads (pthread_create EAGAIN)."
         }
       ]
@@ -332,7 +332,7 @@
           "type": "test",
           "ref": "ui/scripts/world-smoke/run.mjs",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Final browser evidence could not execute because the shared host exhausted Chrome thread creation before page navigation."
         }
       ]
@@ -374,7 +374,7 @@
     {
       "id": "REQ-P2-040",
       "title": "Hardware budgets carry reproducible provenance",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "performance",
       "description": "A hardware budget gate shall match GPU tier, renderer, device scale factor and actor count and shall reject unattributed draw-call share above ten percent.",
@@ -383,7 +383,7 @@
           "type": "test",
           "ref": "ui/scripts/world-smoke/run.mjs",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Harness gates provenance and attribution in code; the final required hardware run was blocked by host thread exhaustion and is not represented as passing."
         }
       ]

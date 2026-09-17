@@ -1,5 +1,5 @@
 {
-  "metadata": { "name": "world-office-building", "description": "Given the office scene, the rendered first frame is a dry connected building", "labels": { "reset": "none", "safety": "read-only" }, "execution_mode": "observer" },
+  "metadata": { "name": "world-office-building", "description": "Given the office scene, the rendered first frame is a dry connected building", "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" }, "requirement": "UX-CAMPAIGN-007", "execution_mode": "mutating" },
   "settings": { "viewport_width": 1600, "viewport_height": 1000 },
   "nodes": [
     { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&scene=office&profile=high&actors=25&seed=7&diag=1&capture=1&intro=0&weather=clear", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the office building" } } },

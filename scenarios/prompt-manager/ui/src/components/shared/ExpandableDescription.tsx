@@ -1,7 +1,9 @@
 /**
  * ExpandableDescription - Truncated description with inline expansion.
  *
- * Collapsed: 1-2 lines with ellipsis (line-clamp-2)
+ * Collapsed: a bounded number of lines with ellipsis, or the full value when
+ * maxLines is 0. High-value identity copy can opt out of truncation while
+ * retaining the same keyboard-editable disclosure primitive.
  * Expanded: textarea for editing (inline, not modal)
  * Save on blur or Ctrl+Enter, cancel on Escape
  */
@@ -18,6 +20,7 @@ interface ExpandableDescriptionProps {
   className?: string
   disabled?: boolean
   isLoading?: boolean
+  /** Set to 0 when truncation would hide essential identity or mission copy. */
   maxLines?: number
 }
 
@@ -118,12 +121,14 @@ export function ExpandableDescription({
   }
 
   // Line clamp class based on maxLines
-  const lineClampClass = {
-    1: 'line-clamp-1',
-    2: 'line-clamp-2',
-    3: 'line-clamp-3',
-    4: 'line-clamp-4',
-  }[maxLines] || 'line-clamp-2'
+  const lineClampClass = maxLines === 0
+    ? ''
+    : ({
+        1: 'line-clamp-1',
+        2: 'line-clamp-2',
+        3: 'line-clamp-3',
+        4: 'line-clamp-4',
+      }[maxLines] || 'line-clamp-2')
 
   if (isEditing) {
     return (

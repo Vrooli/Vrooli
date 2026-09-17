@@ -21,6 +21,34 @@
       "testId": "app-main",
       "selector": "[data-testid=\"app-main\"]"
     },
+    "design": {
+      "testId": "design",
+      "selector": "[data-testid=\"design\"]"
+    },
+    "designScenario": {
+      "testId": "design-scenario",
+      "selector": "[data-testid=\"design-scenario\"]"
+    },
+    "designWorkspace": {
+      "testId": "design-workspace",
+      "selector": "[data-testid=\"design-workspace\"]"
+    },
+    "capabilities": {
+      "testId": "capabilities-page",
+      "selector": "[data-testid=\"capabilities-page\"]"
+    },
+    "coverage": {
+      "testId": "coverage-page",
+      "selector": "[data-testid=\"coverage-page\"]"
+    },
+    "settings": {
+      "testId": "settings-page",
+      "selector": "[data-testid=\"settings-page\"]"
+    },
+    "previewPopout": {
+      "testId": "preview-popout",
+      "selector": "[data-testid=\"preview-popout\"]"
+    },
     "launcher.open": {
       "testId": "launcher-open",
       "selector": "[data-testid=\"launcher-open\"]"
@@ -1369,7 +1397,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0a0cdebf44cc06ab9f69b4676359b3017d6b4caece5942aa6977b0b90b9ad7d7",
-    "ui/src/consts/selectors.ts": "565f9a44e7d613a79f8dfb6a52734bbd5b8d5f2f1abef9fd0b61c08c5daffb2c",
+    "ui/src/consts/selectors.ts": "c8ab757d6b9fbe69d9823a3baaeac6ea2ce74336ca3c523f2aa3188dce9a5743",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

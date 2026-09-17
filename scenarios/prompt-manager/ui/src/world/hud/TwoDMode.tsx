@@ -190,7 +190,7 @@ export function TwoDMode({ actors, teams, places = [], bounds, terrain, biomes, 
 
   return (
     <div className="grid h-full min-h-0 items-start gap-3 overflow-auto p-3 lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden" data-testid={selectors.world.hud.twoDMode}>
-      <section className="relative min-h-[320px] overflow-hidden rounded-2xl border border-border bg-slate-950/80 shadow-inner sm:min-h-[360px] lg:h-[620px] lg:min-h-[400px]" aria-label="2D world map">
+      <section className="relative min-h-[320px] overflow-hidden rounded-2xl border border-border bg-slate-950/80 shadow-inner sm:min-h-[360px] lg:h-[620px] lg:min-h-[400px]" aria-label="2D world map" data-testid={selectors.world.hud.map}>
         <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.12) 1px, transparent 1px)', backgroundSize: '32px 32px' }} aria-hidden="true" />
         <div className="absolute inset-[7%] rounded-[2rem] border border-emerald-300/20 bg-emerald-950/20" aria-hidden="true" />
         <svg className="absolute inset-[7%] h-[86%] w-[86%] overflow-visible transition-transform duration-200" style={{ transform: `scale(${mapZoom})`, transformOrigin: 'center' }} viewBox="0 0 100 100" aria-label="Terrain, water, navigation, places, and agent positions">
@@ -225,7 +225,7 @@ export function TwoDMode({ actors, teams, places = [], bounds, terrain, biomes, 
           ))}
         </svg>}
         <div className="absolute left-3 top-3 max-w-[13rem] rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-[11px] text-slate-200 backdrop-blur sm:max-w-none sm:text-xs"><p className="font-semibold">Operational map</p><p className="mt-1 text-slate-400">{biomeSetId ? `${biomeSetId} terrain · ` : ''}live positions · rooms · paths</p></div>
-        {feedNotice && <p className="absolute left-3 top-[4.75rem] max-w-[15rem] rounded-lg border border-amber-300/30 bg-amber-950/70 px-3 py-2 text-[11px] text-amber-100 shadow-sm" role="status" aria-live="polite">{feedNotice}</p>}
+        {feedNotice && <p className="absolute left-3 top-[4.75rem] max-w-[15rem] rounded-lg border border-amber-300/30 bg-amber-950/70 px-3 py-2 text-[11px] text-amber-100 shadow-sm" role="status" aria-live="polite" data-testid={selectors.world.hud.snapshotStatus}>{feedNotice}</p>}
         <div className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-white/10 bg-black/60 p-1 backdrop-blur" aria-label="Map camera controls">
           <button type="button" className="grid h-8 w-8 place-items-center rounded-md text-sm text-slate-100 hover:bg-white/10" aria-label="Zoom out map" onClick={() => setMapZoom((value) => Math.max(0.85, Number((value - 0.15).toFixed(2))))}>−</button>
           <button type="button" className="grid h-8 min-w-10 place-items-center rounded-md px-1 text-[11px] font-medium text-slate-200 hover:bg-white/10" aria-label="Recenter map" onClick={() => setMapZoom(1)}>{Math.round(mapZoom * 100)}%</button>
@@ -238,11 +238,11 @@ export function TwoDMode({ actors, teams, places = [], bounds, terrain, biomes, 
           const label = `${actor.name} · ${STATE_LABEL[actor.state]}${offset ? ' · displayed offset for dense map' : ''}`
           return <button key={actor.id} type="button" aria-label={`Focus ${actor.name}`} title={label} aria-pressed={focusedId === actor.id} onClick={() => onFocus(focusedId === actor.id ? null : actor.id)} className={`absolute grid ${denseOverview ? 'h-5 w-5 text-[8px] sm:h-6 sm:w-6 sm:text-[9px]' : 'h-6 w-6 text-[9px] sm:h-7 sm:w-7'} -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-bold text-white shadow-lg transition-transform hover:scale-125 ${focusedId === actor.id ? 'z-10 scale-125 border-white ring-4 ring-primary/40' : 'border-white/60'}`} style={{ left: `${Math.max(5, Math.min(95, zoomCoordinate(markerX)))}%`, top: `${Math.max(9, Math.min(91, zoomCoordinate(markerY)))}%`, backgroundColor: actor.colors.body }}>{actor.name.slice(0, 1).toUpperCase()}</button>
         })}
-        {actors.length === 0 && <div className="absolute inset-0 grid place-items-center px-6 text-center"><div><p className="text-sm font-medium text-slate-200">{totalActors === 0 ? 'No agents are connected yet' : 'No agents match these filters'}</p><p className="mt-1 max-w-xs text-xs text-slate-400">{totalActors === 0 ? 'When an agent joins the roster, its position and team will appear here.' : filtersActive ? 'Clear or broaden the active filters to restore the world roster.' : 'The current world snapshot contains no visible agents.'}</p></div></div>}
+        {actors.length === 0 && <div className="absolute inset-0 grid place-items-center px-6 text-center" data-testid={selectors.world.hud.emptyState}><div><p className="text-sm font-medium text-slate-200">{totalActors === 0 ? 'No agents are connected yet' : 'No agents match these filters'}</p><p className="mt-1 max-w-xs text-xs text-slate-400">{totalActors === 0 ? 'When an agent joins the roster, its position and team will appear here.' : filtersActive ? 'Clear or broaden the active filters to restore the world roster.' : 'The current world snapshot contains no visible agents.'}</p></div></div>}
         {!terrainCells && <p className="absolute right-3 bottom-3 rounded bg-black/70 px-2 py-1 text-[10px] text-amber-200">World layers are still loading.</p>}
       </section>
       <aside aria-label="2D world activity" className="min-w-0 space-y-3 lg:max-h-[620px] lg:overflow-y-auto lg:pr-1">
-        {weather && <p className="rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground" data-testid={selectors.world.hud.weather}><span className="font-medium capitalize text-foreground">{weather.state}</span> — health pressure {Math.round(weather.pressure * 100)}%.</p>}
+        {weather && <p className="rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground" data-testid={selectors.world.hud.weather}><span className="font-medium text-foreground">{weather.state.charAt(0).toUpperCase() + weather.state.slice(1)}</span> — health pressure {Math.round(weather.pressure * 100)}%.</p>}
         <section className="rounded-xl border border-border bg-background/80 p-3 shadow-sm" aria-label="World health distribution">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -297,7 +297,7 @@ export function TwoDMode({ actors, teams, places = [], bounds, terrain, biomes, 
                     aria-pressed={focusedId === actor.id}
                     onClick={() => onFocus(focusedId === actor.id ? null : actor.id)}
                     className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted ${focusedId === actor.id ? 'bg-muted' : ''}`}
-                    data-testid={`${selectors.world.hud.actorList}-${actor.id}`}
+                    data-testid={selectors.world.hud.actorRow}
                   >
                     <span className="flex items-center gap-2">
                       <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: actor.colors.body }} aria-hidden="true" />

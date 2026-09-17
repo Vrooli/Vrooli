@@ -1,12 +1,13 @@
 import { createClient } from '@connectrpc/connect'
-import { createScenarioConnectTransport, resolveApiBase } from '@vrooli/api-base'
+import { createScenarioConnectTransport } from '@vrooli/api-base'
+import { resolvePromptManagerConnectBase } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { AgentManagerService } from '@vrooli/proto-types/agent-manager/v1/api/service_pb'
 import type { EffortBoard } from '@vrooli/proto-types/agent-manager/v1/domain/effort_pb'
 
 export const EFFORT_PAGE_SIZE = 10
 export const LINKED_EFFORT_PAGE_SIZE = 5
-const ownerBase = `${resolveApiBase({ appendSuffix: false })}/embedded/agent-manager`
+const ownerBase = `${resolvePromptManagerConnectBase()}/embedded/agent-manager`
 export const effortBoardClient = createClient(AgentManagerService, createScenarioConnectTransport({ baseUrl: ownerBase }))
 
 export interface EffortObservations {

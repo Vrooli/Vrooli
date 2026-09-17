@@ -10,6 +10,7 @@ import {
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { describeCapabilities } from "../api/catalog";
+import { selectors } from "../consts/selectors";
 
 export function CapabilitiesPage() {
   const capabilities = useQuery({
@@ -19,11 +20,20 @@ export function CapabilitiesPage() {
     retry: false,
   });
   const states = capabilities.data?.states ?? [];
+  const experienceState = capabilities.isLoading
+    ? "loading"
+    : capabilities.isError
+      ? "error"
+      : states.length > 0
+        ? "ready"
+        : "empty";
 
   if (capabilities.isLoading)
     return (
       <div
-        data-testid="capabilities-page"
+        data-testid={selectors.capabilities}
+        data-experience-surface="capability-inventory"
+        data-experience-state={experienceState}
         role="status"
         className="text-body text-app-muted-foreground"
       >
@@ -32,14 +42,16 @@ export function CapabilitiesPage() {
     );
   if (capabilities.isError)
     return (
-      <EmptyState
-        title="Capabilities unavailable"
-        description="The capability registry could not be reached. Check the API health and retry."
-      />
+      <div data-testid={selectors.capabilities} data-experience-surface="capability-inventory" data-experience-state={experienceState}>
+        <EmptyState
+          title="Capabilities unavailable"
+          description="The capability registry could not be reached. Check the API health and retry."
+        />
+      </div>
     );
 
   return (
-    <div data-testid="capabilities-page" className="grid gap-space-lg">
+    <div data-testid={selectors.capabilities} data-experience-surface="capability-inventory" data-experience-state={experienceState} className="grid gap-space-lg">
       <header className="grid gap-space-3xs">
         <p className="text-label uppercase text-app-muted-foreground">Operator view</p>
         <h1 className="text-title">Capability readiness</h1>

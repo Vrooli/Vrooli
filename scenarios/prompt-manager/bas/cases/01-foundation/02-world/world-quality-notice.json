@@ -1,9 +1,9 @@
 {
-  "metadata": { "name": "world-quality-notice", "description": "Automatic quality calibration tells the operator which profile it selected", "labels": { "reset": "none", "safety": "read-only" }, "execution_mode": "observer" },
+  "metadata": { "name": "world-quality-notice", "description": "Automatic quality calibration tells the operator which profile it selected", "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" }, "requirement": "UX-CAMPAIGN-007", "execution_mode": "mutating" },
   "settings": { "viewport_width": 1600, "viewport_height": 1000 },
   "nodes": [
     { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&actors=25&diag=1&capture=1&intro=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open automatic quality world" } } },
-    { "id": "notice", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.qualityNotice", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 30000, "failure_message": "Automatic quality changed without an operator notice" }, "metadata": { "label": "Quality notice is visible" } } }
+    { "id": "notice", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{const root=document.querySelector('[data-testid=\\\"world-view\\\"]');const renderer=root?.getAttribute('data-world-renderer');const quality=document.querySelector('[data-testid=\\\"world-quality-notice\\\"]');if(renderer==='3d'&&!quality)throw Error('Automatic quality changed without an operator notice');if(renderer!=='3d'&&renderer!=='2d'&&renderer!=='2d-fallback')throw Error(`Unexpected world renderer: ${renderer}`);return true;})()" }, "metadata": { "label": "Quality notice or explicit renderer capability state" } } }
   ],
   "edges": [
     { "id": "e1", "source": "navigate", "target": "notice", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }

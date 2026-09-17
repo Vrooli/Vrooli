@@ -563,7 +563,7 @@ export function TeamEditorPanel({
             <button
               type="button"
               onClick={onOpenSidebar ?? onClose}
-              className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
               aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
               title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
             >
@@ -626,7 +626,7 @@ export function TeamEditorPanel({
                 label="More actions"
                 showChevron={false}
                 align="right"
-                className="h-9 w-9 p-0 rounded-lg"
+                className="min-h-11 min-w-11 p-0 rounded-lg"
               >
                 {isCompactHeader && (
                   <DropdownItem
@@ -650,14 +650,16 @@ export function TeamEditorPanel({
             </div>
           </div>
 
-          {/* Row 2: Expandable mission */}
-          <div className="flex min-w-0 items-center gap-1.5 sm:items-start sm:gap-2">
+          {/* Row 2: Expandable mission. The dashboard owns the mission hero; keep
+              this compact disclosure for the other tabs so the overview does not
+              repeat the same decision context twice. */}
+          {activeTab !== 'info' && <div className="flex min-w-0 items-center gap-1.5 sm:items-start sm:gap-2">
             <button
               type="button"
               onClick={() => setIsMissionExpanded(!isMissionExpanded)}
               aria-expanded={isMissionExpanded}
               aria-label={isMissionExpanded ? 'Hide mission' : 'Show full mission'}
-              className="flex shrink-0 items-center gap-1 rounded px-1 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-h-11 shrink-0 items-center gap-1 rounded px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {isMissionExpanded ? (
                 <ChevronUp className="h-4 w-4" />
@@ -680,8 +682,8 @@ export function TeamEditorPanel({
                 </p>
               </>
             )}
-          </div>
-          {(team.managedTeamIds?.length ?? 0) > 0 || (team.managedByTeamIds?.length ?? 0) > 0 ? (
+          </div>}
+          {activeTab !== 'info' && ((team.managedTeamIds?.length ?? 0) > 0 || (team.managedByTeamIds?.length ?? 0) > 0) ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" data-testid="team-management-summary">
               <span className="font-semibold uppercase tracking-wide text-muted-foreground">Team management</span>
               {(team.managedTeamIds?.length ?? 0) > 0 && <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Manages {team.managedTeamIds?.length} team{team.managedTeamIds?.length === 1 ? '' : 's'}</span>}

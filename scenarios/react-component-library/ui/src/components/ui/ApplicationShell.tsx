@@ -165,7 +165,11 @@ export function ApplicationShell({ children }: Props) {
         action={launcherAction}
         onActionChange={setLauncherAction}
         onCreate={() => setShowCreate(true)}
-        showTrigger={!isComponentDetail && !isDesign}
+        // Guided extract/adopt/create actions belong to the catalog workspace.
+        // Keeping the launcher off preferences, coverage, and capability pages
+        // prevents a floating mutation affordance from competing with the
+        // operator's current task.
+        showTrigger={isCatalog}
         initialAssetID={launcherAssetID}
         initialTarget={launcherTarget}
       />

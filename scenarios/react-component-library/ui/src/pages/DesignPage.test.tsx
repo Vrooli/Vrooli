@@ -28,6 +28,7 @@ const api = vi.hoisted(() => ({
   putSketch: vi.fn(),
   saveCandidate: vi.fn(),
   importPage: vi.fn(),
+  importSketchPage: vi.fn(),
   setTemplate: vi.fn(),
   searchDesignAssets: vi.fn(),
   getSketch: vi.fn(),
@@ -38,6 +39,7 @@ const api = vi.hoisted(() => ({
 vi.mock("../api/catalog", () => ({ searchDesignAssets: api.searchDesignAssets }));
 vi.mock("../api/sketch", () => ({
   sketchClient: api,
+  importSketchPage: api.importSketchPage,
   generateReferenceAsset: vi.fn(),
   uploadReferenceAsset: vi.fn(),
 }));
@@ -136,6 +138,8 @@ describe("Design workspace", () => {
     expect(workflow?.querySelector('a[href$="#design-canvas"]')).toBeTruthy();
     expect(workflow?.querySelector('a[href$="#design-review"]')).toBeTruthy();
     expect(workflow?.querySelector('a[href$="#design-adoption"]')).toBeTruthy();
+    const nextAction = screen.getByText("Next best action").parentElement;
+    expect(nextAction?.querySelector("a")?.className).toContain("min-h-touch");
     expect(workflow?.querySelector('a[href$="#design-brief"]')?.className).not.toContain(
       "border-emerald",
     );
@@ -152,6 +156,7 @@ describe("Design workspace", () => {
     const workflow = screen.getByRole("navigation", { name: "Design workflow" });
     const links = workflow.querySelectorAll("a");
     expect(links).toHaveLength(4);
+    expect(workflow.className).toContain("grid-cols-2");
     for (const link of links) expect(link.className).toContain("min-h-touch");
   });
 
@@ -282,7 +287,7 @@ describe("Design workspace", () => {
 
   it("previews import before publishing against the current revision", async () => {
     setup();
-    api.importPage.mockResolvedValue({
+    api.importSketchPage.mockResolvedValue({
       sketch,
       contentHash: "current-hash",
       items: [],
@@ -290,20 +295,54 @@ describe("Design workspace", () => {
     });
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.previewImport") }));
-    expect(await screen.findByRole("button", { name: i18n.t("design.applyImport") })).toBeEnabled();
-    expect(api.importPage).toHaveBeenLastCalledWith({
-      target: { scenario: "demo", page: "page" },
-      write: false,
-      expectedContentHash: "current-hash",
-    });
+    const apply = await screen.findByRole("button", { name: i18n.t("design.applyImport") });
+    await waitFor(() => expect(apply).toBeEnabled());
+    expect(api.importSketchPage).toHaveBeenLastCalledWith(
+      { scenario: "demo", page: "page" },
+      false,
+      "current-hash",
+    );
     fireEvent.click(screen.getByRole("button", { name: i18n.t("design.applyImport") }));
     await waitFor(() =>
-      expect(api.importPage).toHaveBeenLastCalledWith({
-        target: { scenario: "demo", page: "page" },
-        write: true,
-        expectedContentHash: "current-hash",
-      }),
+      expect(api.importSketchPage).toHaveBeenLastCalledWith(
+        { scenario: "demo", page: "page" },
+        true,
+        "current-hash",
+        expect.any(Function),
+      ),
     );
+  });
+
+  it("acknowledges adoption before a slow post-write refresh completes", async () => {
+    const initial = { sketch, contentHash: "current-hash" };
+    let reads = 0;
+    api.getSketch.mockImplementation(() => {
+      reads += 1;
+      return reads === 1 ? Promise.resolve(initial) : new Promise(() => {});
+    });
+    api.importSketchPage.mockResolvedValue({
+      sketch,
+      contentHash: "current-hash",
+      items: [],
+      written: false,
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.previewImport") }));
+    const apply = await screen.findByRole("button", { name: i18n.t("design.applyImport") });
+    await waitFor(() => expect(apply).toBeEnabled());
+    api.importSketchPage.mockImplementationOnce(
+      (_target, _write, _hash, onWriteAccepted) => {
+        onWriteAccepted?.();
+        return Promise.resolve({
+          sketch,
+          contentHash: "adopted-hash",
+          items: [],
+          written: true,
+        });
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: i18n.t("design.applyImport") }));
+    expect(await screen.findByRole("button", { name: i18n.t("design.imported") })).toBeInTheDocument();
   });
 
   it("marks verification stale after a saved revision changes", async () => {

@@ -443,6 +443,14 @@ export function toProtoJson(value: unknown, path = '$'): JsonValue {
   throw new TypeError(`Unsupported protobuf JSON value at ${path}: ${typeof value}`)
 }
 
+export function resolvePromptManagerConnectBase(): string {
+  if (import.meta.env.MODE === 'test') {
+    return window.location.origin
+  }
+
+  return resolveApiBase({ appendSuffix: false })
+}
+
 function resolvePromptManagerApiBase(): string {
   if (import.meta.env.MODE === 'test') {
     return '/api/v1'
@@ -453,9 +461,7 @@ function resolvePromptManagerApiBase(): string {
 }
 
 export const API_BASE = resolvePromptManagerApiBase()
-const CONNECT_BASE = import.meta.env.MODE === 'test'
-  ? window.location.origin
-  : resolveApiBase({ appendSuffix: false })
+const CONNECT_BASE = resolvePromptManagerConnectBase()
 const connectTransport = createConnectTransport({ baseUrl: CONNECT_BASE })
 const skillsClient = createClient(SkillsService, connectTransport)
 const actionsClient = createClient(ActionsService, connectTransport)

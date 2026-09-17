@@ -13,7 +13,8 @@
  */
 
 import { createClient } from '@connectrpc/connect'
-import { createScenarioConnectTransport, resolveApiBase } from '@vrooli/api-base'
+import { createScenarioConnectTransport } from '@vrooli/api-base'
+import { resolvePromptManagerConnectBase } from '@/lib/api'
 import { TeamsService } from '@vrooli/proto-types/prompt-manager/v1/teams/teams_pb'
 import type { ManagedTeamEdge, OrgEdge, OrgChartApiResponse, UpdateEdgeRequest } from '@/types/orgChart'
 
@@ -22,7 +23,7 @@ import type { ManagedTeamEdge, OrgEdge, OrgChartApiResponse, UpdateEdgeRequest }
 // ============================================================================
 
 const teamsClient = createClient(TeamsService, createScenarioConnectTransport({
-  baseUrl: resolveApiBase({ appendSuffix: false }),
+  baseUrl: resolvePromptManagerConnectBase(),
 }))
 
 // ============================================================================

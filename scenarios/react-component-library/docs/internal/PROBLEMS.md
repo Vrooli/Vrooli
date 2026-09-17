@@ -543,4 +543,50 @@ not available. The broader candidate approval and independent-review gates remai
   remains because the temporary target has no live BAS observer registration.
 - **Remaining:** the canonical validator still reports inherited capture/floor debt;
   route-owned page composition findings are no longer being counted as reusable
-  component-harness failures.
+component-harness failures.
+
+## 2026-09-16 — Design observer selectors were registered but not executable
+
+- **Status:** repaired; observer receipts completed
+- **Observed:** the generated design, design-scenario, and design-workspace BAS
+  observer cases referenced kebab-case selector keys absent from the typed selector
+  manifest. The page roots also exposed only experience-surface attributes, so the
+  experience-specific observer path could not join them.
+- **Remedy:** added canonical `design`, `designScenario`, and `designWorkspace`
+  selector definitions, emitted matching page-root test IDs, and corrected the
+  observer references to the typed keys.
+- **Evidence:** managed receipts completed for design
+  `d04e863f-47a4-4863-b6ed-9a0b662e5125`, design-scenario
+  `1eb41a61-a442-433d-a46d-83113e6dbd3e`, and design-workspace
+  `2baf6a12-fabf-4ee8-bf99-c286fee85061`; DesignPage remains 27/27 with TypeScript
+  clean and the production build/start is healthy.
+- **Remaining:** the broad experience corpus still has inherited capture/floor
+  debt and independent campaign acceptance is still unavailable.
+
+## UX campaign RCL acceptance remeasurement — 2026-09-17
+
+- Focused DesignPage, Capabilities, Coverage, and Settings validation passes
+  37/37 with TypeScript clean. Fresh persisted BAS observer executions
+  `d315cb04-ad18-4b65-9ef1-dfc09301222e` and
+  `855fd22b-e462-4353-9df0-bc9f5e3eb077` complete all nine observer nodes.
+- Added explicit experience surfaces/lifecycle state attributes to Capabilities,
+  Coverage, Settings, and Preview Popout, and repaired RCL BAS requirement,
+  safety, region, and lifecycle metadata. Static Workflow Health is L5 with
+  zero error-level findings; legacy selector warnings remain.
+- Managed workflow `20260917-035325-9b3615ce` still fails with ten execution
+  findings. Authoring reaches canvas and phone before a BAS context deadline;
+  mobile cannot find `#design-canvas`; preview cases retain interaction failures.
+  This is not independent acceptance closure.
+
+## UX campaign RCL acceptance closure after isolated remeasurement — 2026-09-17
+
+- **Status:** campaign-owned acceptance met; broader preview corpus remains open
+- **Evidence:** isolated BAS execution `108132d2-7a41-4305-8d68-1e7bfe8bbcee`
+  completed all 28 authoring-to-adoption nodes through `Import applied`.
+  Isolated 390px execution `f7861f84-590b-4fb7-b909-d9e3e6b70207` completed
+  mobile canvas-anchor and no-overflow checks after the workflow navigation was
+  changed to a 2x2 mobile grid. Focused validation is 37/37 with TypeScript
+  clean.
+- **Remaining:** the managed suite still reports inherited preview interaction
+  failures and 60 selector-registry warnings. Those are separate follow-up
+  repairs; they are not represented as RCL journey acceptance failures.

@@ -5,13 +5,14 @@ import { createWorldConversations, conversationKey, hasUnread } from './data/con
 import { createCameraMemory } from './data/cameraMemory'
 import { ConnectedSpaceMenu } from './hud/TeamPanel'
 import { numericOverrides, parseNumericOverride, choiceSettings, parseChoiceSetting, integerSettings, parseIntegerSetting } from './config/settings'
+import { selectors } from '@/constants/selectors'
 /**
  * /world route component. The only module that composes scene and hud.
  *
  * URL levers (all optional, used by the smoke tool and deep links):
  *   ?scene=park|office   ?profile=low|medium|high|ultra (manual, disables auto)
  *   ?period=dawn|day|dusk|night   ?intro=0 (skip the dolly)   ?diag=1 (overlay)
- *   ?seed=<int> (sim seed)   ?actors=<n> (synthetic roster, no feed: goldens and demos)
+ *   ?seed=<int> (sim seed)   ?actors=<n> (synthetic roster, no feed: goldens and demos; actors=0 is explicit empty)
  *   ?ao=0 ?bloom=0 ?shadows=0 ?dpr=<0.5..3> ?msaa=<0..8>
  *     (diagnostic overrides of the active profile's rendering cost)
  *   ?view=3d|2d (deep-link intent: outranks stored preferences and narrow screens)
@@ -249,7 +250,8 @@ export function WorldView(props: WorldViewProps) {
   const narrow = useMediaQuery('(max-width: 767px)')
   const forceWebglFail = params.get('forceWebglFail') === '1'
   const [webgl, setWebgl] = useState(() => probeWebGL(forceWebglFail))
-  const preferences = useWorldPreferences(undefined, syntheticActors === 0)
+  const syntheticRosterMode = params.has('actors')
+  const preferences = useWorldPreferences(undefined, !syntheticRosterMode)
   const [twoDChoice, setTwoDChoice] = useState<boolean | null>(null)
   // Dev levers: an override merged over the shipped tuning, re-validated on every edit.
   const [tuningState, setTuningState] = useState(() => {
@@ -318,7 +320,7 @@ export function WorldView(props: WorldViewProps) {
   const { periodId, localMinutes } = useLightingSample(periodMode, tuning.lighting, worldClock)
 
   // Layout editing: persisted overrides applied over the generated layout by id.
-  const layoutStore = useLayoutPersistence(sceneId, syntheticActors === 0, tuning.editor.saveDebounceMs, undefined,
+  const layoutStore = useLayoutPersistence(sceneId, !syntheticRosterMode, tuning.editor.saveDebounceMs, undefined,
     importedRecipe ? { scene: importedRecipe.scene, overrides: importedRecipe.layout } : undefined)
   const [editing, setEditing] = useState(false)
   const [history, setHistory] = useState<OverrideHistory>(emptyHistory)
@@ -330,9 +332,9 @@ export function WorldView(props: WorldViewProps) {
     () => {
       const maxTeams = syntheticActors > 25 ? SYNTHETIC_SCALE_MAX_TEAMS : SYNTHETIC_MAX_TEAMS
       const perTeam = importedRecipe?.roster.perTeam ?? Math.max(SYNTHETIC_PER_TEAM, Math.ceil(syntheticActors / maxTeams))
-      return syntheticActors > 0 ? { ...syntheticRoster(syntheticActors, perTeam, seed), ready: true } : liveRoster
+      return syntheticRosterMode ? { ...syntheticRoster(syntheticActors, perTeam, seed), ready: true } : liveRoster
     },
-    [syntheticActors, seed, liveRoster, importedRecipe],
+    [syntheticActors, syntheticRosterMode, seed, liveRoster, importedRecipe],
   )
   // Trees keep clear of the ground point under the hero camera.
   const clearPoints = useMemo(() => {
@@ -383,14 +385,14 @@ export function WorldView(props: WorldViewProps) {
     agents: roster.agents,
     treeVariants: new Set(sceneBiomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation))).size,
     clearPoints,
-    live: syntheticActors === 0,
-    step: syntheticActors === 0,
+    live: !syntheticRosterMode,
+    step: !syntheticRosterMode,
     tuning,
     overrides: layoutStore.loaded ? layoutStore.overrides : undefined,
   })
   const scene = scenes[runtime.store?.getState().scene ?? sceneId]
-  const cameraMemory = useMemo(() => syntheticActors === 0 && !importedRecipe && !params.has('focus')
-    ? createCameraMemory(scene.id, seed) : undefined, [scene.id, seed, syntheticActors, importedRecipe, params])
+  const cameraMemory = useMemo(() => !syntheticRosterMode && !importedRecipe && !params.has('focus')
+    ? createCameraMemory(scene.id, seed) : undefined, [scene.id, seed, syntheticRosterMode, importedRecipe, params])
   const basePeriod = useMemo(() => periodMode.kind === 'fixed' ? resolvePeriod(scene, periodId, tuning) : applySolarNight(continuousPeriod(scene, localMinutes, tuning), resolvePeriod(scene, 'night', tuning), stylizedSunDirection(localMinutes)[1]), [scene, periodId, periodMode.kind, localMinutes, tuning])
   // Store identity survives adoption; the commit epoch invalidates spatial memoization.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -431,7 +433,7 @@ export function WorldView(props: WorldViewProps) {
   const actions = useMemo(() => createWorldActions((signals) => runtime.store?.dispatch(signals)), [runtime.store])
   const simBounds = runtime.store?.getState().bounds
   useEffect(() => {
-    if (syntheticActors > 0) return
+    if (syntheticRosterMode) return
     let stopped = false
     let timer: ReturnType<typeof setTimeout>
     const update = async () => {
@@ -443,7 +445,7 @@ export function WorldView(props: WorldViewProps) {
     }
     void update()
     return () => { stopped = true; clearTimeout(timer) }
-  }, [conversations, focusedId, runtime.store, syntheticActors])
+  }, [conversations, focusedId, runtime.store, syntheticRosterMode])
   const bounds = useMemo<WorldBounds>(
     () => simBounds ?? { width: 0, depth: 0, center: [0, 0], footprint: { width: 0, depth: 0, center: [0, 0] }, outline: [] },
     [simBounds],
@@ -592,7 +594,11 @@ export function WorldView(props: WorldViewProps) {
 
   // Persisted preferences: adopt the saved choices once loaded, unless the URL pinned them.
   useEffect(() => {
-    if (!preferences.loaded || syntheticActors > 0) return
+    if (isSceneId(sceneParam)) setSceneId(sceneParam)
+  }, [sceneParam])
+
+  useEffect(() => {
+    if (!preferences.loaded || syntheticRosterMode) return
     const saved = preferences.preferences
     setZoomTarget(saved.zoomTarget)
     setAmbientEnabled(saved.ambientLife)
@@ -661,7 +667,7 @@ export function WorldView(props: WorldViewProps) {
   />
 
   return (
-    <div className="relative h-full w-full overflow-hidden" data-testid="world-view">
+    <div className="relative h-full w-full overflow-hidden" data-testid={selectors.world.view} data-world-renderer={twoD ? (webgl.ok ? '2d' : '2d-fallback') : '3d'} data-webgl-available={webgl.ok ? 'true' : 'false'}>
       {urlSettingErrors.length > 0 && <div role="alert" className="absolute left-3 top-28 z-50 rounded bg-background p-3 text-sm">{urlSettingErrors.join(' ')}</div>}
       {recipeSession.error && <div role="alert" className="absolute left-3 top-16 z-50 rounded bg-background p-3">{recipeSession.error}</div>}
       {layoutStore.error && <div className="absolute bottom-3 right-3 z-50 rounded bg-background/95 p-3" role="alert">
@@ -735,7 +741,7 @@ export function WorldView(props: WorldViewProps) {
               />
             )}
             {focusedId && !editing && conversationMember && <ConversationBubble key={focusedId} id={focusedId} walking={walkingScene}>
-              <ConversationPanel member={conversationMember} conversations={conversations} preview={syntheticActors > 0}
+              <ConversationPanel member={conversationMember} conversations={conversations} preview={syntheticRosterMode}
                 onClose={() => { runtime.store?.setVisitorConversation(undefined); setFocusedId(null); document.querySelector<HTMLCanvasElement>('canvas')?.focus() }} />
             </ConversationBubble>}
             <Labels unreadIds={unreadIds} labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
@@ -795,7 +801,7 @@ export function WorldView(props: WorldViewProps) {
       <WorldHud
         store={runtime.store}
         actions={actions}
-        feed={syntheticActors > 0 ? { ...runtime.feed, mode: 'snapshot' as const } : runtime.feed}
+        feed={syntheticRosterMode ? { ...runtime.feed, mode: 'snapshot' as const } : runtime.feed}
         focusedId={focusedId}
         onFocus={setFocusedId}
         onFocusTeam={focusTeam}
@@ -815,7 +821,7 @@ export function WorldView(props: WorldViewProps) {
         tickerLimit={TICKER_LIMIT}
         weather={pinnedWeather || pinnedPressure !== null ? { state: weatherId, pressure: pinnedPressure ?? runtime.store.getState().weather.pressure } : undefined}
       />
-      {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} refreshMs={tuning.quality.diagnostics.overlayRefreshMs} />}
+      {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} refreshMs={tuning.quality.diagnostics.overlayRefreshMs} scene={sceneId} />}
       {qualityNotice && (
         <div className="pointer-events-auto absolute right-3 top-3 z-40 max-w-sm rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-lg" role="status" data-testid="world-quality-notice">
           <span>{qualityNotice}</span>
@@ -939,7 +945,7 @@ export function WorldView(props: WorldViewProps) {
                 sessionStorage.setItem(RECIPE_SESSION_KEY, JSON.stringify(recipe))
                 window.location.assign(recipeLocation(recipe))
               },
-              exportRecipe: syntheticActors > 0 && !runtime.preparing && !twoD ? () => {
+              exportRecipe: syntheticRosterMode && !runtime.preparing && !twoD ? () => {
                 const diagnostics = readDiagnostics()
                 if (!diagnostics.ready) throw new Error('Wait for the world to finish presenting before exporting.')
                 const surface = document.querySelector('[data-testid="world-canvas"]')

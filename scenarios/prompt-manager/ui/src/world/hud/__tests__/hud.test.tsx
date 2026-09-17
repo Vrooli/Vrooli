@@ -174,8 +174,8 @@ describe('WorldHud', () => {
     const props = hudProps(store, { twoD: true, focusedId: 'b2' })
     const { container } = render(<WorldHud {...props} />)
     expect(screen.getByTestId('world-hud-2d-mode')).toBeInTheDocument()
-    expect(screen.getByTestId('world-hud-actor-list-a1')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('world-hud-actor-list-a1'))
+    expect(screen.getAllByTestId('world-hud-actor-row')).toHaveLength(4)
+    fireEvent.click(screen.getAllByTestId('world-hud-actor-row')[0]!)
     expect(props.onFocus).toHaveBeenCalledWith('a1')
     fireEvent.click(screen.getByTestId('world-hud-run-now'))
     await waitFor(() => expect(props.actions.runNow).toHaveBeenCalledWith('team-b', 'b2'))
@@ -185,8 +185,8 @@ describe('WorldHud', () => {
   it('filters the 2D list by search and summary filter', () => {
     const store = makeStore()
     render(<WorldHud {...hudProps(store, { twoD: true, filters: { ...EMPTY_FILTERS, search: 'b' } })} />)
-    expect(screen.queryByTestId('world-hud-actor-list-a1')).not.toBeInTheDocument()
-    expect(screen.getByTestId('world-hud-actor-list-b1')).toBeInTheDocument()
+    expect(screen.getAllByTestId('world-hud-actor-row')).toHaveLength(2)
+    expect(screen.getByText('B1')).toBeInTheDocument()
   })
 
   it('passes axe at a narrow width', async () => {
@@ -208,7 +208,7 @@ describe('TwoDMode', () => {
     const store = makeWorldStore({ seed: 1, teams: [], agents: [{ id: 'solo', name: 'Solo' }], scene: 'office' })
     render(<TwoDMode actors={store.getView().actors} teams={[]} now={NOW} focusedId={null} onFocus={vi.fn()} />)
     expect(screen.getByText('Commons')).toBeInTheDocument()
-    expect(screen.getByTestId('world-hud-actor-list-solo')).toBeInTheDocument()
+    expect(screen.getByTestId('world-hud-actor-row')).toHaveTextContent('Solo')
   })
 
   it('fans crowded markers out while retaining an authoritative position leader', () => {
@@ -288,6 +288,13 @@ describe('TwoDMode', () => {
     const store = makeWorldStore({ seed: 1, teams: [], agents: [{ id: 'one', name: 'One' }], scene: 'office' })
     render(<TwoDMode actors={store.getView().actors} teams={[]} now={NOW} focusedId={null} onFocus={vi.fn()} feedMode="polling" />)
     expect(screen.getByRole('status')).toHaveTextContent('Fallback polling active')
+  })
+
+  it('keeps the loading boundary visible until world layers arrive', () => {
+    const store = makeWorldStore({ seed: 1, teams: [], agents: [{ id: 'one', name: 'One' }], scene: 'office' })
+    render(<TwoDMode actors={store.getView().actors} teams={[]} now={NOW} focusedId={null} onFocus={vi.fn()} terrain={undefined} biomes={undefined} />)
+    expect(screen.getByText('World layers are still loading.')).toBeInTheDocument()
+    expect(screen.queryByText('Selected agent')).not.toBeInTheDocument()
   })
 
   it('labels deterministic snapshots without implying stale live data', () => {

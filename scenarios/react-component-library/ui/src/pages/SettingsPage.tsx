@@ -21,6 +21,7 @@ import {
   setLocale,
   useTranslation,
 } from "../i18n";
+import { selectors } from "../consts/selectors";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -30,8 +31,10 @@ export function SettingsPage() {
 
   return (
     <div
-      data-testid="settings-page"
-      className="grid max-w-5xl gap-space-md md:grid-cols-[12rem_minmax(0,1fr)]"
+      data-testid={selectors.settings}
+      data-experience-surface="workspace-preferences"
+      data-experience-state="static"
+      className="grid max-w-5xl gap-space-md lg:grid-cols-[12rem_minmax(0,1fr)]"
     >
       <nav
         aria-label={t("settings.preferences", { defaultValue: "Preferences" })}

@@ -17,6 +17,13 @@ const literalSelectors = {
     shell: "app-shell",
     main: "app-main",
   },
+  design: "design",
+  designScenario: "design-scenario",
+  designWorkspace: "design-workspace",
+  capabilities: "capabilities-page",
+  coverage: "coverage-page",
+  settings: "settings-page",
+  previewPopout: "preview-popout",
   launcher: {
     open: "launcher-open",
     menu: "launcher-menu",

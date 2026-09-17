@@ -84,6 +84,22 @@ describe('TeamDashboardTab', () => {
     expect(screen.getAllByText(/deliberately long mission/)).not.toHaveLength(0)
   })
 
+  it.each([
+    ['active', 'healthy', 'complete'],
+    ['paused', 'paused', 'complete'],
+    ['blocked', 'blocked', 'complete'],
+    ['idle', 'idle', 'complete'],
+    ['partial', 'healthy', 'partial'],
+    ['unknown', 'unknown', 'partial'],
+  ])('renders the isolated %s UX fixture without changing team data', (fixture, status, coverage) => {
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} />, { route: `/teams/${baseTeam.id}?tab=dashboard&ux-state=${fixture}` })
+
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', status)
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-coverage', coverage)
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-fixture', 'true')
+    expect(screen.getByTestId('team-dashboard-fixture-notice')).toHaveTextContent('isolated visual evidence')
+  })
+
   it('labels paused teams and avoids implying current execution', () => {
     renderDashboard({ ...baseTeam, enabled: false }, vi.fn())
 
@@ -95,7 +111,7 @@ describe('TeamDashboardTab', () => {
     expect(screen.getByRole('link', { name: 'Review retained evidence' })).toHaveAttribute('href', '#dashboard-activity')
   })
 
-  it('reports unknown execution health when there are no execution records', async () => {
+  it('reports idle health when scheduling is configured but no execution has started', async () => {
     vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
       teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
       createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
@@ -103,8 +119,39 @@ describe('TeamDashboardTab', () => {
     const onHealthChange = vi.fn()
     render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
     await waitFor(() => expect(effortPanel.render).toHaveBeenLastCalledWith(expect.objectContaining({ observationAvailable: true })))
+    expect(screen.getAllByText('Idle').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'idle')
+    expect(screen.getAllByText(/no owner execution has started yet/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Wait for the first scheduled owner execution/i)).toBeInTheDocument()
     expect(onHealthChange).toHaveBeenLastCalledWith('gray')
     expect(onHealthChange).not.toHaveBeenCalledWith('green')
+  })
+
+  it('reports unknown health when the heartbeat owner read fails instead of loading forever', async () => {
+    vi.mocked(heartbeatService.listHeartbeats).mockRejectedValue(new Error('owner unavailable'))
+    const onHealthChange = vi.fn()
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getAllByText('Health unknown').length).toBeGreaterThan(0))
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'unknown')
+    expect(screen.queryByText('Loading health')).not.toBeInTheDocument()
+    expect(onHealthChange).toHaveBeenLastCalledWith('gray')
+  })
+
+  it('labels a failed owner execution as attention with an evidence-oriented next action', async () => {
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      lastExecution: { status: 'failed', runId: 'failed-run', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} />)
+
+    await waitFor(() => expect(screen.getAllByText('Needs attention').length).toBeGreaterThan(0))
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'attention')
+    expect(screen.getAllByText(/Recent owner evidence includes a failed execution/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Review the next open work item and its evidence/)).toBeInTheDocument()
   })
 
   it('passes active supervision references and a finite binding separately from scheduling eligibility', async () => {
@@ -179,6 +226,8 @@ describe('TeamDashboardTab', () => {
     expect(screen.getByText('1 distinct observed execution · 1 resumed/imported duplicate excluded')).toBeInTheDocument()
     expect(screen.getByText('Actual models: actual-model: 1 · 0 unknown')).toBeInTheDocument()
     expect(screen.getByText('Terminal reasons: blocked: 1')).toBeInTheDocument()
+    expect(screen.getAllByText('Blocked').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'blocked')
     expect(screen.getByText('Token usage: unknown · Actual charge: unknown')).toBeInTheDocument()
     expect(screen.getByText(/Usage coverage: 0\/2 owner runs qualified/)).toBeInTheDocument()
     expect(screen.getByText(/Partial history coverage/)).toBeInTheDocument()

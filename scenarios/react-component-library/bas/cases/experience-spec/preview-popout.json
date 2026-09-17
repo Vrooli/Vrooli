@@ -14,6 +14,30 @@
   "nodes": [
     {
       "action": {
+        "metadata": { "label": "Preview loading state asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-experience-surface=\"preview-popout\"][data-experience-state=\"loading\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-preview-loading-state"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Preview terminal state asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-experience-surface=\"preview-popout\"][data-experience-state=\"ready\"], [data-experience-surface=\"preview-popout\"][data-experience-state=\"empty\"], [data-experience-surface=\"preview-popout\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-preview-terminal-state"
+    },
+    {
+      "action": {
         "metadata": {
           "label": "Open Asset preview"
         },
@@ -42,6 +66,11 @@
       },
       "id": "wait-preview-popout-primary-binding"
     }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-preview-popout", "target": "wait-preview-popout-primary-binding" },
+    { "id": "e2", "source": "wait-preview-popout-primary-binding", "target": "assert-preview-loading-state" },
+    { "id": "e3", "source": "assert-preview-loading-state", "target": "assert-preview-terminal-state" }
   ],
   "settings": {
     "viewport_height": 800,

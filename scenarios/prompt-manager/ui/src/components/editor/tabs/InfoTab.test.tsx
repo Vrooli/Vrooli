@@ -35,11 +35,12 @@ const membership = (teamId: string, teamDisplayName = teamId) => ({
   roles: [],
 })
 
-const heartbeat = (teamId: string, status: 'completed' | 'failed' = 'completed') => ({
+const heartbeat = (teamId: string, status: 'completed' | 'failed' = 'completed', profileKey = `${teamId}/profile`) => ({
   teamId,
   agentId: agent.id,
   enabled: true,
   schedule: '*/5 * * * *',
+  profileKey,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   lastExecution: {
@@ -122,12 +123,11 @@ describe('InfoTab evidence coverage states', () => {
 
   it('keeps activity loading distinct from empty history', async () => {
     vi.mocked(getAgentTeams).mockResolvedValue([])
-    vi.mocked(listRuns).mockReturnValue(new Promise(() => {}))
 
     renderWithProviders(<InfoTab agent={agent} />, { withRouter: true })
 
-    await waitFor(() => expect(screen.getAllByText('Loading').length).toBeGreaterThan(0))
-    expect(screen.queryByText('Empty history')).not.toBeInTheDocument()
+    expect((await screen.findAllByText('Empty history')).length).toBe(2)
+    expect(listRuns).not.toHaveBeenCalled()
   })
 
   it('labels old execution evidence as stale instead of current health', async () => {
@@ -159,5 +159,37 @@ describe('InfoTab evidence coverage states', () => {
     expect(screen.getByText(/completed successfully/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'agent-run-1' })).toBeInTheDocument()
     expect(screen.getByText('Current health')).toBeInTheDocument()
+    expect(listRuns).toHaveBeenCalledWith({ profileKey: 'team-a/profile', limit: 100 })
+  })
+
+  it('scopes owner history through heartbeat profile keys instead of the Prompt Manager agent slug', async () => {
+    vi.mocked(getAgentTeams).mockResolvedValue([membership('team-a'), membership('team-b')])
+    vi.mocked(getHeartbeat).mockImplementation(async (teamId) => heartbeat(teamId, 'completed', `${teamId}/profile`))
+    vi.mocked(listRuns).mockImplementation(async (opts = {}) => ({
+      runs: [{ id: `${opts.profileKey}-run`, taskId: 'task-1', status: 'completed', startedAt: '2026-09-16T10:00:00Z', agentId: agent.id }],
+      total: 1,
+      hasMore: false,
+    }))
+
+    renderWithProviders(<InfoTab agent={agent} />, { withRouter: true })
+
+    expect(await screen.findByText('Agent-scoped run evidence observed')).toBeInTheDocument()
+    expect(listRuns).not.toHaveBeenCalledWith({ agentId: agent.id, limit: 100 })
+    expect(listRuns).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps mixed owner profile reads visibly partial', async () => {
+    vi.mocked(getAgentTeams).mockResolvedValue([membership('team-a'), membership('team-b')])
+    vi.mocked(getHeartbeat).mockImplementation(async (teamId) => heartbeat(teamId, 'completed', `${teamId}/profile`))
+    vi.mocked(listRuns).mockImplementation(async (opts = {}) => {
+      if (opts.profileKey === 'team-b/profile') throw new Error('owner profile unavailable')
+      return { runs: [{ id: 'team-a-run', taskId: 'task-1', status: 'completed', startedAt: '2026-09-16T10:00:00Z', agentId: agent.id }], total: 1, hasMore: false }
+    })
+
+    renderWithProviders(<InfoTab agent={agent} />, { withRouter: true })
+
+    expect(await screen.findByText('Agent-scoped run evidence partial')).toBeInTheDocument()
+    expect(screen.getAllByText('Partial').length).toBeGreaterThan(0)
+    expect(screen.getByText(/one or more owned profile reads were unavailable/)).toBeInTheDocument()
   })
 })

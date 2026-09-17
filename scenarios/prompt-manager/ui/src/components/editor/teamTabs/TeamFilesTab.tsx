@@ -55,6 +55,7 @@ import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
 import { MarkdownRenderer } from '@/components/markdown'
 import { CopyIconButton } from '@vrooli/react-component-library/CopyIconButton/1.0.1'
 import { CollectionPage } from '@vrooli/react-component-library/CollectionPage/1.7.1'
+import { selectors } from '@/constants/selectors'
 
 interface TeamFilesTabProps {
   teamId: string
@@ -713,7 +714,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
         label="File actions"
         showChevron={false}
         align="right"
-        className="h-8 w-8 p-0"
+        className="h-11 w-11 p-0 sm:h-8 sm:w-8"
       >
         <DropdownItem
           onClick={() => handleStartRename()}
@@ -760,10 +761,11 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
       <div key={node.path}>
         <button
           type="button"
+          aria-label={node.isDir ? `${isExpanded ? 'Collapse' : 'Expand'} ${node.path}` : `Open shared file ${node.path}`}
           onClick={() => selectSharedPath(node.path, node.isDir)}
           onContextMenu={(event) => handleContextMenu(event, node)}
           className={cn(
-            'w-full flex items-center gap-2 rounded-md px-2 py-1 text-sm text-left',
+            'min-h-11 w-full flex items-center gap-2 rounded-md px-2 py-1 text-sm text-left sm:min-h-8',
             isSelected ? 'bg-primary/15 text-primary' : 'hover:bg-muted'
           )}
           style={{ paddingLeft: 8 + depth * 14 }}
@@ -788,7 +790,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
   const workspaceFilters = (
     <label className="relative block">
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={fileFilter} onChange={(event) => setFileFilter(event.target.value)} placeholder="Filter files and linked evidence" aria-label="Filter team files" className="h-11 pl-9" />
+      <Input value={fileFilter} onChange={(event) => setFileFilter(event.target.value)} placeholder="Filter files and linked evidence" aria-label="Filter team files" data-testid={selectors.teamFiles.filter} className="h-11 pl-9" />
     </label>
   )
   const fileCollection = (
@@ -798,7 +800,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
             <button
               type="button"
               onClick={expandFilesSidebar}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground sm:min-h-8 sm:min-w-8"
               title="Expand file list"
             >
               <PanelLeftOpen className="h-4 w-4" />
@@ -816,7 +818,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                   <button
                     type="button"
                     onClick={collapseFilesSidebar}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground sm:min-h-8 sm:min-w-8"
                     title="Collapse"
                   >
                     <PanelLeftClose className="h-4 w-4" />
@@ -824,7 +826,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                   <button
                     type="button"
                     onClick={() => { void refreshFiles(); void refreshEffortWorkspaces() }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground sm:min-h-8 sm:min-w-8"
                     title="Refresh"
                   >
                     <RefreshCw className="h-4 w-4" />
@@ -832,7 +834,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                   <button
                     type="button"
                     onClick={handleStartAdd}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground sm:min-h-8 sm:min-w-8"
                     title="Add file"
                   >
                     <Plus className="h-4 w-4" />
@@ -872,10 +874,12 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
                           <button
                             key={`${workspace.effortRef}:${file.path}`}
                             type="button"
+                            aria-label={file.isDir ? `${file.path} folder` : `Open linked file ${file.path}`}
                             disabled={file.isDir}
+                            data-testid={file.isDir ? undefined : selectors.teamFiles.linkedFile}
                             onClick={() => selectEffortPath(workspace, file)}
                             className={cn(
-                              'w-full flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground',
+                              'min-h-11 w-full flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground sm:min-h-8',
                               selectedEffortFile?.workspace.effortRef === workspace.effortRef && selectedEffortFile.file.path === file.path ? 'bg-primary/15 text-primary' : 'hover:bg-muted',
                               file.isDir && 'cursor-default'
                             )}
@@ -904,7 +908,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
   </div>
   )
   const fileInspector = (
-    <div className={cn('min-h-[24rem] min-w-0 flex min-h-0 flex-col', !mobilePreview && 'md:flex', mobilePreview ? 'flex' : 'hidden md:flex')}>
+    <div className={cn('min-h-[24rem] min-w-0 flex min-h-0 flex-col', !mobilePreview && 'md:flex', mobilePreview ? 'flex' : 'hidden md:flex')} data-testid={selectors.teamFiles.inspectorPane} data-mobile-pane={mobilePreview ? 'inspector' : 'collection'}>
           {(mobilePreview || selectedEffortFile || isFileEditorActive) && <div className="flex items-start gap-2 border-b border-border px-3 py-2 md:hidden"><span className="min-w-0 break-words text-xs text-muted-foreground">{selectedEffortFile?.file.path ?? selectedPath ?? 'Preview'}</span></div>}
           {!selectedPath && !selectedEffortFile && (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
@@ -970,7 +974,7 @@ export function TeamFilesTab({ teamId, showEffortWorkspaces = false, highlightRe
 
   return (
     <>
-      <div className={cn('h-full min-h-0 min-w-0 max-w-full overflow-x-hidden', className)}>
+      <div className={cn('team-files-surface h-full min-h-0 min-w-0 max-w-full overflow-x-hidden', className)}>
         <CollectionPage
           state="ready"
           gutter="none"
@@ -1170,7 +1174,7 @@ function TeamFileArtifactPreview({
   const lines = content.split('\n')
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-card" data-testid="team-file-artifact-preview" data-preview-mode={mode} aria-label={`${path} preview`}>
+    <section className="flex min-h-0 flex-1 flex-col bg-card" data-testid={selectors.teamFiles.artifactPreview} data-preview-mode={mode} aria-label={`${path} preview`}>
       <header className="shrink-0 border-b border-border bg-gradient-to-r from-primary/10 via-card to-card px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1185,28 +1189,28 @@ function TeamFileArtifactPreview({
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0">
             {(kind === 'markdown' || kind === 'html') && (
               <div className="flex rounded-lg border border-border bg-muted/30 p-0.5" role="group" aria-label="Preview mode">
-                <button type="button" onClick={() => setMode('rendered')} aria-pressed={mode === 'rendered'} className={cn('inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-medium', mode === 'rendered' && 'bg-background text-primary shadow-sm')}><Eye className="h-3.5 w-3.5" aria-hidden="true" />Rendered</button>
-                <button type="button" onClick={() => setMode('source')} aria-pressed={mode === 'source'} className={cn('inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-medium', mode === 'source' && 'bg-background text-primary shadow-sm')}><Code2 className="h-3.5 w-3.5" aria-hidden="true" />Source</button>
+                <button type="button" onClick={() => setMode('rendered')} aria-pressed={mode === 'rendered'} className={cn('inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-medium sm:min-h-8', mode === 'rendered' && 'bg-background text-primary shadow-sm')}><Eye className="h-3.5 w-3.5" aria-hidden="true" />Rendered</button>
+                <button type="button" onClick={() => setMode('source')} aria-pressed={mode === 'source'} className={cn('inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-medium sm:min-h-8', mode === 'source' && 'bg-background text-primary shadow-sm')}><Code2 className="h-3.5 w-3.5" aria-hidden="true" />Source</button>
               </div>
             )}
             {['markdown', 'code', 'data', 'html'].includes(kind) && (
               <>
-                <button type="button" onClick={() => setWrap((value) => !value)} aria-pressed={wrap} className={cn('inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted', wrap && 'bg-muted')}><WrapText className="h-3.5 w-3.5" aria-hidden="true" />Wrap</button>
+                <button type="button" onClick={() => setWrap((value) => !value)} aria-pressed={wrap} className={cn('inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted sm:min-h-8', wrap && 'bg-muted')}><WrapText className="h-3.5 w-3.5" aria-hidden="true" />Wrap</button>
                 <div className="flex items-center rounded-lg border border-border" role="group" aria-label="Preview text size">
                   <Type className="mx-1.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                  {(['sm', 'md', 'lg'] as const).map((size) => <button key={size} type="button" onClick={() => setFontSize(size)} aria-pressed={fontSize === size} className={cn('min-h-8 px-1.5 text-xs font-medium hover:bg-muted', fontSize === size && 'bg-muted text-primary')}>{size === 'sm' ? 'A−' : size === 'lg' ? 'A+' : 'A'}</button>)}
+                  {(['sm', 'md', 'lg'] as const).map((size) => <button key={size} type="button" onClick={() => setFontSize(size)} aria-pressed={fontSize === size} className={cn('min-h-11 px-1.5 text-xs font-medium hover:bg-muted sm:min-h-8', fontSize === size && 'bg-muted text-primary')}>{size === 'sm' ? 'A−' : size === 'lg' ? 'A+' : 'A'}</button>)}
                 </div>
               </>
             )}
             {canDownload && <>
-              <button type="button" onClick={download} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted"><Download className="h-3.5 w-3.5" aria-hidden="true" />Download</button>
-              <button type="button" onClick={open} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />Open</button>
+              <button type="button" onClick={download} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted sm:min-h-8"><Download className="h-3.5 w-3.5" aria-hidden="true" />Download</button>
+              <button type="button" onClick={open} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-2 text-xs font-medium hover:bg-muted sm:min-h-8"><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />Open</button>
             </>}
-            <span className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-1 text-xs font-medium hover:bg-muted">
-              <CopyIconButton value={path} aria-label="Copy file path" title={copied ? 'Path copied' : 'Copy file path'} copiedLabel="Path copied" failedLabel="Copy failed" onCopied={() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600) }} className="h-7 w-7" />
+            <span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-1 text-xs font-medium hover:bg-muted sm:min-h-8">
+              <CopyIconButton value={path} aria-label="Copy file path" title={copied ? 'Path copied' : 'Copy file path'} copiedLabel="Path copied" failedLabel="Copy failed" onCopied={() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600) }} className="h-10 w-10 sm:h-7 sm:w-7" />
               <span aria-hidden="true" className="pr-1">{copied ? 'Copied' : 'Copy path'}</span>
             </span>
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">{readOnly ? 'Read only' : 'Editable'}</span>

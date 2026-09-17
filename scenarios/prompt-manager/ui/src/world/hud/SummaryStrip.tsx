@@ -62,7 +62,7 @@ export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamN
       </span>
       {weather && (
         <span className="hidden border-l border-border px-2 text-xs text-muted-foreground sm:inline" data-testid={selectors.world.hud.weather} title="Weather reflects recent run failures and failed agents">
-          <span className="font-medium capitalize text-foreground">{weather.state}</span> — health pressure {Math.round(weather.pressure * 100)}%
+          <span className="font-medium text-foreground">{weather.state.charAt(0).toUpperCase() + weather.state.slice(1)}</span> — health pressure {Math.round(weather.pressure * 100)}%
         </span>
       )}
     </div>

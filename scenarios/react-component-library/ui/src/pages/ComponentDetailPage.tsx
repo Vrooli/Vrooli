@@ -11,7 +11,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import {
   componentsClient,
@@ -86,28 +85,70 @@ function DetailTabs({
       : []),
     { id: "relationships", label: "Relationships" },
   ];
+  const moveTab = (current: InfoTab, direction: -1 | 1) => {
+    const index = tabs.findIndex((tab) => tab.id === current);
+    const next = tabs[(index + direction + tabs.length) % tabs.length];
+    if (next) onChange(next.id);
+  };
 
   return (
-    <div className="min-w-0" data-testid="component-detail-tabs-scroll">
-      <Tabs
-        items={tabs.map(({ id, label, count }) => ({
-          id,
-          label,
-          ...(count !== undefined ? { badge: count } : {}),
-        }))}
-        active={active}
-        onChange={(next) => onChange(next as InfoTab)}
-        ariaLabel={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
-        itemTestId={(item) =>
-          item === "overview"
-            ? selectors.assets.hookOverviewTab
-            : item === "files"
-              ? selectors.assets.hookFilesTab
-              : item === "preview"
-                ? selectors.assets.componentPreviewTab
-                : undefined
-        }
-      />
+    <div
+      className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain"
+      data-testid="component-detail-tabs-scroll"
+      role="tablist"
+      aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
+    >
+      <div className="flex w-max min-w-full gap-space-3xs border-b border-app-border">
+        {tabs.map(({ id, label, count }) => {
+          const selected = active === id;
+          const testId =
+            id === "overview"
+              ? selectors.assets.hookOverviewTab
+              : id === "files"
+                ? selectors.assets.hookFilesTab
+                : id === "preview"
+                  ? selectors.assets.componentPreviewTab
+                  : undefined;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              tabIndex={selected ? 0 : -1}
+              data-testid={testId}
+              onClick={() => onChange(id)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                  event.preventDefault();
+                  moveTab(id, 1);
+                } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  moveTab(id, -1);
+                } else if (event.key === "Home") {
+                  event.preventDefault();
+                  onChange(tabs[0]!.id);
+                } else if (event.key === "End") {
+                  event.preventDefault();
+                  onChange(tabs[tabs.length - 1]!.id);
+                }
+              }}
+              className={`relative inline-flex min-h-touch shrink-0 items-center gap-space-2xs whitespace-nowrap rounded-t-control px-space-sm text-sm font-semibold transition-colors ${
+                selected
+                  ? "text-app-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-app-primary"
+                  : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+              }`}
+            >
+              {label}
+              {count !== undefined && (
+                <span aria-hidden="true" className="inline-flex min-w-4 items-center justify-center rounded-full bg-app-primary/10 px-space-3xs py-space-3xs text-[0.6875rem] leading-none text-app-primary">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

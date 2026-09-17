@@ -161,6 +161,34 @@
       "testId": "team-editor-execution-policy",
       "selector": "[data-testid=\"team-editor-execution-policy\"]"
     },
+    "teamDashboard.root": {
+      "testId": "team-dashboard",
+      "selector": "[data-testid=\"team-dashboard\"]"
+    },
+    "teamDashboard.mission": {
+      "testId": "team-dashboard-mission",
+      "selector": "[data-testid=\"team-dashboard-mission\"]"
+    },
+    "teamDashboard.fixtureNotice": {
+      "testId": "team-dashboard-fixture-notice",
+      "selector": "[data-testid=\"team-dashboard-fixture-notice\"]"
+    },
+    "teamFiles.filter": {
+      "testId": "team-files-filter",
+      "selector": "[data-testid=\"team-files-filter\"]"
+    },
+    "teamFiles.linkedFile": {
+      "testId": "team-files-linked-file",
+      "selector": "[data-testid=\"team-files-linked-file\"]"
+    },
+    "teamFiles.artifactPreview": {
+      "testId": "team-file-artifact-preview",
+      "selector": "[data-testid=\"team-file-artifact-preview\"]"
+    },
+    "teamFiles.inspectorPane": {
+      "testId": "team-files-inspector-pane",
+      "selector": "[data-testid=\"team-files-inspector-pane\"]"
+    },
     "runs.list": {
       "testId": "run-list",
       "selector": "[data-testid=\"run-list\"]"
@@ -188,6 +216,10 @@
     "world.view": {
       "testId": "world-view",
       "selector": "[data-testid=\"world-view\"]"
+    },
+    "world.renderer": {
+      "testId": "world-renderer",
+      "selector": "[data-testid=\"world-renderer\"]"
     },
     "world.canvas": {
       "testId": "world-canvas",
@@ -293,6 +325,18 @@
       "testId": "world-hud-2d-mode",
       "selector": "[data-testid=\"world-hud-2d-mode\"]"
     },
+    "world.hud.map": {
+      "testId": "world-hud-2d-map",
+      "selector": "[data-testid=\"world-hud-2d-map\"]"
+    },
+    "world.hud.emptyState": {
+      "testId": "world-hud-2d-empty-state",
+      "selector": "[data-testid=\"world-hud-2d-empty-state\"]"
+    },
+    "world.hud.actorRow": {
+      "testId": "world-hud-actor-row",
+      "selector": "[data-testid=\"world-hud-actor-row\"]"
+    },
     "world.hud.twoDToggle": {
       "testId": "world-hud-2d-toggle",
       "selector": "[data-testid=\"world-hud-2d-toggle\"]"
@@ -304,6 +348,10 @@
     "world.hud.feedStatus": {
       "testId": "world-hud-feed-status",
       "selector": "[data-testid=\"world-hud-feed-status\"]"
+    },
+    "world.hud.snapshotStatus": {
+      "testId": "world-hud-snapshot-status",
+      "selector": "[data-testid=\"world-hud-snapshot-status\"]"
     },
     "world.hud.home": {
       "testId": "world-hud-home",
@@ -572,7 +620,7 @@
   },
   "dynamicSelectors": {},
   "sources": {
-    "ui/src/constants/selectors.ts": "6592b649f6b2c0b89a666d1237ed6a51fee90f8a637404e2ff5a4894fdad9025",
+    "ui/src/constants/selectors.ts": "02e29116e9e352b4191b1d21104f972b5bb103dcea3c6bbe945a8f7d51d35ca5",
     "ui/src/consts/selectors.library.ts": "8b26a7416a726d35468985f24b41d651b44f47633cf399d54a880ac5a33a6c01"
   }
 }

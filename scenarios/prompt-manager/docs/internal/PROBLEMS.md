@@ -7,6 +7,25 @@ Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Work ladder — RCL Prompt Manager UX campaign (2026-09-16)
 
+### Dashboard hierarchy and mobile touch-target repair — 2026-09-16
+
+- Rung: W3, scoped implementation repair under the existing Prompt Manager team
+  editor and dashboard targets.
+- Finding: the Dashboard tab duplicated the mission in both the parent editor
+  header and its own mission hero, while the parent header also exposed secondary
+  team-management metadata before the primary decision surface. Several editor and
+  schedule controls were below a comfortable 44px touch target.
+- Repair: the Dashboard now owns the mission hero; the parent mission disclosure
+  and team-management summary remain available on non-dashboard tabs. Close,
+  overflow, mission disclosure, and schedule controls use 44px minimum targets.
+- Evidence: fresh managed BAS mobile capture
+  `bas-capture://85ec2b01-425f-407e-a6fe-a9fa351df883/screenshot`; PM UI
+  TypeScript clean; focused dashboard/Info/Agent tests 29/29; managed build/start
+  healthy with zero failed dependencies at 11:53:12 EDT.
+- Limitation: this closes one concrete hierarchy slice only. Campaign-wide behavior,
+  owner evidence, RCL experience, independent review, and other surface acceptance
+  remain open.
+
 - Rung: W3, scoped implementation repair under the existing Prompt Manager web UI
   and agent-world targets.
 - Evidence: live captures in the campaign workspace exposed a dashboard that still
@@ -970,3 +989,35 @@ The original nine-stage goal remains active. Next: improve the RV reference with
 - The remaining report (shiny ground and signs that reflected only the sky) is consistent with unsupported single-channel roughness textures. The previous `RedFormat` map is valid on our WebGL2 test GPU, but can sample as zero on WebGL1 or some mobile drivers; zero roughness produces mirror-like environment response.
 - Roughness maps now use portable RGBA storage with all colour channels carrying the same value. Ground, dirt, wood, wall, floor, path and roof ranges were raised to matte values; metal remains the only lower-roughness family. Environment reflection remains disabled for world textures, glass and slime bodies.
 - The focused material/prop/terrain suite remains 13/13 passing, typecheck and scoped lint pass, and the restarted park browser journey passes with no page or GPU errors. This specifically covers the driver-independent texture format path that the earlier desktop capture could not exercise.
+
+## Brutal UX follow-up and evidence boundary — 2026-09-17
+
+- The latest managed workflow run `20260917-025129-11fecbb9` still fails eight campaign cases. The remaining failures are render-budget/readiness assertions in the managed browser, nondeterministic quality-notice timing, and BAS context deadlines affecting run-now/search. This is not a completed UX campaign.
+- Two real defects found during the follow-up are repaired: the 2D workflow now starts from an explicit 3D deep-link intent, and the diagnostics overlay receives the current scene identity instead of reporting a stale global scene after navigation. The world root now exposes `3d`, `2d`, or `2d-fallback` renderer state.
+- World, dashboard, Team Files, and synthetic snapshot workflow surfaces now use stable selector-registry entries instead of raw selectors. Static workflow validation is L5 with zero required findings; focused PM/world validation is 59/59 with TypeScript clean.
+- The evidence gap remains material: UX-CAMPAIGN-003 lacks the full rendered dashboard matrix, UX-CAMPAIGN-004 lacks independent RCL acceptance, and UX-CAMPAIGN-007 lacks complete rendered desktop/mobile world-state evidence. No team or campaign was resumed to manufacture those states.
+
+## Isolated dashboard state matrix — 2026-09-17
+
+- Added a routed `ux-state` fixture seam to the real dashboard shell for active,
+  paused, blocked, idle, partial-coverage, and unknown-health rendering. The
+  seam is visibly labeled as isolated visual evidence and does not persist state
+  or enable the paused campaign.
+- Added permanent desktop and mobile BAS cases for the six-state matrix. Static
+  workflow validation is L5 with zero findings; focused dashboard tests are
+  27/27 and TypeScript is clean.
+- Managed run `20260917-031134-aaf77d0c` produced no findings for either new
+  dashboard case. The suite still failed six unrelated world/search cases, so
+  this is not a clean campaign receipt and UX-CAMPAIGN-003 remains unverified
+pending separately inspectable screenshot review.
+
+## Capability-aware world validation repair — 2026-09-17
+
+- The quality-notice BAS case previously demanded a 3D quality notice even when
+  the managed browser selected an intentional 2D fallback. It now requires the
+  notice only for `data-world-renderer=3d` and validates explicit `2d` or
+  `2d-fallback` states otherwise.
+- Static workflow validation remains L5 with zero findings. Managed run
+  `20260917-032425-ae40d310` still shows separate 3D readiness/budget, editor
+  visibility, BAS context, and search harness failures. UX-CAMPAIGN-007 remains
+  unverified; no 3D success is inferred from fallback execution.

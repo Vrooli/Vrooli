@@ -18,7 +18,7 @@ export interface IntegerSetting {
 }
 export const integerSettings = {
   seed: { id: 'seed', label: 'World seed', description: 'Changes the generated world. Saved in this page’s URL; default is 1.', defaultValue: 1, minimum: 0, maximum: 4294967295, impact: 'world', persistence: 'operator' },
-  actors: { id: 'actors', label: 'Synthetic actors', description: 'Creates a deterministic demonstration roster. Zero uses the live roster.', defaultValue: 0, minimum: 0, maximum: 100000, impact: 'world', persistence: 'development' },
+  actors: { id: 'actors', label: 'Synthetic actors', description: 'Creates a deterministic demonstration roster. Use zero for an explicit empty roster; omit the parameter for the live roster.', defaultValue: 0, minimum: 0, maximum: 100000, impact: 'world', persistence: 'development' },
 } as const satisfies Record<string, IntegerSetting>
 
 export function parseIntegerSetting(descriptor: IntegerSetting, raw: string | null): { value: number; error: string | null } {

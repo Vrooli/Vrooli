@@ -3,7 +3,7 @@ import { tuning } from '../../config'
 import { readDiagnostics, subscribeDiagnostics, type WorldDiagnostics } from './store'
 
 /** DOM overlay with the renderer counters. Throttled so it never re-renders per frame. */
-export function DiagnosticsOverlay({ seed, seedDigest, refreshMs, testId = 'world-diagnostics' }: { seed: number; seedDigest: string; refreshMs: number; testId?: string }) {
+export function DiagnosticsOverlay({ seed, seedDigest, refreshMs, scene, testId = 'world-diagnostics' }: { seed: number; seedDigest: string; refreshMs: number; scene: string; testId?: string }) {
   const [snapshot, setSnapshot] = useState<WorldDiagnostics>(() => readDiagnostics())
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function DiagnosticsOverlay({ seed, seedDigest, refreshMs, testId = 'worl
       data-draw-calls={snapshot.drawCalls}
       data-triangles={snapshot.triangles}
       data-profile={snapshot.profile}
-      data-scene={snapshot.scene}
+      data-scene={scene}
       data-seed={seed}
       data-seed-digest={seedDigest}
       data-weather={snapshot.weather}

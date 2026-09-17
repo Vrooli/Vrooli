@@ -278,6 +278,12 @@
       "publishedAt": "2026-09-08T20:07:01Z"
     },
     {
+      "libraryId": "react-component-library:ApprovalPrompt",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-09-16T23:16:54Z"
+    },
+    {
       "libraryId": "react-component-library:ArrayField",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",

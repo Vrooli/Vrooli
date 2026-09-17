@@ -1,9 +1,49 @@
 import { createClient } from "@connectrpc/connect";
-import { SketchService } from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
-import { decodeApiError, transport, uploadFile } from "./client";
+import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
+import {
+  ImportPageResponseSchema,
+  SketchService,
+  type ImportPageResponse,
+} from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
+import { API_BASE, boundedFetch, decodeApiError, transport, uploadFile } from "./client";
 
 // All workspace reads and writes use the same generated, routed service as CLI.
 export const sketchClient = createClient(SketchService, transport);
+
+/**
+ * ImportPage is catalog-backed and can outlive the browser proxy's ordinary
+ * Connect request. Keep the JSON service boundary and generated response
+ * schema, but own the longer bounded request so a successful write cannot
+ * remain visually pending forever.
+ */
+export async function importSketchPage(
+  target: { scenario: string; page: string },
+  write: boolean,
+  expectedContentHash: string,
+  onWriteAccepted?: () => void,
+): Promise<ImportPageResponse> {
+  const response = await boundedFetch(
+    `${API_BASE}/vrooli.react_component_library.v1.sketch.SketchService/ImportPage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, write, expectedContentHash }),
+    },
+  );
+  if (!response.ok) throw await decodeApiError(response);
+  // A successful write is the authoritative adoption acknowledgement. The
+  // browser recording proxy has been observed to leave large write response
+  // bodies open after delivering the 200 headers; do not make the operator
+  // wait on a redundant decomposition payload after the server has committed.
+  if (write) {
+    onWriteAccepted?.();
+    void response.body?.cancel();
+    return create(ImportPageResponseSchema, { written: true, contentHash: expectedContentHash });
+  }
+  return fromJson(ImportPageResponseSchema, (await response.json()) as JsonValue, {
+    ignoreUnknownFields: true,
+  });
+}
 
 export interface ReferenceAssetUpload {
   id: string;

@@ -72,7 +72,7 @@ describe('TeamFilesTab isolation (R27)', () => {
     render(<TeamFilesTab teamId="team-a" showEffortWorkspaces />)
 
     expect(await screen.findByText('one')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'README.md' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open linked file README.md' }))
     expect(await screen.findByText('workspace-read')).toBeInTheDocument()
     expect(getEffortWorkspaceContent).toHaveBeenCalledWith('effort:one', 'README.md')
   })
@@ -94,7 +94,7 @@ describe('TeamFilesTab isolation (R27)', () => {
 
     render(<TeamFilesTab teamId="team-a" showEffortWorkspaces />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'README.md' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open linked file README.md' }))
     expect(await screen.findByTestId('team-file-artifact-preview')).toBeInTheDocument()
     expect(screen.getByText(/Markdown/)).toBeInTheDocument()
     expect(screen.getByText('Read only')).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('TeamFilesTab isolation (R27)', () => {
 
     render(<TeamFilesTab teamId="team-a" showEffortWorkspaces />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'reference.png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open linked file reference.png' }))
     expect(await screen.findByText('Preview unavailable from this transport')).toBeInTheDocument()
     expect(screen.getAllByText(/Image/).length).toBeGreaterThanOrEqual(2)
   })
@@ -127,7 +127,8 @@ describe('TeamFilesTab isolation (R27)', () => {
 
     render(<TeamFilesTab teamId="team-a" showEffortWorkspaces />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'brief.html' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open linked file brief.html' }))
+    expect(screen.getByRole('button', { name: 'Open linked file brief.html' })).toHaveClass('min-h-11')
     const preview = await screen.findByTitle('brief.html rendered preview')
     expect(preview).toHaveAttribute('sandbox', '')
     const collectionPage = screen.getByTestId('team-file-artifact-preview').closest('[data-rcl-collection-page]')
@@ -139,6 +140,7 @@ describe('TeamFilesTab isolation (R27)', () => {
     const artifact = screen.getByTestId('team-file-artifact-preview')
     expect(within(artifact).getByRole('button', { name: 'Source' })).toBeInTheDocument()
     expect(within(artifact).getByRole('button', { name: 'Copy file path' })).toHaveAttribute('data-rcl-copy-button', '')
+    expect(within(artifact).getByRole('button', { name: 'Copy file path' })).toHaveClass('h-10', 'w-10')
     fireEvent.click(within(artifact).getByRole('button', { name: 'Source' }))
     await waitFor(() => expect(artifact).toHaveAttribute('data-preview-mode', 'source'))
     expect(within(artifact).getByTestId('team-file-source')).toHaveTextContent('<!doctype html>')

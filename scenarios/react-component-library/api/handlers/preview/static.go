@@ -1054,6 +1054,12 @@ func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
 		if name == "" || isReactRuntimeDep(name) {
 			continue
 		}
+		// Catalog dependencies are folded into the preview bundle from their
+		// governed source files by the esbuild resolver. They are not npm
+		// packages and must not be reported as missing runtime-store entries.
+		if strings.HasPrefix(name, "react-component-library:") || strings.HasPrefix(name, "@vrooli/react-component-library/") {
+			continue
+		}
 		version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, packageRuntimeCandidatesFor(name))
 		if !ok {
 			warnings = append(warnings, fmt.Sprintf(

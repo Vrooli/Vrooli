@@ -21,6 +21,7 @@ import { MetricBreakdown } from "@vrooli/react-component-library/MetricBreakdown
 import { NetworkGraph } from "@vrooli/react-component-library/NetworkGraph/1.0.5";
 import { ProgressLadder } from "@vrooli/react-component-library/ProgressLadder/1.0.0";
 import { ScoreGauge } from "@vrooli/react-component-library/ScoreGauge/1";
+import { selectors } from "../consts/selectors";
 
 const maturityLabels: Record<string, string> = {
   missing: "Missing",
@@ -107,11 +108,20 @@ export function CoveragePage() {
       remediation: `Promote ${row.name || row.assetId} through the ${gate} gate.`,
     })),
   );
+  const experienceState = coverage.isLoading
+    ? "loading"
+    : coverage.isError || !report || !maturity
+      ? "error"
+      : report.rows.length > 0
+        ? "ready"
+        : "empty";
 
   if (coverage.isLoading)
     return (
       <div
-        data-testid="coverage-page"
+        data-testid={selectors.coverage}
+        data-experience-surface="coverage-report"
+        data-experience-state={experienceState}
         role="status"
         className="text-body text-app-muted-foreground"
       >
@@ -120,7 +130,7 @@ export function CoveragePage() {
     );
   if (coverage.isError || !report || !maturity)
     return (
-      <div data-testid="coverage-page" role="alert">
+      <div data-testid={selectors.coverage} data-experience-surface="coverage-report" data-experience-state={experienceState} role="alert">
         <EmptyState
           title={t(strings.coverage.unavailable)}
           description={t(strings.coverage.retryHelp)}
@@ -130,7 +140,7 @@ export function CoveragePage() {
     );
 
   return (
-    <div data-testid="coverage-page" className="grid gap-space-lg">
+    <div data-testid={selectors.coverage} data-experience-surface="coverage-report" data-experience-state={experienceState} className="grid gap-space-lg">
       <header className="grid gap-space-3xs">
         <p className="text-label uppercase text-app-muted-foreground">Operator view</p>
         <h1 className="text-title">Catalog coverage</h1>

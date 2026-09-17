@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Cpu, ExternalLink, ChevronDown, HelpCircle, PauseCircle, Target, Users } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   TeamDetails,
   TeamRole,
@@ -63,13 +63,29 @@ interface TeamDashboardTabProps {
 
 const LOGS_PAGE_SIZE = 25
 
-type DashboardStatus = 'loading' | 'unknown' | 'healthy' | 'attention' | 'blocked' | 'paused'
+type DashboardStatus = 'loading' | 'unknown' | 'idle' | 'healthy' | 'attention' | 'blocked' | 'paused'
+
+type DashboardFixture = {
+  status: Exclude<DashboardStatus, 'loading'>
+  coverage: 'complete' | 'partial'
+  label: string
+}
+
+const dashboardFixtures: Record<string, DashboardFixture> = {
+  active: { status: 'healthy', coverage: 'complete', label: 'Active state' },
+  paused: { status: 'paused', coverage: 'complete', label: 'Paused state' },
+  blocked: { status: 'blocked', coverage: 'complete', label: 'Blocked state' },
+  idle: { status: 'idle', coverage: 'complete', label: 'Idle state' },
+  partial: { status: 'healthy', coverage: 'partial', label: 'Partial-coverage state' },
+  unknown: { status: 'unknown', coverage: 'partial', label: 'Unknown-health state' },
+}
 
 const dashboardStatusCopy: Record<DashboardStatus, { label: string; tone: string; description: string }> = {
   loading: { label: 'Loading health', tone: 'text-muted-foreground', description: 'Reading current owner evidence.' },
   unknown: { label: 'Health unknown', tone: 'text-muted-foreground', description: 'No recent execution evidence is available.' },
+  idle: { label: 'Idle', tone: 'text-muted-foreground', description: 'The team is configured, but no owner execution has started yet.' },
   healthy: { label: 'Healthy', tone: 'text-emerald-500', description: 'Recent owner evidence is current.' },
-  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent evidence includes a failed or waiting signal.' },
+  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent owner evidence includes a failed execution.' },
   blocked: { label: 'Blocked', tone: 'text-red-500', description: 'Work cannot advance until the next action is completed.' },
   paused: { label: 'Paused', tone: 'text-amber-500', description: 'Heartbeats are disabled; current execution is unknown.' },
 }
@@ -91,6 +107,8 @@ export function TeamDashboardTab({
   onLastActiveChange,
 }: TeamDashboardTabProps) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const dashboardFixture = dashboardFixtures[searchParams.get('ux-state') ?? '']
   // --- Heartbeat polling state ---
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
@@ -573,16 +591,18 @@ export function TeamDashboardTab({
   // and operator guidance local; reuse existing Prompt Manager primitives and
   // hooks for editing, rows, and data loading rather than forcing a generic
   // library asset to own dashboard semantics.
-  const dashboardStatus = useMemo<DashboardStatus>(() => {
+  const computedDashboardStatus = useMemo<DashboardStatus>(() => {
     if (!team.enabled) return 'paused'
-    if (isLoadingHeartbeats || !heartbeatsLoaded) return 'loading'
     if (heartbeatError) return 'unknown'
+    if (isLoadingHeartbeats || !heartbeatsLoaded) return 'loading'
     const executions = heartbeatConfigs.flatMap((config) => config.lastExecution ? [config.lastExecution] : [])
-    if (executions.length === 0) return 'unknown'
     if (executions.some((execution) => execution.status === 'failed')) return 'attention'
     if (accounting?.terminalReasons.blocked) return 'blocked'
+    if (executions.length === 0) return 'idle'
     return 'healthy'
   }, [accounting?.terminalReasons.blocked, heartbeatConfigs, heartbeatError, heartbeatsLoaded, isLoadingHeartbeats, team.enabled])
+  const dashboardStatus = dashboardFixture?.status ?? computedDashboardStatus
+  const dashboardCoverage = dashboardFixture?.coverage ?? (accounting?.coverage.partial ? 'partial' : 'complete')
   const statusCopy = dashboardStatusCopy[dashboardStatus]
   const nextHeartbeat = upcoming24h[0]
   const lastActivity = heartbeatConfigs
@@ -596,12 +616,15 @@ export function TeamDashboardTab({
     ? <PauseCircle aria-hidden="true" className="h-4 w-4" />
     : dashboardStatus === 'blocked' || dashboardStatus === 'attention'
       ? <AlertTriangle aria-hidden="true" className="h-4 w-4" />
-      : dashboardStatus === 'unknown' || dashboardStatus === 'loading'
+      : dashboardStatus === 'idle'
+        ? <Clock aria-hidden="true" className="h-4 w-4" />
+        : dashboardStatus === 'unknown' || dashboardStatus === 'loading'
         ? <HelpCircle aria-hidden="true" className="h-4 w-4" />
         : <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
 
   return (
-    <div className="space-y-6 pb-6 sm:pb-0" data-testid="team-dashboard">
+    <div className="space-y-6 pb-6 sm:pb-0" data-testid="team-dashboard" data-dashboard-status={dashboardStatus} data-dashboard-coverage={dashboardCoverage} data-dashboard-fixture={dashboardFixture ? 'true' : 'false'}>
+      {dashboardFixture && <div role="note" data-testid={selectors.teamDashboard.fixtureNotice} className="flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-700 dark:text-sky-300"><span className="font-semibold">Fixture preview:</span><span>{dashboardFixture.label} rendered against the current team shell. This is isolated visual evidence, not live execution health.</span></div>}
       <header className="space-y-4" aria-label="Team overview">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
@@ -632,12 +655,12 @@ export function TeamDashboardTab({
           </div>
         )}
 
-        <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-muted/30 p-4 shadow-sm sm:p-5" aria-labelledby="mission-heading" role="region">
+        <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-muted/30 p-4 shadow-sm sm:p-5" aria-labelledby="mission-heading" role="region" data-testid={selectors.teamDashboard.mission}>
           <div className="flex items-start gap-3">
             <Target aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
               <p id="mission-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Mission</p>
-              <ExpandableDescription value={team.mission ?? ''} onChange={handleMissionChange} placeholder="Add a mission statement..." className="mt-2 text-base leading-snug text-foreground sm:text-xl" maxLines={3} />
+              <ExpandableDescription value={team.mission ?? ''} onChange={handleMissionChange} placeholder="Add a mission statement..." className="mt-2 text-base leading-snug text-foreground sm:text-xl" maxLines={0} />
               <p className="mt-2 text-xs text-muted-foreground">Tap or click to edit · saves automatically</p>
             </div>
           </div>
@@ -672,7 +695,7 @@ export function TeamDashboardTab({
           {dashboardStatus !== 'paused' && <article className="rounded-xl border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Operator guidance</p><h4 className="mt-1 font-semibold text-foreground">{statusCopy.label === 'Healthy' ? 'Keep the next handoff moving' : statusCopy.label === 'Paused' ? 'Resolve the pause intentionally' : statusCopy.label}</h4></div><span className={cn('rounded-full border border-current/30 px-2 py-1 text-[11px]', statusCopy.tone)}>{statusCopy.label}</span></div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{statusCopy.description} {accounting?.terminalReasons.blocked ? 'A blocked owner run is present in the latest accounting read.' : 'Open the work feed for the authoritative task disposition.'}</p>
-            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : 'Review the next open work item and its evidence.'}</p>
+            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : statusCopy.label === 'Idle' ? 'Wait for the first scheduled owner execution, then review its outcome evidence.' : 'Review the next open work item and its evidence.'}</p>
           </article>}
           <article className="rounded-xl border border-border bg-muted/20 p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Coverage</p><h4 className="mt-1 font-semibold text-foreground">Evidence stays honest</h4></div><Activity aria-hidden="true" className="h-5 w-5 text-muted-foreground" /></div>
@@ -985,7 +1008,7 @@ export function TeamDashboardTab({
                 type="button"
                 onClick={() => onNavigateToMemberHeartbeat?.(upcoming24h[0]?.config.agentId ?? '')}
                 className={cn(
-                  'w-full flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg text-left',
+                  'w-full flex min-h-11 items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg text-left',
                   onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-primary/10 transition-colors',
                 )}
               >
@@ -1018,7 +1041,7 @@ export function TeamDashboardTab({
                       type="button"
                       onClick={() => onNavigateToMemberHeartbeat?.(entry.config.agentId)}
                       className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 bg-muted rounded-lg text-left',
+                        'w-full flex min-h-11 items-center gap-2.5 px-3 py-2 bg-muted rounded-lg text-left',
                         onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-muted/70 transition-colors',
                       )}
                     >
