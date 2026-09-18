@@ -213,6 +213,37 @@
 /* ---- Recovery codes (operator two-factor setup) ------------------------------------ */
 .presentation-page.site-page .auth-toggle { justify-self: center; }
 
+/* ---- Administrator MFA enrollment ---------------------------------------------- */
+.presentation-page.site-page .auth-mfa-page { gap: 20px; }
+.presentation-page.site-page .auth-mfa-enrollment { display: grid; gap: 18px; }
+.presentation-page.site-page .auth-mfa-benefits { display: grid; gap: 10px; }
+.presentation-page.site-page .auth-mfa-benefits > div { display: flex; gap: 12px; align-items: flex-start; padding: 13px 14px; border: 1px solid var(--site-card-line); border-radius: 14px; background: rgb(255 255 255 / .025); }
+.presentation-page.site-page .auth-mfa-benefits svg { width: 19px; height: 19px; flex: none; color: var(--accent); margin-top: 1px; }
+.presentation-page.site-page .auth-mfa-benefits span { display: grid; gap: 3px; }
+.presentation-page.site-page .auth-mfa-benefits strong { color: var(--ink); font-size: 14px; }
+.presentation-page.site-page .auth-mfa-benefits small { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.presentation-page.site-page .auth-mfa-primary { width: 100%; min-height: 50px; justify-content: center; }
+.presentation-page.site-page .auth-mfa-defer { display: grid; gap: 12px; padding-top: 4px; border-top: 1px solid var(--site-card-line); }
+.presentation-page.site-page .auth-mfa-defer label { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 13px; line-height: 1.5; cursor: pointer; }
+.presentation-page.site-page .auth-mfa-defer input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--accent); }
+.presentation-page.site-page .auth-mfa-defer .button { justify-self: start; }
+.presentation-page.site-page .auth-mfa-setup { display: grid; gap: 16px; }
+.presentation-page.site-page .auth-mfa-setup-grid { display: grid; gap: 18px; padding: 16px; border: 1px solid rgb(34 211 238 / .24); border-radius: 16px; background: linear-gradient(150deg, rgb(34 211 238 / .08), rgb(255 255 255 / .02)); }
+.presentation-page.site-page .auth-mfa-qr { justify-self: center; padding: 8px; border-radius: 12px; background: white; }
+.presentation-page.site-page .auth-mfa-steps { display: grid; gap: 9px; color: var(--ink); font-size: 14px; }
+.presentation-page.site-page .auth-mfa-steps p { display: flex; gap: 9px; margin: 0; line-height: 1.45; }
+.presentation-page.site-page .auth-mfa-steps strong { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; flex: none; color: #04131c; background: var(--accent); font-size: 12px; }
+.presentation-page.site-page .auth-mfa-steps .auth-mfa-muted { display: block; color: var(--muted); font-size: 13px; }
+.presentation-page.site-page .auth-mfa-steps code { display: block; overflow-wrap: anywhere; padding: 9px 10px; border-radius: 8px; color: #cffafe; background: rgb(4 11 20 / .62); font: 12px/1.5 var(--mono); letter-spacing: .08em; }
+.presentation-page.site-page .auth-mfa-code-label { color: var(--ink); font-size: 14px; font-weight: 600; }
+.presentation-page.site-page .auth-mfa-code-input { min-height: 52px; padding: 12px 14px; border: 1px solid var(--site-field-line); border-radius: 12px; background: var(--site-field); color: var(--ink); font: 600 18px/1 var(--mono); letter-spacing: .18em; }
+.presentation-page.site-page .auth-mfa-code-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgb(34 211 238 / .14); }
+.presentation-page.site-page .auth-mfa-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.presentation-page.site-page .auth-mfa-recovery { display: grid; gap: 14px; }
+.presentation-page.site-page .auth-mfa-recovery ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 14px; list-style-position: inside; border: 1px solid var(--site-card-line); border-radius: 12px; background: rgb(4 11 20 / .62); color: var(--ink); font: 13px/1.6 var(--mono); }
+.presentation-page.site-page .auth-mfa-recovery .auth-callout { margin: 0; }
+@media (min-width: 560px) { .presentation-page.site-page .auth-mfa-setup-grid { grid-template-columns: auto minmax(0, 1fr); align-items: center; } }
+
 /* ---- Minimal chrome ------------------------------------------------------------------ */
 .presentation-page.site-page .site-minimal-exit { margin-left: auto; font-size: 14px; color: var(--muted); text-decoration: none; padding: 8px 10px; border-radius: 8px; }
 .presentation-page.site-page .site-minimal-exit:hover { color: var(--ink); background: rgb(255 255 255 / .05); }

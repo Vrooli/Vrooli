@@ -122,4 +122,27 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
 
     expect(screen.getByText('Landing Page Business Suite')).toBeInTheDocument();
   });
+
+  it('opens the searchable admin page directory and navigates with the keyboard', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
+
+    await user.click(screen.getByTestId('admin-search-trigger'));
+    const input = screen.getByTestId('admin-search-input');
+    await user.type(input, 'branding');
+
+    expect(screen.getByTestId('admin-search-result-branding')).toBeInTheDocument();
+    expect(screen.queryByTestId('admin-search-result-coupons')).toBeNull();
+
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('admin-breadcrumb')).toHaveTextContent('Branding');
+  });
+
+  it('opens the search palette with the command shortcut', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
+
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.getByTestId('admin-search-input')).toBeInTheDocument();
+  });
 });

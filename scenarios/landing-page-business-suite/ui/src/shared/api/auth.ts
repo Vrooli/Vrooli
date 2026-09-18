@@ -110,6 +110,10 @@ export async function reauthenticateAdmin(password: string, totpCode = '', recov
   return response;
 }
 
+export async function deferAdminMFAEnrollment() {
+  return apiPost<{ deferred: boolean }>('/admin/mfa/defer', { confirmation: 'SET_UP_LATER' });
+}
+
 export async function getAdminProfile() {
   return adminProfileClient.getAdminProfile({}).then((resp) => {
     const profile = resp.profile;

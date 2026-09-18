@@ -14,6 +14,13 @@ This file tracks known issues and technical debt that need attention.
 
 ## Work ladder
 
+### Administrator MFA enrollment gate
+
+- Rung: W3 / implementation
+- Evidence: operator reported that `/admin/mfa-enroll` was visually inconsistent with the sign-in surface and had no safe defer path. The route rendered the dashboard-oriented `TwoFactorSettings` card directly; production policy still requires enrollment on the next sign-in.
+- Resolution: rebuilt the route on `AuthPageLayout`, added explicit checkbox-confirmed `Set up later` handling backed by a server-side current-session rotation, and retained enrollment enforcement for future sessions.
+- Measured: 2026-09-18; focused Go tests, admin-login UI tests, production UI build, and deployment readiness passed.
+
 ### Configurable product presentation
 
 - Rung: W0 amended; W1 validation pending, implementation not yet evidenced.
@@ -351,3 +358,10 @@ matcher supports canonical nested source paths.
   requested domain decomposition and transport migration in the existing
   `handlers` and `internal` boundaries.
 - Measured: 2026-07-30
+
+## Work ladder
+
+- Rung: W3
+- Evidence: the admin portal had no global page search; navigation was limited to nested header menus, despite the centralized navigation catalog and existing `getAllNavItems` search-oriented utility.
+- Resolution: added an accessible global admin search palette with name, section, and description matching; ranked results; keyboard navigation; Ctrl/Cmd+K opening; responsive header access; and direct route navigation.
+- Measured: 2026-09-18 with focused AdminLayout tests, targeted ESLint, and a successful production UI build.

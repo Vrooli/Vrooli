@@ -92,6 +92,7 @@ func registerAdminMFARoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/mfa", s.requireAdmin(adminhttp.AdminMFAStatus(deps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/mfa/enroll", s.requireAdmin(adminhttp.BeginAdminMFAEnrollment(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/confirm", s.requireAdmin(adminhttp.ConfirmAdminMFAEnrollment(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/mfa/defer", s.requireAdmin(adminhttp.DeferAdminMFAEnrollment(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/disable", s.requireAdminStepUp(adminhttp.DisableAdminMFA(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/recovery-codes", s.requireAdminStepUp(adminhttp.RegenerateAdminRecoveryCodes(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/mfa/reset", s.requireAdminOrService(adminhttp.ResetAdminMFA(deps))).Methods("POST")

@@ -7,6 +7,7 @@ import { NAVIGATION_CONFIG } from '../config/navigation';
 import { buildBreadcrumbs, isGroupActive } from '../config/navigation.utils';
 import type { NavGroup } from '../config/navigation.types';
 import { LAYOUT } from '../config/layout.constants';
+import { AdminPortalSearch } from './AdminPortalSearch';
 
 export type MaxWidthPreset = 'narrow' | 'default' | 'wide' | 'extraWide' | 'full';
 
@@ -140,6 +141,7 @@ export function AdminLayout({ children, maxWidth, beforeLogout }: AdminLayoutPro
               </nav>
             </div>
             <div className="flex items-center gap-1">
+              <AdminPortalSearch />
               {/* Right-aligned dropdown groups */}
               {rightGroups.map((group) => (
                 <NavDropdown

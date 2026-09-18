@@ -37,6 +37,8 @@ type AdminMFADependencies struct {
 	Notifier            SecurityNotifier
 }
 
+const mfaDeferConfirmation = "SET_UP_LATER"
+
 type mfaCodeRequest struct {
 	Code string `json:"code"`
 }
@@ -98,6 +100,46 @@ func ConfirmAdminMFAEnrollment(deps AdminMFADependencies) http.HandlerFunc {
 			}
 		}
 		writeMFAJSON(w, map[string]any{"enabled": true, "recovery_codes": codes})
+	})
+}
+
+// DeferAdminMFAEnrollment upgrades only the current session after an explicit
+// confirmation. The production policy remains intact: the next sign-in will
+// return the administrator to enrollment until MFA is enabled.
+func DeferAdminMFAEnrollment(deps AdminMFADependencies) http.HandlerFunc {
+	return withAdminEmail(deps, func(w http.ResponseWriter, r *http.Request, email string) {
+		var request struct {
+			Confirmation string `json:"confirmation"`
+		}
+		if json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&request) != nil || strings.TrimSpace(request.Confirmation) != mfaDeferConfirmation {
+			deps.WriteError(w, http.StatusBadRequest, "Confirm that you want to set up two-factor authentication later.", "validation")
+			return
+		}
+		if deps.PromoteSession == nil || deps.Sessions == nil || deps.CurrentSessionID == nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Unable to defer two-factor setup right now.", "server_error")
+			return
+		}
+		current := deps.CurrentSessionID(r)
+		if current == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Session expired. Please log in again.", "unauthorized")
+			return
+		}
+		rotated, err := deps.PromoteSession(r.Context(), current, email)
+		if err != nil {
+			deps.LogError("admin_session_rotation_after_mfa_defer_failed", map[string]any{"error": err.Error()})
+			deps.WriteError(w, http.StatusServiceUnavailable, "Unable to defer two-factor setup right now.", "server_error")
+			return
+		}
+		session, _ := deps.Sessions.GetSession(r, sessionName)
+		session.Values["session_id"] = rotated
+		if err := deps.Sessions.SaveSession(r, w, session); err != nil {
+			deps.LogError("admin_session_save_after_mfa_defer_failed", map[string]any{"error": err.Error()})
+			deps.WriteError(w, http.StatusServiceUnavailable, "Unable to complete this sign-in.", "server_error")
+			return
+		}
+		deps.Log("admin_mfa_enrollment_deferred", map[string]any{"email": email})
+		deps.recordSecurityEvent(r, "mfa_enrollment_deferred", email, nil)
+		writeMFAJSON(w, map[string]any{"deferred": true})
 	})
 }
 

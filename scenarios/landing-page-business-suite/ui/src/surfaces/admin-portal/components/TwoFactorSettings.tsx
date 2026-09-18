@@ -8,6 +8,7 @@ import { QrCode } from '../../../shared/ui/QrCode';
 import {
   beginAdminMFAEnrollment,
   confirmAdminMFAEnrollment,
+  deferAdminMFAEnrollment,
   disableAdminMFA,
   getAdminMFAStatus,
   getApiErrorMessage,
@@ -29,7 +30,7 @@ function groupSecret(secret: string): string {
 }
 
 /** Authenticator-app two-factor sign-in for the administrator account. */
-export function TwoFactorSettings() {
+export function TwoFactorSettings({ enrollmentOnly = false, onDeferred, onEnrollmentComplete }: { enrollmentOnly?: boolean; onDeferred?: () => void; onEnrollmentComplete?: () => void }) {
   const [status, setStatus] = useState<AdminMFAStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('idle');
@@ -40,6 +41,7 @@ export function TwoFactorSettings() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [passkeys, setPasskeys] = useState<Array<{ id: string; nickname: string }>>([]);
+  const [deferConfirmed, setDeferConfirmed] = useState(false);
 
   const refresh = async () => {
     try {
@@ -87,6 +89,11 @@ export function TwoFactorSettings() {
     setEnrollment(await beginAdminMFAEnrollment());
     setCode('');
     setMode('enrolling');
+  });
+
+  const defer = () => run(async () => {
+    await deferAdminMFAEnrollment();
+    onDeferred?.();
   });
 
   const confirm = (event: FormEvent) => {
@@ -145,6 +152,50 @@ export function TwoFactorSettings() {
   const errorBox = error && (
     <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100" role="alert" data-testid="mfa-error">{error}</div>
   );
+
+  if (enrollmentOnly) {
+    return (
+      <section className="auth-mfa-enrollment" data-testid="admin-mfa-enrollment">
+        {loadError && <div className="auth-alert-box auth-alert-server" role="alert">{loadError}</div>}
+        {mode === 'enrolling' && enrollment ? (
+          <form className="auth-mfa-setup" onSubmit={confirm} data-testid="mfa-enroll-form">
+            <div className="auth-mfa-setup-grid">
+              <div className="auth-mfa-qr"><QrCode value={enrollment.otpauth_uri} size={176} label="QR code for your authenticator app" /></div>
+              <div className="auth-mfa-steps">
+                <p><strong>1</strong><span>Scan the QR code with your authenticator app.</span></p>
+                <p className="auth-mfa-muted">Can’t scan? Enter this key manually:</p>
+                <code data-testid="mfa-secret">{groupSecret(enrollment.secret)}</code>
+                <p><strong>2</strong><span>Enter the 6-digit code it shows.</span></p>
+              </div>
+            </div>
+            <label className="auth-mfa-code-label" htmlFor="mfa-enroll-code">Authenticator code</label>
+            <input id="mfa-enroll-code" value={code} onChange={(event) => { setCode(event.target.value.replace(/[^\d\s]/g, '')); }} inputMode="numeric" autoComplete="one-time-code" placeholder="123 456" className="auth-mfa-code-input" data-testid="mfa-enroll-code" autoFocus />
+            {errorBox}
+            <div className="auth-mfa-actions"><Button type="button" variant="outline" onClick={() => { setMode('idle'); setEnrollment(null); setError(null); }}>Back</Button><Button type="submit" disabled={busy || code.replace(/\s/g, '').length !== 6}>{busy ? 'Verifying…' : 'Turn on two-factor'}</Button></div>
+          </form>
+        ) : mode === 'recovery' ? (
+          <div className="auth-mfa-recovery" data-testid="mfa-recovery-codes">
+            <div className="auth-callout auth-callout-info"><CheckCircle2 aria-hidden="true" /><p><strong>Two-factor is on.</strong> Save these recovery codes somewhere safe. Each works once if you lose your authenticator.</p></div>
+            <ol>{recoveryCodes.map((recovery) => <li key={recovery}>{recovery}</li>)}</ol>
+            <div className="auth-mfa-actions"><Button type="button" variant="outline" onClick={() => { void copyCodes(); }}><Copy className="h-4 w-4" />{copied ? 'Copied' : 'Copy codes'}</Button><Button type="button" variant="outline" onClick={downloadCodes}><Download className="h-4 w-4" />Download</Button><Button type="button" onClick={() => { setRecoveryCodes([]); setMode('idle'); onEnrollmentComplete?.(); }} data-testid="mfa-recovery-done">I’ve saved them</Button></div>
+          </div>
+        ) : (
+          <>
+            <div className="auth-mfa-benefits">
+              <div><ShieldCheck aria-hidden="true" /><span><strong>Block password-only access</strong><small>Authenticator codes help protect your administrator account.</small></span></div>
+              <div><Smartphone aria-hidden="true" /><span><strong>Use the app you already trust</strong><small>Works with 1Password, Google Authenticator, Authy, and more.</small></span></div>
+            </div>
+            {errorBox}
+            <Button type="button" className="auth-mfa-primary" disabled={busy} onClick={() => { void start(); }} data-testid="mfa-enable"><ShieldCheck className="h-4 w-4" />{busy ? 'Starting setup…' : 'Set up two-factor'}</Button>
+            <div className="auth-mfa-defer">
+              <label><input type="checkbox" checked={deferConfirmed} onChange={(event) => setDeferConfirmed(event.target.checked)} data-testid="mfa-defer-confirm" /><span>I understand this account will be less protected until I set up two-factor authentication.</span></label>
+              <Button type="button" variant="outline" disabled={!deferConfirmed || busy} onClick={() => { void defer(); }} data-testid="mfa-defer">Set up later</Button>
+            </div>
+          </>
+        )}
+      </section>
+    );
+  }
 
   return (
     <FormSection
