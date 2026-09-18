@@ -268,10 +268,32 @@ describe("scroll transport selection", () => {
     controller.flush();
     expect(sendScroll).toHaveBeenCalledTimes(1);
 
+    // Streamed stdout must not release a backend-scroll request. The scroll
+    // response is its acknowledgement; conflating the two permits a long
+    // gesture to put several synchronous tmux operations in flight.
     controller.notifyOutput();
     timestamp = 101;
     controller.flush();
+    expect(sendScroll).toHaveBeenCalledTimes(1);
+
+    controller.notifyScroll();
+    timestamp = 101;
+    controller.flush();
     expect(sendScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds movement accumulated while a backend scroll is awaiting acknowledgement", () => {
+    const term = altBufferTerminal("none");
+    const sendScroll = vi.fn(() => true);
+    const controller = createScrollController(() => term, vi.fn(), {
+      sendScroll,
+      maxPendingLines: 5,
+    });
+
+    controller.scrollBy(-100, "wheel");
+    controller.flush();
+
+    expect(sendScroll).toHaveBeenCalledWith(-5);
   });
 
   it("drops queued lines when the program leaves the alternate buffer mid-gesture", () => {

@@ -63,12 +63,12 @@ session ownership rules and the policy struct is small; keep it inside
 
 ---
 
-### `terminal` — WebSocket terminal I/O and image upload
+### `terminal` — WebSocket terminal I/O and file upload
 
 | Path | Method | Notes |
 |---|---|---|
 | `/api/v1/sessions/{id}/ws` | GET | WebSocket. Migrate to Connect server-stream **last**, after the static RPC domains are landed. `RESTException: third_party_shape` until then. |
-| `/api/v1/sessions/{id}/upload` | POST | `RESTException: multipart_upload` — image upload for path injection. Stays multipart even post-Connect. |
+| `/api/v1/sessions/{id}/upload` | POST | `RESTException: multipart_upload` — file upload for path injection (images, video, audio, PDF, archives, text/code). Stays multipart even post-Connect. |
 
 ---
 
@@ -301,7 +301,7 @@ static-RPC domains before touching streams; one risk axis per PR.
 11. **`metrics`** — 1 route, REST-tagged (`third_party_shape`).
     Registry entry only.
 12. **`events`** — 1 SSE route. REST-tagged until streams migrate.
-13. **`terminal/upload`** — multipart upload tagged
+13. **`terminal/upload`** — multipart file upload tagged
     `multipart_upload`; the upload doesn't need a stream rewrite.
 14. **Streams** (terminal WS, voice stream, events SSE) — final phase,
     migrate to Connect server-streaming together so the streaming
@@ -309,6 +309,14 @@ static-RPC domains before touching streams; one risk axis per PR.
     doesn't fit the browser-side constraint (xterm.js, EventSource).
 
 ## When to add a new domain
+
+### Desktop pane domain
+
+The desktop pane is a presentation domain backed by Device Control and
+Bridge. Its API owns session discovery/open/close/revoke projections and its
+UI owns WebRTC rendering, input mapping, clipboard affordances, and explicit
+readiness/reconnect states. It does not own a desktop database or native OS
+adapter.
 
 Add a domain if the messages or persistence boundary is independent of
 existing domains. Do **not** add a domain just to fit a URL prefix; the

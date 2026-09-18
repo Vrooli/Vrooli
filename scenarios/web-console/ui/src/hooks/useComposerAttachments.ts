@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComposerAttachment } from "../components/composer/AttachmentPreviewTray";
-
-const DEFAULT_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+import { attachmentKind, isBlockedAttachment } from "../lib/attachments";
 
 export interface UseComposerAttachmentsReturn {
   attachments: ComposerAttachment[];
-  /** Stage image files locally (creates review thumbnails; nothing uploads yet). */
-  addFiles: (files: File[]) => void;
+  /**
+   * Stage files locally (creates review previews; nothing uploads yet).
+   * Returns the names of files rejected by policy (executables), so the caller
+   * can surface why nothing appeared.
+   */
+  addFiles: (files: File[]) => string[];
   /** Remove one staged attachment and revoke its object URL. */
   removeFile: (id: string) => void;
   /** Remove every staged attachment (after a successful send / discard). */
@@ -18,32 +21,39 @@ export interface UseComposerAttachmentsReturn {
 let idCounter = 0;
 
 /**
- * useComposerAttachments — in-memory staging for composer image attachments.
+ * useComposerAttachments — in-memory staging for composer attachments.
  *
- * Modeled on swarm-manager's attachment composer, but web-console targets a raw
- * terminal: files are held as object-URL thumbnails and are NEVER uploaded or
+ * Accepts any non-executable file: images, video, audio, PDF, archives, and
+ * text/code. Files are held as object-URL previews and are NEVER uploaded or
  * injected until the operator sends. Object URLs are revoked on remove/clear/
  * unmount so nothing leaks.
  */
-export function useComposerAttachments(
-  allowedTypes: Set<string> = DEFAULT_ALLOWED_TYPES,
-): UseComposerAttachmentsReturn {
+export function useComposerAttachments(): UseComposerAttachmentsReturn {
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const urlsRef = useRef<Set<string>>(new Set());
 
-  const addFiles = useCallback(
-    (files: File[]) => {
-      const staged: ComposerAttachment[] = [];
-      for (const file of files) {
-        if (!allowedTypes.has(file.type)) continue;
-        const previewUrl = URL.createObjectURL(file);
-        urlsRef.current.add(previewUrl);
-        staged.push({ id: `catt-${++idCounter}`, file, previewUrl, status: "staged" });
+  const addFiles = useCallback((files: File[]): string[] => {
+    const staged: ComposerAttachment[] = [];
+    const rejected: string[] = [];
+    for (const file of files) {
+      if (isBlockedAttachment(file)) {
+        rejected.push(file.name);
+        continue;
       }
-      if (staged.length > 0) setAttachments((prev) => [...prev, ...staged]);
-    },
-    [allowedTypes],
-  );
+      const previewUrl = URL.createObjectURL(file);
+      urlsRef.current.add(previewUrl);
+      staged.push({
+        id: `catt-${String(++idCounter)}`,
+        file,
+        previewUrl,
+        kind: attachmentKind(file),
+        sizeBytes: file.size,
+        status: "staged",
+      });
+    }
+    if (staged.length > 0) setAttachments((prev) => [...prev, ...staged]);
+    return rejected;
+  }, []);
 
   const removeFile = useCallback((id: string) => {
     setAttachments((prev) => {

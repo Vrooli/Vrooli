@@ -18,9 +18,9 @@ import {
   ArrowRight as ArrowRightIcon,
   ArrowUp as ArrowUpIcon,
   History,
-  Image,
   Library,
   MoreHorizontal,
+  Paperclip,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -63,7 +63,7 @@ export interface ToolbarControlContext {
   toggleModifier: (modifier: (typeof MODIFIER_KEYS)[number]) => void;
   onOpenAi?: () => void;
   aiSuggestActive?: boolean;
-  onUploadImage?: () => void;
+  onUploadImage?: (position: { x: number; y: number }) => void;
   /** Open the sender-owned snippet picker. */
   onOpenSnippets?: () => void;
   /** Open this device's sent-message history. */
@@ -194,7 +194,7 @@ function IconControl({
   testId: string;
   label: string;
   icon: LucideIcon;
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   active?: boolean;
   width: number;
   m: ToolbarMetrics;
@@ -367,8 +367,8 @@ export function renderToolbarControl(
         <IconControl
           testId={tid("toolbar-upload-image")}
           label={label}
-          icon={Image}
-          onClick={ctx.onUploadImage}
+          icon={Paperclip}
+          onClick={(e) => ctx.onUploadImage?.({ x: e.clientX, y: e.clientY })}
           width={slot.width}
           m={m}
           inert={inert}

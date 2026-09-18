@@ -185,6 +185,10 @@ export function useTerminalSession({
 	// the client stops asking a backend that owns no history of its own.
 	const serverScrollUnsupportedRef = useRef(false);
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
+	const pendingResizeRef = useRef<{ cols: number; rows: number } | null>(null);
+	const outputQueueRef = useRef<string[]>([]);
+	const outputFlushRafRef = useRef<number | null>(null);
+	const historyReadyRef = useRef(false);
 	// This is deliberately separate from serverSizeRef. A follower renders the
 	// leader's grid, but must retain its own most recently declared grid so an
 	// explicit Take over can resize the PTY for the device that requested it.
@@ -244,6 +248,7 @@ export function useTerminalSession({
 
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
+	historyReadyRef.current = false;
 		echoStateRef.current = { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false };
 		serverScrollUnsupportedRef.current = false;
     stdin.resetForNewConnection(outputCursorRef.current);
@@ -259,7 +264,13 @@ export function useTerminalSession({
       //     this, scrollback content from before a WS reconnect or API
       //     restart layers underneath the new snapshot, producing the
       //     "scroll up shows last page repeated" symptom.
-      t.reset();
+		if (outputQueueRef.current.length > 0) {
+		  t.write(outputQueueRef.current.join(""));
+		  outputQueueRef.current = [];
+		}
+		if (outputFlushRafRef.current !== null) cancelAnimationFrame(outputFlushRafRef.current);
+		outputFlushRafRef.current = null;
+		t.reset();
       t.clear();
 		predictionOverlayRef.current?.clear();
 		predictionSentAtRef.current.clear();
@@ -267,6 +278,7 @@ export function useTerminalSession({
 	}
 	if (t) {
 		declaredSizeRef.current = { cols: t.cols, rows: t.rows };
+		pendingResizeRef.current = declaredSizeRef.current;
 		transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
 	}
 	if (t && wasReconnect) {
@@ -279,6 +291,24 @@ export function useTerminalSession({
     }
     onReadyRef.current?.();
   }, [onStatus, sessionId, stdin]);
+
+	const flushOutputQueue = useCallback(() => {
+	  outputFlushRafRef.current = null;
+	  const t = terminalRef.current;
+	  if (!t || outputQueueRef.current.length === 0) return;
+	  t.write(outputQueueRef.current.join(""));
+	  outputQueueRef.current = [];
+	}, []);
+
+	const enqueueOutput = useCallback((data: string) => {
+	  outputQueueRef.current.push(data);
+	  if (outputFlushRafRef.current !== null) return;
+	  if (typeof requestAnimationFrame === "function") {
+		outputFlushRafRef.current = requestAnimationFrame(flushOutputQueue);
+	  } else {
+		outputFlushRafRef.current = Number(setTimeout(flushOutputQueue, 0));
+	  }
+	}, [flushOutputQueue]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
@@ -329,6 +359,12 @@ export function useTerminalSession({
         return source === "touch" ? state.touchScrollSensitivity : state.wheelScrollSensitivity;
       },
       sendScroll: (lines) => sendScrollRef.current(lines),
+      // A tmux scroll is synchronous on the server's WebSocket input loop.
+      // Keep only one in flight so a long wheel gesture cannot queue work
+      // ahead of keyboard, resize, and heartbeat messages.
+      maxUnacknowledgedFrames: 1,
+      maxFramesPerSecond: 30,
+      maxPendingLines: 512,
     });
   }
   const scrollController = scrollControllerRef.current;
@@ -410,6 +446,8 @@ export function useTerminalSession({
           predictionOverlayRef.current?.retireThrough(msg.accepted_through ?? 0);
           stdin.replay();
           stdin.flush();
+		  const pending = pendingResizeRef.current;
+		  if (pending) transport.sendJson({ type: "resize", cols: pending.cols, rows: pending.rows });
           break;
         }
         case "stdin_ack": {
@@ -467,7 +505,10 @@ export function useTerminalSession({
 			// frame. Latch that once instead of re-sending on every gesture:
 			// each failed frame would otherwise occupy the acknowledgement
 			// gate until the watchdog cleared it.
-			if (msg.data === "unsupported") serverScrollUnsupportedRef.current = true;
+			if (msg.data === "unsupported") {
+				serverScrollUnsupportedRef.current = true;
+				scrollController.notifyScroll();
+			} else if (msg.ok === true) scrollController.notifyScroll();
 			break;
 		}
         case "stdout": {
@@ -479,23 +520,27 @@ export function useTerminalSession({
             // applies the encoded \x1bc reset, scrollback rows, and any
             // \x1b[?1049h alt-buffer enter so its state matches the
             // server's emulator state at subscribe time.
-            t.write(msg.data);
+			enqueueOutput(msg.data);
           } else {
             appendOutputProbe(sessionId, msg.data);
-            t.write(msg.data);
+			enqueueOutput(msg.data);
           }
 		  if (typeof msg.output_cursor === "number") outputCursorRef.current = msg.output_cursor;
+		  const pending = pendingResizeRef.current;
+		  if (pending && sessionReadyRef.current) transport.sendJson({ type: "resize", cols: pending.cols, rows: pending.rows });
           scrollController.notifyOutput();
           break;
         }
         case "history_end": {
           inSnapshotRef.current = false;
+		  historyReadyRef.current = true;
 		  if (typeof msg.output_cursor === "number") outputCursorRef.current = msg.output_cursor;
           break;
         }
         case "resync": {
           const t = terminalRef.current;
           if (t) {
+			flushOutputQueue();
             t.reset();
             t.clear();
           }
@@ -530,9 +575,12 @@ export function useTerminalSession({
           // recovery and pane chrome will own operator-facing status.
           break;
         }
-        case "size_info": {
+		case "size_info": {
 			if (!msg.cols || !msg.rows) break;
 			serverSizeRef.current = { cols: msg.cols, rows: msg.rows };
+			if (pendingResizeRef.current?.cols === msg.cols && pendingResizeRef.current?.rows === msg.rows) {
+			  pendingResizeRef.current = null;
+			}
 			setServerSize(serverSizeRef.current);
 			if (msg.holdsLease !== undefined && (msg.holdsLease || !leaseRequestInFlightRef.current)) leaseRequestInFlightRef.current = false;
 			const t = terminalRef.current;
@@ -550,7 +598,7 @@ export function useTerminalSession({
       }
     });
     return unsubscribe;
-  }, [onFollowerModeChange, onStatus, sessionId, stdin, transport]);
+  }, [enqueueOutput, flushOutputQueue, onFollowerModeChange, onStatus, sessionId, stdin, transport]);
 
   useEffect(() => {
     if (!terminal || !predictionContainer) return;
@@ -613,6 +661,11 @@ export function useTerminalSession({
   // Cleanup on unmount.
   useEffect(() => {
     return () => {
+      if (outputFlushRafRef.current !== null) {
+        cancelAnimationFrame(outputFlushRafRef.current);
+        outputFlushRafRef.current = null;
+      }
+      outputQueueRef.current = [];
       gate.dispose();
       stdin.dispose();
       getTerminalDebugProbe().remove(sessionId);
@@ -653,13 +706,17 @@ export function useTerminalSession({
   );
 
 	const getServerSize = useCallback(() => serverSizeRef.current, []);
+	const guardedScrollBy = useCallback((lines: number, source: "touch" | "wheel" | "programmatic") => {
+		if (!historyReadyRef.current) return;
+		scrollController.scrollBy(lines, source);
+	}, [scrollController]);
 
   return {
     submitInput,
     sendControl,
     setMouseMode: requestMouseMode,
     mouseMode,
-    scrollBy: scrollController.scrollBy,
+		scrollBy: guardedScrollBy,
     gate,
 		sendResize,
 		getServerSize,

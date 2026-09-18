@@ -9,6 +9,7 @@ import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1
 import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
+import { scriptRunPlan } from "../lib/fileExecution";
 
 interface MessagesFileViewerProps {
   state: PreviewState;
@@ -20,6 +21,7 @@ interface MessagesFileViewerProps {
    * most. The resolved path is the payload; the viewer does not classify it.
    */
   onHandoff?: (resolvedPath: string) => void;
+  onRun?: (resolvedPath: string, text: string) => void;
   onClose: () => void;
   onReopen: () => void;
   onRendererError: (message: string) => void;
@@ -37,6 +39,7 @@ interface MessagesFileViewerProps {
 export default function MessagesFileViewer({
   state,
   onHandoff,
+  onRun,
   onClose,
   onReopen,
   onRendererError,
@@ -77,6 +80,7 @@ export default function MessagesFileViewer({
   // there is nothing to hand over while the preview is still resolving, and a
   // directory listing is not a payload the operator meant to send.
   const canHandoff = Boolean(onHandoff && displayPath && model?.kind !== "directory");
+  const canRun = Boolean(onRun && model?.kind === "code" && scriptRunPlan(displayPath, text?.content ?? ""));
 
   const titleEl = (
     <span
@@ -95,7 +99,7 @@ export default function MessagesFileViewer({
     </span>
   );
 
-  const headerActions = (canGoBack || canHandoff) ? (
+  const headerActions = (canGoBack || canHandoff || canRun) ? (
     <div className="flex shrink-0 items-center gap-1.5">
       {canGoBack && (
         <IconButton
@@ -122,6 +126,7 @@ export default function MessagesFileViewer({
           {t(strings.messagesFileViewer.handOff)}
         </button>
       )}
+      {canRun && <button type="button" onClick={() => onRun?.(displayPath, text?.content ?? "")} data-testid="run-file-viewer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-wc-accent px-2 py-1.5 text-xs font-medium text-white">Run</button>}
     </div>
   ) : null;
 

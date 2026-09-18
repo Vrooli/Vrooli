@@ -1641,8 +1641,8 @@
       "id": "terminal_upload",
       "path": "/api/v1/sessions/{id}/upload",
       "method": "POST",
-      "summary": "Upload an image to a terminal session",
-      "description": "Multipart image upload that stores the image under the session workspace so the user can reference it from the terminal by path.",
+      "summary": "Upload a file to a terminal session",
+      "description": "Multipart file upload (images, video, audio, PDF, archives, text/code) that streams the file under the session workspace so the user can reference it from the terminal by path. Executables are refused; each category has its own size cap.",
       "category": "terminal",
       "rest_exception": {
         "reason": "multipart_upload",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -94,6 +95,11 @@ func (h *handlers) layoutSave(ctx cliapp.RunContext) error {
 // flips the corresponding has_* flag server-side. Pointer fields let us
 // distinguish "absent" from "zero value".
 type paneUpdateBody struct {
+	// SessionID lets a caller carry the whole request in one JSON document.
+	// The positional still wins; this exists because a body that names the
+	// session was previously parsed and silently ignored, so a correct-looking
+	// request failed with "missing required positional".
+	SessionID            *string `json:"session_id,omitempty"`
 	Name                 *string `json:"name,omitempty"`
 	HeaderColor          *string `json:"header_color,omitempty"`
 	ThemeID              *string `json:"theme_id,omitempty"`
@@ -105,9 +111,6 @@ type paneUpdateBody struct {
 
 func (h *handlers) paneUpdate(ctx cliapp.RunContext) error {
 	sessionID := ctx.Positional("session-id")
-	if sessionID == "" {
-		return fmt.Errorf("usage: workspace pane-update <session-id> --body-file PATH")
-	}
 
 	raw, err := support.ReadJSONFile(ctx.Flag("body-file"), true)
 	if err != nil {
@@ -116,6 +119,21 @@ func (h *handlers) paneUpdate(ctx cliapp.RunContext) error {
 	var body paneUpdateBody
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return fmt.Errorf("decode --body-file: %w", err)
+	}
+	bodyID := ""
+	if body.SessionID != nil {
+		bodyID = strings.TrimSpace(*body.SessionID)
+	}
+	if bodyID != "" {
+		switch {
+		case sessionID == "":
+			sessionID = bodyID
+		case sessionID != bodyID:
+			return fmt.Errorf("session id mismatch: positional %q, --body-file %q", sessionID, bodyID)
+		}
+	}
+	if sessionID == "" {
+		return fmt.Errorf("usage: workspace pane-update <session-id> --body-file PATH (or set session_id in the body)")
 	}
 
 	req := &workspacev1.UpdatePaneRequest{SessionId: sessionID}

@@ -68,6 +68,15 @@ Status: **hardened** — PTY is the intended execution surface, not a vulnerabil
 Status: **hardened for the single-operator model.** Note for a future multi-user posture: the resolver intentionally previews any file the operator's process can read (e.g. `~/.vrooli`, configs). If web-console is ever exposed multi-user, the blob/resolve surface must gain the same auth layer as the rest of the API — the opaque-id + session-binding shape was chosen so that auth can be added without redesign.
 
 ## Known Vulnerabilities
+
+### Remote desktop pane
+
+The browser receives only short-lived, session-scoped WebRTC material from
+Bridge. Credentials are never displayed or persisted. Pointer/keyboard,
+semantic actions, and clipboard writes are disabled unless the server grants
+the current controller lease; viewer panes are read-only. Frames and
+clipboard contents are not logged. A revoked/expired session must stop media
+and input immediately.
 None identified. The primary security boundary is the parent proxy — if bypassed, an unauthenticated user could create terminal sessions on the host (and, via the file-preview resolver, read any file that host process can read — see Local File Preview above).
 
 ## Priority Hardening Areas

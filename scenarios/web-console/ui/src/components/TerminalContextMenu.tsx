@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ClipboardPaste, Copy, Image, MousePointer2, TextSelect, Trash2, Volume2 } from "lucide-react";
+import { ClipboardPaste, Copy, MousePointer2, Paperclip, TextSelect, Trash2, Volume2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
@@ -151,7 +151,7 @@ export default function TerminalContextMenu({
           onSelect: handlePaste,
         },
         ...(onUploadImage
-          ? [{ id: "upload-image", label: t(strings.terminalContextMenu.uploadImage), icon: <Image className="h-4 w-4 shrink-0" />, testId: "ctx-upload-image", onSelect: onUploadImage }]
+          ? [{ id: "upload-image", label: t(strings.terminalContextMenu.uploadImage), icon: <Paperclip className="h-4 w-4 shrink-0" />, testId: "ctx-upload-image", onSelect: onUploadImage }]
           : []),
         ...(onToggleMouseMode && mouseMode !== undefined
           ? [{

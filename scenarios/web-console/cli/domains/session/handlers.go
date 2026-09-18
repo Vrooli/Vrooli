@@ -539,8 +539,17 @@ func sessionRows(sessions []*sessionsv1.Session) []string {
 	}
 	rows := make([]string, 0, len(sessions))
 	for _, s := range sessions {
+		// Print the full id, not a short one: every other session command takes
+		// an id, and a truncated id is not accepted by `session get`, so a
+		// shortened row cannot feed the command the hints point at. Carry the
+		// label too — it is the only human-meaningful name a session has, and
+		// omitting it made a labelled workspace read as a list of shells.
 		row := fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | origin=%s",
-			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), originString(s.GetOrigin()))
+			s.GetId(), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), originString(s.GetOrigin()))
+		if label := s.GetDisplayLabel(); label != "" {
+			row = fmt.Sprintf("%s | label=%q | shell=%s | backend=%s | %dx%d | origin=%s",
+				s.GetId(), label, s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), originString(s.GetOrigin()))
+		}
 		if owner := s.GetOwner(); owner != "" {
 			row += " | owner=" + owner
 		}

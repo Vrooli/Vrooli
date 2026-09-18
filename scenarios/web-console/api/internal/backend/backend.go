@@ -132,7 +132,7 @@ func defaultCheckTmuxAvailable() (bool, string) {
 	if err != nil {
 		return false, "tmux is not installed"
 	}
-	socket := tmuxProbeSocketPath()
+	socket := TmuxSocketPath()
 	out, err := exec.Command(path, "-S", socket, "-V").Output()
 	if err != nil {
 		return false, fmt.Sprintf("tmux version check failed: %v", err)
@@ -176,6 +176,11 @@ func tmuxProbeCommands(socket, session string) [][]string {
 		{"-S", socket, "display-message", "-t", session, "-p", "#{pane_dead_status}"},
 	}
 }
+
+// TmuxSocketPath returns the socket that persistent sessions run on. The API
+// installs its own resolver at startup so the probe checks the same tmux server
+// as the sessions, including a non-live instance's private server.
+var TmuxSocketPath = tmuxProbeSocketPath
 
 func tmuxProbeSocketPath() string {
 	if socket := strings.TrimSpace(os.Getenv("WC_TMUX_SOCKET")); socket != "" {

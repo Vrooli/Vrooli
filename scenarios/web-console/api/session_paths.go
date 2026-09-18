@@ -26,10 +26,12 @@ func ensureDir(path string) string {
 func resolveSessionStateRoot() string {
 	if root := strings.TrimSpace(getEnvOrDefault("WC_SESSION_STATE_ROOT", "")); root != "" {
 		root = filepath.Clean(root)
-		// The lifecycle supplies the shared live session root to every instance.
-		// A non-live variant must derive a private child from that root or it can
-		// read the operator's tmux sessions and agent homes even when its SQLite
-		// database is correctly namespaced.
+		// An explicit root can still name the shared live session root (a test or
+		// an operator override). A non-live variant must derive a private child
+		// from it or it can read the operator's tmux sessions and agent homes even
+		// when its SQLite database is correctly namespaced. Without an explicit
+		// root, the storage resolver below already gives a variant its own state
+		// directory.
 		if variant := strings.TrimSpace(os.Getenv(storage.EnvVariant)); variant != "" && variant != "live" {
 			return ensureDir(filepath.Join(root, "variants", variant))
 		}

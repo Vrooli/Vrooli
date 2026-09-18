@@ -363,6 +363,23 @@ The file-preview subsystem (`api/internal/filepreview`, `FilePreviewService`, bl
 - **CLI is metadata/text only.** `web-console file-preview resolve` and `file-preview text` cover programmatic metadata + bounded text. Blob streaming/download has no CLI command (no clear operator workflow yet); it stays UI/browser-only because the blob route is consumed by native media elements.
 - **In-memory preview-id store.** Preview ids live in a process-local store with a 30m TTL; they do not survive an API restart. That is acceptable for the single-operator, reopen-on-demand UX. A persistent store would only matter for long-lived shareable preview links, which are out of scope.
 
+## 9b. File Upload — Policy and Deferred (2026-09-18)
+
+The session upload endpoint (`POST /api/v1/sessions/{id}/upload`, `api/upload_handler.go`) accepts any non-executable file, not just images. The composer exposes a **Camera / Photos / Files** source menu; the terminal pane accepts image paste, drag-drop of any non-executable file, and a general file input.
+
+**Policy:**
+
+- The file part is streamed straight to disk via `r.MultipartReader()`, not buffered by `ParseMultipartForm`, so large video does not sit in memory.
+- Native executables are refused twice: by extension (`.exe`, `.dll`, `.so`, `.dylib`, `.msi`, `.jar`, …) and by leading magic bytes (PE/`MZ`, ELF, Mach-O, `cafebabe`), so renaming does not launder a binary.
+- Size caps are per category: images 25 MiB, video 512 MiB, audio 128 MiB, PDF 64 MiB, archives 128 MiB, text/code 25 MiB, other 64 MiB. A 513 MiB request-body ceiling backstops the lot.
+- Bytes land in the cache-class `uploads/<sessionID>/` root and are removed when the PTY exits or the session is terminated.
+
+**Deferred (working-as-intended, not bugs):**
+
+- **Ephemeral storage.** Uploads are cache-class and deleted with the session; they are not durable evidence and have no metadata row. Durable attachments would move to a data-class root or MinIO and add an `AttachmentMeta` row.
+- **No resumable/chunked upload.** One `multipart/form-data` request, no retry/resume, so a large video depends on the connection holding. A chunked/`tus` path or presigned direct-to-object-storage upload is the upgrade.
+- **No media understanding.** Uploading video/audio only puts a path in the workspace; transcription or keyframe extraction are separate resource-level capabilities (whisper/ffmpeg), not upload concerns.
+
 ## 10. Audio Extraction Prep — Deferred Sub-Phases (2026-05-16)
 
 Active initiative: `swarm-manager/initiatives/continuous-audio-platform`. The

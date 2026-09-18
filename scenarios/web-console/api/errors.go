@@ -190,7 +190,7 @@ var errorCatalog = map[string]appError{
 		Code:     "upload_too_large",
 		Category: "validation",
 		Message:  "File exceeds maximum upload size",
-		Recovery: "Reduce the file size and try again (max 20MB)",
+		Recovery: "Reduce the file size and try again (images up to 25 MiB, video up to 512 MiB)",
 	},
 	"group_not_found": {
 		Status:   http.StatusNotFound,
@@ -211,7 +211,7 @@ var errorCatalog = map[string]appError{
 		Code:     "invalid_upload_type",
 		Category: "validation",
 		Message:  "Unsupported file type",
-		Recovery: "Upload an image file (PNG, JPEG, GIF, WebP, or SVG)",
+		Recovery: "Upload an image, video, audio, PDF, archive, or text/code file. Executables are not accepted.",
 	},
 	"file_reference_invalid": {
 		Status:   http.StatusBadRequest,

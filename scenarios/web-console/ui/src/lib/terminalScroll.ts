@@ -21,8 +21,10 @@ export interface WheelLineAccumulator {
 
 export interface TerminalScrollController {
   scrollBy: (lines: number, source: ScrollSource) => void;
-  /** Notify the controller that a server output frame made progress. */
+  /** Notify the controller that a mouse/control frame made output progress. */
   notifyOutput: () => void;
+  /** Notify the controller that a backend scroll request was acknowledged. */
+  notifyScroll: () => void;
   /** Number of control frames awaiting output progress. */
   getUnacknowledgedFrames: () => number;
   /** Deterministic seam for tests and teardown. */
@@ -33,6 +35,8 @@ export interface TerminalScrollControllerOptions {
   getSensitivity?: (source: ScrollSource) => number;
   maxUnacknowledgedFrames?: number;
   maxFramesPerSecond?: number;
+  /** Bound queued movement while a backend is slow or unavailable. */
+  maxPendingLines?: number;
   /** Injectable monotonic clock for rate-limit tests. */
   now?: () => number;
   /** Watchdog duration for a missing output acknowledgement. */
@@ -177,11 +181,14 @@ export function createScrollController(
   let pendingLines = 0;
   let frameHandle: number | null = null;
   let unacknowledgedFrames = 0;
+  let pendingServerScrollFrames = 0;
+  let pendingMouseReportFrames = 0;
   let lastFrameAt = Number.NEGATIVE_INFINITY;
   let acknowledgementWatchdog: ReturnType<typeof setTimeout> | null = null;
   let watchdogWarned = false;
   const maxUnacknowledgedFrames = options.maxUnacknowledgedFrames ?? 8;
   const maxFramesPerSecond = options.maxFramesPerSecond ?? 60;
+  const maxPendingLines = options.maxPendingLines ?? 1000;
   const acknowledgementTimeoutMs = options.acknowledgementTimeoutMs ?? 2000;
   const getSensitivity = options.getSensitivity ?? (() => 1);
   const sendScroll = options.sendScroll;
@@ -255,6 +262,8 @@ export function createScrollController(
     }
     if (delivered) {
       unacknowledgedFrames += 1;
+      if (transport === "server-scroll") pendingServerScrollFrames += 1;
+      else pendingMouseReportFrames += 1;
       lastFrameAt = timestamp;
       if (unacknowledgedFrames >= maxUnacknowledgedFrames) {
         armAcknowledgementWatchdog();
@@ -278,10 +287,27 @@ export function createScrollController(
         scrollTerminalLines(terminal, adjusted);
         return;
       }
-      pendingLines += adjusted;
+      pendingLines = Math.max(
+        -maxPendingLines,
+        Math.min(maxPendingLines, pendingLines + adjusted),
+      );
       schedule();
     },
     notifyOutput() {
+      if (pendingMouseReportFrames === 0) return;
+      pendingMouseReportFrames -= 1;
+      unacknowledgedFrames = Math.max(0, unacknowledgedFrames - 1);
+      if (unacknowledgedFrames < maxUnacknowledgedFrames) {
+        watchdogWarned = false;
+        if (acknowledgementWatchdog !== null) {
+          clearTimeout(acknowledgementWatchdog);
+          acknowledgementWatchdog = null;
+        }
+      }
+    },
+    notifyScroll() {
+      if (pendingServerScrollFrames === 0) return;
+      pendingServerScrollFrames -= 1;
       unacknowledgedFrames = Math.max(0, unacknowledgedFrames - 1);
       if (unacknowledgedFrames < maxUnacknowledgedFrames) {
         watchdogWarned = false;

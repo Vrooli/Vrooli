@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import MessagesFileViewer from "../MessagesFileViewer";
 import { useFilePreviewController } from "./useFilePreviewController";
 import type { PreviewSourceContext } from "../../api/filePreview";
@@ -20,6 +20,7 @@ interface WorkspaceFilePreviewProps {
   onRestore: () => void;
   onClose: () => void;
   onHandoff?: (sessionId: string, path: string) => void;
+  onRun?: (sessionId: string, path: string, text: string) => void;
 }
 
 const MAX_WIDTH = 900;
@@ -34,6 +35,7 @@ export default function WorkspaceFilePreview({
   onRestore,
   onClose,
   onHandoff,
+  onRun,
 }: WorkspaceFilePreviewProps) {
   const sessionId = request?.sessionId ?? "";
   const controller = useFilePreviewController(sessionId);
@@ -67,6 +69,7 @@ export default function WorkspaceFilePreview({
   const viewerProps = {
     state: controller.state,
     onHandoff: onHandoff ? (path: string) => { onHandoff(request.sessionId, path); } : undefined,
+    onRun: onRun ? (path: string, text: string) => { onRun(request.sessionId, path, text); } : undefined,
     onClose,
     onReopen: controller.reopen,
     onRendererError: controller.reportError,

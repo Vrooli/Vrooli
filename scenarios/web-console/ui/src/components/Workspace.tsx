@@ -47,6 +47,7 @@ import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
 import FloatingToolbar from "./FloatingToolbar";
 import FullScreenComposer from "./FullScreenComposer";
+import AttachSourceMenu from "./composer/AttachSourceMenu";
 import VoiceMicButton from "./VoiceMicButton";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import { useComposerAttachments } from "../hooks/useComposerAttachments";
@@ -97,6 +98,7 @@ import TopSafeArea from "./TopSafeArea";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
 import WorkspaceFilePreview, { type WorkspaceFilePreviewRequest } from "./file-preview/WorkspaceFilePreview";
+import RunScriptDialog from "./file-preview/RunScriptDialog";
 import type { PreviewSourceContext } from "../api/filePreview";
 import { shouldFocusArtifactViewer } from "./file-preview/artifactViewerLayout";
 import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
@@ -254,6 +256,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     defaultThemeId: state.defaultThemeId,
     defaultFontSize: state.defaultFontSize,
     addPane: state.addPane,
+    setPaneEphemeral: state.setPaneEphemeral,
     setPaneGroup: state.setPaneGroup,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
@@ -270,6 +273,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const activeWorkspacePane = workspace.activePane;
   const activeSessionTrackingDegraded = sessionPanes.find((pane) => pane.session.id === workspace.activePane)?.session.tracking_degraded;
   const addWorkspacePane = workspace.addPane;
+  const setWorkspacePaneEphemeral = workspace.setPaneEphemeral;
   const setWorkspacePaneGroup = workspace.setPaneGroup;
   const removeWorkspacePane = workspace.removePane;
   const setActiveWorkspacePane = workspace.setActivePane;
@@ -347,6 +351,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const composerDraft = useComposerDraft(workspace.activePane);
   const composerAttachments = useComposerAttachments();
   const [composerOpen, setComposerOpen] = useState(false);
+  // Viewport coords for the toolbar's attach source menu (null = closed).
+  const [toolbarAttachPosition, setToolbarAttachPosition] = useState<{ x: number; y: number } | null>(null);
   const [archiveDrawerOpen, setArchiveDrawerOpen] = useState(false);
   const [archivePreferOrphans, setArchivePreferOrphans] = useState(false);
   const [archiveInitialSessionId, setArchiveInitialSessionId] = useState<string | null>(null);
@@ -473,6 +479,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const [filePreviewRequest, setFilePreviewRequest] = useState<WorkspaceFilePreviewRequest | null>(null);
   const [filePreviewWidth, setFilePreviewWidth] = useState(440);
   const [filePreviewFocus, setFilePreviewFocus] = useState(false);
+  const [runScriptRequest, setRunScriptRequest] = useState<{ sessionId: string; path: string; text: string } | null>(null);
   const filePreviewAreaRef = useRef<HTMLDivElement | null>(null);
   const openFilePreview = useCallback((sessionId: string, path: string, source: PreviewSourceContext) => {
     activatePane(sessionId);
@@ -483,6 +490,22 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setFilePreviewRequest(null);
     setFilePreviewFocus(false);
   }, []);
+  const openRunScript = useCallback((sessionId: string, path: string, text: string) => {
+    setRunScriptRequest({ sessionId, path, text });
+  }, []);
+  const runScript = useCallback(async (command: string, workingDir: string) => {
+    if (!runScriptRequest) return;
+    const session = await launchSession({ command, workingDir, ephemeral: true });
+    if (session) {
+      pendingActivePaneRef.current = session.id;
+      setRunScriptRequest(null);
+      markPendingIntents();
+    }
+  }, [launchSession, markPendingIntents, runScriptRequest]);
+  const promoteScratchRun = useCallback((sessionId: string) => {
+    try { sessionStorage.removeItem(`web-console:scratch:${sessionId}`); } catch { /* storage is optional */ }
+    setWorkspacePaneEphemeral(sessionId, false);
+  }, [setWorkspacePaneEphemeral]);
   // Adaptive app-chrome: tell the imperative chrome controller which pane owns
   // the chrome (the focused pane in single-focus modes), whether tinting is
   // active, and the owner's configured theme background (the detection
@@ -599,7 +622,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         if (shouldActivate) pendingActivePaneRef.current = null;
         const pendingGroupId = pendingGroupBySessionRef.current.get(sp.session.id) ?? null;
         if (pendingGroupId) pendingGroupBySessionRef.current.delete(sp.session.id);
-        addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
+        addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView, sp.ephemeral);
         if (pendingGroupId) {
           setWorkspacePaneGroup(sp.session.id, pendingGroupId);
         }
@@ -1538,19 +1561,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     }
   }, [handlePlaybackTransportStopped, isTtsSpeaking]);
 
-  // --- Mobile image upload ---
-  // The toolbar image button no longer injects "path\n" immediately. Picking an
-  // image now STAGES it into the composer for review and opens the composer, so
-  // the operator can add text and batch several images into one deliberate send.
-  const mobileFileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleMobileUploadImage = useCallback(() => {
-    mobileFileInputRef.current?.click();
+  // --- Mobile attachment staging ---
+  // The toolbar attach button opens the shared Camera/Photos/Files source menu
+  // in place. Only after a file is actually picked does the composer open for
+  // review, so tapping attach never throws up the whole compose dialog first.
+  const handleMobileUploadImage = useCallback((position: { x: number; y: number }) => {
+    setToolbarAttachPosition(position);
   }, []);
 
-  const handleMobileFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
+  const handleToolbarAttachFiles = useCallback((files: File[]) => {
     if (files.length === 0) return;
     composerAttachments.addFiles(files);
     openComposer();
@@ -2051,6 +2070,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onActivate={activatePane}
         onRequestClose={handleRequestClose}
         onHandoff={openHandoff}
+        onPromoteScratchRun={promoteScratchRun}
         onSendToComposer={stageMessageInComposer}
         onToggleView={handlePaneToggleView}
         onViewSwitchPendingChange={handleViewSwitchPendingChange}
@@ -2360,6 +2380,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onActivate={activatePane}
                   onRequestClose={handleRequestClose}
                   onHandoff={openHandoff}
+                  onPromoteScratchRun={promoteScratchRun}
                   onSendToComposer={stageMessageInComposer}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
@@ -2391,6 +2412,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               onRestore={() => { setFilePreviewFocus(false); }}
               onClose={closeFilePreview}
               onHandoff={openHandoff}
+              onRun={openRunScript}
             />
           )}
           </div>
@@ -2437,6 +2459,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               onRestore={() => { setFilePreviewFocus(false); }}
               onClose={closeFilePreview}
               onHandoff={openHandoff}
+              onRun={openRunScript}
             />
           )}
         </div>
@@ -2453,8 +2476,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onRestore={() => undefined}
           onClose={closeFilePreview}
           onHandoff={openHandoff}
+          onRun={openRunScript}
         />
       )}
+
+      {runScriptRequest && <RunScriptDialog path={runScriptRequest.path} text={runScriptRequest.text} onClose={() => setRunScriptRequest(null)} onRun={runScript} />}
 
       {/* Bottom bar */}
       <div className="relative z-wc-chrome shrink-0">
@@ -2578,14 +2604,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onTtsStop={handleTtsStop}
           viewMode={activeViewMode}
         />
-        <input
-          ref={mobileFileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={handleMobileFileChange}
-        />
       </div>
 
       {/* Full-screen composer — a portaled DrawerShell overlay shared by mobile
@@ -2633,6 +2651,16 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             iconClassName="h-5 w-5"
           />
         }
+      />
+
+      {/* Toolbar attach source menu — shown in place where the toolbar button
+          was tapped, so the compose dialog only opens once a file is picked. */}
+      <AttachSourceMenu
+        open={toolbarAttachPosition !== null}
+        onOpenChange={(next) => { if (!next) setToolbarAttachPosition(null); }}
+        position={toolbarAttachPosition ?? undefined}
+        onFilesPicked={handleToolbarAttachFiles}
+        testIdPrefix="toolbar"
       />
 
       {/* Terminal Launcher */}

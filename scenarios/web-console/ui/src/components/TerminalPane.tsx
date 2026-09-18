@@ -364,7 +364,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
             onTakeOver={takeLease}
           />}
         </PaneSelectionLayer>
-        <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
+        <input ref={fileInputRef} type="file" hidden onChange={handleFileInputChange} />
       </div>
     );
   },

@@ -1575,8 +1575,8 @@
           "positionals": [
             {
               "name": "session-id",
-              "required": true,
-              "description": "Session ID"
+              "required": false,
+              "description": "Session ID (optional when the body sets session_id)"
             }
           ],
           "flags": [

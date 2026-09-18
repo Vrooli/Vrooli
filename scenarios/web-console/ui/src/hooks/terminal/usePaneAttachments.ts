@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from "react";
 import { useImageUpload } from "../useImageUpload";
+import { isBlockedAttachment } from "../../lib/attachments";
 import type { GateResult, InputIntent } from "../../components/terminal/inputGate";
 
 export function usePaneAttachments(sessionId: string, submitInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult, closeContextMenu: () => void) {
@@ -12,9 +13,11 @@ export function usePaneAttachments(sessionId: string, submitInput: (data: string
   }, [closeContextMenu]);
   const handleFileInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) void uploadAndInject(file);
+    if (file && !isBlockedAttachment(file)) void uploadAndInject(file);
     event.target.value = "";
   }, [uploadAndInject]);
+  // Paste stays image-only: the clipboard's file payload is almost always an
+  // image, and injecting a path for an arbitrary pasted blob is surprising.
   const handlePaste = useCallback((event: ClipboardEvent) => {
     const items = event.clipboardData.items;
     for (const item of items) {
@@ -34,7 +37,7 @@ export function usePaneAttachments(sessionId: string, submitInput: (data: string
     event.preventDefault();
     setDragOver(false);
     for (const file of Array.from(event.dataTransfer.files)) {
-      if (file.type.startsWith("image/")) void uploadAndInject(file);
+      if (!isBlockedAttachment(file)) void uploadAndInject(file);
     }
   }, [uploadAndInject]);
   return { fileInputRef, dragOver, uploading, uploadError, handleCtxUploadImage, handleFileInputChange, handlePaste, handleDragOver, handleDragLeave, handleDrop };

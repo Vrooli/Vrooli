@@ -117,6 +117,10 @@ type Session struct {
 	// size/presence lease. When both locks are needed, clientsMu is acquired
 	// before emuMu. Neither lock is held across backend I/O.
 	clientsMu sync.Mutex
+	// streamMu serializes snapshot registration with live-frame publication.
+	// It allows ANSI parsing to proceed without holding clientsMu, so a busy
+	// interactive TUI cannot block input, resize, or lease operations.
+	streamMu sync.Mutex
 	// ptyMu guards only ownership of the replaceable PTY pointer. It is never
 	// held while calling a PTY method; re-attach can therefore swap the
 	// pointer without blocking emulator or client state.
@@ -786,6 +790,8 @@ func (s *Session) Subscribe(identity ...string) SubscribeResult {
 	notifyCh := make(chan int, 1)
 	sizeCh := make(chan [2]uint16, 1)
 	presenceCh := make(chan PresenceState, 1)
+	s.streamMu.Lock()
+	defer s.streamMu.Unlock()
 	s.clientsMu.Lock()
 	s.emuMu.Lock()
 	if s.snapshotCacheDirty || s.snapshotCache == nil {

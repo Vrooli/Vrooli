@@ -106,17 +106,16 @@ func (s *Session) broadcast(data []byte) {
 	if len(data) == 0 {
 		return
 	}
-	s.clientsMu.Lock()
-	defer s.clientsMu.Unlock()
+	s.streamMu.Lock()
+	defer s.streamMu.Unlock()
 	s.emuMu.Lock()
-	defer s.emuMu.Unlock()
 	// Feed the durable emulator with RAW PTY bytes so its parser sees
 	// every CSI query. The ANSI responder observes the emulator's
 	// ControlEvent stream and answers only the server-owned query set;
 	// if the emulator never saw the query, the reply never fires.
 	_, _ = s.emu.Feed(data)
 	s.snapshotCacheDirty = true
-	bctrace("broadcast", s.ID, data, "clients=%d", len(s.clients))
+	bctrace("broadcast", s.ID, data, "clients=live")
 	s.markFrame()
 	s.outputCursor += int64(len(data))
 	frame := OutputFrame{Data: cpBytes(data), StartCursor: s.outputCursor - int64(len(data)), EndCursor: s.outputCursor}
@@ -126,6 +125,9 @@ func (s *Session) broadcast(data []byte) {
 		s.outputReplayBytes -= len(s.outputFrames[0].Data)
 		s.outputFrames = s.outputFrames[1:]
 	}
+	s.emuMu.Unlock()
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
 	if len(s.clients) == 0 {
 		return
 	}

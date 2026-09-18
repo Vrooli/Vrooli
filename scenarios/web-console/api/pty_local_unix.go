@@ -165,10 +165,18 @@ var serviceEnvVars = map[string]struct{}{
 	"VROOLI_SCENARIO":          {},
 	"VROOLI_STEP":              {},
 	"VROOLI_PHASE":             {},
-	"TMUX":                     {},
-	"TMUX_PANE":                {},
-	"TERM_PROGRAM":             {},
-	"TERM_PROGRAM_VERSION":     {},
+	// Instance identity belongs to this web-console instance. A shell in a
+	// presentation instance's terminal is not that instance, and a CLI that
+	// inherits these would resolve storage as if it were.
+	"VROOLI_VARIANT":             {},
+	"VROOLI_STORAGE_NAMESPACE":   {},
+	"VROOLI_RUNTIME_INSTANCE_ID": {},
+	"VROOLI_RUNTIME_GENERATION":  {},
+	"VROOLI_PROCESS_ID":          {},
+	"TMUX":                       {},
+	"TMUX_PANE":                  {},
+	"TERM_PROGRAM":               {},
+	"TERM_PROGRAM_VERSION":       {},
 	// NO_COLOR belongs to the web-console host environment, not to the
 	// interactive child. Keeping it would make color-aware CLI programs
 	// suppress ANSI output even though the child is attached to a real PTY.

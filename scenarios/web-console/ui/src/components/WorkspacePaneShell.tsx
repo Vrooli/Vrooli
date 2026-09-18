@@ -41,6 +41,7 @@ interface WorkspacePaneShellProps {
   onRequestClose: (sessionId: string) => void;
   /** Open the handoff composer from this pane, with a payload. */
   onHandoff: (sessionId: string, payload: string) => void;
+  onPromoteScratchRun?: (sessionId: string) => void;
   /** Stage message text in the active live session's full-screen composer. */
   onSendToComposer?: (text: string) => void;
   onToggleView: (sessionId: string, viewMode: PaneViewMode) => void;
@@ -91,6 +92,7 @@ function WorkspacePaneShell({
   onActivate,
   onRequestClose,
   onHandoff,
+  onPromoteScratchRun,
   onSendToComposer,
   onToggleView,
   onViewSwitchPendingChange,
@@ -204,6 +206,7 @@ function WorkspacePaneShell({
           onToggleView={supportsMessagesView ? handleToggleView : undefined}
           isViewSwitchPending={false}
           onHandoff={(id) => { onHandoff(id, ""); }}
+          onPromote={paneMeta.ephemeral ? onPromoteScratchRun : undefined}
           onDragStart={onStartArrangeDrag}
         />
       )}

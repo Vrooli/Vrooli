@@ -21,6 +21,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"web-console/backends/claude"
+	"web-console/internal/backend"
 	"web-console/internal/config"
 	"web-console/internal/pty"
 	"web-console/session"
@@ -527,6 +528,10 @@ func buildBaseSessionEnv(spec pty.LaunchSpec) []string {
 		),
 		spec.Env,
 	)
+}
+
+func init() {
+	backend.TmuxSocketPath = resolveTmuxSocket
 }
 
 // resolveTmuxSocket returns the tmux socket name used for web-console

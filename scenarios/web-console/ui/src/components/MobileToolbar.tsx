@@ -179,7 +179,7 @@ interface MobileToolbarProps {
   visible?: boolean;
   /** Voice state and callbacks are grouped to keep the toolbar boundary small. */
   voice?: MobileToolbarVoiceProps;
-  onUploadImage?: () => void;
+  onUploadImage?: (position: { x: number; y: number }) => void;
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
   onOpenAi?: () => void;

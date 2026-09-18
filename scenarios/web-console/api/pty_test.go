@@ -297,6 +297,24 @@ func TestFilterServiceEnv_RemovesHostTerminalVars(t *testing.T) {
 	}
 }
 
+func TestFilterServiceEnv_RemovesInstanceIdentity(t *testing.T) {
+	// A terminal in web-console@presentation must not tell its shell that it is
+	// the presentation instance.
+	env := []string{
+		"HOME=/home/user",
+		"VROOLI_VARIANT=presentation",
+		"VROOLI_STORAGE_NAMESPACE=web-console_presentation",
+		"VROOLI_RUNTIME_INSTANCE_ID=inst-1",
+		"VROOLI_RUNTIME_GENERATION=3",
+		"VROOLI_PROCESS_ID=proc-1",
+		"PATH=/usr/bin",
+	}
+	got := filterServiceEnv(env)
+	if len(got) != 2 {
+		t.Fatalf("expected only HOME and PATH, got %v", got)
+	}
+}
+
 func TestBuildSessionEnv_AllowsChildColors(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	t.Setenv("TERM", "dumb")

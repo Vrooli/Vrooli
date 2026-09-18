@@ -42,6 +42,7 @@ handoff notes below remain follow-up leads until checked against current evidenc
 | 2026-02-19 | claude-opus | Score 100, 0 auditor violations, docs fixed | Archived |
 | 2026-03-28 | claude-opus | Detachable Sessions (Phases 1-10) | Archived |
 | 2026-09-11 | claude-opus | Messages view: honest projection and calm scrolling (18 phases) | Calm follow-only scrolling, session activity and prompt cards (levels 1-3), echo rows and sent history, one FTS5 search, measured navigator, playback pill. See [the projection doc](internal/MESSAGES-VIEW-PROJECTION-UX.md); plan `web-console-messages-view-honest-projection-calm-scrolling`. |
+| 2026-09-18 | Codex | Documentation-first remote desktop baseline | Documented the Web Console desktop pane as a presentation client over Bridge and Device Control, including security and reconnect behavior. |
 
 ## Historical handoff leads retained during condensation
 

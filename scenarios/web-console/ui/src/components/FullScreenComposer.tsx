@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookmarkPlus, History, ImagePlus, Library, Loader2, SendHorizontal } from "lucide-react";
+import { BookmarkPlus, History, Library, Loader2, Paperclip, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
+import AttachSourceMenu from "./composer/AttachSourceMenu";
 import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -45,10 +46,13 @@ interface FullScreenComposerProps {
    */
   interimTranscript?: string;
 
-  /** Staged image attachments. */
+  /** Staged attachments. */
   attachments?: ComposerAttachment[];
-  /** Stage newly picked image files (thumbnails only — never uploaded here). */
-  onAttachFiles?: (files: File[]) => void;
+  /**
+   * Stage newly picked files (previews only — never uploaded here). Returns the
+   * names of files rejected by policy so the composer can surface them.
+   */
+  onAttachFiles?: (files: File[]) => string[] | undefined;
   /** Remove a single staged attachment. */
   onRemoveAttachment?: (id: string) => void;
   /**
@@ -91,7 +95,9 @@ export default function FullScreenComposer({
 }: FullScreenComposerProps) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const [status, setStatus] = useState<ComposerSendStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showDiscardPrompt, setShowDiscardPrompt] = useState(false);
@@ -150,6 +156,11 @@ export default function FullScreenComposer({
     };
   }, [open, draft]);
 
+  // Never leave the attach menu hanging open behind a closed composer.
+  useEffect(() => {
+    if (!open) setAttachMenuOpen(false);
+  }, [open]);
+
   // Cancel any dangling settlement subscription on unmount.
   useEffect(() => {
     return () => {
@@ -184,13 +195,15 @@ export default function FullScreenComposer({
     onClose();
   }, [onClearAttachments, onClose]);
 
-  const handleFilesPicked = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []);
-      e.target.value = "";
-      if (files.length > 0) onAttachFiles?.(files);
+  const stageFiles = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return;
+      const rejected = onAttachFiles?.(files) ?? [];
+      setAttachError(
+        rejected.length > 0 ? t(strings.composer.filesRejected, { names: rejected.join(", ") }) : null,
+      );
     },
-    [onAttachFiles],
+    [onAttachFiles, t],
   );
 
   const handleSend = useCallback(async () => {
@@ -238,6 +251,7 @@ export default function FullScreenComposer({
       // keeps it in history.
       if (sentFrom) useConversationStore.getState().addEcho(sentFrom, payload);
       pushHistory(payload);
+      setAttachError(null);
       onClearAttachments?.();
       setStatus("idle");
       onClose();
@@ -381,6 +395,12 @@ export default function FullScreenComposer({
           </div>
         )}
 
+        {attachError && (
+          <div data-testid="composer-attach-error" className="px-4 py-1 text-xs text-yellow-400">
+            {attachError}
+          </div>
+        )}
+
         {onRemoveAttachment && (
           <div className="px-4">
             <AttachmentPreviewTray
@@ -402,24 +422,23 @@ export default function FullScreenComposer({
           {onAttachFiles && (
             <>
               <button
+                ref={attachButtonRef}
                 type="button"
                 data-testid="composer-attach"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => { setAttachMenuOpen(true); }}
                 disabled={isBusy}
                 className="flex shrink-0 items-center justify-center rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition hover:text-wc-text-primary disabled:opacity-50"
-                title={t(strings.composer.attachImageTitle)}
-                aria-label={t(strings.composer.attachImageTitle)}
+                title={t(strings.composer.attachTitle)}
+                aria-label={t(strings.composer.attachTitle)}
               >
-                <ImagePlus className="h-4 w-4" />
+                <Paperclip className="h-4 w-4" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                multiple
-                hidden
-                data-testid="composer-file-input"
-                onChange={handleFilesPicked}
+              <AttachSourceMenu
+                open={attachMenuOpen}
+                onOpenChange={setAttachMenuOpen}
+                anchorRef={attachButtonRef}
+                onFilesPicked={stageFiles}
+                active={open}
               />
             </>
           )}

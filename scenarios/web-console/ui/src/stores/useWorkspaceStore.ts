@@ -38,6 +38,8 @@ export interface PaneMetadata {
    * terminal.
    */
   manuallyUnread: boolean;
+  /** A file-launched scratch terminal stays out of the sidebar until promoted. */
+  ephemeral?: boolean;
 }
 
 export interface PendingInputDraftEntry {
@@ -284,7 +286,8 @@ interface WorkspaceState {
 }
 
 interface WorkspaceActions {
-  addPane: (sessionId: string, name: string, activate?: boolean, supportsMessagesView?: boolean) => void;
+  addPane: (sessionId: string, name: string, activate?: boolean, supportsMessagesView?: boolean, ephemeral?: boolean) => void;
+  setPaneEphemeral: (sessionId: string, ephemeral: boolean) => void;
   removePane: (sessionId: string) => void;
   /** Set or clear a pane's manual unread flag. */
   setPaneManuallyUnread: (sessionId: string, manuallyUnread: boolean) => void;
@@ -554,7 +557,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 	  setPredictionLatencyThresholdMs: (value) => set({ predictionLatencyThresholdMs: Math.max(0, Math.min(1000, value)) }),
 	  resetScrollSensitivities: () => set({ touchScrollSensitivity: 1, wheelScrollSensitivity: 1 }),
 
-      addPane: (sessionId, name, activate, supportsMessagesView = false) =>
+      addPane: (sessionId, name, activate, supportsMessagesView = false, ephemeral = false) =>
         set((state) => {
           if (state.panes.some((p) => p.sessionId === sessionId)) {
             return activate ? { activePane: sessionId } : state;
@@ -571,11 +574,17 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                 groupId: null,
                 supportsMessagesView,
                 manuallyUnread: false,
+                ephemeral,
               },
             ],
             ...(activate ? { activePane: sessionId } : {}),
           };
         }),
+
+      setPaneEphemeral: (sessionId, ephemeral) =>
+        set((state) => ({
+          panes: state.panes.map((pane) => pane.sessionId === sessionId ? { ...pane, ephemeral } : pane),
+        })),
 
       removePane: (sessionId) =>
         set((state) => {

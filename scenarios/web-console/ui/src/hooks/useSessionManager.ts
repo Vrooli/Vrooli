@@ -37,6 +37,24 @@ function newLaunchIdempotencyKey(): string {
 export interface PaneState {
   session: SessionInfo;
   supportsMessagesView: boolean;
+  ephemeral?: boolean;
+}
+
+const scratchKey = (sessionId: string) => `web-console:scratch:${sessionId}`;
+
+// A pane with no saved name shows the session's own label when it has one.
+// Falling straight through to the shell basename meant every programmatically
+// created session rendered as "bash", hiding a label the API already carried
+// and making a fully labelled workspace read as a list of identical shells.
+export function defaultPaneName(session: Pick<SessionInfo, "shell" | "display_label">): string {
+  const label = session.display_label?.trim();
+  if (label) return label;
+  // `"".split("/").pop()` is "", not undefined, so `??` alone would render an
+  // empty pane name for a session with no shell recorded.
+  return session.shell.split("/").pop() || "terminal";
+}
+function isScratchSession(sessionId: string): boolean {
+  try { return sessionStorage.getItem(scratchKey(sessionId)) === "1"; } catch { return false; }
 }
 
 function supportsMessagesViewForCommand(command?: string): boolean {
@@ -150,6 +168,7 @@ export function useSessionManager() {
           setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({
             session,
             supportsMessagesView: layoutSmv.get(session.id) ?? false,
+            ephemeral: isScratchSession(session.id),
           }))));
         }
 
@@ -177,7 +196,7 @@ export function useSessionManager() {
             if (!knownPanes.has(session.id)) {
               const newPane = {
                 sessionId: session.id,
-                name: session.shell.split("/").pop() ?? "terminal",
+                name: defaultPaneName(session),
                 headerColor: store.defaultHeaderColor,
                 themeId: store.defaultThemeId,
                 fontSize: store.defaultFontSize,
@@ -244,7 +263,7 @@ export function useSessionManager() {
           useWorkspaceStore.setState({
             panes: sessions.map((s) => ({
               sessionId: s.id,
-              name: s.shell.split("/").pop() ?? "terminal",
+              name: defaultPaneName(s),
               headerColor: store.defaultHeaderColor,
               themeId: store.defaultThemeId,
               fontSize: store.defaultFontSize,
@@ -312,7 +331,8 @@ export function useSessionManager() {
     policy?: { mode: PolicyMode; duration?: string };
 	 target?: TerminalTarget;
 	workingDir?: string;
-	tmuxMouseMode?: boolean;
+	 tmuxMouseMode?: boolean;
+    ephemeral?: boolean;
   }) => {
     const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
@@ -338,7 +358,10 @@ export function useSessionManager() {
 			display_label: opts?.target?.label,
 			idempotency_key: newLaunchIdempotencyKey(),
 		});
-      setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
+      if (opts?.ephemeral) {
+        try { sessionStorage.setItem(scratchKey(session.id), "1"); } catch { /* storage is optional */ }
+      }
+      setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command), ephemeral: opts?.ephemeral }]);
       return session;
     } catch (err) {
       console.error("Failed to create session:", err);

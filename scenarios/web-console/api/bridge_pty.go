@@ -29,7 +29,7 @@ func bridgePTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	var tokenProvider func(context.Context) (string, error)
 	if strings.HasPrefix(strings.TrimSpace(token), sharedsession.LocalSessionScheme+" ") {
 		token = ""
-		tokenProvider = resolveLocalOwnerToken
+		tokenProvider = sharedsession.LocalOwnerTokenProvider()
 	}
 	client := nodereach.New(nodereach.Config{
 		BridgeURL:        baseRemoteURL(spec.RemoteURL),

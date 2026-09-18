@@ -349,7 +349,7 @@ exemption.
 | File | Endpoint | Reason | Why REST |
 |---|---|---|---|
 | [CODE: ui/src/api/health.ts] | `GET /health` | `RESTReasonOpsProbe` | The API liveness probe must answer before Connect-RPC routing is wired up. Load balancers, lifecycle checks, and `curl` need the simplest possible shape. The proto in `packages/proto/schemas/web-console/v1/health/health.proto` carries the JSON wire shape so the response decodes through `fromJson(ResponseSchema, ...)` for type safety — there is no hand-rolled `HealthResponse` type. |
-| [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart binary upload. Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
+| [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart file upload (images, video, audio, PDF, archives, text/code). Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. The server streams the part to disk, refuses native executables by extension and magic bytes, and applies a per-category size cap. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
 | [CODE: ui/src/api/filePreview.ts] (consumed by native elements, not `fetch`) | `GET\|HEAD /sessions/{id}/file-previews/{previewId}/blob` | `RESTReasonOpsProbe` | Byte-range blob stream consumed directly by native `<img>/<video>/<audio>/<iframe>` `src`/`href` — browser-native transport Connect cannot express (the same category as `terminal_ws`). The opaque, session-bound `preview_id` (never a raw path) is issued by `FilePreviewService.Resolve`; preview metadata + bounded text stay proto-typed over Connect. Bytes never travel through Connect. |
 | [CODE: ui/src/api/ttsHook.ts] | `POST /api/v1/tts-hook/{ack,playback}`; `GET /api/v1/tts-hook/{status,config}` | `RESTReasonHostHookGlue` | Claude project-settings hook routing and playback diagnostics are a deliberately tiny web-console-internal surface. It never crosses scenario boundaries; audio synthesis stays on the Connect-RPC audio-tools path. |
 | [CODE: ui/src/api/ai.ts] | `POST /api/v1/ai/generate` | `RESTReasonBrowserSurface` | The browser-facing JSON endpoint preserves the typed `credits_required` 402 response used by the AI composer. The endpoint descriptor explicitly records this exception; the Connect service remains available for typed callers. |
@@ -1682,6 +1682,14 @@ Web Console must not add a CORS escape hatch or call audio provider resources
 directly.
 
 ## Storage ownership and persistence boundaries
+
+## Desktop browser seam
+
+The desktop pane seam is the generated Bridge/Device Control contract plus a
+browser WebRTC adapter. Tests must cover readiness rendering, offer/answer
+ordering, reconnect with a fresh lease, viewer write refusal, clipboard
+direction, and revoke cleanup. UI code must not introduce a direct node URL or
+fallback shell path.
 
 Domain-owned schemas under `api/internal/` are initialized idempotently through
 the database substrate. Repository interfaces hide SQLite from handlers;

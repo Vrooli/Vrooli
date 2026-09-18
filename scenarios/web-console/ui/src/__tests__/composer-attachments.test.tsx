@@ -26,6 +26,18 @@ function pngFile(name: string): File {
   return new File(["fake"], name, { type: "image/png" });
 }
 
+function videoFile(name: string): File {
+  return new File(["fake"], name, { type: "video/mp4" });
+}
+
+function audioFile(name: string): File {
+  return new File(["fake"], name, { type: "audio/mpeg" });
+}
+
+function textFile(name: string): File {
+  return new File(["fake"], name, { type: "text/plain" });
+}
+
 interface HarnessProps {
   onInput?: (data: string, source: string) => GateResult;
   subscribe?: (cb: SettledCb) => () => void;
@@ -62,11 +74,25 @@ describe("useComposerAttachments", () => {
     (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
   });
 
-  it("stages image files and ignores non-images", () => {
+  it("stages images, video, audio, and text files", () => {
     const { result } = renderHook(() => useComposerAttachments());
-    act(() => result.current.addFiles([pngFile("a.png"), new File(["x"], "s.sh", { type: "text/plain" })]));
+    act(() => result.current.addFiles([pngFile("a.png"), videoFile("b.mp4"), audioFile("c.mp3"), textFile("notes.md")]));
+    expect(result.current.attachments).toHaveLength(4);
+    expect(result.current.attachments.map((a) => a.kind)).toEqual(["image", "video", "audio", "file"]);
+  });
+
+  it("rejects executables and reports them", () => {
+    const { result } = renderHook(() => useComposerAttachments());
+    let rejected: string[] = [];
+    act(() => {
+      rejected = result.current.addFiles([
+        new File(["MZ"], "evil.exe", { type: "application/octet-stream" }),
+        new File(["data"], "safe.zip", { type: "application/zip" }),
+      ]);
+    });
+    expect(rejected).toEqual(["evil.exe"]);
     expect(result.current.attachments).toHaveLength(1);
-    expect(result.current.attachments[0]?.file.name).toBe("a.png");
+    expect(result.current.attachments[0]?.file.name).toBe("safe.zip");
   });
 
   it("removes a single attachment and clears all", () => {
@@ -92,6 +118,23 @@ describe("FullScreenComposer — staged attachments", () => {
     (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
   });
 
+  it("exposes a Camera / Photos / Files source menu", () => {
+    render(<AttachHarness />);
+    fireEvent.click(screen.getByTestId("composer-attach"));
+    expect(screen.getByTestId("composer-attach-camera")).toBeTruthy();
+    expect(screen.getByTestId("composer-attach-photos")).toBeTruthy();
+    expect(screen.getByTestId("composer-attach-files")).toBeTruthy();
+  });
+
+  it("routes the Photos source to the media input", () => {
+    render(<AttachHarness />);
+    fireEvent.click(screen.getByTestId("composer-attach"));
+    const photos = screen.getByTestId("composer-photos-input") as HTMLInputElement;
+    const clickSpy = vi.spyOn(photos, "click");
+    fireEvent.click(screen.getByTestId("composer-attach-photos"));
+    expect(clickSpy).toHaveBeenCalled();
+  });
+
   it("stages picked files into the review tray", () => {
     render(<AttachHarness />);
     expect(screen.queryByTestId("composer-attachment-tray")).toBeNull();
@@ -100,17 +143,34 @@ describe("FullScreenComposer — staged attachments", () => {
     expect(screen.getByTestId("composer-attachment-tray")).toBeTruthy();
   });
 
+  it("shows a warning when a file is rejected as an executable", () => {
+    render(<AttachHarness />);
+    const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    act(() => fireEvent.change(input, { target: { files: [new File(["MZ"], "evil.exe", { type: "application/octet-stream" })] } }));
+    expect(screen.getByTestId("composer-attach-error")).toBeTruthy();
+    expect(screen.queryByTestId("composer-attachment-tray")).toBeNull();
+  });
+
   it("opens a staged image in a full-size preview", async () => {
     render(<AttachHarness />);
     const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
     act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));
 
     fireEvent.click(screen.getByTestId(/composer-attachment-preview-/));
-    expect(screen.getByTestId("composer-image-preview")).toBeTruthy();
-    expect(screen.getByTestId("composer-image-preview").querySelector("img")?.getAttribute("src")).toBe("blob:mock/1");
+    expect(screen.getByTestId("composer-attachment-preview")).toBeTruthy();
+    expect(screen.getByTestId("composer-attachment-preview").querySelector("img")?.getAttribute("src")).toBe("blob:mock/1");
 
-    fireEvent.pointerDown(screen.getByTestId("composer-image-preview.backdrop"));
-    await waitFor(() => expect(screen.queryByTestId("composer-image-preview")).toBeNull());
+    fireEvent.pointerDown(screen.getByTestId("composer-attachment-preview.backdrop"));
+    await waitFor(() => expect(screen.queryByTestId("composer-attachment-preview")).toBeNull());
+  });
+
+  it("renders a video attachment with a video element", () => {
+    render(<AttachHarness />);
+    const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    act(() => fireEvent.change(input, { target: { files: [videoFile("clip.mp4")] } }));
+    fireEvent.click(screen.getByTestId(/composer-attachment-preview-/));
+    const dialog = screen.getByTestId("composer-attachment-preview");
+    expect(dialog.querySelector("video")).toBeTruthy();
   });
 
   it("composes ONE payload = text + resolved paths in order, then clears on ok", async () => {
@@ -159,7 +219,7 @@ describe("FullScreenComposer — staged attachments", () => {
     expect((screen.getByTestId("composer-input") as HTMLTextAreaElement).value).toBe("with pic");
   });
 
-  it("prompts to discard when minimizing with staged images", async () => {
+  it("prompts to discard when minimizing with staged files", async () => {
     render(<AttachHarness />);
     const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
     act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));

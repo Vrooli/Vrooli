@@ -412,6 +412,15 @@ This section maps each PRD operational target to its implementing code and docum
 | OT-P1-003 | AI Provider Policy Controls | [CODE: api/internal/ai/config_store_mem.go], [CODE: api/internal/ai/config_store_sql.go], [CODE: ui/src/components/IntegrationsPanel.tsx] | [DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries] |
 | OT-P1-004 | Operational Observability Coverage | [CODE: api/internal/metrics/metrics.go], [CODE: api/internal/events/events.go] | [DOC: docs/internal/SEAMS.md#6-cross-cutting] |
 
+## Remote desktop presentation
+
+Web Console owns the operator-facing desktop pane, not desktop authority.
+It requests a typed session from Bridge, consumes the Device Control/WebRTC
+offer, renders one selected display, sends raw input and semantic actions only
+when the controller lease is held, and presents typed readiness/refusal
+states. It must not call a node directly, store credentials, or implement
+capture/input semantics.
+
 ### P2 – Future
 
 | Target | Description | Implementation | Docs |

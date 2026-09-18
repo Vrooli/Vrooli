@@ -41,8 +41,8 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "terminal_upload",
 		Path:        "/api/v1/sessions/{id}/upload",
 		Method:      "POST",
-		Summary:     "Upload an image to a terminal session",
-		Description: "Multipart image upload that stores the image under the session workspace so the user can reference it from the terminal by path.",
+		Summary:     "Upload a file to a terminal session",
+		Description: "Multipart file upload (images, video, audio, PDF, archives, text/code) that streams the file under the session workspace so the user can reference it from the terminal by path. Executables are refused; each category has its own size cap.",
 		Category:    "terminal",
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,

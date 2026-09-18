@@ -201,6 +201,14 @@ recording done
 
 ### Two-Tier Transcription Timing
 
+## Desktop pane timing
+
+`closed/revoked` is terminal for the current browser transport. A network
+disconnect may enter `reconnecting`, but input remains disabled until a fresh
+server-authorized lease and WebRTC transport are established. A late frame or
+late input acknowledgement from the previous transport is ignored by session
+id and generation.
+
 In persistent voice mode, transcription operates at two quality tiers:
 
 1. **Tier 1 — Streaming partials** (every ~500ms): Fast, rough transcription of audio deltas for real-time UI feedback. Same mechanism as one-shot mode.

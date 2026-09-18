@@ -8,7 +8,7 @@
 
 ## 🎯 Overview
 
-**Purpose**: Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios. It is useful without an account and supports an optional Vrooli subscription identity and user-owned provider keys.
+**Purpose**: Web Console delivers a full-fidelity terminal and desktop-session experience in the browser with pane-based workflows, durable sessions, AI-assisted input generation, and authenticated parent-scenario integration. It is useful without an account and supports an optional Vrooli subscription identity and user-owned provider keys. Desktop sessions are presented here but are operated by Device Control and reached through Vrooli Bridge.
 
 **Primary Users**:
 - Operators and engineers running interactive CLI workflows (Claude Code, Codex, diagnostics)
@@ -35,6 +35,7 @@
 - [ ] OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | New-terminal flow offers empty shell and configurable shortcut entries; default entries include `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` and `codex --yolo`
 - [ ] OT-P0-007 | Mobile Terminal Usability Toolbar | Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage
 - [ ] OT-P0-008 | Sidebar/Drawer Controls Surface | Drawer exposes session/workspace status, sender-owned message snippets, bounded message actions, and core controls without blocking primary terminal workflow
+- [ ] OT-P0-009 | Input-capable remote desktop pane | The workspace can open a Device Control desktop session for an authorized Bridge node, render one selected display through WebRTC, provide lease-aware mouse/keyboard controls and explicit text clipboard actions, show typed readiness/permission/revocation states, and reconnect without replaying uncertain input.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Session Policy Controls | Per-workspace/session expiration policy controls (never, preset TTL, custom) with explicit persistence behavior

@@ -185,8 +185,8 @@ describe("TerminalPane upload integration", () => {
     expect(globalThis.fetch).toHaveBeenCalled();
   });
 
-  it("drop event with non-image file is ignored", async () => {
-    mockFetchSuccess({ path: "/tmp/test.txt" });
+  it("drop event with a non-image file triggers upload", async () => {
+    mockFetchSuccess({ path: "/tmp/web-console-uploads/s4/readme.txt" });
 
     await act(async () => {
       render(<TerminalPane sessionId="s4" />);
@@ -198,10 +198,33 @@ describe("TerminalPane upload integration", () => {
       files: [file],
     };
 
+    await act(async () => {
+      fireEvent.drop(pane, { dataTransfer });
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/upload"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("drop event with an executable file is ignored", async () => {
+    mockFetchSuccess({ path: "/tmp/web-console-uploads/s5/evil.exe" });
+
+    await act(async () => {
+      render(<TerminalPane sessionId="s5" />);
+    });
+    const pane = screen.getByTestId("terminal-pane");
+
+    const file = new File(["MZ"], "evil.exe", { type: "application/octet-stream" });
+    const dataTransfer = {
+      files: [file],
+    };
+
     fireEvent.drop(pane, { dataTransfer });
 
     expect(globalThis.fetch).not.toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/upload/image"),
+      expect.stringContaining("/upload"),
       expect.anything(),
     );
   });

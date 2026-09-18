@@ -1,5 +1,5 @@
 // Package terminal owns the terminal-session HTTP surface: the
-// per-session multipart upload (image injection) and the terminal
+// per-session multipart upload (file injection) and the terminal
 // WebSocket bridge.
 //
 // Both endpoints stay REST: upload because multipart cannot be carried
@@ -24,7 +24,7 @@ import (
 	"web-console/internal/module"
 )
 
-// LegacyDeps groups the REST-only handler functions (image upload and
+// LegacyDeps groups the REST-only handler functions (file upload and
 // xterm.js WebSocket bridge). They stay REST — multipart can't ride
 // Connect, and xterm.js needs a raw WS upgrade.
 type LegacyDeps struct {

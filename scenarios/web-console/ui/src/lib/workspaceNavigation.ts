@@ -454,6 +454,7 @@ export function buildOriginBucketedNavigation({
   ...options
 }: BuildOriginBucketedNavigationOptions): OriginBucketNavigation[] {
   const { panes } = options;
+  const visiblePanes = panes.filter((pane) => !pane.ephemeral);
   const globalIndexBySession: Record<string, number> = {};
   panes.forEach((pane, index) => {
     globalIndexBySession[pane.sessionId] = index;
@@ -483,7 +484,7 @@ export function buildOriginBucketedNavigation({
 
   const result: OriginBucketNavigation[] = [];
   for (const bucket of ORIGIN_BUCKET_ORDER) {
-    const bucketPanes = panes.filter((pane) => bucketForPane(pane) === bucket);
+    const bucketPanes = visiblePanes.filter((pane) => bucketForPane(pane) === bucket);
     // Each bucket sees only its own panes' roles, plus — in "ui" — every
     // role-only group. Passing the whole role list to every bucket would
     // draw the same waiting role in each of them.

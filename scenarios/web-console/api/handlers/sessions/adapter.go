@@ -970,8 +970,15 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 			_, err := a.Store.Get(ctx, id)
 			persisted = err == nil
 		}
+		// A session that is neither live nor persisted does not exist. Report
+		// that instead of returning success: a caller cannot otherwise tell a
+		// completed delete from one that matched nothing, and an id that is
+		// merely mistyped or truncated reads as a successful deletion. Genuine
+		// retries are already absorbed by the receipt replay path above, so
+		// this costs no idempotency. Archive reports the same condition the
+		// same way.
 		if !managed && !persisted {
-			return nil
+			return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
 		}
 		if a.ContinuityCatalog != nil {
 			if err := a.ContinuityCatalog.EnqueueTombstone(ctx, id); err != nil {

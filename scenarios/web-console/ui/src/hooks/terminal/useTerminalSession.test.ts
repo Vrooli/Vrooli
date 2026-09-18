@@ -23,7 +23,7 @@ describe("stripTerminalResponses", () => {
     expect(stripTerminalResponses("before\x1b]10;rgb:ffff/ffff/ffff\x07after")).toBe("beforeafter");
   });
 
-  it("routes the session protocol through one socket and reports state transitions", () => {
+  it("routes the session protocol through one socket and reports state transitions", async () => {
     const socket = new SessionSocket();
     const terminal = createTerminalStub();
     const statuses: unknown[] = [];
@@ -60,8 +60,8 @@ describe("stripTerminalResponses", () => {
     message({ type: "stdout", data: "live" });
     message({ type: "size_info", cols: 100, rows: 30, holdsLease: false, leaderDevice: "tablet", viewerCount: 2 });
     message({ type: "size_info", cols: 0, rows: 0 });
-    expect(terminal.write).toHaveBeenNthCalledWith(1, "snapshot");
-    expect(terminal.write).toHaveBeenNthCalledWith(2, "live");
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+    expect(terminal.write).toHaveBeenCalledWith("snapshotlive");
     expect(terminal.resize).toHaveBeenCalledWith(100, 30);
     expect(result.current.serverSize).toEqual({ cols: 100, rows: 30 });
     expect(result.current.isFollower).toBe(true);
@@ -120,7 +120,7 @@ describe("stripTerminalResponses", () => {
 });
 
 describe("reconnect presentation", () => {
-  it("reports reconnect in pane status without writing operator text to xterm", () => {
+  it("reports reconnect in pane status without writing operator text to xterm", async () => {
     const socket = new SessionSocket();
     const terminal = createTerminalStub();
     const statuses: unknown[] = [];
@@ -143,6 +143,7 @@ describe("reconnect presentation", () => {
 
     act(() => socket.onclose?.({ code: 1006 } as CloseEvent));
     act(() => socket.onopen?.());
+	await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
 
     expect(statuses).toContainEqual({ kind: "disconnected" });
     expect(statuses).toContainEqual({ kind: "reconnected" });

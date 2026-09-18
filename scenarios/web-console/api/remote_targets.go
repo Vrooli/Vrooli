@@ -98,7 +98,7 @@ func freshOwnerAuthorization(ctx context.Context, owner string) string {
 	if !hasExplicitAuthScheme(owner, sharedsession.LocalSessionScheme) {
 		return owner
 	}
-	if fresh, err := resolveLocalOwnerToken(ctx); err == nil && strings.TrimSpace(fresh) != "" {
+	if fresh, err := sharedsession.LocalOwnerTokenProvider()(ctx); err == nil && strings.TrimSpace(fresh) != "" {
 		return fresh
 	}
 	return owner
@@ -198,7 +198,7 @@ func bridgeNodeClient(ctx context.Context) (*nodereach.Client, targetConnection)
 		// Do not pin a short-lived local session into a client. nodereach asks
 		// the provider for a fresh owner credential for each request.
 		clientToken = ""
-		tokenProvider = resolveLocalOwnerToken
+		tokenProvider = sharedsession.LocalOwnerTokenProvider()
 	}
 	nodeClient := newBridgeNodeClient(base, resolveBridgeScenarioURL, clientToken, tokenProvider)
 	if base.BaseURL == "" {
@@ -261,18 +261,6 @@ func ownerAuthorization(value string) string {
 		return value
 	}
 	return "Bearer " + value
-}
-
-func resolveLocalOwnerToken(context.Context) (string, error) {
-	store, err := sharedsession.DefaultFileStore()
-	if err != nil {
-		return "", nil
-	}
-	resolution, err := (sharedsession.LocalResolver{Store: store}).Resolve()
-	if err != nil || strings.TrimSpace(resolution.Token) == "" {
-		return "", nil
-	}
-	return sharedsession.LocalSessionScheme + " " + resolution.Token, nil
 }
 
 func websocketScheme(scheme string) string {
