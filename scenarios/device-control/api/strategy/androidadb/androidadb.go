@@ -136,6 +136,14 @@ func (a *Adapter) ForDevice(serial string) strategy.Strategy {
 	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
 }
 
+// NewNetworkTransport returns a fresh, unbound adapter that shares this
+// adapter's runner. The control service calls ConnectNetwork on the returned
+// adapter to onboard a directly-addressable endpoint without mutating the shared
+// registry instance.
+func (a *Adapter) NewNetworkTransport() strategy.Strategy {
+	return &Adapter{runner: a.runner, recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
+}
+
 // RestoreWireless rebuilds an endpoint-bound adapter after the control
 // service is restarted. The endpoint was previously verified against the
 // hardware serial during promotion and is restored only from durable local
@@ -374,7 +382,11 @@ func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		frame, err := a.runner.Run(ctx, "adb", a.args("exec-out", "screencap", "-p")...)
-		if err != nil || !displayFrameVisible(frame) {
+		if err != nil {
+			return
+		}
+		frame = sanitizeCapturedImage(frame)
+		if !displayFrameVisible(frame) {
 			return
 		}
 		samples.mu.Lock()
@@ -394,8 +406,38 @@ func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct
 	}
 }
 
+// screencapImageSignatures are the encoded-frame prefixes device-control
+// accepts from `adb screencap -p`. Some Android and Android-TV firmware images
+// print startup log lines to stdout before the encoded frame — observed on a
+// SmartTV 4K where 65 bytes ("Init wrapper sys mutex successful...\nopen mma
+// dev failed\n") precede the PNG signature. Left unstripped, that preamble
+// makes an otherwise valid frame decode as "image: unknown format".
+var screencapImageSignatures = [][]byte{
+	{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, // PNG
+	{0xff, 0xd8, 0xff},                            // JPEG
+}
+
+// sanitizeCapturedImage returns the byte slice starting at the first decodable
+// image signature. It fast-paths a frame that already decodes at offset 0 and,
+// when a firmware log preamble is present, trims to the earliest signature that
+// yields a valid image header. Genuinely corrupt output is returned unchanged
+// so the caller's decode error still surfaces the real failure.
+func sanitizeCapturedImage(raw []byte) []byte {
+	if _, _, err := image.DecodeConfig(bytes.NewReader(raw)); err == nil {
+		return raw
+	}
+	for _, sig := range screencapImageSignatures {
+		if idx := bytes.Index(raw, sig); idx > 0 {
+			if _, _, err := image.DecodeConfig(bytes.NewReader(raw[idx:])); err == nil {
+				return raw[idx:]
+			}
+		}
+	}
+	return raw
+}
+
 func displayFrameVisible(raw []byte) bool {
-	img, _, err := image.Decode(bytes.NewReader(raw))
+	img, _, err := image.Decode(bytes.NewReader(sanitizeCapturedImage(raw)))
 	if err != nil {
 		return false
 	}
@@ -679,6 +721,122 @@ func (a *Adapter) PromoteWireless(ctx context.Context) error {
 	a.endpoint = endpoint
 	a.transport = "wireless"
 	return nil
+}
+
+// validateADBEndpoint bounds the caller-supplied network address to a host:port
+// pair with a numeric port. It rejects shell metacharacters so the value can
+// never widen `adb connect` into an arbitrary command; only a transport address
+// is ever accepted from the caller.
+func validateADBEndpoint(endpoint string) error {
+	if endpoint == "" {
+		return fmt.Errorf("network adb endpoint is required (host:port)")
+	}
+	if len(endpoint) > 255 {
+		return fmt.Errorf("network adb endpoint exceeds bounded length")
+	}
+	if strings.ContainsAny(endpoint, " \t\r\n;&|$`\"'\\<>()") {
+		return fmt.Errorf("network adb endpoint contains unsupported characters")
+	}
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		return fmt.Errorf("network adb endpoint must be host:port: %w", err)
+	}
+	if strings.TrimSpace(host) == "" {
+		return fmt.Errorf("network adb endpoint requires a host")
+	}
+	portNum, err := strconv.Atoi(port)
+	if err != nil || portNum < 1 || portNum > 65535 {
+		return fmt.Errorf("network adb endpoint requires a valid TCP port")
+	}
+	return nil
+}
+
+// endpointTransportState reports whether the endpoint currently shows a "device"
+// state in `adb devices -l`, returning a typed, owner-actionable reason when it
+// is unauthorized, offline, or absent.
+func (a *Adapter) endpointTransportState(ctx context.Context, endpoint string) (string, error) {
+	out, err := a.runner.Run(ctx, "adb", "devices", "-l")
+	if err != nil {
+		return "", fmt.Errorf("verify adb endpoint transport: %w", err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) >= 2 && fields[0] == endpoint {
+			return fields[1], nil
+		}
+	}
+	return "", nil
+}
+
+// ConnectNetwork onboards a directly-addressable Android ADB endpoint — classic
+// TCP ADB (port 5555, e.g. an Android TV or TV box) or Wireless Debugging/TLS —
+// without a prior USB attachment. It runs `adb connect`, waits for the
+// transport, confirms authorization, and reads the hardware serial over the
+// verified endpoint so the durable identity is the device, never the network
+// address. The receiver becomes endpoint-bound and the verified Device is
+// returned for the caller to persist as the device's transport strategy.
+func (a *Adapter) ConnectNetwork(ctx context.Context, endpoint string) (strategy.Device, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	if err := validateADBEndpoint(endpoint); err != nil {
+		return strategy.Device{}, err
+	}
+	if out, err := a.runner.Run(ctx, "adb", "connect", endpoint); err != nil {
+		return strategy.Device{}, fmt.Errorf("connect adb endpoint %q: %w: %s", endpoint, err, strings.TrimSpace(string(out)))
+	} else if o := strings.ToLower(string(out)); strings.Contains(o, "cannot connect") || strings.Contains(o, "failed to connect") {
+		return strategy.Device{}, fmt.Errorf("connect adb endpoint %q: %s", endpoint, strings.TrimSpace(string(out)))
+	}
+	if _, err := a.runner.Run(ctx, "adb", "-s", endpoint, "wait-for-device"); err != nil {
+		return strategy.Device{}, fmt.Errorf("wait for adb endpoint %q: %w", endpoint, err)
+	}
+	state, err := a.endpointTransportState(ctx, endpoint)
+	if err != nil {
+		return strategy.Device{}, err
+	}
+	switch state {
+	case "device":
+	case "unauthorized":
+		return strategy.Device{}, fmt.Errorf("adb endpoint %q is unauthorized; accept the debugging prompt on the device and retry", endpoint)
+	case "":
+		return strategy.Device{}, fmt.Errorf("adb endpoint %q did not attach; verify the address and that ADB debugging is enabled", endpoint)
+	default:
+		return strategy.Device{}, fmt.Errorf("adb endpoint %q is in state %q; expected an authorized device", endpoint, state)
+	}
+	// The hardware serial (never the transport address) is the durable identity.
+	serial := ""
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		out, propErr := a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
+		if propErr == nil {
+			if candidate := strings.TrimSpace(string(out)); candidate != "" {
+				serial = candidate
+				break
+			}
+		}
+		lastErr = propErr
+		if attempt < 4 {
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
+	if serial == "" {
+		if lastErr == nil {
+			lastErr = fmt.Errorf("device did not report ro.serialno")
+		}
+		return strategy.Device{}, fmt.Errorf("verify adb endpoint identity: %w", lastErr)
+	}
+	a.endpoint = endpoint
+	a.serial = serial
+	a.identitySerial = serial
+	a.transport = "wireless"
+	devices, err := a.Enumerate(ctx)
+	if err != nil {
+		return strategy.Device{}, fmt.Errorf("enumerate onboarded endpoint %q: %w", endpoint, err)
+	}
+	for _, device := range devices {
+		if device.Endpoint == endpoint || device.Serial == serial {
+			return device, nil
+		}
+	}
+	return strategy.Device{}, fmt.Errorf("onboarded endpoint %q was not present after connect", endpoint)
 }
 
 func wirelessAddress(route string) string {
@@ -1023,6 +1181,16 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 			caps[probe.name] = strategy.ProbeCapability(probe.name, available, probe.next, probe.next, evidence)
 			continue
 		}
+		if probe.name == strategy.CapScreenshot {
+			// A non-zero exit is not the only screenshot failure: some firmware
+			// images stream a valid container prefixed with log noise, and
+			// others return non-image bytes. Require an actually decodable frame
+			// so the declaration cannot claim screenshot support the observer
+			// path would then reject with "image: unknown format".
+			available, next := a.probeScreenshot(ctx)
+			caps[probe.name] = strategy.ProbeCapability(probe.name, available, next, next, "adb exec-out screencap -p")
+			continue
+		}
 		_, err := a.runner.Run(ctx, "adb", a.args(probe.args...)...)
 		caps[probe.name] = strategy.ProbeCapability(probe.name, err == nil, probe.next, probe.next, "adb "+strings.Join(probe.args, " "))
 	}
@@ -1051,6 +1219,22 @@ func (a *Adapter) probeNetworkControl(ctx context.Context) (bool, string) {
 		return true, "adb shell cmd connectivity airplane-mode"
 	}
 	return false, "adb shell svc wifi; adb shell cmd connectivity airplane-mode"
+}
+
+// probeScreenshot verifies that the device can produce a frame the observer
+// path will actually decode. It applies the same log-preamble sanitization used
+// at capture time so an Android-TV firmware that prefixes screencap output is
+// reported as available, while a device that returns non-image bytes is
+// reported unavailable with a decode-specific next action.
+func (a *Adapter) probeScreenshot(ctx context.Context) (bool, string) {
+	out, err := a.runner.Run(ctx, "adb", a.args("exec-out", "screencap", "-p")...)
+	if err != nil {
+		return false, "adb screencap is unavailable; verify the device is authorized"
+	}
+	if _, _, decodeErr := image.DecodeConfig(bytes.NewReader(sanitizeCapturedImage(out))); decodeErr != nil {
+		return false, "adb screencap returned bytes device-control cannot decode as an image; the device may lack a display surface (use Cast/Remote for screenless control)"
+	}
+	return true, "adb screencap is unavailable; verify the device is authorized"
 }
 
 func unavailable(next string) strategy.Declaration {
@@ -1476,7 +1660,8 @@ func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	if err != nil {
 		return strategy.Frame{}, fmt.Errorf("adb screencap: %w", err)
 	}
-	config, _, err := image.DecodeConfig(strings.NewReader(string(data)))
+	data = sanitizeCapturedImage(data)
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return strategy.Frame{}, fmt.Errorf("decode adb screenshot: %w", err)
 	}
@@ -1795,6 +1980,9 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			return fmt.Errorf("adb %s: %w: %s", event.Action, err, strings.TrimSpace(string(out)))
 		}
 		if err == nil && event.Output != nil && (event.Action == "device-logs" || event.Action == "logcat-stop" || event.Action == "clock-sample" || event.Action == "screenshot" || event.Action == "clipboard-read") {
+			if event.Action == "screenshot" {
+				out = sanitizeCapturedImage(out)
+			}
 			*event.Output = out
 		}
 		return err
@@ -1815,7 +2003,18 @@ func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycl
 		return strategy.AppLifecycleResult{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: operation}
 	}
 	if operation == "package-state" {
-		return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Reason: "package state is observed through the next device-state probe"}, nil
+		installed, version, err := a.packageState(ctx, request.Package)
+		if err != nil {
+			return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
+		}
+		result := strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Installed: installed}
+		if installed {
+			result.Version = version
+			result.Reason = "package is installed"
+		} else {
+			result.Reason = "package is not installed"
+		}
+		return result, nil
 	}
 	event := strategy.Actuation{Action: operation, Package: request.Package, Permission: request.Permission, Value: request.Value}
 	switch operation {
@@ -1831,6 +2030,35 @@ func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycl
 		return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
 	}
 	return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable}, nil
+}
+
+var packageVersionPattern = regexp.MustCompile(`versionName=(\S+)`)
+
+// packageState reports whether a package is installed on the target and, when
+// present, its versionName. It matches the exact package line (not a prefix) so
+// `com.foo` is never reported present because `com.foobar` is installed.
+func (a *Adapter) packageState(ctx context.Context, pkg string) (bool, string, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "pm", "list", "packages", pkg)...)
+	if err != nil {
+		return false, "", fmt.Errorf("query package state: %w", err)
+	}
+	installed := false
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == "package:"+pkg {
+			installed = true
+			break
+		}
+	}
+	if !installed {
+		return false, "", nil
+	}
+	version := ""
+	if info, infoErr := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "package", pkg)...); infoErr == nil {
+		if match := packageVersionPattern.FindStringSubmatch(string(info)); len(match) == 2 {
+			version = match[1]
+		}
+	}
+	return true, version, nil
 }
 
 func maxInt(value, fallback int) int {

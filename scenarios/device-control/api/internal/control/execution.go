@@ -1178,6 +1178,17 @@ func executeScrollTo(ctx context.Context, dispatch func(context.Context, strateg
 	return dispatch(ctx, strategy.Actuation{Action: "scroll-to", Value: step.Target})
 }
 
+// hasTransportStrategy reports whether an endpoint-bound transport strategy is
+// registered (restoring persisted state first) for the device. It is used to
+// decide whether an unselected transport can default to wireless.
+func (s *Service) hasTransportStrategy(deviceID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.restoreTransportStrategies()
+	_, ok := s.transportStrategies[deviceID]
+	return ok
+}
+
 // strategyForFlow resolves a requested transport profile against the durable
 // identity. Promotion keeps the legacy wireless endpoint-bound strategy
 // separate, while ordinary composed identities can select any named profile.
@@ -1191,11 +1202,18 @@ func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy
 		return nil, false
 	}
 	if requestedTransport == "" {
-		// Preserve the legacy USB default for an unselected wireless promotion,
-		// while allowing a composed identity's selected REST/mDNS/etc. transport
-		// to be the natural default for a modality-specific device.
+		// Default an unselected transport to the device's current transport. A
+		// composed identity's selected REST/mDNS transport is the natural default
+		// for a modality-specific device. A wireless device resolves to its
+		// endpoint-bound transport when one is registered — this covers both a
+		// USB-promoted phone and a directly-onboarded network TV/box, the latter
+		// of which has no USB base to fall back to. USB remains the default only
+		// when no wireless strategy is available.
 		requestedTransport = strings.ToLower(strings.TrimSpace(record.Transport))
-		if requestedTransport == "" || requestedTransport == "wireless" {
+		if requestedTransport == "" {
+			requestedTransport = "usb"
+		}
+		if requestedTransport == "wireless" && !s.hasTransportStrategy(deviceID) {
 			requestedTransport = "usb"
 		}
 	}
@@ -1204,6 +1222,7 @@ func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy
 			return nil, false
 		}
 		s.mu.Lock()
+		s.restoreTransportStrategies()
 		deferred, promoted := s.transportStrategies[deviceID]
 		s.mu.Unlock()
 		return deferred, promoted

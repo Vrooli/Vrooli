@@ -456,6 +456,75 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 	return deviceFromRecord(s.devices.UpsertIdentity(record)), nil
 }
 
+// OnboardNetworkADB adopts a directly-addressable Android ADB endpoint (classic
+// TCP ADB on port 5555 for an Android TV or TV box, or Wireless Debugging/TLS)
+// as a first-class governed device. It runs the strategy's verified connect,
+// derives the stable identity from the hardware serial, probes live
+// capabilities, and persists an endpoint-bound transport so subsequent
+// state/app-lifecycle/actuation verbs route through the same profile. The
+// network I/O runs before the inventory lock is taken.
+func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Device, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	base, ok := s.registry.Get("android-adb")
+	if !ok {
+		return Device{}, fmt.Errorf("android-adb strategy is unavailable")
+	}
+	factory, ok := base.(interface {
+		NewNetworkTransport() strategy.Strategy
+	})
+	if !ok {
+		return Device{}, fmt.Errorf("android-adb strategy does not support network onboarding")
+	}
+	adapter := factory.NewNetworkTransport()
+	onboarder, ok := adapter.(interface {
+		ConnectNetwork(context.Context, string) (strategy.Device, error)
+	})
+	if !ok {
+		return Device{}, fmt.Errorf("android-adb strategy does not support network onboarding")
+	}
+	discovered, err := onboarder.ConnectNetwork(ctx, endpoint)
+	if err != nil {
+		return Device{}, err
+	}
+	declaration, err := adapter.Describe(ctx)
+	if err != nil {
+		return Device{}, fmt.Errorf("probe onboarded endpoint capabilities: %w", err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	identityKey := discovered.IdentityKey
+	if identityKey == "" {
+		identityKey = discovered.Serial
+	}
+	record := devicedomain.Record{
+		ID: discovered.ID, IdentityKey: identityKey, IdentityKind: discovered.IdentityKind,
+		Claims: claimsForDevice(discovered), Name: discovered.Model, Kind: deviceKind(discovered),
+		Serial: discovered.Serial, Endpoint: discovered.Endpoint, Model: discovered.Model,
+		OSVersion: discovered.OSVersion, StrategyID: discovered.StrategyID,
+		Status: strategy.StatusAvailable, Health: strategy.StatusAvailable,
+		HealthReason: "network ADB endpoint verified against the device serial",
+		Transport:    discovered.Transport, ObservedAt: time.Now().UTC(),
+		Capabilities: mapCaps(declaration),
+		Operations:   append([]string(nil), declaration.Operations...),
+		Properties:   append([]strategy.PropertyDescriptor(nil), declaration.Properties...),
+	}
+	if record.Name == "" {
+		record.Name = record.Serial
+	}
+	merged := s.devices.UpsertIdentity(record)
+	state := transportState{DeviceID: merged.ID, Serial: merged.Serial, StrategyID: merged.StrategyID, Transport: discovered.Transport, Endpoint: discovered.Endpoint, UpdatedAt: time.Now().UTC()}
+	if err := s.persistTransportState(ctx, state); err != nil {
+		return Device{}, err
+	}
+	s.transportStrategies[merged.ID] = adapter
+	s.transportStates[merged.ID] = state
+	_ = s.persistObservedTransportProfiles(ctx, merged)
+	_ = s.persistIdentityClaims(ctx, merged)
+	s.startObserverLocked(merged)
+	return deviceFromRecord(merged), nil
+}
+
 // ReconnectWireless revalidates a promoted wireless transport and allows the
 // Android adapter to replace a stale endpoint through authenticated mDNS
 // discovery. The stable device identity remains bound to the onboarded serial.

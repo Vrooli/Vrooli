@@ -167,6 +167,11 @@ type AppLifecycleResult struct {
 	Package   string `json:"package,omitempty"`
 	Status    string `json:"status"`
 	Reason    string `json:"reason,omitempty"`
+	// Installed is the verified package-presence result for a package-state
+	// query. Status reports whether the operation itself succeeded; Installed
+	// reports the live on-device fact.
+	Installed bool   `json:"installed"`
+	Version   string `json:"version,omitempty"`
 }
 
 // AppLifecycle is optional. A strategy must implement the interface before a

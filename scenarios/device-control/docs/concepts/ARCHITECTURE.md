@@ -53,6 +53,31 @@ And it never owns device identity — a phone is a bridge *attached
 device*, reachable only through a host node, so a second registry here
 would split the single answer to "what do I control."
 
+### Android targets and transport composition
+
+Android phones, emulators, Android TV devices, and TV boxes share the
+`android-adb` strategy because their package, input, and shell-facing control
+contract is Android. They do not share one onboarding assumption. USB,
+classic authorized TCP ADB, and Android Wireless Debugging/TLS are explicit
+transport profiles with independently probed reachability and capabilities.
+The controller owns endpoint verification, serial/model matching, lease
+dispatch, audit, and reconnect; an ambient ADB server or a successful raw
+command is not an identity boundary.
+
+A television may also expose Android TV Remote and Google Cast. These are
+separate transport identities and capability domains. Device Control may
+compose them under an owner-asserted logical device, but it must not merge by
+IP address, hostname, or friendly name alone. Operation selection chooses the
+transport whose live declaration can perform the requested verb; application
+installation and package launch require the Android ADB profile and are not
+provided by Cast or Remote.
+
+Application operations follow one narrow ownership seam: artifact authorities
+and delivery ramps own artifact production, provenance, and release meaning;
+device-control owns verified package identity, lease-bound installation,
+post-install package state, launch, and evidence. No product flow may embed a
+raw APK path, arbitrary ADB arguments, or an unverified package target.
+
 ## Scenario Shape
 
 A scenario is one product expressed through three coordinated surfaces

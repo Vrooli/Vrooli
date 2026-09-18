@@ -1,8 +1,11 @@
-# Agent skill: drive a physical Android phone
+# Agent skill: drive a physical Android target
 
 Use the `device-control` CLI as the agent boundary. Never address an ADB
-serial directly from an automation plan; first resolve a physical device id
-from `device-control device list --json`.
+serial directly from an automation plan; first resolve a stable device id from
+`device-control device list --json`. This applies to phones, emulators,
+Android TV devices, and TV boxes. Cast and Android TV Remote are separate
+screenless transports and must not be assumed to provide Android package
+control.
 
 ## Safe sequence
 
@@ -14,7 +17,12 @@ from `device-control device list --json`.
    `device-control device reconnect <device-id> --json` when the saved endpoint
    is stale; reconnect verifies the original hardware serial before persisting
    a discovered TLS endpoint and never enables wireless debugging for you.
-2. Run `device-control device list --json`. Select a row with `kind=physical`,
+   For a TV or TV box, use the governed network-ADB onboarding path and verify
+   endpoint, serial, model, and transport profile. Classic authorized TCP ADB
+   and Wireless Debugging/TLS are distinct profiles; a raw `adb connect` result
+   is not governed identity.
+2. Run `device-control device list --json`. Select a row with `kind=physical`
+   or the Android TV target kind,
    `health=available`, and the intended serial/model.
 3. Acquire a lease: `device-control session acquire --device <id> --actor <actor>`.
 4. Inspect, create, or update a reference-only profile with
@@ -29,13 +37,18 @@ from `device-control device list --json`.
    `after_lock_state=unlocked` before continuing. `human_required`, provider
    failures, unknown state, and wrong credentials are terminal for the flow.
 6. Validate a snake_case flow against `android-adb` before execution.
-7. Run it with `device-control flow run --device <id> --actor <actor> --lease
+7. For an application operation, inspect package inventory and the live
+   `app-lifecycle` capability first. Install only a verified artifact reference
+   under a lease and explicit confirmation; verify package state and launch by
+   fully-qualified package name. Never put APK paths, shell arguments, or
+   implicit package selection in an agent goal.
+8. Run it with `device-control flow run --device <id> --actor <actor> --lease
    <lease-token> --file <flow.json>`. Add `--transport wireless` explicitly
    for a promoted wireless device. Keep the lease token; the run reuses and
    does not release an operator-owned lease.
-8. Review chapter disposition, retained evidence references, applied redaction
+9. Review chapter disposition, retained evidence references, applied redaction
    rules, and `device-control audit list`.
-9. Release the lease, or use `device-control session kill <id>` when the run
+10. Release the lease, or use `device-control session kill <id>` when the run
    must stop immediately.
 
 Flows should prefer semantic targets and use coordinates only when the target

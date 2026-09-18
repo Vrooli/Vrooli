@@ -276,6 +276,52 @@
           }
         },
         {
+          "name": "app",
+          "description": "Run one lease-owned app lifecycle operation",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "operation",
+              "required": true
+            },
+            {
+              "name": "package",
+              "required": true
+            },
+            {
+              "name": "permission"
+            },
+            {
+              "name": "value"
+            },
+            {
+              "name": "lease",
+              "required": true
+            },
+            {
+              "name": "actor"
+            },
+            {
+              "name": "confirmed"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "watch",
           "description": "Print state changes until interrupted",
           "positionals": [
@@ -340,6 +386,27 @@
             "kind": "connect-rpc",
             "service": "DeviceService",
             "method": "ConnectDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "onboard-network",
+          "description": "Onboard a directly-addressable network ADB endpoint (TV/box, classic TCP 5555 or Wireless Debugging/TLS)",
+          "flags": [
+            {
+              "name": "endpoint",
+              "required": true,
+              "description": "host:port of the ADB endpoint (e.g. 192.168.1.158:5555)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
           },
           "governance": {
             "effect": "write",

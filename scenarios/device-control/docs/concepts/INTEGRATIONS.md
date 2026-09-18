@@ -24,7 +24,7 @@ Use this document to answer:
 | `agent-manager` | scenario | deferred | none in the delivered bounded loop | External agent orchestration may wrap the CLI; the current bounded agent run owns its loop, lease, chapters, abort, and promotion locally. | No runtime call is made, so its absence does not affect device-control agent runs. |
 | `prompt-manager` | scenario | for agent mode | `agent` | The operator skill that teaches this scenario's CLI | Agent mode refuses to start rather than improvising without the skill. |
 | `browser-automation-studio` | scenario | optional | `flows` | Named flow execution against an attached WebView | `bas.*` steps report `unavailable`; every other step kind still runs. Also gated on the strategy declaring `webview-attach` — a `bas.*` step on a strategy without it is `unsupported`, not `unavailable`. |
-| `android-sdk` | resource | for `android-adb` | `strategies`, `conformance` | `adb`, platform-tools, emulator, system images, AVD lifecycle | The `android-adb` strategy reports `unavailable` naming the missing tool. Other strategies are unaffected. A physical conformance run fails closed unless the fixture APK and adb are both available. |
+| `android-sdk` | resource | for `android-adb` | `strategies`, `conformance`, `application-control` | `adb`, platform-tools, emulator, system images, AVD lifecycle | The `android-adb` strategy reports `unavailable` naming the missing tool. Other strategies are unaffected. A physical conformance or application run fails closed unless the required artifact reference, adb transport, and live capability probes are available. |
 | Xcode | host capability | for iOS strategies | `strategies` | `xcodebuild`, `simctl`, `devicectl`, signing identities | Probed and instructed, never installed by us. Missing Xcode makes the iOS strategies `unavailable` with an install next-action. |
 
 ## Vrooli Resources
@@ -66,7 +66,7 @@ convenience.
 
 | Scenario | Direction | Reason | Contract |
 |---|---|---|---|
-| `scenario-to-android` | inbound only | The ramp's `Driver` adapter is a thin translator that turns ramp intent — "install this artifact, run this journey chapter" — into device verbs. It serves emulator and physical Android identically through the `android-adb` strategy. | Calls this scenario's verb surface under a held lease. This scenario never learns what an artifact or a release is. |
+| `scenario-to-android` | inbound only | The ramp's `Driver` adapter is a thin translator that turns ramp intent — "install this artifact, run this journey chapter" — into device verbs. It serves emulators, physical phones, and Android TV targets through the `android-adb` strategy. | Calls this scenario's verb surface under a held lease. The ramp owns artifact production, release meaning, and journey assertions; device-control receives a verified artifact reference and owns only installation, package verification, launch, and evidence. |
 | `scenario-to-ios` | inbound only | Same translator role. Selects among `ios-simctl`, `ios-xcuitest`, and `ios-mirror` by what the target can prove, which is why capability probing rather than device kind decides. | As above. See the non-promotability gap in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) before treating `ios-mirror` output as release evidence. |
 | `scenario-to-desktop` | inbound, optional | May consume the `host-desktop` strategy once it exists, reusing headless display and input tooling through the same flow vocabulary. Its existing Electron journey path is independent of this scenario. | Optional; no coupling today. |
 | `packages/delivery-ramp-go` | contract only | The shared ramp spine defines the `Driver` adapter these ramps implement. No code dependency in either direction — the boundary is described, not imported. | See [`../internal/SEAMS.md`](../internal/SEAMS.md#strategy-is-not-a-ramp-driver). |
@@ -79,6 +79,13 @@ this scenario supplies `app-lifecycle`, input, and capture, and knows
 nothing about why they were called. That is also why `manager` is the
 profile the ramps actually need — a `driver`-only strategy can validate
 a running app but cannot run a conformance journey.
+
+The same boundary applies when an owner installs a trusted app on Android TV.
+The caller supplies an artifact reference and expected package identity;
+device-control verifies both, requires a live `app-lifecycle` capability and
+lease, records confirmation and transport, installs through the Android
+adapter, and verifies package state. It does not become an artifact registry,
+release gate, or general-purpose ADB shell.
 
 The device-control API exposes the provider-neutral chapter contract at
 `GET /api/v1/conformance/android` and executes a caller-supplied

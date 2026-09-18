@@ -57,6 +57,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/conformance/android", h.androidConformancePlan).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/conformance/android/run", h.runAndroidConformance).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/connect", h.connectDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/onboard-network", h.onboardNetworkDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/strategies", h.listStrategies).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/strategies/{id}/verify", h.verifyStrategy).Methods(http.MethodGet, http.MethodPost)
 		r.HandleFunc("/api/v1/sessions", h.listSessions).Methods(http.MethodGet)
@@ -408,6 +409,28 @@ func (h *handler) reconnectDevice(w http.ResponseWriter, r *http.Request) {
 
 type connectRequest struct {
 	Kind string `json:"kind"`
+}
+
+type onboardNetworkRequest struct {
+	Endpoint string `json:"endpoint"`
+}
+
+// onboardNetworkDevice adopts a directly-addressable Android ADB endpoint
+// (classic TCP 5555 for a TV/box, or Wireless Debugging/TLS) as a governed
+// device. The durable identity is derived from the verified hardware serial, so
+// the network address is never treated as the device identity.
+func (h *handler) onboardNetworkDevice(w http.ResponseWriter, r *http.Request) {
+	var in onboardNetworkRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	device, err := h.service.OnboardNetworkADB(r.Context(), in.Endpoint)
+	if err != nil {
+		writeError(w, http.StatusConflict, "network_onboarding_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"device": device, "transport": device.Transport})
 }
 
 type androidConformanceRequest struct {
@@ -800,6 +823,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "flow_export", Path: "/api/v1/flows/{id}/export", Method: "GET", Summary: "Export a completed run as a replayable flow", Category: "flows", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_forget", Path: "/api/v1/devices/{id}", Method: "DELETE", Summary: "Forget a retained device identity", Category: "devices", RESTException: module.ThirdPartyJSONREST("DELETE")},
 	{ID: "devices_connect", Path: "/api/v1/devices/connect", Method: "POST", Summary: "Show guided device onboarding", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_onboard_network", Path: "/api/v1/devices/onboard-network", Method: "POST", Summary: "Onboard a directly-addressable network ADB endpoint", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "android_conformance_plan", Path: "/api/v1/conformance/android", Method: "GET", Summary: "Describe the physical Android conformance plan", Category: "conformance", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "android_conformance_run", Path: "/api/v1/conformance/android/run", Method: "POST", Summary: "Run physical Android conformance against a fixture", Category: "conformance", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "strategies_list", Path: "/api/v1/strategies", Method: "GET", Summary: "List strategy dispositions", Category: "strategies", RESTException: module.ThirdPartyJSONREST("GET")},

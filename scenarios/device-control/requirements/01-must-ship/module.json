@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-09-06T20:22:59-04:00",
+    "last_validated_at": "2026-09-17T16:42:35-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -13,7 +13,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "description": "Every strategy implements identity and describe() and may add optional modalities — observe/frames, input actuation, media, properties, sensors, logs, semantic trees, app lifecycle, permissions, network control, orientation, clipboard, file transfer, recording, and WebView attach. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present. Screenless devices are valid strategies and do not claim observe or screenshot.",
+      "description": "Every strategy implements identity and describe() and may add optional modalities — observe/frames, input actuation, media, properties, sensors, logs, semantic trees, app lifecycle, permissions, network control, orientation, clipboard, file transfer, recording, and WebView attach. Each capability is probed independently at inventory time; transport failure, malformed output, unsupported operation, and missing prerequisite produce a typed unavailable result with an exact reason and next action without erasing unrelated capabilities or retaining stale success. Screenless devices are valid strategies and do not claim observe or screenshot.",
       "validation": [
         {
           "type": "test",
@@ -196,26 +196,32 @@
     {
       "id": "DVC-P0-010",
       "title": "CLI as the complete control surface",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
-      "description": "Every capability is reachable from the CLI with report-shaped JSON output, including LAN discovery, Google TV pairing, direct lease-owned actuation, state reads, and strategy verification. A capability reachable only from the API or UI is treated as incomplete.",
+      "description": "Every capability is reachable from the CLI with report-shaped JSON output, including discovery and onboarding, transport diagnostics, LAN discovery, Google TV pairing, direct lease-owned actuation, state reads, strategy verification, application inventory and inspection, verified artifact installation, package state, launch, focus, stop, uninstall, and clear-data. A capability reachable only from the API or UI is treated as incomplete.",
       "validation": [
         {
           "type": "test",
           "ref": "cli/evidence_test.go::TestEveryDeclaredPrimitiveHasEvidence",
           "status": "implemented",
           "notes": "Targeted CLI surface exposes device discover, pair, state, direct actuate, and owner-asserted identity merge/split with report-shaped JSON; API/CLI parity remains covered by the primitive evidence check."
+        },
+        {
+          "type": "test",
+          "ref": "cli/app_test.go::TestAndroidApplicationLifecycleSurface",
+          "status": "planned",
+          "notes": "Required regression: the CLI must expose app inventory/inspect, artifact install, package-state, launch, focus, stop, uninstall, and clear-data with JSON reports and typed capability gaps."
         }
       ]
     },
     {
       "id": "DVC-P0-011",
       "title": "android-adb strategy",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "criticality": "P0",
-      "description": "First full-tier strategy, serving emulator and physical Android devices identically through one adapter: semantic view hierarchy, app lifecycle, permission control, input, screenshot and screen recording. Proves the floor, the ladder and the conformance suite against a real device class.",
+      "description": "The first full-tier strategy serves Android emulators, physical phones, Android TV devices, and TV boxes through one adapter with target-specific transport profiles. It provides governed USB and network ADB onboarding, verified artifact install, package state and launch, semantic view hierarchy, permission control, input, screenshot, logs, and recording wherever the live target proves them. It distinguishes classic authorized TCP ADB from Wireless Debugging/TLS, refuses stale or ambient endpoints, and proves the floor, ladder, and conformance suite against real phone and TV classes.",
       "validation": [
         {
           "type": "test",
@@ -237,9 +243,27 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/control/service_test.go::TestFlowTransportDefaultsToUSBAndWirelessMustBeExplicit",
+          "ref": "api/internal/control/service_test.go::TestFlowTransportResolvesWirelessToEndpointBoundStrategy",
           "status": "implemented",
-          "notes": "Flow execution defaults to USB and only selects the promoted wireless endpoint when wireless is explicitly requested."
+          "notes": "An unselected transport resolves to the device's current governed transport: a wireless device (promoted phone or network-onboarded TV) routes to its verified endpoint-bound strategy, never the ambient base adapter; a USB device keeps its base; explicit selection is honored and unknown transports refused."
+        },
+        {
+          "type": "test",
+          "ref": "api/strategy/androidadb/androidadb_test.go::TestCapabilityProbeKeepsIndependentCapabilitiesAfterScreenshotDecodeFailure",
+          "status": "implemented",
+          "notes": "A malformed screenshot marks only screenshot unavailable while preserving independently proven input, package, lifecycle, logs, orientation, and semantic capabilities (probeScreenshot requires a decodable frame)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestAndroidTVNetworkADBOnboardingAndApplicationLifecycle",
+          "status": "implemented",
+          "notes": "Authorized network ADB (OnboardNetworkADB) creates a stable Android target keyed by hardware serial, exposes app lifecycle from live probes, decodes a log-prefixed screenshot, routes an unselected transport to the endpoint-bound strategy, and verifies package state under lease. Proven live against a SmartTV 4K at 192.168.1.158:5555 on 2026-09-17 (onboarding/state/package-state/launch/stop with audit)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/conformance_test.go::TestAndroidTVVerifiedArtifactInstallLifecycleLive",
+          "status": "planned",
+          "notes": "Not yet earned: the 2026-09-17 SmartTV validation proved onboarding, state, package-state, launch, and stop, but did not exercise a lease-protected verified-artifact install / uninstall / clear-data against a real Android TV (destructive on an owner device without a vetted artifact). DVC-P0-011 stays in_progress until this live conformance is captured."
         }
       ]
     },
@@ -358,7 +382,7 @@
     {
       "id": "DVC-AGENT-REUSE",
       "title": "Validated reusable agent workflows and attributable effort",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "criticality": "P0",
       "description": "Discover exact targets, validate candidate flows before promotion, preserve revision history during repair, and measure comparable user task effort without treating unknown outcomes as success.",
@@ -367,14 +391,14 @@
           "type": "test",
           "ref": "api/internal/control/library_test.go::TestValidatedFlowPersistsAndRepairPreservesChecks",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Behavioral regression passed; broader provider findings remain explicitly recorded in the progress log."
         },
         {
           "type": "test",
           "ref": "api/internal/control/program_contract_test.go::TestGovernedWorkflowPrograms",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

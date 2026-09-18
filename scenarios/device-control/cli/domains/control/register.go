@@ -138,6 +138,9 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device forgotten")
 		}),
+		command("onboard-network", "Onboard a directly-addressable network ADB endpoint (TV/box, classic TCP 5555 or Wireless Debugging/TLS)", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "endpoint", Required: true, Description: "host:port of the ADB endpoint (e.g. 192.168.1.158:5555)"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/onboard-network", map[string]string{"endpoint": ctx.Flag("endpoint")}, "Network device onboarding")
+		}),
 		command("promote", "Promote an onboarded Android device to wireless ADB", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "USB-onboarded device id"}}, Flags: []cliapp.Flag{{Name: "transport", Required: true, Description: "wireless"}}}, func(ctx cliapp.RunContext) error {
 			if ctx.Flag("transport") != "wireless" {
 				return fmt.Errorf("transport must be wireless")

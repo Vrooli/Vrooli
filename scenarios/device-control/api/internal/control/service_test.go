@@ -990,22 +990,34 @@ func TestEnumerationFailureRemainsVisibleAsUnreachableDevice(t *testing.T) {
 	require.Contains(t, devices[0].HealthReason, "multicast interface unavailable")
 }
 
-func TestFlowTransportDefaultsToUSBAndWirelessMustBeExplicit(t *testing.T) { // [REQ:DVC-P0-011]
+func TestFlowTransportResolvesWirelessToEndpointBoundStrategy(t *testing.T) { // [REQ:DVC-P0-011]
+	// A wireless device — a USB-promoted phone or a directly-onboarded network
+	// TV/box — resolves an unselected transport to its verified endpoint-bound
+	// strategy, never the ambient base adapter (DVC-P0-011: "refuses stale or
+	// ambient endpoints"). A USB device still defaults to its base transport.
+	// Explicit selection is honored; unknown transports are refused.
 	svc, _ := testService(t)
 	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: "fake", Transport: "wireless"})
-	promoted := fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)
-	svc.transportStrategies["wireless-device"] = promoted
+	endpointBound := fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)
+	svc.transportStrategies["wireless-device"] = endpointBound
 
-	usb, ok := svc.strategyForFlow("wireless-device", "")
+	resolved, ok := svc.strategyForFlow("wireless-device", "")
 	require.True(t, ok)
-	require.NotSame(t, promoted, usb)
+	require.Same(t, endpointBound, resolved, "unselected transport must route to the endpoint-bound strategy, not the ambient base")
 
 	wireless, ok := svc.strategyForFlow("wireless-device", "wireless")
 	require.True(t, ok)
-	require.Same(t, promoted, wireless)
+	require.Same(t, endpointBound, wireless)
 
 	_, ok = svc.strategyForFlow("wireless-device", "bluetooth")
 	require.False(t, ok)
+
+	// A USB device with no endpoint-bound transport keeps the base adapter as
+	// its default and does not silently escalate to a wireless strategy.
+	svc.devices.Upsert(devicedomain.Record{ID: "usb-device", Kind: "physical", Serial: "serial-2", StrategyID: "fake", Transport: "usb"})
+	base, ok := svc.strategyForFlow("usb-device", "")
+	require.True(t, ok)
+	require.NotSame(t, endpointBound, base)
 }
 
 func TestValidateUsesPromotedWirelessDeviceStrategy(t *testing.T) {

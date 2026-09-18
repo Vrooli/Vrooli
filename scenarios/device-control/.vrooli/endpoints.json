@@ -253,6 +253,32 @@
       }
     },
     {
+      "id": "devices_app_lifecycle",
+      "path": "/api/v1/devices/{id}/apps",
+      "method": "POST",
+      "summary": "Run one confirmed, lease-owned app lifecycle operation",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "devices_merge",
       "path": "/api/v1/devices/{id}/merge",
       "method": "POST",
@@ -647,6 +673,32 @@
       "path": "/api/v1/devices/connect",
       "method": "POST",
       "summary": "Show guided device onboarding",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_onboard_network",
+      "path": "/api/v1/devices/onboard-network",
+      "method": "POST",
+      "summary": "Onboard a directly-addressable network ADB endpoint",
       "description": "",
       "category": "devices",
       "rest_exception": {

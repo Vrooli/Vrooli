@@ -459,3 +459,119 @@ Do not lower acceptance gates or erase existing evidence to make these checks pa
 - Evidence: `vrooli scenario requirements validate device-control --json` reports the contract and requirement registry at L3; targeted implementation and live workflow evidence cover only the currently available Linux path, while the plan still has unverified platform rows and certification cases.
 - Blocker: Device Control implementation and acceptance evidence remain incomplete for the plan's cross-platform and final-regression outcomes. The current Plan Manager phase pointer is still Phase 4 after a killed control-plane validation.
 - Measured: 2026-09-08
+
+### 2026-09-17 — Android TV ADB is reachable outside the governed application path
+
+**Symptom:** An owner-authorized SmartTV at `192.168.1.158:5555` was already
+connected through ADB, and the owner successfully installed SmartTube with
+`adb install -r`. Device-control inventory recognized an Android target, but
+its live declaration did not expose `app-lifecycle`; `device state` returned
+`device_state_unavailable`; and `device app --operation package-state` returned
+`capability_unavailable`. Static `strategy verify android-adb` also reported a
+degraded result because screenshot decoding returned `image: unknown format`.
+
+**Root cause:** The Android adapter has typed install and lifecycle code, but
+network-TV onboarding, live capability probing, and the public app surface are
+not yet one coherent contract. A probe failure can currently obscure the
+application capabilities that a reachable target may still support. The
+manual ADB path bypasses stable target adoption, artifact provenance, lease,
+audit, and post-install verification.
+
+**Workaround:** The owner may use a separately authorized raw ADB command for
+diagnosis or emergency setup, but it is not product evidence and must not be
+used by flows or agents. Use Cast/Android TV Remote for the screenless
+operations they actually prove.
+
+**Real fix:** Implement governed Android TV network-ADB onboarding for classic
+TCP and Wireless Debugging/TLS profiles; verify serial/model/endpoint
+ownership; probe capabilities independently; expose app inventory, artifact
+install, package state, launch, stop, uninstall, and clear-data through the
+CLI/API under a lease; add package-scoped agent context; repair screenshot
+format handling; and earn live phone and TV conformance evidence.
+
+**Owner:** Device-control maintainers.
+
+**Refs:** `api/strategy/androidadb/androidadb.go`,
+`api/internal/control/app_lifecycle.go`,
+`docs/guides/connecting-a-device.md`,
+`docs/reference/capabilities.md`, and the 2026-09-17 SmartTV validation.
+
+**Resolution (2026-09-17):** All four defects are fixed and verified live against
+the SmartTV 4K at `192.168.1.158:5555` (serial `AE70A4D38B`).
+
+1. *Screenshot decode.* This TV firmware prepends a 65-byte log preamble (`Init
+   wrapper sys mutex successful...\nopen mma dev failed\n`) before the PNG
+   signature, so `image.Decode` reported `image: unknown format`.
+   `sanitizeCapturedImage` now strips any bytes before the first decodable image
+   signature at every capture/evidence site (observe, recording samples, the
+   screenshot action, and the capability probe). `strategy verify android-adb`
+   now reports `status: available`, `failed: []`.
+2. *Screenshot capability honesty.* The `Describe` screenshot probe now requires
+   an actually-decodable frame (`probeScreenshot`), so it cannot declare
+   screenshot support the observer path would then reject, and a screenshot
+   failure no longer masks package/lifecycle/input/state capabilities (each is
+   probed independently).
+3. *Governed network onboarding.* `OnboardNetworkADB` (CLI `device
+   onboard-network --endpoint`, `POST /api/v1/devices/onboard-network`) adopts a
+   directly-addressable classic-TCP or Wireless-Debugging/TLS endpoint as a
+   first-class governed device. `ConnectNetwork` validates the endpoint, runs
+   `adb connect`, confirms authorization, and derives the durable identity from
+   the hardware serial (never the address); the endpoint-bound adapter is
+   persisted as the device's transport strategy. `strategyForFlow` now routes an
+   unselected transport for a wireless-only device to its verified endpoint-bound
+   strategy instead of the ambient base adapter (see DECISIONS.md 2026-09-17).
+4. *package-state verification.* `AppLifecycle` package-state now runs
+   `pm list packages` (exact-line match, no prefix collision) and `dumpsys
+   package` and returns a verified `installed` boolean plus `version`, replacing
+   the canned "observed through the next device-state probe" reply.
+
+Live evidence: onboarded device `android-0df87078c18abfb8` reports every ADB
+capability available; `device state` returns full state
+(`foreground_package: org.smarttube.stable`); package-state reports SmartTube
+`installed: true, version: 32.47` and a bogus package `installed: false`;
+`app-launch` and `app-stop` complete under lease with persisted audit receipts
+(`app-package-state`, `app-launch`, `app-stop`, all `outcome: success`). The raw
+manual `adb install -r` path remains owner-diagnostic only and is not product
+evidence.
+
+**Remaining (not blocking this entry's closure):** live install / uninstall /
+clear-data against the TV were not exercised (destructive on the owner device
+without a vetted artifact). The app-lifecycle audit now falls back to the durable
+device-record transport when the adapter declaration carries none, so an
+endpoint-bound TV records `transport: wireless` instead of an empty value.
+
+## Work ladder
+
+- Rung: W3 (localized implementation defect with established expected behavior),
+  with W2 requirements-sync re-earned afterward.
+- Evidence: reproduced all four defects live, then fixed at cause.
+  `go test ./...` passes for the device-control api and cli; focused table-driven
+  tests cover `sanitizeCapturedImage`, `probeScreenshot`, `ConnectNetwork`,
+  `validateADBEndpoint`, package-state verification, and the corrected
+  wireless-default transport routing. `strategy verify android-adb` →
+  `available`. Live SmartTV onboarding/state/package/launch/stop/audit captured
+  above. `vrooli scenario requirements validate device-control` and
+  `business-health validate scenario device-control` both report 0 errors after
+  `requirements sync` (0 statuses changed; snapshot recorded).
+- Blocker: none for the four defects. DVC-P0-011 remains `in_progress` because
+  its full-conformance-against-TV-class clause is not yet earned (only
+  onboarding/state/app-lifecycle proven live, not the full conformance suite).
+- Comprehensive Test Genie run `20260917-202453-b64493c7`: 19/28 phases passed,
+  including every phase this change touches — structure, contracts, code-facts,
+  go-code-graph, api, architecture, quality, business, security, proto,
+  agent-conformance, storage, measures, experience, templates, branding,
+  skill-set, performance, typescript-code-graph. The 9 non-passing phases are
+  pre-existing scenario debt or provider/infrastructure issues unrelated to this
+  change and not caused by it: `portability` (dependency-analyzer trusted-base
+  RPC precondition), `ui-health` (53 template/UI findings; UI untouched here),
+  `dependencies` (declared-without-import debt=5; no deps added here), `docs`
+  (broken_command_snippet debt=27; the new onboard-network snippets are not among
+  them), `unit` (coverage thresholds: UI functions 84.45% with all 120 tests
+  passing, and `cmd/desktop-helper` 0%), `workflow` (the `@scenario/self`
+  provider defect already logged above), `channel-conformance` (switchboard
+  provider start killed), `tidiness` (duplication debt=50; the new ConnectNetwork
+  /OnboardNetworkADB/sanitizeCapturedImage symbols are not flagged), and
+  `programs` (pre-existing author-flow/prepare-task/replay-flow fixture envelope
+  errors). Scoped re-run confirmed `api`, `quality`, and `contracts` pass after
+  declaring `device app` in `cli/manifest.json`.
+- Measured: 2026-09-17

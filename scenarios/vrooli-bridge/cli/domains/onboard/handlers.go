@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
@@ -19,6 +20,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
 	"vrooli-bridge/cli/internal/operatorauth"
 	"vrooli-bridge/cli/internal/session"
 )
@@ -37,6 +39,22 @@ type handlers struct {
 	cleanup       cleanupconnect.CleanupServiceClient
 	password      passwordSource
 	authorization io.Reader
+}
+
+func selectionFromFile(path string) (*setupv1.Selection, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil, nil
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read onboarding selection %q: %w", path, err)
+	}
+	selection := &setupv1.Selection{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, selection); err != nil {
+		return nil, fmt.Errorf("decode onboarding selection %q: %w", path, err)
+	}
+	return selection, nil
 }
 
 func (h *handlers) publicKey(ctx cliapp.RunContext) error {
@@ -477,6 +495,14 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		return err
 	}
 
+	selectionPath := ""
+	if ctx.FlagDeclared("selection") {
+		selectionPath = ctx.Flag("selection")
+	}
+	selection, err := selectionFromFile(selectionPath)
+	if err != nil {
+		return err
+	}
 	resp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
 		MachineId:            machineID,
 		Host:                 host,
@@ -495,6 +521,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		SkipPrereqs:          ctx.BoolFlag("skip-prereqs"),
 		ProvisionSudo:        resolveProvisionSudo(ctx),
 		SetupPreset:          strings.TrimSpace(ctx.Flag("preset")),
+		Selection:            selection,
 		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")),
 		SourceMode:           sourceMode,
 	}))

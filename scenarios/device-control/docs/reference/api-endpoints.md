@@ -58,6 +58,15 @@ and mirrors `api-core/health.Response` field-for-field.
 every service instance with its transport, endpoint, and TXT-derived identity
 keys. A browse failure returns `health: unreachable` and a named `reason`.
 
+`POST /api/v1/devices/onboard-network` accepts `{ "endpoint": "host:port" }` and
+adopts a directly-addressable Android ADB endpoint (classic TCP 5555 for a TV or
+TV box, or Wireless Debugging/TLS) as a first-class governed device. It runs
+`adb connect`, confirms the endpoint is an authorized device, derives the durable
+identity from the hardware serial (never the network address), persists the
+endpoint-bound transport profile, and returns the device with a live capability
+probe. An unauthorized, offline, or non-answering endpoint returns
+`network_onboarding_failed` with a typed, owner-actionable reason.
+
 `POST /api/v1/devices/{id}/pair/start` opens the Android TV Remote handshake
 through the configuration acknowledgement and returns a short-lived pairing
 session id. The television displays its six-character hexadecimal pairing code

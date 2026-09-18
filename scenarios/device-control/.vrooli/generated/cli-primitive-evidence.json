@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "27df6437c306240de6954ece26dfd27a0e45a7ade4d1742379361afaa33aa8d6",
+  "manifest_hash": "e5e725da1c979d6647403bcc453bac4d5966751a0a39ead0e6fa6f8477a04042",
   "commands": [
     {
       "path": "agent abort",
@@ -195,7 +195,8 @@
     {
       "path": "device app",
       "group": "device",
-      "command": "app"
+      "command": "app",
+      "binding": "."
     },
     {
       "path": "device connect",
@@ -237,6 +238,12 @@
       "path": "device merge",
       "group": "device",
       "command": "merge",
+      "binding": "."
+    },
+    {
+      "path": "device onboard-network",
+      "group": "device",
+      "command": "onboard-network",
       "binding": "."
     },
     {

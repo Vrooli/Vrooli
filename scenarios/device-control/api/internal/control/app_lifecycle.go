@@ -100,7 +100,17 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if operationErr != nil {
 		outcome = "failed"
 	}
-	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: declaration.Transport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, RedactionVerified: true, Interactive: true, EvidenceBacked: false}
+	// The adapter's declaration carries no transport for an endpoint-bound
+	// strategy (Android sets transport per-device at enumeration, not in
+	// Describe). Fall back to the durable device record so the audit records the
+	// real transport (e.g. wireless for a network-onboarded TV).
+	transport := declaration.Transport
+	if transport == "" {
+		if record, ok := s.devices.Get(deviceID); ok {
+			transport = record.Transport
+		}
+	}
+	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: transport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, RedactionVerified: true, Interactive: true, EvidenceBacked: false}
 	s.persistDirectAudit(ctx, audit)
 	response := AppLifecycleResponse{CommandID: commandID, Result: result, Audit: audit}
 	if operationErr != nil {

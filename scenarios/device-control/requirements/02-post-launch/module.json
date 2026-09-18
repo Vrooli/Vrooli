@@ -72,10 +72,10 @@
     {
       "id": "DVC-P1-005",
       "title": "Bounded agent mode via prompt-manager skill and ai-gateway",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
-      "description": "`device-control agent start --device \u003cid\u003e --goal \"\u003cgoal\u003e\"` uses the prompt-manager device-control skill and routes any inference through ai-gateway. The delivered bounded local loop builds a typed capability/state world model, remains valid without a frame modality, is bounded by lease scope, fully audited, abortable, and can promote executable steps into a deterministic flow. Long-lived orchestration through agent-manager remains deferred.",
+      "description": "`device-control agent start --device \u003cid\u003e --goal \"\u003cgoal\u003e\"` uses the prompt-manager device-control skill and routes any inference through ai-gateway. The bounded loop builds a typed capability/state world model, remains valid without a frame modality, is bounded by lease scope, fully audited, abortable, and can promote executable steps into a deterministic flow. Application goals are package-scoped and require verified app context; installs, permissions, credentials, destructive actions, and ambiguous targets stop for explicit human authority. Long-lived orchestration through agent-manager remains deferred.",
       "validation": [
         {
           "type": "test",
@@ -88,10 +88,10 @@
     {
       "id": "DVC-P1-006",
       "title": "Promote an agent run to a deterministic flow",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
-      "description": "Every agent action is recorded as a flow step, so a successful goal-directed run exports as a deterministic flow that replays without inference cost. This is the compounding loop: infer once, replay free.",
+      "description": "Every agent action is recorded with device identity, transport, app/package context, capability state, resolution rung, confirmation, and evidence references, so a successful goal-directed run exports as a deterministic flow that replays without inference cost. Replay must refuse when the target, package, artifact, capability, or safety precondition no longer matches.",
       "validation": [
         {
           "type": "test",
@@ -119,10 +119,10 @@
     {
       "id": "DVC-P1-008",
       "title": "Operator UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
-      "description": "Live device view with session controls, flow authoring and validation, run review with chaptered evidence, capability-composed television/phone panels, LAN discovery, pairing, and a strategy conformance matrix showing what each device can actually prove right now.",
+      "description": "Live device view with session controls, flow authoring and validation, run review with chaptered evidence, capability-composed television/phone panels, LAN discovery and pairing, application inventory and install/launch status, app-scoped agent context, and a strategy conformance matrix showing what each device can actually prove right now.",
       "validation": [
         {
           "type": "test",

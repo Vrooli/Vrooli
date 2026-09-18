@@ -41,6 +41,7 @@ outcome, statefulness, and validation level.
 | Target resolution | flows | Each step that names a target by intent. | A concrete coordinate or element handle, plus the rung used and its confidence. | Stateless per attempt; falls down the ladder, never up. | Level 3 — matrix over rung × strategy tier. |
 | Agent run | agent | `device-control agent start --device <id> --goal <goal>`. | A terminal goal outcome plus a recorded step sequence eligible for promotion. | Bounded: step count, cost ceiling, lease scope. Abortable at any point. | Level 4 — bounds are the safety property. |
 | Agent-run promotion | agent | Operator promotes a successful agent run. | A deterministic flow whose replay contains no `ai.*` step. | Stateless transform over a completed run's step record. | Level 3 — replay equivalence. |
+| Application install and launch | devices/flows | Operator, delivery ramp, or an app-scoped agent requests a package operation. | Verified artifact installed or an explicit typed refusal; package state and foreground launch are separately verified. | Ordered: artifact-resolved → capability-checked → leased → installing → installed → package-verified → launching → foreground-verified → terminal. | Level 4 — artifact identity, lease, confirmation, and post-action verification are the safety properties. |
 
 ### Target resolution
 
@@ -71,6 +72,23 @@ default. The typed vocabulary includes swipe, long-press, double-tap, drag,
 fling, scroll-to, and capability-gated pinch; pixel coordinates are an
 explicit non-portable escape hatch.
 
+### Application installation and launch
+
+Application control is a governed flow, not a shell escape hatch. The caller
+resolves an artifact through its owning authority, checks package identity and
+checksum, confirms that the live target exposes `app-lifecycle`, acquires the
+device lease, and records the transport profile. Installation is followed by
+package-state verification; launch is followed by foreground verification when
+the target can expose it. A successful ADB exit code without those checks is
+`unverified`, not `passed`.
+
+The flow must fail closed for an absent or stale endpoint, a package mismatch,
+an unconfirmed mutation, a missing lease, an unavailable lifecycle capability,
+or a target that cannot verify the requested postcondition. App-scoped agent
+runs carry package identity, artifact reference, transport, capability
+snapshot, confirmation, and evidence into every promoted step so replay cannot
+silently operate on a different application.
+
 Session-scoped recordings carry a claim class (`static`, `transition`, or
 `animation`) and a measured effective frame rate. A recording below its class
 minimum is `degraded`, never silently treated as passed. Before publication,
@@ -100,6 +118,7 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 | flows / run | validated, leased, running, passed, failed, aborted, unavailable | Run before validation; run without a held lease; terminal-state escape; a step completing after abort; an exceeded bounded wait resolving as success. | `*.flow.json` contract, generated Quint model, replay tests over recorded runs. |
 | flows / resolution | attempt_semantic, attempt_anchor, attempt_vision, resolved, unresolved | Climbing back up the ladder after a lower rung was used; resolving via a rung the strategy did not declare; recording `resolved` without a rung and confidence. | Matrix tests over rung × strategy tier; evidence assertion that the rung is always recorded. |
 | agent / run | planning, acting, observing, terminal | Acting after a bound is exhausted; acting without a held lease; continuing after abort. | Bound-exhaustion tests, abort tests, audit completeness assertion. |
+| devices / app lifecycle | artifact-resolved, capability-checked, leased, installing, installed, package-verified, launching, foreground-verified, terminal | Install without verified artifact/confirmation/lease; launch without package identity; success without package or foreground verification. | Typed lifecycle service, artifact checksum/package checks, lease fence, audit record, and post-action state assertions. |
 
 ## Maturity Ladder
 

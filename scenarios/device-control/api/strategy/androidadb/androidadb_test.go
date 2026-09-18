@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"strings"
 	"sync"
@@ -112,8 +113,11 @@ func TestPromoteWirelessRefusesSerialMismatch(t *testing.T) { // [REQ:DVC-P0-011
 }
 
 func TestRestoredWirelessDescribeUsesSelectedEndpointState(t *testing.T) {
+	var frame bytes.Buffer
+	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
 	runner := &scriptedRunner{responses: map[string][]byte{
 		"adb devices -l": []byte("List of devices attached\n192.168.1.42:5555\tdevice product:a03s model:SM_A037U\n"),
+		"adb -s 192.168.1.42:5555 exec-out screencap -p": frame.Bytes(),
 	}}
 	base := NewWithRunner(runner, "serial-1")
 	restored, ok := base.RestoreWireless("192.168.1.42:5555").(*Adapter)
@@ -378,6 +382,188 @@ func TestPackageStateReportsExpectedInstallationState(t *testing.T) {
 
 	runner.responses["adb -s serial-1 shell pm list packages com.example.hello"] = nil
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "package-state", Package: "com.example.hello", Value: "absent"}))
+}
+
+func TestSanitizeCapturedImageStripsFirmwareLogPreamble(t *testing.T) {
+	var clean bytes.Buffer
+	require.NoError(t, png.Encode(&clean, image.NewRGBA(image.Rect(0, 0, 8, 8))))
+	pngBytes := clean.Bytes()
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil))
+	jpgBytes := jpg.Bytes()
+
+	cases := []struct {
+		name    string
+		raw     []byte
+		want    []byte
+		decodes bool
+	}{
+		{name: "clean png passes through", raw: pngBytes, want: pngBytes, decodes: true},
+		{
+			name:    "smarttv log preamble stripped",
+			raw:     append([]byte("Init wrapper sys mutex successful. Pid:14180\nopen mma dev failed\n"), pngBytes...),
+			want:    pngBytes,
+			decodes: true,
+		},
+		{name: "jpeg preamble stripped", raw: append([]byte("noise\n"), jpgBytes...), want: jpgBytes, decodes: true},
+		{name: "non-image returned unchanged", raw: []byte("not an image"), want: []byte("not an image"), decodes: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeCapturedImage(tc.raw)
+			require.Equal(t, tc.want, got)
+			_, _, err := image.DecodeConfig(bytes.NewReader(got))
+			if tc.decodes {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestProbeScreenshotRequiresDecodableFrame(t *testing.T) {
+	var frame bytes.Buffer
+	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
+	preambled := append([]byte("Init wrapper sys mutex successful\n"), frame.Bytes()...)
+
+	// A firmware log preamble must still declare screenshot available.
+	okRunner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l": []byte("List of devices attached\nemulator-5554\tdevice model:sdk\n"),
+		"adb -s emulator-5554 exec-out screencap -p": preambled,
+	}}
+	decl, err := NewWithRunner(okRunner, "emulator-5554").Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, decl.Capabilities[strategy.CapScreenshot].Status)
+
+	// A device that returns non-image bytes must declare screenshot unavailable
+	// without hiding the other probed capabilities.
+	badRunner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l": []byte("List of devices attached\nemulator-5554\tdevice model:sdk\n"),
+		"adb -s emulator-5554 exec-out screencap -p":  []byte("no display surface"),
+		"adb -s emulator-5554 shell pm list packages": []byte("package:com.example\n"),
+	}}
+	decl, err = NewWithRunner(badRunner, "emulator-5554").Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusUnavailable, decl.Capabilities[strategy.CapScreenshot].Status)
+	require.Equal(t, strategy.StatusAvailable, decl.Capabilities[strategy.CapAppLifecycle].Status)
+}
+
+func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell pm list packages org.smarttube.stable": []byte("package:org.smarttube.stable\n"),
+		"adb -s serial-1 shell dumpsys package org.smarttube.stable":  []byte("Packages:\n  Package [org.smarttube.stable]\n    versionName=25.10\n"),
+		"adb -s serial-1 shell pm list packages com.example.absent":   []byte(""),
+		"adb -s serial-1 shell pm list packages org.smart":            []byte("package:org.smarttube.stable\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+
+	present, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: "org.smarttube.stable"})
+	require.NoError(t, err)
+	require.True(t, present.Installed)
+	require.Equal(t, "25.10", present.Version)
+	require.Equal(t, strategy.StatusAvailable, present.Status)
+
+	absent, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: "com.example.absent"})
+	require.NoError(t, err)
+	require.False(t, absent.Installed)
+	require.Equal(t, strategy.StatusAvailable, absent.Status)
+
+	// A prefix collision must not report a shorter package present.
+	prefix, err := adapter.AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "package-state", Package: "org.smart"})
+	require.NoError(t, err)
+	require.False(t, prefix.Installed)
+}
+
+func TestCapabilityProbeKeepsIndependentCapabilitiesAfterScreenshotDecodeFailure(t *testing.T) { // [REQ:DVC-P0-011]
+	// A device whose screencap returns non-image bytes must report screenshot
+	// unavailable while every independently-probed capability stays available.
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l": []byte("List of devices attached\nemulator-5554\tdevice model:sdk\n"),
+		"adb -s emulator-5554 exec-out screencap -p":     []byte("no display surface here"),
+		"adb -s emulator-5554 shell input --help":        []byte("usage: input"),
+		"adb -s emulator-5554 shell uiautomator help":    []byte("usage: uiautomator"),
+		"adb -s emulator-5554 shell pm list packages":    []byte("package:com.example\n"),
+		"adb -s emulator-5554 shell wm size":             []byte("Physical size: 1920x1080"),
+		"adb -s emulator-5554 shell cmd clipboard help":  []byte("clipboard"),
+		"adb -s emulator-5554 logcat -d -t 1":            []byte("log"),
+		"adb -s emulator-5554 shell screenrecord --help": []byte("usage: screenrecord"),
+	}}
+	decl, err := NewWithRunner(runner, "emulator-5554").Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusUnavailable, decl.Capabilities[strategy.CapScreenshot].Status)
+	for _, cap := range []string{strategy.CapInput, strategy.CapSemanticTree, strategy.CapAppLifecycle, strategy.CapPermissions, strategy.CapOrientation, strategy.CapDeviceLogs} {
+		require.Equalf(t, strategy.StatusAvailable, decl.Capabilities[cap].Status, "capability %q must survive a screenshot decode failure", cap)
+	}
+}
+
+func TestValidateADBEndpoint(t *testing.T) {
+	cases := []struct {
+		endpoint string
+		ok       bool
+	}{
+		{"192.168.1.158:5555", true},
+		{"tv.local:5555", true},
+		{"[2600:4040::1]:5555", true},
+		{"", false},
+		{"192.168.1.158", false},
+		{"192.168.1.158:0", false},
+		{"192.168.1.158:99999", false},
+		{"192.168.1.158:5555; rm -rf /", false},
+		{"$(reboot):5555", false},
+	}
+	for _, tc := range cases {
+		err := validateADBEndpoint(tc.endpoint)
+		if tc.ok {
+			require.NoErrorf(t, err, "endpoint %q should be accepted", tc.endpoint)
+		} else {
+			require.Errorf(t, err, "endpoint %q should be rejected", tc.endpoint)
+		}
+	}
+}
+
+func TestConnectNetworkVerifiesSerialIdentity(t *testing.T) {
+	var frame bytes.Buffer
+	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
+	endpoint := "192.168.1.158:5555"
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb connect 192.168.1.158:5555":                                   []byte("connected to 192.168.1.158:5555"),
+		"adb -s 192.168.1.158:5555 wait-for-device":                        []byte(""),
+		"adb devices -l":                                                   []byte("List of devices attached\n192.168.1.158:5555\tdevice product:tv model:SmartTV_4K\n"),
+		"adb -s 192.168.1.158:5555 shell getprop ro.serialno":              []byte("AE70A4D38B\n"),
+		"adb -s 192.168.1.158:5555 shell getprop ro.build.version.release": []byte("12\n"),
+		"adb -s 192.168.1.158:5555 exec-out screencap -p":                  frame.Bytes(),
+	}}
+	adapter := NewWithRunner(runner, "")
+	device, err := adapter.ConnectNetwork(context.Background(), endpoint)
+	require.NoError(t, err)
+	require.Equal(t, "AE70A4D38B", device.Serial)
+	require.Equal(t, endpoint, device.Endpoint)
+	require.Equal(t, "wireless", device.Transport)
+	// Identity is derived from the hardware serial, not the network address.
+	require.NotContains(t, device.ID, endpoint)
+	require.Equal(t, "AE70A4D38B", adapter.identitySerial)
+}
+
+func TestConnectNetworkRejectsUnauthorizedEndpoint(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb connect 192.168.1.158:5555":            []byte("connected to 192.168.1.158:5555"),
+		"adb -s 192.168.1.158:5555 wait-for-device": []byte(""),
+		"adb devices -l":                            []byte("List of devices attached\n192.168.1.158:5555\tunauthorized\n"),
+	}}
+	adapter := NewWithRunner(runner, "")
+	_, err := adapter.ConnectNetwork(context.Background(), "192.168.1.158:5555")
+	require.ErrorContains(t, err, "unauthorized")
+}
+
+func TestConnectNetworkRejectsFailedConnect(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb connect 192.168.1.158:5555": []byte("failed to connect to '192.168.1.158:5555'"),
+	}}
+	adapter := NewWithRunner(runner, "")
+	_, err := adapter.ConnectNetwork(context.Background(), "192.168.1.158:5555")
+	require.ErrorContains(t, err, "failed to connect")
 }
 
 func indexOfCall(calls []string, fragment string) int {

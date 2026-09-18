@@ -35,6 +35,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-012 | 2026-08-10 | Every declared capability is exercisable by some flow construct. | Never — an unexercisable capability is an unfalsifiable claim. |
 | D-013 | 2026-08-13 | Android generated-app conformance belongs to scenario-to-android; device-control retains only the provider-neutral device capability self-test. | The delivery ramp needs to vary its chapter set without changing the device strategy, while device-control must prove install, permissions, screenshot, and recording independently of a fixture. | Revisit when a device capability cannot be self-tested without an application supplied by a delivery ramp. |
 | D-014 | 2026-09-06 | Keep the native desktop adapter in the lifecycle-managed Go helper and do not add Terminator as a runtime dependency. | A pinned Terminator release must expose a supported, embeddable adapter boundary with equivalent helper-owned identity, lease/session checks, and packaging evidence. |
+| D-015 | 2026-09-17 | Treat Android TV and TV boxes as first-class Android targets of `android-adb`, with controller-owned network transport profiles and owner-asserted composition with Cast/Android TV Remote. Application install and launch stay behind the same lease, artifact-identity, capability-probe, audit, and postcondition gates as phone control. | A future Android transport or vendor API provides a stronger identity and application-control contract without weakening the common strategy boundary. |
 
 ## Decision Details
 
@@ -265,6 +266,28 @@ backend selection, so introducing Terminator would add a second authority and
 would not satisfy the required cross-platform adapter boundary. Re-evaluate
 only when a release provides an embeddable adapter and equivalent conformance
 evidence.
+
+### D-015 — Network ADB onboarding and default-transport routing (2026-09-17)
+
+Android TV and TV boxes are first-class ADB targets that are typically reachable
+only by network address (classic TCP 5555 or Wireless Debugging/TLS), never over
+USB. `OnboardNetworkADB` adopts such an endpoint directly: it validates the
+endpoint, connects, confirms authorization, and derives the durable identity from
+the hardware serial so the network address is never treated as the device
+identity. The endpoint-bound adapter is persisted as the device's transport
+strategy, matching the existing wireless-promotion machinery.
+
+This exposed a latent routing assumption. `strategyForFlow` previously defaulted
+an unselected transport for any wireless device to USB ("wireless must be
+explicit"), which assumed every wireless device had a USB origin. A
+network-onboarded TV has no USB base, so that default routed to the ambient base
+adapter — precisely the "stale or ambient endpoint" DVC-P0-011 says to refuse.
+The corrected contract: an unselected transport resolves to the device's current
+governed transport; a wireless device (USB-promoted phone or network-onboarded
+TV) resolves to its verified endpoint-bound strategy when one is registered, and
+falls back to USB only when no wireless strategy exists. Explicit transport
+selection is still honored and unknown transports are still refused. See
+`TestFlowTransportResolvesWirelessToEndpointBoundStrategy`.
 
 ## Superseded Decisions
 

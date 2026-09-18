@@ -106,6 +106,27 @@ this document is stale.
 That distinction is not pedantry. "Android phones usually have X" is exactly
 the inference this scenario exists to refuse.
 
+### Capability result semantics
+
+Every live capability result has one of four meanings: `available` (the
+operation was probed and can be exercised now), `unavailable` (the strategy
+supports the operation but a named prerequisite or transport condition is
+missing), `unsupported` (the target or transport cannot provide it), or
+`degraded` (the operation exists but its evidence quality is below the
+declared threshold). Probes are independent. A screenshot decode failure must
+not hide package inventory, input, logs, or lifecycle if those probes succeed.
+Static `strategy verify` output is a conformance expectation; inventory and
+device description are the live authority. An implementation must never turn
+an old successful snapshot into a current success claim.
+
+Android TV is an Android target, not a Cast-only special case. The same
+`android-adb` strategy serves phones, emulators, TV devices, and TV boxes, but
+the onboarding and transport profiles differ. Cast and Android TV Remote are
+screenless companion transports: they can expose receiver, media, navigation,
+pairing, or volume capabilities without exposing Android packages, a
+screenshot, or a semantic tree. Those capabilities must remain distinct until
+the owner explicitly merges transport identities.
+
 ## The mandatory contract
 
 Every strategy supplies stable identity and a declaration. Modalities are
@@ -129,7 +150,7 @@ and gap reports.
 | ID | Capability | What it means |
 |---|---|---|
 | `semantic-tree` | Semantic tree | An accessibility or view hierarchy with addressable elements. |
-| `app-lifecycle` | App lifecycle | Install, launch, stop, uninstall a named application. |
+| `app-lifecycle` | App lifecycle | Inventory, inspect, install a verified artifact, launch, focus, stop, uninstall, clear data, and report package state for a named application. |
 | `permission-control` | Permission control | Grant, revoke, or respond to OS permission prompts. |
 | `network-control` | Network control | Toggle or condition the device's connectivity. |
 | `orientation` | Orientation | Set or read device orientation. |
@@ -146,18 +167,58 @@ and gap reports.
 
 ## App lifecycle control
 
-The REST and CLI app surface accepts one package-identified operation at a time:
-`launch`, `focus`, `close`, `minimize`, `restore`, `stop`, `uninstall`,
-`clear-data`, `grant-permission`, `revoke-permission`, or `package-state`. The request must hold a live device
-lease. Mutating operations also require an explicit `confirmed`/`--confirmed`
-flag. Package names are validated as fully-qualified identities; executable
-paths and arguments are refused until a strategy-owned allowlist exists.
+The application surface has two classes of operation. Read operations are
+package inventory, package inspection, and package state. Mutating operations
+are verified-artifact install, `launch`, `focus`, `close`, `minimize`,
+`restore`, `stop`, `uninstall`, `clear-data`, `grant-permission`, and
+`revoke-permission`. Every mutating request must hold a live device lease and
+must carry explicit confirmation. Install additionally records an artifact
+reference, checksum, package identity, version information when available,
+and the post-install package-state verification. The artifact authority owns
+the APK and release meaning; device-control owns only the bounded install and
+verification operation.
+
+**Current implementation boundary (2026-09-17):** governed network-ADB
+onboarding, live capability probing, `device state`, and verified `package-state`
+are implemented and proven live against an Android TV (a SmartTV 4K at
+`192.168.1.158:5555`): onboarding publishes `app-lifecycle`, and `launch`/`stop`
+complete under lease with audit receipts. `package-state` reports a verified
+`installed` flag and `version` from `pm list packages`/`dumpsys package`, not a
+canned reply. Still in progress: the public CLI does not yet expose the full
+package inventory/inspect surface, and live install/uninstall/clear-data have not
+been exercised against a TV (destructive on an owner device without a vetted
+artifact). This section is the target contract that implementation and
+conformance must earn; it is not a claim that every connected device supports
+every operation today.
+
+Package names are validated as fully-qualified identities. Executable paths,
+shell fragments, arbitrary ADB arguments, and implicit package selection are
+refused. Launch must identify the package explicitly and verify that the
+requested package became the foreground package when the target can expose
+that state. A successful install or launch is never inferred from an exit code
+alone.
 
 The control plane requires both an available `app-lifecycle` declaration and
 the typed `strategy.AppLifecycle` implementation. A declaration without an
 executable adapter returns a typed unavailable/unsupported result. Every
 attempt receives a command ID and an audit record; lifecycle attempts do not
 claim evidence-backed completion without a separate verification step.
+
+### Android ADB transport profiles
+
+The Android adapter may use trusted USB, classic authorized TCP ADB (usually
+port 5555), or Android Wireless Debugging/TLS. A directly-addressable endpoint
+(the common case for an Android TV or TV box) is onboarded with `device-control
+device onboard-network --endpoint host:port`, which connects, confirms the
+endpoint is an authorized device, derives the durable identity from the hardware
+serial, persists the endpoint-bound transport profile, and probes live
+capabilities. A raw `adb connect` is useful for diagnosis but is not the
+supported product boundary because it bypasses identity, lease, audit, and
+stale-endpoint checks. An unselected transport resolves to the device's current
+governed transport — USB for a USB device, the verified endpoint-bound strategy
+for a promoted phone or network-onboarded TV; the ambient ADB server is never
+used for a device that has a registered governed transport. Select `--transport`
+explicitly to override.
 
 ## Step kinds and what they require
 

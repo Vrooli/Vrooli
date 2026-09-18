@@ -100,9 +100,13 @@ onboarding, Android devices may be promoted to wireless ADB with
 `device-control device promote --transport wireless`. Promotion keeps the same
 device id and verifies the recorded serial after connecting. Wireless is useful
 for automation, but pairing is lost after a device reboot; reattach USB and
-promote it again. Release-grade conformance defaults to USB. To explicitly run
-a flow over the promoted wireless endpoint, use
-`device-control flow run --transport wireless`; omitting the flag requests USB.
+promote it again. An unselected transport resolves to the device's current
+governed transport: a USB device uses USB, and a device whose current transport
+is a verified wireless/network endpoint (a promoted phone or a network-onboarded
+TV) uses that endpoint-bound strategy rather than the ambient ADB server. Select
+a transport explicitly with `device-control flow run --transport wireless` (or
+`usb`) when you need to override the default. An ambient endpoint is never used
+to satisfy a device that has a registered governed transport.
 Promotion may also cause Android to re-ask for trust when ADB is re-established;
 that is an OS authorization event, not a hardcoded device address or an
 unattended approval.
@@ -128,6 +132,54 @@ reports an unavailable wireless transport, enable Wireless debugging and
 authorize this host on the phone, then retry. Use
 `device-control flow run --transport wireless` explicitly for subsequent
 wireless flows.
+
+## Android TV over network ADB
+
+Android TV and TV boxes are Android targets. Use this path when the goal is to
+install, inspect, or launch an Android package on the TV; Android TV Remote and
+Google Cast remain the right transports for directional navigation, receiver
+state, media, and other screenless operations.
+
+The governed onboarding sequence is:
+
+1. Enable Developer options and USB debugging, or Wireless debugging, on the
+   TV. The owner must accept the RSA or pairing prompt on the TV. Device
+   Control cannot enable debugging or approve trust remotely.
+2. Onboard the TV's network address as a first-class governed device:
+
+   ```sh
+   device-control device onboard-network --endpoint 192.168.1.158:5555 --json
+   ```
+
+   This supports both classic authorized TCP ADB (`host:5555`) and Wireless
+   Debugging/TLS endpoints. It runs `adb connect`, confirms the endpoint is an
+   authorized device (not `unauthorized`/`offline`), reads `ro.serialno` over the
+   verified endpoint, and derives the durable device id from the hardware serial
+   — the network address is never treated as the identity. A responding endpoint
+   is not enough: an unauthorized or non-answering endpoint fails with a typed,
+   owner-actionable reason.
+3. The onboarding report returns the verified serial, model, Android version,
+   endpoint, and an independent live capability probe. Package inventory,
+   lifecycle, input, semantic tree, screenshot, and recording are independent
+   results; a TV may support some and not others, and a screenshot failure does
+   not mask the others.
+4. Acquire a lease before installing or launching an app. Supply a verified
+   artifact reference, require confirmation for installation or other mutations,
+   verify package state after installation (`device app --operation
+   package-state` returns a verified `installed` flag and `version`), and launch
+   by explicit package identity.
+
+Validated live on 2026-09-17 against a SmartTV 4K at `192.168.1.158:5555`
+(serial `AE70A4D38B`): onboarding exposed every ADB capability, `device state`
+returned full state, `package-state` reported the installed SmartTube build and
+correctly reported a bogus package absent, and `app-launch`/`app-stop` completed
+under lease with persisted audit receipts. A raw manual `adb install -r` remains
+owner-diagnostic only; it is not product evidence and must not be used by flows
+or agents.
+
+Do not place raw serials or arbitrary ADB commands in flows. The serial and
+endpoint belong to the governed device profile; the flow names the stable
+device id and package/artifact identity.
 
 ## Google TV / Android TV Remote
 

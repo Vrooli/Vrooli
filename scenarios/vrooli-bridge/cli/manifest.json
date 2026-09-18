@@ -1995,6 +1995,10 @@
               "name": "prompt-password",
               "bool": true,
               "description": "Ask for the SSH password with a masked interactive prompt (requires a TTY). Without this flag `start` never prompts. Mutually exclusive with --password-stdin"
+            },
+            {
+              "name": "selection",
+              "description": "Path to a protojson setup selection document to apply on the target"
             }
           ],
           "binding": {
