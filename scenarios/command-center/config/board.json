@@ -1,0 +1,12 @@
+{
+  "cycleSeconds": 60,
+  "transition": "crossfade",
+  "rooms": [
+    { "id": "mission-control", "enabled": true },
+    { "id": "hive", "enabled": true },
+    { "id": "forge", "enabled": true },
+    { "id": "ledger", "enabled": true },
+    { "id": "broadcast", "enabled": true },
+    { "id": "panorama", "enabled": true }
+  ]
+}

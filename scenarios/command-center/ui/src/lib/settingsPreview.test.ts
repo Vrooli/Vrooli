@@ -5,7 +5,7 @@ import { sampleReadings, themeStyle } from "./settingsPreview";
 describe("sampleReadings", () => {
   const signals: CatalogEntry[] = [
     { id: "active_scenarios", label: "Apps running", unit: "count", format: "integer", shape: "scalar", coverage: "NOW", sample: { value: 12, series: [10, 12], basis: "authored" } },
-    { id: "funnel_30d", label: "Funnel", shape: "rows", coverage: "IN-REACH", sample: { value: 3, series: [], basis: "authored", rows: [{ key: "visit", label: "Visit", value: 100, share: 1 }] } },
+    { id: "funnel_30d", label: "Funnel", kind: "funnel", shape: "rows", coverage: "IN-REACH", sample: { value: 3, series: [], basis: "authored", rows: [{ key: "visit", label: "Visit", value: 100, share: 1 }] } },
     { id: "bare_metric", shape: "scalar" },
   ];
 
@@ -17,7 +17,7 @@ describe("sampleReadings", () => {
 
   it("maps a rows signal to a panel kind and keeps its sample rows", () => {
     const funnel = sampleReadings(signals)[1];
-    expect(funnel?.kind).toBe("panel");
+    expect(funnel?.kind).toBe("funnel");
     expect(funnel?.rows?.[0]).toMatchObject({ key: "visit", value: 100 });
   });
 

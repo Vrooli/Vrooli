@@ -2,7 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -49,8 +54,85 @@ type OpenLoop struct {
 	Self         []map[string]any `json:"self"`
 }
 
+type BoardSettings struct {
+	CycleSeconds float64         `json:"cycleSeconds"`
+	Transition   string          `json:"transition"`
+	Rooms        []BoardRoomMode `json:"rooms"`
+}
+
+type BoardRoomMode struct {
+	ID      string `json:"id"`
+	Enabled bool   `json:"enabled"`
+}
+
+func defaultBoardSettings() BoardSettings {
+	return BoardSettings{CycleSeconds: 60, Transition: "crossfade", Rooms: []BoardRoomMode{}}
+}
+
+func boardSettingsPath() string {
+	return filepath.Join(catalogDir(), "board.json")
+}
+
+func readBoardSettings() (BoardSettings, error) {
+	settings := defaultBoardSettings()
+	raw, err := os.ReadFile(boardSettingsPath())
+	if os.IsNotExist(err) {
+		return settings, nil
+	}
+	if err != nil {
+		return settings, err
+	}
+	if err := json.Unmarshal(raw, &settings); err != nil {
+		return settings, err
+	}
+	if settings.CycleSeconds < 5 {
+		settings.CycleSeconds = 60
+	}
+	if strings.TrimSpace(settings.Transition) == "" {
+		settings.Transition = "crossfade"
+	}
+	return settings, nil
+}
+
+func writeBoardSettings(settings BoardSettings) error {
+	if settings.CycleSeconds < 5 || settings.CycleSeconds > 3600 {
+		return fmt.Errorf("cycleSeconds must be between 5 and 3600")
+	}
+	if strings.TrimSpace(settings.Transition) == "" {
+		return fmt.Errorf("transition is required")
+	}
+	seen := map[string]bool{}
+	for _, room := range settings.Rooms {
+		if room.ID == "" || filepath.Base(room.ID) != room.ID || strings.Contains(room.ID, "..") || seen[room.ID] {
+			return fmt.Errorf("invalid or duplicate room id %q", room.ID)
+		}
+		seen[room.ID] = true
+	}
+	dir := catalogDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".board-settings-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	encoder := json.NewEncoder(tmp)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(settings); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, boardSettingsPath())
+}
+
 func (s *Server) registerBoardRoutes() {
 	s.router.HandleFunc("/api/v1/board", s.handleBoard).Methods("GET")
+	s.router.HandleFunc("/api/v1/board-settings", s.handleBoardSettings).Methods("GET", "PUT")
 	s.router.HandleFunc("/api/v1/rooms/{id}", s.handleRoom).Methods("GET")
 	s.router.HandleFunc("/api/v1/focus", s.handleFocus).Methods("GET")
 	s.router.HandleFunc("/api/v1/open-loop", s.handleOpenLoop).Methods("GET")
@@ -64,12 +146,61 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 			rooms = append(rooms, Room{ID: id, Title: id})
 		}
 	}
+	if settings, err := readBoardSettings(); err == nil && len(settings.Rooms) > 0 {
+		byID := make(map[string]Room, len(rooms))
+		for _, room := range rooms {
+			byID[room.ID] = room
+		}
+		ordered := make([]Room, 0, len(rooms))
+		for _, mode := range settings.Rooms {
+			if mode.Enabled {
+				if room, ok := byID[mode.ID]; ok {
+					ordered = append(ordered, room)
+					delete(byID, mode.ID)
+				}
+			}
+		}
+		for _, room := range rooms {
+			if _, ok := byID[room.ID]; ok {
+				ordered = append(ordered, room)
+			}
+		}
+		rooms = ordered
+	}
 	sources := s.integrationSources(r.Context())
 	confidence, rationale := "partial", "The denominator is derived from the checked-in outcome registry and is partial until the objective transmitter is readable."
 	if s.objectivesAvailable(r.Context()) {
 		confidence, rationale = "declared", "The denominator is joined to the objective set supplied by Prompt Manager and the checked-in outcome registry."
 	}
 	writeJSON(w, http.StatusOK, BoardShape{SchemaVersion: first(s.registry.SchemaVersion, s.registry.Version), GeneratedAt: time.Now().UTC(), Rooms: rooms, Denominator: map[string]any{"outcomeCategories": len(rooms), "confidence": confidence, "rationale": rationale}, Sources: sources})
+}
+
+func (s *Server) handleBoardSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		settings, err := readBoardSettings()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "board_settings_read_failed", err.Error(), nil)
+			return
+		}
+		if len(settings.Rooms) == 0 {
+			for _, room := range s.registry.Rooms {
+				settings.Rooms = append(settings.Rooms, BoardRoomMode{ID: room.ID, Enabled: true})
+			}
+		}
+		writeJSON(w, http.StatusOK, settings)
+		return
+	}
+	var settings BoardSettings
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err := decoder.Decode(&settings); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error(), nil)
+		return
+	}
+	if err := writeBoardSettings(settings); err != nil {
+		writeError(w, http.StatusBadRequest, "board_settings_write_failed", err.Error(), nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
 }
 
 func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {

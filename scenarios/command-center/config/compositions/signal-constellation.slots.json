@@ -2,17 +2,17 @@
   "composition": "signal-constellation",
   "slots": {
     "visitors": {
-      "shape": "scalar",
+      "shape": "series",
       "role": "primary",
       "whenUnbound": "decorative"
     },
     "conversions": {
-      "shape": "scalar",
+      "shape": "series",
       "role": "secondary",
       "whenUnbound": "decorative"
     },
     "ctaClicks": {
-      "shape": "scalar",
+      "shape": "series",
       "role": "secondary",
       "whenUnbound": "decorative"
     }

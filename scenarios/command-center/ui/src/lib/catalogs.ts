@@ -7,7 +7,9 @@ export function resolveSlotBindings(composition: string, signalIds: string[], au
     running: ["active_scenarios", "composite_portfolio", "scenario_completeness"], healthy: ["scenario_health", "scenario_completeness"], total: ["total_scenarios"], throughput: ["throughput_stats", "swarm_throughput"], blocking: ["blocking_stats"], posture: ["offer_posture"], visitors: ["visitors"], conversions: ["conversions"], ctaClicks: ["cta_clicks"], arcs: ["traffic_countries"], ladder: ["release_ladder"], funnel: ["funnel_30d"],
   };
   const slots = composition === "orbital-field" ? ["running", "healthy"] : composition === "hive-lattice" ? ["total", "running", "healthy"] : composition === "flow-current" ? ["throughput", "blocking"] : composition === "ledger-river" ? ["posture"] : composition === "signal-constellation" ? ["visitors", "conversions", "ctaClicks"] : composition === "meridian-arc" ? ["arcs"] : composition === "funnel-cascade" ? ["ladder"] : composition === "conversion-funnel" ? ["funnel"] : [];
-  return Object.fromEntries(slots.map((name) => [name, authored[name] && available.has(authored[name]) ? authored[name] : candidates[name]?.find((id) => available.has(id)) ?? ""]));
+  const resolved = Object.fromEntries(slots.map((name) => [name, authored[name] && available.has(authored[name]) ? authored[name] : candidates[name]?.find((id) => available.has(id)) ?? ""]));
+  for (const [name, signal] of Object.entries(authored)) if (name.includes(".") && available.has(signal)) resolved[name] = signal;
+  return resolved;
 }
 
 export function validateRoomBinding(room: Record<string, unknown>, catalogs: Record<string, Array<Record<string, unknown>>>): string | null {
@@ -20,7 +22,10 @@ export function validateRoomBinding(room: Record<string, unknown>, catalogs: Rec
     if (typeof target !== "string") return `Binding for ${slot} must name a signal.`;
     const signal = signals.find((entry) => entry.id === target);
     if (!signal) return `Binding for ${slot} references unknown signal ${target}.`;
-    const spec = slots[slot] && typeof slots[slot] === "object" ? slots[slot] as Record<string, unknown> : {};
+    const directSpec = slots[slot] && typeof slots[slot] === "object" ? slots[slot] as Record<string, unknown> : undefined;
+    const groupName = slot.split(".")[0] ?? slot;
+    const groupSpec = slots[groupName] && typeof slots[groupName] === "object" ? slots[groupName] as Record<string, unknown> : undefined;
+    const spec = directSpec ?? (groupSpec?.variadic === true ? groupSpec : {});
     if (typeof spec.shape === "string" && signal.shape !== spec.shape) return `Signal ${target} has shape ${String(signal.shape)}; slot ${slot} requires ${spec.shape}.`;
     const columns = spec.columns && typeof spec.columns === "object" ? spec.columns as Record<string, unknown> : {};
     const declared = signal.columns && typeof signal.columns === "object" ? signal.columns as Record<string, unknown> : {};

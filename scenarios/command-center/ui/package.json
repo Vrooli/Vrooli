@@ -72,6 +72,8 @@
     "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "slots:check": "vitest run src/scenes/slotManifests.test.ts",
+    "verify-room-bindings": "node scripts/verify-room-bindings.mjs",
+    "visual:baseline": "node scripts/verify-visual-baseline.mjs",
     "theme:generate": "node scripts/generate-theme-css.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

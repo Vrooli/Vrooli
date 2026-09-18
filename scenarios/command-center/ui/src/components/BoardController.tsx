@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useGamepad } from "@vrooli/iframe-bridge/react";
-import { emitShortcutIntent } from "@vrooli/iframe-bridge";
-import { fetchBoard } from "../lib/api";
+import { useBoardKeyboard } from "../hooks/useBoardKeyboard";
+import { fetchBoard, fetchBoardSettings } from "../lib/api";
 import { BoardContext, BoardProgressContext, parseSamples, type BoardControllerValue, type BoardIntent, type BoardProgress, type SamplesMode } from "../lib/boardContext";
 import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, remapProgress, roomNavigationSuffix, tickCycle } from "../lib/cycle";
 
@@ -18,30 +18,6 @@ const TRANSITION_MS = 900;
 
 /** Routes that are operator surfaces, not kiosk board rooms: the auto-cycle must
  *  never evict them, and board keyboard shortcuts must not fire while one is open. */
-const CYCLE_EXEMPT_PATHS = new Set(["/settings"]);
-
-/** A key event landing in a form control belongs to that control, not the board. */
-const isEditableTarget = (target: EventTarget | null): boolean => {
-  const element = target as HTMLElement | null;
-  if (!element || typeof element.tagName !== "string") return false;
-  const tag = element.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable;
-};
-
-const KEY_INTENTS: Record<string, BoardIntent> = {
-  arrowright: "navigate-right",
-  arrowleft: "navigate-left",
-  arrowup: "navigate-up",
-  arrowdown: "navigate-down",
-  "[": "navigate-beat-prev",
-  "]": "navigate-beat-next",
-  " ": "pause-cycle",
-  f: "toggle-fullscreen",
-  "?": "show-help",
-  h: "show-help",
-  enter: "inspect",
-  escape: "back",
-};
 
 export function BoardController({ children }: { children: ReactNode }) {
   const gamepadRef = useRef<HTMLDivElement>(null);
@@ -49,6 +25,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: board } = useQuery({ queryKey: ["board-shape"], queryFn: fetchBoard, staleTime: 30_000 });
+  const { data: boardSettings } = useQuery({ queryKey: ["board-settings"], queryFn: fetchBoardSettings ?? (async () => ({ cycleSeconds: 60, transition: "crossfade", rooms: [] })), staleTime: 30_000 });
   const rooms = useMemo(() => board?.rooms ?? [], [board]);
   const currentRoom = useMemo(() => rooms.find((room) => location.pathname === `/${room.id}`), [location.pathname, rooms]);
   const [controlsVisible, setControlsVisible] = useState(false);
@@ -58,7 +35,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [held, setHeld] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
-  const cycleSeconds = Math.max(5, Number(searchParams.get("cycle") ?? 60) || 60);
+  const cycleSeconds = Math.max(5, Number(searchParams.get("cycle") ?? boardSettings?.cycleSeconds ?? 60) || 60);
   const [reading, setReading] = useState<{ roomId: string; seconds: number[] } | null>(null);
   const readingSeconds = reading && reading.roomId === currentRoom?.id ? reading.seconds : undefined;
   const beatDurations = useMemo(() => buildBeatDurations(currentRoom?.beats ?? [], cycleSeconds, readingSeconds), [currentRoom, cycleSeconds, readingSeconds]);
@@ -242,6 +219,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   }, [beatDurations.length, beatPosition.index, location.pathname, searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (location.pathname === "/settings") return;
     const requestedRoom = searchParams.get("room");
     if (requestedRoom && rooms.some((room) => room.id === requestedRoom) && location.pathname !== `/${requestedRoom}`) {
       navigate(`/${requestedRoom}${location.search}`, { replace: true });
@@ -261,37 +239,7 @@ export function BoardController({ children }: { children: ReactNode }) {
     return () => { void sentinel?.release(); };
   }, []);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      // On an operator surface, or when typing into a form control, the board
-      // yields the keyboard entirely: no navigation, no cycle pause, no capture.
-      if (CYCLE_EXEMPT_PATHS.has(pathRef.current) || isEditableTarget(event.target)) return;
-      const key = event.key.toLowerCase();
-      if (/^[1-9]$/.test(key)) {
-        const room = rooms[Number(key) - 1];
-        if (room) {
-          dispatch("reveal-controls");
-          goTo(`/${room.id}`);
-        }
-        return;
-      }
-      const intent = KEY_INTENTS[key];
-      if (!intent) {
-        dispatch("reveal-controls");
-        return;
-      }
-      event.preventDefault();
-      emitShortcutIntent({ action: `command-center.${intent}`, outcome: "handled", chord: event.key, source: "keyboard" });
-      dispatch(intent);
-    };
-    const onPointerMove = () => dispatch("reveal-controls");
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointermove", onPointerMove);
-    };
-  }, [dispatch, goTo, rooms]);
+  useBoardKeyboard(location.pathname, rooms, dispatch, goTo);
 
   useGamepad(gamepadRef, action => {
     // Board-level controls handle the focused board surface. Actual buttons
@@ -338,7 +286,7 @@ export function BoardController({ children }: { children: ReactNode }) {
     const step = () => {
       // The cycle belongs to the kiosk rooms. On an operator surface (settings)
       // it neither advances progress nor navigates, so the page never self-evicts.
-      if (CYCLE_EXEMPT_PATHS.has(pathRef.current)) {
+      if (pathRef.current === "/settings") {
         frame = window.requestAnimationFrame(step);
         return;
       }

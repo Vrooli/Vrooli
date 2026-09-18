@@ -2,36 +2,14 @@
   "composition": "flow-current",
   "slots": {
     "throughput": {
-      "shape": "rows",
+      "shape": "scalar",
       "role": "primary",
-      "whenUnbound": "decorative",
-      "columns": {
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "number"
-        },
-        "share": {
-          "type": "number"
-        }
-      }
+      "whenUnbound": "decorative"
     },
     "blocking": {
-      "shape": "rows",
+      "shape": "scalar",
       "role": "secondary",
-      "whenUnbound": "decorative",
-      "columns": {
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "number"
-        },
-        "share": {
-          "type": "number"
-        }
-      }
+      "whenUnbound": "decorative"
     }
   },
   "generatedFrom": "ui/src/scenes"

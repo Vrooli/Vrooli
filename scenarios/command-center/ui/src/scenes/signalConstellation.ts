@@ -1,9 +1,9 @@
 import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, mulberry32, slot, rgba, seedFrom, type Scene, type SlotManifest } from "./engine";
 
 export const slotManifest: SlotManifest = {
-  visitors: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
-  conversions: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
-  ctaClicks: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+  visitors: { shape: "series", role: "primary", whenUnbound: "decorative" },
+  conversions: { shape: "series", role: "secondary", whenUnbound: "decorative" },
+  ctaClicks: { shape: "series", role: "secondary", whenUnbound: "decorative" },
 };
 
 interface Receiver { x: number; y: number; lit: number }

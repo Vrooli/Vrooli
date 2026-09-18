@@ -1,9 +1,10 @@
 import { clipOutsideQuiet, drawGlow, inQuiet, slot, rgba, type Frame, type Scene, type SlotManifest } from "./engine";
 
-const rowColumns = { key: { type: "string" }, value: { type: "number" }, share: { type: "number" } };
 export const slotManifest: SlotManifest = {
-  throughput: { shape: "rows", role: "primary", whenUnbound: "decorative", columns: rowColumns },
-  blocking: { shape: "rows", role: "secondary", whenUnbound: "decorative", columns: rowColumns },
+  // The scene uses both values as scalar rates to control particles and the
+  // pooled dam. Keep the manifest honest so editor validation matches render.
+  throughput: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
+  blocking: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
 };
 
 interface Spark { x: number; lane: number; speed: number; size: number; age: number; pooled: boolean; swirl: number }

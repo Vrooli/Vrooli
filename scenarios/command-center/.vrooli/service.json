@@ -204,6 +204,10 @@
       {
         "source": "skills/morning-vision-walk/SKILL.md",
         "programs": []
+      },
+      {
+        "source": "skills/command-center-customize/SKILL.md",
+        "programs": []
       }
     ],
     "learning": {

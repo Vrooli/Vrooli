@@ -19,7 +19,7 @@ func TestRoutesHaveNoWritePathOutsideTelemetry(t *testing.T) {
 		}
 		path, _ := route.GetPathTemplate()
 		for _, method := range methods {
-			operational := strings.HasPrefix(path, "/api/v1/integrations/") || strings.HasPrefix(path, "/api/v1/catalogs/")
+			operational := strings.HasPrefix(path, "/api/v1/integrations/") || strings.HasPrefix(path, "/api/v1/catalogs/") || path == "/api/v1/board-settings"
 			if method != http.MethodGet && !strings.Contains(path, "/debug/") && !operational {
 				t.Errorf("unexpected %s route %s", method, path)
 			}

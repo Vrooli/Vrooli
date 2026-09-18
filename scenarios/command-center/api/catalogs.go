@@ -46,6 +46,38 @@ func (s *Server) registerCatalogRoutes() {
 	s.router.HandleFunc("/api/v1/catalogs", s.handleCatalogs).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/catalogs/{catalog}", s.handleCatalog).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/catalogs/{catalog}/{id}", s.handleCatalogEntry).Methods(http.MethodPut)
+	s.router.HandleFunc("/api/v1/catalogs/{catalog}/{id}", s.handleDeleteCatalogEntry).Methods(http.MethodDelete)
+}
+
+func (s *Server) handleDeleteCatalogEntry(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name, id := vars["catalog"], vars["id"]
+	if !catalogNames[name] || filepath.Base(id) != id || strings.Contains(id, "..") {
+		writeError(w, http.StatusBadRequest, "invalid_catalog_entry", "invalid catalog entry", nil)
+		return
+	}
+	path := filepath.Join(catalogDir(), name, id+".json")
+	if err := os.Remove(path); err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "catalog_entry_not_found", "catalog entry not found", nil)
+		} else {
+			writeError(w, http.StatusInternalServerError, "catalog_delete_failed", err.Error(), nil)
+		}
+		return
+	}
+	if name == "rooms" {
+		if err := s.reloadRoomCatalog(); err != nil {
+			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
+			return
+		}
+	}
+	if name == "signals" {
+		if err := LoadSplitSignalCatalog(s.registry); err != nil {
+			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleCatalogs(w http.ResponseWriter, _ *http.Request) {

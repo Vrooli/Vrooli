@@ -24,6 +24,28 @@ func TestObservationTimeRequiresProducerMetadata(t *testing.T) {
 	}
 }
 
+func TestBoardSettingsRoundTripAndPathGuard(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("COMMAND_CENTER_CONFIG_DIR", dir)
+	s := NewServer(&Registry{Version: "1.0.0", Rooms: []Room{{ID: "alpha", Title: "Alpha"}, {ID: "beta", Title: "Beta"}}})
+	put := httptest.NewRecorder()
+	body := `{"cycleSeconds":45,"transition":"cut","rooms":[{"id":"beta","enabled":true},{"id":"alpha","enabled":false}]}`
+	s.router.ServeHTTP(put, httptest.NewRequest(http.MethodPut, "/api/v1/board-settings", strings.NewReader(body)))
+	if put.Code != http.StatusOK {
+		t.Fatalf("PUT status=%d body=%s", put.Code, put.Body.String())
+	}
+	get := httptest.NewRecorder()
+	s.router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/v1/board-settings", nil))
+	if get.Code != http.StatusOK || !strings.Contains(get.Body.String(), `"cycleSeconds":45`) {
+		t.Fatalf("GET status=%d body=%s", get.Code, get.Body.String())
+	}
+	bad := httptest.NewRecorder()
+	s.router.ServeHTTP(bad, httptest.NewRequest(http.MethodPut, "/api/v1/board-settings", strings.NewReader(`{"cycleSeconds":45,"transition":"cut","rooms":[{"id":"../escape","enabled":true}]}`)))
+	if bad.Code != http.StatusBadRequest {
+		t.Fatalf("path guard status=%d body=%s", bad.Code, bad.Body.String())
+	}
+}
+
 func testRegistry() *Registry {
 	return &Registry{
 		Version: "1.0.0",

@@ -7,12 +7,14 @@ import type { CatalogEntry, Coverage, Reading, Sample } from "./api";
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
 const shapeToKind = (shape: unknown): Reading["kind"] => (shape === "rows" ? "panel" : "scalar");
+const readingKinds = new Set<NonNullable<Reading["kind"]>>(["scalar", "panel", "ladder", "funnel", "leaderboard", "posture"]);
 
 /** One preview reading per signal, valued from its authored sample. Bindings resolve
  *  a slot to a signal id; the scene then reads that reading exactly as on the board. */
 export function sampleReadings(signals: CatalogEntry[]): Reading[] {
   return signals.map((signal) => {
     const sample = (signal.sample && typeof signal.sample === "object" ? signal.sample : null) as Sample | null;
+    const configuredKind = typeof signal.kind === "string" && readingKinds.has(signal.kind as NonNullable<Reading["kind"]>) ? signal.kind as Reading["kind"] : undefined;
     const value = typeof sample?.value === "number" ? sample.value : typeof signal.value === "number" ? signal.value : null;
     return {
       id: signal.id,
@@ -25,7 +27,7 @@ export function sampleReadings(signals: CatalogEntry[]): Reading[] {
       trust: "VALID",
       empirical: "HIT",
       value,
-      kind: shapeToKind(signal.shape),
+      kind: configuredKind ?? shapeToKind(signal.shape),
       rows: sample?.rows,
       observedAt: null,
       ttlSeconds: 60,

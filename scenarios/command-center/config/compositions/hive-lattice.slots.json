@@ -15,6 +15,13 @@
       "shape": "scalar",
       "role": "secondary",
       "whenUnbound": "decorative"
+    },
+    "secondary": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative",
+      "variadic": true,
+      "maxItems": 3
     }
   },
   "generatedFrom": "ui/src/scenes"

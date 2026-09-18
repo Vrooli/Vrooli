@@ -18,6 +18,8 @@ interface AmbientCanvasProps {
   /** Every other room, when the room is a panorama. */
   constellations?: Constellation[];
   slotBindings?: Record<string, string>;
+  /** Logical drawing size when the canvas is rendered inside a scaled desktop viewport. */
+  logicalViewport?: { width: number; height: number };
 }
 
 /**
@@ -62,7 +64,7 @@ const seedFor = (key: string): number => {
  * the theme ground paints beneath it and the figure layer composites above.
  * Still tier draws one composed frame; every tier checks its first frame.
  */
-export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus, constellations, slotBindings = {} }: AmbientCanvasProps) {
+export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus, constellations, slotBindings = {}, logicalViewport }: AmbientCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"pending" | "ready" | "fallback">("pending");
   const [tier, setTier] = useState<ProbeTier>("still");
@@ -124,11 +126,13 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
       if (nowMs - layoutReadAt < LAYOUT_REFRESH_MS) return;
       layoutReadAt = nowMs;
       const own = canvas.getBoundingClientRect();
+      const scaleX = logicalViewport && own.width > 0 ? logicalViewport.width / own.width : 1;
+      const scaleY = logicalViewport && own.height > 0 ? logicalViewport.height / own.height : 1;
       quiet = quietRefs.flatMap((ref) => {
         const element = ref.current;
         if (!element) return [];
         const box = element.getBoundingClientRect();
-        return box.width > 0 && box.height > 0 ? [{ x: box.left - own.left, y: box.top - own.top, w: box.width, h: box.height }] : [];
+        return box.width > 0 && box.height > 0 ? [{ x: (box.left - own.left) * scaleX, y: (box.top - own.top) * scaleY, w: box.width * scaleX, h: box.height * scaleY }] : [];
       });
       palette = readPalette(canvas);
     };
@@ -146,8 +150,8 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
 
     const resize = () => {
       const box = canvas.getBoundingClientRect();
-      width = Math.max(1, Math.floor(box.width));
-      height = Math.max(1, Math.floor(box.height));
+      width = Math.max(1, Math.floor(logicalViewport?.width ?? box.width));
+      height = Math.max(1, Math.floor(logicalViewport?.height ?? box.height));
       const density = Math.max(1, Math.min(ratio, Math.sqrt(MAX_CANVAS_PIXELS / (width * height))));
       canvas.width = Math.floor(width * density);
       canvas.height = Math.floor(height * density);

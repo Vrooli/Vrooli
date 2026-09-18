@@ -1,6 +1,6 @@
 # Customization Model
 
-**Status:** design contract for the generalization effort. Not yet implemented. This document defines how Command Center becomes fully configurable — connections, rooms, themes, backgrounds, and connector-specific visuals — **without any change to what the operator's own instance renders today**. It governs the settings surface, the catalog formats, the slot-binding schema, and the customization skill. Where it touches existing models it defers to `INSTRUMENT-MODEL.md`, `COVERAGE-MODEL.md`, `PROVENANCE-MODEL.md`, and `UI-ARCHITECTURE.md`.
+**Status:** shipped section-model contract. The settings surface, split catalogs, shape-aware bindings, board-settings persistence, and agent handoffs are implemented. This document defines how Command Center remains configurable — connections, rooms, themes, backgrounds, and connector-specific visuals — **without changing what the operator's own instance renders**. Where it touches existing models it defers to `INSTRUMENT-MODEL.md`, `COVERAGE-MODEL.md`, `PROVENANCE-MODEL.md`, and `UI-ARCHITECTURE.md`.
 
 ## The one invariant that governs everything
 
@@ -113,7 +113,9 @@ This is also the monetization seam: the free layer is the engine and the open ca
 
 The settings page edits the instance definition — connectors, signals, room presets, per-room theme/composition/beats, and slot bindings — and writes it back to the versioned outcome registry (not a hidden store; the instance stays inspectable and reviewable).
 
-Preview is nearly free because **every signal already carries an authored `sample`** (value + series + basis; see `PROVENANCE-MODEL.md`). The editor renders a real room using the real `AmbientCanvas` and `BoardController` driven by sample values, in a contained frame, with **zero live data wired**. What you configure is literally what the war room shows — including the `sample` honesty ink, so preview never lies green about coverage or trust.
+The default `/settings` surface opens on five operator-facing destinations: Rooms, Looks, Signals & sources, Board settings, and Operator mode. Rooms edits the board's real beat model as an ordered Sections list with Hero, Dwell, Layout, and shape-filtered supporting metric menus. Looks leads with palettes and keeps token tuning secondary. Signals & sources exposes measurement kind, readout, and source attribution. Board settings persists cycle defaults, transition, and room enablement/order in `config/board.json` through `/api/v1/board-settings`. Operator mode preserves the complete catalog and raw-JSON escape hatch.
+
+Preview is nearly free because **every signal already carries an authored `sample`** (value + series + basis; see `PROVENANCE-MODEL.md`). The editor renders a real room using the real `AmbientCanvas` driven by sample values, in a contained frame, with **zero live data wired**. On small screens the preview remains full width above the focused decision. Code-backed choices show a handoff prompt that names the `command-center-customize` skill and the requested target.
 
 ## The customization skill
 

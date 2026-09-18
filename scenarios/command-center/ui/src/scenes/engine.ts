@@ -11,6 +11,9 @@ export interface SlotDefinition {
   role: "primary" | "secondary";
   whenUnbound: "decorative";
   columns?: Record<string, SlotColumn>;
+  /** A secondary group may be expanded by a room into numbered bindings. */
+  variadic?: boolean;
+  maxItems?: number;
 }
 export type SlotManifest = Record<string, SlotDefinition>;
 
@@ -102,6 +105,8 @@ export const sceneData = (readings: Reading[], focus?: string, constellations?: 
 });
 
 export const slot = (data: SceneData, name: string): number | null => read(data, data.slots?.[name] ?? name);
+
+export const slotGroup = (data: SceneData, name: string, maxItems = 3): Array<number> => Array.from({ length: maxItems }, (_, index) => slot(data, `${name}.${index}`)).filter((value): value is number => value !== null);
 
 export const slotRows = (data: SceneData, name: string): SceneReading["rows"] =>
   data.readings[data.slots?.[name] ?? name]?.rows;

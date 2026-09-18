@@ -122,6 +122,12 @@ export interface BoardResponse {
   sources: BoardSource[];
 }
 
+export interface BoardSettings {
+  cycleSeconds: number;
+  transition: string;
+  rooms: { id: string; enabled: boolean }[];
+}
+
 /** One room as the panorama sees it: every reading it holds. */
 export interface Constellation {
   room: BoardRoom;
@@ -175,6 +181,13 @@ async function getJSON<T>(path: string): Promise<T> {
 }
 
 export const fetchBoard = (): Promise<BoardResponse> => getJSON("/board");
+export const fetchBoardSettings = (): Promise<BoardSettings> => getJSON("/board-settings");
+export async function saveBoardSettings(settings: BoardSettings): Promise<BoardSettings> {
+  const url = buildApiUrl("/board-settings", { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(settings) });
+  if (!res.ok) throw new Error(`Board settings save failed: ${res.status.toString()}`);
+  return res.json() as Promise<BoardSettings>;
+}
 export const fetchRoom = (id: string, samples: string): Promise<RoomResponse> => getJSON(`/rooms/${id}?samples=${samples}`);
 export const fetchFocus = (): Promise<FocusResponse> => getJSON("/focus");
 export const fetchOpenLoop = (): Promise<OpenLoopResponse> => getJSON("/open-loop");
@@ -188,6 +201,11 @@ export async function saveCatalogEntry(catalog: string, entry: CatalogEntry): Pr
   const res = await fetch(url, { method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(entry) });
   if (!res.ok) throw new Error(`Catalog save failed: ${res.status.toString()}`);
   return res.json() as Promise<CatalogEntry>;
+}
+export async function deleteCatalogEntry(catalog: string, id: string): Promise<void> {
+  const url = buildApiUrl(`/catalogs/${catalog}/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "DELETE", headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Catalog delete failed: ${res.status.toString()}`);
 }
 
 export const hasValue = (reading: Pick<Reading, "value">): reading is Reading & { value: number } =>

@@ -1,13 +1,28 @@
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { BoardController } from "../components/BoardController";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
-vi.mock("./api", () => ({ fetchBoard: async () => ({ rooms: [] }) }));
+vi.mock("./api", () => ({ fetchBoard: async () => ({ rooms: [{ id: "hive", title: "The Hive" }] }), fetchBoardSettings: async () => ({ cycleSeconds: 60, transition: "crossfade", rooms: [] }) }));
 import { renderHook, act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { parseSamples, useBoardController, useBoardProgress } from "./boardContext";
 
 describe("board context", () => {
+  it("does not turn a settings room selection into a live-room navigation", async () => {
+    function LocationProbe() {
+      return <output data-testid="location">{useLocation().pathname}</output>;
+    }
+    const controller = initSpatialNav({ getGamepads: () => [], isVisible: () => true });
+    try {
+      renderWithProviders(<MemoryRouter initialEntries={["/settings?destination=rooms&room=hive"]}>
+        <BoardController><LocationProbe /></BoardController>
+      </MemoryRouter>);
+      expect(await screen.findByTestId("location")).toHaveTextContent("/settings");
+    } finally {
+      controller.dispose();
+    }
+  });
+
   it("defaults the audience mode to mark, so a screenshot carries its own legend", () => {
     expect(parseSamples(null)).toBe("mark");
     expect(parseSamples("nonsense")).toBe("mark");

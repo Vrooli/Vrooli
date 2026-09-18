@@ -1,9 +1,10 @@
-import { drawGlow, inQuiet, slot, rgba, type Scene, type SlotManifest } from "./engine";
+import { drawGlow, inQuiet, slot, slotGroup, rgba, type Scene, type SlotManifest } from "./engine";
 
 export const slotManifest: SlotManifest = {
   total: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
   running: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
   healthy: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+  secondary: { shape: "scalar", role: "secondary", whenUnbound: "decorative", variadic: true, maxItems: 3 },
 };
 
 interface Cell { x: number; y: number; phase: number; lit: boolean; healthy: boolean }
@@ -21,9 +22,12 @@ export function hiveLattice(): Scene {
       const totalValue = slot(data, "total");
       const runningValue = slot(data, "running");
       const healthyValue = slot(data, "healthy");
+      // Optional numbered secondary bindings are a capability extension. The
+      // shipped room leaves this group unbound, preserving instance-zero pixels.
+      const additional = slotGroup(data, "secondary");
       const total = Math.max(0, Math.round(totalValue ?? 0));
       const running = Math.max(0, Math.round(runningValue ?? 0));
-      const healthy = Math.max(0, Math.round(healthyValue ?? 0));
+      const healthy = Math.max(0, Math.round((healthyValue ?? 0) + additional.reduce((sum, value) => sum + value, 0)));
       const area = (w * h) / (total * 2.4);
       radius = Math.max(14, Math.min(Math.sqrt(area / 2.6), Math.min(w, h) / 12));
       const dx = radius * Math.sqrt(3);

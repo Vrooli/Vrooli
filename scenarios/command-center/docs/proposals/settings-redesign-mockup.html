@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en" data-theme="cosmos">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Command Center · Settings redesign (v2 — section model)</title>
+<style>
+[data-theme="cosmos"]        { --bg:#06041a; --bg-deep:#02010b; --surface:rgba(22,16,54,.72); --fg:#ede8ff; --muted:#9a90c8; --primary:#a06bff; --accent:#d3b8ff; --glow:rgba(160,107,255,.5); --border:rgba(160,107,255,.24); }
+[data-theme="ground-control"]{ --bg:#04060d; --bg-deep:#000104; --surface:rgba(10,18,36,.72); --fg:#eaf3ff; --muted:#8aa2c8; --primary:#33d6ff; --accent:#9be9ff; --glow:rgba(51,214,255,.5); --border:rgba(51,214,255,.22); }
+[data-theme="foundry"]       { --bg:#140803; --bg-deep:#060200; --surface:rgba(44,20,8,.72); --fg:#fbeadb; --muted:#c69a72; --primary:#ff9b3d; --accent:#ffd27a; --glow:rgba(255,155,61,.5); --border:rgba(255,155,61,.24); }
+[data-theme="signal-tower"]  { --bg:#0a0412; --bg-deep:#030008; --surface:rgba(34,12,44,.72); --fg:#f9eafd; --muted:#b995cc; --primary:#ff44b0; --accent:#ff9ad6; --glow:rgba(255,68,176,.5); --border:rgba(255,68,176,.24); }
+[data-theme="bioluminescent"]{ --bg:#02100d; --bg-deep:#000604; --surface:rgba(8,30,25,.72); --fg:#e2fbf4; --muted:#7dbfab; --primary:#2ee6b3; --accent:#a8ffe6; --glow:rgba(46,230,179,.5); --border:rgba(46,230,179,.22); }
+[data-theme="vault"]         { --bg:#0a0d08; --bg-deep:#030402; --surface:rgba(24,30,16,.72); --fg:#f6ecd2; --muted:#b8a774; --primary:#d9b64a; --accent:#f3dc8f; --glow:rgba(217,182,74,.45); --border:rgba(217,182,74,.24); }
+:root { --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "JetBrains Mono","SF Mono", ui-monospace, monospace; }
+* { box-sizing:border-box; } html,body { margin:0; height:100%; }
+body { font-family:var(--sans); color:var(--fg); background:#04030c; padding:26px clamp(14px,4vw,52px) 90px; line-height:1.5; }
+
+/* proposal chrome */
+.doc { max-width:1220px; margin:0 auto; }
+.doc-tag { font:700 .66rem var(--mono); letter-spacing:.22em; text-transform:uppercase; color:#8b7bd6; }
+.doc h1 { margin:.3em 0 .15em; font-size:clamp(1.4rem,3vw,2rem); letter-spacing:-.03em; }
+.doc .intro { margin:0 0 18px; color:#9aa0b8; max-width:820px; }
+.toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+.seg { display:inline-flex; border:1px solid #2a2740; border-radius:10px; overflow:hidden; }
+.seg button { border:0; background:transparent; color:#c7c3e0; font:600 .8rem var(--sans); padding:8px 14px; cursor:pointer; }
+.seg button.on { background:var(--primary); color:#0b0616; }
+.toolbar .note { color:#8b90a8; font-size:.8rem; }
+
+/* frame */
+.frame { border:1px solid var(--border); border-radius:20px; overflow:hidden; min-height:640px;
+  background: radial-gradient(120% 70% at 82% -8%, color-mix(in srgb,var(--primary) 15%, transparent), transparent 58%),
+              radial-gradient(90% 60% at 6% 108%, color-mix(in srgb,var(--accent) 8%, transparent), transparent 60%), var(--bg);
+  box-shadow:0 40px 120px -50px #000; }
+body.mobile .frame { max-width:400px; margin:0 auto; }
+.cx { padding:clamp(15px,2.2vw,26px); }
+
+/* top nav */
+.topnav { display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
+.brand { font:700 .66rem var(--mono); letter-spacing:.2em; text-transform:uppercase; color:var(--primary); }
+.tabs { display:flex; gap:3px; flex-wrap:wrap; }
+.tabs button { border:1px solid transparent; background:transparent; color:var(--muted); font:600 .84rem var(--sans); padding:8px 13px; border-radius:9px; cursor:pointer; }
+.tabs button:hover { color:var(--fg); background:color-mix(in srgb,var(--primary) 8%, transparent); }
+.tabs button.on { color:var(--fg); background:color-mix(in srgb,var(--primary) 18%, transparent); box-shadow:inset 0 0 0 1px var(--border); }
+.topnav .exit { margin-left:auto; border:1px solid var(--border); background:color-mix(in srgb,var(--primary) 8%, transparent); color:var(--primary); padding:8px 14px; border-radius:9px; font:600 .8rem var(--sans); cursor:pointer; }
+.crumb { display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; color:var(--primary); cursor:pointer; font:600 .82rem var(--sans); padding:2px 0; margin-bottom:12px; }
+.crumb:hover { color:var(--accent); }
+.h { margin:0 0 3px; font-size:clamp(1.15rem,2vw,1.55rem); letter-spacing:-.02em; }
+.sub { margin:0 0 16px; color:var(--muted); font-size:.88rem; max-width:640px; }
+
+/* generic card grid */
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+body.mobile .grid { grid-template-columns:1fr; }
+.card { position:relative; border:1px solid var(--border); border-radius:15px; overflow:hidden; cursor:pointer; text-align:left;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 5%, transparent),transparent), var(--surface); color:inherit;
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.card:hover { transform:translateY(-3px); border-color:color-mix(in srgb,var(--primary) 55%, transparent); box-shadow:0 20px 44px -26px var(--glow); }
+.card .thumb { height:96px; position:relative; overflow:hidden; }
+.card .body { padding:13px 15px; }
+.card .body b { font-size:1rem; letter-spacing:-.01em; }
+.card .meta { display:flex; gap:10px; margin-top:6px; color:var(--muted); font:600 .62rem var(--mono); letter-spacing:.06em; text-transform:uppercase; flex-wrap:wrap; }
+.card .drag { position:absolute; top:9px; left:10px; z-index:2; color:var(--fg); opacity:.35; font-size:.9rem; cursor:grab; }
+.card:hover .drag { opacity:.8; }
+.card .del { position:absolute; top:8px; right:9px; z-index:2; width:26px; height:26px; border-radius:8px; border:1px solid var(--border);
+  background:color-mix(in srgb,#000 40%, transparent); color:#ff9d9d; opacity:0; cursor:pointer; font-size:.85rem; }
+.card:hover .del { opacity:1; }
+.card.dragging { opacity:.4; }
+.card.addcard { display:grid; place-items:center; border-style:dashed; min-height:150px; color:var(--muted); }
+.card.addcard b { color:var(--primary); font-size:.95rem; }
+.card.addcard span { font-size:.78rem; }
+
+/* room thumb mini board */
+.mini { position:absolute; inset:0; background:radial-gradient(90% 90% at 65% 35%, color-mix(in srgb,var(--_p) 34%, transparent), transparent 62%), var(--_bgd); }
+.mini .mt { position:absolute; top:9px; left:11px; font:700 .58rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--_a); }
+.mini .mp { position:absolute; left:11px; bottom:10px; right:11px; display:flex; gap:5px; }
+.mini .mp i { flex:1; height:22px; border-radius:5px; background:color-mix(in srgb,var(--_p) 22%, transparent); border:1px solid color-mix(in srgb,var(--_p) 40%, transparent); }
+
+/* ROOM EDITOR ------------------------------------------------------------ */
+.editor { display:grid; grid-template-columns:1fr; gap:16px; }
+.board { position:relative; border:1px solid var(--border); border-radius:16px; overflow:hidden; aspect-ratio:16/8; min-height:260px;
+  background:radial-gradient(120% 95% at 66% 32%, color-mix(in srgb,var(--primary) 15%, transparent), transparent 62%), var(--bg-deep); }
+body.mobile .board { aspect-ratio:16/12; }
+.board .btitle { position:absolute; top:16px; left:18px; }
+.board .btitle .rk { font:700 .6rem var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+.board .btitle .rn { font-size:clamp(1.05rem,2.2vw,1.6rem); font-weight:700; letter-spacing:-.02em; }
+.board .blive { position:absolute; top:18px; right:18px; font:600 .58rem var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.board .blive::before { content:""; width:7px; height:7px; border-radius:50%; background:#4ade80; box-shadow:0 0 8px #4ade80; }
+
+/* board stage renders the selected section */
+.stage { position:absolute; left:18px; right:18px; bottom:18px; top:56px; display:grid; gap:12px; }
+.stage.default { grid-template-rows:1fr auto; }
+.stage .hero { align-self:end; }
+.stage .hero .hl { font:600 .6rem var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.stage .hero .hv { font-size:clamp(2.2rem,6vw,4rem); font-weight:800; letter-spacing:-.03em; line-height:1; }
+.stage .hero .hv small { font-size:.28em; font-weight:600; color:var(--muted); margin-left:8px; letter-spacing:0; }
+.stage .hgraphic { height:44px; }
+.stage .secs { display:flex; gap:10px; }
+.stage .secs .sc { flex:1; border:1px solid var(--border); border-radius:10px; padding:9px 11px; background:var(--surface); }
+.stage .secs .sc .sl { font:600 .54rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.stage .secs .sc .sv { font-size:1.15rem; font-weight:700; margin-top:2px; }
+.stage .secs .sc.unbound { border-style:dashed; color:var(--muted); }
+.stage.single { place-items:center; grid-template-rows:1fr; }
+.stage.single .custom { width:82%; border:1px solid color-mix(in srgb,var(--accent) 40%, transparent); border-radius:12px; padding:16px 18px;
+  background:color-mix(in srgb,var(--accent) 8%, transparent); text-align:center; }
+.stage.single .custom .ck { font:700 .58rem var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.stage.single .custom .cn { font-size:1.3rem; font-weight:700; margin:4px 0 8px; }
+.stage.single .custom .bars { display:flex; gap:6px; justify-content:center; align-items:flex-end; height:46px; }
+.stage.single .custom .bars i { width:26px; border-radius:4px 4px 0 0; background:linear-gradient(180deg,var(--primary),color-mix(in srgb,var(--primary) 30%, transparent)); }
+.stage.ambient { place-items:center; }
+.stage.ambient .amb { color:var(--muted); font-size:.9rem; text-align:center; }
+
+/* sections rail */
+.panelcard { border:1px solid var(--border); border-radius:15px; background:color-mix(in srgb,var(--bg) 68%, transparent); overflow:hidden; }
+.panelcard > header { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--border); }
+.panelcard > header h4 { margin:0; font-size:.95rem; }
+.panelcard > header .hint { color:var(--muted); font-size:.76rem; }
+.panelcard > header .add { margin-left:auto; border:1px solid var(--border); background:color-mix(in srgb,var(--primary) 10%, transparent); color:var(--primary); border-radius:8px; padding:6px 11px; font:600 .76rem var(--sans); cursor:pointer; }
+.seclist { display:flex; gap:9px; overflow-x:auto; padding:14px 16px; }
+.sec { flex:0 0 auto; width:150px; border:1px solid var(--border); border-radius:11px; padding:11px 12px; cursor:pointer; background:transparent; color:inherit; text-align:left;
+  transition:border-color .14s ease, box-shadow .14s ease; position:relative; }
+.sec:hover { border-color:color-mix(in srgb,var(--primary) 50%, transparent); }
+.sec.on { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset, 0 14px 30px -22px var(--glow); }
+.sec .sidx { font:700 .56rem var(--mono); letter-spacing:.1em; color:var(--muted); }
+.sec .shero { font-weight:700; font-size:.9rem; margin:3px 0 6px; letter-spacing:-.01em; }
+.sec .sbadges { display:flex; gap:5px; flex-wrap:wrap; }
+.sec .b { font:600 .56rem var(--mono); letter-spacing:.04em; padding:2px 6px; border-radius:5px; border:1px solid var(--border); color:var(--muted); }
+.sec .b.custom { color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%, transparent); }
+.sec .del { position:absolute; top:6px; right:7px; border:0; background:transparent; color:#ff9d9d; opacity:0; cursor:pointer; font-size:.8rem; }
+.sec:hover .del { opacity:.85; }
+.sec.addsec { display:grid; place-items:center; border-style:dashed; color:var(--primary); font-size:.82rem; min-width:120px; }
+
+/* section detail */
+.secdetail { padding:16px; display:grid; gap:15px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+body.mobile .row2 { grid-template-columns:1fr; }
+.field { display:grid; gap:6px; }
+.field label { font:600 .82rem var(--sans); }
+.field label em { font-style:normal; font-weight:500; color:var(--muted); font-size:.74rem; margin-left:6px; }
+.field select, .field input { background:color-mix(in srgb,var(--bg-deep) 55%, transparent); border:1px solid var(--border); color:var(--fg);
+  border-radius:9px; padding:9px 11px; font:500 .86rem var(--sans); }
+.slots { border:1px solid var(--border); border-radius:12px; padding:14px; display:grid; gap:11px; background:color-mix(in srgb,var(--bg) 50%, transparent); }
+.slots .legend { font:600 .66rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--primary); }
+.slotrow { display:grid; grid-template-columns:150px 1fr; gap:12px; align-items:center; }
+body.mobile .slotrow { grid-template-columns:1fr; gap:5px; }
+.slotrow .sk { font:600 .82rem var(--sans); }
+.slotrow .sk small { display:block; font:600 .55rem var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.slotrow .sk .role { color:var(--accent); }
+.compat { color:var(--muted); font-size:.76rem; display:flex; gap:7px; }
+.compat b { color:var(--accent); font-weight:600; }
+
+/* layout picker + agent handoff */
+.layoutbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.layoutbar .cur { border:1px solid var(--border); border-radius:9px; padding:8px 12px; font:600 .82rem var(--sans); background:color-mix(in srgb,var(--bg) 55%, transparent); }
+.agent { display:inline-flex; align-items:center; gap:8px; border:1px dashed color-mix(in srgb,var(--accent) 45%, transparent); background:color-mix(in srgb,var(--accent) 7%, transparent);
+  color:var(--accent); border-radius:9px; padding:8px 13px; font:600 .8rem var(--sans); cursor:pointer; }
+.agent:hover { background:color-mix(in srgb,var(--accent) 14%, transparent); }
+.agent .ai { font-size:.95em; }
+
+/* looks */
+.swatch .thumb { display:flex; }
+.swatch .thumb i { flex:1; }
+/* signals table */
+.sigtable { border:1px solid var(--border); border-radius:13px; overflow:hidden; }
+.sigtable .st-head, .sigrow { display:grid; grid-template-columns:1.4fr .8fr .9fr 1fr; gap:12px; padding:11px 15px; align-items:center; }
+body.mobile .sigtable .st-head, body.mobile .sigrow { grid-template-columns:1fr 1fr; }
+.sigtable .st-head { background:color-mix(in srgb,var(--bg) 60%, transparent); border-bottom:1px solid var(--border); font:600 .62rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.sigrow { border-top:1px solid color-mix(in srgb,var(--border) 60%, transparent); font-size:.84rem; }
+.sigrow:hover { background:color-mix(in srgb,var(--primary) 5%, transparent); }
+.sigrow .name b { font-weight:600; } .sigrow .name span { display:block; font:600 .56rem var(--mono); color:var(--muted); }
+.tag { font:600 .6rem var(--mono); letter-spacing:.04em; padding:3px 8px; border-radius:6px; border:1px solid var(--border); color:var(--muted); display:inline-block; }
+.tag.k { color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%, transparent); }
+.tag.src { color:var(--primary); border-color:color-mix(in srgb,var(--primary) 40%, transparent); }
+
+/* board settings */
+.bset { display:grid; gap:14px; max-width:560px; }
+.bset .field.slider input { width:100%; }
+.orderlist { display:grid; gap:8px; }
+.orderitem { display:flex; align-items:center; gap:11px; border:1px solid var(--border); border-radius:10px; padding:10px 13px; background:color-mix(in srgb,var(--bg) 55%, transparent); }
+.orderitem .drag { color:var(--muted); cursor:grab; } .orderitem.dragging { opacity:.4; }
+.orderitem .nm { font-weight:600; font-size:.88rem; } .orderitem .sw { width:16px; height:16px; border-radius:4px; }
+.orderitem .toggle { margin-left:auto; font:600 .68rem var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:4px 11px; cursor:pointer; background:transparent; }
+.orderitem .toggle.on { color:#0b0616; background:var(--primary); border-color:var(--primary); }
+
+/* operator */
+.opbar { display:flex; gap:6px; padding:11px; border:1px solid var(--border); border-bottom:0; border-radius:12px 12px 0 0; background:color-mix(in srgb,var(--bg) 60%, transparent); flex-wrap:wrap; }
+.opbar span { font:600 .7rem var(--mono); padding:6px 11px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+.opbar span.on { color:#0b0616; background:var(--primary); border-color:var(--primary); }
+.oppre { margin:0; border:1px solid var(--border); border-radius:0 0 12px 12px; padding:15px; font:500 12px/1.55 var(--mono); overflow:auto; max-height:340px; }
+.opcap { color:var(--muted); font-size:.8rem; margin-top:10px; }
+
+/* toast for copied prompt */
+.toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#12102a; border:1px solid var(--border); color:var(--fg);
+  padding:12px 18px; border-radius:11px; box-shadow:0 20px 50px -20px #000; font-size:.86rem; max-width:560px; opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:50; }
+.toast.show { opacity:1; }
+.toast b { color:var(--accent); }
+.hidden { display:none !important; }
+
+.annos { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:13px; margin-top:22px; }
+.anno { border:1px solid #262338; border-radius:12px; padding:14px 15px; background:#0a0817; }
+.anno h4 { margin:0 0 6px; font-size:.86rem; color:#cfc9ea; }
+.anno p { margin:0; color:#9aa0b8; font-size:.79rem; }
+</style>
+</head>
+<body class="desktop">
+<div class="doc">
+  <div class="doc-tag">Command Center · proposal mockup v2 · not shipped</div>
+  <h1>Settings redesign — the section model</h1>
+  <p class="intro">Corrected to how the board actually renders: a <b>room</b> cycles through <b>sections</b> (beats); each section
+    spotlights a hero signal in a <b>layout</b> (a composition's slots — one primary + N secondaries), and some sections swap in a
+    bespoke single-control layout. Drawn in the real palettes with the real rooms, signals, and layouts. Click around:
+    open a room, select its sections, pick a look, browse signals, or drop to Operator mode.</p>
+  <div class="toolbar">
+    <div class="seg" id="device"><button data-dev="desktop" class="on">Desktop</button><button data-dev="mobile">Mobile</button></div>
+    <span class="note">Every place that needs code shows a <b>“Hand to an agent”</b> button that copies a ready prompt.</span>
+  </div>
+
+  <div class="frame"><div class="cx">
+    <div class="topnav">
+      <span class="brand">Command Center</span>
+      <div class="tabs" id="tabs">
+        <button data-v="rooms" class="on">Rooms</button>
+        <button data-v="looks">Looks</button>
+        <button data-v="signals">Signals &amp; sources</button>
+        <button data-v="board">Board settings</button>
+        <button data-v="operator">Operator mode</button>
+      </div>
+      <button class="exit">Return to board</button>
+    </div>
+    <div id="content"></div>
+  </div></div>
+
+  <div class="annos">
+    <div class="anno"><h4>Sections are the unit</h4><p>Room → sections (beats) → per-section layout &amp; bindings — matching hive's 5 beats and forge's 6, including the bespoke override sections.</p></div>
+    <div class="anno"><h4>Layouts aren't form-authored</h4><p>New layouts declare slots in code, so "Layout" is a picker + a "Hand to an agent" button — never a fake form.</p></div>
+    <div class="anno"><h4>Menus filter by measurement kind</h4><p>A "single number" slot only lists scalar signals; a "table" slot lists row signals. The shape rule, spoken plainly.</p></div>
+    <div class="anno"><h4>Add / delete / reorder everywhere</h4><p>Rooms and sections reorder by drag, add with a card, delete with confirm. Looks and signals add/delete too.</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Real data (config/*) ────────────────────────────────────────────────
+const THEMES = {
+  cosmos:{nm:"Cosmos",p:"#a06bff",a:"#d3b8ff",bgd:"#02010b"},
+  "ground-control":{nm:"Ground Control",p:"#33d6ff",a:"#9be9ff",bgd:"#000104"},
+  foundry:{nm:"Foundry",p:"#ff9b3d",a:"#ffd27a",bgd:"#060200"},
+  "signal-tower":{nm:"Signal Tower",p:"#ff44b0",a:"#ff9ad6",bgd:"#030008"},
+  bioluminescent:{nm:"Bioluminescent",p:"#2ee6b3",a:"#a8ffe6",bgd:"#000604"},
+  vault:{nm:"Vault",p:"#d9b64a",a:"#f3dc8f",bgd:"#030402"},
+};
+const THEME_ROOMS = {cosmos:0,"ground-control":1,foundry:1,"signal-tower":1,bioluminescent:1,vault:1}; // usage counts (illustrative)
+// signals: id -> {label, shape, kind}
+const SIG = {};
+[["active_scenarios","Apps running","scalar","-"],["agent_stats","Agent success rate","scalar","-"],["ai_cost_30d","AI cost · 30 days","series","scalar"],["app_downloads","Bundle app activity","rows","panel"],["blocking_stats","Blocked now","scalar","-"],["credit_burn_by_app","Credit burn by app","rows","panel"],["credit_margin_30d","Credit margin · 30 days","series","scalar"],["conversions","Conversions · 30 days","series","-"],["cta_clicks","CTA clicks · 30 days","series","-"],["dashboard_stats","Backlog size","scalar","-"],["deployment_readiness","Deployment readiness","rows","panel"],["experiment_leaderboard","Experiment leaderboard","series","leaderboard"],["funnel_30d","Visitor-to-paid funnel","series","funnel"],["goal_progress","Goal progress","rows","panel"],["offer_posture","Default-alive posture","meta","posture"],["release_ladder","Release ladder","series","ladder"],["revenue_mrr","Monthly recurring revenue","series","-"],["review_stats","Review rounds","scalar","-"],["scenario_completeness","Running and healthy","scalar","-"],["scenario_health","Healthy apps","scalar","-"],["scenario_health_detail","Degraded apps","scalar","-"],["scenario_usage_frequency","App opens · 7 days","series","-"],["scope_stats","Goals in scope","scalar","-"],["signups_30d","Signups · 30 days","series","scalar"],["swarm_active_agents","Agent executions","scalar","-"],["throughput_stats","Items created · 7 days","scalar","-"],["timing_stats","Mean execution","scalar","-"],["total_scenarios","Apps in the portfolio","scalar","-"],["traffic_campaigns","Traffic by campaign","rows","panel"],["traffic_countries","Traffic by country","rows","panel"],["traffic_referrers","Traffic by referrer","rows","panel"],["visitors","Visitors · 30 days","series","-"]].forEach(([id,label,shape,kind])=>SIG[id]={label,shape,kind});
+const SIG_SOURCE = {throughput_stats:"swarm-manager",blocking_stats:"swarm-manager",revenue_mrr:"landing-page-business-suite",release_ladder:"offer-desk",offer_posture:"offer-desk",funnel_30d:"landing-page-business-suite",total_scenarios:"prompt-manager"};
+const srcOf = id => SIG_SOURCE[id] || "swarm-manager";
+// compositions: id -> {label, kind(default/single-custom), slots:[{name,role,shape}]}
+const COMP = {
+  "flow-current":{label:"Flow Current",kind:"default",slots:[{name:"throughput",role:"primary",shape:"rows"},{name:"blocking",role:"secondary",shape:"rows"}]},
+  "orbital-field":{label:"Orbital Field",kind:"default",slots:[{name:"running",role:"primary",shape:"scalar"},{name:"healthy",role:"secondary",shape:"scalar"}]},
+  "hive-lattice":{label:"Hive Lattice",kind:"default",slots:[{name:"total",role:"primary",shape:"scalar"},{name:"running",role:"secondary",shape:"scalar"},{name:"healthy",role:"secondary",shape:"scalar"}]},
+  "ledger-river":{label:"Ledger River",kind:"single",slots:[{name:"posture",role:"primary",shape:"meta"}]},
+  "signal-constellation":{label:"Signal Constellation",kind:"default",slots:[{name:"visitors",role:"primary",shape:"scalar"},{name:"conversions",role:"secondary",shape:"scalar"},{name:"ctaClicks",role:"secondary",shape:"scalar"}]},
+  "conversion-funnel":{label:"Conversion Funnel",kind:"single",slots:[{name:"funnel",role:"primary",shape:"rows"}]},
+  "funnel-cascade":{label:"Funnel Cascade",kind:"single",slots:[{name:"ladder",role:"primary",shape:"rows"}]},
+  "meridian-arc":{label:"Meridian Arc",kind:"single",slots:[{name:"arcs",role:"primary",shape:"rows"}]},
+  "panorama-constellation":{label:"Panorama Constellation",kind:"ambient",slots:[]},
+};
+// rooms
+let ROOMS = [
+  {id:"mission-control",title:"Mission Control",theme:"ground-control",composition:"orbital-field",bind:{running:"active_scenarios",healthy:"scenario_health"},
+   beats:[{hero:"active_scenarios",dwell:12},{hero:"swarm_active_agents",dwell:12},{hero:"scenario_health_detail",dwell:12},{hero:"timing_stats",dwell:12}]},
+  {id:"forge",title:"The Forge",theme:"foundry",composition:"flow-current",bind:{throughput:"throughput_stats",blocking:"blocking_stats"},
+   beats:[{hero:"throughput_stats",dwell:10},{hero:"timing_stats",dwell:10},{hero:"review_stats",dwell:10},{hero:"goal_progress",dwell:16},{hero:"release_ladder",dwell:14,composition:"funnel-cascade"},{hero:"deployment_readiness",dwell:10}]},
+  {id:"hive",title:"The Hive",theme:"bioluminescent",composition:"hive-lattice",bind:{total:"total_scenarios",running:"scenario_completeness",healthy:"scenario_completeness"},
+   beats:[{hero:"total_scenarios",dwell:12},{hero:"scenario_completeness",dwell:12},{hero:"scenario_usage_frequency",dwell:12},{hero:"scenario_health_detail",dwell:12},{hero:"release_ladder",dwell:16,layout:"wide"}]},
+  {id:"broadcast",title:"Broadcast",theme:"signal-tower",composition:"signal-constellation",bind:{visitors:"visitors",conversions:"conversions",ctaClicks:"cta_clicks"},
+   beats:[{hero:"funnel_30d",dwell:12,composition:"conversion-funnel"},{hero:"traffic_referrers",dwell:14},{hero:"traffic_campaigns",dwell:14},{hero:"experiment_leaderboard",dwell:14},{hero:"app_downloads",dwell:12},{hero:"signups_30d",dwell:10},{hero:"traffic_countries",dwell:12,composition:"meridian-arc"}]},
+  {id:"ledger",title:"Ledger",theme:"vault",composition:"ledger-river",bind:{posture:"offer_posture"},
+   beats:[{hero:"revenue_mrr",dwell:12},{hero:"credit_burn_by_app",dwell:12},{hero:"credit_margin_30d",dwell:12},{hero:"offer_posture",dwell:14}]},
+  {id:"panorama",title:"Panorama",theme:"cosmos",composition:"panorama-constellation",bind:{},beats:[]},
+];
+let BOARD = {cycleSeconds:60, transition:"drift", order:ROOMS.map(r=>r.id), enabled:new Set(ROOMS.map(r=>r.id))};
+
+// ── State + helpers ─────────────────────────────────────────────────────
+let state = {view:"rooms", roomId:null, beat:0};
+const $ = s => document.querySelector(s);
+const esc = s => (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const labelOf = id => SIG[id]?.label || id;
+const shapeWord = sh => ({scalar:"a single number",series:"a trend",rows:"a table",meta:"a status"}[sh]||sh);
+function setTheme(t){ const T=THEMES[t]; if(T) document.documentElement.dataset.theme=t; }
+function toast(html){ const t=$("#toast"); t.innerHTML=html; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2600); }
+function copyPrompt(kind, ctx){
+  toast(`<b>Prompt copied.</b> Paste into an agent — it references the <b>command-center-customize</b> skill to ${esc(kind)}${ctx?` (${esc(ctx)})`:""}.`);
+}
+
+// ── Views ───────────────────────────────────────────────────────────────
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===state.view));
+  const c=$("#content");
+  if(state.view==="rooms")   c.innerHTML = state.roomId ? roomEditor() : roomsGrid();
+  if(state.view==="looks")   c.innerHTML = looksView();
+  if(state.view==="signals") c.innerHTML = signalsView();
+  if(state.view==="board")   c.innerHTML = boardView();
+  if(state.view==="operator")c.innerHTML = operatorView();
+  wire();
+}
+
+function roomsGrid(){
+  const cards = BOARD.order.map(id=>ROOMS.find(r=>r.id===id)).filter(Boolean).map(r=>{
+    const T=THEMES[r.theme];
+    return `<button class="card room-card" data-room="${r.id}" draggable="true" style="--_p:${T.p};--_a:${T.a};--_bgd:${T.bgd}">
+      <span class="drag" title="drag to reorder">⠿</span>
+      <span class="del" data-del-room="${r.id}" title="delete room">🗑</span>
+      <span class="thumb"><span class="mini"><span class="mt">${esc(r.title)}</span><span class="mp">${"<i></i>".repeat(Math.min(4,Math.max(1,r.beats.length||1)))}</span></span></span>
+      <span class="body"><b>${esc(r.title)}</b>
+        <span class="meta"><span>${THEMES[r.theme].nm}</span><span>${r.beats.length} section${r.beats.length===1?"":"s"}</span><span>${COMP[r.composition]?.label||r.composition}</span></span>
+      </span></button>`;
+  }).join("");
+  return `<button class="crumb" disabled style="opacity:.5;cursor:default">Rooms</button>
+    <h3 class="h">Rooms</h3>
+    <p class="sub">Each room is a board view that cycles through its sections. Drag to reorder how they rotate on the board; open one to edit its sections, look, and data.</p>
+    <div class="grid" id="roomgrid">${cards}
+      <button class="card addcard" id="addroom"><b>+ Add a room</b><span>from a layout, a look, and its signals</span></button>
+    </div>`;
+}
+
+function roomEditor(){
+  const r=ROOMS.find(x=>x.id===state.roomId); if(!r) return roomsGrid();
+  setTheme(r.theme);
+  const beat = r.beats[state.beat];
+  return `<button class="crumb" id="backrooms">← Rooms</button>
+    <h3 class="h">${esc(r.title)}</h3>
+    <p class="sub">Edit the board you're looking at. Pick a section below to change what it shows; the preview updates live.</p>
+    <div class="editor">
+      ${boardPreview(r,beat)}
+      <div class="panelcard">
+        <header><h4>Sections</h4><span class="hint">${r.beats.length} in this room · drag to reorder the cycle</span>
+          <button class="add" id="addsec">+ Add section</button></header>
+        <div class="seclist" id="seclist">
+          ${r.beats.map((b,i)=>sectionChip(r,b,i)).join("")}
+          ${r.beats.length===0?`<div class="sec addsec" id="addsec2">+ first section</div>`:""}
+        </div>
+        ${beat?sectionDetail(r,beat):`<div class="secdetail"><p class="compat">This room is ambient — it has no sections yet. Add one, or keep it as a pure backdrop.</p></div>`}
+      </div>
+      <div class="panelcard"><header><h4>Room look &amp; base layout</h4></header>
+        <div class="secdetail"><div class="row2">
+          <div class="field"><label>Look</label><select id="roomtheme">${Object.entries(THEMES).map(([id,t])=>`<option value="${id}" ${id===r.theme?"selected":""}>${t.nm}</option>`).join("")}</select></div>
+          <div class="field"><label>Base layout <em>sections inherit this unless they override</em></label>
+            <div class="layoutbar"><span class="cur">${COMP[r.composition]?.label||r.composition}</span>
+              <button class="agent" data-agent="create a new base layout"><span class="ai">✦</span> Hand to an agent</button></div></div>
+        </div></div>
+      </div>
+    </div>`;
+}
+
+function sectionChip(r,b,i){
+  const comp = b.composition ? COMP[b.composition] : null;
+  const custom = (comp&&comp.kind!=="default") || b.layout==="wide";
+  return `<button class="sec ${i===state.beat?"on":""}" data-beat="${i}" draggable="true">
+    <button class="del" data-del-beat="${i}" title="remove section">✕</button>
+    <span class="sidx">Section ${i+1} · ${b.dwell}s</span>
+    <span class="shero">${esc(labelOf(b.hero))}</span>
+    <span class="sbadges">${custom?`<span class="b custom">${comp?comp.label:"wide"}</span>`:`<span class="b">default layout</span>`}</span>
+  </button>`;
+}
+
+function boardPreview(r,beat){
+  const T=THEMES[r.theme];
+  if(!beat){ return `<div class="board"><div class="btitle"><div class="rk">Room</div><div class="rn">${esc(r.title)}</div></div>
+    <div class="blive">live preview</div><div class="stage ambient"><div class="amb">Ambient room — a pure backdrop with no sections.</div></div></div>`; }
+  const comp = COMP[beat.composition||r.composition] || {kind:"default",slots:[]};
+  const single = comp.kind==="single" || beat.layout==="wide";
+  let stage;
+  if(single){
+    stage = `<div class="stage single"><div class="custom">
+      <div class="ck">${comp.kind==="single"?comp.label:"Wide layout"} · ${SIG[beat.hero]?.kind!=="-"?SIG[beat.hero].kind:"custom"}</div>
+      <div class="cn">${esc(labelOf(beat.hero))}</div>
+      <div class="bars"><i style="height:60%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:72%"></i><i style="height:48%"></i></div>
+    </div></div>`;
+  } else {
+    const secs = comp.slots.filter(s=>s.role==="secondary");
+    const secHtml = secs.length? secs.map(s=>{ const bound=r.bind[s.name]; return `<div class="sc ${bound?"":"unbound"}"><div class="sl">${s.name}</div><div class="sv">${bound?esc(labelOf(bound)):"unbound"}</div></div>`; }).join("") : `<div class="sc unbound"><div class="sl">no secondary slots</div></div>`;
+    stage = `<div class="stage default">
+      <div class="hero"><div class="hl">Primary · ${esc(beat.hero)}</div><div class="hv">${sampleVal(beat.hero)}<small>${SIG[beat.hero]?.label.split("·")[0].trim()||""}</small></div>
+        <svg class="hgraphic" viewBox="0 0 200 44" preserveAspectRatio="none"><polyline fill="none" stroke="var(--primary)" stroke-width="2.5" points="0,36 25,30 50,32 75,20 100,23 125,12 150,15 175,6 200,9"/></svg></div>
+      <div class="secs">${secHtml}</div></div>`;
+  }
+  return `<div class="board"><div class="btitle"><div class="rk">Room · Section ${state.beat+1}/${r.beats.length}</div><div class="rn">${esc(r.title)}</div></div>
+    <div class="blive">live preview</div>${stage}</div>`;
+}
+function sampleVal(id){ const s=SIG[id]; if(!s) return "—"; if(s.shape==="scalar") return ({total_scenarios:"24",active_scenarios:"21",throughput_stats:"128",timing_stats:"6.2m",review_stats:"3",swarm_active_agents:"14"}[id]||"37"); if(s.shape==="meta") return "Alive"; return "↗ trend"; }
+
+function sectionDetail(r,beat){
+  const compId = beat.composition||r.composition;
+  const comp = COMP[compId]||{kind:"default",slots:[]};
+  const single = comp.kind==="single" || beat.layout==="wide";
+  const slotRows = comp.slots.map(s=>{
+    const options = Object.keys(SIG).filter(id=>SIG[id].shape===s.shape);
+    const bound = r.bind[s.name] || (s.role==="primary"?beat.hero:"");
+    return `<div class="slotrow"><div class="sk">${s.name}<small><span class="role">${s.role}</span> · ${shapeWord(s.shape)}</small></div>
+      <select>${s.role!=="primary"?`<option value="">— leave empty —</option>`:""}${options.map(id=>`<option ${id===bound?"selected":""}>${esc(labelOf(id))}</option>`).join("")}</select></div>`;
+  }).join("");
+  return `<div class="secdetail">
+    <div class="row2">
+      <div class="field"><label>Hero <em>the signal this section spotlights</em></label>
+        <select id="herosel">${Object.keys(SIG).map(id=>`<option ${id===beat.hero?"selected":""}>${esc(labelOf(id))}</option>`).join("")}</select></div>
+      <div class="field"><label>Dwell <em>seconds this section holds</em></label><input type="number" value="${beat.dwell}" min="4" max="40"></div>
+    </div>
+    <div class="field"><label>Layout <em>how this section arranges its data</em></label>
+      <div class="layoutbar">
+        <span class="cur">${comp.label||compId}${beat.layout==="wide"?" · wide":""}</span>
+        <select id="layoutsel"><optgroup label="Default (primary + secondaries)">${Object.entries(COMP).filter(([,c])=>c.kind==="default").map(([id,c])=>`<option ${id===compId?"selected":""}>${c.label}</option>`).join("")}</optgroup>
+          <optgroup label="Single custom control">${Object.entries(COMP).filter(([,c])=>c.kind==="single").map(([id,c])=>`<option ${id===compId?"selected":""}>${c.label}</option>`).join("")}</optgroup></select>
+        <button class="agent" data-agent="build a new layout" data-ctx="declares slots in a scene module"><span class="ai">✦</span> Create new layout</button>
+      </div>
+    </div>
+    ${single?`<div class="slots"><div class="legend">Single custom control</div>
+        <p class="compat">This section shows one bespoke figure (a ${comp.kind==="single"?comp.label.toLowerCase():"wide readout"}) driven by <b>${esc(labelOf(beat.hero))}</b> — like The Hive's release ladder or Broadcast's funnel. Its rendering is a custom component; change what feeds it with the Hero above.</p></div>`
+      :`<fieldset class="slots"><div class="legend">What each spot shows</div>${slotRows||`<p class="compat">This layout declares no bindable spots.</p>`}
+        <p class="compat">ⓘ&nbsp;<span>Each menu lists only signals that are <b>${comp.slots[0]?shapeWord(comp.slots[0].shape):"the right kind"}</b> for that spot — the shape rule, done for you.</span></p></fieldset>`}
+  </div>`;
+}
+
+function looksView(){
+  const cards = Object.entries(THEMES).map(([id,t])=>`
+    <button class="card swatch" data-look="${id}">
+      <span class="del" data-del-look="${id}">🗑</span>
+      <span class="thumb"><i style="background:${t.bgd}"></i><i style="background:${t.p}"></i><i style="background:${t.a}"></i></span>
+      <span class="body"><b>${t.nm}</b><span class="meta"><span>${THEME_ROOMS[id]?`paints ${THEME_ROOMS[id]} room${THEME_ROOMS[id]===1?"":"s"}`:"unused"}</span></span></span>
+    </button>`).join("");
+  return `<button class="crumb" disabled style="opacity:.5;cursor:default">Looks</button>
+    <h3 class="h">Looks</h3><p class="sub">Palettes every room can wear. Pick one to preview it across the board; duplicate to riff on it, or hand a from-scratch palette to an agent.</p>
+    <div class="grid">${cards}
+      <button class="card addcard" id="addlook"><b>+ New look</b><span>duplicate one, or ✦ hand to an agent</span></button></div>`;
+}
+
+function signalsView(){
+  const rows = Object.entries(SIG).map(([id,s])=>`
+    <div class="sigrow"><div class="name"><b>${esc(s.label)}</b><span>${id}</span></div>
+      <div><span class="tag">${shapeWord(s.shape)}</span></div>
+      <div>${s.kind!=="-"?`<span class="tag k">${s.kind} component</span>`:`<span class="tag">standard</span>`}</div>
+      <div><span class="tag src">${srcOf(id)}</span></div></div>`).join("");
+  return `<button class="crumb" disabled style="opacity:.5;cursor:default">Signals &amp; sources</button>
+    <h3 class="h">Signals &amp; sources</h3>
+    <p class="sub">Every measurement the board can draw, where it comes from, and which custom component renders it. Add one by hand for a simple number, or hand a new source/component to an agent.</p>
+    <div class="toolbar" style="margin-bottom:14px">
+      <button class="agent" data-agent="add a data source / signal by hand"><span class="ai">+</span> Add a signal</button>
+      <button class="agent" data-agent="wire a new upstream source" data-ctx="new connector + endpoint"><span class="ai">✦</span> Connect a new source</button>
+      <button class="agent" data-agent="build a custom readout component" data-ctx="like the release ladder"><span class="ai">✦</span> New custom component</button>
+    </div>
+    <div class="sigtable"><div class="st-head"><div>Signal</div><div>Measurement</div><div>Renders as</div><div>Source</div></div>${rows}</div>`;
+}
+
+function boardView(){
+  const items = BOARD.order.map(id=>{ const r=ROOMS.find(x=>x.id===id); const T=THEMES[r.theme]; const on=BOARD.enabled.has(id);
+    return `<div class="orderitem" draggable="true" data-ord="${id}"><span class="drag">⠿</span><span class="sw" style="background:${T.p}"></span>
+      <span class="nm">${esc(r.title)}</span><button class="toggle ${on?"on":""}" data-tog="${id}">${on?"on board":"hidden"}</button></div>`; }).join("");
+  return `<button class="crumb" disabled style="opacity:.5;cursor:default">Board settings</button>
+    <h3 class="h">Board settings</h3><p class="sub">The globals that today live only in code: how fast the board cycles, how rooms transition, and which rooms are in rotation.</p>
+    <div class="bset">
+      <div class="field slider"><label>Default section dwell <em>${BOARD.cycleSeconds}s — rooms/sections can still override</em></label><input type="range" min="20" max="120" value="${BOARD.cycleSeconds}" id="cyc"></div>
+      <div class="field"><label>Room transition</label><select id="trans">${["drift","cut","dissolve","slide"].map(t=>`<option ${t===BOARD.transition?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div class="field"><label>Rooms in rotation <em>drag to reorder · toggle to include</em></label><div class="orderlist" id="ordlist">${items}</div></div>
+    </div>`;
+}
+
+function operatorView(){
+  const r=ROOMS.find(x=>x.id==="forge");
+  const json = JSON.stringify({id:r.id,title:r.title,theme:r.theme,composition:r.composition,bind:r.bind,beats:r.beats},null,2);
+  return `<button class="crumb" disabled style="opacity:.5;cursor:default">Operator mode</button>
+    <h3 class="h">Operator mode · all catalogs</h3>
+    <p class="sub">The full raw surface for people who hold the model — every catalog, every field, with a JSON escape hatch. Unchanged from today, and the friendly views all write this same config.</p>
+    <div class="opbar"><span class="on">rooms</span><span>themes</span><span>compositions</span><span>signals</span><span>connectors</span><span>readouts</span></div>
+    <pre class="oppre">${esc(json)}</pre>
+    <p class="opcap">The reframed Rooms / Looks / Signals views are a friendlier front door onto exactly this. Nothing is hidden or lost — it's a second way in, not a replacement.</p>`;
+}
+
+// ── Wiring ──────────────────────────────────────────────────────────────
+function wire(){
+  document.querySelectorAll("[data-room]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del-room]"))return; state.roomId=el.dataset.room; state.beat=0; render(); });
+  const back=$("#backrooms"); if(back) back.onclick=()=>{ state.roomId=null; render(); };
+  document.querySelectorAll("[data-beat]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del-beat]"))return; state.beat=+el.dataset.beat; render(); });
+  document.querySelectorAll("[data-del-beat]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const r=ROOMS.find(x=>x.id===state.roomId); if(confirm(`Remove section ${+el.dataset.delBeat+1} (${labelOf(r.beats[+el.dataset.delBeat].hero)})?`)){ r.beats.splice(+el.dataset.delBeat,1); state.beat=Math.max(0,state.beat-(+el.dataset.delBeat<=state.beat?1:0)); render(); } });
+  const addsec=(e)=>{ const r=ROOMS.find(x=>x.id===state.roomId); r.beats.push({hero:Object.keys(SIG)[0],dwell:12}); state.beat=r.beats.length-1; render(); };
+  if($("#addsec")) $("#addsec").onclick=addsec; if($("#addsec2")) $("#addsec2").onclick=addsec;
+  document.querySelectorAll("[data-del-room]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const r=ROOMS.find(x=>x.id===el.dataset.delRoom); if(confirm(`Delete room "${r.title}"? This removes it from the board. (Strong confirm — type-to-confirm in the real build.)`)){ ROOMS=ROOMS.filter(x=>x.id!==r.id); BOARD.order=BOARD.order.filter(id=>id!==r.id); render(); } });
+  if($("#addroom")) $("#addroom").onclick=()=>toast(`<b>Add a room</b> → a short wizard: name it, pick a look and a base layout, then add sections. (Demo copies a starter prompt.)`);
+  const rt=$("#roomtheme"); if(rt) rt.onchange=()=>{ const r=ROOMS.find(x=>x.id===state.roomId); r.theme=rt.value; render(); };
+  document.querySelectorAll("[data-look]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del-look]"))return; setTheme(el.dataset.look); toast(`Previewing <b>${THEMES[el.dataset.look].nm}</b> across the board.`); });
+  if($("#addlook")) $("#addlook").onclick=()=>copyPrompt("author a new palette");
+  document.querySelectorAll("[data-agent]").forEach(el=>el.onclick=()=>copyPrompt(el.dataset.agent, el.dataset.ctx));
+  // toggles / sliders (board)
+  document.querySelectorAll("[data-tog]").forEach(el=>el.onclick=()=>{ BOARD.enabled.has(el.dataset.tog)?BOARD.enabled.delete(el.dataset.tog):BOARD.enabled.add(el.dataset.tog); render(); });
+  const cyc=$("#cyc"); if(cyc) cyc.oninput=()=>{ BOARD.cycleSeconds=+cyc.value; $(".field.slider em").textContent=`${cyc.value}s — rooms/sections can still override`; };
+  enableDrag("#roomgrid",".room-card","room", ()=>BOARD.order);
+  enableDrag("#seclist",".sec[data-beat]","beat");
+  enableDrag("#ordlist",".orderitem","ord",()=>BOARD.order);
+}
+
+// lightweight drag reorder
+function enableDrag(listSel,itemSel,kind){
+  const list=document.querySelector(listSel); if(!list) return; let dragEl=null;
+  list.querySelectorAll(itemSel).forEach(it=>{
+    it.addEventListener("dragstart",()=>{ dragEl=it; it.classList.add("dragging"); });
+    it.addEventListener("dragend",()=>{ it.classList.remove("dragging"); commitOrder(list,itemSel,kind); });
+  });
+  list.addEventListener("dragover",e=>{ e.preventDefault(); const after=afterEl(list,itemSel,e.clientX,e.clientY); if(!dragEl)return; if(after==null)list.appendChild(dragEl); else list.insertBefore(dragEl,after); });
+}
+function afterEl(list,itemSel,x,y){ const els=[...list.querySelectorAll(`${itemSel}:not(.dragging)`)]; let closest={o:-Infinity,el:null}; els.forEach(el=>{ const b=el.getBoundingClientRect(); const o=(list.scrollWidth>list.clientWidth?x-b.left-b.width/2:y-b.top-b.height/2); if(o<0&&o>closest.o)closest={o,el}; }); return closest.el; }
+function commitOrder(list,itemSel,kind){
+  const ids=[...list.querySelectorAll(itemSel)].map(el=>el.dataset.room||el.dataset.beat||el.dataset.ord);
+  if(kind==="beat"){ const r=ROOMS.find(x=>x.id===state.roomId); const cur=r.beats; r.beats=ids.map(i=>cur[+i]); state.beat=0; render(); }
+  else { BOARD.order=ids; render(); }
+}
+
+// tabs + device
+$("#tabs").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; state.view=b.dataset.v; if(state.view!=="rooms")state.roomId=null; render(); };
+$("#device").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; document.querySelector("#device .on").classList.remove("on"); b.classList.add("on"); document.body.className=b.dataset.dev; };
+render();
+</script>
+</body>
+</html>
