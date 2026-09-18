@@ -1,0 +1,22 @@
+{
+  "id": "total_scenarios",
+  "label": "Apps in the portfolio",
+  "description": "Every app the control plane knows about, running or not.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "meta-optimization",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "total_scenarios",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "total_scenarios",
+    "contractVersion": "legacy.v1",
+    "selector": "total_scenarios",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

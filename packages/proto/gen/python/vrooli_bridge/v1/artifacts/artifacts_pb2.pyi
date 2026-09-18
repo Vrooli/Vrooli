@@ -22,12 +22,13 @@ DELIVERY_STATUS_DELIVERED: DeliveryStatus
 DELIVERY_STATUS_FAILED: DeliveryStatus
 
 class Distribution(_message.Message):
-    __slots__ = ("id", "node_id", "name", "source_ref", "destination_path", "status", "delivery_ref", "detail", "created_at", "updated_at")
+    __slots__ = ("id", "node_id", "name", "source_ref", "destination_path", "executable", "status", "delivery_ref", "detail", "created_at", "updated_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCE_REF_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DELIVERY_REF_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
@@ -38,12 +39,13 @@ class Distribution(_message.Message):
     name: str
     source_ref: str
     destination_path: str
+    executable: bool
     status: DeliveryStatus
     delivery_ref: str
     detail: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., name: _Optional[str] = ..., source_ref: _Optional[str] = ..., destination_path: _Optional[str] = ..., status: _Optional[_Union[DeliveryStatus, str]] = ..., delivery_ref: _Optional[str] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., name: _Optional[str] = ..., source_ref: _Optional[str] = ..., destination_path: _Optional[str] = ..., executable: _Optional[bool] = ..., status: _Optional[_Union[DeliveryStatus, str]] = ..., delivery_ref: _Optional[str] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class DistributeArtifactRequest(_message.Message):
     __slots__ = ("node_id", "name", "source_ref", "destination_path")

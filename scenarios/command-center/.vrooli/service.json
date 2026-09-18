@@ -182,41 +182,6 @@
       "id": "react-vite"
     }
   },
-  "credentials": {
-    "descriptors": [
-      {
-        "logical_id": "vrooli/command-center",
-        "field": "lpbs-production-reader-token",
-        "label": "LPBS production metrics reader token",
-        "description": "Scoped read-only LPBS metrics token used only when Command Center is explicitly pointed at the production origin.",
-        "required": false,
-        "provisioning": "operator",
-        "tiers": [
-          "tier-1-local",
-          "tier-4-saas"
-        ]
-      },
-      {
-        "logical_id": "vrooli/command-center",
-        "field": "lpbs-production-service-token",
-        "label": "Retired LPBS production service token",
-        "description": "Retired compatibility descriptor; production metrics use lpbs-production-reader-token.",
-        "required": false,
-        "provisioning": "operator",
-        "tiers": ["tier-1-local"]
-      }
-    ],
-    "consumers": [
-      {
-        "logical_id": "vrooli/command-center",
-        "field": "lpbs-production-reader-token",
-        "kind": "authority",
-        "consumer": "LPBS production business digest client",
-        "source_ref": "api/server.go:62",
-        "required": false
-      }
-    ]
-  },
   "skills": {
     "usage": {
       "source": "skills/command-center/SKILL.md",

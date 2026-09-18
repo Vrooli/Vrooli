@@ -94,8 +94,10 @@ type Distribution struct {
 	// or a control-plane-resolvable URI). Bridge never reads the bytes.
 	SourceRef string `protobuf:"bytes,4,opt,name=source_ref,json=sourceRef,proto3" json:"source_ref,omitempty"`
 	// Where on the node the artifact should land so the job can use it.
-	DestinationPath string         `protobuf:"bytes,5,opt,name=destination_path,json=destinationPath,proto3" json:"destination_path,omitempty"`
-	Status          DeliveryStatus `protobuf:"varint,6,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus" json:"status,omitempty"`
+	DestinationPath string `protobuf:"bytes,5,opt,name=destination_path,json=destinationPath,proto3" json:"destination_path,omitempty"`
+	// Request executable permission when the target filesystem supports it.
+	Executable bool           `protobuf:"varint,11,opt,name=executable,proto3" json:"executable,omitempty"`
+	Status     DeliveryStatus `protobuf:"varint,6,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus" json:"status,omitempty"`
 	// The device-sync-hub directed-delivery reference, set once accepted; the
 	// node fetches the bytes against it.
 	DeliveryRef string `protobuf:"bytes,7,opt,name=delivery_ref,json=deliveryRef,proto3" json:"delivery_ref,omitempty"`
@@ -170,6 +172,13 @@ func (x *Distribution) GetDestinationPath() string {
 		return x.DestinationPath
 	}
 	return ""
+}
+
+func (x *Distribution) GetExecutable() bool {
+	if x != nil {
+		return x.Executable
+	}
+	return false
 }
 
 func (x *Distribution) GetStatus() DeliveryStatus {
@@ -788,14 +797,17 @@ var File_vrooli_bridge_v1_artifacts_artifacts_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\n" +
-	"*vrooli-bridge/v1/artifacts/artifacts.proto\x12!vrooli.vrooli_bridge.v1.artifacts\x1a\x1fgoogle/protobuf/timestamp.proto\"\x91\x03\n" +
+	"*vrooli-bridge/v1/artifacts/artifacts.proto\x12!vrooli.vrooli_bridge.v1.artifacts\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb1\x03\n" +
 	"\fDistribution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
 	"source_ref\x18\x04 \x01(\tR\tsourceRef\x12)\n" +
-	"\x10destination_path\x18\x05 \x01(\tR\x0fdestinationPath\x12I\n" +
+	"\x10destination_path\x18\x05 \x01(\tR\x0fdestinationPath\x12\x1e\n" +
+	"\n" +
+	"executable\x18\v \x01(\bR\n" +
+	"executable\x12I\n" +
 	"\x06status\x18\x06 \x01(\x0e21.vrooli.vrooli_bridge.v1.artifacts.DeliveryStatusR\x06status\x12!\n" +
 	"\fdelivery_ref\x18\a \x01(\tR\vdeliveryRef\x12\x16\n" +
 	"\x06detail\x18\b \x01(\tR\x06detail\x129\n" +

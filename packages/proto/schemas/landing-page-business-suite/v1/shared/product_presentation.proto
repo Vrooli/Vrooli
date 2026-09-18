@@ -413,7 +413,32 @@ message PresentationFixture {
     PresentationWorkspaceFixture workspace = 3;
     PresentationBackdropFixture backdrop = 4;
     PresentationWorkflowFixture workflow = 5;
+    PresentationMonitorFixture monitor = 6;
   }
+}
+
+message PresentationMonitorMetric {
+  string id = 1;
+  string label = 2;
+  string value = 3;
+  string unit = 4;
+  string detail = 5;
+  string status = 6;
+  repeated double trend = 7;
+}
+
+message PresentationMonitorFixture {
+  string title = 1;
+  string host = 2;
+  string metrics_label = 3;
+  repeated PresentationMonitorMetric metrics = 4;
+  string investigation_label = 5;
+  string investigation_title = 6;
+  string investigation_body = 7;
+  repeated string findings = 8;
+  string action_note = 9;
+  string status = 10;
+  string uptime = 11;
 }
 
 message PresentationWorkspaceFixture {

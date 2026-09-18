@@ -162,6 +162,14 @@ message ArtifactDelivery {
   // Target-local path. The agent applies its local permission policy when it
   // creates or replaces this path; it never executes the artifact.
   string destination_path = 4;
+
+  // Resolved device-sync-hub API base. This is non-secret routing metadata;
+  // the target device token remains node-local and is never carried in a
+  // channel frame.
+  string device_sync_url = 5;
+
+  // When true, the agent installs the downloaded file with executable mode.
+  bool executable = 6;
 }
 
 message CredentialInjection {

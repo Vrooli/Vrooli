@@ -328,8 +328,20 @@ func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {
 }
 
 func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")), "override") && binding.IntegrationID == "landing-page-business-suite" {
-		return "override", "override", "Local LPBS override"
+	if binding.IntegrationID == "landing-page-business-suite" {
+		switch origin := strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN"))); origin {
+		case "local":
+			if spec, ok := s.registry.Origins["local"]; ok {
+				return "local", first(spec.Environment, "local"), first(spec.Display, "Local instance")
+			}
+			return "local", "local", "Local instance"
+		case "override":
+			return "override", "override", "Local LPBS override"
+		case "production":
+			if spec, ok := s.registry.Origins["production"]; ok {
+				return "production", first(spec.Environment, "production"), first(spec.Display, "vrooli.com")
+			}
+		}
 	}
 	origin := first(binding.Origin, "local")
 	if spec, ok := s.registry.Origins[origin]; ok {

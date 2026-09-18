@@ -1,4 +1,10 @@
-import { drawGlow, inQuiet, read, rgba, type Scene } from "./engine";
+import { drawGlow, inQuiet, slot, rgba, type Scene, type SlotManifest } from "./engine";
+
+export const slotManifest: SlotManifest = {
+  total: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
+  running: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+  healthy: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+};
 
 interface Cell { x: number; y: number; phase: number; lit: boolean; healthy: boolean }
 interface Wave { x: number; y: number; born: number }
@@ -12,9 +18,9 @@ export function hiveLattice(): Scene {
   return {
     init(frame) {
       const { w, h, rng, data } = frame;
-      const totalValue = read(data, "total_scenarios");
-      const runningValue = read(data, "composite_portfolio") ?? read(data, "scenario_completeness");
-      const healthyValue = read(data, "scenario_completeness");
+      const totalValue = slot(data, "total");
+      const runningValue = slot(data, "running");
+      const healthyValue = slot(data, "healthy");
       const total = Math.max(0, Math.round(totalValue ?? 0));
       const running = Math.max(0, Math.round(runningValue ?? 0));
       const healthy = Math.max(0, Math.round(healthyValue ?? 0));

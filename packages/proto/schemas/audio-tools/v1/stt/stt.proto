@@ -688,6 +688,11 @@ message StreamSegment {
   int64 start_sample = 10;
   int64 end_sample = 11;
   string alignment_quality = 12;
+  // Speaker-policy outcome for this segment: "applied", "degraded", or
+  // empty when speaker verification was not requested. This is explicit even
+  // when text is emitted so consumers do not mistake fail-open fallback for a
+  // verified speaker.
+  string speaker_policy = 13;
 }
 
 message StreamPartial {

@@ -303,14 +303,22 @@ class ListSharedFilesResponse(_message.Message):
     def __init__(self, team_id: _Optional[str] = ..., files: _Optional[_Iterable[_Union[SharedFileEntry, _Mapping]]] = ...) -> None: ...
 
 class SharedFileContent(_message.Message):
-    __slots__ = ("team_id", "path", "content")
+    __slots__ = ("team_id", "path", "content", "content_bytes", "content_type", "content_truncated", "preview_data_url")
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_DATA_URL_FIELD_NUMBER: _ClassVar[int]
     team_id: str
     path: str
     content: str
-    def __init__(self, team_id: _Optional[str] = ..., path: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+    content_bytes: bytes
+    content_type: str
+    content_truncated: bool
+    preview_data_url: str
+    def __init__(self, team_id: _Optional[str] = ..., path: _Optional[str] = ..., content: _Optional[str] = ..., content_bytes: _Optional[bytes] = ..., content_type: _Optional[str] = ..., content_truncated: _Optional[bool] = ..., preview_data_url: _Optional[str] = ...) -> None: ...
 
 class GetSharedFileRequest(_message.Message):
     __slots__ = ("team_id", "path")
@@ -418,14 +426,22 @@ class GetEffortWorkspaceContentRequest(_message.Message):
     def __init__(self, effort_ref: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class EffortWorkspaceContent(_message.Message):
-    __slots__ = ("effort_ref", "path", "content")
+    __slots__ = ("effort_ref", "path", "content", "content_bytes", "content_type", "content_truncated", "preview_data_url")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_DATA_URL_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     path: str
     content: str
-    def __init__(self, effort_ref: _Optional[str] = ..., path: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+    content_bytes: bytes
+    content_type: str
+    content_truncated: bool
+    preview_data_url: str
+    def __init__(self, effort_ref: _Optional[str] = ..., path: _Optional[str] = ..., content: _Optional[str] = ..., content_bytes: _Optional[bytes] = ..., content_type: _Optional[str] = ..., content_truncated: _Optional[bool] = ..., preview_data_url: _Optional[str] = ...) -> None: ...
 
 class OrgEdge(_message.Message):
     __slots__ = ("manager_agent_id", "report_agent_id")

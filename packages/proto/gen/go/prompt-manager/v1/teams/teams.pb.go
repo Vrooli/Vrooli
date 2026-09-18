@@ -1721,12 +1721,16 @@ func (x *ListSharedFilesResponse) GetFiles() []*SharedFileEntry {
 }
 
 type SharedFileContent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TeamId        string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TeamId           string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	Path             string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Content          string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	ContentBytes     []byte                 `protobuf:"bytes,4,opt,name=content_bytes,json=contentBytes,proto3" json:"content_bytes,omitempty"`
+	ContentType      string                 `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	ContentTruncated bool                   `protobuf:"varint,6,opt,name=content_truncated,json=contentTruncated,proto3" json:"content_truncated,omitempty"`
+	PreviewDataUrl   string                 `protobuf:"bytes,7,opt,name=preview_data_url,json=previewDataUrl,proto3" json:"preview_data_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SharedFileContent) Reset() {
@@ -1776,6 +1780,34 @@ func (x *SharedFileContent) GetPath() string {
 func (x *SharedFileContent) GetContent() string {
 	if x != nil {
 		return x.Content
+	}
+	return ""
+}
+
+func (x *SharedFileContent) GetContentBytes() []byte {
+	if x != nil {
+		return x.ContentBytes
+	}
+	return nil
+}
+
+func (x *SharedFileContent) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *SharedFileContent) GetContentTruncated() bool {
+	if x != nil {
+		return x.ContentTruncated
+	}
+	return false
+}
+
+func (x *SharedFileContent) GetPreviewDataUrl() string {
+	if x != nil {
+		return x.PreviewDataUrl
 	}
 	return ""
 }
@@ -2445,12 +2477,16 @@ func (x *GetEffortWorkspaceContentRequest) GetPath() string {
 }
 
 type EffortWorkspaceContent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef        string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Path             string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Content          string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	ContentBytes     []byte                 `protobuf:"bytes,4,opt,name=content_bytes,json=contentBytes,proto3" json:"content_bytes,omitempty"`
+	ContentType      string                 `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	ContentTruncated bool                   `protobuf:"varint,6,opt,name=content_truncated,json=contentTruncated,proto3" json:"content_truncated,omitempty"`
+	PreviewDataUrl   string                 `protobuf:"bytes,7,opt,name=preview_data_url,json=previewDataUrl,proto3" json:"preview_data_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *EffortWorkspaceContent) Reset() {
@@ -2500,6 +2536,34 @@ func (x *EffortWorkspaceContent) GetPath() string {
 func (x *EffortWorkspaceContent) GetContent() string {
 	if x != nil {
 		return x.Content
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceContent) GetContentBytes() []byte {
+	if x != nil {
+		return x.ContentBytes
+	}
+	return nil
+}
+
+func (x *EffortWorkspaceContent) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *EffortWorkspaceContent) GetContentTruncated() bool {
+	if x != nil {
+		return x.ContentTruncated
+	}
+	return false
+}
+
+func (x *EffortWorkspaceContent) GetPreviewDataUrl() string {
+	if x != nil {
+		return x.PreviewDataUrl
 	}
 	return ""
 }
@@ -4257,11 +4321,15 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"y\n" +
 	"\x17ListSharedFilesResponse\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12E\n" +
-	"\x05files\x18\x02 \x03(\v2/.vrooli.prompt_manager.v1.teams.SharedFileEntryR\x05files\"Z\n" +
+	"\x05files\x18\x02 \x03(\v2/.vrooli.prompt_manager.v1.teams.SharedFileEntryR\x05files\"\xf9\x01\n" +
 	"\x11SharedFileContent\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\"C\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12#\n" +
+	"\rcontent_bytes\x18\x04 \x01(\fR\fcontentBytes\x12!\n" +
+	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12+\n" +
+	"\x11content_truncated\x18\x06 \x01(\bR\x10contentTruncated\x12(\n" +
+	"\x10preview_data_url\x18\a \x01(\tR\x0epreviewDataUrl\"C\n" +
 	"\x14GetSharedFileRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\"]\n" +
@@ -4307,12 +4375,16 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	" GetEffortWorkspaceContentRequest\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"e\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\x84\x02\n" +
 	"\x16EffortWorkspaceContent\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\"[\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12#\n" +
+	"\rcontent_bytes\x18\x04 \x01(\fR\fcontentBytes\x12!\n" +
+	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12+\n" +
+	"\x11content_truncated\x18\x06 \x01(\bR\x10contentTruncated\x12(\n" +
+	"\x10preview_data_url\x18\a \x01(\tR\x0epreviewDataUrl\"[\n" +
 	"\aOrgEdge\x12(\n" +
 	"\x10manager_agent_id\x18\x01 \x01(\tR\x0emanagerAgentId\x12&\n" +
 	"\x0freport_agent_id\x18\x02 \x01(\tR\rreportAgentId\"\xc2\x01\n" +

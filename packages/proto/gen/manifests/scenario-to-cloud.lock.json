@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-to-cloud",
-  "input_digest": "sha256:cb146c905b36b0139098264384ec2d417272c568887ae22cda28f6d97d7551d0",
+  "input_digest": "sha256:ee6b93a1ee6b254be517b9d456c4df8fc3c096726138f768e958220c98fe8aa5",
   "input_files": [
     "schemas/scenario-to-cloud/v1/credentials/credentials.proto",
     "schemas/scenario-to-cloud/v1/data/data.proto",
@@ -42,7 +42,7 @@
     "gen/go/scenario-to-cloud/v1/identity/identity.pb.go": "sha256:f0719fe8334beee6c1b92fbddd9648ff12764085004621892d3b021fd2dc7558",
     "gen/go/scenario-to-cloud/v1/operations/operations.pb.go": "sha256:77332f86d5ea563d18d78ff8a3347f291645aaa12fe4b382647a86e29be18120",
     "gen/go/scenario-to-cloud/v1/operations/operationsv1connect/operations.connect.go": "sha256:4ab1391518fc7260b6224b8b48a296ff29ac8d87268d7aea8de6780812a71755",
-    "gen/go/scenario-to-cloud/v1/plans/plans.pb.go": "sha256:244a19d13132b177612f938336a65a7c83d0e2ed179ff96af493788501c0a769",
+    "gen/go/scenario-to-cloud/v1/plans/plans.pb.go": "sha256:b47690598f4fec8bbabadc750b13c3b4a854f902545115a95ed65d0b68331010",
     "gen/go/scenario-to-cloud/v1/plans/plansv1connect/plans.connect.go": "sha256:8f01103e32cf2a6dbce2f975467ebb9cba9ea2f58d477486808e79387e00ee3c",
     "gen/go/scenario-to-cloud/v1/releases/releases.pb.go": "sha256:9f4311bb91c0e2c82816814d9cd754fb53110cb38298847e78d92d20adc448e2",
     "gen/go/scenario-to-cloud/v1/releases/releasesv1connect/releases.connect.go": "sha256:baabbf7814b4090f5d47f1e69f00b160620bdc549795e596c7092bc2452ded83",
@@ -74,8 +74,8 @@
     "gen/python/scenario_to_cloud/v1/operations/operations_pb2.py": "sha256:04e796a7232bc89e8c7bf6690204490784f7fbf3835c9f5619e85068e919e632",
     "gen/python/scenario_to_cloud/v1/operations/operations_pb2.pyi": "sha256:d50177653c9cb3cef0b16b020d601b1b9e27aa4154f26133ec61d7d05e747c3a",
     "gen/python/scenario_to_cloud/v1/operations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_to_cloud/v1/plans/plans_pb2.py": "sha256:f0fc9664b6eb933a08cdf4cc45035d7a9873477402e1ac195d8b3222bf91a383",
-    "gen/python/scenario_to_cloud/v1/plans/plans_pb2.pyi": "sha256:e13c5cdfb2b826fc6b7036c29e2097e8514d87c174e66fe326aecfe68eefe3b1",
+    "gen/python/scenario_to_cloud/v1/plans/plans_pb2.py": "sha256:51079ceddd3dad680df8c239b58346d51a2ab7c74c8d741bce58af6c22476be2",
+    "gen/python/scenario_to_cloud/v1/plans/plans_pb2.pyi": "sha256:a632e4fd7d742c53140ae6db1f139d48ca7bcae18f24c1229fa8550db0043823",
     "gen/python/scenario_to_cloud/v1/plans/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_to_cloud/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_to_cloud/v1/releases/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -90,7 +90,7 @@
     "gen/typescript/scenario-to-cloud/v1/health/health_pb.ts": "sha256:8df44395373481d5532169fc04c3a7a3520198bcdb0502b0e3cf22f50ce087e2",
     "gen/typescript/scenario-to-cloud/v1/identity/identity_pb.ts": "sha256:d8ea9ef1f0d2a86464fc2b68dd5e41757a184c7f399c4ebf8ec75856001a443e",
     "gen/typescript/scenario-to-cloud/v1/operations/operations_pb.ts": "sha256:154254f3854164bff1ad8f4c6db197c58b8b36506e22263d2d7458eeef705336",
-    "gen/typescript/scenario-to-cloud/v1/plans/plans_pb.ts": "sha256:52d79173ea047ff4c81be97490d156a27e102f10aec92348dd8f1c827e2b1af8",
+    "gen/typescript/scenario-to-cloud/v1/plans/plans_pb.ts": "sha256:651ba6cf5eb45f439a968a5fa8810d8a77852f8e340dd8453ac4a83adb7b3490",
     "gen/typescript/scenario-to-cloud/v1/releases/releases_pb.ts": "sha256:0e5e250c56f2379e0002e47c779c9472d93b94a8ac5987d9ba2d473d8b6db879"
   }
 }

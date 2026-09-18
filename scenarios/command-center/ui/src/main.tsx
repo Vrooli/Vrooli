@@ -1,3 +1,4 @@
+import { i18n } from "./i18n";
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -16,12 +17,7 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import "./design-tokens.css";
-import "./themes/ground-control.css";
-import "./themes/bioluminescent.css";
-import "./themes/foundry.css";
-import "./themes/vault.css";
-import "./themes/signal-tower.css";
-import "./themes/cosmos.css";
+import "./themes/catalog.generated.css";
 import "./styles.css";
 import { onProfilerRender } from "./lib/profiler";
 
@@ -50,8 +46,7 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   // vrooli:library-strings-provider start
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the adoption contract pins this translator shape
-  <LibraryStringsProvider translate={(key, fallback) => fallback ?? key}>
+  <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <BaseStyles />
     <React.StrictMode>
       <SpatialNavProvider controller={spatialNav}>

@@ -31,6 +31,7 @@ func (s *Server) setupRoutes() {
 	s.router.PathPrefix(walkPath).Handler(walkHandler)
 	s.registerDebugRoutes()
 	s.registerIntegrationRoutes()
+	s.registerCatalogRoutes()
 	path, handler := integrationconnect.NewIntegrationsServiceHandler(integrationsConnectService{server: s})
 	s.router.PathPrefix(path).Handler(http.HandlerFunc(handler.ServeHTTP))
 }

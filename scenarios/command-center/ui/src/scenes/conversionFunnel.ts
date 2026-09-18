@@ -1,4 +1,9 @@
-import { clipOutsideQuiet, drawGlow, rgba, type Frame, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, rgba, slotRows, type Frame, type Scene, type SlotManifest } from "./engine";
+
+const rowColumns = { key: { type: "string" }, value: { type: "number" }, share: { type: "number" } };
+export const slotManifest: SlotManifest = {
+  funnel: { shape: "rows", role: "primary", whenUnbound: "decorative", columns: rowColumns },
+};
 
 export interface FunnelLayout {
   centerX: number;
@@ -25,8 +30,7 @@ export function funnelLayout(frame: Pick<Frame, "w" | "h" | "quiet">, rowCount: 
 
 export function conversionFunnel(): Scene {
   return { init() {}, draw(frame) {
-    const focus = frame.data.readings[frame.data.focus ?? ""];
-    const rows = focus?.rows ?? [];
+    const rows = slotRows(frame.data, "funnel") ?? [];
     if (!rows.length || rows.some((row) => row.value < 0)) return;
     const max = Math.max(...rows.map((row) => row.value), 1);
     const { centerX, centerY, maxWidth, height, gap } = funnelLayout(frame, rows.length);

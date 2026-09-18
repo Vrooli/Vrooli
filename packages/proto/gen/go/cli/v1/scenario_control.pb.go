@@ -207,8 +207,12 @@ type StartScenarioRequest struct {
 	AcceptCredentialLoss bool                   `protobuf:"varint,7,opt,name=accept_credential_loss,json=acceptCredentialLoss,proto3" json:"accept_credential_loss,omitempty"`
 	// Caller must retain renewable demand while using this instance.
 	DemandManaged bool `protobuf:"varint,8,opt,name=demand_managed,json=demandManaged,proto3" json:"demand_managed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Comma-separated dependencies this non-live instance resolves at its own
+	// variant instead of live. Refused for a live instance; discovery fails
+	// closed for a listed dependency that is not running.
+	VariantDependencies string `protobuf:"bytes,9,opt,name=variant_dependencies,json=variantDependencies,proto3" json:"variant_dependencies,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StartScenarioRequest) Reset() {
@@ -297,6 +301,13 @@ func (x *StartScenarioRequest) GetDemandManaged() bool {
 	return false
 }
 
+func (x *StartScenarioRequest) GetVariantDependencies() string {
+	if x != nil {
+		return x.VariantDependencies
+	}
+	return ""
+}
+
 type StopScenarioRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -354,8 +365,10 @@ type RestartScenarioRequest struct {
 	DemandManaged           bool   `protobuf:"varint,8,opt,name=demand_managed,json=demandManaged,proto3" json:"demand_managed,omitempty"`
 	ForceLifecycle          bool   `protobuf:"varint,9,opt,name=force_lifecycle,json=forceLifecycle,proto3" json:"force_lifecycle,omitempty"`
 	LifecycleOverrideReason string `protobuf:"bytes,10,opt,name=lifecycle_override_reason,json=lifecycleOverrideReason,proto3" json:"lifecycle_override_reason,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// See StartScenarioRequest.variant_dependencies.
+	VariantDependencies string `protobuf:"bytes,11,opt,name=variant_dependencies,json=variantDependencies,proto3" json:"variant_dependencies,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RestartScenarioRequest) Reset() {
@@ -458,6 +471,13 @@ func (x *RestartScenarioRequest) GetLifecycleOverrideReason() string {
 	return ""
 }
 
+func (x *RestartScenarioRequest) GetVariantDependencies() string {
+	if x != nil {
+		return x.VariantDependencies
+	}
+	return ""
+}
+
 type SetupScenarioRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -526,7 +546,7 @@ const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"\x04step\x18\x03 \x01(\tR\x04step\x12\x18\n" +
 	"\aruntime\x18\x04 \x01(\bR\aruntime\x12\x1c\n" +
 	"\tlifecycle\x18\x05 \x01(\bR\tlifecycle\x12\x1a\n" +
-	"\bprevious\x18\x06 \x01(\bR\bprevious\"\x9c\x02\n" +
+	"\bprevious\x18\x06 \x01(\bR\bprevious\"\xcf\x02\n" +
 	"\x14StartScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n" +
@@ -537,9 +557,10 @@ const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"cleanStale\x12\x14\n" +
 	"\x05force\x18\x06 \x01(\bR\x05force\x124\n" +
 	"\x16accept_credential_loss\x18\a \x01(\bR\x14acceptCredentialLoss\x12%\n" +
-	"\x0edemand_managed\x18\b \x01(\bR\rdemandManaged\")\n" +
+	"\x0edemand_managed\x18\b \x01(\bR\rdemandManaged\x121\n" +
+	"\x14variant_dependencies\x18\t \x01(\tR\x13variantDependencies\")\n" +
 	"\x13StopScenarioRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\x83\x03\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\xb6\x03\n" +
 	"\x16RestartScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n" +
@@ -553,7 +574,8 @@ const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"\x0edemand_managed\x18\b \x01(\bR\rdemandManaged\x12'\n" +
 	"\x0fforce_lifecycle\x18\t \x01(\bR\x0eforceLifecycle\x12:\n" +
 	"\x19lifecycle_override_reason\x18\n" +
-	" \x01(\tR\x17lifecycleOverrideReason\">\n" +
+	" \x01(\tR\x17lifecycleOverrideReason\x121\n" +
+	"\x14variant_dependencies\x18\v \x01(\tR\x13variantDependencies\">\n" +
 	"\x14SetupScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path2\xb8\x05\n" +

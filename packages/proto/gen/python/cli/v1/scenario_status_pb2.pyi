@@ -147,7 +147,7 @@ class ScenarioInfoResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[_Union[ScenarioInfoData, _Mapping]] = ..., runtime: _Optional[_Union[ScenarioRuntimeData, _Mapping]] = ...) -> None: ...
 
 class ScenarioInfoData(_message.Message):
-    __slots__ = ("name", "display_name", "description", "version", "type", "category", "tags", "path", "service_path", "sandbox_redirected", "config_version", "lifecycle_version", "ports", "phases", "generation", "template_drifted")
+    __slots__ = ("name", "display_name", "description", "version", "type", "category", "tags", "path", "service_path", "sandbox_redirected", "config_version", "lifecycle_version", "ports", "phases", "generation", "template_drifted", "branding")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -164,6 +164,7 @@ class ScenarioInfoData(_message.Message):
     PHASES_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_DRIFTED_FIELD_NUMBER: _ClassVar[int]
+    BRANDING_FIELD_NUMBER: _ClassVar[int]
     name: str
     display_name: str
     description: str
@@ -180,7 +181,16 @@ class ScenarioInfoData(_message.Message):
     phases: _containers.RepeatedCompositeFieldContainer[ScenarioInfoPhaseSummary]
     generation: ScenarioGenerationMetadata
     template_drifted: bool
-    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., version: _Optional[str] = ..., type: _Optional[str] = ..., category: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., path: _Optional[str] = ..., service_path: _Optional[str] = ..., sandbox_redirected: _Optional[bool] = ..., config_version: _Optional[str] = ..., lifecycle_version: _Optional[str] = ..., ports: _Optional[_Iterable[_Union[ScenarioInfoPortSummary, _Mapping]]] = ..., phases: _Optional[_Iterable[_Union[ScenarioInfoPhaseSummary, _Mapping]]] = ..., generation: _Optional[_Union[ScenarioGenerationMetadata, _Mapping]] = ..., template_drifted: _Optional[bool] = ...) -> None: ...
+    branding: ScenarioBranding
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., version: _Optional[str] = ..., type: _Optional[str] = ..., category: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., path: _Optional[str] = ..., service_path: _Optional[str] = ..., sandbox_redirected: _Optional[bool] = ..., config_version: _Optional[str] = ..., lifecycle_version: _Optional[str] = ..., ports: _Optional[_Iterable[_Union[ScenarioInfoPortSummary, _Mapping]]] = ..., phases: _Optional[_Iterable[_Union[ScenarioInfoPhaseSummary, _Mapping]]] = ..., generation: _Optional[_Union[ScenarioGenerationMetadata, _Mapping]] = ..., template_drifted: _Optional[bool] = ..., branding: _Optional[_Union[ScenarioBranding, _Mapping]] = ...) -> None: ...
+
+class ScenarioBranding(_message.Message):
+    __slots__ = ("brand", "targets")
+    BRAND_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    brand: str
+    targets: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, brand: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ScenarioInfoPortSummary(_message.Message):
     __slots__ = ("name", "env_var", "description", "range", "fixed_port")

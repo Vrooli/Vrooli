@@ -3807,6 +3807,7 @@ type PresentationFixture struct {
 	//	*PresentationFixture_Workspace
 	//	*PresentationFixture_Backdrop
 	//	*PresentationFixture_Workflow
+	//	*PresentationFixture_Monitor
 	Data          isPresentationFixture_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3890,6 +3891,15 @@ func (x *PresentationFixture) GetWorkflow() *PresentationWorkflowFixture {
 	return nil
 }
 
+func (x *PresentationFixture) GetMonitor() *PresentationMonitorFixture {
+	if x != nil {
+		if x, ok := x.Data.(*PresentationFixture_Monitor); ok {
+			return x.Monitor
+		}
+	}
+	return nil
+}
+
 type isPresentationFixture_Data interface {
 	isPresentationFixture_Data()
 }
@@ -3906,11 +3916,233 @@ type PresentationFixture_Workflow struct {
 	Workflow *PresentationWorkflowFixture `protobuf:"bytes,5,opt,name=workflow,proto3,oneof"`
 }
 
+type PresentationFixture_Monitor struct {
+	Monitor *PresentationMonitorFixture `protobuf:"bytes,6,opt,name=monitor,proto3,oneof"`
+}
+
 func (*PresentationFixture_Workspace) isPresentationFixture_Data() {}
 
 func (*PresentationFixture_Backdrop) isPresentationFixture_Data() {}
 
 func (*PresentationFixture_Workflow) isPresentationFixture_Data() {}
+
+func (*PresentationFixture_Monitor) isPresentationFixture_Data() {}
+
+type PresentationMonitorMetric struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Unit          string                 `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	Detail        string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	Trend         []float64              `protobuf:"fixed64,7,rep,packed,name=trend,proto3" json:"trend,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PresentationMonitorMetric) Reset() {
+	*x = PresentationMonitorMetric{}
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresentationMonitorMetric) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresentationMonitorMetric) ProtoMessage() {}
+
+func (x *PresentationMonitorMetric) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresentationMonitorMetric.ProtoReflect.Descriptor instead.
+func (*PresentationMonitorMetric) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *PresentationMonitorMetric) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *PresentationMonitorMetric) GetTrend() []float64 {
+	if x != nil {
+		return x.Trend
+	}
+	return nil
+}
+
+type PresentationMonitorFixture struct {
+	state              protoimpl.MessageState       `protogen:"open.v1"`
+	Title              string                       `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	Host               string                       `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
+	MetricsLabel       string                       `protobuf:"bytes,3,opt,name=metrics_label,json=metricsLabel,proto3" json:"metrics_label,omitempty"`
+	Metrics            []*PresentationMonitorMetric `protobuf:"bytes,4,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	InvestigationLabel string                       `protobuf:"bytes,5,opt,name=investigation_label,json=investigationLabel,proto3" json:"investigation_label,omitempty"`
+	InvestigationTitle string                       `protobuf:"bytes,6,opt,name=investigation_title,json=investigationTitle,proto3" json:"investigation_title,omitempty"`
+	InvestigationBody  string                       `protobuf:"bytes,7,opt,name=investigation_body,json=investigationBody,proto3" json:"investigation_body,omitempty"`
+	Findings           []string                     `protobuf:"bytes,8,rep,name=findings,proto3" json:"findings,omitempty"`
+	ActionNote         string                       `protobuf:"bytes,9,opt,name=action_note,json=actionNote,proto3" json:"action_note,omitempty"`
+	Status             string                       `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	Uptime             string                       `protobuf:"bytes,11,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *PresentationMonitorFixture) Reset() {
+	*x = PresentationMonitorFixture{}
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresentationMonitorFixture) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresentationMonitorFixture) ProtoMessage() {}
+
+func (x *PresentationMonitorFixture) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresentationMonitorFixture.ProtoReflect.Descriptor instead.
+func (*PresentationMonitorFixture) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *PresentationMonitorFixture) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetMetricsLabel() string {
+	if x != nil {
+		return x.MetricsLabel
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetMetrics() []*PresentationMonitorMetric {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+func (x *PresentationMonitorFixture) GetInvestigationLabel() string {
+	if x != nil {
+		return x.InvestigationLabel
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetInvestigationTitle() string {
+	if x != nil {
+		return x.InvestigationTitle
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetInvestigationBody() string {
+	if x != nil {
+		return x.InvestigationBody
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetFindings() []string {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *PresentationMonitorFixture) GetActionNote() string {
+	if x != nil {
+		return x.ActionNote
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *PresentationMonitorFixture) GetUptime() string {
+	if x != nil {
+		return x.Uptime
+	}
+	return ""
+}
 
 type PresentationWorkspaceFixture struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -3948,7 +4180,7 @@ type PresentationWorkspaceFixture struct {
 
 func (x *PresentationWorkspaceFixture) Reset() {
 	*x = PresentationWorkspaceFixture{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[44]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3960,7 +4192,7 @@ func (x *PresentationWorkspaceFixture) String() string {
 func (*PresentationWorkspaceFixture) ProtoMessage() {}
 
 func (x *PresentationWorkspaceFixture) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[44]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3973,7 +4205,7 @@ func (x *PresentationWorkspaceFixture) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationWorkspaceFixture.ProtoReflect.Descriptor instead.
 func (*PresentationWorkspaceFixture) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{44}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *PresentationWorkspaceFixture) GetTitle() string {
@@ -4192,7 +4424,7 @@ type PresentationBackdropFixture struct {
 
 func (x *PresentationBackdropFixture) Reset() {
 	*x = PresentationBackdropFixture{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[45]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4204,7 +4436,7 @@ func (x *PresentationBackdropFixture) String() string {
 func (*PresentationBackdropFixture) ProtoMessage() {}
 
 func (x *PresentationBackdropFixture) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[45]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4217,7 +4449,7 @@ func (x *PresentationBackdropFixture) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationBackdropFixture.ProtoReflect.Descriptor instead.
 func (*PresentationBackdropFixture) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{45}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *PresentationBackdropFixture) GetTitle() string {
@@ -4315,7 +4547,7 @@ type PresentationWorkflowStep struct {
 
 func (x *PresentationWorkflowStep) Reset() {
 	*x = PresentationWorkflowStep{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[46]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4327,7 +4559,7 @@ func (x *PresentationWorkflowStep) String() string {
 func (*PresentationWorkflowStep) ProtoMessage() {}
 
 func (x *PresentationWorkflowStep) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[46]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4340,7 +4572,7 @@ func (x *PresentationWorkflowStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationWorkflowStep.ProtoReflect.Descriptor instead.
 func (*PresentationWorkflowStep) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{46}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *PresentationWorkflowStep) GetNumber() string {
@@ -4378,7 +4610,7 @@ type PresentationWorkflowFixture struct {
 
 func (x *PresentationWorkflowFixture) Reset() {
 	*x = PresentationWorkflowFixture{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[47]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4390,7 +4622,7 @@ func (x *PresentationWorkflowFixture) String() string {
 func (*PresentationWorkflowFixture) ProtoMessage() {}
 
 func (x *PresentationWorkflowFixture) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[47]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4403,7 +4635,7 @@ func (x *PresentationWorkflowFixture) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationWorkflowFixture.ProtoReflect.Descriptor instead.
 func (*PresentationWorkflowFixture) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{47}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *PresentationWorkflowFixture) GetTitle() string {
@@ -4470,7 +4702,7 @@ type PresentationAsset struct {
 
 func (x *PresentationAsset) Reset() {
 	*x = PresentationAsset{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[48]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4482,7 +4714,7 @@ func (x *PresentationAsset) String() string {
 func (*PresentationAsset) ProtoMessage() {}
 
 func (x *PresentationAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[48]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4495,7 +4727,7 @@ func (x *PresentationAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationAsset.ProtoReflect.Descriptor instead.
 func (*PresentationAsset) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{48}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *PresentationAsset) GetId() string {
@@ -4606,7 +4838,7 @@ type PresentationAssetVariant struct {
 
 func (x *PresentationAssetVariant) Reset() {
 	*x = PresentationAssetVariant{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[49]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4618,7 +4850,7 @@ func (x *PresentationAssetVariant) String() string {
 func (*PresentationAssetVariant) ProtoMessage() {}
 
 func (x *PresentationAssetVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[49]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4631,7 +4863,7 @@ func (x *PresentationAssetVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationAssetVariant.ProtoReflect.Descriptor instead.
 func (*PresentationAssetVariant) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{49}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *PresentationAssetVariant) GetSurface() string {
@@ -4658,7 +4890,7 @@ type PresentationFocalPoint struct {
 
 func (x *PresentationFocalPoint) Reset() {
 	*x = PresentationFocalPoint{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[50]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4670,7 +4902,7 @@ func (x *PresentationFocalPoint) String() string {
 func (*PresentationFocalPoint) ProtoMessage() {}
 
 func (x *PresentationFocalPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[50]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4683,7 +4915,7 @@ func (x *PresentationFocalPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationFocalPoint.ProtoReflect.Descriptor instead.
 func (*PresentationFocalPoint) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{50}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *PresentationFocalPoint) GetX() float64 {
@@ -4711,7 +4943,7 @@ type PresentationAssetProvenance struct {
 
 func (x *PresentationAssetProvenance) Reset() {
 	*x = PresentationAssetProvenance{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[51]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4723,7 +4955,7 @@ func (x *PresentationAssetProvenance) String() string {
 func (*PresentationAssetProvenance) ProtoMessage() {}
 
 func (x *PresentationAssetProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[51]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4736,7 +4968,7 @@ func (x *PresentationAssetProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationAssetProvenance.ProtoReflect.Descriptor instead.
 func (*PresentationAssetProvenance) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{51}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *PresentationAssetProvenance) GetProvider() string {
@@ -4774,7 +5006,7 @@ type PresentationOverlayRegion struct {
 
 func (x *PresentationOverlayRegion) Reset() {
 	*x = PresentationOverlayRegion{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[52]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4786,7 +5018,7 @@ func (x *PresentationOverlayRegion) String() string {
 func (*PresentationOverlayRegion) ProtoMessage() {}
 
 func (x *PresentationOverlayRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[52]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4799,7 +5031,7 @@ func (x *PresentationOverlayRegion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationOverlayRegion.ProtoReflect.Descriptor instead.
 func (*PresentationOverlayRegion) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{52}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *PresentationOverlayRegion) GetName() string {
@@ -4857,7 +5089,7 @@ type PresentationLegibilityMeasurement struct {
 
 func (x *PresentationLegibilityMeasurement) Reset() {
 	*x = PresentationLegibilityMeasurement{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[53]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4869,7 +5101,7 @@ func (x *PresentationLegibilityMeasurement) String() string {
 func (*PresentationLegibilityMeasurement) ProtoMessage() {}
 
 func (x *PresentationLegibilityMeasurement) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[53]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4882,7 +5114,7 @@ func (x *PresentationLegibilityMeasurement) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use PresentationLegibilityMeasurement.ProtoReflect.Descriptor instead.
 func (*PresentationLegibilityMeasurement) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{53}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *PresentationLegibilityMeasurement) GetContrastRatio() float64 {
@@ -4941,7 +5173,7 @@ type ResolvedProductPresentation struct {
 
 func (x *ResolvedProductPresentation) Reset() {
 	*x = ResolvedProductPresentation{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[54]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4953,7 +5185,7 @@ func (x *ResolvedProductPresentation) String() string {
 func (*ResolvedProductPresentation) ProtoMessage() {}
 
 func (x *ResolvedProductPresentation) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[54]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4966,7 +5198,7 @@ func (x *ResolvedProductPresentation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedProductPresentation.ProtoReflect.Descriptor instead.
 func (*ResolvedProductPresentation) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{54}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ResolvedProductPresentation) GetSchemaVersion() int32 {
@@ -5067,7 +5299,7 @@ type PresentationAppSpotlight struct {
 
 func (x *PresentationAppSpotlight) Reset() {
 	*x = PresentationAppSpotlight{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[55]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5079,7 +5311,7 @@ func (x *PresentationAppSpotlight) String() string {
 func (*PresentationAppSpotlight) ProtoMessage() {}
 
 func (x *PresentationAppSpotlight) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[55]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5092,7 +5324,7 @@ func (x *PresentationAppSpotlight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationAppSpotlight.ProtoReflect.Descriptor instead.
 func (*PresentationAppSpotlight) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{55}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *PresentationAppSpotlight) GetAppKey() string {
@@ -5153,7 +5385,7 @@ type ResolvedPresentationCapability struct {
 
 func (x *ResolvedPresentationCapability) Reset() {
 	*x = ResolvedPresentationCapability{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[56]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5165,7 +5397,7 @@ func (x *ResolvedPresentationCapability) String() string {
 func (*ResolvedPresentationCapability) ProtoMessage() {}
 
 func (x *ResolvedPresentationCapability) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[56]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5178,7 +5410,7 @@ func (x *ResolvedPresentationCapability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedPresentationCapability.ProtoReflect.Descriptor instead.
 func (*ResolvedPresentationCapability) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{56}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ResolvedPresentationCapability) GetId() string {
@@ -5258,7 +5490,7 @@ type ResolvedPresentationAsset struct {
 
 func (x *ResolvedPresentationAsset) Reset() {
 	*x = ResolvedPresentationAsset{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[57]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5270,7 +5502,7 @@ func (x *ResolvedPresentationAsset) String() string {
 func (*ResolvedPresentationAsset) ProtoMessage() {}
 
 func (x *ResolvedPresentationAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[57]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5283,7 +5515,7 @@ func (x *ResolvedPresentationAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedPresentationAsset.ProtoReflect.Descriptor instead.
 func (*ResolvedPresentationAsset) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{57}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ResolvedPresentationAsset) GetId() string {
@@ -5391,7 +5623,7 @@ type ResolvedPresentationOverlayRegion struct {
 
 func (x *ResolvedPresentationOverlayRegion) Reset() {
 	*x = ResolvedPresentationOverlayRegion{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[58]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5403,7 +5635,7 @@ func (x *ResolvedPresentationOverlayRegion) String() string {
 func (*ResolvedPresentationOverlayRegion) ProtoMessage() {}
 
 func (x *ResolvedPresentationOverlayRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[58]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5416,7 +5648,7 @@ func (x *ResolvedPresentationOverlayRegion) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ResolvedPresentationOverlayRegion.ProtoReflect.Descriptor instead.
 func (*ResolvedPresentationOverlayRegion) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{58}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ResolvedPresentationOverlayRegion) GetName() string {
@@ -5473,7 +5705,7 @@ type ResolvedPresentationLegibility struct {
 
 func (x *ResolvedPresentationLegibility) Reset() {
 	*x = ResolvedPresentationLegibility{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[59]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5485,7 +5717,7 @@ func (x *ResolvedPresentationLegibility) String() string {
 func (*ResolvedPresentationLegibility) ProtoMessage() {}
 
 func (x *ResolvedPresentationLegibility) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[59]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5498,7 +5730,7 @@ func (x *ResolvedPresentationLegibility) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedPresentationLegibility.ProtoReflect.Descriptor instead.
 func (*ResolvedPresentationLegibility) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{59}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ResolvedPresentationLegibility) GetContrastRatio() float64 {
@@ -5559,7 +5791,7 @@ type PresentationDiagnostics struct {
 
 func (x *PresentationDiagnostics) Reset() {
 	*x = PresentationDiagnostics{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[60]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5571,7 +5803,7 @@ func (x *PresentationDiagnostics) String() string {
 func (*PresentationDiagnostics) ProtoMessage() {}
 
 func (x *PresentationDiagnostics) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[60]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5584,7 +5816,7 @@ func (x *PresentationDiagnostics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresentationDiagnostics.ProtoReflect.Descriptor instead.
 func (*PresentationDiagnostics) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{60}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *PresentationDiagnostics) GetRequestedRoute() string {
@@ -5750,7 +5982,7 @@ type ResolvedPresentationAction struct {
 
 func (x *ResolvedPresentationAction) Reset() {
 	*x = ResolvedPresentationAction{}
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[61]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5762,7 +5994,7 @@ func (x *ResolvedPresentationAction) String() string {
 func (*ResolvedPresentationAction) ProtoMessage() {}
 
 func (x *ResolvedPresentationAction) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[61]
+	mi := &file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5775,7 +6007,7 @@ func (x *ResolvedPresentationAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedPresentationAction.ProtoReflect.Descriptor instead.
 func (*ResolvedPresentationAction) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{61}
+	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ResolvedPresentationAction) GetKey() string {
@@ -6206,14 +6438,37 @@ const file_landing_page_business_suite_v1_shared_product_presentation_proto_rawD
 	"\x10accessible_label\x18\x03 \x01(\tR\x0faccessibleLabel\"\x84\x01\n" +
 	"\x0fPresentationFAQ\x12\x18\n" +
 	"\aheading\x18\x01 \x01(\tR\aheading\x12W\n" +
-	"\x05items\x18\x02 \x03(\v2A.vrooli.landing_page_business_suite.v1.shared.PresentationFAQItemR\x05items\"\xff\x02\n" +
+	"\x05items\x18\x02 \x03(\v2A.vrooli.landing_page_business_suite.v1.shared.PresentationFAQItemR\x05items\"\xe5\x03\n" +
 	"\x13PresentationFixture\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12j\n" +
 	"\tworkspace\x18\x03 \x01(\v2J.vrooli.landing_page_business_suite.v1.shared.PresentationWorkspaceFixtureH\x00R\tworkspace\x12g\n" +
 	"\bbackdrop\x18\x04 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.PresentationBackdropFixtureH\x00R\bbackdrop\x12g\n" +
-	"\bworkflow\x18\x05 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixtureH\x00R\bworkflowB\x06\n" +
-	"\x04data\"\xa5\x06\n" +
+	"\bworkflow\x18\x05 \x01(\v2I.vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixtureH\x00R\bworkflow\x12d\n" +
+	"\amonitor\x18\x06 \x01(\v2H.vrooli.landing_page_business_suite.v1.shared.PresentationMonitorFixtureH\x00R\amonitorB\x06\n" +
+	"\x04data\"\xb1\x01\n" +
+	"\x19PresentationMonitorMetric\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x12\n" +
+	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x14\n" +
+	"\x05trend\x18\a \x03(\x01R\x05trend\"\xcc\x03\n" +
+	"\x1aPresentationMonitorFixture\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\tR\x04host\x12#\n" +
+	"\rmetrics_label\x18\x03 \x01(\tR\fmetricsLabel\x12a\n" +
+	"\ametrics\x18\x04 \x03(\v2G.vrooli.landing_page_business_suite.v1.shared.PresentationMonitorMetricR\ametrics\x12/\n" +
+	"\x13investigation_label\x18\x05 \x01(\tR\x12investigationLabel\x12/\n" +
+	"\x13investigation_title\x18\x06 \x01(\tR\x12investigationTitle\x12-\n" +
+	"\x12investigation_body\x18\a \x01(\tR\x11investigationBody\x12\x1a\n" +
+	"\bfindings\x18\b \x03(\tR\bfindings\x12\x1f\n" +
+	"\vaction_note\x18\t \x01(\tR\n" +
+	"actionNote\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\tR\x06status\x12\x16\n" +
+	"\x06uptime\x18\v \x01(\tR\x06uptime\"\xa5\x06\n" +
 	"\x1cPresentationWorkspaceFixture\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x14\n" +
 	"\x05group\x18\x02 \x01(\tR\x05group\x12\x1f\n" +
@@ -6427,7 +6682,7 @@ func file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDe
 	return file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 74)
+var file_landing_page_business_suite_v1_shared_product_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 76)
 var file_landing_page_business_suite_v1_shared_product_presentation_proto_goTypes = []any{
 	(*ProductPresentationDocument)(nil),       // 0: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument
 	(*PresentationStringTable)(nil),           // 1: vrooli.landing_page_business_suite.v1.shared.PresentationStringTable
@@ -6473,64 +6728,66 @@ var file_landing_page_business_suite_v1_shared_product_presentation_proto_goType
 	(*PresentationFAQItem)(nil),               // 41: vrooli.landing_page_business_suite.v1.shared.PresentationFAQItem
 	(*PresentationFAQ)(nil),                   // 42: vrooli.landing_page_business_suite.v1.shared.PresentationFAQ
 	(*PresentationFixture)(nil),               // 43: vrooli.landing_page_business_suite.v1.shared.PresentationFixture
-	(*PresentationWorkspaceFixture)(nil),      // 44: vrooli.landing_page_business_suite.v1.shared.PresentationWorkspaceFixture
-	(*PresentationBackdropFixture)(nil),       // 45: vrooli.landing_page_business_suite.v1.shared.PresentationBackdropFixture
-	(*PresentationWorkflowStep)(nil),          // 46: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowStep
-	(*PresentationWorkflowFixture)(nil),       // 47: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture
-	(*PresentationAsset)(nil),                 // 48: vrooli.landing_page_business_suite.v1.shared.PresentationAsset
-	(*PresentationAssetVariant)(nil),          // 49: vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
-	(*PresentationFocalPoint)(nil),            // 50: vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
-	(*PresentationAssetProvenance)(nil),       // 51: vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
-	(*PresentationOverlayRegion)(nil),         // 52: vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion
-	(*PresentationLegibilityMeasurement)(nil), // 53: vrooli.landing_page_business_suite.v1.shared.PresentationLegibilityMeasurement
-	(*ResolvedProductPresentation)(nil),       // 54: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
-	(*PresentationAppSpotlight)(nil),          // 55: vrooli.landing_page_business_suite.v1.shared.PresentationAppSpotlight
-	(*ResolvedPresentationCapability)(nil),    // 56: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationCapability
-	(*ResolvedPresentationAsset)(nil),         // 57: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset
-	(*ResolvedPresentationOverlayRegion)(nil), // 58: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion
-	(*ResolvedPresentationLegibility)(nil),    // 59: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationLegibility
-	(*PresentationDiagnostics)(nil),           // 60: vrooli.landing_page_business_suite.v1.shared.PresentationDiagnostics
-	(*ResolvedPresentationAction)(nil),        // 61: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction
-	nil,                                       // 62: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry
-	nil,                                       // 63: vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.ValuesEntry
-	nil,                                       // 64: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedLabelsEntry
-	nil,                                       // 65: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry
-	nil,                                       // 66: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.StatusLabelsEntry
-	nil,                                       // 67: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry
-	nil,                                       // 68: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry
-	nil,                                       // 69: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry
-	nil,                                       // 70: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry
-	nil,                                       // 71: vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.FileChangesEntry
-	nil,                                       // 72: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.AnchorsEntry
-	nil,                                       // 73: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.HeroFixtureRefsEntry
+	(*PresentationMonitorMetric)(nil),         // 44: vrooli.landing_page_business_suite.v1.shared.PresentationMonitorMetric
+	(*PresentationMonitorFixture)(nil),        // 45: vrooli.landing_page_business_suite.v1.shared.PresentationMonitorFixture
+	(*PresentationWorkspaceFixture)(nil),      // 46: vrooli.landing_page_business_suite.v1.shared.PresentationWorkspaceFixture
+	(*PresentationBackdropFixture)(nil),       // 47: vrooli.landing_page_business_suite.v1.shared.PresentationBackdropFixture
+	(*PresentationWorkflowStep)(nil),          // 48: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowStep
+	(*PresentationWorkflowFixture)(nil),       // 49: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture
+	(*PresentationAsset)(nil),                 // 50: vrooli.landing_page_business_suite.v1.shared.PresentationAsset
+	(*PresentationAssetVariant)(nil),          // 51: vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
+	(*PresentationFocalPoint)(nil),            // 52: vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
+	(*PresentationAssetProvenance)(nil),       // 53: vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
+	(*PresentationOverlayRegion)(nil),         // 54: vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion
+	(*PresentationLegibilityMeasurement)(nil), // 55: vrooli.landing_page_business_suite.v1.shared.PresentationLegibilityMeasurement
+	(*ResolvedProductPresentation)(nil),       // 56: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation
+	(*PresentationAppSpotlight)(nil),          // 57: vrooli.landing_page_business_suite.v1.shared.PresentationAppSpotlight
+	(*ResolvedPresentationCapability)(nil),    // 58: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationCapability
+	(*ResolvedPresentationAsset)(nil),         // 59: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset
+	(*ResolvedPresentationOverlayRegion)(nil), // 60: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion
+	(*ResolvedPresentationLegibility)(nil),    // 61: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationLegibility
+	(*PresentationDiagnostics)(nil),           // 62: vrooli.landing_page_business_suite.v1.shared.PresentationDiagnostics
+	(*ResolvedPresentationAction)(nil),        // 63: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction
+	nil,                                       // 64: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry
+	nil,                                       // 65: vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.ValuesEntry
+	nil,                                       // 66: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedLabelsEntry
+	nil,                                       // 67: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry
+	nil,                                       // 68: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.StatusLabelsEntry
+	nil,                                       // 69: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry
+	nil,                                       // 70: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry
+	nil,                                       // 71: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry
+	nil,                                       // 72: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry
+	nil,                                       // 73: vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.FileChangesEntry
+	nil,                                       // 74: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.AnchorsEntry
+	nil,                                       // 75: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.HeroFixtureRefsEntry
 }
 var file_landing_page_business_suite_v1_shared_product_presentation_proto_depIdxs = []int32{
 	3,  // 0: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.bundle:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBundle
 	4,  // 1: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.apps:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationApp
 	7,  // 2: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.pages:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPage
-	48, // 3: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.assets:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAsset
+	50, // 3: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.assets:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAsset
 	43, // 4: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.fixtures:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixture
-	62, // 5: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.strings:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry
-	63, // 6: vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.values:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.ValuesEntry
+	64, // 5: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.strings:type_name -> vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry
+	65, // 6: vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.values:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringTable.ValuesEntry
 	5,  // 7: vrooli.landing_page_business_suite.v1.shared.PresentationApp.capabilities:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability
 	6,  // 8: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.owner_qualification:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationOwnerQualification
-	64, // 9: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.localized_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedLabelsEntry
-	65, // 10: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.localized_benefits:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry
-	66, // 11: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.status_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.StatusLabelsEntry
+	66, // 9: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.localized_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedLabelsEntry
+	67, // 10: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.localized_benefits:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry
+	68, // 11: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.status_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationCapability.StatusLabelsEntry
 	14, // 12: vrooli.landing_page_business_suite.v1.shared.PresentationPage.theme:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationTheme
 	15, // 13: vrooli.landing_page_business_suite.v1.shared.PresentationPage.navigation:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationNavigation
 	18, // 14: vrooli.landing_page_business_suite.v1.shared.PresentationPage.blocks:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlock
 	17, // 15: vrooli.landing_page_business_suite.v1.shared.PresentationPage.footer:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFooter
 	8,  // 16: vrooli.landing_page_business_suite.v1.shared.PresentationPage.display:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay
 	9,  // 17: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.shell:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationShellDisplay
-	67, // 18: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.asset_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry
-	68, // 19: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.fixture_display:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry
-	69, // 20: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.blocks:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry
-	70, // 21: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.apps:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry
+	69, // 18: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.asset_labels:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry
+	70, // 19: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.fixture_display:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry
+	71, // 20: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.blocks:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry
+	72, // 21: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.apps:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry
 	20, // 22: vrooli.landing_page_business_suite.v1.shared.PresentationShellDisplay.header_action:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAction
-	71, // 23: vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.file_changes:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.FileChangesEntry
-	72, // 24: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.anchors:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.AnchorsEntry
-	73, // 25: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.hero_fixture_refs:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.HeroFixtureRefsEntry
+	73, // 23: vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.file_changes:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay.FileChangesEntry
+	74, // 24: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.anchors:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.AnchorsEntry
+	75, // 25: vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.hero_fixture_refs:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay.HeroFixtureRefsEntry
 	16, // 26: vrooli.landing_page_business_suite.v1.shared.PresentationNavigation.items:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationNavigationItem
 	16, // 27: vrooli.landing_page_business_suite.v1.shared.PresentationFooter.links:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationNavigationItem
 	19, // 28: vrooli.landing_page_business_suite.v1.shared.PresentationBlock.content:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockContent
@@ -6561,38 +6818,40 @@ var file_landing_page_business_suite_v1_shared_product_presentation_proto_depIdx
 	20, // 53: vrooli.landing_page_business_suite.v1.shared.PresentationPricing.actions:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAction
 	20, // 54: vrooli.landing_page_business_suite.v1.shared.PresentationClosingAction.actions:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAction
 	41, // 55: vrooli.landing_page_business_suite.v1.shared.PresentationFAQ.items:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFAQItem
-	44, // 56: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.workspace:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkspaceFixture
-	45, // 57: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.backdrop:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBackdropFixture
-	47, // 58: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.workflow:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture
-	46, // 59: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture.steps:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowStep
-	49, // 60: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.responsive_alternatives:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
-	50, // 61: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.focal_point:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
-	51, // 62: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.provenance:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
-	52, // 63: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.overlay_regions:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion
-	53, // 64: vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion.measurement:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationLegibilityMeasurement
-	7,  // 65: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.page:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPage
-	55, // 66: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.spotlights:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAppSpotlight
-	56, // 67: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.capabilities:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationCapability
-	57, // 68: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.assets:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset
-	43, // 69: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.fixtures:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixture
-	60, // 70: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.diagnostics:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationDiagnostics
-	61, // 71: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.actions:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction
-	49, // 72: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.responsive_alternatives:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
-	50, // 73: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.focal_point:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
-	51, // 74: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.provenance:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
-	58, // 75: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.overlay_regions:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion
-	59, // 76: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion.measurement:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationLegibility
-	1,  // 77: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringTable
-	2,  // 78: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringList
-	10, // 79: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetLabel
-	11, // 80: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay
-	12, // 81: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay
-	13, // 82: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAppDisplay
-	83, // [83:83] is the sub-list for method output_type
-	83, // [83:83] is the sub-list for method input_type
-	83, // [83:83] is the sub-list for extension type_name
-	83, // [83:83] is the sub-list for extension extendee
-	0,  // [0:83] is the sub-list for field type_name
+	46, // 56: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.workspace:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkspaceFixture
+	47, // 57: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.backdrop:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBackdropFixture
+	49, // 58: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.workflow:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture
+	45, // 59: vrooli.landing_page_business_suite.v1.shared.PresentationFixture.monitor:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationMonitorFixture
+	44, // 60: vrooli.landing_page_business_suite.v1.shared.PresentationMonitorFixture.metrics:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationMonitorMetric
+	48, // 61: vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowFixture.steps:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationWorkflowStep
+	51, // 62: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.responsive_alternatives:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
+	52, // 63: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.focal_point:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
+	53, // 64: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.provenance:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
+	54, // 65: vrooli.landing_page_business_suite.v1.shared.PresentationAsset.overlay_regions:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion
+	55, // 66: vrooli.landing_page_business_suite.v1.shared.PresentationOverlayRegion.measurement:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationLegibilityMeasurement
+	7,  // 67: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.page:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationPage
+	57, // 68: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.spotlights:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAppSpotlight
+	58, // 69: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.capabilities:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationCapability
+	59, // 70: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.assets:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset
+	43, // 71: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.fixtures:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixture
+	62, // 72: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.diagnostics:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationDiagnostics
+	63, // 73: vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation.actions:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAction
+	51, // 74: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.responsive_alternatives:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetVariant
+	52, // 75: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.focal_point:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFocalPoint
+	53, // 76: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.provenance:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetProvenance
+	60, // 77: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationAsset.overlay_regions:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion
+	61, // 78: vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationOverlayRegion.measurement:type_name -> vrooli.landing_page_business_suite.v1.shared.ResolvedPresentationLegibility
+	1,  // 79: vrooli.landing_page_business_suite.v1.shared.ProductPresentationDocument.StringsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringTable
+	2,  // 80: vrooli.landing_page_business_suite.v1.shared.PresentationCapability.LocalizedBenefitsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationStringList
+	10, // 81: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AssetLabelsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAssetLabel
+	11, // 82: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.FixtureDisplayEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationFixtureDisplay
+	12, // 83: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.BlocksEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationBlockDisplay
+	13, // 84: vrooli.landing_page_business_suite.v1.shared.PresentationPageDisplay.AppsEntry.value:type_name -> vrooli.landing_page_business_suite.v1.shared.PresentationAppDisplay
+	85, // [85:85] is the sub-list for method output_type
+	85, // [85:85] is the sub-list for method input_type
+	85, // [85:85] is the sub-list for extension type_name
+	85, // [85:85] is the sub-list for extension extendee
+	0,  // [0:85] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_shared_product_presentation_proto_init() }
@@ -6620,6 +6879,7 @@ func file_landing_page_business_suite_v1_shared_product_presentation_proto_init(
 		(*PresentationFixture_Workspace)(nil),
 		(*PresentationFixture_Backdrop)(nil),
 		(*PresentationFixture_Workflow)(nil),
+		(*PresentationFixture_Monitor)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -6627,7 +6887,7 @@ func file_landing_page_business_suite_v1_shared_product_presentation_proto_init(
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDesc), len(file_landing_page_business_suite_v1_shared_product_presentation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   74,
+			NumMessages:   76,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

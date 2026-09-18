@@ -99,8 +99,24 @@ class Presentation(_message.Message):
     recovery_note: str
     def __init__(self, title: _Optional[str] = ..., summary: _Optional[str] = ..., downtime_note: _Optional[str] = ..., recovery_note: _Optional[str] = ...) -> None: ...
 
+class Advisory(_message.Message):
+    __slots__ = ("id", "severity", "capability", "summary", "detail", "hint")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    HINT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    severity: str
+    capability: str
+    summary: str
+    detail: str
+    hint: str
+    def __init__(self, id: _Optional[str] = ..., severity: _Optional[str] = ..., capability: _Optional[str] = ..., summary: _Optional[str] = ..., detail: _Optional[str] = ..., hint: _Optional[str] = ...) -> None: ...
+
 class ExecutablePlan(_message.Message):
-    __slots__ = ("schema_version", "deployment_id", "scenario_id", "environment", "target", "scope", "outcome", "desired_revision", "release_digest", "configuration_digest", "closure_digest", "policy_version", "preconditions", "actions", "handoff", "presentation")
+    __slots__ = ("schema_version", "deployment_id", "scenario_id", "environment", "target", "scope", "outcome", "desired_revision", "release_digest", "configuration_digest", "closure_digest", "policy_version", "preconditions", "actions", "handoff", "presentation", "advisories")
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_ID_FIELD_NUMBER: _ClassVar[int]
@@ -117,6 +133,7 @@ class ExecutablePlan(_message.Message):
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
     HANDOFF_FIELD_NUMBER: _ClassVar[int]
     PRESENTATION_FIELD_NUMBER: _ClassVar[int]
+    ADVISORIES_FIELD_NUMBER: _ClassVar[int]
     schema_version: str
     deployment_id: str
     scenario_id: str
@@ -133,7 +150,8 @@ class ExecutablePlan(_message.Message):
     actions: _containers.RepeatedCompositeFieldContainer[Action]
     handoff: Handoff
     presentation: Presentation
-    def __init__(self, schema_version: _Optional[str] = ..., deployment_id: _Optional[str] = ..., scenario_id: _Optional[str] = ..., environment: _Optional[str] = ..., target: _Optional[_Union[Target, _Mapping]] = ..., scope: _Optional[str] = ..., outcome: _Optional[str] = ..., desired_revision: _Optional[int] = ..., release_digest: _Optional[str] = ..., configuration_digest: _Optional[str] = ..., closure_digest: _Optional[str] = ..., policy_version: _Optional[str] = ..., preconditions: _Optional[_Iterable[_Union[Precondition, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[Action, _Mapping]]] = ..., handoff: _Optional[_Union[Handoff, _Mapping]] = ..., presentation: _Optional[_Union[Presentation, _Mapping]] = ...) -> None: ...
+    advisories: _containers.RepeatedCompositeFieldContainer[Advisory]
+    def __init__(self, schema_version: _Optional[str] = ..., deployment_id: _Optional[str] = ..., scenario_id: _Optional[str] = ..., environment: _Optional[str] = ..., target: _Optional[_Union[Target, _Mapping]] = ..., scope: _Optional[str] = ..., outcome: _Optional[str] = ..., desired_revision: _Optional[int] = ..., release_digest: _Optional[str] = ..., configuration_digest: _Optional[str] = ..., closure_digest: _Optional[str] = ..., policy_version: _Optional[str] = ..., preconditions: _Optional[_Iterable[_Union[Precondition, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[Action, _Mapping]]] = ..., handoff: _Optional[_Union[Handoff, _Mapping]] = ..., presentation: _Optional[_Union[Presentation, _Mapping]] = ..., advisories: _Optional[_Iterable[_Union[Advisory, _Mapping]]] = ...) -> None: ...
 
 class Change(_message.Message):
     __slots__ = ("action_id", "operation", "effect", "capability", "summary", "verification", "recovery", "retry", "cancel_point")
@@ -176,7 +194,7 @@ class ShellPreviewLine(_message.Message):
     def __init__(self, action_id: _Optional[str] = ..., command: _Optional[str] = ...) -> None: ...
 
 class Preview(_message.Message):
-    __slots__ = ("target", "outcome", "changes", "data_effects", "downtime", "recovery_strategy", "handoff", "shell_preview")
+    __slots__ = ("target", "outcome", "changes", "data_effects", "downtime", "recovery_strategy", "handoff", "shell_preview", "advisories")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     CHANGES_FIELD_NUMBER: _ClassVar[int]
@@ -185,6 +203,7 @@ class Preview(_message.Message):
     RECOVERY_STRATEGY_FIELD_NUMBER: _ClassVar[int]
     HANDOFF_FIELD_NUMBER: _ClassVar[int]
     SHELL_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    ADVISORIES_FIELD_NUMBER: _ClassVar[int]
     target: str
     outcome: str
     changes: _containers.RepeatedCompositeFieldContainer[Change]
@@ -193,7 +212,8 @@ class Preview(_message.Message):
     recovery_strategy: str
     handoff: Handoff
     shell_preview: _containers.RepeatedCompositeFieldContainer[ShellPreviewLine]
-    def __init__(self, target: _Optional[str] = ..., outcome: _Optional[str] = ..., changes: _Optional[_Iterable[_Union[Change, _Mapping]]] = ..., data_effects: _Optional[_Iterable[_Union[DataEffect, _Mapping]]] = ..., downtime: _Optional[_Union[Downtime, _Mapping]] = ..., recovery_strategy: _Optional[str] = ..., handoff: _Optional[_Union[Handoff, _Mapping]] = ..., shell_preview: _Optional[_Iterable[_Union[ShellPreviewLine, _Mapping]]] = ...) -> None: ...
+    advisories: _containers.RepeatedCompositeFieldContainer[Advisory]
+    def __init__(self, target: _Optional[str] = ..., outcome: _Optional[str] = ..., changes: _Optional[_Iterable[_Union[Change, _Mapping]]] = ..., data_effects: _Optional[_Iterable[_Union[DataEffect, _Mapping]]] = ..., downtime: _Optional[_Union[Downtime, _Mapping]] = ..., recovery_strategy: _Optional[str] = ..., handoff: _Optional[_Union[Handoff, _Mapping]] = ..., shell_preview: _Optional[_Iterable[_Union[ShellPreviewLine, _Mapping]]] = ..., advisories: _Optional[_Iterable[_Union[Advisory, _Mapping]]] = ...) -> None: ...
 
 class CompilePlanRequest(_message.Message):
     __slots__ = ("deployment_id", "scope", "force_bundle_build")

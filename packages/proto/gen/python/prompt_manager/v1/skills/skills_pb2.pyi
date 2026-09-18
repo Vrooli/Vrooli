@@ -63,7 +63,7 @@ class Variable(_message.Message):
     def __init__(self, name: _Optional[str] = ..., placeholder: _Optional[str] = ..., occurrences: _Optional[int] = ...) -> None: ...
 
 class Skill(_message.Message):
-    __slots__ = ("id", "file", "name", "description", "content", "modes", "tags", "icon", "target_tool_id", "default_scope", "target_dimensions", "programmatic_home", "draft", "folder", "skill_dir", "content_path", "created_at", "updated_at", "revision", "content_hash", "usage_count", "last_used", "effectiveness_rating", "variables")
+    __slots__ = ("id", "file", "name", "description", "content", "modes", "tags", "icon", "target_tool_id", "default_scope", "target_dimensions", "programmatic_home", "draft", "folder", "skill_dir", "content_path", "created_at", "updated_at", "revision", "content_hash", "usage_count", "last_used", "effectiveness_rating", "variables", "origin", "external_tools")
     ID_FIELD_NUMBER: _ClassVar[int]
     FILE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -88,6 +88,8 @@ class Skill(_message.Message):
     LAST_USED_FIELD_NUMBER: _ClassVar[int]
     EFFECTIVENESS_RATING_FIELD_NUMBER: _ClassVar[int]
     VARIABLES_FIELD_NUMBER: _ClassVar[int]
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_TOOLS_FIELD_NUMBER: _ClassVar[int]
     id: str
     file: str
     name: str
@@ -112,7 +114,53 @@ class Skill(_message.Message):
     last_used: str
     effectiveness_rating: int
     variables: _containers.RepeatedCompositeFieldContainer[Variable]
-    def __init__(self, id: _Optional[str] = ..., file: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., content: _Optional[str] = ..., modes: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., icon: _Optional[str] = ..., target_tool_id: _Optional[str] = ..., default_scope: _Optional[str] = ..., target_dimensions: _Optional[_Iterable[str]] = ..., programmatic_home: _Optional[str] = ..., draft: _Optional[bool] = ..., folder: _Optional[str] = ..., skill_dir: _Optional[str] = ..., content_path: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., revision: _Optional[int] = ..., content_hash: _Optional[str] = ..., usage_count: _Optional[int] = ..., last_used: _Optional[str] = ..., effectiveness_rating: _Optional[int] = ..., variables: _Optional[_Iterable[_Union[Variable, _Mapping]]] = ...) -> None: ...
+    origin: SkillOrigin
+    external_tools: _containers.RepeatedCompositeFieldContainer[ExternalTool]
+    def __init__(self, id: _Optional[str] = ..., file: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., content: _Optional[str] = ..., modes: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., icon: _Optional[str] = ..., target_tool_id: _Optional[str] = ..., default_scope: _Optional[str] = ..., target_dimensions: _Optional[_Iterable[str]] = ..., programmatic_home: _Optional[str] = ..., draft: _Optional[bool] = ..., folder: _Optional[str] = ..., skill_dir: _Optional[str] = ..., content_path: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., revision: _Optional[int] = ..., content_hash: _Optional[str] = ..., usage_count: _Optional[int] = ..., last_used: _Optional[str] = ..., effectiveness_rating: _Optional[int] = ..., variables: _Optional[_Iterable[_Union[Variable, _Mapping]]] = ..., origin: _Optional[_Union[SkillOrigin, _Mapping]] = ..., external_tools: _Optional[_Iterable[_Union[ExternalTool, _Mapping]]] = ...) -> None: ...
+
+class SkillReview(_message.Message):
+    __slots__ = ("verdict", "reviewer", "reviewed_at")
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    REVIEWER_FIELD_NUMBER: _ClassVar[int]
+    REVIEWED_AT_FIELD_NUMBER: _ClassVar[int]
+    verdict: str
+    reviewer: str
+    reviewed_at: str
+    def __init__(self, verdict: _Optional[str] = ..., reviewer: _Optional[str] = ..., reviewed_at: _Optional[str] = ...) -> None: ...
+
+class SkillOrigin(_message.Message):
+    __slots__ = ("kind", "source_url", "commit", "license", "checksum", "tree_checksum", "imported_by", "imported_at", "upstream_version", "review")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_URL_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    TREE_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    IMPORTED_BY_FIELD_NUMBER: _ClassVar[int]
+    IMPORTED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPSTREAM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    source_url: str
+    commit: str
+    license: str
+    checksum: str
+    tree_checksum: str
+    imported_by: str
+    imported_at: str
+    upstream_version: str
+    review: SkillReview
+    def __init__(self, kind: _Optional[str] = ..., source_url: _Optional[str] = ..., commit: _Optional[str] = ..., license: _Optional[str] = ..., checksum: _Optional[str] = ..., tree_checksum: _Optional[str] = ..., imported_by: _Optional[str] = ..., imported_at: _Optional[str] = ..., upstream_version: _Optional[str] = ..., review: _Optional[_Union[SkillReview, _Mapping]] = ...) -> None: ...
+
+class ExternalTool(_message.Message):
+    __slots__ = ("name", "url", "purpose")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    url: str
+    purpose: str
+    def __init__(self, name: _Optional[str] = ..., url: _Optional[str] = ..., purpose: _Optional[str] = ...) -> None: ...
 
 class ListSkillsRequest(_message.Message):
     __slots__ = ("folder", "tag", "modes", "without_programmatic_home")
@@ -540,7 +588,7 @@ class DeleteSkillVariantResponse(_message.Message):
     def __init__(self, skill_id: _Optional[str] = ..., variant_id: _Optional[str] = ..., deleted: _Optional[bool] = ...) -> None: ...
 
 class ImportSkillRequest(_message.Message):
-    __slots__ = ("source_dir", "source_url", "commit", "license", "checksum", "imported_by", "upstream_version", "id")
+    __slots__ = ("source_dir", "source_url", "commit", "license", "checksum", "imported_by", "upstream_version", "id", "external_tools")
     SOURCE_DIR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_URL_FIELD_NUMBER: _ClassVar[int]
     COMMIT_FIELD_NUMBER: _ClassVar[int]
@@ -549,6 +597,7 @@ class ImportSkillRequest(_message.Message):
     IMPORTED_BY_FIELD_NUMBER: _ClassVar[int]
     UPSTREAM_VERSION_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_TOOLS_FIELD_NUMBER: _ClassVar[int]
     source_dir: str
     source_url: str
     commit: str
@@ -557,23 +606,26 @@ class ImportSkillRequest(_message.Message):
     imported_by: str
     upstream_version: str
     id: str
-    def __init__(self, source_dir: _Optional[str] = ..., source_url: _Optional[str] = ..., commit: _Optional[str] = ..., license: _Optional[str] = ..., checksum: _Optional[str] = ..., imported_by: _Optional[str] = ..., upstream_version: _Optional[str] = ..., id: _Optional[str] = ...) -> None: ...
+    external_tools: _containers.RepeatedCompositeFieldContainer[ExternalTool]
+    def __init__(self, source_dir: _Optional[str] = ..., source_url: _Optional[str] = ..., commit: _Optional[str] = ..., license: _Optional[str] = ..., checksum: _Optional[str] = ..., imported_by: _Optional[str] = ..., upstream_version: _Optional[str] = ..., id: _Optional[str] = ..., external_tools: _Optional[_Iterable[_Union[ExternalTool, _Mapping]]] = ...) -> None: ...
 
 class ImportSkillResponse(_message.Message):
-    __slots__ = ("id", "pack", "status", "checksum", "review_verdict", "imported_at")
+    __slots__ = ("id", "pack", "status", "checksum", "review_verdict", "imported_at", "tree_checksum")
     ID_FIELD_NUMBER: _ClassVar[int]
     PACK_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     CHECKSUM_FIELD_NUMBER: _ClassVar[int]
     REVIEW_VERDICT_FIELD_NUMBER: _ClassVar[int]
     IMPORTED_AT_FIELD_NUMBER: _ClassVar[int]
+    TREE_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
     id: str
     pack: str
     status: str
     checksum: str
     review_verdict: str
     imported_at: str
-    def __init__(self, id: _Optional[str] = ..., pack: _Optional[str] = ..., status: _Optional[str] = ..., checksum: _Optional[str] = ..., review_verdict: _Optional[str] = ..., imported_at: _Optional[str] = ...) -> None: ...
+    tree_checksum: str
+    def __init__(self, id: _Optional[str] = ..., pack: _Optional[str] = ..., status: _Optional[str] = ..., checksum: _Optional[str] = ..., review_verdict: _Optional[str] = ..., imported_at: _Optional[str] = ..., tree_checksum: _Optional[str] = ...) -> None: ...
 
 class ReviewImportedSkillRequest(_message.Message):
     __slots__ = ("id", "reviewer", "verdict")

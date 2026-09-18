@@ -1546,8 +1546,12 @@ func (x *RevokeMachineAccountResponse) GetRevokedCount() int64 {
 }
 
 type ExchangeMachinePrincipalRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MachineId     string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MachineId string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	// Optional registered resource id. Empty preserves the default realm
+	// audience; callers may request a resource-specific audience without
+	// handling account passwords.
+	Resource      string `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1585,6 +1589,13 @@ func (*ExchangeMachinePrincipalRequest) Descriptor() ([]byte, []int) {
 func (x *ExchangeMachinePrincipalRequest) GetMachineId() string {
 	if x != nil {
 		return x.MachineId
+	}
+	return ""
+}
+
+func (x *ExchangeMachinePrincipalRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
 	}
 	return ""
 }
@@ -1807,10 +1818,11 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x0flocal_principal\x18\x03 \x01(\tR\x0elocalPrincipal\x12!\n" +
 	"\fprincipal_id\x18\x04 \x01(\tR\vprincipalId\"C\n" +
 	"\x1cRevokeMachineAccountResponse\x12#\n" +
-	"\rrevoked_count\x18\x01 \x01(\x03R\frevokedCount\"@\n" +
+	"\rrevoked_count\x18\x01 \x01(\x03R\frevokedCount\"\\\n" +
 	"\x1fExchangeMachinePrincipalRequest\x12\x1d\n" +
 	"\n" +
-	"machine_id\x18\x01 \x01(\tR\tmachineId\"S\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\x12\x1a\n" +
+	"\bresource\x18\x02 \x01(\tR\bresource\"S\n" +
 	"\x16IssueBreakGlassRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x16\n" +
 	"\x06scopes\x18\x02 \x03(\tR\x06scopes\"X\n" +

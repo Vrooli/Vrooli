@@ -290,6 +290,10 @@ message RevokeMachineAccountResponse {
 
 message ExchangeMachinePrincipalRequest {
   string machine_id = 1;
+  // Optional registered resource id. Empty preserves the default realm
+  // audience; callers may request a resource-specific audience without
+  // handling account passwords.
+  string resource = 2;
 }
 
 message IssueBreakGlassRequest {

@@ -1,4 +1,10 @@
-import { clipOutsideQuiet, drawGlow, inQuiet, read, rgba, type Frame, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, inQuiet, slot, rgba, type Frame, type Scene, type SlotManifest } from "./engine";
+
+const rowColumns = { key: { type: "string" }, value: { type: "number" }, share: { type: "number" } };
+export const slotManifest: SlotManifest = {
+  throughput: { shape: "rows", role: "primary", whenUnbound: "decorative", columns: rowColumns },
+  blocking: { shape: "rows", role: "secondary", whenUnbound: "decorative", columns: rowColumns },
+};
 
 interface Spark { x: number; lane: number; speed: number; size: number; age: number; pooled: boolean; swirl: number }
 
@@ -17,8 +23,8 @@ export function flowCurrent(): Scene {
   return {
     init(frame) {
       const { data, tier } = frame;
-      const created = read(data, "throughput_stats");
-      const blocked = read(data, "blocking_stats");
+      const created = slot(data, "throughput");
+      const blocked = slot(data, "blocking");
       rate = created === null ? 0 : Math.max(4, Math.min(tier === "full" ? 18 : 8, created / 3));
       pool = blocked === null ? 0 : Math.min(40, Math.round(blocked) * 3);
       // Pre-warm so the first frame, and the still tier, already show a current in motion.

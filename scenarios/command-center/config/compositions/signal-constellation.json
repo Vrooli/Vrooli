@@ -1,0 +1,21 @@
+{
+  "id": "signal-constellation",
+  "slotManifest": "signal-constellation.slots.json",
+  "slots": {
+    "visitors": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "conversions": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    },
+    "ctaClicks": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  }
+}

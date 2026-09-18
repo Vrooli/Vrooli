@@ -696,7 +696,7 @@ class StreamSessionStatus(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., generation: _Optional[int] = ..., state: _Optional[str] = ..., queue_position: _Optional[int] = ..., capability_outcome: _Optional[str] = ..., recovery_guidance: _Optional[str] = ...) -> None: ...
 
 class StreamSegment(_message.Message):
-    __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms", "segment_id", "generation", "start_sample", "end_sample", "alignment_quality")
+    __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms", "segment_id", "generation", "start_sample", "end_sample", "alignment_quality", "speaker_policy")
     TEXT_FIELD_NUMBER: _ClassVar[int]
     START_MS_FIELD_NUMBER: _ClassVar[int]
     END_MS_FIELD_NUMBER: _ClassVar[int]
@@ -709,6 +709,7 @@ class StreamSegment(_message.Message):
     START_SAMPLE_FIELD_NUMBER: _ClassVar[int]
     END_SAMPLE_FIELD_NUMBER: _ClassVar[int]
     ALIGNMENT_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    SPEAKER_POLICY_FIELD_NUMBER: _ClassVar[int]
     text: str
     start_ms: int
     end_ms: int
@@ -721,7 +722,8 @@ class StreamSegment(_message.Message):
     start_sample: int
     end_sample: int
     alignment_quality: str
-    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., segment_id: _Optional[str] = ..., generation: _Optional[int] = ..., start_sample: _Optional[int] = ..., end_sample: _Optional[int] = ..., alignment_quality: _Optional[str] = ...) -> None: ...
+    speaker_policy: str
+    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., segment_id: _Optional[str] = ..., generation: _Optional[int] = ..., start_sample: _Optional[int] = ..., end_sample: _Optional[int] = ..., alignment_quality: _Optional[str] = ..., speaker_policy: _Optional[str] = ...) -> None: ...
 
 class StreamPartial(_message.Message):
     __slots__ = ("text",)

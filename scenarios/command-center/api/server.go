@@ -57,11 +57,11 @@ func NewServerWithTrendStore(reg *Registry, trendStore trends.Store) *Server {
 		stats:      NewStatsBuffer(1024, time.Hour),
 		trendStore: trendStore,
 
-		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
-		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
-		lpbs:   upstream.NewLPBSTypedResolved(resolveLPBSBaseURL(reg), resolveLPBSReaderToken(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
-		offer:  upstream.NewJSONConnectResolvedPaths("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), []string{"/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger"}, declaredFeatureSet(reg, "offer-desk", "")),
-		deploy: upstream.NewRESTResolved("deployment-manager", resolveScenarioBaseURL("deployment-manager", "DEPLOYMENT_MANAGER_BASE_URL", "DEPLOYMENT_MANAGER_API_PORT"), ""),
+		swarm:  upstream.NewDescriptorClient(connectorDescriptor("swarm-manager", resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", ""), nil)),
+		vrooli: upstream.NewDescriptorClient(connectorDescriptor("vrooli-core", resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", ""), nil)),
+		lpbs:   newLPBSClient(reg),
+		offer:  upstream.NewDescriptorClient(connectorDescriptor("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), declaredFeatureSet(reg, "offer-desk", ""), nil)),
+		deploy: upstream.NewDescriptorClient(connectorDescriptor("deployment-manager", resolveScenarioBaseURL("deployment-manager", "DEPLOYMENT_MANAGER_BASE_URL", "DEPLOYMENT_MANAGER_API_PORT"), declaredFeatureSet(reg, "deployment-manager", ""), nil)),
 	}
 	s.providers = map[UpstreamSource]upstreamProvider{
 		SourceSwarm:  {client: func() upstream.Client { return s.swarm }, defaultPath: "/api/v1/stats"},
@@ -104,29 +104,60 @@ func declaredFeatureSet(reg *Registry, integrationID, kind string) map[string]st
 	return features
 }
 
+func newLPBSClient(reg *Registry) upstream.Client {
+	if strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN"))) == "production" {
+		return upstream.NewLPBSRemoteProfileResolved(
+			resolveLocalLPBSBaseURL,
+			func() string { return resolveLPBSServiceToken(reg) },
+			"prod",
+		)
+	}
+	return upstream.NewDescriptorClient(connectorDescriptor("landing-page-business-suite", resolveLPBSBaseURL(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs"), func(req *http.Request) {
+		token := resolveLPBSReaderToken(reg)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+	}))
+}
+
+func resolveLPBSServiceToken(reg *Registry) string {
+	return resolveLPBSCredential(reg, "service-secret", "vrooli/landing-page-business-suite")
+}
+
 func resolveLPBSReaderToken(reg *Registry) string {
+	return resolveLPBSCredential(reg, "metrics-reader-token", "vrooli/landing-page-business-suite")
+}
+
+func resolveLPBSCredential(reg *Registry, defaultField, defaultIdentity string) string {
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return ""
 	}
 	// LPBS mints and owns this credential. Consume the same authority entry
 	// rather than declaring a second token that can drift from its verifier.
-	field := "metrics-reader-token"
+	field := defaultField
 	origin := strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")))
-	if origin == "production" {
+	if origin == "production" && defaultField != "service-secret" {
 		if spec, ok := reg.Origins["production"]; ok && spec.Credential != nil && spec.Credential.Field != "" {
 			field = spec.Credential.Field
 		}
 	}
-	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
+	identity := credentialauthority.Identity(defaultIdentity)
 	if origin == "production" {
-		identity = credentialauthority.Identity("vrooli/command-center")
+		identity = credentialauthority.Identity("vrooli/landing-page-business-suite")
 	}
 	token, err := authority.Require(identity, field)
 	if err != nil {
 		return ""
 	}
 	return token
+}
+
+func resolveLocalLPBSBaseURL() string {
+	if raw := strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_LOCAL_URL")); raw != "" {
+		return strings.TrimRight(raw, "/")
+	}
+	return resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT")()
 }
 
 func resolveLPBSBaseURL(reg *Registry) func() string {
@@ -138,9 +169,7 @@ func resolveLPBSBaseURL(reg *Registry) func() string {
 			}
 		}
 		if origin == "production" {
-			if spec, ok := reg.Origins["production"]; ok && strings.TrimSpace(spec.BaseURL) != "" {
-				return strings.TrimRight(spec.BaseURL, "/")
-			}
+			return resolveLocalLPBSBaseURL()
 		}
 		return resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT")()
 	}

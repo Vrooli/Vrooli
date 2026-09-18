@@ -4,6 +4,16 @@ import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-l
 
 export type SceneTier = "full" | "reduced";
 
+export type SlotShape = "scalar" | "series" | "rows" | "meta";
+export interface SlotColumn { type: string; optional?: boolean }
+export interface SlotDefinition {
+  shape: SlotShape;
+  role: "primary" | "secondary";
+  whenUnbound: "decorative";
+  columns?: Record<string, SlotColumn>;
+}
+export type SlotManifest = Record<string, SlotDefinition>;
+
 export interface Rect {
   x: number;
   y: number;
@@ -46,6 +56,8 @@ export interface SceneData {
   focus?: string;
   /** Every other room, when the room is a panorama. */
   groups?: SceneGroup[];
+  /** Composition slot -> room signal id. */
+  slots?: Record<string, string>;
 }
 
 export interface Frame {
@@ -76,7 +88,7 @@ const sceneGroups = (constellations: Constellation[]): SceneGroup[] =>
     stars: readings.map((reading) => ({ id: reading.id, state: skyState(reading), cached: reading.trust === "CACHED" })),
   }));
 
-export const sceneData = (readings: Reading[], focus?: string, constellations?: Constellation[]): SceneData => ({
+export const sceneData = (readings: Reading[], focus?: string, constellations?: Constellation[], slots: Record<string, string> = {}): SceneData => ({
   ...(constellations ? { groups: sceneGroups(constellations) } : {}),
   readings: Object.fromEntries(
     readings.map((reading) => {
@@ -86,7 +98,13 @@ export const sceneData = (readings: Reading[], focus?: string, constellations?: 
   ),
   order: readings.map((reading) => reading.id),
   focus,
+  slots,
 });
+
+export const slot = (data: SceneData, name: string): number | null => read(data, data.slots?.[name] ?? name);
+
+export const slotRows = (data: SceneData, name: string): SceneReading["rows"] =>
+  data.readings[data.slots?.[name] ?? name]?.rows;
 
 export const read = (data: SceneData, id: string): number | null => {
   const entry = data.readings[id];

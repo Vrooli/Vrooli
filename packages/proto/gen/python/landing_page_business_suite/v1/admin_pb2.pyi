@@ -1,3 +1,4 @@
+from landing_page_business_suite.v1 import account_security_pb2 as _account_security_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -7,24 +8,32 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class LoginRequest(_message.Message):
-    __slots__ = ("email", "password")
+    __slots__ = ("email", "password", "totp_code", "passkey_assertion", "passkey_ceremony_id")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    TOTP_CODE_FIELD_NUMBER: _ClassVar[int]
+    PASSKEY_ASSERTION_FIELD_NUMBER: _ClassVar[int]
+    PASSKEY_CEREMONY_ID_FIELD_NUMBER: _ClassVar[int]
     email: str
     password: str
-    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+    totp_code: str
+    passkey_assertion: bytes
+    passkey_ceremony_id: str
+    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., totp_code: _Optional[str] = ..., passkey_assertion: _Optional[bytes] = ..., passkey_ceremony_id: _Optional[str] = ...) -> None: ...
 
 class AdminSessionResponse(_message.Message):
-    __slots__ = ("email", "authenticated", "reset_enabled", "session_id")
+    __slots__ = ("email", "authenticated", "reset_enabled", "session_id", "assurance")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     AUTHENTICATED_FIELD_NUMBER: _ClassVar[int]
     RESET_ENABLED_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    ASSURANCE_FIELD_NUMBER: _ClassVar[int]
     email: str
     authenticated: bool
     reset_enabled: bool
     session_id: str
-    def __init__(self, email: _Optional[str] = ..., authenticated: _Optional[bool] = ..., reset_enabled: _Optional[bool] = ..., session_id: _Optional[str] = ...) -> None: ...
+    assurance: str
+    def __init__(self, email: _Optional[str] = ..., authenticated: _Optional[bool] = ..., reset_enabled: _Optional[bool] = ..., session_id: _Optional[str] = ..., assurance: _Optional[str] = ...) -> None: ...
 
 class LogoutRequest(_message.Message):
     __slots__ = ()
@@ -39,6 +48,100 @@ class LogoutResponse(_message.Message):
 class SessionRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class BeginAdminPasskeyRegistrationRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class BeginAdminPasskeyRegistrationResponse(_message.Message):
+    __slots__ = ("options_json", "ceremony_id")
+    OPTIONS_JSON_FIELD_NUMBER: _ClassVar[int]
+    CEREMONY_ID_FIELD_NUMBER: _ClassVar[int]
+    options_json: str
+    ceremony_id: str
+    def __init__(self, options_json: _Optional[str] = ..., ceremony_id: _Optional[str] = ...) -> None: ...
+
+class FinishAdminPasskeyRegistrationRequest(_message.Message):
+    __slots__ = ("credential_json", "nickname", "ceremony_id")
+    CREDENTIAL_JSON_FIELD_NUMBER: _ClassVar[int]
+    NICKNAME_FIELD_NUMBER: _ClassVar[int]
+    CEREMONY_ID_FIELD_NUMBER: _ClassVar[int]
+    credential_json: str
+    nickname: str
+    ceremony_id: str
+    def __init__(self, credential_json: _Optional[str] = ..., nickname: _Optional[str] = ..., ceremony_id: _Optional[str] = ...) -> None: ...
+
+class FinishAdminPasskeyRegistrationResponse(_message.Message):
+    __slots__ = ("id", "nickname")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NICKNAME_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    nickname: str
+    def __init__(self, id: _Optional[str] = ..., nickname: _Optional[str] = ...) -> None: ...
+
+class ListAdminPasskeysRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class AdminPasskey(_message.Message):
+    __slots__ = ("id", "nickname", "created_at", "last_used_at", "backup_state")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NICKNAME_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_USED_AT_FIELD_NUMBER: _ClassVar[int]
+    BACKUP_STATE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    nickname: str
+    created_at: str
+    last_used_at: str
+    backup_state: str
+    def __init__(self, id: _Optional[str] = ..., nickname: _Optional[str] = ..., created_at: _Optional[str] = ..., last_used_at: _Optional[str] = ..., backup_state: _Optional[str] = ...) -> None: ...
+
+class ListAdminPasskeysResponse(_message.Message):
+    __slots__ = ("passkeys",)
+    PASSKEYS_FIELD_NUMBER: _ClassVar[int]
+    passkeys: _containers.RepeatedCompositeFieldContainer[AdminPasskey]
+    def __init__(self, passkeys: _Optional[_Iterable[_Union[AdminPasskey, _Mapping]]] = ...) -> None: ...
+
+class RenameAdminPasskeyRequest(_message.Message):
+    __slots__ = ("id", "nickname")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NICKNAME_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    nickname: str
+    def __init__(self, id: _Optional[str] = ..., nickname: _Optional[str] = ...) -> None: ...
+
+class RenameAdminPasskeyResponse(_message.Message):
+    __slots__ = ("passkey",)
+    PASSKEY_FIELD_NUMBER: _ClassVar[int]
+    passkey: AdminPasskey
+    def __init__(self, passkey: _Optional[_Union[AdminPasskey, _Mapping]] = ...) -> None: ...
+
+class RevokeAdminPasskeyRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class RevokeAdminPasskeyResponse(_message.Message):
+    __slots__ = ("revoked",)
+    REVOKED_FIELD_NUMBER: _ClassVar[int]
+    revoked: bool
+    def __init__(self, revoked: _Optional[bool] = ...) -> None: ...
+
+class BeginAdminSecondFactorRequest(_message.Message):
+    __slots__ = ("email",)
+    EMAIL_FIELD_NUMBER: _ClassVar[int]
+    email: str
+    def __init__(self, email: _Optional[str] = ...) -> None: ...
+
+class BeginAdminSecondFactorResponse(_message.Message):
+    __slots__ = ("options_json", "ceremony_id")
+    OPTIONS_JSON_FIELD_NUMBER: _ClassVar[int]
+    CEREMONY_ID_FIELD_NUMBER: _ClassVar[int]
+    options_json: str
+    ceremony_id: str
+    def __init__(self, options_json: _Optional[str] = ..., ceremony_id: _Optional[str] = ...) -> None: ...
 
 class ResetDemoDataRequest(_message.Message):
     __slots__ = ()

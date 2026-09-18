@@ -1,0 +1,38 @@
+{
+  "id": "flow-current",
+  "slotManifest": "flow-current.slots.json",
+  "slots": {
+    "throughput": {
+      "shape": "rows",
+      "role": "primary",
+      "whenUnbound": "decorative",
+      "columns": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "share": {
+          "type": "number"
+        }
+      }
+    },
+    "blocking": {
+      "shape": "rows",
+      "role": "secondary",
+      "whenUnbound": "decorative",
+      "columns": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "share": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

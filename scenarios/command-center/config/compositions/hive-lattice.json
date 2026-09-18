@@ -1,0 +1,21 @@
+{
+  "id": "hive-lattice",
+  "slotManifest": "hive-lattice.slots.json",
+  "slots": {
+    "total": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "running": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    },
+    "healthy": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  }
+}

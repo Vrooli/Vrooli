@@ -1,4 +1,8 @@
-import { clipOutsideQuiet, drawGlow, freeBand, rgba, type Frame, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, freeBand, rgba, type Frame, type Scene, type SlotManifest } from "./engine";
+
+export const slotManifest: SlotManifest = {
+  posture: { shape: "meta", role: "primary", whenUnbound: "decorative" },
+};
 
 export interface LedgerLayout {
   left: number;
@@ -15,7 +19,7 @@ export function ledgerLayout(frame: Pick<Frame, "w" | "h" | "quiet" | "data">): 
   const width = Math.min(frame.w * 0.72, band.size * 1.25);
   const left = frame.w * 0.5 - width / 2;
   const baseline = band.bottom - band.size * 0.12;
-  const posture = frame.data.readings.offer_posture?.meta ?? {};
+  const posture = frame.data.readings[frame.data.slots?.posture ?? (frame.data.slots ? "posture" : "offer_posture")]?.meta ?? {};
   const burn = Number(posture.burnMinor ?? 0);
   const revenue = Number(posture.revenueMinor ?? 0);
   const max = Math.max(1, burn, revenue);
@@ -33,7 +37,8 @@ export function ledgerRiver(): Scene {
     draw(frame) {
       const { ctx, h, palette, data } = frame;
       const layout = ledgerLayout(frame);
-      const measured = data.readings.offer_posture?.ink === "solid" || data.readings.offer_posture?.ink === "dimmed";
+      const postureID = data.slots?.posture ?? (data.slots ? "posture" : "offer_posture");
+      const measured = data.readings[postureID]?.ink === "solid" || data.readings[postureID]?.ink === "dimmed";
       clipOutsideQuiet(frame);
       ctx.strokeStyle = rgba(ctx, palette.primary, 0.12);
       ctx.lineWidth = 1;

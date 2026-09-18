@@ -1,0 +1,21 @@
+{
+  "composition": "signal-constellation",
+  "slots": {
+    "visitors": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "conversions": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    },
+    "ctaClicks": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  },
+  "generatedFrom": "ui/src/scenes"
+}

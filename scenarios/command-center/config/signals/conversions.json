@@ -1,0 +1,35 @@
+{
+  "id": "conversions",
+  "label": "Conversions · 30 days",
+  "description": "Landing-page conversions derived from metrics events.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "marketing-crew",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary?window_days=30",
+    "select": "conversions",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "conversions",
+    "contractVersion": "analytics-summary.v1",
+    "selector": "conversions",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 61,
+    "series": [
+      38,
+      42,
+      47,
+      50,
+      55,
+      61
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

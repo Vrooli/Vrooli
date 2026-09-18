@@ -1,0 +1,15 @@
+{
+  "id": "panorama",
+  "title": "Panorama",
+  "category": "panorama",
+  "theme": "cosmos",
+  "composition": "panorama-constellation",
+  "metricIds": [
+    "visitors",
+    "revenue_mrr",
+    "composite_portfolio",
+    "composite_system_health",
+    "composite_throughput"
+  ],
+  "bind": {}
+}

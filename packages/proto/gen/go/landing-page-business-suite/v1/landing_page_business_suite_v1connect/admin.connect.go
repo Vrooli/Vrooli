@@ -23,6 +23,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// AdminAuthServiceName is the fully-qualified name of the AdminAuthService service.
 	AdminAuthServiceName = "landing_page_business_suite.v1.AdminAuthService"
+	// AdminPasskeyServiceName is the fully-qualified name of the AdminPasskeyService service.
+	AdminPasskeyServiceName = "landing_page_business_suite.v1.AdminPasskeyService"
 	// AdminResetServiceName is the fully-qualified name of the AdminResetService service.
 	AdminResetServiceName = "landing_page_business_suite.v1.AdminResetService"
 	// AdminProfileServiceName is the fully-qualified name of the AdminProfileService service.
@@ -46,6 +48,27 @@ const (
 	// AdminAuthServiceSessionProcedure is the fully-qualified name of the AdminAuthService's Session
 	// RPC.
 	AdminAuthServiceSessionProcedure = "/landing_page_business_suite.v1.AdminAuthService/Session"
+	// AdminAuthServiceReauthenticateProcedure is the fully-qualified name of the AdminAuthService's
+	// Reauthenticate RPC.
+	AdminAuthServiceReauthenticateProcedure = "/landing_page_business_suite.v1.AdminAuthService/Reauthenticate"
+	// AdminPasskeyServiceBeginRegistrationProcedure is the fully-qualified name of the
+	// AdminPasskeyService's BeginRegistration RPC.
+	AdminPasskeyServiceBeginRegistrationProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/BeginRegistration"
+	// AdminPasskeyServiceFinishRegistrationProcedure is the fully-qualified name of the
+	// AdminPasskeyService's FinishRegistration RPC.
+	AdminPasskeyServiceFinishRegistrationProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/FinishRegistration"
+	// AdminPasskeyServiceListPasskeysProcedure is the fully-qualified name of the AdminPasskeyService's
+	// ListPasskeys RPC.
+	AdminPasskeyServiceListPasskeysProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/ListPasskeys"
+	// AdminPasskeyServiceRenamePasskeyProcedure is the fully-qualified name of the
+	// AdminPasskeyService's RenamePasskey RPC.
+	AdminPasskeyServiceRenamePasskeyProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/RenamePasskey"
+	// AdminPasskeyServiceRevokePasskeyProcedure is the fully-qualified name of the
+	// AdminPasskeyService's RevokePasskey RPC.
+	AdminPasskeyServiceRevokePasskeyProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/RevokePasskey"
+	// AdminPasskeyServiceBeginSecondFactorProcedure is the fully-qualified name of the
+	// AdminPasskeyService's BeginSecondFactor RPC.
+	AdminPasskeyServiceBeginSecondFactorProcedure = "/landing_page_business_suite.v1.AdminPasskeyService/BeginSecondFactor"
 	// AdminResetServiceResetDemoDataProcedure is the fully-qualified name of the AdminResetService's
 	// ResetDemoData RPC.
 	AdminResetServiceResetDemoDataProcedure = "/landing_page_business_suite.v1.AdminResetService/ResetDemoData"
@@ -81,6 +104,7 @@ type AdminAuthServiceClient interface {
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	// Reports the current admin session state.
 	Session(context.Context, *connect.Request[v1.SessionRequest]) (*connect.Response[v1.AdminSessionResponse], error)
+	Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error)
 }
 
 // NewAdminAuthServiceClient constructs a client for the
@@ -113,14 +137,21 @@ func NewAdminAuthServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminAuthServiceMethods.ByName("Session")),
 			connect.WithClientOptions(opts...),
 		),
+		reauthenticate: connect.NewClient[v1.ReauthenticateRequest, v1.ReauthenticateResponse](
+			httpClient,
+			baseURL+AdminAuthServiceReauthenticateProcedure,
+			connect.WithSchema(adminAuthServiceMethods.ByName("Reauthenticate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminAuthServiceClient implements AdminAuthServiceClient.
 type adminAuthServiceClient struct {
-	login   *connect.Client[v1.LoginRequest, v1.AdminSessionResponse]
-	logout  *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	session *connect.Client[v1.SessionRequest, v1.AdminSessionResponse]
+	login          *connect.Client[v1.LoginRequest, v1.AdminSessionResponse]
+	logout         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	session        *connect.Client[v1.SessionRequest, v1.AdminSessionResponse]
+	reauthenticate *connect.Client[v1.ReauthenticateRequest, v1.ReauthenticateResponse]
 }
 
 // Login calls landing_page_business_suite.v1.AdminAuthService.Login.
@@ -138,6 +169,11 @@ func (c *adminAuthServiceClient) Session(ctx context.Context, req *connect.Reque
 	return c.session.CallUnary(ctx, req)
 }
 
+// Reauthenticate calls landing_page_business_suite.v1.AdminAuthService.Reauthenticate.
+func (c *adminAuthServiceClient) Reauthenticate(ctx context.Context, req *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error) {
+	return c.reauthenticate.CallUnary(ctx, req)
+}
+
 // AdminAuthServiceHandler is an implementation of the
 // landing_page_business_suite.v1.AdminAuthService service.
 type AdminAuthServiceHandler interface {
@@ -147,6 +183,7 @@ type AdminAuthServiceHandler interface {
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	// Reports the current admin session state.
 	Session(context.Context, *connect.Request[v1.SessionRequest]) (*connect.Response[v1.AdminSessionResponse], error)
+	Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error)
 }
 
 // NewAdminAuthServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -174,6 +211,12 @@ func NewAdminAuthServiceHandler(svc AdminAuthServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminAuthServiceMethods.ByName("Session")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminAuthServiceReauthenticateHandler := connect.NewUnaryHandler(
+		AdminAuthServiceReauthenticateProcedure,
+		svc.Reauthenticate,
+		connect.WithSchema(adminAuthServiceMethods.ByName("Reauthenticate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.AdminAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminAuthServiceLoginProcedure:
@@ -182,6 +225,8 @@ func NewAdminAuthServiceHandler(svc AdminAuthServiceHandler, opts ...connect.Han
 			adminAuthServiceLogoutHandler.ServeHTTP(w, r)
 		case AdminAuthServiceSessionProcedure:
 			adminAuthServiceSessionHandler.ServeHTTP(w, r)
+		case AdminAuthServiceReauthenticateProcedure:
+			adminAuthServiceReauthenticateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -201,6 +246,213 @@ func (UnimplementedAdminAuthServiceHandler) Logout(context.Context, *connect.Req
 
 func (UnimplementedAdminAuthServiceHandler) Session(context.Context, *connect.Request[v1.SessionRequest]) (*connect.Response[v1.AdminSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminAuthService.Session is not implemented"))
+}
+
+func (UnimplementedAdminAuthServiceHandler) Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminAuthService.Reauthenticate is not implemented"))
+}
+
+// AdminPasskeyServiceClient is a client for the landing_page_business_suite.v1.AdminPasskeyService
+// service.
+type AdminPasskeyServiceClient interface {
+	BeginRegistration(context.Context, *connect.Request[v1.BeginAdminPasskeyRegistrationRequest]) (*connect.Response[v1.BeginAdminPasskeyRegistrationResponse], error)
+	FinishRegistration(context.Context, *connect.Request[v1.FinishAdminPasskeyRegistrationRequest]) (*connect.Response[v1.FinishAdminPasskeyRegistrationResponse], error)
+	ListPasskeys(context.Context, *connect.Request[v1.ListAdminPasskeysRequest]) (*connect.Response[v1.ListAdminPasskeysResponse], error)
+	RenamePasskey(context.Context, *connect.Request[v1.RenameAdminPasskeyRequest]) (*connect.Response[v1.RenameAdminPasskeyResponse], error)
+	RevokePasskey(context.Context, *connect.Request[v1.RevokeAdminPasskeyRequest]) (*connect.Response[v1.RevokeAdminPasskeyResponse], error)
+	BeginSecondFactor(context.Context, *connect.Request[v1.BeginAdminSecondFactorRequest]) (*connect.Response[v1.BeginAdminSecondFactorResponse], error)
+}
+
+// NewAdminPasskeyServiceClient constructs a client for the
+// landing_page_business_suite.v1.AdminPasskeyService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAdminPasskeyServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminPasskeyServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	adminPasskeyServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminPasskeyService").Methods()
+	return &adminPasskeyServiceClient{
+		beginRegistration: connect.NewClient[v1.BeginAdminPasskeyRegistrationRequest, v1.BeginAdminPasskeyRegistrationResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceBeginRegistrationProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("BeginRegistration")),
+			connect.WithClientOptions(opts...),
+		),
+		finishRegistration: connect.NewClient[v1.FinishAdminPasskeyRegistrationRequest, v1.FinishAdminPasskeyRegistrationResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceFinishRegistrationProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("FinishRegistration")),
+			connect.WithClientOptions(opts...),
+		),
+		listPasskeys: connect.NewClient[v1.ListAdminPasskeysRequest, v1.ListAdminPasskeysResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceListPasskeysProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("ListPasskeys")),
+			connect.WithClientOptions(opts...),
+		),
+		renamePasskey: connect.NewClient[v1.RenameAdminPasskeyRequest, v1.RenameAdminPasskeyResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceRenamePasskeyProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("RenamePasskey")),
+			connect.WithClientOptions(opts...),
+		),
+		revokePasskey: connect.NewClient[v1.RevokeAdminPasskeyRequest, v1.RevokeAdminPasskeyResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceRevokePasskeyProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("RevokePasskey")),
+			connect.WithClientOptions(opts...),
+		),
+		beginSecondFactor: connect.NewClient[v1.BeginAdminSecondFactorRequest, v1.BeginAdminSecondFactorResponse](
+			httpClient,
+			baseURL+AdminPasskeyServiceBeginSecondFactorProcedure,
+			connect.WithSchema(adminPasskeyServiceMethods.ByName("BeginSecondFactor")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// adminPasskeyServiceClient implements AdminPasskeyServiceClient.
+type adminPasskeyServiceClient struct {
+	beginRegistration  *connect.Client[v1.BeginAdminPasskeyRegistrationRequest, v1.BeginAdminPasskeyRegistrationResponse]
+	finishRegistration *connect.Client[v1.FinishAdminPasskeyRegistrationRequest, v1.FinishAdminPasskeyRegistrationResponse]
+	listPasskeys       *connect.Client[v1.ListAdminPasskeysRequest, v1.ListAdminPasskeysResponse]
+	renamePasskey      *connect.Client[v1.RenameAdminPasskeyRequest, v1.RenameAdminPasskeyResponse]
+	revokePasskey      *connect.Client[v1.RevokeAdminPasskeyRequest, v1.RevokeAdminPasskeyResponse]
+	beginSecondFactor  *connect.Client[v1.BeginAdminSecondFactorRequest, v1.BeginAdminSecondFactorResponse]
+}
+
+// BeginRegistration calls landing_page_business_suite.v1.AdminPasskeyService.BeginRegistration.
+func (c *adminPasskeyServiceClient) BeginRegistration(ctx context.Context, req *connect.Request[v1.BeginAdminPasskeyRegistrationRequest]) (*connect.Response[v1.BeginAdminPasskeyRegistrationResponse], error) {
+	return c.beginRegistration.CallUnary(ctx, req)
+}
+
+// FinishRegistration calls landing_page_business_suite.v1.AdminPasskeyService.FinishRegistration.
+func (c *adminPasskeyServiceClient) FinishRegistration(ctx context.Context, req *connect.Request[v1.FinishAdminPasskeyRegistrationRequest]) (*connect.Response[v1.FinishAdminPasskeyRegistrationResponse], error) {
+	return c.finishRegistration.CallUnary(ctx, req)
+}
+
+// ListPasskeys calls landing_page_business_suite.v1.AdminPasskeyService.ListPasskeys.
+func (c *adminPasskeyServiceClient) ListPasskeys(ctx context.Context, req *connect.Request[v1.ListAdminPasskeysRequest]) (*connect.Response[v1.ListAdminPasskeysResponse], error) {
+	return c.listPasskeys.CallUnary(ctx, req)
+}
+
+// RenamePasskey calls landing_page_business_suite.v1.AdminPasskeyService.RenamePasskey.
+func (c *adminPasskeyServiceClient) RenamePasskey(ctx context.Context, req *connect.Request[v1.RenameAdminPasskeyRequest]) (*connect.Response[v1.RenameAdminPasskeyResponse], error) {
+	return c.renamePasskey.CallUnary(ctx, req)
+}
+
+// RevokePasskey calls landing_page_business_suite.v1.AdminPasskeyService.RevokePasskey.
+func (c *adminPasskeyServiceClient) RevokePasskey(ctx context.Context, req *connect.Request[v1.RevokeAdminPasskeyRequest]) (*connect.Response[v1.RevokeAdminPasskeyResponse], error) {
+	return c.revokePasskey.CallUnary(ctx, req)
+}
+
+// BeginSecondFactor calls landing_page_business_suite.v1.AdminPasskeyService.BeginSecondFactor.
+func (c *adminPasskeyServiceClient) BeginSecondFactor(ctx context.Context, req *connect.Request[v1.BeginAdminSecondFactorRequest]) (*connect.Response[v1.BeginAdminSecondFactorResponse], error) {
+	return c.beginSecondFactor.CallUnary(ctx, req)
+}
+
+// AdminPasskeyServiceHandler is an implementation of the
+// landing_page_business_suite.v1.AdminPasskeyService service.
+type AdminPasskeyServiceHandler interface {
+	BeginRegistration(context.Context, *connect.Request[v1.BeginAdminPasskeyRegistrationRequest]) (*connect.Response[v1.BeginAdminPasskeyRegistrationResponse], error)
+	FinishRegistration(context.Context, *connect.Request[v1.FinishAdminPasskeyRegistrationRequest]) (*connect.Response[v1.FinishAdminPasskeyRegistrationResponse], error)
+	ListPasskeys(context.Context, *connect.Request[v1.ListAdminPasskeysRequest]) (*connect.Response[v1.ListAdminPasskeysResponse], error)
+	RenamePasskey(context.Context, *connect.Request[v1.RenameAdminPasskeyRequest]) (*connect.Response[v1.RenameAdminPasskeyResponse], error)
+	RevokePasskey(context.Context, *connect.Request[v1.RevokeAdminPasskeyRequest]) (*connect.Response[v1.RevokeAdminPasskeyResponse], error)
+	BeginSecondFactor(context.Context, *connect.Request[v1.BeginAdminSecondFactorRequest]) (*connect.Response[v1.BeginAdminSecondFactorResponse], error)
+}
+
+// NewAdminPasskeyServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAdminPasskeyServiceHandler(svc AdminPasskeyServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminPasskeyServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminPasskeyService").Methods()
+	adminPasskeyServiceBeginRegistrationHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceBeginRegistrationProcedure,
+		svc.BeginRegistration,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("BeginRegistration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPasskeyServiceFinishRegistrationHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceFinishRegistrationProcedure,
+		svc.FinishRegistration,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("FinishRegistration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPasskeyServiceListPasskeysHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceListPasskeysProcedure,
+		svc.ListPasskeys,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("ListPasskeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPasskeyServiceRenamePasskeyHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceRenamePasskeyProcedure,
+		svc.RenamePasskey,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("RenamePasskey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPasskeyServiceRevokePasskeyHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceRevokePasskeyProcedure,
+		svc.RevokePasskey,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("RevokePasskey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPasskeyServiceBeginSecondFactorHandler := connect.NewUnaryHandler(
+		AdminPasskeyServiceBeginSecondFactorProcedure,
+		svc.BeginSecondFactor,
+		connect.WithSchema(adminPasskeyServiceMethods.ByName("BeginSecondFactor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/landing_page_business_suite.v1.AdminPasskeyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AdminPasskeyServiceBeginRegistrationProcedure:
+			adminPasskeyServiceBeginRegistrationHandler.ServeHTTP(w, r)
+		case AdminPasskeyServiceFinishRegistrationProcedure:
+			adminPasskeyServiceFinishRegistrationHandler.ServeHTTP(w, r)
+		case AdminPasskeyServiceListPasskeysProcedure:
+			adminPasskeyServiceListPasskeysHandler.ServeHTTP(w, r)
+		case AdminPasskeyServiceRenamePasskeyProcedure:
+			adminPasskeyServiceRenamePasskeyHandler.ServeHTTP(w, r)
+		case AdminPasskeyServiceRevokePasskeyProcedure:
+			adminPasskeyServiceRevokePasskeyHandler.ServeHTTP(w, r)
+		case AdminPasskeyServiceBeginSecondFactorProcedure:
+			adminPasskeyServiceBeginSecondFactorHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAdminPasskeyServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminPasskeyServiceHandler struct{}
+
+func (UnimplementedAdminPasskeyServiceHandler) BeginRegistration(context.Context, *connect.Request[v1.BeginAdminPasskeyRegistrationRequest]) (*connect.Response[v1.BeginAdminPasskeyRegistrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.BeginRegistration is not implemented"))
+}
+
+func (UnimplementedAdminPasskeyServiceHandler) FinishRegistration(context.Context, *connect.Request[v1.FinishAdminPasskeyRegistrationRequest]) (*connect.Response[v1.FinishAdminPasskeyRegistrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.FinishRegistration is not implemented"))
+}
+
+func (UnimplementedAdminPasskeyServiceHandler) ListPasskeys(context.Context, *connect.Request[v1.ListAdminPasskeysRequest]) (*connect.Response[v1.ListAdminPasskeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.ListPasskeys is not implemented"))
+}
+
+func (UnimplementedAdminPasskeyServiceHandler) RenamePasskey(context.Context, *connect.Request[v1.RenameAdminPasskeyRequest]) (*connect.Response[v1.RenameAdminPasskeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.RenamePasskey is not implemented"))
+}
+
+func (UnimplementedAdminPasskeyServiceHandler) RevokePasskey(context.Context, *connect.Request[v1.RevokeAdminPasskeyRequest]) (*connect.Response[v1.RevokeAdminPasskeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.RevokePasskey is not implemented"))
+}
+
+func (UnimplementedAdminPasskeyServiceHandler) BeginSecondFactor(context.Context, *connect.Request[v1.BeginAdminSecondFactorRequest]) (*connect.Response[v1.BeginAdminSecondFactorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminPasskeyService.BeginSecondFactor is not implemented"))
 }
 
 // AdminResetServiceClient is a client for the landing_page_business_suite.v1.AdminResetService

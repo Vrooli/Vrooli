@@ -2,8 +2,13 @@ import { geoGraticule10, geoOrthographic, geoPath } from "d3-geo";
 import { merge, mesh } from "topojson-client";
 import type { MultiPolygon, Polygon, Topology } from "topojson-specification";
 import worldTopology from "world-atlas/countries-110m.json";
-import { clipOutsideQuiet, drawGlow, focalPoint, mulberry32, rgba, seedFrom, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, mulberry32, rgba, seedFrom, slotRows, type Scene, type SlotManifest } from "./engine";
 import { countryCentroids } from "./geo/countryCentroids";
+
+const rowColumns = { key: { type: "string" }, value: { type: "number" }, share: { type: "number" } };
+export const slotManifest: SlotManifest = {
+  arcs: { shape: "rows", role: "primary", whenUnbound: "decorative", columns: rowColumns },
+};
 
 type GeoPoint = [longitude: number, latitude: number];
 
@@ -39,8 +44,7 @@ export function meridianArc(): Scene {
     },
     draw(frame) {
       const { ctx, w, h, palette, data, t } = frame;
-      const focus = data.readings[data.focus ?? ""];
-      const rows = focus?.rows ?? [];
+      const rows = slotRows(data, "arcs") ?? [];
       const focal = focalPoint(frame);
       // Broadcast is a room-scale panorama. Keep the globe behind the figures,
       // but give it enough presence to read as the room's world rather than a

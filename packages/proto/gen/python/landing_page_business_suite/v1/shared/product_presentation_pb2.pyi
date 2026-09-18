@@ -785,18 +785,64 @@ class PresentationFAQ(_message.Message):
     def __init__(self, heading: _Optional[str] = ..., items: _Optional[_Iterable[_Union[PresentationFAQItem, _Mapping]]] = ...) -> None: ...
 
 class PresentationFixture(_message.Message):
-    __slots__ = ("id", "kind", "workspace", "backdrop", "workflow")
+    __slots__ = ("id", "kind", "workspace", "backdrop", "workflow", "monitor")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     BACKDROP_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    MONITOR_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: str
     workspace: PresentationWorkspaceFixture
     backdrop: PresentationBackdropFixture
     workflow: PresentationWorkflowFixture
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., workspace: _Optional[_Union[PresentationWorkspaceFixture, _Mapping]] = ..., backdrop: _Optional[_Union[PresentationBackdropFixture, _Mapping]] = ..., workflow: _Optional[_Union[PresentationWorkflowFixture, _Mapping]] = ...) -> None: ...
+    monitor: PresentationMonitorFixture
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., workspace: _Optional[_Union[PresentationWorkspaceFixture, _Mapping]] = ..., backdrop: _Optional[_Union[PresentationBackdropFixture, _Mapping]] = ..., workflow: _Optional[_Union[PresentationWorkflowFixture, _Mapping]] = ..., monitor: _Optional[_Union[PresentationMonitorFixture, _Mapping]] = ...) -> None: ...
+
+class PresentationMonitorMetric(_message.Message):
+    __slots__ = ("id", "label", "value", "unit", "detail", "status", "trend")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TREND_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    label: str
+    value: str
+    unit: str
+    detail: str
+    status: str
+    trend: _containers.RepeatedScalarFieldContainer[float]
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., value: _Optional[str] = ..., unit: _Optional[str] = ..., detail: _Optional[str] = ..., status: _Optional[str] = ..., trend: _Optional[_Iterable[float]] = ...) -> None: ...
+
+class PresentationMonitorFixture(_message.Message):
+    __slots__ = ("title", "host", "metrics_label", "metrics", "investigation_label", "investigation_title", "investigation_body", "findings", "action_note", "status", "uptime")
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    METRICS_LABEL_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    INVESTIGATION_LABEL_FIELD_NUMBER: _ClassVar[int]
+    INVESTIGATION_TITLE_FIELD_NUMBER: _ClassVar[int]
+    INVESTIGATION_BODY_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    ACTION_NOTE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    UPTIME_FIELD_NUMBER: _ClassVar[int]
+    title: str
+    host: str
+    metrics_label: str
+    metrics: _containers.RepeatedCompositeFieldContainer[PresentationMonitorMetric]
+    investigation_label: str
+    investigation_title: str
+    investigation_body: str
+    findings: _containers.RepeatedScalarFieldContainer[str]
+    action_note: str
+    status: str
+    uptime: str
+    def __init__(self, title: _Optional[str] = ..., host: _Optional[str] = ..., metrics_label: _Optional[str] = ..., metrics: _Optional[_Iterable[_Union[PresentationMonitorMetric, _Mapping]]] = ..., investigation_label: _Optional[str] = ..., investigation_title: _Optional[str] = ..., investigation_body: _Optional[str] = ..., findings: _Optional[_Iterable[str]] = ..., action_note: _Optional[str] = ..., status: _Optional[str] = ..., uptime: _Optional[str] = ...) -> None: ...
 
 class PresentationWorkspaceFixture(_message.Message):
     __slots__ = ("title", "group", "group_label", "groups", "sessions_label", "sessions", "role", "model", "reviewer", "reviewer_model", "branch", "prompt", "answer", "files", "file_label", "diff", "command", "checks", "ready", "composer", "return_label", "return_title", "review_message", "message_label", "reply_label", "status", "today", "keyboard")

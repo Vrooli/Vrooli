@@ -84,6 +84,36 @@ message Skill {
   optional string last_used = 22;
   optional int32 effectiveness_rating = 23;
   repeated Variable variables = 24;
+  // Set only for third-party (imported) skills.
+  SkillOrigin origin = 25;
+  // Tools a third-party skill needs that Vrooli does not provide or manage.
+  repeated ExternalTool external_tools = 26;
+}
+
+message SkillReview {
+  string verdict = 1;
+  string reviewer = 2;
+  string reviewed_at = 3;
+}
+
+// SkillOrigin is immutable provenance for a skill imported from a third party.
+message SkillOrigin {
+  string kind = 1;
+  string source_url = 2;
+  string commit = 3;
+  string license = 4;
+  string checksum = 5;
+  string tree_checksum = 6;
+  string imported_by = 7;
+  string imported_at = 8;
+  string upstream_version = 9;
+  SkillReview review = 10;
+}
+
+message ExternalTool {
+  string name = 1;
+  string url = 2;
+  string purpose = 3;
 }
 
 message ListSkillsRequest {
@@ -217,6 +247,7 @@ message ImportSkillRequest {
   string imported_by = 6;
   string upstream_version = 7;
   string id = 8;
+  repeated ExternalTool external_tools = 9;
 }
 message ImportSkillResponse {
   string id = 1;
@@ -225,6 +256,7 @@ message ImportSkillResponse {
   string checksum = 4;
   string review_verdict = 5;
   string imported_at = 6;
+  string tree_checksum = 7;
 }
 message ReviewImportedSkillRequest { string id = 1; string reviewer = 2; string verdict = 3; }
 message ReviewImportedSkillResponse { string id = 1; string status = 2; string verdict = 3; string reviewer = 4; string reviewed_at = 5; }

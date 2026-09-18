@@ -99,6 +99,22 @@ message Presentation {
   string recovery_note = 4;
 }
 
+// Advisory is a non-blocking finding about the conditions a plan runs under.
+// It never blocks: anything that must block is a precondition, a missing
+// input or a failing preflight check. Advisories are excluded from the plan's
+// semantic digest, so one appearing or clearing never invalidates a review.
+message Advisory {
+  // Stable identifier of the finding, e.g. "secret_unsatisfied:sendgrid-api-key".
+  string id = 1;
+  // Always "warning" today; explicit so a new severity cannot appear silently.
+  string severity = 2;
+  // The customer-facing capability at risk, in the manifest's own words.
+  string capability = 3;
+  string summary = 4;
+  string detail = 5;
+  string hint = 6;
+}
+
 // ExecutablePlan is the plan envelope (schema_version "1").
 message ExecutablePlan {
   string schema_version = 1;
@@ -119,6 +135,7 @@ message ExecutablePlan {
   repeated Action actions = 14;
   Handoff handoff = 15;
   Presentation presentation = 16;
+  repeated Advisory advisories = 17;
 }
 
 // Change is one reviewable entry of a preview.
@@ -157,6 +174,7 @@ message Preview {
   string recovery_strategy = 6;
   Handoff handoff = 7;
   repeated ShellPreviewLine shell_preview = 8;
+  repeated Advisory advisories = 9;
 }
 
 message CompilePlanRequest {

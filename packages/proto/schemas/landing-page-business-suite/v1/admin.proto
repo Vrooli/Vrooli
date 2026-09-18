@@ -4,6 +4,8 @@ package landing_page_business_suite.v1;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
+import "landing-page-business-suite/v1/account_security.proto";
+
 // =============================================================================
 // ADMIN DOMAIN
 // =============================================================================
@@ -21,6 +23,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 message LoginRequest {
   string email = 1;
   string password = 2;
+  // Authenticator-app code or recovery code. Required once the administrator
+  // has enabled two-factor authentication; the first attempt may omit it and
+  // receives FAILED_PRECONDITION "mfa_required".
+	string totp_code = 3;
+	bytes passkey_assertion = 4;
+	string passkey_ceremony_id = 5;
 }
 
 // AdminSessionResponse reports the current admin session state. Returned by
@@ -33,6 +41,8 @@ message AdminSessionResponse {
   // Opaque server-side session identifier for trusted federation clients.
   // Browser clients continue to use the HttpOnly cookie and must not persist it.
   optional string session_id = 4;
+  // full or enrollment_only; enrollment_only sessions may only complete MFA setup.
+  string assurance = 5;
 }
 
 // LogoutRequest ends the current admin session.
@@ -55,7 +65,32 @@ service AdminAuthService {
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   // Reports the current admin session state.
   rpc Session(SessionRequest) returns (AdminSessionResponse);
+  rpc Reauthenticate(ReauthenticateRequest) returns (ReauthenticateResponse);
 }
+
+message BeginAdminPasskeyRegistrationRequest {}
+message BeginAdminPasskeyRegistrationResponse { string options_json = 1; string ceremony_id = 2; }
+message FinishAdminPasskeyRegistrationRequest { string credential_json = 1; string nickname = 2; string ceremony_id = 3; }
+message FinishAdminPasskeyRegistrationResponse { string id = 1; string nickname = 2; }
+message ListAdminPasskeysRequest {}
+message AdminPasskey { string id = 1; string nickname = 2; string created_at = 3; string last_used_at = 4; string backup_state = 5; }
+message ListAdminPasskeysResponse { repeated AdminPasskey passkeys = 1; }
+message RenameAdminPasskeyRequest { string id = 1; string nickname = 2; }
+message RenameAdminPasskeyResponse { AdminPasskey passkey = 1; }
+message RevokeAdminPasskeyRequest { string id = 1; }
+message RevokeAdminPasskeyResponse { bool revoked = 1; }
+
+service AdminPasskeyService {
+  rpc BeginRegistration(BeginAdminPasskeyRegistrationRequest) returns (BeginAdminPasskeyRegistrationResponse);
+  rpc FinishRegistration(FinishAdminPasskeyRegistrationRequest) returns (FinishAdminPasskeyRegistrationResponse);
+  rpc ListPasskeys(ListAdminPasskeysRequest) returns (ListAdminPasskeysResponse);
+  rpc RenamePasskey(RenameAdminPasskeyRequest) returns (RenameAdminPasskeyResponse);
+	rpc RevokePasskey(RevokeAdminPasskeyRequest) returns (RevokeAdminPasskeyResponse);
+	rpc BeginSecondFactor(BeginAdminSecondFactorRequest) returns (BeginAdminSecondFactorResponse);
+}
+
+message BeginAdminSecondFactorRequest { string email = 1; }
+message BeginAdminSecondFactorResponse { string options_json = 1; string ceremony_id = 2; }
 
 // ResetDemoDataRequest triggers a demo-data reset (admin, env-gated).
 message ResetDemoDataRequest {}

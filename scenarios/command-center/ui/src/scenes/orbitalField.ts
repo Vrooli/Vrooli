@@ -1,4 +1,9 @@
-import { drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine";
+import { drawGlow, focalPoint, inQuiet, slot, rgba, type Scene, type SlotManifest } from "./engine";
+
+export const slotManifest: SlotManifest = {
+  running: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
+  healthy: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+};
 
 interface Star { x: number; y: number; z: number; twinkle: number }
 interface Body { rx: number; ry: number; period: number; phase: number; tilt: number; size: number; healthy: boolean; trail: Array<[number, number]>; x: number; y: number; wobble: number }
@@ -14,8 +19,8 @@ export function orbitalField(): Scene {
       const { rng, tier, data } = frame;
       const starCount = tier === "full" ? 2400 : 900;
       stars = Array.from({ length: starCount }, () => ({ x: rng() * 1.4 - 0.2, y: rng() * 1.4 - 0.2, z: 0.15 + rng() ** 2 * 0.85, twinkle: rng() * Math.PI * 2 }));
-      const runningValue = read(data, "active_scenarios");
-      const healthyValue = read(data, "scenario_health");
+      const runningValue = slot(data, "running");
+      const healthyValue = slot(data, "healthy");
       const running = Math.max(0, Math.round(runningValue ?? 0));
       const healthy = Math.max(0, Math.round(healthyValue ?? 0));
       const count = runningValue === null ? 0 : Math.min(running, tier === "full" ? 110 : 48);

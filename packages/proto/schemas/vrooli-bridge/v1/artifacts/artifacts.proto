@@ -69,6 +69,9 @@ message Distribution {
   // Where on the node the artifact should land so the job can use it.
   string destination_path = 5;
 
+  // Request executable permission when the target filesystem supports it.
+  bool executable = 11;
+
   DeliveryStatus status = 6;
 
   // The device-sync-hub directed-delivery reference, set once accepted; the

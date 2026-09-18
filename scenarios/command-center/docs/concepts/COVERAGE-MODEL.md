@@ -93,12 +93,21 @@ Coverage and trust compose into the four renderings the board uses. **Empirical 
 
 A business reading is promoted from `IN-REACH` to `NOW` only after the governed
 promotion command proves that the Command Center value is `VALID` and equals
-the direct LPBS reader-token response for the same window:
+the LPBS production profile response for the same window:
 
 ```bash
-COMMAND_CENTER_LPBS_READER_TOKEN="$TOKEN" \
-  command-center promote credits_burned_30d --window 30d
+command-center promote credits_burned_30d --window 30d
 ```
+
+Production reads stay on the local machine: Command Center authenticates to
+the local LPBS service, and LPBS uses its deployment-managed `prod` remote
+profile to relay the exact read-only metrics procedure. The deployment
+credential handoff reconciles that profile whenever the deployed service
+credential rotates. No VPS-side credential provisioning is part of this flow.
+
+The `COMMAND_CENTER_LPBS_READER_TOKEN` environment variable remains available
+only for isolated test or short-lived local probe overrides; it is not the
+production setup path.
 
 The command records the reading, direct producer response, origin, observed
 time, contract, and comparison verdict under the plan artifact promotion

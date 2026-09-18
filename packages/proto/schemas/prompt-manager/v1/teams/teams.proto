@@ -132,7 +132,15 @@ message SetRolesRequest { string team_id = 1; repeated Role roles = 2; }
 message SharedFileEntry { string path = 1; bool is_dir = 2; int64 size = 3; }
 message ListSharedFilesRequest { string team_id = 1; }
 message ListSharedFilesResponse { string team_id = 1; repeated SharedFileEntry files = 2; }
-message SharedFileContent { string team_id = 1; string path = 2; string content = 3; }
+message SharedFileContent {
+  string team_id = 1;
+  string path = 2;
+  string content = 3;
+  bytes content_bytes = 4;
+  string content_type = 5;
+  bool content_truncated = 6;
+  string preview_data_url = 7;
+}
 message GetSharedFileRequest { string team_id = 1; string path = 2; }
 message SetSharedFileRequest { string team_id = 1; string path = 2; string content = 3; }
 message CreateSharedFileRequest { string team_id = 1; string path = 2; string content = 3; bool is_dir = 4; }
@@ -149,7 +157,15 @@ message EffortWorkspaceListResponse {
   repeated EffortWorkspaceUnavailable unavailable = 3;
 }
 message GetEffortWorkspaceContentRequest { string effort_ref = 1; string path = 2; }
-message EffortWorkspaceContent { string effort_ref = 1; string path = 2; string content = 3; }
+message EffortWorkspaceContent {
+  string effort_ref = 1;
+  string path = 2;
+  string content = 3;
+  bytes content_bytes = 4;
+  string content_type = 5;
+  bool content_truncated = 6;
+  string preview_data_url = 7;
+}
 message OrgEdge { string manager_agent_id = 1; string report_agent_id = 2; }
 message ManagedTeamEdge {
   string manager_team_id = 1;

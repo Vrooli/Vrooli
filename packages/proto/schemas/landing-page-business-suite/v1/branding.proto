@@ -48,6 +48,18 @@ message SiteBranding {
   optional string smtp_from = 24;
   optional bool coming_soon_enabled = 25;
   optional string coming_soon_message = 26;
+  // Registered business name shown in the footer, legal pages, and notices.
+  optional string legal_name = 27;
+  // Postal contact address, one line per address line.
+  optional string contact_address = 28;
+  // Operator-authored privacy policy (Markdown). Unset means the default template.
+  optional string privacy_policy_markdown = 29;
+  // Operator-authored terms and conditions (Markdown). Unset means the default template.
+  optional string terms_markdown = 30;
+  // Privacy policy effective date (YYYY-MM-DD).
+  optional string privacy_effective_date = 31;
+  // Terms and conditions effective date (YYYY-MM-DD).
+  optional string terms_effective_date = 32;
 }
 
 // PublicBranding is the redacted subset safe to expose on the public page.
@@ -64,6 +76,14 @@ message PublicBranding {
   string coming_soon_message = 10;
   // Configured canonical deployment base. Never inferred from request Host.
   string canonical_base_url = 11;
+  // Public business identity for the site footer, contact page, and legal pages.
+  string support_email = 12;
+  string legal_name = 13;
+  string contact_address = 14;
+  string privacy_policy_markdown = 15;
+  string terms_markdown = 16;
+  string privacy_effective_date = 17;
+  string terms_effective_date = 18;
 }
 
 // GetBrandingRequest fetches the full branding singleton (admin).
@@ -103,6 +123,12 @@ message UpdateBrandingRequest {
   optional string smtp_from = 21;
   optional bool coming_soon_enabled = 22;
   optional string coming_soon_message = 23;
+  optional string legal_name = 24;
+  optional string contact_address = 25;
+  optional string privacy_policy_markdown = 26;
+  optional string terms_markdown = 27;
+  optional string privacy_effective_date = 28;
+  optional string terms_effective_date = 29;
 }
 
 // ClearBrandingFieldRequest nulls a single nullable branding field. site_name

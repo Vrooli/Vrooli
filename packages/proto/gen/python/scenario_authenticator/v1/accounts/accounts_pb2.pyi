@@ -262,10 +262,12 @@ class RevokeMachineAccountResponse(_message.Message):
     def __init__(self, revoked_count: _Optional[int] = ...) -> None: ...
 
 class ExchangeMachinePrincipalRequest(_message.Message):
-    __slots__ = ("machine_id",)
+    __slots__ = ("machine_id", "resource")
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
     machine_id: str
-    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+    resource: str
+    def __init__(self, machine_id: _Optional[str] = ..., resource: _Optional[str] = ...) -> None: ...
 
 class IssueBreakGlassRequest(_message.Message):
     __slots__ = ("access_token", "scopes")

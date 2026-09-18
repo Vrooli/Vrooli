@@ -104,37 +104,46 @@ type Prediction struct {
 }
 
 type MetricEntry struct {
-	ID                   string           `json:"id"`
-	Label                string           `json:"label"`
-	Kind                 string           `json:"kind,omitempty"`
-	Description          string           `json:"description,omitempty"`
-	Unit                 string           `json:"unit,omitempty"`
-	Format               string           `json:"format,omitempty"`
-	Tags                 []string         `json:"tags,omitempty"`
-	Source               SourceBinding    `json:"source"`
-	Coverage             Coverage         `json:"coverage"`
-	Trust                Trust            `json:"trust"`
-	TrustReason          string           `json:"trustReason,omitempty"`
-	Empirical            Empirical        `json:"empirical"`
-	Value                any              `json:"value"`
-	Rows                 []PanelRow       `json:"rows,omitempty"`
-	Ladder               *LadderReading   `json:"ladder,omitempty"`
-	ObservedAt           *time.Time       `json:"observedAt"`
-	TTLSeconds           int              `json:"ttlSeconds"`
-	Target               *Target          `json:"target"`
-	Owner                *string          `json:"owner"`
-	WhatIsNeeded         *string          `json:"whatIsNeeded"`
-	FirstObservedMissing *string          `json:"firstObservedMissing"`
-	GapOpenDays          *int             `json:"gapOpenDays"`
-	Sample               *Sample          `json:"sample"`
-	Prediction           *Prediction      `json:"prediction"`
-	TrendPolicy          *trends.Policy   `json:"trendPolicy,omitempty"`
-	Trend                *trends.Result   `json:"trend,omitempty"`
-	DataSource           DataSourceStatus `json:"dataSource,omitempty"`
-	UpstreamSource       UpstreamSource   `json:"upstreamSource,omitempty"`
-	Origin               string           `json:"origin"`
-	OriginEnv            string           `json:"origin_env"`
-	OriginDisplay        string           `json:"origin_display"`
+	ID                   string                `json:"id"`
+	Label                string                `json:"label"`
+	Kind                 string                `json:"kind,omitempty"`
+	Shape                string                `json:"shape"`
+	Columns              map[string]ColumnSpec `json:"columns,omitempty"`
+	Description          string                `json:"description,omitempty"`
+	Unit                 string                `json:"unit,omitempty"`
+	Format               string                `json:"format,omitempty"`
+	Tags                 []string              `json:"tags,omitempty"`
+	Source               SourceBinding         `json:"source"`
+	Coverage             Coverage              `json:"coverage"`
+	Trust                Trust                 `json:"trust"`
+	TrustReason          string                `json:"trustReason,omitempty"`
+	Empirical            Empirical             `json:"empirical"`
+	Value                any                   `json:"value"`
+	Rows                 []PanelRow            `json:"rows,omitempty"`
+	Ladder               *LadderReading        `json:"ladder,omitempty"`
+	ObservedAt           *time.Time            `json:"observedAt"`
+	TTLSeconds           int                   `json:"ttlSeconds"`
+	Target               *Target               `json:"target"`
+	Owner                *string               `json:"owner"`
+	WhatIsNeeded         *string               `json:"whatIsNeeded"`
+	FirstObservedMissing *string               `json:"firstObservedMissing"`
+	GapOpenDays          *int                  `json:"gapOpenDays"`
+	Sample               *Sample               `json:"sample"`
+	Prediction           *Prediction           `json:"prediction"`
+	TrendPolicy          *trends.Policy        `json:"trendPolicy,omitempty"`
+	Trend                *trends.Result        `json:"trend,omitempty"`
+	DataSource           DataSourceStatus      `json:"dataSource,omitempty"`
+	UpstreamSource       UpstreamSource        `json:"upstreamSource,omitempty"`
+	Origin               string                `json:"origin"`
+	OriginEnv            string                `json:"origin_env"`
+	OriginDisplay        string                `json:"origin_display"`
+}
+
+// ColumnSpec describes a typed column in a rows signal. Optional columns may
+// be omitted by a producer; all other columns are required at bind time.
+type ColumnSpec struct {
+	Type     string `json:"type"`
+	Optional bool   `json:"optional,omitempty"`
 }
 type Room struct {
 	ID            string              `json:"id"`
@@ -146,6 +155,7 @@ type Room struct {
 	Theme         string              `json:"theme,omitempty"`
 	MetricIDs     []string            `json:"metricIds,omitempty"`
 	Beats         []Beat              `json:"beats,omitempty"`
+	Bind          map[string]string   `json:"bind,omitempty"`
 }
 
 // Beat features one reading. Layout "wide" gives the hero both figure columns
@@ -240,6 +250,21 @@ func LoadRegistry(path string) (*Registry, error) {
 		if m.Empirical == "" {
 			m.Empirical = EmpiricalNone
 		}
+		// Keep programmatic fixtures ergonomic while making persisted signals
+		// explicit. Configured signals are all annotated; legacy test fixtures
+		// receive the same deterministic shape inference used by the importer.
+		if m.Shape == "" {
+			switch {
+			case m.Kind == "posture":
+				m.Shape = "meta"
+			case m.Kind == "panel" || len(m.Rows) > 0:
+				m.Shape = "rows"
+			case m.Sample != nil && len(m.Sample.Series) > 0:
+				m.Shape = "series"
+			default:
+				m.Shape = "scalar"
+			}
+		}
 		if m.TTLSeconds == 0 {
 			m.TTLSeconds = m.Source.TTLSeconds
 		}
@@ -276,6 +301,9 @@ func LoadRegistry(path string) (*Registry, error) {
 		if m.Coverage != CoverageNow && m.Sample == nil {
 			return nil, fmt.Errorf("metric %s missing sample", m.ID)
 		}
+	}
+	if err := validateSignalShapes(&reg); err != nil {
+		return nil, err
 	}
 	for _, room := range reg.Rooms {
 		for _, beat := range room.Beats {

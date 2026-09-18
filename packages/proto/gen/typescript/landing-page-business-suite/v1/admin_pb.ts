@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { ReauthenticateRequestSchema, ReauthenticateResponseSchema } from "./account_security_pb";
+import { file_landing_page_business_suite_v1_account_security } from "./account_security_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file landing-page-business-suite/v1/admin.proto.
  */
 export const file_landing_page_business_suite_v1_admin: GenFile = /*@__PURE__*/
-  fileDesc("CipsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvYWRtaW4ucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiewoUQWRtaW5TZXNzaW9uUmVzcG9uc2USDQoFZW1haWwYASABKAkSFQoNYXV0aGVudGljYXRlZBgCIAEoCBIVCg1yZXNldF9lbmFibGVkGAMgASgIEhcKCnNlc3Npb25faWQYBCABKAlIAIgBAUINCgtfc2Vzc2lvbl9pZCIPCg1Mb2dvdXRSZXF1ZXN0IiEKDkxvZ291dFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiEAoOU2Vzc2lvblJlcXVlc3QiFgoUUmVzZXREZW1vRGF0YVJlcXVlc3QiOQoVUmVzZXREZW1vRGF0YVJlc3BvbnNlEg0KBXJlc2V0GAEgASgIEhEKCXRpbWVzdGFtcBgCIAEoCSJUCgxBZG1pblByb2ZpbGUSDQoFZW1haWwYASABKAkSGAoQaXNfZGVmYXVsdF9lbWFpbBgCIAEoCBIbChNpc19kZWZhdWx0X3Bhc3N3b3JkGAMgASgIIhgKFkdldEFkbWluUHJvZmlsZVJlcXVlc3QiWAoXR2V0QWRtaW5Qcm9maWxlUmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BZG1pblByb2ZpbGUiXgoZVXBkYXRlQWRtaW5Qcm9maWxlUmVxdWVzdBIYChBjdXJyZW50X3Bhc3N3b3JkGAEgASgJEhEKCW5ld19lbWFpbBgCIAEoCRIUCgxuZXdfcGFzc3dvcmQYAyABKAkiWwoaVXBkYXRlQWRtaW5Qcm9maWxlUmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BZG1pblByb2ZpbGUijQEKBkFQSUtleRIKCgJpZBgBIAEoCRIQCghwcm92aWRlchgCIAEoCRIQCghrZXlfaGludBgDIAEoCRIRCglpc19hY3RpdmUYBCABKAgSGAoQbGFzdF92ZXJpZmllZF9hdBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhIKCnVwZGF0ZWRfYXQYByABKAkiFAoSTGlzdEFQSUtleXNSZXF1ZXN0IksKE0xpc3RBUElLZXlzUmVzcG9uc2USNAoEa2V5cxgBIAMoCzImLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BUElLZXkiNAoTQ3JlYXRlQVBJS2V5UmVxdWVzdBIQCghwcm92aWRlchgBIAEoCRILCgNrZXkYAiABKAkiSwoUQ3JlYXRlQVBJS2V5UmVzcG9uc2USMwoDa2V5GAEgASgLMiYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFQSUtleSInChNEZWxldGVBUElLZXlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJIhYKFERlbGV0ZUFQSUtleVJlc3BvbnNlIiUKEVRlc3RBUElLZXlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJIkgKElRlc3RBUElLZXlSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg8KB21lc3NhZ2UYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkiOgoWU2V0QVBJS2V5QWN0aXZlUmVxdWVzdBIQCghwcm92aWRlchgBIAEoCRIOCgZhY3RpdmUYAiABKAgiGQoXU2V0QVBJS2V5QWN0aXZlUmVzcG9uc2Uy2QIKEEFkbWluQXV0aFNlcnZpY2USawoFTG9naW4SLC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTG9naW5SZXF1ZXN0GjQubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFkbWluU2Vzc2lvblJlc3BvbnNlEmcKBkxvZ291dBItLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5Mb2dvdXRSZXF1ZXN0Gi4ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxvZ291dFJlc3BvbnNlEm8KB1Nlc3Npb24SLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU2Vzc2lvblJlcXVlc3QaNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQWRtaW5TZXNzaW9uUmVzcG9uc2UykQEKEUFkbWluUmVzZXRTZXJ2aWNlEnwKDVJlc2V0RGVtb0RhdGESNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVzZXREZW1vRGF0YVJlcXVlc3QaNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVzZXREZW1vRGF0YVJlc3BvbnNlMqgCChNBZG1pblByb2ZpbGVTZXJ2aWNlEoIBCg9HZXRBZG1pblByb2ZpbGUSNi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0QWRtaW5Qcm9maWxlUmVxdWVzdBo3LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRBZG1pblByb2ZpbGVSZXNwb25zZRKLAQoSVXBkYXRlQWRtaW5Qcm9maWxlEjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlVwZGF0ZUFkbWluUHJvZmlsZVJlcXVlc3QaOi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVXBkYXRlQWRtaW5Qcm9maWxlUmVzcG9uc2Uy/wQKFUFkbWluaXN0cmF0aW9uU2VydmljZRJ2CgtMaXN0QVBJS2V5cxIyLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MaXN0QVBJS2V5c1JlcXVlc3QaMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdEFQSUtleXNSZXNwb25zZRJ5CgxDcmVhdGVBUElLZXkSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQ3JlYXRlQVBJS2V5UmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5DcmVhdGVBUElLZXlSZXNwb25zZRJ5CgxEZWxldGVBUElLZXkSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRGVsZXRlQVBJS2V5UmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5EZWxldGVBUElLZXlSZXNwb25zZRJzCgpUZXN0QVBJS2V5EjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlRlc3RBUElLZXlSZXF1ZXN0GjIubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlRlc3RBUElLZXlSZXNwb25zZRKCAQoPU2V0QVBJS2V5QWN0aXZlEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlNldEFQSUtleUFjdGl2ZVJlcXVlc3QaNy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU2V0QVBJS2V5QWN0aXZlUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM");
+  fileDesc("CipsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvYWRtaW4ucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSJ6CgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkSEQoJdG90cF9jb2RlGAMgASgJEhkKEXBhc3NrZXlfYXNzZXJ0aW9uGAQgASgMEhsKE3Bhc3NrZXlfY2VyZW1vbnlfaWQYBSABKAkijgEKFEFkbWluU2Vzc2lvblJlc3BvbnNlEg0KBWVtYWlsGAEgASgJEhUKDWF1dGhlbnRpY2F0ZWQYAiABKAgSFQoNcmVzZXRfZW5hYmxlZBgDIAEoCBIXCgpzZXNzaW9uX2lkGAQgASgJSACIAQESEQoJYXNzdXJhbmNlGAUgASgJQg0KC19zZXNzaW9uX2lkIg8KDUxvZ291dFJlcXVlc3QiIQoOTG9nb3V0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIQCg5TZXNzaW9uUmVxdWVzdCImCiRCZWdpbkFkbWluUGFzc2tleVJlZ2lzdHJhdGlvblJlcXVlc3QiUgolQmVnaW5BZG1pblBhc3NrZXlSZWdpc3RyYXRpb25SZXNwb25zZRIUCgxvcHRpb25zX2pzb24YASABKAkSEwoLY2VyZW1vbnlfaWQYAiABKAkiZwolRmluaXNoQWRtaW5QYXNza2V5UmVnaXN0cmF0aW9uUmVxdWVzdBIXCg9jcmVkZW50aWFsX2pzb24YASABKAkSEAoIbmlja25hbWUYAiABKAkSEwoLY2VyZW1vbnlfaWQYAyABKAkiRgomRmluaXNoQWRtaW5QYXNza2V5UmVnaXN0cmF0aW9uUmVzcG9uc2USCgoCaWQYASABKAkSEAoIbmlja25hbWUYAiABKAkiGgoYTGlzdEFkbWluUGFzc2tleXNSZXF1ZXN0ImwKDEFkbWluUGFzc2tleRIKCgJpZBgBIAEoCRIQCghuaWNrbmFtZRgCIAEoCRISCgpjcmVhdGVkX2F0GAMgASgJEhQKDGxhc3RfdXNlZF9hdBgEIAEoCRIUCgxiYWNrdXBfc3RhdGUYBSABKAkiWwoZTGlzdEFkbWluUGFzc2tleXNSZXNwb25zZRI+CghwYXNza2V5cxgBIAMoCzIsLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BZG1pblBhc3NrZXkiOQoZUmVuYW1lQWRtaW5QYXNza2V5UmVxdWVzdBIKCgJpZBgBIAEoCRIQCghuaWNrbmFtZRgCIAEoCSJbChpSZW5hbWVBZG1pblBhc3NrZXlSZXNwb25zZRI9CgdwYXNza2V5GAEgASgLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFkbWluUGFzc2tleSInChlSZXZva2VBZG1pblBhc3NrZXlSZXF1ZXN0EgoKAmlkGAEgASgJIi0KGlJldm9rZUFkbWluUGFzc2tleVJlc3BvbnNlEg8KB3Jldm9rZWQYASABKAgiLgodQmVnaW5BZG1pblNlY29uZEZhY3RvclJlcXVlc3QSDQoFZW1haWwYASABKAkiSwoeQmVnaW5BZG1pblNlY29uZEZhY3RvclJlc3BvbnNlEhQKDG9wdGlvbnNfanNvbhgBIAEoCRITCgtjZXJlbW9ueV9pZBgCIAEoCSIWChRSZXNldERlbW9EYXRhUmVxdWVzdCI5ChVSZXNldERlbW9EYXRhUmVzcG9uc2USDQoFcmVzZXQYASABKAgSEQoJdGltZXN0YW1wGAIgASgJIlQKDEFkbWluUHJvZmlsZRINCgVlbWFpbBgBIAEoCRIYChBpc19kZWZhdWx0X2VtYWlsGAIgASgIEhsKE2lzX2RlZmF1bHRfcGFzc3dvcmQYAyABKAgiGAoWR2V0QWRtaW5Qcm9maWxlUmVxdWVzdCJYChdHZXRBZG1pblByb2ZpbGVSZXNwb25zZRI9Cgdwcm9maWxlGAEgASgLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFkbWluUHJvZmlsZSJeChlVcGRhdGVBZG1pblByb2ZpbGVSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSEQoJbmV3X2VtYWlsGAIgASgJEhQKDG5ld19wYXNzd29yZBgDIAEoCSJbChpVcGRhdGVBZG1pblByb2ZpbGVSZXNwb25zZRI9Cgdwcm9maWxlGAEgASgLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFkbWluUHJvZmlsZSKNAQoGQVBJS2V5EgoKAmlkGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEhAKCGtleV9oaW50GAMgASgJEhEKCWlzX2FjdGl2ZRgEIAEoCBIYChBsYXN0X3ZlcmlmaWVkX2F0GAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCSIUChJMaXN0QVBJS2V5c1JlcXVlc3QiSwoTTGlzdEFQSUtleXNSZXNwb25zZRI0CgRrZXlzGAEgAygLMiYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkFQSUtleSI0ChNDcmVhdGVBUElLZXlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJEgsKA2tleRgCIAEoCSJLChRDcmVhdGVBUElLZXlSZXNwb25zZRIzCgNrZXkYASABKAsyJi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQVBJS2V5IicKE0RlbGV0ZUFQSUtleVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiFgoURGVsZXRlQVBJS2V5UmVzcG9uc2UiJQoRVGVzdEFQSUtleVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiSAoSVGVzdEFQSUtleVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCRIQCghwcm92aWRlchgDIAEoCSI6ChZTZXRBUElLZXlBY3RpdmVSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJEg4KBmFjdGl2ZRgCIAEoCCIZChdTZXRBUElLZXlBY3RpdmVSZXNwb25zZTLaAwoQQWRtaW5BdXRoU2VydmljZRJrCgVMb2dpbhIsLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5Mb2dpblJlcXVlc3QaNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQWRtaW5TZXNzaW9uUmVzcG9uc2USZwoGTG9nb3V0Ei0ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxvZ291dFJlcXVlc3QaLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTG9nb3V0UmVzcG9uc2USbwoHU2Vzc2lvbhIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TZXNzaW9uUmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BZG1pblNlc3Npb25SZXNwb25zZRJ/Cg5SZWF1dGhlbnRpY2F0ZRI1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5SZWF1dGhlbnRpY2F0ZVJlcXVlc3QaNi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVhdXRoZW50aWNhdGVSZXNwb25zZTKLBwoTQWRtaW5QYXNza2V5U2VydmljZRKgAQoRQmVnaW5SZWdpc3RyYXRpb24SRC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQmVnaW5BZG1pblBhc3NrZXlSZWdpc3RyYXRpb25SZXF1ZXN0GkUubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkJlZ2luQWRtaW5QYXNza2V5UmVnaXN0cmF0aW9uUmVzcG9uc2USowEKEkZpbmlzaFJlZ2lzdHJhdGlvbhJFLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5GaW5pc2hBZG1pblBhc3NrZXlSZWdpc3RyYXRpb25SZXF1ZXN0GkYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkZpbmlzaEFkbWluUGFzc2tleVJlZ2lzdHJhdGlvblJlc3BvbnNlEoMBCgxMaXN0UGFzc2tleXMSOC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdEFkbWluUGFzc2tleXNSZXF1ZXN0GjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxpc3RBZG1pblBhc3NrZXlzUmVzcG9uc2UShgEKDVJlbmFtZVBhc3NrZXkSOS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVuYW1lQWRtaW5QYXNza2V5UmVxdWVzdBo6LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5SZW5hbWVBZG1pblBhc3NrZXlSZXNwb25zZRKGAQoNUmV2b2tlUGFzc2tleRI5LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5SZXZva2VBZG1pblBhc3NrZXlSZXF1ZXN0GjoubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlJldm9rZUFkbWluUGFzc2tleVJlc3BvbnNlEpIBChFCZWdpblNlY29uZEZhY3RvchI9LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5CZWdpbkFkbWluU2Vjb25kRmFjdG9yUmVxdWVzdBo+LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5CZWdpbkFkbWluU2Vjb25kRmFjdG9yUmVzcG9uc2UykQEKEUFkbWluUmVzZXRTZXJ2aWNlEnwKDVJlc2V0RGVtb0RhdGESNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVzZXREZW1vRGF0YVJlcXVlc3QaNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmVzZXREZW1vRGF0YVJlc3BvbnNlMqgCChNBZG1pblByb2ZpbGVTZXJ2aWNlEoIBCg9HZXRBZG1pblByb2ZpbGUSNi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0QWRtaW5Qcm9maWxlUmVxdWVzdBo3LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRBZG1pblByb2ZpbGVSZXNwb25zZRKLAQoSVXBkYXRlQWRtaW5Qcm9maWxlEjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlVwZGF0ZUFkbWluUHJvZmlsZVJlcXVlc3QaOi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVXBkYXRlQWRtaW5Qcm9maWxlUmVzcG9uc2Uy/wQKFUFkbWluaXN0cmF0aW9uU2VydmljZRJ2CgtMaXN0QVBJS2V5cxIyLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MaXN0QVBJS2V5c1JlcXVlc3QaMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdEFQSUtleXNSZXNwb25zZRJ5CgxDcmVhdGVBUElLZXkSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQ3JlYXRlQVBJS2V5UmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5DcmVhdGVBUElLZXlSZXNwb25zZRJ5CgxEZWxldGVBUElLZXkSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRGVsZXRlQVBJS2V5UmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5EZWxldGVBUElLZXlSZXNwb25zZRJzCgpUZXN0QVBJS2V5EjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlRlc3RBUElLZXlSZXF1ZXN0GjIubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlRlc3RBUElLZXlSZXNwb25zZRKCAQoPU2V0QVBJS2V5QWN0aXZlEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlNldEFQSUtleUFjdGl2ZVJlcXVlc3QaNy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU2V0QVBJS2V5QWN0aXZlUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_landing_page_business_suite_v1_account_security]);
 
 /**
  * LoginRequest authenticates an admin by email and password.
@@ -27,6 +29,25 @@ export type LoginRequest = Message<"landing_page_business_suite.v1.LoginRequest"
    * @generated from field: string password = 2;
    */
   password: string;
+
+  /**
+   * Authenticator-app code or recovery code. Required once the administrator
+   * has enabled two-factor authentication; the first attempt may omit it and
+   * receives FAILED_PRECONDITION "mfa_required".
+   *
+   * @generated from field: string totp_code = 3;
+   */
+  totpCode: string;
+
+  /**
+   * @generated from field: bytes passkey_assertion = 4;
+   */
+  passkeyAssertion: Uint8Array;
+
+  /**
+   * @generated from field: string passkey_ceremony_id = 5;
+   */
+  passkeyCeremonyId: string;
 };
 
 /**
@@ -67,6 +88,13 @@ export type AdminSessionResponse = Message<"landing_page_business_suite.v1.Admin
    * @generated from field: optional string session_id = 4;
    */
   sessionId?: string | undefined;
+
+  /**
+   * full or enrollment_only; enrollment_only sessions may only complete MFA setup.
+   *
+   * @generated from field: string assurance = 5;
+   */
+  assurance: string;
 };
 
 /**
@@ -126,6 +154,269 @@ export const SessionRequestSchema: GenMessage<SessionRequest> = /*@__PURE__*/
   messageDesc(file_landing_page_business_suite_v1_admin, 4);
 
 /**
+ * @generated from message landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest
+ */
+export type BeginAdminPasskeyRegistrationRequest = Message<"landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest"> & {
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest.
+ * Use `create(BeginAdminPasskeyRegistrationRequestSchema)` to create a new message.
+ */
+export const BeginAdminPasskeyRegistrationRequestSchema: GenMessage<BeginAdminPasskeyRegistrationRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 5);
+
+/**
+ * @generated from message landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse
+ */
+export type BeginAdminPasskeyRegistrationResponse = Message<"landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse"> & {
+  /**
+   * @generated from field: string options_json = 1;
+   */
+  optionsJson: string;
+
+  /**
+   * @generated from field: string ceremony_id = 2;
+   */
+  ceremonyId: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse.
+ * Use `create(BeginAdminPasskeyRegistrationResponseSchema)` to create a new message.
+ */
+export const BeginAdminPasskeyRegistrationResponseSchema: GenMessage<BeginAdminPasskeyRegistrationResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 6);
+
+/**
+ * @generated from message landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest
+ */
+export type FinishAdminPasskeyRegistrationRequest = Message<"landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest"> & {
+  /**
+   * @generated from field: string credential_json = 1;
+   */
+  credentialJson: string;
+
+  /**
+   * @generated from field: string nickname = 2;
+   */
+  nickname: string;
+
+  /**
+   * @generated from field: string ceremony_id = 3;
+   */
+  ceremonyId: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest.
+ * Use `create(FinishAdminPasskeyRegistrationRequestSchema)` to create a new message.
+ */
+export const FinishAdminPasskeyRegistrationRequestSchema: GenMessage<FinishAdminPasskeyRegistrationRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 7);
+
+/**
+ * @generated from message landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse
+ */
+export type FinishAdminPasskeyRegistrationResponse = Message<"landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string nickname = 2;
+   */
+  nickname: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse.
+ * Use `create(FinishAdminPasskeyRegistrationResponseSchema)` to create a new message.
+ */
+export const FinishAdminPasskeyRegistrationResponseSchema: GenMessage<FinishAdminPasskeyRegistrationResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 8);
+
+/**
+ * @generated from message landing_page_business_suite.v1.ListAdminPasskeysRequest
+ */
+export type ListAdminPasskeysRequest = Message<"landing_page_business_suite.v1.ListAdminPasskeysRequest"> & {
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.ListAdminPasskeysRequest.
+ * Use `create(ListAdminPasskeysRequestSchema)` to create a new message.
+ */
+export const ListAdminPasskeysRequestSchema: GenMessage<ListAdminPasskeysRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 9);
+
+/**
+ * @generated from message landing_page_business_suite.v1.AdminPasskey
+ */
+export type AdminPasskey = Message<"landing_page_business_suite.v1.AdminPasskey"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string nickname = 2;
+   */
+  nickname: string;
+
+  /**
+   * @generated from field: string created_at = 3;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string last_used_at = 4;
+   */
+  lastUsedAt: string;
+
+  /**
+   * @generated from field: string backup_state = 5;
+   */
+  backupState: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.AdminPasskey.
+ * Use `create(AdminPasskeySchema)` to create a new message.
+ */
+export const AdminPasskeySchema: GenMessage<AdminPasskey> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 10);
+
+/**
+ * @generated from message landing_page_business_suite.v1.ListAdminPasskeysResponse
+ */
+export type ListAdminPasskeysResponse = Message<"landing_page_business_suite.v1.ListAdminPasskeysResponse"> & {
+  /**
+   * @generated from field: repeated landing_page_business_suite.v1.AdminPasskey passkeys = 1;
+   */
+  passkeys: AdminPasskey[];
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.ListAdminPasskeysResponse.
+ * Use `create(ListAdminPasskeysResponseSchema)` to create a new message.
+ */
+export const ListAdminPasskeysResponseSchema: GenMessage<ListAdminPasskeysResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 11);
+
+/**
+ * @generated from message landing_page_business_suite.v1.RenameAdminPasskeyRequest
+ */
+export type RenameAdminPasskeyRequest = Message<"landing_page_business_suite.v1.RenameAdminPasskeyRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string nickname = 2;
+   */
+  nickname: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RenameAdminPasskeyRequest.
+ * Use `create(RenameAdminPasskeyRequestSchema)` to create a new message.
+ */
+export const RenameAdminPasskeyRequestSchema: GenMessage<RenameAdminPasskeyRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 12);
+
+/**
+ * @generated from message landing_page_business_suite.v1.RenameAdminPasskeyResponse
+ */
+export type RenameAdminPasskeyResponse = Message<"landing_page_business_suite.v1.RenameAdminPasskeyResponse"> & {
+  /**
+   * @generated from field: landing_page_business_suite.v1.AdminPasskey passkey = 1;
+   */
+  passkey?: AdminPasskey | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RenameAdminPasskeyResponse.
+ * Use `create(RenameAdminPasskeyResponseSchema)` to create a new message.
+ */
+export const RenameAdminPasskeyResponseSchema: GenMessage<RenameAdminPasskeyResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 13);
+
+/**
+ * @generated from message landing_page_business_suite.v1.RevokeAdminPasskeyRequest
+ */
+export type RevokeAdminPasskeyRequest = Message<"landing_page_business_suite.v1.RevokeAdminPasskeyRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RevokeAdminPasskeyRequest.
+ * Use `create(RevokeAdminPasskeyRequestSchema)` to create a new message.
+ */
+export const RevokeAdminPasskeyRequestSchema: GenMessage<RevokeAdminPasskeyRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 14);
+
+/**
+ * @generated from message landing_page_business_suite.v1.RevokeAdminPasskeyResponse
+ */
+export type RevokeAdminPasskeyResponse = Message<"landing_page_business_suite.v1.RevokeAdminPasskeyResponse"> & {
+  /**
+   * @generated from field: bool revoked = 1;
+   */
+  revoked: boolean;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RevokeAdminPasskeyResponse.
+ * Use `create(RevokeAdminPasskeyResponseSchema)` to create a new message.
+ */
+export const RevokeAdminPasskeyResponseSchema: GenMessage<RevokeAdminPasskeyResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 15);
+
+/**
+ * @generated from message landing_page_business_suite.v1.BeginAdminSecondFactorRequest
+ */
+export type BeginAdminSecondFactorRequest = Message<"landing_page_business_suite.v1.BeginAdminSecondFactorRequest"> & {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.BeginAdminSecondFactorRequest.
+ * Use `create(BeginAdminSecondFactorRequestSchema)` to create a new message.
+ */
+export const BeginAdminSecondFactorRequestSchema: GenMessage<BeginAdminSecondFactorRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 16);
+
+/**
+ * @generated from message landing_page_business_suite.v1.BeginAdminSecondFactorResponse
+ */
+export type BeginAdminSecondFactorResponse = Message<"landing_page_business_suite.v1.BeginAdminSecondFactorResponse"> & {
+  /**
+   * @generated from field: string options_json = 1;
+   */
+  optionsJson: string;
+
+  /**
+   * @generated from field: string ceremony_id = 2;
+   */
+  ceremonyId: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.BeginAdminSecondFactorResponse.
+ * Use `create(BeginAdminSecondFactorResponseSchema)` to create a new message.
+ */
+export const BeginAdminSecondFactorResponseSchema: GenMessage<BeginAdminSecondFactorResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_admin, 17);
+
+/**
  * ResetDemoDataRequest triggers a demo-data reset (admin, env-gated).
  *
  * @generated from message landing_page_business_suite.v1.ResetDemoDataRequest
@@ -138,7 +429,7 @@ export type ResetDemoDataRequest = Message<"landing_page_business_suite.v1.Reset
  * Use `create(ResetDemoDataRequestSchema)` to create a new message.
  */
 export const ResetDemoDataRequestSchema: GenMessage<ResetDemoDataRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 5);
+  messageDesc(file_landing_page_business_suite_v1_admin, 18);
 
 /**
  * ResetDemoDataResponse reports the reset outcome.
@@ -164,7 +455,7 @@ export type ResetDemoDataResponse = Message<"landing_page_business_suite.v1.Rese
  * Use `create(ResetDemoDataResponseSchema)` to create a new message.
  */
 export const ResetDemoDataResponseSchema: GenMessage<ResetDemoDataResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 6);
+  messageDesc(file_landing_page_business_suite_v1_admin, 19);
 
 /**
  * AdminProfile contains the display-safe administrator account state. Password
@@ -194,7 +485,7 @@ export type AdminProfile = Message<"landing_page_business_suite.v1.AdminProfile"
  * Use `create(AdminProfileSchema)` to create a new message.
  */
 export const AdminProfileSchema: GenMessage<AdminProfile> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 7);
+  messageDesc(file_landing_page_business_suite_v1_admin, 20);
 
 /**
  * @generated from message landing_page_business_suite.v1.GetAdminProfileRequest
@@ -207,7 +498,7 @@ export type GetAdminProfileRequest = Message<"landing_page_business_suite.v1.Get
  * Use `create(GetAdminProfileRequestSchema)` to create a new message.
  */
 export const GetAdminProfileRequestSchema: GenMessage<GetAdminProfileRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 8);
+  messageDesc(file_landing_page_business_suite_v1_admin, 21);
 
 /**
  * @generated from message landing_page_business_suite.v1.GetAdminProfileResponse
@@ -224,7 +515,7 @@ export type GetAdminProfileResponse = Message<"landing_page_business_suite.v1.Ge
  * Use `create(GetAdminProfileResponseSchema)` to create a new message.
  */
 export const GetAdminProfileResponseSchema: GenMessage<GetAdminProfileResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 9);
+  messageDesc(file_landing_page_business_suite_v1_admin, 22);
 
 /**
  * UpdateAdminProfileRequest changes one or both administrator credentials.
@@ -254,7 +545,7 @@ export type UpdateAdminProfileRequest = Message<"landing_page_business_suite.v1.
  * Use `create(UpdateAdminProfileRequestSchema)` to create a new message.
  */
 export const UpdateAdminProfileRequestSchema: GenMessage<UpdateAdminProfileRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 10);
+  messageDesc(file_landing_page_business_suite_v1_admin, 23);
 
 /**
  * @generated from message landing_page_business_suite.v1.UpdateAdminProfileResponse
@@ -271,7 +562,7 @@ export type UpdateAdminProfileResponse = Message<"landing_page_business_suite.v1
  * Use `create(UpdateAdminProfileResponseSchema)` to create a new message.
  */
 export const UpdateAdminProfileResponseSchema: GenMessage<UpdateAdminProfileResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 11);
+  messageDesc(file_landing_page_business_suite_v1_admin, 24);
 
 /**
  * APIKey records encrypted provider-credential metadata. It never contains the
@@ -321,7 +612,7 @@ export type APIKey = Message<"landing_page_business_suite.v1.APIKey"> & {
  * Use `create(APIKeySchema)` to create a new message.
  */
 export const APIKeySchema: GenMessage<APIKey> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 12);
+  messageDesc(file_landing_page_business_suite_v1_admin, 25);
 
 /**
  * @generated from message landing_page_business_suite.v1.ListAPIKeysRequest
@@ -334,7 +625,7 @@ export type ListAPIKeysRequest = Message<"landing_page_business_suite.v1.ListAPI
  * Use `create(ListAPIKeysRequestSchema)` to create a new message.
  */
 export const ListAPIKeysRequestSchema: GenMessage<ListAPIKeysRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 13);
+  messageDesc(file_landing_page_business_suite_v1_admin, 26);
 
 /**
  * @generated from message landing_page_business_suite.v1.ListAPIKeysResponse
@@ -351,7 +642,7 @@ export type ListAPIKeysResponse = Message<"landing_page_business_suite.v1.ListAP
  * Use `create(ListAPIKeysResponseSchema)` to create a new message.
  */
 export const ListAPIKeysResponseSchema: GenMessage<ListAPIKeysResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 14);
+  messageDesc(file_landing_page_business_suite_v1_admin, 27);
 
 /**
  * @generated from message landing_page_business_suite.v1.CreateAPIKeyRequest
@@ -376,7 +667,7 @@ export type CreateAPIKeyRequest = Message<"landing_page_business_suite.v1.Create
  * Use `create(CreateAPIKeyRequestSchema)` to create a new message.
  */
 export const CreateAPIKeyRequestSchema: GenMessage<CreateAPIKeyRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 15);
+  messageDesc(file_landing_page_business_suite_v1_admin, 28);
 
 /**
  * @generated from message landing_page_business_suite.v1.CreateAPIKeyResponse
@@ -393,7 +684,7 @@ export type CreateAPIKeyResponse = Message<"landing_page_business_suite.v1.Creat
  * Use `create(CreateAPIKeyResponseSchema)` to create a new message.
  */
 export const CreateAPIKeyResponseSchema: GenMessage<CreateAPIKeyResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 16);
+  messageDesc(file_landing_page_business_suite_v1_admin, 29);
 
 /**
  * @generated from message landing_page_business_suite.v1.DeleteAPIKeyRequest
@@ -410,7 +701,7 @@ export type DeleteAPIKeyRequest = Message<"landing_page_business_suite.v1.Delete
  * Use `create(DeleteAPIKeyRequestSchema)` to create a new message.
  */
 export const DeleteAPIKeyRequestSchema: GenMessage<DeleteAPIKeyRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 17);
+  messageDesc(file_landing_page_business_suite_v1_admin, 30);
 
 /**
  * @generated from message landing_page_business_suite.v1.DeleteAPIKeyResponse
@@ -423,7 +714,7 @@ export type DeleteAPIKeyResponse = Message<"landing_page_business_suite.v1.Delet
  * Use `create(DeleteAPIKeyResponseSchema)` to create a new message.
  */
 export const DeleteAPIKeyResponseSchema: GenMessage<DeleteAPIKeyResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 18);
+  messageDesc(file_landing_page_business_suite_v1_admin, 31);
 
 /**
  * @generated from message landing_page_business_suite.v1.TestAPIKeyRequest
@@ -440,7 +731,7 @@ export type TestAPIKeyRequest = Message<"landing_page_business_suite.v1.TestAPIK
  * Use `create(TestAPIKeyRequestSchema)` to create a new message.
  */
 export const TestAPIKeyRequestSchema: GenMessage<TestAPIKeyRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 19);
+  messageDesc(file_landing_page_business_suite_v1_admin, 32);
 
 /**
  * @generated from message landing_page_business_suite.v1.TestAPIKeyResponse
@@ -467,7 +758,7 @@ export type TestAPIKeyResponse = Message<"landing_page_business_suite.v1.TestAPI
  * Use `create(TestAPIKeyResponseSchema)` to create a new message.
  */
 export const TestAPIKeyResponseSchema: GenMessage<TestAPIKeyResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 20);
+  messageDesc(file_landing_page_business_suite_v1_admin, 33);
 
 /**
  * @generated from message landing_page_business_suite.v1.SetAPIKeyActiveRequest
@@ -489,7 +780,7 @@ export type SetAPIKeyActiveRequest = Message<"landing_page_business_suite.v1.Set
  * Use `create(SetAPIKeyActiveRequestSchema)` to create a new message.
  */
 export const SetAPIKeyActiveRequestSchema: GenMessage<SetAPIKeyActiveRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 21);
+  messageDesc(file_landing_page_business_suite_v1_admin, 34);
 
 /**
  * @generated from message landing_page_business_suite.v1.SetAPIKeyActiveResponse
@@ -502,7 +793,7 @@ export type SetAPIKeyActiveResponse = Message<"landing_page_business_suite.v1.Se
  * Use `create(SetAPIKeyActiveResponseSchema)` to create a new message.
  */
 export const SetAPIKeyActiveResponseSchema: GenMessage<SetAPIKeyActiveResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_admin, 22);
+  messageDesc(file_landing_page_business_suite_v1_admin, 35);
 
 /**
  * AdminAuthService handles admin login/logout/session. The session cookie is
@@ -541,8 +832,71 @@ export const AdminAuthService: GenService<{
     input: typeof SessionRequestSchema;
     output: typeof AdminSessionResponseSchema;
   },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminAuthService.Reauthenticate
+   */
+  reauthenticate: {
+    methodKind: "unary";
+    input: typeof ReauthenticateRequestSchema;
+    output: typeof ReauthenticateResponseSchema;
+  },
 }> = /*@__PURE__*/
   serviceDesc(file_landing_page_business_suite_v1_admin, 0);
+
+/**
+ * @generated from service landing_page_business_suite.v1.AdminPasskeyService
+ */
+export const AdminPasskeyService: GenService<{
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.BeginRegistration
+   */
+  beginRegistration: {
+    methodKind: "unary";
+    input: typeof BeginAdminPasskeyRegistrationRequestSchema;
+    output: typeof BeginAdminPasskeyRegistrationResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.FinishRegistration
+   */
+  finishRegistration: {
+    methodKind: "unary";
+    input: typeof FinishAdminPasskeyRegistrationRequestSchema;
+    output: typeof FinishAdminPasskeyRegistrationResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.ListPasskeys
+   */
+  listPasskeys: {
+    methodKind: "unary";
+    input: typeof ListAdminPasskeysRequestSchema;
+    output: typeof ListAdminPasskeysResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.RenamePasskey
+   */
+  renamePasskey: {
+    methodKind: "unary";
+    input: typeof RenameAdminPasskeyRequestSchema;
+    output: typeof RenameAdminPasskeyResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.RevokePasskey
+   */
+  revokePasskey: {
+    methodKind: "unary";
+    input: typeof RevokeAdminPasskeyRequestSchema;
+    output: typeof RevokeAdminPasskeyResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminPasskeyService.BeginSecondFactor
+   */
+  beginSecondFactor: {
+    methodKind: "unary";
+    input: typeof BeginAdminSecondFactorRequestSchema;
+    output: typeof BeginAdminSecondFactorResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_landing_page_business_suite_v1_admin, 1);
 
 /**
  * AdminResetService performs the guarded demo-data reset.
@@ -561,7 +915,7 @@ export const AdminResetService: GenService<{
     output: typeof ResetDemoDataResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_landing_page_business_suite_v1_admin, 1);
+  serviceDesc(file_landing_page_business_suite_v1_admin, 2);
 
 /**
  * AdminProfileService owns the authenticated administrator identity settings.
@@ -586,7 +940,7 @@ export const AdminProfileService: GenService<{
     output: typeof UpdateAdminProfileResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_landing_page_business_suite_v1_admin, 2);
+  serviceDesc(file_landing_page_business_suite_v1_admin, 3);
 
 /**
  * AdministrationService owns privileged administration operations that do not
@@ -636,5 +990,5 @@ export const AdministrationService: GenService<{
     output: typeof SetAPIKeyActiveResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_landing_page_business_suite_v1_admin, 3);
+  serviceDesc(file_landing_page_business_suite_v1_admin, 4);
 

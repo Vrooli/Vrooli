@@ -1,12 +1,12 @@
-import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithProviders, screen } from "../test-utils/renderWithProviders";
 import { AmbientDisplayShell } from "./AmbientDisplayShell";
 
 const rail = () => screen.getByTestId("cycle-rail");
 
 describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
   it("draws each beat's segment and fills the active one to its beat progress", () => {
-    render(
+    renderWithProviders(
       <AmbientDisplayShell theme="ground-control" title="Mission Control" position="ROOM 1 OF 6" beatCount={3} beatIndex={1} beatProgress={0.5} beatDurations={[10, 20, 30]}>
         <div />
       </AmbientDisplayShell>,
@@ -19,7 +19,7 @@ describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
   });
 
   it("names the held state so a waiting beat never reads as a frozen one", () => {
-    render(
+    renderWithProviders(
       <AmbientDisplayShell theme="ground-control" title="Mission Control" position="ROOM 1 OF 6" beatCount={2} beatIndex={0} beatProgress={0.999} held>
         <div />
       </AmbientDisplayShell>,
@@ -29,7 +29,7 @@ describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
   });
 
   it("names the paused state ahead of the held state", () => {
-    render(
+    renderWithProviders(
       <AmbientDisplayShell theme="ground-control" title="Mission Control" position="ROOM 1 OF 6" beatCount={2} beatIndex={0} beatProgress={0.4} held paused>
         <div />
       </AmbientDisplayShell>,

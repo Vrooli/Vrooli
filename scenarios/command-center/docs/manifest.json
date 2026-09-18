@@ -140,6 +140,14 @@
           "aliases": ["board", "ui", "motion", "input"],
           "description": "The board's layer model, quiet zones, capability ladder, orientation, input vocabulary, motion registers, theming, and component library plan.",
           "maturity": "active"
+        },
+        {
+          "path": "concepts/CUSTOMIZATION-MODEL.md",
+          "docType": "concept",
+          "title": "Customization Model",
+          "aliases": ["customization", "generalization", "presets", "slots", "connector-packs"],
+          "description": "How the board becomes fully configurable — connectors, rooms, themes, compositions, slot-bound backgrounds, connector packs — under a zero-visual-diff invariant, plus the settings surface, customization skill, and monetization milestones.",
+          "maturity": "draft"
         }
       ]
     },

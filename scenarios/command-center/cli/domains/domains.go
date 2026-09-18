@@ -19,6 +19,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	integrationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/integrations/integrations_v1connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -180,11 +181,16 @@ func runPromotion(core *cliapp.ScenarioApp, args []string) error {
 	if producerOrigin == "" {
 		producerOrigin = "https://vrooli.com"
 	}
-	token := strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_READER_TOKEN"))
-	if token == "" {
-		return writeUnavailablePromotionEvidence(metricID, window, readingBody, producerOrigin, fmt.Errorf("COMMAND_CENTER_LPBS_READER_TOKEN is required for production promotion"))
+	token, err := resolvePromotionReaderToken()
+	if err != nil {
+		return writeUnavailablePromotionEvidence(metricID, window, readingBody, producerOrigin, err)
 	}
-	producerBody, err := readProducer(producerOrigin, reading.Source.Read, token, window)
+	var producerBody []byte
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")), "production") {
+		producerBody, err = readProducerViaLocalProfile(reading.Source.Read, token, window)
+	} else {
+		producerBody, err = readProducer(producerOrigin, reading.Source.Read, token, window)
+	}
 	if err != nil {
 		return writeUnavailablePromotionEvidence(metricID, window, readingBody, producerOrigin, err)
 	}
@@ -208,6 +214,34 @@ func runPromotion(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("promotion mismatch for %s: %s", metricID, strings.Join(differences, "; "))
 	}
 	return nil
+}
+
+func resolvePromotionReaderToken() (string, error) {
+	// Keep the explicit environment override for isolated tests and short-lived
+	// operator probes. Normal CLI use resolves through the same credential
+	// authority as the Command Center API, so the token never needs to appear
+	// in shell history, argv, or a long-lived process environment.
+	if token := strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_READER_TOKEN")); token != "" {
+		return token, nil
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", fmt.Errorf("resolve LPBS production service credential: %w", err)
+	}
+	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
+	field := "metrics-reader-token"
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN")), "production") {
+		identity = credentialauthority.Identity("vrooli/landing-page-business-suite")
+		field = "service-secret"
+	}
+	token, err := authority.Resolve(identity, field)
+	if err != nil || strings.TrimSpace(token) == "" {
+		if err == nil {
+			err = credentialauthority.ErrUnconfigured
+		}
+		return "", fmt.Errorf("resolve LPBS production service credential: %w", err)
+	}
+	return strings.TrimSpace(token), nil
 }
 
 func writeUnavailablePromotionEvidence(metricID, window string, readingBody []byte, producerOrigin string, cause error) error {
@@ -341,6 +375,99 @@ func readProducer(origin, readPath, token, window string) ([]byte, error) {
 		return nil, fmt.Errorf("producer %s returned HTTP %d: %s", parsed.Path, resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return normalizeRevenueProducer(body), nil
+}
+
+func readProducerViaLocalProfile(readPath, serviceToken, window string) ([]byte, error) {
+	origin := strings.TrimRight(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_LOCAL_URL")), "/")
+	if origin == "" {
+		origin = strings.TrimRight(strings.TrimSpace(os.Getenv("LPBS_BASE_URL")), "/")
+	}
+	if origin == "" {
+		return nil, fmt.Errorf("local LPBS URL is not configured for production relay")
+	}
+	listReq, err := http.NewRequest(http.MethodGet, origin+"/api/v1/admin/remote-profiles", nil)
+	if err != nil {
+		return nil, err
+	}
+	listReq.Header.Set("Authorization", "Bearer "+serviceToken)
+	resp, err := http.DefaultClient.Do(listReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("local LPBS profile lookup returned %s", resp.Status)
+	}
+	var profiles struct {
+		Profiles []struct {
+			ID  int64  `json:"id"`
+			Tag string `json:"tag"`
+		} `json:"profiles"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+		return nil, err
+	}
+	var profileID int64
+	for _, profile := range profiles.Profiles {
+		if profile.Tag == "prod" {
+			profileID = profile.ID
+			break
+		}
+	}
+	if profileID == 0 {
+		return nil, fmt.Errorf("local LPBS production profile is not configured")
+	}
+	parsed, err := url.Parse(readPath)
+	if err != nil {
+		return nil, err
+	}
+	query := map[string]string{}
+	for key, values := range parsed.Query() {
+		if len(values) > 0 && values[0] != "" {
+			query[key] = values[0]
+		}
+	}
+	if days := strings.TrimSuffix(strings.TrimSpace(window), "d"); days != "" {
+		if _, parseErr := strconv.Atoi(days); parseErr == nil {
+			query["window_days"] = days
+		}
+	}
+	proxyPath := parsed.Path
+	body := map[string]any{}
+	for key, value := range query {
+		if integer, parseErr := strconv.Atoi(value); parseErr == nil {
+			body[key] = integer
+		} else {
+			body[key] = value
+		}
+	}
+	if proxyPath == "/api/v1/admin/dashboard/revenue" {
+		proxyPath = "/landing_page_business_suite.v1.AdminRevenueService/GetRevenueSummary"
+		body = map[string]any{}
+	}
+	requestBody, err := json.Marshal(map[string]any{"method": http.MethodPost, "path": proxyPath, "body": body})
+	if err != nil {
+		return nil, err
+	}
+	proxyReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/admin/remote-profiles/%d/proxy", origin, profileID), bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	proxyReq.Header.Set("Authorization", "Bearer "+serviceToken)
+	proxyReq.Header.Set("Content-Type", "application/json")
+	proxyResp, err := http.DefaultClient.Do(proxyReq)
+	if err != nil {
+		return nil, err
+	}
+	defer proxyResp.Body.Close()
+	result, err := io.ReadAll(proxyResp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if proxyResp.StatusCode >= 400 {
+		return nil, fmt.Errorf("local LPBS production relay returned %s: %s", proxyResp.Status, strings.TrimSpace(string(result)))
+	}
+	return result, nil
 }
 
 func normalizeRevenueProducer(body []byte) []byte {

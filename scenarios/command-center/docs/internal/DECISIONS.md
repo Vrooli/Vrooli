@@ -4,6 +4,20 @@ Durable decisions for this scenario, newest first. A decision recorded here is b
 
 ---
 
+## 2026-09-17 — The board generalizes as a data-driven instrument engine under a zero-diff invariant
+
+**Decision.** Command Center splits into a domain-agnostic **instrument engine** (rendering pipeline, honesty model, board cycler, and catalogs of themes/compositions/readouts, plus a generic connector runtime) and a per-deployment **instance definition** (connectors, signals, room presets, bindings). The operator's current board is instance zero: today's six rooms, themes, and compositions become the shipped default preset set, and every Vrooli data source becomes a **connector pack** that ships its own bespoke readouts/compositions and registers them only when enabled. Scene→signal addressing moves from hardcoded metric IDs to composition-declared **slots** bound by the room. Full model: `concepts/CUSTOMIZATION-MODEL.md`.
+
+**Why.** The rendering engine and the three-axis honesty model are already domain-agnostic; only the data bindings, room→theme→composition map, and scene→metric addressing are welded to Vrooli. Lifting those to data makes the instrument configurable, extensible-by-agent, and monetizable via the scenario-to-plugin ramp, without a rewrite.
+
+**Constraint kept.** **Zero visual diff.** Generalization is accepted only when re-deriving the operator's board from the new data files produces no visual difference across sampled frames of the running scenes (`CC-P1-005` discipline). A refactor that changes instance zero is wrong even if more general. `DESIGN.md` (`vrooli-command-display`) still governs every surface; this changes how the board is configured, never the honesty, layer, or motion models.
+
+**Alternatives rejected.** Multi-tenant hosting and a connector marketplace (deferred until plugin-ramp telemetry proves demand); keeping compositions welded to rooms (already false — color is theme-driven at 250ms and readouts already dispatch on `kind`); gating the settings work behind the not-yet-shipped plugin ramp (Milestone 1 delivers the internal value standalone; Milestone 2 carries the skill and packaging).
+
+**Schema decisions (settled 2026-09-17, detail in `concepts/CUSTOMIZATION-MODEL.md`).** Composition slot manifest lives in the module export with the editor JSON generated from it; signal shapes stay `scalar|series|rows|meta` with `rows` carrying a declared column schema; connector packs are in-tree trusted code modules for M1 (sandboxed data-only format deferred to M2 under the plugin security baseline); the instance definition splits into per-catalog files (`themes/`, `compositions/`, `rooms/`, `connectors/`); the zero-diff gate is a purpose-built harness that pins the composition seed and freezes animation time to fixed sample points (a naive pixel diff flakes on animated, seeded scenes).
+
+---
+
 ## 2026-09-16 — Ledger is a measured monetization instrument
 
 **Decision.** Ledger owns the revenue and credit-economy story: LPBS remains

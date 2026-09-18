@@ -1,0 +1,10 @@
+{
+  "id": "offer-desk",
+  "name": "offer-desk",
+  "enabled": true,
+  "transport": "connect",
+  "baseUrlEnv": "OFFER_DESK_BASE_URL",
+  "paths": [
+    "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger"
+  ]
+}

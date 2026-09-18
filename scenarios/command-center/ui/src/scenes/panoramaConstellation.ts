@@ -1,5 +1,7 @@
 import type { SkyState } from "../lib/sky";
-import { clipOutsideQuiet, drawGlow, freeBand, mulberry32, rgba, seedFrom, type Frame, type Rect, type Scene, type SceneGroup } from "./engine";
+import { clipOutsideQuiet, drawGlow, freeBand, mulberry32, rgba, seedFrom, type Frame, type Rect, type Scene, type SceneGroup, type SlotManifest } from "./engine";
+
+export const slotManifest: SlotManifest = {};
 
 /**
  * Panorama: a star atlas of the whole board. Each room is a constellation and

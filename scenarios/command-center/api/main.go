@@ -29,6 +29,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load outcome registry at %s: %v", registryPath, err)
 	}
+	if err := LoadSplitRoomCatalog(reg); err != nil {
+		log.Fatalf("failed to load split room catalog: %v", err)
+	}
+	if err := LoadSplitSignalCatalog(reg); err != nil {
+		log.Fatalf("failed to load split signal catalog: %v", err)
+	}
 	slog.Info("loaded outcome registry", "path", registryPath, "rooms", len(reg.Rooms))
 
 	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: scenarioName})

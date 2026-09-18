@@ -25,6 +25,7 @@ import { LeaderboardReadout } from "../components/LeaderboardReadout";
 import { PostureReadout } from "../components/PostureReadout";
 import { TileQualifier } from "../components/TileQualifier";
 import { readingsForBeat } from "../lib/beat";
+import { resolveSlotBindings } from "../lib/catalogs";
 
 /** A supporting reading takes the tile its shape calls for: a list reading has no single figure to show. */
 function SupportingTile({ reading, showTrend, showOrigin }: { reading: Reading; showTrend: boolean; showOrigin: boolean }) {
@@ -39,11 +40,10 @@ function SupportingTile({ reading, showTrend, showOrigin }: { reading: Reading; 
   return <ReadingTile reading={reading} showTrend={showTrend} showOrigin={showOrigin} />;
 }
 
-const THEMES: Record<string, string> = { "mission-control": "ground-control", hive: "bioluminescent", forge: "foundry", ledger: "vault", broadcast: "signal-tower", panorama: "cosmos" };
-
 export default function RoomPage() {
   const { roomId = "mission-control" } = useParams();
   const [searchParams] = useSearchParams();
+  const visualDiff = searchParams.get("visualDiff") === "1";
   const board = useBoardController();
   const heroRef = useRef<HTMLDivElement>(null);
   const supportingRef = useRef<HTMLUListElement>(null);
@@ -57,18 +57,39 @@ export default function RoomPage() {
       return ttls.length ? Math.max(5, Math.min(...ttls)) * 1000 : 30_000;
     },
   });
-  const room = board.rooms.find((entry) => entry.id === roomId) ?? data?.room ?? { id: roomId, title: roomId.replace(/-/g, " "), theme: THEMES[roomId], composition: "orbital-field" };
+  const room = board.rooms.find((entry) => entry.id === roomId) ?? data?.room ?? { id: roomId, title: roomId.replace(/-/g, " "), theme: "ground-control", composition: "orbital-field" };
   const beats = useMemo(() => room.beats ?? [], [room.beats]);
-  const beatIndex = board.beatIndex;
+  // The visual harness addresses beats directly. Production continues to use
+  // the controller's live cycle, while a pinned capture must not race the
+  // controller's wall-clock progress during route navigation.
+  const requestedVisualBeat = Number.parseInt(searchParams.get("beat") ?? "0", 10);
+  const beatIndex = visualDiff && beats.length > 0
+    ? Math.max(0, Math.min(beats.length - 1, Number.isFinite(requestedVisualBeat) ? requestedVisualBeat : 0))
+    : board.beatIndex;
   const beat = beats[beatIndex];
-  const theme = room.theme ?? THEMES[roomId] ?? "ground-control";
+  const theme = room.theme ?? "ground-control";
   const readings = useMemo(() => data?.readings ?? [], [data]);
-  const beatReadings = useMemo(() => readingsForBeat(beat, readings), [beat, readings]);
+  const renderReadings = useMemo(() => visualDiff ? readings.map((reading) => ({
+    ...reading,
+    value: reading.sample?.value ?? null,
+    rows: reading.sample?.rows ?? [],
+    ladder: reading.sample?.ladder ?? undefined,
+  })) : readings, [readings, visualDiff]);
+  const beatReadings = useMemo(() => readingsForBeat(beat, renderReadings), [beat, renderReadings]);
   const visible = useMemo(() => (board.samples === "hide" ? beatReadings.filter(hasValue) : beatReadings), [board.samples, beatReadings]);
-  const constellations = data?.constellations;
+  const constellations = useMemo(() => visualDiff ? data?.constellations?.map((constellation) => ({
+    ...constellation,
+    readings: constellation.readings.map((reading) => ({
+      ...reading,
+      value: reading.sample?.value ?? null,
+      rows: reading.sample?.rows ?? [],
+      ladder: reading.sample?.ladder ?? undefined,
+    })),
+  })) : data?.constellations, [data?.constellations, visualDiff]);
   // A panorama's hero counts the whole board, so every one of its own readings (the rooms' headlines) supports.
   const hero = constellations ? null : pickHero(visible, beat?.hero);
   const composition = beat?.composition ?? room.composition ?? "orbital-field";
+  const slotBindings = useMemo(() => resolveSlotBindings(composition, visible.map((reading) => reading.id), room.bind), [composition, room.bind, visible]);
   const layout = beat?.layout === "wide" ? "wide" : "standard";
   useEffect(() => {
     if (board.samples !== "hide" || !beats.length || !beat || visible.length === 0) return;
@@ -130,7 +151,7 @@ export default function RoomPage() {
     >
       <main ref={roomRef} className={`cc-room cc-room-${composition}`} data-testid="room-composition" data-composition={composition} data-layout={layout} data-room={roomId} data-beat={beatIndex} data-all-illustrative={allIllustrative || undefined}>
         <ExperienceSurface surfaceId="scene" as="div" data-testid="room-scene" className="cc-scene-layer" state={isLoading ? "loading" : "ready"}>
-          {!isLoading ? <AmbientCanvas composition={composition} readings={visible} focus={hero?.id} forcedTier={searchParams.get("tier")} quietRefs={quietRefs} seed={`${roomId}:${beatIndex}:${searchParams.get("seed") ?? ""}`} constellations={constellations} /> : null}
+          {!isLoading ? <AmbientCanvas composition={composition} readings={visible} focus={hero?.id} forcedTier={searchParams.get("tier")} quietRefs={quietRefs} seed={`${roomId}:${beatIndex}:${searchParams.get("seed") ?? ""}`} constellations={constellations} slotBindings={slotBindings} /> : null}
         </ExperienceSurface>
         <div key={`${roomId}:${beatIndex}`} className="cc-figure-layer">
           {error ? <p className="cc-degraded" role="status" data-testid="error-banner">The room could not be read. Showing nothing rather than a stale composition.</p> : null}

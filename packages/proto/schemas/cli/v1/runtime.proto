@@ -209,6 +209,19 @@ message CliHostSnapshot {
   // absent from `gpus` is not an error: it means the platform knows the device
   // exists (ladder rung one) and cannot read its state (rung two).
   repeated CliHostDevice devices = 25;
+
+  // Grouped graphical-session facts used by desktop validation. The flat
+  // fields above remain for compatibility with older consumers.
+  CliHostDesktopSession desktop_session = 26;
+}
+
+message CliHostDesktopSession {
+  string session_type = 1;
+  string seat = 2;
+  string active_session_user = 3;
+  bool display_attached = 4;
+  string display_server = 5;
+  string auto_login_user = 6;
 }
 
 // CliHostDevice mirrors hostinventory.Device: one physical device with a
@@ -411,6 +424,10 @@ message CliHostTool {
 
   // Filesystem path of the tool; empty if unknown.
   string path = 2;
+
+  // Version reported by the probe; empty means the tool was present but its
+  // version was not probed.
+  string version = 3;
 }
 
 // CliHostProvenance mirrors hostinventory.Provenance.

@@ -65,6 +65,7 @@ function ControlBar() {
         </span>
         <button type="button" className="cc-control cc-control-text" onClick={() => board.goTo("/focus")}>Focus</button>
         <button type="button" className="cc-control cc-control-text" onClick={() => board.goTo("/open-loop")}>Open loop</button>
+        <button type="button" className="cc-control cc-control-text" onClick={() => board.goTo("/settings")} aria-label="Settings">Settings</button>
         <label className="cc-control cc-control-select">
           <span>Samples</span>
           <select value={board.samples} onChange={(event) => board.setSamples(event.target.value as SamplesMode)} aria-label="Sample visibility">

@@ -498,6 +498,97 @@ func (x *Presentation) GetRecoveryNote() string {
 	return ""
 }
 
+// Advisory is a non-blocking finding about the conditions a plan runs under.
+// It never blocks: anything that must block is a precondition, a missing
+// input or a failing preflight check. Advisories are excluded from the plan's
+// semantic digest, so one appearing or clearing never invalidates a review.
+type Advisory struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable identifier of the finding, e.g. "secret_unsatisfied:sendgrid-api-key".
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Always "warning" today; explicit so a new severity cannot appear silently.
+	Severity string `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	// The customer-facing capability at risk, in the manifest's own words.
+	Capability    string `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
+	Summary       string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	Detail        string `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	Hint          string `protobuf:"bytes,6,opt,name=hint,proto3" json:"hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Advisory) Reset() {
+	*x = Advisory{}
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Advisory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Advisory) ProtoMessage() {}
+
+func (x *Advisory) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Advisory.ProtoReflect.Descriptor instead.
+func (*Advisory) Descriptor() ([]byte, []int) {
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Advisory) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Advisory) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *Advisory) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+func (x *Advisory) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *Advisory) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *Advisory) GetHint() string {
+	if x != nil {
+		return x.Hint
+	}
+	return ""
+}
+
 // ExecutablePlan is the plan envelope (schema_version "1").
 type ExecutablePlan struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -519,13 +610,14 @@ type ExecutablePlan struct {
 	Actions             []*Action       `protobuf:"bytes,14,rep,name=actions,proto3" json:"actions,omitempty"`
 	Handoff             *Handoff        `protobuf:"bytes,15,opt,name=handoff,proto3" json:"handoff,omitempty"`
 	Presentation        *Presentation   `protobuf:"bytes,16,opt,name=presentation,proto3" json:"presentation,omitempty"`
+	Advisories          []*Advisory     `protobuf:"bytes,17,rep,name=advisories,proto3" json:"advisories,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ExecutablePlan) Reset() {
 	*x = ExecutablePlan{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[6]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -537,7 +629,7 @@ func (x *ExecutablePlan) String() string {
 func (*ExecutablePlan) ProtoMessage() {}
 
 func (x *ExecutablePlan) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[6]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,7 +642,7 @@ func (x *ExecutablePlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutablePlan.ProtoReflect.Descriptor instead.
 func (*ExecutablePlan) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{6}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecutablePlan) GetSchemaVersion() string {
@@ -665,6 +757,13 @@ func (x *ExecutablePlan) GetPresentation() *Presentation {
 	return nil
 }
 
+func (x *ExecutablePlan) GetAdvisories() []*Advisory {
+	if x != nil {
+		return x.Advisories
+	}
+	return nil
+}
+
 // Change is one reviewable entry of a preview.
 type Change struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -683,7 +782,7 @@ type Change struct {
 
 func (x *Change) Reset() {
 	*x = Change{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[7]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +794,7 @@ func (x *Change) String() string {
 func (*Change) ProtoMessage() {}
 
 func (x *Change) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[7]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +807,7 @@ func (x *Change) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Change.ProtoReflect.Descriptor instead.
 func (*Change) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Change) GetActionId() string {
@@ -786,7 +885,7 @@ type DataEffect struct {
 
 func (x *DataEffect) Reset() {
 	*x = DataEffect{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[8]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +897,7 @@ func (x *DataEffect) String() string {
 func (*DataEffect) ProtoMessage() {}
 
 func (x *DataEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[8]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +910,7 @@ func (x *DataEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataEffect.ProtoReflect.Descriptor instead.
 func (*DataEffect) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DataEffect) GetActionId() string {
@@ -846,7 +945,7 @@ type ShellPreviewLine struct {
 
 func (x *ShellPreviewLine) Reset() {
 	*x = ShellPreviewLine{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[9]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +957,7 @@ func (x *ShellPreviewLine) String() string {
 func (*ShellPreviewLine) ProtoMessage() {}
 
 func (x *ShellPreviewLine) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[9]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +970,7 @@ func (x *ShellPreviewLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShellPreviewLine.ProtoReflect.Descriptor instead.
 func (*ShellPreviewLine) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{9}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShellPreviewLine) GetActionId() string {
@@ -899,13 +998,14 @@ type Preview struct {
 	RecoveryStrategy string                 `protobuf:"bytes,6,opt,name=recovery_strategy,json=recoveryStrategy,proto3" json:"recovery_strategy,omitempty"`
 	Handoff          *Handoff               `protobuf:"bytes,7,opt,name=handoff,proto3" json:"handoff,omitempty"`
 	ShellPreview     []*ShellPreviewLine    `protobuf:"bytes,8,rep,name=shell_preview,json=shellPreview,proto3" json:"shell_preview,omitempty"`
+	Advisories       []*Advisory            `protobuf:"bytes,9,rep,name=advisories,proto3" json:"advisories,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Preview) Reset() {
 	*x = Preview{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[10]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1017,7 @@ func (x *Preview) String() string {
 func (*Preview) ProtoMessage() {}
 
 func (x *Preview) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[10]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1030,7 @@ func (x *Preview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Preview.ProtoReflect.Descriptor instead.
 func (*Preview) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{10}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Preview) GetTarget() string {
@@ -989,6 +1089,13 @@ func (x *Preview) GetShellPreview() []*ShellPreviewLine {
 	return nil
 }
 
+func (x *Preview) GetAdvisories() []*Advisory {
+	if x != nil {
+		return x.Advisories
+	}
+	return nil
+}
+
 type CompilePlanRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// @format uuid
@@ -1005,7 +1112,7 @@ type CompilePlanRequest struct {
 
 func (x *CompilePlanRequest) Reset() {
 	*x = CompilePlanRequest{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[11]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1124,7 @@ func (x *CompilePlanRequest) String() string {
 func (*CompilePlanRequest) ProtoMessage() {}
 
 func (x *CompilePlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[11]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1137,7 @@ func (x *CompilePlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompilePlanRequest.ProtoReflect.Descriptor instead.
 func (*CompilePlanRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{11}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CompilePlanRequest) GetDeploymentId() string {
@@ -1069,7 +1176,7 @@ type CompilePlanResponse struct {
 
 func (x *CompilePlanResponse) Reset() {
 	*x = CompilePlanResponse{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[12]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1081,7 +1188,7 @@ func (x *CompilePlanResponse) String() string {
 func (*CompilePlanResponse) ProtoMessage() {}
 
 func (x *CompilePlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[12]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1094,7 +1201,7 @@ func (x *CompilePlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompilePlanResponse.ProtoReflect.Descriptor instead.
 func (*CompilePlanResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{12}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CompilePlanResponse) GetSchemaVersion() string {
@@ -1150,7 +1257,7 @@ type ApplyPlanRequest struct {
 
 func (x *ApplyPlanRequest) Reset() {
 	*x = ApplyPlanRequest{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[13]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1162,7 +1269,7 @@ func (x *ApplyPlanRequest) String() string {
 func (*ApplyPlanRequest) ProtoMessage() {}
 
 func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[13]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1175,7 +1282,7 @@ func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanRequest.ProtoReflect.Descriptor instead.
 func (*ApplyPlanRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{13}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApplyPlanRequest) GetDeploymentId() string {
@@ -1226,7 +1333,7 @@ type ApplyPlanResponse struct {
 
 func (x *ApplyPlanResponse) Reset() {
 	*x = ApplyPlanResponse{}
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[14]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1238,7 +1345,7 @@ func (x *ApplyPlanResponse) String() string {
 func (*ApplyPlanResponse) ProtoMessage() {}
 
 func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[14]
+	mi := &file_scenario_to_cloud_v1_plans_plans_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1251,7 +1358,7 @@ func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanResponse.ProtoReflect.Descriptor instead.
 func (*ApplyPlanResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{14}
+	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ApplyPlanResponse) GetSchemaVersion() string {
@@ -1329,7 +1436,16 @@ const file_scenario_to_cloud_v1_plans_plans_proto_rawDesc = "" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12#\n" +
 	"\rdowntime_note\x18\x03 \x01(\tR\fdowntimeNote\x12#\n" +
-	"\rrecovery_note\x18\x04 \x01(\tR\frecoveryNote\"\x9c\x06\n" +
+	"\rrecovery_note\x18\x04 \x01(\tR\frecoveryNote\"\x9c\x01\n" +
+	"\bAdvisory\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x03 \x01(\tR\n" +
+	"capability\x12\x18\n" +
+	"\asummary\x18\x04 \x01(\tR\asummary\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x12\n" +
+	"\x04hint\x18\x06 \x01(\tR\x04hint\"\xe9\x06\n" +
 	"\x0eExecutablePlan\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12#\n" +
 	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12\x1f\n" +
@@ -1348,7 +1464,10 @@ const file_scenario_to_cloud_v1_plans_plans_proto_rawDesc = "" +
 	"\rpreconditions\x18\r \x03(\v2/.vrooli.scenario_to_cloud.v1.plans.PreconditionR\rpreconditions\x12C\n" +
 	"\aactions\x18\x0e \x03(\v2).vrooli.scenario_to_cloud.v1.plans.ActionR\aactions\x12D\n" +
 	"\ahandoff\x18\x0f \x01(\v2*.vrooli.scenario_to_cloud.v1.plans.HandoffR\ahandoff\x12S\n" +
-	"\fpresentation\x18\x10 \x01(\v2/.vrooli.scenario_to_cloud.v1.plans.PresentationR\fpresentation\"\x8e\x02\n" +
+	"\fpresentation\x18\x10 \x01(\v2/.vrooli.scenario_to_cloud.v1.plans.PresentationR\fpresentation\x12K\n" +
+	"\n" +
+	"advisories\x18\x11 \x03(\v2+.vrooli.scenario_to_cloud.v1.plans.AdvisoryR\n" +
+	"advisories\"\x8e\x02\n" +
 	"\x06Change\x12\x1b\n" +
 	"\taction_id\x18\x01 \x01(\tR\bactionId\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12\x16\n" +
@@ -1368,7 +1487,7 @@ const file_scenario_to_cloud_v1_plans_plans_proto_rawDesc = "" +
 	"\x06effect\x18\x03 \x01(\tR\x06effect\"I\n" +
 	"\x10ShellPreviewLine\x12\x1b\n" +
 	"\taction_id\x18\x01 \x01(\tR\bactionId\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\"\xe8\x03\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\"\xb5\x04\n" +
 	"\aPreview\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x18\n" +
 	"\aoutcome\x18\x02 \x01(\tR\aoutcome\x12C\n" +
@@ -1377,7 +1496,10 @@ const file_scenario_to_cloud_v1_plans_plans_proto_rawDesc = "" +
 	"\bdowntime\x18\x05 \x01(\v2+.vrooli.scenario_to_cloud.v1.plans.DowntimeR\bdowntime\x12+\n" +
 	"\x11recovery_strategy\x18\x06 \x01(\tR\x10recoveryStrategy\x12D\n" +
 	"\ahandoff\x18\a \x01(\v2*.vrooli.scenario_to_cloud.v1.plans.HandoffR\ahandoff\x12X\n" +
-	"\rshell_preview\x18\b \x03(\v23.vrooli.scenario_to_cloud.v1.plans.ShellPreviewLineR\fshellPreview\"}\n" +
+	"\rshell_preview\x18\b \x03(\v23.vrooli.scenario_to_cloud.v1.plans.ShellPreviewLineR\fshellPreview\x12K\n" +
+	"\n" +
+	"advisories\x18\t \x03(\v2+.vrooli.scenario_to_cloud.v1.plans.AdvisoryR\n" +
+	"advisories\"}\n" +
 	"\x12CompilePlanRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\x12,\n" +
@@ -1419,7 +1541,7 @@ func file_scenario_to_cloud_v1_plans_plans_proto_rawDescGZIP() []byte {
 	return file_scenario_to_cloud_v1_plans_plans_proto_rawDescData
 }
 
-var file_scenario_to_cloud_v1_plans_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_scenario_to_cloud_v1_plans_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_scenario_to_cloud_v1_plans_plans_proto_goTypes = []any{
 	(*Target)(nil),              // 0: vrooli.scenario_to_cloud.v1.plans.Target
 	(*Precondition)(nil),        // 1: vrooli.scenario_to_cloud.v1.plans.Precondition
@@ -1427,19 +1549,20 @@ var file_scenario_to_cloud_v1_plans_plans_proto_goTypes = []any{
 	(*Action)(nil),              // 3: vrooli.scenario_to_cloud.v1.plans.Action
 	(*Handoff)(nil),             // 4: vrooli.scenario_to_cloud.v1.plans.Handoff
 	(*Presentation)(nil),        // 5: vrooli.scenario_to_cloud.v1.plans.Presentation
-	(*ExecutablePlan)(nil),      // 6: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
-	(*Change)(nil),              // 7: vrooli.scenario_to_cloud.v1.plans.Change
-	(*DataEffect)(nil),          // 8: vrooli.scenario_to_cloud.v1.plans.DataEffect
-	(*ShellPreviewLine)(nil),    // 9: vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
-	(*Preview)(nil),             // 10: vrooli.scenario_to_cloud.v1.plans.Preview
-	(*CompilePlanRequest)(nil),  // 11: vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
-	(*CompilePlanResponse)(nil), // 12: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
-	(*ApplyPlanRequest)(nil),    // 13: vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
-	(*ApplyPlanResponse)(nil),   // 14: vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
-	nil,                         // 15: vrooli.scenario_to_cloud.v1.plans.Action.InputsEntry
+	(*Advisory)(nil),            // 6: vrooli.scenario_to_cloud.v1.plans.Advisory
+	(*ExecutablePlan)(nil),      // 7: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
+	(*Change)(nil),              // 8: vrooli.scenario_to_cloud.v1.plans.Change
+	(*DataEffect)(nil),          // 9: vrooli.scenario_to_cloud.v1.plans.DataEffect
+	(*ShellPreviewLine)(nil),    // 10: vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
+	(*Preview)(nil),             // 11: vrooli.scenario_to_cloud.v1.plans.Preview
+	(*CompilePlanRequest)(nil),  // 12: vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
+	(*CompilePlanResponse)(nil), // 13: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
+	(*ApplyPlanRequest)(nil),    // 14: vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
+	(*ApplyPlanResponse)(nil),   // 15: vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
+	nil,                         // 16: vrooli.scenario_to_cloud.v1.plans.Action.InputsEntry
 }
 var file_scenario_to_cloud_v1_plans_plans_proto_depIdxs = []int32{
-	15, // 0: vrooli.scenario_to_cloud.v1.plans.Action.inputs:type_name -> vrooli.scenario_to_cloud.v1.plans.Action.InputsEntry
+	16, // 0: vrooli.scenario_to_cloud.v1.plans.Action.inputs:type_name -> vrooli.scenario_to_cloud.v1.plans.Action.InputsEntry
 	2,  // 1: vrooli.scenario_to_cloud.v1.plans.Action.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
 	0,  // 2: vrooli.scenario_to_cloud.v1.plans.Handoff.target:type_name -> vrooli.scenario_to_cloud.v1.plans.Target
 	0,  // 3: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.target:type_name -> vrooli.scenario_to_cloud.v1.plans.Target
@@ -1447,22 +1570,24 @@ var file_scenario_to_cloud_v1_plans_plans_proto_depIdxs = []int32{
 	3,  // 5: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.actions:type_name -> vrooli.scenario_to_cloud.v1.plans.Action
 	4,  // 6: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
 	5,  // 7: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.presentation:type_name -> vrooli.scenario_to_cloud.v1.plans.Presentation
-	7,  // 8: vrooli.scenario_to_cloud.v1.plans.Preview.changes:type_name -> vrooli.scenario_to_cloud.v1.plans.Change
-	8,  // 9: vrooli.scenario_to_cloud.v1.plans.Preview.data_effects:type_name -> vrooli.scenario_to_cloud.v1.plans.DataEffect
-	2,  // 10: vrooli.scenario_to_cloud.v1.plans.Preview.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
-	4,  // 11: vrooli.scenario_to_cloud.v1.plans.Preview.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
-	9,  // 12: vrooli.scenario_to_cloud.v1.plans.Preview.shell_preview:type_name -> vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
-	6,  // 13: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.plan:type_name -> vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
-	10, // 14: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.preview:type_name -> vrooli.scenario_to_cloud.v1.plans.Preview
-	11, // 15: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:input_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
-	13, // 16: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:input_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
-	12, // 17: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:output_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
-	14, // 18: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:output_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
-	17, // [17:19] is the sub-list for method output_type
-	15, // [15:17] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	6,  // 8: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.advisories:type_name -> vrooli.scenario_to_cloud.v1.plans.Advisory
+	8,  // 9: vrooli.scenario_to_cloud.v1.plans.Preview.changes:type_name -> vrooli.scenario_to_cloud.v1.plans.Change
+	9,  // 10: vrooli.scenario_to_cloud.v1.plans.Preview.data_effects:type_name -> vrooli.scenario_to_cloud.v1.plans.DataEffect
+	2,  // 11: vrooli.scenario_to_cloud.v1.plans.Preview.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
+	4,  // 12: vrooli.scenario_to_cloud.v1.plans.Preview.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
+	10, // 13: vrooli.scenario_to_cloud.v1.plans.Preview.shell_preview:type_name -> vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
+	6,  // 14: vrooli.scenario_to_cloud.v1.plans.Preview.advisories:type_name -> vrooli.scenario_to_cloud.v1.plans.Advisory
+	7,  // 15: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.plan:type_name -> vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
+	11, // 16: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.preview:type_name -> vrooli.scenario_to_cloud.v1.plans.Preview
+	12, // 17: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:input_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
+	14, // 18: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:input_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
+	13, // 19: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:output_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
+	15, // 20: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:output_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
+	19, // [19:21] is the sub-list for method output_type
+	17, // [17:19] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_cloud_v1_plans_plans_proto_init() }
@@ -1476,7 +1601,7 @@ func file_scenario_to_cloud_v1_plans_plans_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_cloud_v1_plans_plans_proto_rawDesc), len(file_scenario_to_cloud_v1_plans_plans_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

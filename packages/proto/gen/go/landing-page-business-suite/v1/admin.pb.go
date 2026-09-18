@@ -23,11 +23,17 @@ const (
 
 // LoginRequest authenticates an admin by email and password.
 type LoginRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Password string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	// Authenticator-app code or recovery code. Required once the administrator
+	// has enabled two-factor authentication; the first attempt may omit it and
+	// receives FAILED_PRECONDITION "mfa_required".
+	TotpCode          string `protobuf:"bytes,3,opt,name=totp_code,json=totpCode,proto3" json:"totp_code,omitempty"`
+	PasskeyAssertion  []byte `protobuf:"bytes,4,opt,name=passkey_assertion,json=passkeyAssertion,proto3" json:"passkey_assertion,omitempty"`
+	PasskeyCeremonyId string `protobuf:"bytes,5,opt,name=passkey_ceremony_id,json=passkeyCeremonyId,proto3" json:"passkey_ceremony_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *LoginRequest) Reset() {
@@ -74,6 +80,27 @@ func (x *LoginRequest) GetPassword() string {
 	return ""
 }
 
+func (x *LoginRequest) GetTotpCode() string {
+	if x != nil {
+		return x.TotpCode
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPasskeyAssertion() []byte {
+	if x != nil {
+		return x.PasskeyAssertion
+	}
+	return nil
+}
+
+func (x *LoginRequest) GetPasskeyCeremonyId() string {
+	if x != nil {
+		return x.PasskeyCeremonyId
+	}
+	return ""
+}
+
 // AdminSessionResponse reports the current admin session state. Returned by
 // Login (on success), and Session (session probe).
 type AdminSessionResponse struct {
@@ -84,7 +111,9 @@ type AdminSessionResponse struct {
 	ResetEnabled bool `protobuf:"varint,3,opt,name=reset_enabled,json=resetEnabled,proto3" json:"reset_enabled,omitempty"`
 	// Opaque server-side session identifier for trusted federation clients.
 	// Browser clients continue to use the HttpOnly cookie and must not persist it.
-	SessionId     *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	SessionId *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	// full or enrollment_only; enrollment_only sessions may only complete MFA setup.
+	Assurance     string `protobuf:"bytes,5,opt,name=assurance,proto3" json:"assurance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -143,6 +172,13 @@ func (x *AdminSessionResponse) GetResetEnabled() bool {
 func (x *AdminSessionResponse) GetSessionId() string {
 	if x != nil && x.SessionId != nil {
 		return *x.SessionId
+	}
+	return ""
+}
+
+func (x *AdminSessionResponse) GetAssurance() string {
+	if x != nil {
+		return x.Assurance
 	}
 	return ""
 }
@@ -266,6 +302,642 @@ func (*SessionRequest) Descriptor() ([]byte, []int) {
 	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{4}
 }
 
+type BeginAdminPasskeyRegistrationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginAdminPasskeyRegistrationRequest) Reset() {
+	*x = BeginAdminPasskeyRegistrationRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginAdminPasskeyRegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginAdminPasskeyRegistrationRequest) ProtoMessage() {}
+
+func (x *BeginAdminPasskeyRegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginAdminPasskeyRegistrationRequest.ProtoReflect.Descriptor instead.
+func (*BeginAdminPasskeyRegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+type BeginAdminPasskeyRegistrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OptionsJson   string                 `protobuf:"bytes,1,opt,name=options_json,json=optionsJson,proto3" json:"options_json,omitempty"`
+	CeremonyId    string                 `protobuf:"bytes,2,opt,name=ceremony_id,json=ceremonyId,proto3" json:"ceremony_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginAdminPasskeyRegistrationResponse) Reset() {
+	*x = BeginAdminPasskeyRegistrationResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginAdminPasskeyRegistrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginAdminPasskeyRegistrationResponse) ProtoMessage() {}
+
+func (x *BeginAdminPasskeyRegistrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginAdminPasskeyRegistrationResponse.ProtoReflect.Descriptor instead.
+func (*BeginAdminPasskeyRegistrationResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *BeginAdminPasskeyRegistrationResponse) GetOptionsJson() string {
+	if x != nil {
+		return x.OptionsJson
+	}
+	return ""
+}
+
+func (x *BeginAdminPasskeyRegistrationResponse) GetCeremonyId() string {
+	if x != nil {
+		return x.CeremonyId
+	}
+	return ""
+}
+
+type FinishAdminPasskeyRegistrationRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CredentialJson string                 `protobuf:"bytes,1,opt,name=credential_json,json=credentialJson,proto3" json:"credential_json,omitempty"`
+	Nickname       string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	CeremonyId     string                 `protobuf:"bytes,3,opt,name=ceremony_id,json=ceremonyId,proto3" json:"ceremony_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *FinishAdminPasskeyRegistrationRequest) Reset() {
+	*x = FinishAdminPasskeyRegistrationRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinishAdminPasskeyRegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishAdminPasskeyRegistrationRequest) ProtoMessage() {}
+
+func (x *FinishAdminPasskeyRegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishAdminPasskeyRegistrationRequest.ProtoReflect.Descriptor instead.
+func (*FinishAdminPasskeyRegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FinishAdminPasskeyRegistrationRequest) GetCredentialJson() string {
+	if x != nil {
+		return x.CredentialJson
+	}
+	return ""
+}
+
+func (x *FinishAdminPasskeyRegistrationRequest) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+func (x *FinishAdminPasskeyRegistrationRequest) GetCeremonyId() string {
+	if x != nil {
+		return x.CeremonyId
+	}
+	return ""
+}
+
+type FinishAdminPasskeyRegistrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinishAdminPasskeyRegistrationResponse) Reset() {
+	*x = FinishAdminPasskeyRegistrationResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinishAdminPasskeyRegistrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishAdminPasskeyRegistrationResponse) ProtoMessage() {}
+
+func (x *FinishAdminPasskeyRegistrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishAdminPasskeyRegistrationResponse.ProtoReflect.Descriptor instead.
+func (*FinishAdminPasskeyRegistrationResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *FinishAdminPasskeyRegistrationResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FinishAdminPasskeyRegistrationResponse) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+type ListAdminPasskeysRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminPasskeysRequest) Reset() {
+	*x = ListAdminPasskeysRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminPasskeysRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminPasskeysRequest) ProtoMessage() {}
+
+func (x *ListAdminPasskeysRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminPasskeysRequest.ProtoReflect.Descriptor instead.
+func (*ListAdminPasskeysRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+type AdminPasskey struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt    string                 `protobuf:"bytes,4,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	BackupState   string                 `protobuf:"bytes,5,opt,name=backup_state,json=backupState,proto3" json:"backup_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminPasskey) Reset() {
+	*x = AdminPasskey{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminPasskey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminPasskey) ProtoMessage() {}
+
+func (x *AdminPasskey) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminPasskey.ProtoReflect.Descriptor instead.
+func (*AdminPasskey) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AdminPasskey) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AdminPasskey) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+func (x *AdminPasskey) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *AdminPasskey) GetLastUsedAt() string {
+	if x != nil {
+		return x.LastUsedAt
+	}
+	return ""
+}
+
+func (x *AdminPasskey) GetBackupState() string {
+	if x != nil {
+		return x.BackupState
+	}
+	return ""
+}
+
+type ListAdminPasskeysResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Passkeys      []*AdminPasskey        `protobuf:"bytes,1,rep,name=passkeys,proto3" json:"passkeys,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminPasskeysResponse) Reset() {
+	*x = ListAdminPasskeysResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminPasskeysResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminPasskeysResponse) ProtoMessage() {}
+
+func (x *ListAdminPasskeysResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminPasskeysResponse.ProtoReflect.Descriptor instead.
+func (*ListAdminPasskeysResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListAdminPasskeysResponse) GetPasskeys() []*AdminPasskey {
+	if x != nil {
+		return x.Passkeys
+	}
+	return nil
+}
+
+type RenameAdminPasskeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameAdminPasskeyRequest) Reset() {
+	*x = RenameAdminPasskeyRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameAdminPasskeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameAdminPasskeyRequest) ProtoMessage() {}
+
+func (x *RenameAdminPasskeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameAdminPasskeyRequest.ProtoReflect.Descriptor instead.
+func (*RenameAdminPasskeyRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RenameAdminPasskeyRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RenameAdminPasskeyRequest) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+type RenameAdminPasskeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Passkey       *AdminPasskey          `protobuf:"bytes,1,opt,name=passkey,proto3" json:"passkey,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameAdminPasskeyResponse) Reset() {
+	*x = RenameAdminPasskeyResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameAdminPasskeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameAdminPasskeyResponse) ProtoMessage() {}
+
+func (x *RenameAdminPasskeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameAdminPasskeyResponse.ProtoReflect.Descriptor instead.
+func (*RenameAdminPasskeyResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RenameAdminPasskeyResponse) GetPasskey() *AdminPasskey {
+	if x != nil {
+		return x.Passkey
+	}
+	return nil
+}
+
+type RevokeAdminPasskeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeAdminPasskeyRequest) Reset() {
+	*x = RevokeAdminPasskeyRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeAdminPasskeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeAdminPasskeyRequest) ProtoMessage() {}
+
+func (x *RevokeAdminPasskeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeAdminPasskeyRequest.ProtoReflect.Descriptor instead.
+func (*RevokeAdminPasskeyRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RevokeAdminPasskeyRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RevokeAdminPasskeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Revoked       bool                   `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeAdminPasskeyResponse) Reset() {
+	*x = RevokeAdminPasskeyResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeAdminPasskeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeAdminPasskeyResponse) ProtoMessage() {}
+
+func (x *RevokeAdminPasskeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeAdminPasskeyResponse.ProtoReflect.Descriptor instead.
+func (*RevokeAdminPasskeyResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RevokeAdminPasskeyResponse) GetRevoked() bool {
+	if x != nil {
+		return x.Revoked
+	}
+	return false
+}
+
+type BeginAdminSecondFactorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginAdminSecondFactorRequest) Reset() {
+	*x = BeginAdminSecondFactorRequest{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginAdminSecondFactorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginAdminSecondFactorRequest) ProtoMessage() {}
+
+func (x *BeginAdminSecondFactorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginAdminSecondFactorRequest.ProtoReflect.Descriptor instead.
+func (*BeginAdminSecondFactorRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BeginAdminSecondFactorRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+type BeginAdminSecondFactorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OptionsJson   string                 `protobuf:"bytes,1,opt,name=options_json,json=optionsJson,proto3" json:"options_json,omitempty"`
+	CeremonyId    string                 `protobuf:"bytes,2,opt,name=ceremony_id,json=ceremonyId,proto3" json:"ceremony_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginAdminSecondFactorResponse) Reset() {
+	*x = BeginAdminSecondFactorResponse{}
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginAdminSecondFactorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginAdminSecondFactorResponse) ProtoMessage() {}
+
+func (x *BeginAdminSecondFactorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginAdminSecondFactorResponse.ProtoReflect.Descriptor instead.
+func (*BeginAdminSecondFactorResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BeginAdminSecondFactorResponse) GetOptionsJson() string {
+	if x != nil {
+		return x.OptionsJson
+	}
+	return ""
+}
+
+func (x *BeginAdminSecondFactorResponse) GetCeremonyId() string {
+	if x != nil {
+		return x.CeremonyId
+	}
+	return ""
+}
+
 // ResetDemoDataRequest triggers a demo-data reset (admin, env-gated).
 type ResetDemoDataRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -275,7 +947,7 @@ type ResetDemoDataRequest struct {
 
 func (x *ResetDemoDataRequest) Reset() {
 	*x = ResetDemoDataRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[5]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -287,7 +959,7 @@ func (x *ResetDemoDataRequest) String() string {
 func (*ResetDemoDataRequest) ProtoMessage() {}
 
 func (x *ResetDemoDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[5]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -300,7 +972,7 @@ func (x *ResetDemoDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetDemoDataRequest.ProtoReflect.Descriptor instead.
 func (*ResetDemoDataRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{5}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{18}
 }
 
 // ResetDemoDataResponse reports the reset outcome.
@@ -315,7 +987,7 @@ type ResetDemoDataResponse struct {
 
 func (x *ResetDemoDataResponse) Reset() {
 	*x = ResetDemoDataResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[6]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +999,7 @@ func (x *ResetDemoDataResponse) String() string {
 func (*ResetDemoDataResponse) ProtoMessage() {}
 
 func (x *ResetDemoDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[6]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +1012,7 @@ func (x *ResetDemoDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetDemoDataResponse.ProtoReflect.Descriptor instead.
 func (*ResetDemoDataResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{6}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ResetDemoDataResponse) GetReset_() bool {
@@ -370,7 +1042,7 @@ type AdminProfile struct {
 
 func (x *AdminProfile) Reset() {
 	*x = AdminProfile{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[7]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +1054,7 @@ func (x *AdminProfile) String() string {
 func (*AdminProfile) ProtoMessage() {}
 
 func (x *AdminProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[7]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +1067,7 @@ func (x *AdminProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminProfile.ProtoReflect.Descriptor instead.
 func (*AdminProfile) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{7}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AdminProfile) GetEmail() string {
@@ -427,7 +1099,7 @@ type GetAdminProfileRequest struct {
 
 func (x *GetAdminProfileRequest) Reset() {
 	*x = GetAdminProfileRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[8]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +1111,7 @@ func (x *GetAdminProfileRequest) String() string {
 func (*GetAdminProfileRequest) ProtoMessage() {}
 
 func (x *GetAdminProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[8]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +1124,7 @@ func (x *GetAdminProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAdminProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetAdminProfileRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{21}
 }
 
 type GetAdminProfileResponse struct {
@@ -464,7 +1136,7 @@ type GetAdminProfileResponse struct {
 
 func (x *GetAdminProfileResponse) Reset() {
 	*x = GetAdminProfileResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[9]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +1148,7 @@ func (x *GetAdminProfileResponse) String() string {
 func (*GetAdminProfileResponse) ProtoMessage() {}
 
 func (x *GetAdminProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[9]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +1161,7 @@ func (x *GetAdminProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAdminProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetAdminProfileResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetAdminProfileResponse) GetProfile() *AdminProfile {
@@ -512,7 +1184,7 @@ type UpdateAdminProfileRequest struct {
 
 func (x *UpdateAdminProfileRequest) Reset() {
 	*x = UpdateAdminProfileRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[10]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +1196,7 @@ func (x *UpdateAdminProfileRequest) String() string {
 func (*UpdateAdminProfileRequest) ProtoMessage() {}
 
 func (x *UpdateAdminProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[10]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +1209,7 @@ func (x *UpdateAdminProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAdminProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAdminProfileRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{10}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateAdminProfileRequest) GetCurrentPassword() string {
@@ -570,7 +1242,7 @@ type UpdateAdminProfileResponse struct {
 
 func (x *UpdateAdminProfileResponse) Reset() {
 	*x = UpdateAdminProfileResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[11]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -582,7 +1254,7 @@ func (x *UpdateAdminProfileResponse) String() string {
 func (*UpdateAdminProfileResponse) ProtoMessage() {}
 
 func (x *UpdateAdminProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[11]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,7 +1267,7 @@ func (x *UpdateAdminProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAdminProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAdminProfileResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{11}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *UpdateAdminProfileResponse) GetProfile() *AdminProfile {
@@ -622,7 +1294,7 @@ type APIKey struct {
 
 func (x *APIKey) Reset() {
 	*x = APIKey{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[12]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +1306,7 @@ func (x *APIKey) String() string {
 func (*APIKey) ProtoMessage() {}
 
 func (x *APIKey) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[12]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +1319,7 @@ func (x *APIKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use APIKey.ProtoReflect.Descriptor instead.
 func (*APIKey) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{12}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *APIKey) GetId() string {
@@ -707,7 +1379,7 @@ type ListAPIKeysRequest struct {
 
 func (x *ListAPIKeysRequest) Reset() {
 	*x = ListAPIKeysRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[13]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +1391,7 @@ func (x *ListAPIKeysRequest) String() string {
 func (*ListAPIKeysRequest) ProtoMessage() {}
 
 func (x *ListAPIKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[13]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +1404,7 @@ func (x *ListAPIKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAPIKeysRequest.ProtoReflect.Descriptor instead.
 func (*ListAPIKeysRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{13}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{26}
 }
 
 type ListAPIKeysResponse struct {
@@ -744,7 +1416,7 @@ type ListAPIKeysResponse struct {
 
 func (x *ListAPIKeysResponse) Reset() {
 	*x = ListAPIKeysResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[14]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +1428,7 @@ func (x *ListAPIKeysResponse) String() string {
 func (*ListAPIKeysResponse) ProtoMessage() {}
 
 func (x *ListAPIKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[14]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +1441,7 @@ func (x *ListAPIKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAPIKeysResponse.ProtoReflect.Descriptor instead.
 func (*ListAPIKeysResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{14}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListAPIKeysResponse) GetKeys() []*APIKey {
@@ -791,7 +1463,7 @@ type CreateAPIKeyRequest struct {
 
 func (x *CreateAPIKeyRequest) Reset() {
 	*x = CreateAPIKeyRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[15]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -803,7 +1475,7 @@ func (x *CreateAPIKeyRequest) String() string {
 func (*CreateAPIKeyRequest) ProtoMessage() {}
 
 func (x *CreateAPIKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[15]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -816,7 +1488,7 @@ func (x *CreateAPIKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAPIKeyRequest.ProtoReflect.Descriptor instead.
 func (*CreateAPIKeyRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{15}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CreateAPIKeyRequest) GetProvider() string {
@@ -842,7 +1514,7 @@ type CreateAPIKeyResponse struct {
 
 func (x *CreateAPIKeyResponse) Reset() {
 	*x = CreateAPIKeyResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[16]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1526,7 @@ func (x *CreateAPIKeyResponse) String() string {
 func (*CreateAPIKeyResponse) ProtoMessage() {}
 
 func (x *CreateAPIKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[16]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1539,7 @@ func (x *CreateAPIKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAPIKeyResponse.ProtoReflect.Descriptor instead.
 func (*CreateAPIKeyResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{16}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CreateAPIKeyResponse) GetKey() *APIKey {
@@ -886,7 +1558,7 @@ type DeleteAPIKeyRequest struct {
 
 func (x *DeleteAPIKeyRequest) Reset() {
 	*x = DeleteAPIKeyRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[17]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -898,7 +1570,7 @@ func (x *DeleteAPIKeyRequest) String() string {
 func (*DeleteAPIKeyRequest) ProtoMessage() {}
 
 func (x *DeleteAPIKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[17]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -911,7 +1583,7 @@ func (x *DeleteAPIKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAPIKeyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAPIKeyRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{17}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DeleteAPIKeyRequest) GetProvider() string {
@@ -929,7 +1601,7 @@ type DeleteAPIKeyResponse struct {
 
 func (x *DeleteAPIKeyResponse) Reset() {
 	*x = DeleteAPIKeyResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[18]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1613,7 @@ func (x *DeleteAPIKeyResponse) String() string {
 func (*DeleteAPIKeyResponse) ProtoMessage() {}
 
 func (x *DeleteAPIKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[18]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1626,7 @@ func (x *DeleteAPIKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAPIKeyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAPIKeyResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{18}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{31}
 }
 
 type TestAPIKeyRequest struct {
@@ -966,7 +1638,7 @@ type TestAPIKeyRequest struct {
 
 func (x *TestAPIKeyRequest) Reset() {
 	*x = TestAPIKeyRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[19]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1650,7 @@ func (x *TestAPIKeyRequest) String() string {
 func (*TestAPIKeyRequest) ProtoMessage() {}
 
 func (x *TestAPIKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[19]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1663,7 @@ func (x *TestAPIKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestAPIKeyRequest.ProtoReflect.Descriptor instead.
 func (*TestAPIKeyRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{19}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TestAPIKeyRequest) GetProvider() string {
@@ -1012,7 +1684,7 @@ type TestAPIKeyResponse struct {
 
 func (x *TestAPIKeyResponse) Reset() {
 	*x = TestAPIKeyResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[20]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1696,7 @@ func (x *TestAPIKeyResponse) String() string {
 func (*TestAPIKeyResponse) ProtoMessage() {}
 
 func (x *TestAPIKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[20]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1709,7 @@ func (x *TestAPIKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestAPIKeyResponse.ProtoReflect.Descriptor instead.
 func (*TestAPIKeyResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{20}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TestAPIKeyResponse) GetSuccess() bool {
@@ -1071,7 +1743,7 @@ type SetAPIKeyActiveRequest struct {
 
 func (x *SetAPIKeyActiveRequest) Reset() {
 	*x = SetAPIKeyActiveRequest{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[21]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1083,7 +1755,7 @@ func (x *SetAPIKeyActiveRequest) String() string {
 func (*SetAPIKeyActiveRequest) ProtoMessage() {}
 
 func (x *SetAPIKeyActiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[21]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1768,7 @@ func (x *SetAPIKeyActiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAPIKeyActiveRequest.ProtoReflect.Descriptor instead.
 func (*SetAPIKeyActiveRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{21}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SetAPIKeyActiveRequest) GetProvider() string {
@@ -1121,7 +1793,7 @@ type SetAPIKeyActiveResponse struct {
 
 func (x *SetAPIKeyActiveResponse) Reset() {
 	*x = SetAPIKeyActiveResponse{}
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[22]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1133,7 +1805,7 @@ func (x *SetAPIKeyActiveResponse) String() string {
 func (*SetAPIKeyActiveResponse) ProtoMessage() {}
 
 func (x *SetAPIKeyActiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[22]
+	mi := &file_landing_page_business_suite_v1_admin_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1146,28 +1818,71 @@ func (x *SetAPIKeyActiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAPIKeyActiveResponse.ProtoReflect.Descriptor instead.
 func (*SetAPIKeyActiveResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{22}
+	return file_landing_page_business_suite_v1_admin_proto_rawDescGZIP(), []int{35}
 }
 
 var File_landing_page_business_suite_v1_admin_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"*landing-page-business-suite/v1/admin.proto\x12\x1elanding_page_business_suite.v1\"@\n" +
+	"*landing-page-business-suite/v1/admin.proto\x12\x1elanding_page_business_suite.v1\x1a5landing-page-business-suite/v1/account_security.proto\"\xba\x01\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"\xaa\x01\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1b\n" +
+	"\ttotp_code\x18\x03 \x01(\tR\btotpCode\x12+\n" +
+	"\x11passkey_assertion\x18\x04 \x01(\fR\x10passkeyAssertion\x12.\n" +
+	"\x13passkey_ceremony_id\x18\x05 \x01(\tR\x11passkeyCeremonyId\"\xc8\x01\n" +
 	"\x14AdminSessionResponse\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12$\n" +
 	"\rauthenticated\x18\x02 \x01(\bR\rauthenticated\x12#\n" +
 	"\rreset_enabled\x18\x03 \x01(\bR\fresetEnabled\x12\"\n" +
 	"\n" +
-	"session_id\x18\x04 \x01(\tH\x00R\tsessionId\x88\x01\x01B\r\n" +
+	"session_id\x18\x04 \x01(\tH\x00R\tsessionId\x88\x01\x01\x12\x1c\n" +
+	"\tassurance\x18\x05 \x01(\tR\tassuranceB\r\n" +
 	"\v_session_id\"\x0f\n" +
 	"\rLogoutRequest\"*\n" +
 	"\x0eLogoutResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x10\n" +
-	"\x0eSessionRequest\"\x16\n" +
+	"\x0eSessionRequest\"&\n" +
+	"$BeginAdminPasskeyRegistrationRequest\"k\n" +
+	"%BeginAdminPasskeyRegistrationResponse\x12!\n" +
+	"\foptions_json\x18\x01 \x01(\tR\voptionsJson\x12\x1f\n" +
+	"\vceremony_id\x18\x02 \x01(\tR\n" +
+	"ceremonyId\"\x8d\x01\n" +
+	"%FinishAdminPasskeyRegistrationRequest\x12'\n" +
+	"\x0fcredential_json\x18\x01 \x01(\tR\x0ecredentialJson\x12\x1a\n" +
+	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x1f\n" +
+	"\vceremony_id\x18\x03 \x01(\tR\n" +
+	"ceremonyId\"T\n" +
+	"&FinishAdminPasskeyRegistrationResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bnickname\x18\x02 \x01(\tR\bnickname\"\x1a\n" +
+	"\x18ListAdminPasskeysRequest\"\x9e\x01\n" +
+	"\fAdminPasskey\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\tR\tcreatedAt\x12 \n" +
+	"\flast_used_at\x18\x04 \x01(\tR\n" +
+	"lastUsedAt\x12!\n" +
+	"\fbackup_state\x18\x05 \x01(\tR\vbackupState\"e\n" +
+	"\x19ListAdminPasskeysResponse\x12H\n" +
+	"\bpasskeys\x18\x01 \x03(\v2,.landing_page_business_suite.v1.AdminPasskeyR\bpasskeys\"G\n" +
+	"\x19RenameAdminPasskeyRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bnickname\x18\x02 \x01(\tR\bnickname\"d\n" +
+	"\x1aRenameAdminPasskeyResponse\x12F\n" +
+	"\apasskey\x18\x01 \x01(\v2,.landing_page_business_suite.v1.AdminPasskeyR\apasskey\"+\n" +
+	"\x19RevokeAdminPasskeyRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"6\n" +
+	"\x1aRevokeAdminPasskeyResponse\x12\x18\n" +
+	"\arevoked\x18\x01 \x01(\bR\arevoked\"5\n" +
+	"\x1dBeginAdminSecondFactorRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\"d\n" +
+	"\x1eBeginAdminSecondFactorResponse\x12!\n" +
+	"\foptions_json\x18\x01 \x01(\tR\voptionsJson\x12\x1f\n" +
+	"\vceremony_id\x18\x02 \x01(\tR\n" +
+	"ceremonyId\"\x16\n" +
 	"\x14ResetDemoDataRequest\"K\n" +
 	"\x15ResetDemoDataResponse\x12\x14\n" +
 	"\x05reset\x18\x01 \x01(\bR\x05reset\x12\x1c\n" +
@@ -1215,11 +1930,19 @@ const file_landing_page_business_suite_v1_admin_proto_rawDesc = "" +
 	"\x16SetAPIKeyActiveRequest\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x16\n" +
 	"\x06active\x18\x02 \x01(\bR\x06active\"\x19\n" +
-	"\x17SetAPIKeyActiveResponse2\xd9\x02\n" +
+	"\x17SetAPIKeyActiveResponse2\xda\x03\n" +
 	"\x10AdminAuthService\x12k\n" +
 	"\x05Login\x12,.landing_page_business_suite.v1.LoginRequest\x1a4.landing_page_business_suite.v1.AdminSessionResponse\x12g\n" +
 	"\x06Logout\x12-.landing_page_business_suite.v1.LogoutRequest\x1a..landing_page_business_suite.v1.LogoutResponse\x12o\n" +
-	"\aSession\x12..landing_page_business_suite.v1.SessionRequest\x1a4.landing_page_business_suite.v1.AdminSessionResponse2\x91\x01\n" +
+	"\aSession\x12..landing_page_business_suite.v1.SessionRequest\x1a4.landing_page_business_suite.v1.AdminSessionResponse\x12\x7f\n" +
+	"\x0eReauthenticate\x125.landing_page_business_suite.v1.ReauthenticateRequest\x1a6.landing_page_business_suite.v1.ReauthenticateResponse2\x8b\a\n" +
+	"\x13AdminPasskeyService\x12\xa0\x01\n" +
+	"\x11BeginRegistration\x12D.landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest\x1aE.landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse\x12\xa3\x01\n" +
+	"\x12FinishRegistration\x12E.landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest\x1aF.landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse\x12\x83\x01\n" +
+	"\fListPasskeys\x128.landing_page_business_suite.v1.ListAdminPasskeysRequest\x1a9.landing_page_business_suite.v1.ListAdminPasskeysResponse\x12\x86\x01\n" +
+	"\rRenamePasskey\x129.landing_page_business_suite.v1.RenameAdminPasskeyRequest\x1a:.landing_page_business_suite.v1.RenameAdminPasskeyResponse\x12\x86\x01\n" +
+	"\rRevokePasskey\x129.landing_page_business_suite.v1.RevokeAdminPasskeyRequest\x1a:.landing_page_business_suite.v1.RevokeAdminPasskeyResponse\x12\x92\x01\n" +
+	"\x11BeginSecondFactor\x12=.landing_page_business_suite.v1.BeginAdminSecondFactorRequest\x1a>.landing_page_business_suite.v1.BeginAdminSecondFactorResponse2\x91\x01\n" +
 	"\x11AdminResetService\x12|\n" +
 	"\rResetDemoData\x124.landing_page_business_suite.v1.ResetDemoDataRequest\x1a5.landing_page_business_suite.v1.ResetDemoDataResponse2\xa8\x02\n" +
 	"\x13AdminProfileService\x12\x82\x01\n" +
@@ -1245,64 +1968,95 @@ func file_landing_page_business_suite_v1_admin_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_admin_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_landing_page_business_suite_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_landing_page_business_suite_v1_admin_proto_goTypes = []any{
-	(*LoginRequest)(nil),               // 0: landing_page_business_suite.v1.LoginRequest
-	(*AdminSessionResponse)(nil),       // 1: landing_page_business_suite.v1.AdminSessionResponse
-	(*LogoutRequest)(nil),              // 2: landing_page_business_suite.v1.LogoutRequest
-	(*LogoutResponse)(nil),             // 3: landing_page_business_suite.v1.LogoutResponse
-	(*SessionRequest)(nil),             // 4: landing_page_business_suite.v1.SessionRequest
-	(*ResetDemoDataRequest)(nil),       // 5: landing_page_business_suite.v1.ResetDemoDataRequest
-	(*ResetDemoDataResponse)(nil),      // 6: landing_page_business_suite.v1.ResetDemoDataResponse
-	(*AdminProfile)(nil),               // 7: landing_page_business_suite.v1.AdminProfile
-	(*GetAdminProfileRequest)(nil),     // 8: landing_page_business_suite.v1.GetAdminProfileRequest
-	(*GetAdminProfileResponse)(nil),    // 9: landing_page_business_suite.v1.GetAdminProfileResponse
-	(*UpdateAdminProfileRequest)(nil),  // 10: landing_page_business_suite.v1.UpdateAdminProfileRequest
-	(*UpdateAdminProfileResponse)(nil), // 11: landing_page_business_suite.v1.UpdateAdminProfileResponse
-	(*APIKey)(nil),                     // 12: landing_page_business_suite.v1.APIKey
-	(*ListAPIKeysRequest)(nil),         // 13: landing_page_business_suite.v1.ListAPIKeysRequest
-	(*ListAPIKeysResponse)(nil),        // 14: landing_page_business_suite.v1.ListAPIKeysResponse
-	(*CreateAPIKeyRequest)(nil),        // 15: landing_page_business_suite.v1.CreateAPIKeyRequest
-	(*CreateAPIKeyResponse)(nil),       // 16: landing_page_business_suite.v1.CreateAPIKeyResponse
-	(*DeleteAPIKeyRequest)(nil),        // 17: landing_page_business_suite.v1.DeleteAPIKeyRequest
-	(*DeleteAPIKeyResponse)(nil),       // 18: landing_page_business_suite.v1.DeleteAPIKeyResponse
-	(*TestAPIKeyRequest)(nil),          // 19: landing_page_business_suite.v1.TestAPIKeyRequest
-	(*TestAPIKeyResponse)(nil),         // 20: landing_page_business_suite.v1.TestAPIKeyResponse
-	(*SetAPIKeyActiveRequest)(nil),     // 21: landing_page_business_suite.v1.SetAPIKeyActiveRequest
-	(*SetAPIKeyActiveResponse)(nil),    // 22: landing_page_business_suite.v1.SetAPIKeyActiveResponse
+	(*LoginRequest)(nil),                           // 0: landing_page_business_suite.v1.LoginRequest
+	(*AdminSessionResponse)(nil),                   // 1: landing_page_business_suite.v1.AdminSessionResponse
+	(*LogoutRequest)(nil),                          // 2: landing_page_business_suite.v1.LogoutRequest
+	(*LogoutResponse)(nil),                         // 3: landing_page_business_suite.v1.LogoutResponse
+	(*SessionRequest)(nil),                         // 4: landing_page_business_suite.v1.SessionRequest
+	(*BeginAdminPasskeyRegistrationRequest)(nil),   // 5: landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest
+	(*BeginAdminPasskeyRegistrationResponse)(nil),  // 6: landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse
+	(*FinishAdminPasskeyRegistrationRequest)(nil),  // 7: landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest
+	(*FinishAdminPasskeyRegistrationResponse)(nil), // 8: landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse
+	(*ListAdminPasskeysRequest)(nil),               // 9: landing_page_business_suite.v1.ListAdminPasskeysRequest
+	(*AdminPasskey)(nil),                           // 10: landing_page_business_suite.v1.AdminPasskey
+	(*ListAdminPasskeysResponse)(nil),              // 11: landing_page_business_suite.v1.ListAdminPasskeysResponse
+	(*RenameAdminPasskeyRequest)(nil),              // 12: landing_page_business_suite.v1.RenameAdminPasskeyRequest
+	(*RenameAdminPasskeyResponse)(nil),             // 13: landing_page_business_suite.v1.RenameAdminPasskeyResponse
+	(*RevokeAdminPasskeyRequest)(nil),              // 14: landing_page_business_suite.v1.RevokeAdminPasskeyRequest
+	(*RevokeAdminPasskeyResponse)(nil),             // 15: landing_page_business_suite.v1.RevokeAdminPasskeyResponse
+	(*BeginAdminSecondFactorRequest)(nil),          // 16: landing_page_business_suite.v1.BeginAdminSecondFactorRequest
+	(*BeginAdminSecondFactorResponse)(nil),         // 17: landing_page_business_suite.v1.BeginAdminSecondFactorResponse
+	(*ResetDemoDataRequest)(nil),                   // 18: landing_page_business_suite.v1.ResetDemoDataRequest
+	(*ResetDemoDataResponse)(nil),                  // 19: landing_page_business_suite.v1.ResetDemoDataResponse
+	(*AdminProfile)(nil),                           // 20: landing_page_business_suite.v1.AdminProfile
+	(*GetAdminProfileRequest)(nil),                 // 21: landing_page_business_suite.v1.GetAdminProfileRequest
+	(*GetAdminProfileResponse)(nil),                // 22: landing_page_business_suite.v1.GetAdminProfileResponse
+	(*UpdateAdminProfileRequest)(nil),              // 23: landing_page_business_suite.v1.UpdateAdminProfileRequest
+	(*UpdateAdminProfileResponse)(nil),             // 24: landing_page_business_suite.v1.UpdateAdminProfileResponse
+	(*APIKey)(nil),                                 // 25: landing_page_business_suite.v1.APIKey
+	(*ListAPIKeysRequest)(nil),                     // 26: landing_page_business_suite.v1.ListAPIKeysRequest
+	(*ListAPIKeysResponse)(nil),                    // 27: landing_page_business_suite.v1.ListAPIKeysResponse
+	(*CreateAPIKeyRequest)(nil),                    // 28: landing_page_business_suite.v1.CreateAPIKeyRequest
+	(*CreateAPIKeyResponse)(nil),                   // 29: landing_page_business_suite.v1.CreateAPIKeyResponse
+	(*DeleteAPIKeyRequest)(nil),                    // 30: landing_page_business_suite.v1.DeleteAPIKeyRequest
+	(*DeleteAPIKeyResponse)(nil),                   // 31: landing_page_business_suite.v1.DeleteAPIKeyResponse
+	(*TestAPIKeyRequest)(nil),                      // 32: landing_page_business_suite.v1.TestAPIKeyRequest
+	(*TestAPIKeyResponse)(nil),                     // 33: landing_page_business_suite.v1.TestAPIKeyResponse
+	(*SetAPIKeyActiveRequest)(nil),                 // 34: landing_page_business_suite.v1.SetAPIKeyActiveRequest
+	(*SetAPIKeyActiveResponse)(nil),                // 35: landing_page_business_suite.v1.SetAPIKeyActiveResponse
+	(*ReauthenticateRequest)(nil),                  // 36: landing_page_business_suite.v1.ReauthenticateRequest
+	(*ReauthenticateResponse)(nil),                 // 37: landing_page_business_suite.v1.ReauthenticateResponse
 }
 var file_landing_page_business_suite_v1_admin_proto_depIdxs = []int32{
-	7,  // 0: landing_page_business_suite.v1.GetAdminProfileResponse.profile:type_name -> landing_page_business_suite.v1.AdminProfile
-	7,  // 1: landing_page_business_suite.v1.UpdateAdminProfileResponse.profile:type_name -> landing_page_business_suite.v1.AdminProfile
-	12, // 2: landing_page_business_suite.v1.ListAPIKeysResponse.keys:type_name -> landing_page_business_suite.v1.APIKey
-	12, // 3: landing_page_business_suite.v1.CreateAPIKeyResponse.key:type_name -> landing_page_business_suite.v1.APIKey
-	0,  // 4: landing_page_business_suite.v1.AdminAuthService.Login:input_type -> landing_page_business_suite.v1.LoginRequest
-	2,  // 5: landing_page_business_suite.v1.AdminAuthService.Logout:input_type -> landing_page_business_suite.v1.LogoutRequest
-	4,  // 6: landing_page_business_suite.v1.AdminAuthService.Session:input_type -> landing_page_business_suite.v1.SessionRequest
-	5,  // 7: landing_page_business_suite.v1.AdminResetService.ResetDemoData:input_type -> landing_page_business_suite.v1.ResetDemoDataRequest
-	8,  // 8: landing_page_business_suite.v1.AdminProfileService.GetAdminProfile:input_type -> landing_page_business_suite.v1.GetAdminProfileRequest
-	10, // 9: landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile:input_type -> landing_page_business_suite.v1.UpdateAdminProfileRequest
-	13, // 10: landing_page_business_suite.v1.AdministrationService.ListAPIKeys:input_type -> landing_page_business_suite.v1.ListAPIKeysRequest
-	15, // 11: landing_page_business_suite.v1.AdministrationService.CreateAPIKey:input_type -> landing_page_business_suite.v1.CreateAPIKeyRequest
-	17, // 12: landing_page_business_suite.v1.AdministrationService.DeleteAPIKey:input_type -> landing_page_business_suite.v1.DeleteAPIKeyRequest
-	19, // 13: landing_page_business_suite.v1.AdministrationService.TestAPIKey:input_type -> landing_page_business_suite.v1.TestAPIKeyRequest
-	21, // 14: landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive:input_type -> landing_page_business_suite.v1.SetAPIKeyActiveRequest
-	1,  // 15: landing_page_business_suite.v1.AdminAuthService.Login:output_type -> landing_page_business_suite.v1.AdminSessionResponse
-	3,  // 16: landing_page_business_suite.v1.AdminAuthService.Logout:output_type -> landing_page_business_suite.v1.LogoutResponse
-	1,  // 17: landing_page_business_suite.v1.AdminAuthService.Session:output_type -> landing_page_business_suite.v1.AdminSessionResponse
-	6,  // 18: landing_page_business_suite.v1.AdminResetService.ResetDemoData:output_type -> landing_page_business_suite.v1.ResetDemoDataResponse
-	9,  // 19: landing_page_business_suite.v1.AdminProfileService.GetAdminProfile:output_type -> landing_page_business_suite.v1.GetAdminProfileResponse
-	11, // 20: landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile:output_type -> landing_page_business_suite.v1.UpdateAdminProfileResponse
-	14, // 21: landing_page_business_suite.v1.AdministrationService.ListAPIKeys:output_type -> landing_page_business_suite.v1.ListAPIKeysResponse
-	16, // 22: landing_page_business_suite.v1.AdministrationService.CreateAPIKey:output_type -> landing_page_business_suite.v1.CreateAPIKeyResponse
-	18, // 23: landing_page_business_suite.v1.AdministrationService.DeleteAPIKey:output_type -> landing_page_business_suite.v1.DeleteAPIKeyResponse
-	20, // 24: landing_page_business_suite.v1.AdministrationService.TestAPIKey:output_type -> landing_page_business_suite.v1.TestAPIKeyResponse
-	22, // 25: landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive:output_type -> landing_page_business_suite.v1.SetAPIKeyActiveResponse
-	15, // [15:26] is the sub-list for method output_type
-	4,  // [4:15] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	10, // 0: landing_page_business_suite.v1.ListAdminPasskeysResponse.passkeys:type_name -> landing_page_business_suite.v1.AdminPasskey
+	10, // 1: landing_page_business_suite.v1.RenameAdminPasskeyResponse.passkey:type_name -> landing_page_business_suite.v1.AdminPasskey
+	20, // 2: landing_page_business_suite.v1.GetAdminProfileResponse.profile:type_name -> landing_page_business_suite.v1.AdminProfile
+	20, // 3: landing_page_business_suite.v1.UpdateAdminProfileResponse.profile:type_name -> landing_page_business_suite.v1.AdminProfile
+	25, // 4: landing_page_business_suite.v1.ListAPIKeysResponse.keys:type_name -> landing_page_business_suite.v1.APIKey
+	25, // 5: landing_page_business_suite.v1.CreateAPIKeyResponse.key:type_name -> landing_page_business_suite.v1.APIKey
+	0,  // 6: landing_page_business_suite.v1.AdminAuthService.Login:input_type -> landing_page_business_suite.v1.LoginRequest
+	2,  // 7: landing_page_business_suite.v1.AdminAuthService.Logout:input_type -> landing_page_business_suite.v1.LogoutRequest
+	4,  // 8: landing_page_business_suite.v1.AdminAuthService.Session:input_type -> landing_page_business_suite.v1.SessionRequest
+	36, // 9: landing_page_business_suite.v1.AdminAuthService.Reauthenticate:input_type -> landing_page_business_suite.v1.ReauthenticateRequest
+	5,  // 10: landing_page_business_suite.v1.AdminPasskeyService.BeginRegistration:input_type -> landing_page_business_suite.v1.BeginAdminPasskeyRegistrationRequest
+	7,  // 11: landing_page_business_suite.v1.AdminPasskeyService.FinishRegistration:input_type -> landing_page_business_suite.v1.FinishAdminPasskeyRegistrationRequest
+	9,  // 12: landing_page_business_suite.v1.AdminPasskeyService.ListPasskeys:input_type -> landing_page_business_suite.v1.ListAdminPasskeysRequest
+	12, // 13: landing_page_business_suite.v1.AdminPasskeyService.RenamePasskey:input_type -> landing_page_business_suite.v1.RenameAdminPasskeyRequest
+	14, // 14: landing_page_business_suite.v1.AdminPasskeyService.RevokePasskey:input_type -> landing_page_business_suite.v1.RevokeAdminPasskeyRequest
+	16, // 15: landing_page_business_suite.v1.AdminPasskeyService.BeginSecondFactor:input_type -> landing_page_business_suite.v1.BeginAdminSecondFactorRequest
+	18, // 16: landing_page_business_suite.v1.AdminResetService.ResetDemoData:input_type -> landing_page_business_suite.v1.ResetDemoDataRequest
+	21, // 17: landing_page_business_suite.v1.AdminProfileService.GetAdminProfile:input_type -> landing_page_business_suite.v1.GetAdminProfileRequest
+	23, // 18: landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile:input_type -> landing_page_business_suite.v1.UpdateAdminProfileRequest
+	26, // 19: landing_page_business_suite.v1.AdministrationService.ListAPIKeys:input_type -> landing_page_business_suite.v1.ListAPIKeysRequest
+	28, // 20: landing_page_business_suite.v1.AdministrationService.CreateAPIKey:input_type -> landing_page_business_suite.v1.CreateAPIKeyRequest
+	30, // 21: landing_page_business_suite.v1.AdministrationService.DeleteAPIKey:input_type -> landing_page_business_suite.v1.DeleteAPIKeyRequest
+	32, // 22: landing_page_business_suite.v1.AdministrationService.TestAPIKey:input_type -> landing_page_business_suite.v1.TestAPIKeyRequest
+	34, // 23: landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive:input_type -> landing_page_business_suite.v1.SetAPIKeyActiveRequest
+	1,  // 24: landing_page_business_suite.v1.AdminAuthService.Login:output_type -> landing_page_business_suite.v1.AdminSessionResponse
+	3,  // 25: landing_page_business_suite.v1.AdminAuthService.Logout:output_type -> landing_page_business_suite.v1.LogoutResponse
+	1,  // 26: landing_page_business_suite.v1.AdminAuthService.Session:output_type -> landing_page_business_suite.v1.AdminSessionResponse
+	37, // 27: landing_page_business_suite.v1.AdminAuthService.Reauthenticate:output_type -> landing_page_business_suite.v1.ReauthenticateResponse
+	6,  // 28: landing_page_business_suite.v1.AdminPasskeyService.BeginRegistration:output_type -> landing_page_business_suite.v1.BeginAdminPasskeyRegistrationResponse
+	8,  // 29: landing_page_business_suite.v1.AdminPasskeyService.FinishRegistration:output_type -> landing_page_business_suite.v1.FinishAdminPasskeyRegistrationResponse
+	11, // 30: landing_page_business_suite.v1.AdminPasskeyService.ListPasskeys:output_type -> landing_page_business_suite.v1.ListAdminPasskeysResponse
+	13, // 31: landing_page_business_suite.v1.AdminPasskeyService.RenamePasskey:output_type -> landing_page_business_suite.v1.RenameAdminPasskeyResponse
+	15, // 32: landing_page_business_suite.v1.AdminPasskeyService.RevokePasskey:output_type -> landing_page_business_suite.v1.RevokeAdminPasskeyResponse
+	17, // 33: landing_page_business_suite.v1.AdminPasskeyService.BeginSecondFactor:output_type -> landing_page_business_suite.v1.BeginAdminSecondFactorResponse
+	19, // 34: landing_page_business_suite.v1.AdminResetService.ResetDemoData:output_type -> landing_page_business_suite.v1.ResetDemoDataResponse
+	22, // 35: landing_page_business_suite.v1.AdminProfileService.GetAdminProfile:output_type -> landing_page_business_suite.v1.GetAdminProfileResponse
+	24, // 36: landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile:output_type -> landing_page_business_suite.v1.UpdateAdminProfileResponse
+	27, // 37: landing_page_business_suite.v1.AdministrationService.ListAPIKeys:output_type -> landing_page_business_suite.v1.ListAPIKeysResponse
+	29, // 38: landing_page_business_suite.v1.AdministrationService.CreateAPIKey:output_type -> landing_page_business_suite.v1.CreateAPIKeyResponse
+	31, // 39: landing_page_business_suite.v1.AdministrationService.DeleteAPIKey:output_type -> landing_page_business_suite.v1.DeleteAPIKeyResponse
+	33, // 40: landing_page_business_suite.v1.AdministrationService.TestAPIKey:output_type -> landing_page_business_suite.v1.TestAPIKeyResponse
+	35, // 41: landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive:output_type -> landing_page_business_suite.v1.SetAPIKeyActiveResponse
+	24, // [24:42] is the sub-list for method output_type
+	6,  // [6:24] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_admin_proto_init() }
@@ -1310,6 +2064,7 @@ func file_landing_page_business_suite_v1_admin_proto_init() {
 	if File_landing_page_business_suite_v1_admin_proto != nil {
 		return
 	}
+	file_landing_page_business_suite_v1_account_security_proto_init()
 	file_landing_page_business_suite_v1_admin_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1317,9 +2072,9 @@ func file_landing_page_business_suite_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_admin_proto_rawDesc), len(file_landing_page_business_suite_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   36,
 			NumExtensions: 0,
-			NumServices:   4,
+			NumServices:   5,
 		},
 		GoTypes:           file_landing_page_business_suite_v1_admin_proto_goTypes,
 		DependencyIndexes: file_landing_page_business_suite_v1_admin_proto_depIdxs,

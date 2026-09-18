@@ -3,6 +3,7 @@ import type { Constellation, Reading } from "../lib/api";
 import { createScene } from "../scenes";
 import { frameIsBlank, probeTier, type ProbeTier } from "../lib/sceneProbe";
 import { mulberry32, sceneData, seedFrom, type Frame, type Palette, type Rect, type SceneData, type SceneTier } from "../scenes/engine";
+import { createDeterministicClock } from "../lib/visualDiff";
 
 
 interface AmbientCanvasProps {
@@ -16,6 +17,7 @@ interface AmbientCanvasProps {
   focus?: string;
   /** Every other room, when the room is a panorama. */
   constellations?: Constellation[];
+  slotBindings?: Record<string, string>;
 }
 
 /**
@@ -60,14 +62,16 @@ const seedFor = (key: string): number => {
  * the theme ground paints beneath it and the figure layer composites above.
  * Still tier draws one composed frame; every tier checks its first frame.
  */
-export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus, constellations }: AmbientCanvasProps) {
+export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, seed, focus, constellations, slotBindings = {} }: AmbientCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"pending" | "ready" | "fallback">("pending");
   const [tier, setTier] = useState<ProbeTier>("still");
   const readingsRef = useRef(readings);
   readingsRef.current = readings;
   const constellationsRef = useRef(constellations);
+  const slotBindingsRef = useRef(slotBindings);
   constellationsRef.current = constellations;
+  slotBindingsRef.current = slotBindings;
   const compositionRef = useRef(composition);
   const seedRef = useRef(seed);
   const focusRef = useRef(focus);
@@ -97,9 +101,12 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     // fade leaves the previous composition visibly hanging behind the new one.
     const transitionDuration = Math.min(readMotionDuration(canvas), 420);
     const ratio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const deterministic = new URLSearchParams(window.location.search).get("visualDiff") === "1";
+    const pinnedTimestamp = Number(new URLSearchParams(window.location.search).get("visualDiffAt") ?? 0);
+    const virtualClock = createDeterministicClock(Number.isFinite(pinnedTimestamp) ? pinnedTimestamp : 0);
     let width = 0;
     let height = 0;
-    let started = 0;
+    let started: number | null = deterministic ? 0 : null;
     let last = 0;
     let lastPaintAt = Number.NEGATIVE_INFINITY;
     let raf = 0;
@@ -113,7 +120,6 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     let dataFocus: string | undefined;
     let dataConstellations: Constellation[] | undefined;
     let data: SceneData = sceneData([]);
-
     const refreshLayout = (nowMs: number) => {
       if (nowMs - layoutReadAt < LAYOUT_REFRESH_MS) return;
       layoutReadAt = nowMs;
@@ -133,7 +139,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
         dataReadings = readingsRef.current;
         dataFocus = focusRef.current;
         dataConstellations = constellationsRef.current;
-        data = sceneData(dataReadings, dataFocus, dataConstellations);
+        data = sceneData(dataReadings, dataFocus, dataConstellations, slotBindingsRef.current);
       }
       return data;
     };
@@ -154,13 +160,14 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     const frame = (nowMs: number, rng: () => number): Frame => {
       // The scene clock only moves forward: a negative t or dt would make a
       // scene's geometry (e.g. a wave radius) negative and throw.
-      const t = started ? Math.max(0, (nowMs - started) / 1000) : 0;
+      const t = started === null ? 0 : Math.max(0, (nowMs - started) / 1000);
       const dt = last ? Math.max(0, Math.min(0.1, (nowMs - last) / 1000)) : 1 / 60;
       return { ctx: context, w: width, h: height, t, dt, quiet, tier: drawTier, palette, data: currentData(), rng };
     };
 
-    const paint = (nowMs: number, still: boolean) => {
-      if (!started) started = nowMs;
+    const paint = (rawNowMs: number, still: boolean) => {
+      const nowMs = deterministic ? virtualClock.now() : rawNowMs;
+      if (started === null) started = nowMs;
       refreshLayout(nowMs);
       const desiredComposition = compositionRef.current;
       if (desiredComposition !== activeComposition && !incomingScene) {
@@ -177,7 +184,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
           incomingScene = null;
         }
       }
-      const drawAt = still ? started + 14_000 : nowMs;
+      const drawAt = still ? (started ?? nowMs) + 14_000 : nowMs;
       context.clearRect(0, 0, width, height);
       const activeRng = mulberry32(seedFor(`${activeComposition}:${activeSeed}`));
       const activeFrame = frame(drawAt, activeRng);
@@ -222,7 +229,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     // A requested repaint follows a room, beat or theme change: read layout fresh.
     repaintRef.current = () => {
       layoutReadAt = Number.NEGATIVE_INFINITY;
-      paintSafely(performance.now(), probed === "still");
+      paintSafely(deterministic ? virtualClock.now() : performance.now(), probed === "still");
     };
 
     const frameInterval = probed === "reduced" ? 1000 / 30 : 0;
@@ -237,10 +244,15 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     resize();
     const observer = new ResizeObserver(() => {
       resize();
-      if (probed === "still") paintSafely(performance.now(), true);
+      if (deterministic) paintSafely(virtualClock.now(), false);
+      else if (probed === "still") paintSafely(performance.now(), true);
     });
     observer.observe(canvas);
-    if (probed === "still") {
+    if (deterministic) {
+      // A visual-diff sample is a single frozen raster. Do not let mutable
+      // scene state (trails, waves, or ring caches) advance between captures.
+      paintSafely(virtualClock.now(), false);
+    } else if (probed === "still") {
       paintSafely(performance.now(), true);
     } else {
       raf = window.requestAnimationFrame(loop);
@@ -252,7 +264,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     };
   }, [forcedTier, quietRefs]);
 
-  useEffect(() => { repaintRef.current?.(); }, [composition, seed, focus]);
+  useEffect(() => { repaintRef.current?.(); }, [composition, seed, focus, slotBindings]);
 
   return (
     <div className={`cc-scene cc-scene-${state}`} data-testid="scene-canvas" data-scene-state={state} data-scene-tier={tier} data-composition={composition} aria-hidden="true">

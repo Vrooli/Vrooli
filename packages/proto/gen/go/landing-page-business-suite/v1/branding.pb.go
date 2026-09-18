@@ -52,8 +52,20 @@ type SiteBranding struct {
 	SmtpFrom               *string                `protobuf:"bytes,24,opt,name=smtp_from,json=smtpFrom,proto3,oneof" json:"smtp_from,omitempty"`
 	ComingSoonEnabled      *bool                  `protobuf:"varint,25,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3,oneof" json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage      *string                `protobuf:"bytes,26,opt,name=coming_soon_message,json=comingSoonMessage,proto3,oneof" json:"coming_soon_message,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Registered business name shown in the footer, legal pages, and notices.
+	LegalName *string `protobuf:"bytes,27,opt,name=legal_name,json=legalName,proto3,oneof" json:"legal_name,omitempty"`
+	// Postal contact address, one line per address line.
+	ContactAddress *string `protobuf:"bytes,28,opt,name=contact_address,json=contactAddress,proto3,oneof" json:"contact_address,omitempty"`
+	// Operator-authored privacy policy (Markdown). Unset means the default template.
+	PrivacyPolicyMarkdown *string `protobuf:"bytes,29,opt,name=privacy_policy_markdown,json=privacyPolicyMarkdown,proto3,oneof" json:"privacy_policy_markdown,omitempty"`
+	// Operator-authored terms and conditions (Markdown). Unset means the default template.
+	TermsMarkdown *string `protobuf:"bytes,30,opt,name=terms_markdown,json=termsMarkdown,proto3,oneof" json:"terms_markdown,omitempty"`
+	// Privacy policy effective date (YYYY-MM-DD).
+	PrivacyEffectiveDate *string `protobuf:"bytes,31,opt,name=privacy_effective_date,json=privacyEffectiveDate,proto3,oneof" json:"privacy_effective_date,omitempty"`
+	// Terms and conditions effective date (YYYY-MM-DD).
+	TermsEffectiveDate *string `protobuf:"bytes,32,opt,name=terms_effective_date,json=termsEffectiveDate,proto3,oneof" json:"terms_effective_date,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SiteBranding) Reset() {
@@ -268,6 +280,48 @@ func (x *SiteBranding) GetComingSoonMessage() string {
 	return ""
 }
 
+func (x *SiteBranding) GetLegalName() string {
+	if x != nil && x.LegalName != nil {
+		return *x.LegalName
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetContactAddress() string {
+	if x != nil && x.ContactAddress != nil {
+		return *x.ContactAddress
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetPrivacyPolicyMarkdown() string {
+	if x != nil && x.PrivacyPolicyMarkdown != nil {
+		return *x.PrivacyPolicyMarkdown
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetTermsMarkdown() string {
+	if x != nil && x.TermsMarkdown != nil {
+		return *x.TermsMarkdown
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetPrivacyEffectiveDate() string {
+	if x != nil && x.PrivacyEffectiveDate != nil {
+		return *x.PrivacyEffectiveDate
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetTermsEffectiveDate() string {
+	if x != nil && x.TermsEffectiveDate != nil {
+		return *x.TermsEffectiveDate
+	}
+	return ""
+}
+
 // PublicBranding is the redacted subset safe to expose on the public page.
 type PublicBranding struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
@@ -283,8 +337,16 @@ type PublicBranding struct {
 	ComingSoonMessage    string                 `protobuf:"bytes,10,opt,name=coming_soon_message,json=comingSoonMessage,proto3" json:"coming_soon_message,omitempty"`
 	// Configured canonical deployment base. Never inferred from request Host.
 	CanonicalBaseUrl string `protobuf:"bytes,11,opt,name=canonical_base_url,json=canonicalBaseUrl,proto3" json:"canonical_base_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Public business identity for the site footer, contact page, and legal pages.
+	SupportEmail          string `protobuf:"bytes,12,opt,name=support_email,json=supportEmail,proto3" json:"support_email,omitempty"`
+	LegalName             string `protobuf:"bytes,13,opt,name=legal_name,json=legalName,proto3" json:"legal_name,omitempty"`
+	ContactAddress        string `protobuf:"bytes,14,opt,name=contact_address,json=contactAddress,proto3" json:"contact_address,omitempty"`
+	PrivacyPolicyMarkdown string `protobuf:"bytes,15,opt,name=privacy_policy_markdown,json=privacyPolicyMarkdown,proto3" json:"privacy_policy_markdown,omitempty"`
+	TermsMarkdown         string `protobuf:"bytes,16,opt,name=terms_markdown,json=termsMarkdown,proto3" json:"terms_markdown,omitempty"`
+	PrivacyEffectiveDate  string `protobuf:"bytes,17,opt,name=privacy_effective_date,json=privacyEffectiveDate,proto3" json:"privacy_effective_date,omitempty"`
+	TermsEffectiveDate    string `protobuf:"bytes,18,opt,name=terms_effective_date,json=termsEffectiveDate,proto3" json:"terms_effective_date,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PublicBranding) Reset() {
@@ -390,6 +452,55 @@ func (x *PublicBranding) GetComingSoonMessage() string {
 func (x *PublicBranding) GetCanonicalBaseUrl() string {
 	if x != nil {
 		return x.CanonicalBaseUrl
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetSupportEmail() string {
+	if x != nil {
+		return x.SupportEmail
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetLegalName() string {
+	if x != nil {
+		return x.LegalName
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetContactAddress() string {
+	if x != nil {
+		return x.ContactAddress
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetPrivacyPolicyMarkdown() string {
+	if x != nil {
+		return x.PrivacyPolicyMarkdown
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetTermsMarkdown() string {
+	if x != nil {
+		return x.TermsMarkdown
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetPrivacyEffectiveDate() string {
+	if x != nil {
+		return x.PrivacyEffectiveDate
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetTermsEffectiveDate() string {
+	if x != nil {
+		return x.TermsEffectiveDate
 	}
 	return ""
 }
@@ -540,6 +651,12 @@ type UpdateBrandingRequest struct {
 	SmtpFrom               *string                `protobuf:"bytes,21,opt,name=smtp_from,json=smtpFrom,proto3,oneof" json:"smtp_from,omitempty"`
 	ComingSoonEnabled      *bool                  `protobuf:"varint,22,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3,oneof" json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage      *string                `protobuf:"bytes,23,opt,name=coming_soon_message,json=comingSoonMessage,proto3,oneof" json:"coming_soon_message,omitempty"`
+	LegalName              *string                `protobuf:"bytes,24,opt,name=legal_name,json=legalName,proto3,oneof" json:"legal_name,omitempty"`
+	ContactAddress         *string                `protobuf:"bytes,25,opt,name=contact_address,json=contactAddress,proto3,oneof" json:"contact_address,omitempty"`
+	PrivacyPolicyMarkdown  *string                `protobuf:"bytes,26,opt,name=privacy_policy_markdown,json=privacyPolicyMarkdown,proto3,oneof" json:"privacy_policy_markdown,omitempty"`
+	TermsMarkdown          *string                `protobuf:"bytes,27,opt,name=terms_markdown,json=termsMarkdown,proto3,oneof" json:"terms_markdown,omitempty"`
+	PrivacyEffectiveDate   *string                `protobuf:"bytes,28,opt,name=privacy_effective_date,json=privacyEffectiveDate,proto3,oneof" json:"privacy_effective_date,omitempty"`
+	TermsEffectiveDate     *string                `protobuf:"bytes,29,opt,name=terms_effective_date,json=termsEffectiveDate,proto3,oneof" json:"terms_effective_date,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -735,6 +852,48 @@ func (x *UpdateBrandingRequest) GetComingSoonMessage() string {
 	return ""
 }
 
+func (x *UpdateBrandingRequest) GetLegalName() string {
+	if x != nil && x.LegalName != nil {
+		return *x.LegalName
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetContactAddress() string {
+	if x != nil && x.ContactAddress != nil {
+		return *x.ContactAddress
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetPrivacyPolicyMarkdown() string {
+	if x != nil && x.PrivacyPolicyMarkdown != nil {
+		return *x.PrivacyPolicyMarkdown
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetTermsMarkdown() string {
+	if x != nil && x.TermsMarkdown != nil {
+		return *x.TermsMarkdown
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetPrivacyEffectiveDate() string {
+	if x != nil && x.PrivacyEffectiveDate != nil {
+		return *x.PrivacyEffectiveDate
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetTermsEffectiveDate() string {
+	if x != nil && x.TermsEffectiveDate != nil {
+		return *x.TermsEffectiveDate
+	}
+	return ""
+}
+
 // ClearBrandingFieldRequest nulls a single nullable branding field. site_name
 // is not clearable; unknown fields are a silent no-op.
 type ClearBrandingFieldRequest struct {
@@ -830,7 +989,7 @@ var File_landing_page_business_suite_v1_branding_proto protoreflect.FileDescript
 
 const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
-	"-landing-page-business-suite/v1/branding.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\f\n" +
+	"-landing-page-business-suite/v1/branding.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf3\x0f\n" +
 	"\fSiteBranding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tsite_name\x18\x02 \x01(\tR\bsiteName\x12\x1d\n" +
@@ -863,7 +1022,14 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\rsmtp_password\x18\x17 \x01(\tH\x12R\fsmtpPassword\x88\x01\x01\x12 \n" +
 	"\tsmtp_from\x18\x18 \x01(\tH\x13R\bsmtpFrom\x88\x01\x01\x123\n" +
 	"\x13coming_soon_enabled\x18\x19 \x01(\bH\x14R\x11comingSoonEnabled\x88\x01\x01\x123\n" +
-	"\x13coming_soon_message\x18\x1a \x01(\tH\x15R\x11comingSoonMessage\x88\x01\x01B\n" +
+	"\x13coming_soon_message\x18\x1a \x01(\tH\x15R\x11comingSoonMessage\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"legal_name\x18\x1b \x01(\tH\x16R\tlegalName\x88\x01\x01\x12,\n" +
+	"\x0fcontact_address\x18\x1c \x01(\tH\x17R\x0econtactAddress\x88\x01\x01\x12;\n" +
+	"\x17privacy_policy_markdown\x18\x1d \x01(\tH\x18R\x15privacyPolicyMarkdown\x88\x01\x01\x12*\n" +
+	"\x0eterms_markdown\x18\x1e \x01(\tH\x19R\rtermsMarkdown\x88\x01\x01\x129\n" +
+	"\x16privacy_effective_date\x18\x1f \x01(\tH\x1aR\x14privacyEffectiveDate\x88\x01\x01\x125\n" +
+	"\x14terms_effective_date\x18  \x01(\tH\x1bR\x12termsEffectiveDate\x88\x01\x01B\n" +
 	"\n" +
 	"\b_taglineB\v\n" +
 	"\t_logo_urlB\x10\n" +
@@ -889,7 +1055,13 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"_smtp_fromB\x16\n" +
 	"\x14_coming_soon_enabledB\x16\n" +
-	"\x14_coming_soon_message\"\xc5\x03\n" +
+	"\x14_coming_soon_messageB\r\n" +
+	"\v_legal_nameB\x12\n" +
+	"\x10_contact_addressB\x1a\n" +
+	"\x18_privacy_policy_markdownB\x11\n" +
+	"\x0f_terms_markdownB\x19\n" +
+	"\x17_privacy_effective_dateB\x17\n" +
+	"\x15_terms_effective_date\"\xf9\x05\n" +
 	"\x0ePublicBranding\x12\x1b\n" +
 	"\tsite_name\x18\x01 \x01(\tR\bsiteName\x12\x18\n" +
 	"\atagline\x18\x02 \x01(\tR\atagline\x12\x19\n" +
@@ -903,11 +1075,19 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\x13coming_soon_enabled\x18\t \x01(\bR\x11comingSoonEnabled\x12.\n" +
 	"\x13coming_soon_message\x18\n" +
 	" \x01(\tR\x11comingSoonMessage\x12,\n" +
-	"\x12canonical_base_url\x18\v \x01(\tR\x10canonicalBaseUrl\"\x14\n" +
+	"\x12canonical_base_url\x18\v \x01(\tR\x10canonicalBaseUrl\x12#\n" +
+	"\rsupport_email\x18\f \x01(\tR\fsupportEmail\x12\x1d\n" +
+	"\n" +
+	"legal_name\x18\r \x01(\tR\tlegalName\x12'\n" +
+	"\x0fcontact_address\x18\x0e \x01(\tR\x0econtactAddress\x126\n" +
+	"\x17privacy_policy_markdown\x18\x0f \x01(\tR\x15privacyPolicyMarkdown\x12%\n" +
+	"\x0eterms_markdown\x18\x10 \x01(\tR\rtermsMarkdown\x124\n" +
+	"\x16privacy_effective_date\x18\x11 \x01(\tR\x14privacyEffectiveDate\x120\n" +
+	"\x14terms_effective_date\x18\x12 \x01(\tR\x12termsEffectiveDate\"\x14\n" +
 	"\x12GetBrandingRequest\"\x1a\n" +
 	"\x18GetPublicBrandingRequest\"d\n" +
 	"\x16PublicBrandingResponse\x12J\n" +
-	"\bbranding\x18\x01 \x01(\v2..landing_page_business_suite.v1.PublicBrandingR\bbranding\"\xd6\v\n" +
+	"\bbranding\x18\x01 \x01(\v2..landing_page_business_suite.v1.PublicBrandingR\bbranding\"\x89\x0f\n" +
 	"\x15UpdateBrandingRequest\x12 \n" +
 	"\tsite_name\x18\x01 \x01(\tH\x00R\bsiteName\x88\x01\x01\x12\x1d\n" +
 	"\atagline\x18\x02 \x01(\tH\x01R\atagline\x88\x01\x01\x12\x1e\n" +
@@ -935,7 +1115,14 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\rsmtp_password\x18\x14 \x01(\tH\x13R\fsmtpPassword\x88\x01\x01\x12 \n" +
 	"\tsmtp_from\x18\x15 \x01(\tH\x14R\bsmtpFrom\x88\x01\x01\x123\n" +
 	"\x13coming_soon_enabled\x18\x16 \x01(\bH\x15R\x11comingSoonEnabled\x88\x01\x01\x123\n" +
-	"\x13coming_soon_message\x18\x17 \x01(\tH\x16R\x11comingSoonMessage\x88\x01\x01B\f\n" +
+	"\x13coming_soon_message\x18\x17 \x01(\tH\x16R\x11comingSoonMessage\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"legal_name\x18\x18 \x01(\tH\x17R\tlegalName\x88\x01\x01\x12,\n" +
+	"\x0fcontact_address\x18\x19 \x01(\tH\x18R\x0econtactAddress\x88\x01\x01\x12;\n" +
+	"\x17privacy_policy_markdown\x18\x1a \x01(\tH\x19R\x15privacyPolicyMarkdown\x88\x01\x01\x12*\n" +
+	"\x0eterms_markdown\x18\x1b \x01(\tH\x1aR\rtermsMarkdown\x88\x01\x01\x129\n" +
+	"\x16privacy_effective_date\x18\x1c \x01(\tH\x1bR\x14privacyEffectiveDate\x88\x01\x01\x125\n" +
+	"\x14terms_effective_date\x18\x1d \x01(\tH\x1cR\x12termsEffectiveDate\x88\x01\x01B\f\n" +
 	"\n" +
 	"_site_nameB\n" +
 	"\n" +
@@ -963,7 +1150,13 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"_smtp_fromB\x16\n" +
 	"\x14_coming_soon_enabledB\x16\n" +
-	"\x14_coming_soon_message\"1\n" +
+	"\x14_coming_soon_messageB\r\n" +
+	"\v_legal_nameB\x12\n" +
+	"\x10_contact_addressB\x1a\n" +
+	"\x18_privacy_policy_markdownB\x11\n" +
+	"\x0f_terms_markdownB\x19\n" +
+	"\x17_privacy_effective_dateB\x17\n" +
+	"\x15_terms_effective_date\"1\n" +
 	"\x19ClearBrandingFieldRequest\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\"\\\n" +
 	"\x10BrandingResponse\x12H\n" +

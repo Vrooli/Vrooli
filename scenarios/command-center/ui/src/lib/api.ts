@@ -98,6 +98,7 @@ export interface BoardRoom {
   composition?: string;
   metricIds?: string[];
 	beats?: { hero: string; readingIds?: string[]; composition?: string; layout?: BeatLayout; dwellSeconds?: number }[];
+	bind?: Record<string, string>;
 }
 
 export interface BoardSource {
@@ -178,6 +179,16 @@ export const fetchRoom = (id: string, samples: string): Promise<RoomResponse> =>
 export const fetchFocus = (): Promise<FocusResponse> => getJSON("/focus");
 export const fetchOpenLoop = (): Promise<OpenLoopResponse> => getJSON("/open-loop");
 export const fetchIntegrations = (): Promise<IntegrationsResponse> => integrationsClient.list({});
+
+export type CatalogEntry = Record<string, unknown> & { id: string };
+export type Catalogs = Record<string, CatalogEntry[]>;
+export const fetchCatalogs = (): Promise<Catalogs> => getJSON("/catalogs");
+export async function saveCatalogEntry(catalog: string, entry: CatalogEntry): Promise<CatalogEntry> {
+  const url = buildApiUrl(`/catalogs/${catalog}/${encodeURIComponent(entry.id)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(entry) });
+  if (!res.ok) throw new Error(`Catalog save failed: ${res.status.toString()}`);
+  return res.json() as Promise<CatalogEntry>;
+}
 
 export const hasValue = (reading: Pick<Reading, "value">): reading is Reading & { value: number } =>
   typeof reading.value === "number" && Number.isFinite(reading.value);

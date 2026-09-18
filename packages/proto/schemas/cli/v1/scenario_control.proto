@@ -37,6 +37,10 @@ message StartScenarioRequest {
   bool accept_credential_loss = 7;
   // Caller must retain renewable demand while using this instance.
   bool demand_managed = 8;
+  // Comma-separated dependencies this non-live instance resolves at its own
+  // variant instead of live. Refused for a live instance; discovery fails
+  // closed for a listed dependency that is not running.
+  string variant_dependencies = 9;
 }
 
 message StopScenarioRequest {
@@ -55,6 +59,8 @@ message RestartScenarioRequest {
   bool demand_managed = 8;
   bool force_lifecycle = 9;
   string lifecycle_override_reason = 10;
+  // See StartScenarioRequest.variant_dependencies.
+  string variant_dependencies = 11;
 }
 
 message SetupScenarioRequest {

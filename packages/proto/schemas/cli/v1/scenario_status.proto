@@ -271,6 +271,19 @@ message ScenarioInfoData {
 
   // True when the scenario has drifted from its source template.
   bool template_drifted = 16;
+
+  // The scenario's own brand declaration; absent when it declares no branding.
+  ScenarioBranding branding = 17;
+}
+
+// ScenarioBranding is the scenario's brand declaration, as written in its
+// manifest. It is what the scenario ships, not applied-assignment state.
+message ScenarioBranding {
+  // brand-manager brand slug this scenario ships (e.g. "aquila").
+  string brand = 1;
+
+  // Branding target profiles (e.g. "web-public-v1").
+  repeated string targets = 2;
 }
 
 // ScenarioInfoPortSummary is one configured port from the manifest (PortSummary).

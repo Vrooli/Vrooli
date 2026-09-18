@@ -1,0 +1,22 @@
+{
+  "id": "scenario_health",
+  "label": "Healthy apps",
+  "description": "Running apps whose health probe reports healthy.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "scenario_health",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "scenario_health",
+    "contractVersion": "legacy.v1",
+    "selector": "scenario_health",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

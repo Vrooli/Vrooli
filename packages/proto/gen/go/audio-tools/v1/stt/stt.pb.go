@@ -4210,8 +4210,13 @@ type StreamSegment struct {
 	StartSample      int64                  `protobuf:"varint,10,opt,name=start_sample,json=startSample,proto3" json:"start_sample,omitempty"`
 	EndSample        int64                  `protobuf:"varint,11,opt,name=end_sample,json=endSample,proto3" json:"end_sample,omitempty"`
 	AlignmentQuality string                 `protobuf:"bytes,12,opt,name=alignment_quality,json=alignmentQuality,proto3" json:"alignment_quality,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Speaker-policy outcome for this segment: "applied", "degraded", or
+	// empty when speaker verification was not requested. This is explicit even
+	// when text is emitted so consumers do not mistake fail-open fallback for a
+	// verified speaker.
+	SpeakerPolicy string `protobuf:"bytes,13,opt,name=speaker_policy,json=speakerPolicy,proto3" json:"speaker_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StreamSegment) Reset() {
@@ -4324,6 +4329,13 @@ func (x *StreamSegment) GetEndSample() int64 {
 func (x *StreamSegment) GetAlignmentQuality() string {
 	if x != nil {
 		return x.AlignmentQuality
+	}
+	return ""
+}
+
+func (x *StreamSegment) GetSpeakerPolicy() string {
+	if x != nil {
+		return x.SpeakerPolicy
 	}
 	return ""
 }
@@ -5067,7 +5079,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x05state\x18\x03 \x01(\tR\x05state\x12%\n" +
 	"\x0equeue_position\x18\x04 \x01(\x05R\rqueuePosition\x12-\n" +
 	"\x12capability_outcome\x18\x05 \x01(\tR\x11capabilityOutcome\x12+\n" +
-	"\x11recovery_guidance\x18\x06 \x01(\tR\x10recoveryGuidance\"\xbb\x03\n" +
+	"\x11recovery_guidance\x18\x06 \x01(\tR\x10recoveryGuidance\"\xe2\x03\n" +
 	"\rStreamSegment\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x19\n" +
 	"\bstart_ms\x18\x02 \x01(\x03R\astartMs\x12\x15\n" +
@@ -5086,7 +5098,8 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	" \x01(\x03R\vstartSample\x12\x1d\n" +
 	"\n" +
 	"end_sample\x18\v \x01(\x03R\tendSample\x12+\n" +
-	"\x11alignment_quality\x18\f \x01(\tR\x10alignmentQuality\"#\n" +
+	"\x11alignment_quality\x18\f \x01(\tR\x10alignmentQuality\x12%\n" +
+	"\x0espeaker_policy\x18\r \x01(\tR\rspeakerPolicy\"#\n" +
 	"\rStreamPartial\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\"C\n" +
 	"\x0eStreamWakeWord\x12\x14\n" +

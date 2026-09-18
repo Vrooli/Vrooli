@@ -1,4 +1,10 @@
-import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, mulberry32, read, rgba, seedFrom, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, mulberry32, slot, rgba, seedFrom, type Scene, type SlotManifest } from "./engine";
+
+export const slotManifest: SlotManifest = {
+  visitors: { shape: "scalar", role: "primary", whenUnbound: "decorative" },
+  conversions: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+  ctaClicks: { shape: "scalar", role: "secondary", whenUnbound: "decorative" },
+};
 
 interface Receiver { x: number; y: number; lit: number }
 
@@ -16,9 +22,9 @@ export function signalConstellation(): Scene {
     draw(frame) {
       const { ctx, w, h, t, dt, palette, quiet, data } = frame;
       const focal = focalPoint(frame);
-      const visitors = read(data, "visitors");
-      const conversions = read(data, "conversions");
-      const ctaClicks = read(data, "cta_clicks");
+      const visitors = slot(data, "visitors");
+      const conversions = slot(data, "conversions");
+      const ctaClicks = slot(data, "ctaClicks");
       if (visitors === null || conversions === null || ctaClicks === null || visitors <= 0) return;
       const stages = [1, conversions / visitors, ctaClicks / visitors];
       const stageRadius = Math.max(w, h) * 0.9;

@@ -25,7 +25,7 @@ export function PanelReadout({ reading, maxRows = MAX_ROWS }: Props) {
         <div className="cc-panel-readout__empty" aria-label="No observations">
           <span className="cc-panel-readout__empty-mark" aria-hidden="true">∅</span>
           <span>{panelEmptyMessage(reading.id)}</span>
-          <small>{figureValue(reading, resolution) === null ? qualifier.text : "Waiting for the first observed breakdown."}</small>
+          <small>{figureValue(reading, resolution) === null ? (reading.id === "metric" ? qualifier.text.replace("not answering", "source unavailable") : qualifier.text) : "Waiting for the first observed breakdown."}</small>
         </div>
       ) : (
         <AutoScroll className="cc-panel-readout__rows" rowSelector=".cc-panel-readout__row" label={`${reading.label} rows`}>

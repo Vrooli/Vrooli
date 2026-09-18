@@ -16,6 +16,18 @@ const BEAT_STALL_MARGIN_MS = 30_000;
 const CONTROLS_HIDE_MS = 4_000;
 const TRANSITION_MS = 900;
 
+/** Routes that are operator surfaces, not kiosk board rooms: the auto-cycle must
+ *  never evict them, and board keyboard shortcuts must not fire while one is open. */
+const CYCLE_EXEMPT_PATHS = new Set(["/settings"]);
+
+/** A key event landing in a form control belongs to that control, not the board. */
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  if (!element || typeof element.tagName !== "string") return false;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable;
+};
+
 const KEY_INTENTS: Record<string, BoardIntent> = {
   arrowright: "navigate-right",
   arrowleft: "navigate-left",
@@ -106,8 +118,11 @@ export function BoardController({ children }: { children: ReactNode }) {
     if (path === pathRef.current) return;
     cancelTransition();
     setTransitioning(true);
-    const suffix = rooms.some((room) => path === `/${room.id}`) ? roomNavigationSuffix(location.search) : location.search;
-    const navigationTimer = window.setTimeout(() => navigate(`${path}${suffix}`, { replace: path.startsWith("/") && !path.startsWith("/focus") && !path.startsWith("/open-loop") }), TRANSITION_MS / 2);
+    const isRoom = rooms.some((room) => path === `/${room.id}`);
+    const suffix = isRoom ? roomNavigationSuffix(location.search) : location.search;
+    // Rooms replace history so kiosk cycling never fills the back stack; operator
+    // sub-pages (focus, open-loop, settings) push so the board stays one step back.
+    const navigationTimer = window.setTimeout(() => navigate(`${path}${suffix}`, { replace: isRoom }), TRANSITION_MS / 2);
     const completionTimer = window.setTimeout(() => setTransitioning(false), TRANSITION_MS);
     transitionTimersRef.current = [navigationTimer, completionTimer];
   }, [cancelTransition, location.search, navigate, rooms]);
@@ -248,6 +263,9 @@ export function BoardController({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // On an operator surface, or when typing into a form control, the board
+      // yields the keyboard entirely: no navigation, no cycle pause, no capture.
+      if (CYCLE_EXEMPT_PATHS.has(pathRef.current) || isEditableTarget(event.target)) return;
       const key = event.key.toLowerCase();
       if (/^[1-9]$/.test(key)) {
         const room = rooms[Number(key) - 1];
@@ -318,6 +336,12 @@ export function BoardController({ children }: { children: ReactNode }) {
     let frame = 0;
     let controlsCheckedAt = Number.NEGATIVE_INFINITY;
     const step = () => {
+      // The cycle belongs to the kiosk rooms. On an operator surface (settings)
+      // it neither advances progress nor navigates, so the page never self-evicts.
+      if (CYCLE_EXEMPT_PATHS.has(pathRef.current)) {
+        frame = window.requestAnimationFrame(step);
+        return;
+      }
       const now = Date.now();
       if (now - controlsCheckedAt >= 250) {
         controlsCheckedAt = now;

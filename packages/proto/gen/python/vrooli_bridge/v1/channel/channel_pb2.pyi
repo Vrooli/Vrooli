@@ -89,16 +89,20 @@ class JobPush(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ..., outputs: _Optional[_Iterable[_Union[ArtifactOutput, _Mapping]]] = ..., credential_injections: _Optional[_Iterable[_Union[CredentialInjection, _Mapping]]] = ...) -> None: ...
 
 class ArtifactDelivery(_message.Message):
-    __slots__ = ("distribution_id", "item_id", "name", "destination_path")
+    __slots__ = ("distribution_id", "item_id", "name", "destination_path", "device_sync_url", "executable")
     DISTRIBUTION_ID_FIELD_NUMBER: _ClassVar[int]
     ITEM_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_SYNC_URL_FIELD_NUMBER: _ClassVar[int]
+    EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
     distribution_id: str
     item_id: str
     name: str
     destination_path: str
-    def __init__(self, distribution_id: _Optional[str] = ..., item_id: _Optional[str] = ..., name: _Optional[str] = ..., destination_path: _Optional[str] = ...) -> None: ...
+    device_sync_url: str
+    executable: bool
+    def __init__(self, distribution_id: _Optional[str] = ..., item_id: _Optional[str] = ..., name: _Optional[str] = ..., destination_path: _Optional[str] = ..., device_sync_url: _Optional[str] = ..., executable: _Optional[bool] = ...) -> None: ...
 
 class CredentialInjection(_message.Message):
     __slots__ = ("logical_id", "field", "env_name")

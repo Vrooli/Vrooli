@@ -1,4 +1,9 @@
-import { clipOutsideQuiet, drawGlow, focalPoint, rgba, type Frame, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, rgba, slotRows, type Frame, type Scene, type SlotManifest } from "./engine";
+
+const rowColumns = { key: { type: "string" }, value: { type: "number" }, share: { type: "number" } };
+export const slotManifest: SlotManifest = {
+  ladder: { shape: "rows", role: "primary", whenUnbound: "decorative", columns: rowColumns },
+};
 
 export interface SceneRung { rank: number; label: string; status: string; next: boolean }
 
@@ -57,8 +62,7 @@ export function funnelCascade(): Scene {
     init() {},
     draw(frame) {
       const { ctx, w, h, t, tier, palette, data } = frame;
-      const focus = data.readings[data.focus ?? ""];
-      const { rungs, above } = visibleRungs(focus?.rows ?? []);
+      const { rungs, above } = visibleRungs(slotRows(data, "ladder") ?? []);
       clipOutsideQuiet(frame);
       if (!rungs.length) {
         drawUnlabelled(frame);

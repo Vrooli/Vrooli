@@ -439,8 +439,14 @@ type ArtifactDelivery struct {
 	// Target-local path. The agent applies its local permission policy when it
 	// creates or replaces this path; it never executes the artifact.
 	DestinationPath string `protobuf:"bytes,4,opt,name=destination_path,json=destinationPath,proto3" json:"destination_path,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Resolved device-sync-hub API base. This is non-secret routing metadata;
+	// the target device token remains node-local and is never carried in a
+	// channel frame.
+	DeviceSyncUrl string `protobuf:"bytes,5,opt,name=device_sync_url,json=deviceSyncUrl,proto3" json:"device_sync_url,omitempty"`
+	// When true, the agent installs the downloaded file with executable mode.
+	Executable    bool `protobuf:"varint,6,opt,name=executable,proto3" json:"executable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ArtifactDelivery) Reset() {
@@ -499,6 +505,20 @@ func (x *ArtifactDelivery) GetDestinationPath() string {
 		return x.DestinationPath
 	}
 	return ""
+}
+
+func (x *ArtifactDelivery) GetDeviceSyncUrl() string {
+	if x != nil {
+		return x.DeviceSyncUrl
+	}
+	return ""
+}
+
+func (x *ArtifactDelivery) GetExecutable() bool {
+	if x != nil {
+		return x.Executable
+	}
+	return false
 }
 
 type CredentialInjection struct {
@@ -2166,12 +2186,16 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12I\n" +
 	"\aoutputs\x18\x06 \x03(\v2/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\aoutputs\x12i\n" +
-	"\x15credential_injections\x18\a \x03(\v24.vrooli.vrooli_bridge.v1.channel.CredentialInjectionR\x14credentialInjectionsJ\x04\b\b\x10\x10\"\x93\x01\n" +
+	"\x15credential_injections\x18\a \x03(\v24.vrooli.vrooli_bridge.v1.channel.CredentialInjectionR\x14credentialInjectionsJ\x04\b\b\x10\x10\"\xdb\x01\n" +
 	"\x10ArtifactDelivery\x12'\n" +
 	"\x0fdistribution_id\x18\x01 \x01(\tR\x0edistributionId\x12\x17\n" +
 	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12)\n" +
-	"\x10destination_path\x18\x04 \x01(\tR\x0fdestinationPath\"e\n" +
+	"\x10destination_path\x18\x04 \x01(\tR\x0fdestinationPath\x12&\n" +
+	"\x0fdevice_sync_url\x18\x05 \x01(\tR\rdeviceSyncUrl\x12\x1e\n" +
+	"\n" +
+	"executable\x18\x06 \x01(\bR\n" +
+	"executable\"e\n" +
 	"\x13CredentialInjection\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +

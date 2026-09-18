@@ -1,0 +1,16 @@
+{
+  "id": "orbital-field",
+  "slotManifest": "orbital-field.slots.json",
+  "slots": {
+    "running": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "healthy": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  }
+}
